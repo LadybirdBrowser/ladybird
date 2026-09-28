@@ -22,7 +22,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
 
-#include <LibWeb/Page/QueuedInputEvent.h>
+#include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <QPixmap>
 #include <QTimer>
 #include <QUrl>

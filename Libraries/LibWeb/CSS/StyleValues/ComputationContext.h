@@ -7,8 +7,8 @@
 #pragma once
 
 #include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/DOM/AbstractElement.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
 
 namespace Web::CSS {
 

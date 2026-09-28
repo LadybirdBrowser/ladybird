@@ -14,7 +14,7 @@
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/AutoplayPolicy.h>
+#include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>

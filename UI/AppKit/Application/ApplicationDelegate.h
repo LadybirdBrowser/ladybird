@@ -10,7 +10,7 @@
 #include <AK/StringView.h>
 #include <LibCompositing/PageId.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/ActivateTab.h>
+#include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 

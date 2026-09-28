@@ -16,14 +16,14 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/HTML/AutocompleteElement.h>
-#include <LibWeb/HTML/ColorPickerUpdateState.h>
-#include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/PopoverTargetAttributes.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/HTML/ColorPickerUpdateState.h>
+#include <LibWebCommon/HTML/FileFilter.h>
 
 namespace JS {
 

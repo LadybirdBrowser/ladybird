@@ -14,10 +14,10 @@
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ImagePaint.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
 
 namespace Web::HTML {
 

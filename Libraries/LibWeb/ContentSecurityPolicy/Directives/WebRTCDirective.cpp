@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/ContentSecurityPolicy/Directives/WebRTCDirective.h>
-#include <LibWeb/Infra/Strings.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 

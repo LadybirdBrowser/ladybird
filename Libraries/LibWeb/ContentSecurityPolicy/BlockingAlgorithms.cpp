@@ -20,12 +20,12 @@
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/SRI/SRI.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::ContentSecurityPolicy {
 

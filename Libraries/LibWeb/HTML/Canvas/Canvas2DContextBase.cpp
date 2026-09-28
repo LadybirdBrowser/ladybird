@@ -49,12 +49,12 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TextMetrics.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
 

@@ -18,7 +18,6 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
@@ -27,6 +26,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/HTML/VisibilityState.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 
 namespace Web::HTML {
 

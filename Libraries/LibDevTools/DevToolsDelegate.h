@@ -27,7 +27,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
-#include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Debugger.h>
 #include <LibWebView/Forward.h>

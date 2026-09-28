@@ -13,7 +13,7 @@
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Process.h>
 #include <LibWeb/WebDriver/Client.h>
-#include <LibWeb/WebDriver/Response.h>
+#include <LibWebCommon/WebDriver/Response.h>
 
 namespace WebDriver {
 

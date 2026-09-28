@@ -13,7 +13,7 @@
 #include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/WebDriver/Error.h>
+#include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>

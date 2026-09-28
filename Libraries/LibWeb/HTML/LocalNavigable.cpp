@@ -21,7 +21,6 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/SerializationMode.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
@@ -67,11 +66,9 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/NavigationParamsDescriptor.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
-#include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -80,10 +77,8 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/XMLSerializer.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Loader/DownloadFilename.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -100,6 +95,11 @@
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XHR/FormData.h>
+#include <LibWebCommon/CSS/SystemColor.h>
+#include <LibWebCommon/HTML/POSTResource.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/Infra/Strings.h>
+#include <LibWebCommon/Loader/DownloadFilename.h>
 
 #include <AK/Debug.h>
 #include <AK/LexicalPath.h>

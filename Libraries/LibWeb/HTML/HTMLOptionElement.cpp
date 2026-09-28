@@ -20,8 +20,8 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSelectedContentElement.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
 

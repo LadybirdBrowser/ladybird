@@ -16,8 +16,8 @@
 #include <LibHTTP/HTTP.h>
 #include <LibHTTP/Header.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::MimeSniff {
 

@@ -6,7 +6,6 @@
 
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Position.h>
@@ -30,6 +29,7 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
+#include <LibWebCommon/CSS/SystemColor.h>
 
 namespace Web::Painting {
 

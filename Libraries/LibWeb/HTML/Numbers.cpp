@@ -7,7 +7,7 @@
 #include <AK/StringConversions.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/HTML/Numbers.h>
-#include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 #include <math.h>
 
 namespace Web::HTML {

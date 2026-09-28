@@ -13,7 +13,7 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Promise.h>
-#include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {

@@ -79,7 +79,6 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/XMLSerializer.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Box.h>
@@ -92,6 +91,7 @@
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/XLink/AttributeNames.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::DOM {
 

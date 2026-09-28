@@ -12,9 +12,9 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/NavigableContainer.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::HTML {
 

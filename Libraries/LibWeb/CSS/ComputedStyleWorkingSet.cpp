@@ -30,8 +30,8 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWebCommon/CSS/SystemColor.h>
 
 namespace Web::CSS {
 

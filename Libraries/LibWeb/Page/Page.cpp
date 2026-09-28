@@ -15,7 +15,6 @@
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -37,7 +36,6 @@
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -47,6 +45,8 @@
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWebCommon/Clipboard/SystemClipboard.h>
+#include <LibWebCommon/HTML/SelectedFile.h>
 
 namespace Web {
 

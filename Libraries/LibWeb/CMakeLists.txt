@@ -31,7 +31,6 @@ set(SOURCES
     Clipboard/Clipboard.cpp
     Clipboard/ClipboardEvent.cpp
     Clipboard/ClipboardItem.cpp
-    Clipboard/SystemClipboard.cpp
     Compositor/CompositorConnection.cpp
     Compositor/CompositorHost.cpp
     Compositor/CompositorHostBase.cpp
@@ -209,7 +208,6 @@ set(SOURCES
     CSS/Parser/RuleContext.cpp
     CSS/Parser/SelectorParsing.cpp
     CSS/Percentage.cpp
-    CSS/PreferredColorScheme.cpp
     CSS/Ratio.cpp
     CSS/Resolution.cpp
     CSS/ResolvedTransform.cpp
@@ -286,7 +284,6 @@ set(SOURCES
     CSS/StyleValues/UnresolvedStyleValue.cpp
     CSS/Supports.cpp
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp
-    CSS/SystemColor.cpp
     CSS/Time.cpp
     CSS/TransitionEvent.cpp
     CSS/URL.cpp
@@ -415,7 +412,6 @@ set(SOURCES
     Fetch/Infrastructure/HTTP/MIME.cpp
     Fetch/Infrastructure/HTTP/Requests.cpp
     Fetch/Infrastructure/HTTP/Responses.cpp
-    Fetch/Infrastructure/HTTP/Statuses.cpp
     Fetch/Infrastructure/IncrementalReadLoopReadRequest.cpp
     Fetch/Infrastructure/MimeTypeBlocking.cpp
     Fetch/Infrastructure/NetworkPartitionKey.cpp
@@ -432,7 +428,6 @@ set(SOURCES
     FileAPI/FileList.cpp
     FileAPI/FileReader.cpp
     FileAPI/FileReaderSync.cpp
-    FileAPI/SerializedBlobURLEntry.cpp
     Gamepad/EventNames.cpp
     Gamepad/Gamepad.cpp
     Gamepad/GamepadButton.cpp
@@ -510,7 +505,6 @@ set(SOURCES
     HTML/DragDataStore.cpp
     HTML/DragEvent.cpp
     HTML/ElementInternals.cpp
-    HTML/EmbedderPolicy.cpp
     HTML/ErrorEvent.cpp
     HTML/ErrorInformation.cpp
     HTML/EventHandler.cpp
@@ -520,7 +514,6 @@ set(SOURCES
     HTML/EventNames.cpp
     HTML/EventSource.cpp
     HTML/External.cpp
-    HTML/FileFilter.cpp
     HTML/Focus.cpp
     HTML/FormAssociatedElement.cpp
     HTML/FormControlInfrastructure.cpp
@@ -626,7 +619,6 @@ set(SOURCES
     HTML/MimeType.cpp
     HTML/MimeTypeArray.cpp
     HTML/Navigable.cpp
-    HTML/CrossProcessId.cpp
     HTML/NavigableContainer.cpp
     HTML/NavigateParams.cpp
     HTML/NavigateEvent.cpp
@@ -664,7 +656,6 @@ set(SOURCES
     HTML/PolicyContainers.cpp
     HTML/PostedMessageDescriptor.cpp
     HTML/PreparedNavigationDescriptor.cpp
-    HTML/POSTResource.cpp
     HTML/PopoverTargetAttributes.cpp
     HTML/PopStateEvent.cpp
     HTML/PotentialCORSRequest.cpp
@@ -675,7 +666,6 @@ set(SOURCES
     HTML/RemoteNavigable.cpp
     HTML/RemoteWindow.cpp
     HTML/ReplicatedNavigableState.cpp
-    HTML/SandboxingFlagSet.cpp
     HTML/Scripting/Agent.cpp
     HTML/Scripting/ClassicScript.cpp
     HTML/Scripting/Environments.cpp
@@ -696,7 +686,6 @@ set(SOURCES
     HTML/Scripting/WorkerAgent.cpp
     HTML/Scripting/WorkerEnvironmentSettingsObject.cpp
     HTML/Scripting/WorkletEnvironmentSettingsObject.cpp
-    HTML/SelectedFile.cpp
     HTML/SelectItem.cpp
     HTML/SerializedPolicyContainer.cpp
     HTML/SessionHistoryEntry.cpp
@@ -768,7 +757,6 @@ set(SOURCES
     IndexedDB/Internal/RequestList.cpp
     Infra/ByteSequences.cpp
     Infra/JSON.cpp
-    Infra/Strings.cpp
     Internals/FakeXRDevice.cpp
     Internals/InternalAnimationTimeline.cpp
     Internals/InternalGamepad.cpp
@@ -788,11 +776,9 @@ set(SOURCES
     Layout/UpdateLayout.cpp
     Layout/Viewport.cpp
     Loader/ContentBlocker.cpp
-    Loader/DownloadFilename.cpp
     Loader/FileRequest.cpp
     Loader/GeneratedPagesLoader.cpp
     Loader/ResourceLoader.cpp
-    Loader/SiteCompatibility.cpp
     Loader/SourceHighlighter.cpp
     MathML/AttributeNames.cpp
     MathML/MathMLAnchorElement.cpp
@@ -827,7 +813,6 @@ set(SOURCES
     Page/DragAndDropEventHandler.cpp
     Page/ElementResizeAction.cpp
     Page/EventHandler.cpp
-    Page/DragEvent.cpp
     Page/MiddleButtonScrollHandler.cpp
     Page/Page.cpp
     Page/ScreenWakeLockHandle.cpp
@@ -859,7 +844,6 @@ set(SOURCES
     Platform/RemoteImageCodecPlugin.cpp
     Platform/Timer.cpp
     ReferrerPolicy/AbstractOperations.cpp
-    ReferrerPolicy/ReferrerPolicy.cpp
     RequestIdleCallback/IdleDeadline.cpp
     ResizeObserver/ResizeObservation.cpp
     ResizeObserver/ResizeObserver.cpp
@@ -895,7 +879,6 @@ set(SOURCES
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp
     StorageAPI/StorageBottle.cpp
-    StorageAPI/StorageEndpoint.cpp
     StorageAPI/StorageKey.cpp
     StorageAPI/StorageManager.cpp
     StorageAPI/StorageShelf.cpp
@@ -1095,13 +1078,11 @@ set(SOURCES
     WebDriver/Contexts.cpp
     WebDriver/ElementLocationStrategies.cpp
     WebDriver/ElementReference.cpp
-    WebDriver/Error.cpp
     WebDriver/ExecuteScript.cpp
     WebDriver/InputSource.cpp
     WebDriver/InputState.cpp
     WebDriver/JSON.cpp
     WebDriver/Proxy.cpp
-    WebDriver/Response.cpp
     WebDriver/Screenshot.cpp
     WebDriver/TimeoutsConfiguration.cpp
     WebDriver/UserPrompt.cpp
@@ -1226,7 +1207,7 @@ set(GENERATED_SOURCES
 )
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibWeb PUBLIC LibCompositing)
+target_link_libraries(LibWeb PUBLIC LibCompositing LibWebCommon)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibMediaClient LibWasm LibXML LibURL LibTLS LibRequests LibGC LibImageDecoderClient LibThreading skia SDL3::SDL3 LibXml2::LibXml2)
 

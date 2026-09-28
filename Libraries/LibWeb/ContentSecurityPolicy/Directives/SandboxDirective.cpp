@@ -6,7 +6,7 @@
 
 #include <LibWeb/ContentSecurityPolicy/Directives/SandboxDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 

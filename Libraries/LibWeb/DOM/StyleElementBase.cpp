@@ -20,8 +20,8 @@
 #include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::DOM {
 

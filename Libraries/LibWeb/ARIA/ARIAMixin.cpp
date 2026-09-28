@@ -11,7 +11,7 @@
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::ARIA {
 

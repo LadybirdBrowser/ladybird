@@ -26,11 +26,11 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
-#include <LibWeb/Page/EventResult.h>
-#include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/PixelUnits.h>
-#include <LibWeb/UIEvents/KeyCode.h>
+#include <LibWebCommon/Page/EventResult.h>
+#include <LibWebCommon/Page/QueuedInputEvent.h>
+#include <LibWebCommon/UIEvents/KeyCode.h>
 
 namespace Web {
 

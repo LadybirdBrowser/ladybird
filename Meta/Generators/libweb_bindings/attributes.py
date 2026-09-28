@@ -416,7 +416,7 @@ def write_attribute_getter(
     }}"""
     elif is_reflected_usv_string:
         includes.add("AK/Utf16String.h")
-        includes.add("LibWeb/Infra/Strings.h")
+        includes.add("LibWebCommon/Infra/Strings.h")
         getter_steps = f"""{content_attribute_declaration}
 
     // If a reflected IDL attribute has the type USVString:

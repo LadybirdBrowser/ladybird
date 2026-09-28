@@ -28,9 +28,9 @@
 #include <LibCore/Promise.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Contexts.h>
-#include <LibWeb/WebDriver/Error.h>
-#include <LibWeb/WebDriver/Response.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
+#include <LibWebCommon/WebDriver/Error.h>
+#include <LibWebCommon/WebDriver/Response.h>
 #include <WebDriver/BrowserConnection.h>
 #include <WebDriver/Client.h>
 

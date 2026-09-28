@@ -14,7 +14,7 @@
 #include <AK/WeakPtr.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>

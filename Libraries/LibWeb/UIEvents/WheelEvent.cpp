@@ -11,9 +11,9 @@
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
-#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/UIEvents/KeyCode.h>
 
 namespace Web::UIEvents {
 

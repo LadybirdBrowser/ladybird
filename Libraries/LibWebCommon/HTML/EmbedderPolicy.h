@@ -1,0 +1,57 @@
+/*
+ * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Optional.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
+#include <LibIPC/Forward.h>
+#include <LibWebCommon/Export.h>
+
+namespace Web::HTML {
+
+// https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-value
+enum class EmbedderPolicyValue : u8 {
+    UnsafeNone,
+    RequireCorp,
+    Credentialless,
+};
+
+WEBCOMMON_API Utf16View embedder_policy_value_to_string(EmbedderPolicyValue);
+WEBCOMMON_API Optional<EmbedderPolicyValue> embedder_policy_value_from_string(Utf16View);
+
+// https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy
+struct EmbedderPolicy {
+    // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-value-2
+    // A value, which is an embedder policy value, initially "unsafe-none".
+    EmbedderPolicyValue value { EmbedderPolicyValue::UnsafeNone };
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-report-only-value
+    // A report only value, which is an embedder policy value, initially "unsafe-none".
+    EmbedderPolicyValue report_only_value { EmbedderPolicyValue::UnsafeNone };
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-reporting-endpoint
+    // A reporting endpoint string, initially the empty string.
+    Utf16String reporting_endpoint;
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy-report-only-reporting-endpoint
+    // A report only reporting endpoint string, initially the empty string.
+    Utf16String report_only_reporting_endpoint;
+};
+
+}
+
+namespace IPC {
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::EmbedderPolicy const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::EmbedderPolicy> decode(Decoder&);
+
+}

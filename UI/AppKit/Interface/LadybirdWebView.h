@@ -12,8 +12,8 @@
 #include <LibCompositing/PageId.h>
 #include <LibGfx/Forward.h>
 #include <LibURL/Forward.h>
-#include <LibWeb/HTML/ActivateTab.h>
-#include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWebCommon/HTML/ActivateTab.h>
+#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 

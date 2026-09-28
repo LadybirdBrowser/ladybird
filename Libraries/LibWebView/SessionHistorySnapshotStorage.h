@@ -15,10 +15,10 @@
 #include <LibURL/Origin.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/HTML/EmbedderPolicy.h>
-#include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/HTML/EmbedderPolicy.h>
+#include <LibWebCommon/HTML/POSTResource.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/SessionHistory.h>
 

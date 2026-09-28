@@ -14,8 +14,8 @@
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Page/PageId.h>
-#include <LibWeb/Page/QueuedInputEvent.h>
+#include <LibWebCommon/Page/PageId.h>
+#include <LibWebCommon/Page/QueuedInputEvent.h>
 
 namespace Web::SVG {
 

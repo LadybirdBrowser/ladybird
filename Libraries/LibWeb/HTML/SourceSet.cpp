@@ -10,8 +10,8 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/SourceSet.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
 

@@ -6,7 +6,7 @@
  */
 
 #include <LibWeb/ARIA/AriaData.h>
-#include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::ARIA {
 

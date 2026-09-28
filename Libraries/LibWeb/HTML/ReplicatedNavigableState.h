@@ -14,10 +14,10 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
-#include <LibWeb/HTML/CrossProcessId.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 

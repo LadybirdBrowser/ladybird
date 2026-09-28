@@ -8,7 +8,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/HistoryDebug.h>

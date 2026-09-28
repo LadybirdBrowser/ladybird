@@ -11,7 +11,7 @@
 #include <Interface/LadybirdWebViewBridge.h>
 #include <LibURL/URL.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
-#include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/URL.h>

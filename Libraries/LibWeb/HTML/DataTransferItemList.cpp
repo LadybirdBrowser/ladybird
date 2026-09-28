@@ -9,7 +9,7 @@
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DataTransferItem.h>
 #include <LibWeb/HTML/DataTransferItemList.h>
-#include <LibWeb/Infra/Strings.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
 

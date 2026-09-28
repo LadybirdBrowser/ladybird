@@ -17,12 +17,12 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
-#include <LibWeb/UIEvents/KeyCode.h>
+#include <LibWebCommon/HTML/SelectedFile.h>
+#include <LibWebCommon/UIEvents/KeyCode.h>
 
 namespace Web {
 

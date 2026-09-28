@@ -5,7 +5,7 @@
  */
 
 #include <LibTest/TestCase.h>
-#include <LibWeb/Infra/Strings.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 TEST_CASE(is_code_unit_prefix)
 {

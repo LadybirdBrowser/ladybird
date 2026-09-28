@@ -12,7 +12,7 @@
 #include <LibURL/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/AutoplayPolicy.h>
+#include <LibWebCommon/HTML/AutoplayPolicy.h>
 
 namespace Web::HTML {
 

@@ -62,7 +62,6 @@
 #include <LibWeb/IndexedDB/IDBFactory.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Infra/SerializedURL.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/Page.h>
@@ -82,6 +81,7 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::Bindings {
 

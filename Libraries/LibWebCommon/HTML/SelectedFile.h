@@ -1,0 +1,53 @@
+/*
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/ByteBuffer.h>
+#include <AK/Utf16String.h>
+#include <AK/Variant.h>
+#include <LibIPC/File.h>
+#include <LibIPC/Forward.h>
+#include <LibWebCommon/Export.h>
+
+namespace Web::HTML {
+
+enum class AllowMultipleFiles {
+    No,
+    Yes,
+};
+
+class WEBCOMMON_API SelectedFile {
+public:
+    SelectedFile(Utf16String name, ByteBuffer contents);
+    SelectedFile(Utf16String name, IPC::File file);
+
+    SelectedFile(SelectedFile const&);
+    SelectedFile(SelectedFile&&) = default;
+
+    SelectedFile& operator=(SelectedFile const&);
+    SelectedFile& operator=(SelectedFile&&) = default;
+
+    Utf16String const& name() const { return m_name; }
+    auto const& file_or_contents() const { return m_file_or_contents; }
+    ByteBuffer take_contents();
+
+private:
+    Utf16String m_name;
+    Variant<IPC::File, ByteBuffer> m_file_or_contents;
+};
+
+}
+
+namespace IPC {
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::SelectedFile const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::SelectedFile> decode(Decoder&);
+
+}

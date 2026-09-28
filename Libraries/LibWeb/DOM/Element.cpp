@@ -132,8 +132,6 @@
 #include <LibWeb/HTML/ScrollOptions.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/XMLSerializer.h>
-#include <LibWeb/Infra/CharacterTypes.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -158,6 +156,8 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/XML/XMLFragmentParser.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::DOM {
 

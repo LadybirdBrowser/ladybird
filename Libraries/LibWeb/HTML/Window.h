@@ -28,12 +28,12 @@
 #include <LibWeb/HTML/MimeType.h>
 #include <LibWeb/HTML/Plugin.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/HTML/UserActivationConsumption.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/HTML/UserActivationConsumption.h>
 
 namespace Web::HTML {
 

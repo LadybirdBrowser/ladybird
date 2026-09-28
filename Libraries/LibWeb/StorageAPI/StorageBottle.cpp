@@ -9,8 +9,8 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
-#include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 
 namespace Web::StorageAPI {
 

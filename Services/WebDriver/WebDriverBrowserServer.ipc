@@ -1,4 +1,4 @@
-#include <LibWeb/WebDriver/Response.h>
+#include <LibWebCommon/WebDriver/Response.h>
 
 endpoint WebDriverBrowserServer {
     did_create_window(String handle) =|

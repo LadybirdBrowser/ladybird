@@ -8,7 +8,7 @@
 #include <LibWeb/Bindings/Response.h>
 #include <LibWeb/Fetch/Enums.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::Fetch {
 

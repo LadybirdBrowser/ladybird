@@ -9,8 +9,8 @@
 #include <AK/Utf16String.h>
 #include <LibGC/Ptr.h>
 #include <LibURL/URL.h>
-#include <LibWeb/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 
 namespace Web::FileAPI {
 

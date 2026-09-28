@@ -15,13 +15,13 @@
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/ElementLocationStrategies.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
-#include <LibWeb/WebDriver/Response.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/WebDriver/Response.h>
 #include <WebContent/Forward.h>
 
 namespace WebContent {

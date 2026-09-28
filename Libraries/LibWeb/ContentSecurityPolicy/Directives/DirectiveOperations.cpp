@@ -21,11 +21,11 @@
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/SRI/SRI.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 

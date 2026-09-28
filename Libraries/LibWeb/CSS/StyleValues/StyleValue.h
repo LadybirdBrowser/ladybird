@@ -27,11 +27,11 @@
 #include <LibWeb/CSS/CalculationResolutionContext.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
 
 namespace Web::CSS {
 

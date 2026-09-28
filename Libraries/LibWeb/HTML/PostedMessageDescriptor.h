@@ -11,8 +11,8 @@
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 
 namespace Web::HTML {
 

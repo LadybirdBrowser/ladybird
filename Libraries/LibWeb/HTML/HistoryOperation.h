@@ -11,13 +11,13 @@
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web {
 

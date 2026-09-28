@@ -9,11 +9,11 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
-#include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Proxy.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 
 namespace Web::WebDriver {
 

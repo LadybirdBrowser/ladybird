@@ -9,7 +9,7 @@
 
 #include <AK/Forward.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::ReferrerPolicy {
 

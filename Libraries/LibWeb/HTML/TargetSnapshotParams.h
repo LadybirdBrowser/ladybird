@@ -7,8 +7,8 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 

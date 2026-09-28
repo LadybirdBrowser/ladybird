@@ -7,9 +7,9 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 
 static URL::URL parse_url(StringView url)
 {

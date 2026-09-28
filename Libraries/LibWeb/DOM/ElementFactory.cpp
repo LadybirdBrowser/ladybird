@@ -88,7 +88,6 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MathML/MathMLAnchorElement.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/MathML/MathMLMiElement.h>
@@ -146,6 +145,7 @@
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/SVG/SVGViewElement.h>
 #include <LibWeb/SVG/TagNames.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::DOM {
 

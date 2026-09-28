@@ -9,7 +9,7 @@
 
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::HTML {
 

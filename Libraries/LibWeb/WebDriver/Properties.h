@@ -11,7 +11,7 @@
 #include <AK/JsonValue.h>
 #include <AK/String.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/WebDriver/Error.h>
+#include <LibWebCommon/WebDriver/Error.h>
 
 namespace Web::WebDriver {
 

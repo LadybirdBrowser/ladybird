@@ -21,8 +21,8 @@
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
 

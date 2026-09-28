@@ -11,7 +11,7 @@
 #include <LibGfx/Rect.h>
 #include <LibHTTP/Forward.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Page/QueuedInputEvent.h>
+#include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <WebWorker/Forward.h>
 
 namespace WebWorker {

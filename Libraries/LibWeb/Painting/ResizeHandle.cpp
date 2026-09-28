@@ -10,8 +10,8 @@
 #include <LibWeb/Page/ElementResizeAction.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/UIEvents/EventNames.h>
-#include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
+#include <LibWebCommon/UIEvents/MouseButton.h>
 
 namespace Web::Painting {
 

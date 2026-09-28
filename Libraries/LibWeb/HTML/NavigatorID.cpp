@@ -9,7 +9,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/HTML/NavigatorID.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/Loader/UserAgent.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 
 namespace Web::HTML {
 

@@ -7,7 +7,7 @@
 #include <AK/JsonArray.h>
 #include <AK/QuickSort.h>
 #include <LibCore/Resource.h>
-#include <LibWeb/Loader/SiteCompatibility.h>
+#include <LibWebCommon/Loader/SiteCompatibility.h>
 #include <LibWebView/SiteCompatibility.h>
 
 namespace WebView {

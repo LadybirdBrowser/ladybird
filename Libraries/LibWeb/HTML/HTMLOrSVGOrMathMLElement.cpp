@@ -14,10 +14,10 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::HTML {
 

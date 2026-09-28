@@ -39,10 +39,10 @@
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
-#include <LibWeb/Loader/DownloadFilename.h>
-#include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
+#include <LibWebCommon/Loader/DownloadFilename.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/BlobURLStore.h>
