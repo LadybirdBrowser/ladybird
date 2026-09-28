@@ -309,6 +309,7 @@ void PainterSkia::reset()
 {
     auto& canvas = m_painting_surface->canvas();
     canvas.restoreToCount(m_initial_save_count);
+    canvas.save();
 }
 
 }
