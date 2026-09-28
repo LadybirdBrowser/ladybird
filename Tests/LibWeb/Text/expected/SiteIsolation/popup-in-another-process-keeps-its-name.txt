@@ -1,0 +1,3 @@
+arrived with name named-popup
+reopened with name named-popup
+window.open() returned the same popup: true
