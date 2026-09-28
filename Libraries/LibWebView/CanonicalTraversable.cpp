@@ -3057,9 +3057,9 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
             return;
         }
 
+        auto abandoned_job = operation->pending_changing_jobs.take(navigable_id).release_value();
         if (auto navigable = find(navigable_id); navigable.has_value())
-            navigable->abandon_document_populated_for(*pending_job.value()->job.target_entry->document_state);
-        operation->pending_changing_jobs.remove(navigable_id);
+            navigable->abandon_document_populated_for(*abandoned_job->job.target_entry->document_state);
         on_complete(disposition);
     }
 }
