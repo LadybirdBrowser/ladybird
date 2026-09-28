@@ -140,6 +140,51 @@ test("parameter with an arrow function default value allows in in the body", () 
     expect(arrowFunc()).toBeTrue();
 });
 
+test("parameter default values allow the in operator", () => {
+    function func(object, present = "present" in object) {
+        return present;
+    }
+
+    const arrowFunc = (object, present = "present" in object) => present;
+    const object = {
+        method(object, present = "present" in object) {
+            return present;
+        },
+    };
+
+    for (const callback of [func, arrowFunc, object.method]) {
+        expect(callback({ present: true })).toBeTrue();
+        expect(callback({})).toBeFalse();
+        expect(callback(null, "explicit")).toBe("explicit");
+    }
+});
+
+test("parameter default values allow in after logical operators", () => {
+    function detect(navigator, brave = typeof navigator < "u" && "brave" in navigator) {
+        return brave;
+    }
+
+    expect(detect({ brave: true })).toBeTrue();
+    expect(detect({})).toBeFalse();
+    expect(detect(undefined)).toBeFalse();
+});
+
+test("parameter default values allow in inside a for initializer", () => {
+    // prettier-ignore
+    for (let func = (present = "present" in { present: true }) => present; ;) {
+        expect(func()).toBeTrue();
+        break;
+    }
+});
+
+test("destructuring parameter default values allow in", () => {
+    function func({ value } = "present" in { present: true } ? { value: 42 } : {}) {
+        return value;
+    }
+
+    expect(func()).toBe(42);
+});
+
 test("parameter default value infers anonymous function names", () => {
     function func(
         a = function () {},

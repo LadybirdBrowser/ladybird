@@ -1370,8 +1370,10 @@ impl Parser<'_> {
                 has_seen_default = true;
                 let saved_in_function = self.flags.in_function_context;
                 self.flags.in_function_context = true;
-                let expr =
-                    self.parse_expression(PRECEDENCE_ASSIGNMENT, Associativity::Right, ForbiddenTokens::with_in());
+                // https://tc39.es/ecma262/#prod-SingleNameBinding
+                // SingleNameBinding[Yield, Await] :
+                //   BindingIdentifier[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]?
+                let expr = self.parse_assignment_expression();
                 self.flags.in_function_context = saved_in_function;
                 Some(expr)
             } else {
