@@ -52,6 +52,7 @@ use crate::u32_from_usize;
 
 use super::ffi::AbstractOperationKind;
 use super::ffi::WellKnownSymbolKind;
+use super::generator::BindingLocation;
 use super::generator::BlockBoundaryType;
 use super::generator::ConstantValue;
 use super::generator::FinallyContext;
@@ -107,13 +108,20 @@ fn emit_get_binding(
 ) {
     // Prefer an eagerly-computed coordinate when the generator can prove that
     // the binding lives in a known declarative environment. The dynamic forms
-    // remain necessary for outer functions, eval-poisoned scopes, and `with`.
-    match (
-        generator.environment_coordinate_for_identifier(identifier),
-        known_initialized,
-    ) {
-        (Some(cache), true) => generator.emit(Instruction::GetInitializedBinding { dst, identifier, cache }),
-        (Some(cache), false) => generator.emit(Instruction::GetBinding { dst, identifier, cache }),
+    // remain necessary for script and eval code, eval-poisoned scopes, and
+    // `with`.
+    match (generator.binding_location_for_identifier(identifier), known_initialized) {
+        (Some(BindingLocation::Import(import_index)), _) => generator.emit(Instruction::GetImport {
+            dst,
+            identifier,
+            import_index,
+        }),
+        (Some(BindingLocation::Environment(cache)), true) => {
+            generator.emit(Instruction::GetInitializedBinding { dst, identifier, cache });
+        }
+        (Some(BindingLocation::Environment(cache)), false) => {
+            generator.emit(Instruction::GetBinding { dst, identifier, cache });
+        }
         (None, true) => {
             let cache = generator.next_environment_coordinate_cache();
             generator.emit(Instruction::DynamicGetInitializedBinding { dst, identifier, cache });
@@ -131,21 +139,36 @@ fn emit_get_callee_and_this_from_environment(
     this_value: Operand,
     identifier: IdentifierTableIndex,
 ) {
-    if let Some(cache) = generator.environment_coordinate_for_identifier(identifier) {
-        generator.emit(Instruction::GetCalleeAndThisFromEnvironment {
-            callee,
-            this_value,
-            identifier,
-            cache,
-        });
-    } else {
-        let cache = generator.next_environment_coordinate_cache();
-        generator.emit(Instruction::DynamicGetCalleeAndThisFromEnvironment {
-            callee,
-            this_value,
-            identifier,
-            cache,
-        });
+    match generator.binding_location_for_identifier(identifier) {
+        Some(BindingLocation::Environment(cache)) => {
+            generator.emit(Instruction::GetCalleeAndThisFromEnvironment {
+                callee,
+                this_value,
+                identifier,
+                cache,
+            });
+        }
+        Some(BindingLocation::Import(import_index)) => {
+            generator.emit(Instruction::GetImport {
+                dst: callee,
+                identifier,
+                import_index,
+            });
+            let undefined = generator.add_constant_undefined();
+            generator.emit(Instruction::Mov {
+                dst: this_value,
+                src: undefined.operand(),
+            });
+        }
+        None => {
+            let cache = generator.next_environment_coordinate_cache();
+            generator.emit(Instruction::DynamicGetCalleeAndThisFromEnvironment {
+                callee,
+                this_value,
+                identifier,
+                cache,
+            });
+        }
     }
 }
 
@@ -191,11 +214,22 @@ fn emit_set_variable_binding(generator: &mut Generator, identifier: IdentifierTa
 }
 
 fn emit_typeof_binding(generator: &mut Generator, dst: Operand, identifier: IdentifierTableIndex) {
-    if let Some(cache) = generator.environment_coordinate_for_identifier(identifier) {
-        generator.emit(Instruction::TypeofBinding { dst, identifier, cache });
-    } else {
-        let cache = generator.next_environment_coordinate_cache();
-        generator.emit(Instruction::DynamicTypeofBinding { dst, identifier, cache });
+    match generator.binding_location_for_identifier(identifier) {
+        Some(BindingLocation::Environment(cache)) => {
+            generator.emit(Instruction::TypeofBinding { dst, identifier, cache });
+        }
+        Some(BindingLocation::Import(import_index)) => {
+            generator.emit(Instruction::GetImport {
+                dst,
+                identifier,
+                import_index,
+            });
+            generator.emit(Instruction::Typeof { dst, src: dst });
+        }
+        None => {
+            let cache = generator.next_environment_coordinate_cache();
+            generator.emit(Instruction::DynamicTypeofBinding { dst, identifier, cache });
+        }
     }
 }
 
@@ -2762,18 +2796,31 @@ fn generate_block_statement(
 }
 
 /// Create lexical bindings and instantiate function declarations for a block.
-/// For each declaration, creates bindings and immediately instantiates functions
-/// (single pass, not two separate passes).
+/// All bindings are created before any function is instantiated, so every
+/// function closes over the complete binding layout of the block.
 fn emit_lexical_declarations_for_block<'a>(
     generator: &mut Generator,
     environment: &ScopedOperand,
     children: impl Iterator<Item = &'a Statement>,
 ) {
+    let arena = generator.arena.clone();
+    let mut function_declarations = Vec::new();
+    let mut function_names = HashSet::new();
     for child in children {
         if let Some(fd) = child.inner.function_declaration_for_labelled_item()
-            && fd.name.is_some()
+            && let Some(name_ident_id) = fd.name
         {
-            emit_lexical_function_declaration_for_block(generator, environment, fd);
+            let name_ident = &arena.identifiers[name_ident_id];
+            let is_first_declaration = function_names.insert(name_ident.name);
+            if is_first_declaration && !name_ident.is_local() {
+                let id = generator.intern_identifier_id(name_ident.name);
+                generator.emit(Instruction::CreateMutableBinding {
+                    environment: environment.operand(),
+                    identifier: id,
+                    can_be_deleted: false,
+                });
+            }
+            function_declarations.push((fd, is_first_declaration));
             continue;
         }
 
@@ -2819,7 +2866,6 @@ fn emit_lexical_declarations_for_block<'a>(
             }
             StatementKind::ClassDeclaration(class_data) => {
                 if let Some(name_ident_id) = class_data.name {
-                    let arena = generator.arena.clone();
                     let name_ident = &arena.identifiers[name_ident_id];
                     if !name_ident.is_local() {
                         let id = generator.intern_identifier_id(name_ident.name);
@@ -2834,26 +2880,20 @@ fn emit_lexical_declarations_for_block<'a>(
             _ => {}
         }
     }
+
+    for (fd, is_first_declaration) in function_declarations {
+        emit_lexical_function_declaration_for_block(generator, fd, is_first_declaration);
+    }
 }
 
 fn emit_lexical_function_declaration_for_block(
     generator: &mut Generator,
-    environment: &ScopedOperand,
     fd: &FunctionDeclarationData,
+    is_first_declaration: bool,
 ) {
     let name_ident_id = fd.name.unwrap();
     let arena = generator.arena.clone();
     let name_ident = &arena.identifiers[name_ident_id];
-    // a. Create binding.
-    if !name_ident.is_local() {
-        let id = generator.intern_identifier_id(name_ident.name);
-        generator.emit(Instruction::CreateMutableBinding {
-            environment: environment.operand(),
-            identifier: id,
-            can_be_deleted: false,
-        });
-    }
-    // b. Instantiate function object.
     let function_data = generator.function_table.take(fd.function_id);
     let sfd_index = emit_new_function(generator, function_data, None);
     let fo = generator.allocate_register();
@@ -2870,7 +2910,11 @@ fn emit_lexical_function_declaration_for_block(
         generator.mark_local_initialized(local_index);
     } else {
         let id = generator.intern_identifier_id(name_ident.name);
-        emit_initialize_lexical_binding(generator, id, fo.operand());
+        if is_first_declaration {
+            emit_initialize_lexical_binding(generator, id, fo.operand());
+        } else {
+            emit_set_lexical_binding(generator, id, fo.operand());
+        }
     }
 }
 
@@ -6689,6 +6733,7 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
         class_field_initializer_name: None,
         should_eager_compile: false,
         precompiled_function: None,
+        enclosing_environment_scope: None,
     })
 }
 
@@ -8549,6 +8594,7 @@ fn emit_new_function(generator: &mut Generator, data: Box<FunctionData>, name_ov
         class_field_initializer_name: None,
         should_eager_compile: false,
         precompiled_function: None,
+        enclosing_environment_scope: None,
     })
 }
 
@@ -9037,11 +9083,13 @@ fn count_lexical_declarations_for_block<'a>(
     arena: &crate::ast::AstArena,
 ) -> u32 {
     let mut count = 0u32;
+    let mut function_names = HashSet::new();
     for child in children {
         if let Some(fd) = child.inner.function_declaration_for_labelled_item()
             && let Some(name_ident_id) = fd.name
         {
-            if !arena.identifiers[name_ident_id].is_local() {
+            let name_ident = &arena.identifiers[name_ident_id];
+            if function_names.insert(name_ident.name) && !name_ident.is_local() {
                 count += 1;
             }
             continue;

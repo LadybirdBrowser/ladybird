@@ -1,0 +1,38 @@
+outer$1afca0d7 module-level-bindings.mjs:6:5
+  Registers: 7
+  Blocks:    1
+
+block0:
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  28] CreateVariable `inner`, is_immutable:true, is_global:false, is_strict:false
+  [  38] NewFunction dst:reg6, shared_function_data_index:0
+  [  50] InitializeLexicalBinding `inner`, src:reg6
+  [  68] SetLexicalEnvironment environment:reg4
+  [  70] Return value:reg6
+
+
+inner$24238fde module-level-bindings.mjs:7:18
+  Registers: 8
+  Blocks:    1
+
+block0:
+  [   0] Enter
+  [   8] GetBinding dst:reg5, `lexical`
+  [  20] GetBinding dst:reg6, `constant`
+  [  38] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  48] SetLexicalBinding `variable`, src:reg7
+  [  60] GetCalleeAndThisFromEnvironment callee:reg5, this_value:reg6, `declared`
+  [  78] Call dst:reg7, callee:reg5, this_value:reg6, declared
+  [  98] Return value:reg7
+
+
+declared$581f69d1 module-level-bindings.mjs:13:5
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] Enter
+  [   8] TypeofBinding dst:reg5, `lexical`
+  [  20] Return value:reg5

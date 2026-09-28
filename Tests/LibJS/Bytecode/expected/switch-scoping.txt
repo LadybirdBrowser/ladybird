@@ -64,24 +64,24 @@ block5:
   [ 138] Return value:reg5
 
 
-result$38b0d48c switch-scoping.js:6:22
+result$b74edc04 switch-scoping.js:6:22
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicGetBinding dst:reg5, `a`
-  [  18] Return value:reg5
+  [   8] GetBinding dst:reg5, `a`
+  [  20] Return value:reg5
 
 
-result$ff741ac0 switch-scoping.js:10:22
+result$80d61348 switch-scoping.js:10:22
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicGetBinding dst:reg5, `b`
-  [  18] Return value:reg5
+  [   8] GetBinding dst:reg5, `b`
+  [  20] Return value:reg5
 
 
 "one"

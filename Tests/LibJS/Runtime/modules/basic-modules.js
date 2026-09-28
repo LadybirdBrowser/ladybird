@@ -304,4 +304,29 @@ describe("scoping in modules", () => {
     test("functions within functions", () => {
         expectModulePassed("./function-in-function.mjs");
     });
+
+    test("nested functions read and write module-level bindings", () => {
+        const result = expectModulePassed("./module-level-bindings.mjs");
+        expect(result.valuesBeforeWrite).toEqual([1, 2, 3, "shadowed undefined", "function", undefined]);
+        expect(result.valuesAfterWrite).toEqual([11, 22, 3, "shadowed undefined", "function", undefined]);
+        expect(result.readBeforeInitializationThrows).toBeTrue();
+        expect(result.laterBindingValue).toBe("initialized");
+        expect(result.constantAssignmentThrows).toBeTrue();
+        expect(result.classValues).toEqual([22, 3, 1]);
+        expect(result.importedValues).toEqual([true, "object"]);
+        expect(result.default).toBe("11,22");
+    });
+
+    test("nested functions read imported bindings", () => {
+        const result = expectModulePassed("./imported-bindings.mjs");
+        expect(result.valuesBeforeIncrement).toEqual([0, 0, "number", "default value", true]);
+        expect(result.incrementThisValue).toBeUndefined();
+        expect(result.valuesAfterIncrement).toEqual([1, 1, "number", "default value", true]);
+        expect(result.assignmentThrows).toBeTrue();
+    });
+
+    test("module-level bindings stay reachable across top-level await", () => {
+        const result = expectModulePassed("./module-level-bindings-with-top-level-await.mjs");
+        expect(result.counterAfterAwait).toBe(11);
+    });
 });

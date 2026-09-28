@@ -36,15 +36,15 @@ block0:
   [  d0] Return value:reg5
 
 
-inner$a14ffc61 parameter-createvariable-order.js:3:9
+inner$1fee03d9 parameter-createvariable-order.js:3:9
   Registers: 8
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicGetBinding dst:reg5, `a`
-  [  18] DynamicGetBinding dst:reg6, `b`
-  [  28] Add dst:reg7, lhs:reg5, rhs:reg6
-  [  38] DynamicGetBinding dst:reg5, `c`
-  [  48] Add dst:reg6, lhs:reg7, rhs:reg5
-  [  58] Return value:reg6
+  [   8] GetBinding dst:reg5, `a`
+  [  20] GetBinding dst:reg6, `b`
+  [  38] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  48] GetBinding dst:reg5, `c`
+  [  60] Add dst:reg6, lhs:reg7, rhs:reg5
+  [  70] Return value:reg6

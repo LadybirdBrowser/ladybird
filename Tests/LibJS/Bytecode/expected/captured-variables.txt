@@ -31,11 +31,11 @@ block0:
   [  90] Return value:reg6
 
 
-inner$e471f8e5 captured-variables.js:7:9
+inner$65d3f16d captured-variables.js:7:9
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicGetBinding dst:reg5, `captured`
-  [  18] Return value:reg5
+  [   8] GetBinding dst:reg5, `captured`
+  [  20] Return value:reg5

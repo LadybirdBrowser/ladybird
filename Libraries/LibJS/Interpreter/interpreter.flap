@@ -1470,6 +1470,12 @@ handler GetImportMeta(
     dst: out Operand
 ) @cold = call_slow_path(get_import_meta);
 
+handler GetImport(
+    dst: out Operand,
+    identifier: IdentifierTableIndex,
+    import_index: u32
+) @cold = call_slow_path(get_import);
+
 handler GetNewTarget(
     dst: out Operand
 ) @cold = call_slow_path(get_new_target);

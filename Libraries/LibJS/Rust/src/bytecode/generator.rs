@@ -30,6 +30,8 @@ use crate::ast::Position;
 use crate::ast::Utf16String;
 use crate::u32_from_usize;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 /// Identifies an operand that auto-frees its register when the last
 /// clone is dropped.
@@ -55,6 +57,7 @@ pub struct PendingSharedFunctionData {
     pub class_field_initializer_name: Option<(Utf16String, bool)>,
     pub should_eager_compile: bool,
     pub precompiled_function: Option<Box<PrecompiledFunction>>,
+    pub enclosing_environment_scope: Option<Arc<EnclosingEnvironmentScope>>,
 }
 
 /// Metadata computed from scope analysis for a SharedFunctionInstanceData.
@@ -113,6 +116,44 @@ struct EnvironmentCoordinateScope {
     next_binding_index: u32,
     kind: EnvironmentCoordinateScopeKind,
     stops_unresolved_lookups: bool,
+    captured_scope: Option<Arc<EnclosingEnvironmentScope>>,
+}
+
+pub struct EnclosingEnvironmentScope {
+    bindings: HashMap<ak::Utf16FlyString, u32>,
+    imports: HashMap<ak::Utf16FlyString, u32>,
+    kind: EnvironmentCoordinateScopeKind,
+    stops_unresolved_lookups: AtomicBool,
+    parent: Option<Arc<EnclosingEnvironmentScope>>,
+}
+
+impl EnclosingEnvironmentScope {
+    pub fn for_module_environment(
+        binding_names: Vec<ak::Utf16FlyString>,
+        import_names: Vec<ak::Utf16FlyString>,
+    ) -> Arc<Self> {
+        fn index_names(names: Vec<ak::Utf16FlyString>) -> HashMap<ak::Utf16FlyString, u32> {
+            let mut indices = HashMap::with_capacity(names.len());
+            for name in names {
+                let index = u32_from_usize(indices.len());
+                let previous_index = indices.insert(name, index);
+                debug_assert!(previous_index.is_none());
+            }
+            indices
+        }
+        Arc::new(Self {
+            bindings: index_names(binding_names),
+            imports: index_names(import_names),
+            kind: EnvironmentCoordinateScopeKind::Static,
+            stops_unresolved_lookups: AtomicBool::new(false),
+            parent: None,
+        })
+    }
+}
+
+pub enum BindingLocation {
+    Environment(EnvironmentCoordinate),
+    Import(u32),
 }
 
 enum ScopeLookup {
@@ -143,9 +184,10 @@ fn look_up_in_scope(
 
 #[derive(Clone, Copy, PartialEq)]
 enum EnvironmentCoordinateScopeKind {
-    // A declarative environment whose bindings are created by bytecode we emit.
-    // The binding indexes are therefore known while generating the instruction
-    // stream and can be embedded in EnvironmentCoordinate operands.
+    // A declarative environment whose bindings are created by bytecode we emit,
+    // or by module linking in an order we mirror. The binding indexes are
+    // therefore known while generating the instruction stream and can be
+    // embedded in EnvironmentCoordinate operands.
     Static,
     // An object environment, such as `with`, can intercept any name. Once one
     // is between the current point and a binding, resolution must stay dynamic.
@@ -317,6 +359,7 @@ pub struct Generator {
     // environment at runtime, so a name it lacks cannot resolve to any outer
     // environment.
     pub contains_direct_call_to_eval_in_non_strict_mode: bool,
+    pub enclosing_environment_scope: Option<Arc<EnclosingEnvironmentScope>>,
     verify_environment_coordinates: bool,
     pub home_objects: Vec<ScopedOperand>,
 
@@ -494,6 +537,7 @@ impl Generator {
             environment_coordinate_scope_stack: Vec::new(),
             variable_environment_coordinate_scope_index: None,
             contains_direct_call_to_eval_in_non_strict_mode: false,
+            enclosing_environment_scope: None,
             verify_environment_coordinates: should_verify_environment_coordinates(),
             home_objects: Vec::new(),
             finally_contexts: Vec::new(),
@@ -798,7 +842,8 @@ impl Generator {
     }
 
     /// Register a pending SharedFunctionInstanceData descriptor and return its index.
-    pub fn register_shared_function_data(&mut self, data: PendingSharedFunctionData) -> u32 {
+    pub fn register_shared_function_data(&mut self, mut data: PendingSharedFunctionData) -> u32 {
+        data.enclosing_environment_scope = self.capture_environment_coordinate_scopes();
         let index = u32_from_usize(self.shared_function_data.len());
         self.shared_function_data.push(data);
         index
@@ -1075,9 +1120,13 @@ impl Generator {
         self.push_untracked_lexical_environment(env_reg);
     }
 
-    pub fn capture_saved_lexical_environment_with_coordinates(&mut self) {
+    pub fn capture_saved_lexical_environment_with_coordinates(&mut self, has_function_environment: bool) {
         let env_reg = self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
         self.emit(Instruction::GetLexicalEnvironment { dst: env_reg.operand() });
+        if !has_function_environment {
+            self.push_untracked_lexical_environment(env_reg);
+            return;
+        }
         self.push_static_variable_environment(env_reg);
     }
 
@@ -1164,7 +1213,27 @@ impl Generator {
                 next_binding_index: 0,
                 kind,
                 stops_unresolved_lookups: false,
+                captured_scope: None,
             });
+    }
+
+    fn capture_environment_coordinate_scopes(&mut self) -> Option<Arc<EnclosingEnvironmentScope>> {
+        let mut parent = self.enclosing_environment_scope.clone();
+        let mut parent_was_captured_again = false;
+        for scope in &mut self.environment_coordinate_scope_stack {
+            if parent_was_captured_again || scope.captured_scope.is_none() {
+                scope.captured_scope = Some(Arc::new(EnclosingEnvironmentScope {
+                    bindings: scope.bindings.clone(),
+                    imports: HashMap::new(),
+                    kind: scope.kind,
+                    stops_unresolved_lookups: AtomicBool::new(scope.stops_unresolved_lookups),
+                    parent,
+                }));
+                parent_was_captured_again = true;
+            }
+            parent = scope.captured_scope.clone();
+        }
+        parent
     }
 
     fn pop_environment_coordinate_scope(&mut self) {
@@ -1192,10 +1261,12 @@ impl Generator {
         if scope.kind == EnvironmentCoordinateScopeKind::Dynamic {
             return;
         }
-        // DeclarativeEnvironment appends duplicate bindings and resolves the
-        // name to the newest slot, so mirror that layout here.
+        debug_assert!(!scope.bindings.contains_key(&name));
         scope.bindings.insert(name, scope.next_binding_index);
         scope.next_binding_index += 1;
+        if let Some(captured_scope) = scope.captured_scope.take() {
+            captured_scope.stops_unresolved_lookups.store(true, Ordering::Relaxed);
+        }
     }
 
     pub fn environment_coordinate_for(&self, name: &[u16]) -> Option<EnvironmentCoordinate> {
@@ -1210,6 +1281,17 @@ impl Generator {
         name: &ak::Utf16FlyString,
         scope_index: Option<usize>,
     ) -> Option<EnvironmentCoordinate> {
+        match self.binding_location_for_from_scope_index(name, scope_index)? {
+            BindingLocation::Environment(coordinate) => Some(coordinate),
+            BindingLocation::Import(_) => None,
+        }
+    }
+
+    fn binding_location_for_from_scope_index(
+        &self,
+        name: &ak::Utf16FlyString,
+        scope_index: Option<usize>,
+    ) -> Option<BindingLocation> {
         let local_scopes = match scope_index {
             Some(scope_index) => &self.environment_coordinate_scope_stack[..=scope_index],
             None => &[],
@@ -1217,10 +1299,27 @@ impl Generator {
         let mut hops = 0;
         for scope in local_scopes.iter().rev() {
             match look_up_in_scope(name, &scope.bindings, scope.kind, scope.stops_unresolved_lookups) {
-                ScopeLookup::Found(index) => return Some(EnvironmentCoordinate { hops, index }),
+                ScopeLookup::Found(index) => {
+                    return Some(BindingLocation::Environment(EnvironmentCoordinate { hops, index }));
+                }
                 ScopeLookup::NotFound => hops += 1,
                 ScopeLookup::Unresolvable => return None,
             }
+        }
+        let mut enclosing_scope = self.enclosing_environment_scope.as_deref();
+        while let Some(scope) = enclosing_scope {
+            let stops_unresolved_lookups = scope.stops_unresolved_lookups.load(Ordering::Relaxed);
+            match look_up_in_scope(name, &scope.bindings, scope.kind, stops_unresolved_lookups) {
+                ScopeLookup::Found(index) => {
+                    return Some(BindingLocation::Environment(EnvironmentCoordinate { hops, index }));
+                }
+                ScopeLookup::NotFound => hops += 1,
+                ScopeLookup::Unresolvable => return None,
+            }
+            if let Some(import_index) = scope.imports.get(name) {
+                return Some(BindingLocation::Import(*import_index));
+            }
+            enclosing_scope = scope.parent.as_deref();
         }
         None
     }
@@ -1234,6 +1333,11 @@ impl Generator {
             name,
             self.environment_coordinate_scope_stack.len().checked_sub(1),
         )
+    }
+
+    pub fn binding_location_for_identifier(&self, identifier: IdentifierTableIndex) -> Option<BindingLocation> {
+        let name = &self.identifier_table[identifier.0 as usize];
+        self.binding_location_for_from_scope_index(name, self.environment_coordinate_scope_stack.len().checked_sub(1))
     }
 
     pub fn variable_environment_coordinate_for_identifier(

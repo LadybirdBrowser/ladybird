@@ -209,14 +209,14 @@ Exception handlers:
   [  50 ..   88] => handler block1
 
 
-myName$b54e4267 lexical-env-teardown.js:60:5
+myName$36b03aef lexical-env-teardown.js:60:5
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicTypeofBinding dst:reg5, `myName`
-  [  18] Return value:reg5
+  [   8] TypeofBinding dst:reg5, `myName`
+  [  20] Return value:reg5
 
 
 1

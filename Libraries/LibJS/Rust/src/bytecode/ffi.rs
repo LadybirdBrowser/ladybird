@@ -420,6 +420,7 @@ pub unsafe fn create_shared_function_data(
     is_strict: bool,
     name_override: Option<&[u16]>,
     arena: std::sync::Arc<crate::ast::AstArena>,
+    enclosing_environment_scope: Option<std::sync::Arc<super::generator::EnclosingEnvironmentScope>>,
 ) -> *mut c_void {
     unsafe {
         use crate::ast::FunctionParameterBinding;
@@ -469,6 +470,7 @@ pub unsafe fn create_shared_function_data(
             data: *function_data,
             function_table: subtable,
             arena,
+            enclosing_environment_scope,
         });
         let rust_ast_ptr = Box::into_raw(payload) as *mut c_void;
 
@@ -519,7 +521,7 @@ pub unsafe fn create_sfd_for_gdi(
     is_strict: bool,
     arena: std::sync::Arc<crate::ast::AstArena>,
 ) -> *mut c_void {
-    unsafe { create_shared_function_data(function_data, subtable, context, is_strict, None, arena) }
+    unsafe { create_shared_function_data(function_data, subtable, context, is_strict, None, arena, None) }
 }
 
 unsafe fn materialize_shared_function_data(
@@ -545,6 +547,7 @@ unsafe fn materialize_shared_function_data(
                 generator.strict,
                 pending.name_override.as_ref().map(|name| name.as_slice()),
                 arena,
+                pending.enclosing_environment_scope.clone(),
             );
             if let Some((name, is_private)) = &pending.class_field_initializer_name {
                 rust_sfd_set_class_field_initializer_name(sfd_ptr, name.as_ptr(), name.len(), *is_private);

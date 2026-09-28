@@ -1877,6 +1877,10 @@ impl Parser<'_> {
         let attributes = self.parse_with_clause();
         self.consume_or_insert_semicolon();
 
+        for entry in &entries {
+            self.scope_collector.add_import_binding(&entry.local_name);
+        }
+
         self.statement(
             start,
             StatementKind::Import(Box::new(ImportStatementData {
