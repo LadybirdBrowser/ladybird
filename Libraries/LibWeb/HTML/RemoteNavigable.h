@@ -72,7 +72,8 @@ public:
     virtual bool active_document_has_cross_site_ancestor() const override { return m_replicated_state.has_cross_site_ancestor; }
     virtual OpenerPolicy const& active_document_opener_policy() const override { return m_replicated_state.opener_policy; }
     virtual bool active_browsing_context_is_auxiliary() const override { return m_replicated_state.active_browsing_context_is_auxiliary; }
-    virtual GC::Ptr<WindowProxy> active_browsing_context_opener_window_proxy() const override;
+    GC::Ptr<WindowProxy> active_browsing_context_opener_window_proxy() const;
+    virtual GC::Ptr<Navigable> active_browsing_context_opener_navigable() const override;
     virtual ReplicatedContainerState container_state() const override;
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const override;

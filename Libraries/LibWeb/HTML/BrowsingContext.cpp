@@ -260,6 +260,20 @@ BrowsingContext::BrowsingContext(GC::Ref<Page> page)
 
 BrowsingContext::~BrowsingContext() = default;
 
+Optional<CrossProcessId> BrowsingContext::opener_navigable_id() const
+{
+    if (auto navigable = opener_navigable())
+        return navigable->id();
+    return {};
+}
+
+GC::Ptr<Navigable> BrowsingContext::opener_navigable() const
+{
+    if (!m_opener_browsing_context_window_proxy)
+        return nullptr;
+    return m_opener_browsing_context_window_proxy->navigable();
+}
+
 void BrowsingContext::set_opener_browsing_context(GC::Ptr<BrowsingContext> opener)
 {
     m_opener_browsing_context_window_proxy = opener ? opener->window_proxy() : nullptr;

@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::HTML {
@@ -71,6 +72,8 @@ public:
     bool has_navigable_been_destroyed() const;
 
     GC::Ptr<WindowProxy> opener_browsing_context_window_proxy() const { return m_opener_browsing_context_window_proxy; }
+    Optional<CrossProcessId> opener_navigable_id() const;
+    GC::Ptr<Navigable> opener_navigable() const;
     void set_opener_browsing_context(GC::Ptr<BrowsingContext>);
     void set_opener_browsing_context(Navigable&);
     void set_is_auxiliary(bool is_auxiliary) { m_is_auxiliary = is_auxiliary; }
