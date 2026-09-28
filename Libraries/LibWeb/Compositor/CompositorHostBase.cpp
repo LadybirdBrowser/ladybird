@@ -10,12 +10,12 @@
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibMedia/VideoFrame.h>
+#include <LibWeb/Compositor/CompositorConnection.h>
+#include <LibWeb/Compositor/CompositorHostBase.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
-#include <LibWebView/CompositorConnection.h>
-#include <LibWebView/CompositorHostBase.h>
 
-namespace WebView {
+namespace Web::Compositor {
 
 class CompositorRemoteWebGLTransport final : public Web::WebGL::RemoteWebGLTransport {
 public:

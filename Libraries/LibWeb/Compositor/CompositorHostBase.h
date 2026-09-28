@@ -9,11 +9,11 @@
 #include <AK/Function.h>
 #include <AK/RefPtr.h>
 #include <LibWeb/Compositor/CompositorHost.h>
-#include <LibWebView/Forward.h>
+#include <LibWeb/Export.h>
 
-namespace WebView {
+namespace Web::Compositor {
 
-class WEBVIEW_API CompositorHostBase : public Web::Compositor::CompositorHost {
+class WEB_API CompositorHostBase : public CompositorHost {
 public:
     virtual RefPtr<Web::WebGL::RemoteWebGLTransport> create_webgl_transport() override;
     virtual RefPtr<Web::HTML::RemoteCanvas2DTransport> create_canvas_2d_transport() override;

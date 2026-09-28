@@ -32,7 +32,9 @@ set(SOURCES
     Clipboard/ClipboardEvent.cpp
     Clipboard/ClipboardItem.cpp
     Clipboard/SystemClipboard.cpp
+    Compositor/CompositorConnection.cpp
     Compositor/CompositorHost.cpp
+    Compositor/CompositorHostBase.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
@@ -853,6 +855,7 @@ set(SOURCES
     Platform/EventLoopPlugin.cpp
     Platform/FontPlugin.cpp
     Platform/ImageCodecPlugin.cpp
+    Platform/RemoteImageCodecPlugin.cpp
     Platform/Timer.cpp
     ReferrerPolicy/AbstractOperations.cpp
     ReferrerPolicy/ReferrerPolicy.cpp
@@ -1224,7 +1227,7 @@ set(GENERATED_SOURCES
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibWeb PUBLIC LibCompositing)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibMediaClient LibWasm LibXML LibURL LibTLS LibRequests LibGC LibThreading skia SDL3::SDL3 LibXml2::LibXml2)
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibMediaClient LibWasm LibXML LibURL LibTLS LibRequests LibGC LibImageDecoderClient LibThreading skia SDL3::SDL3 LibXml2::LibXml2)
 
 # LibWeb still includes ANGLE's GLES headers for WebGL constants and types, but
 # the actual GL entry points live in the Compositor. Copy only ANGLE's compile

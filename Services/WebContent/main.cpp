@@ -35,7 +35,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWebView/Plugins/ImageCodecPlugin.h>
+#include <LibWeb/Platform/RemoteImageCodecPlugin.h>
 #include <LibWebView/Utilities.h>
 #include <Services/RendererSandbox.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -303,8 +303,8 @@ ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle)
     new_client->transport().set_peer_pid(response->peer_pid());
 #endif
     if (Web::Platform::ImageCodecPlugin::is_initialized())
-        static_cast<WebView::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
+        static_cast<Web::Platform::RemoteImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
     else
-        Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(new_client)));
+        Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin(move(new_client)));
     return {};
 }

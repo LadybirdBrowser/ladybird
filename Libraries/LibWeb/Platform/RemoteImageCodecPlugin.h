@@ -9,19 +9,19 @@
 
 #include <AK/kmalloc.h>
 #include <LibImageDecoderClient/Client.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
-#include <LibWebView/Forward.h>
 
-namespace WebView {
+namespace Web::Platform {
 
-class WEBVIEW_API ImageCodecPlugin final : public Web::Platform::ImageCodecPlugin {
+class WEB_API RemoteImageCodecPlugin final : public ImageCodecPlugin {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit ImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client>);
-    virtual ~ImageCodecPlugin() override;
+    explicit RemoteImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client>);
+    virtual ~RemoteImageCodecPlugin() override;
 
-    virtual NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(Web::Platform::DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected) override;
+    virtual NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected) override;
 
     virtual void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) override;
     virtual void stop_animation_decode(i64 session_id) override;

@@ -49,8 +49,10 @@ struct RemoteInputEventTarget;
 
 namespace Web::Compositor {
 
+class CompositorConnection;
 class CompositorContextHandle;
 class CompositorHost;
+class CompositorHostBase;
 
 }
 

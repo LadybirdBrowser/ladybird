@@ -30,8 +30,6 @@ class CanonicalTraversable;
 class CanonicalWindow;
 class CompositorClient;
 class CompositorFontServiceConnection;
-class CompositorConnection;
-class CompositorHostBase;
 class CookieJar;
 class DownloadStore;
 class ExternalURLHandler;

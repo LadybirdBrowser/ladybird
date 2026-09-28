@@ -8,12 +8,12 @@
 #include <LibCore/System.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/SharedFontProvider.h>
+#include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/Platform/FontPlugin.h>
-#include <LibWebView/CompositorConnection.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
 #include <WebWorker/WorkerHost.h>
@@ -74,7 +74,7 @@ void ConnectionFromClient::connect_to_wasm_compiler([[maybe_unused]] IPC::Transp
 void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
 {
     auto transport = MUST(handle.create_transport());
-    m_compositor_connection = adopt_ref(*new WebView::CompositorConnection(move(transport)));
+    m_compositor_connection = adopt_ref(*new Web::Compositor::CompositorConnection(move(transport)));
     m_compositor_connection->on_compositor_lost = [this] {
         m_page_host->compositor_process_lost();
     };
@@ -87,7 +87,7 @@ void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
 #endif
 }
 
-WebView::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
+Web::Compositor::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
 {
     if (!m_compositor_connection || !m_compositor_connection->is_open())
         return nullptr;

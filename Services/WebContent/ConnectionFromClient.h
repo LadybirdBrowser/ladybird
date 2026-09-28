@@ -68,7 +68,7 @@ public:
 
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
-    WebView::CompositorConnection* compositor_process_connection() const;
+    Web::Compositor::CompositorConnection* compositor_process_connection() const;
     void did_destroy_compositor_context(Compositing::CompositorContextId);
 
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
@@ -317,7 +317,7 @@ private:
     virtual void exit_fullscreen(Compositing::PageId page_id) override;
 
     RefPtr<TestConnection> m_test_connection;
-    RefPtr<WebView::CompositorConnection> m_compositor_connection;
+    RefPtr<Web::Compositor::CompositorConnection> m_compositor_connection;
     NonnullOwnPtr<PageHost> m_page_host;
     OwnPtr<DevToolsDebugger> m_devtools_debugger;
 
