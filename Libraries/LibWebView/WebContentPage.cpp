@@ -305,7 +305,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (response_document.has_value()) {
         auto const& request = navigable->ongoing_navigation()->loader->request();
         auto document = navigable->create_and_initialize_a_document(*response_document);
-        navigable->ongoing_navigation()->loader->set_window(document->relevant_global_object());
+        navigable->ongoing_navigation()->loader->set_document(*document, *navigable);
         // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
         auto const& reconstructed_entry = navigable->ongoing_navigation()->reconstructed_entry;
         auto document_state = reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(request.history_entry.document_state.id);

@@ -324,13 +324,32 @@ Document::HTMLCollectionAttributeInvalidationTypes Document::html_collection_att
 
 GC_DEFINE_ALLOCATOR(Document);
 
+// https://html.spec.whatwg.org/multipage/browsers.html#obtain-browsing-context-navigation
+// NB: The UI process performed this algorithm and selected this process. It names the group of the new top-level
+//     browsing context when it switched browsing context groups.
+static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(HTML::NavigationParams const& navigation_params)
+{
+    // 1. Let browsingContext be navigationParams's navigable's active browsing context.
+    auto& navigable = *navigation_params.navigable;
+    auto browsing_context = navigable.active_browsing_context();
+
+    // NB: Steps 2 to 9 decide whether to switch browsing context groups, and return browsingContext otherwise.
+    if (!navigation_params.new_browsing_context_group_id.has_value())
+        return *browsing_context;
+
+    // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
+    auto new_browsing_context = HTML::BrowsingContext::create_a_new_browsing_context_and_document(navigable.page(), nullptr, nullptr).browsing_context;
+    new_browsing_context->set_browsing_context_group_id(*navigation_params.new_browsing_context_group_id);
+
+    // 15. Return newBrowsingContext.
+    return new_browsing_context;
+}
+
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
 WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type, Utf16FlyString content_type, HTML::NavigationParams const& navigation_params)
 {
     // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
-    // NB: The UI process has already performed this algorithm and selected this WebContent process.
-    auto browsing_context = navigation_params.navigable->active_browsing_context();
-    VERIFY(browsing_context);
+    auto browsing_context = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params);
 
     // FIXME: 2. Let permissionsPolicy be the result of creating a permissions policy from a response given navigationParams's navigable's container, navigationParams's origin, and navigationParams's response.
 
