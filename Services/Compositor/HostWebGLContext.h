@@ -55,6 +55,7 @@ private:
     explicit HostWebGLContext(NonnullOwnPtr<OpenGLContext>);
 
     ErrorOr<void> set_drawing_buffer_size(int width, int height);
+    void clear_drawing_buffer_if_needed();
     ErrorOr<void> tex_image2d_from_bitmap(Compositing::WebGL::Commands::TexImage2DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
     ErrorOr<void> tex_sub_image2d_from_bitmap(Compositing::WebGL::Commands::TexSubImage2DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
     ErrorOr<void> tex_image3d_from_bitmap(Compositing::WebGL::Commands::TexImage3DFromBitmap const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
