@@ -290,7 +290,6 @@ struct GlobalVariableCache {
     u64 environment_serial_number { 0 };
     u32 environment_binding_index { 0 };
     bool has_environment_binding_index { false };
-    bool in_module_environment { false };
 };
 
 // https://tc39.es/ecma262/#sec-gettemplateobject
