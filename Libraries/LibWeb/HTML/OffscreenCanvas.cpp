@@ -10,8 +10,11 @@
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DSettings.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/FontComputer.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/BindingsGlue.h>
@@ -256,7 +259,45 @@ GC::Ptr<WebIDL::CallbackType> OffscreenCanvas::oncontextrestored()
     return event_handler_attribute(HTML::EventNames::contextrestored);
 }
 
-CSS::ComputationContext OffscreenCanvas::canvas_font_computation_context() const
+WebGL::WebGLRenderingContextBase* OffscreenCanvas::canvas_webgl_context() const
+{
+    return m_context.visit(
+        [](GC::Ref<WebGL::WebGLRenderingContext> const& context) -> WebGL::WebGLRenderingContextBase* { return context.ptr(); },
+        [](GC::Ref<WebGL::WebGL2RenderingContext> const& context) -> WebGL::WebGLRenderingContextBase* { return context.ptr(); },
+        [](auto const&) -> WebGL::WebGLRenderingContextBase* { return nullptr; });
+}
+
+Page& OffscreenCanvas::canvas_page()
+{
+    return Bindings::principal_host_defined_page(relevant_global_object().shape().realm());
+}
+
+// https://drafts.csswg.org/css-font-loading/#font-source
+CSS::FontComputer& OffscreenCanvas::canvas_font_computer()
+{
+    // 2. Otherwise, object's font style source object is an OffscreenCanvas object:
+
+    // 1. Let global be object's relevant global object.
+    auto& global_object = relevant_global_object();
+
+    // 2. If global is a Window object, then return global's associated Document.
+    if (auto* window = window_from_global_object(global_object))
+        return window->associated_document().font_computer();
+
+    // 3. Assert: global implements WorkerGlobalScope.
+    auto* worker_global_scope = Bindings::worker_global_scope_from_global_object(global_object);
+    VERIFY(worker_global_scope);
+
+    // 4. Return global.
+    return worker_global_scope->font_computer();
+}
+
+CSS::ColorResolutionContext OffscreenCanvas::canvas_color_resolution_context()
+{
+    return {};
+}
+
+CSS::ComputationContext OffscreenCanvas::canvas_font_computation_context()
 {
     // NB: The default font for a canvas is 10px sans-serif so we use a point size of 8 here.
     CSS::Length::FontMetrics font_metrics { 10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height() };

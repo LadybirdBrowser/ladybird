@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Page/Page.h>
@@ -46,14 +47,6 @@
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLCanvasElement);
-
-static RefPtr<Gfx::Bitmap> create_transparent_canvas_bitmap(Gfx::IntSize const& size)
-{
-    auto bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size);
-    if (bitmap_or_error.is_error())
-        return nullptr;
-    return bitmap_or_error.release_value();
-}
 
 HTMLCanvasElement::HTMLCanvasElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -165,6 +158,71 @@ void HTMLCanvasElement::reset_context_to_default_state()
         [](Empty) {
             // Do nothing.
         });
+}
+
+Canvas2DContextBase* HTMLCanvasElement::canvas_2d_context() const
+{
+    return canvas_rendering_context_2d().ptr();
+}
+
+WebGL::WebGLRenderingContextBase* HTMLCanvasElement::canvas_webgl_context() const
+{
+    return m_context.visit(
+        [](GC::Ref<WebGL::WebGLRenderingContext> const& context) -> WebGL::WebGLRenderingContextBase* { return context.ptr(); },
+        [](GC::Ref<WebGL::WebGL2RenderingContext> const& context) -> WebGL::WebGLRenderingContextBase* { return context.ptr(); },
+        [](auto const&) -> WebGL::WebGLRenderingContextBase* { return nullptr; });
+}
+
+Page& HTMLCanvasElement::canvas_page()
+{
+    return document().page();
+}
+
+JS::Object& HTMLCanvasElement::canvas_relevant_global_object() const
+{
+    return HTML::relevant_global_object(*this);
+}
+
+GC::Ptr<Bindings::Wrappable> HTMLCanvasElement::canvas_relevant_global_impl() const
+{
+    return document().window();
+}
+
+void HTMLCanvasElement::did_change_canvas_content()
+{
+    set_canvas_content_dirty();
+
+    // NB: Don't request a display list recording here: the new content reaches the compositor through the canvas
+    // surface registry when the canvas is presented, and the cached DrawCanvas command is invalidated when the
+    // content generation moves in prepare_for_compositing.
+    set_needs_repaint(InvalidateDisplayList::No);
+}
+
+void HTMLCanvasElement::did_create_canvas_backing_storage()
+{
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
+}
+
+// https://drafts.csswg.org/css-font-loading/#font-source
+CSS::FontComputer& HTMLCanvasElement::canvas_font_computer()
+{
+    // 1. If object's font style source object is a canvas element, return the element's node document.
+    return document().font_computer();
+}
+
+CSS::ColorResolutionContext HTMLCanvasElement::canvas_color_resolution_context()
+{
+    document().update_style_for_element(*this, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
+    if (has_style())
+        return CSS::ColorResolutionContext::for_element(*this);
+    return {};
+}
+
+CSSPixelRect HTMLCanvasElement::canvas_viewport_rect() const
+{
+    if (auto navigable = this->navigable())
+        return navigable->viewport_rect();
+    return {};
 }
 
 CSS::ComputationContext HTMLCanvasElement::canvas_font_computation_context()
@@ -310,32 +368,9 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     return Empty {};
 }
 
-Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, size_t minimum_height) const
+Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas() const
 {
-    auto width = max(this->width(), minimum_width);
-    auto height = max(this->height(), minimum_height);
-
-    Checked<size_t> area = width;
-    area *= height;
-
-    if (area.has_overflow()) {
-        dbgln("Refusing to create {}x{} canvas (overflow)", width, height);
-        return {};
-    }
-    if (area.value() > Gfx::max_canvas_area) {
-        dbgln("Refusing to create {}x{} canvas (exceeds maximum size)", width, height);
-        return {};
-    }
-    return Gfx::IntSize(width, height);
-}
-
-// https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
-bool HTMLCanvasElement::is_origin_clean() const
-{
-    return m_context.visit(
-        [](GC::Ref<CanvasRenderingContext2D> const& context) { return context->origin_clean(); },
-        // FIXME: WebGL and WebGL2 contexts do not track the origin-clean flag yet.
-        [](auto const&) { return true; });
+    return bitmap_size_for_dimensions(width(), height());
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
@@ -414,48 +449,18 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     return {};
 }
 
-WebGL::WebGLRenderingContextBase* HTMLCanvasElement::webgl_context() const
-{
-    return m_context.visit(
-        [](GC::Ref<WebGL::WebGLRenderingContext> const& context) -> WebGL::WebGLRenderingContextBase* { return context.ptr(); },
-        [](GC::Ref<WebGL::WebGL2RenderingContext> const& context) -> WebGL::WebGLRenderingContextBase* { return context.ptr(); },
-        [](auto const&) -> WebGL::WebGLRenderingContextBase* { return nullptr; });
-}
-
 Optional<Compositing::CanvasId> HTMLCanvasElement::canvas_id() const
 {
     if (auto context = canvas_rendering_context_2d())
         return context->canvas_id();
-    if (auto* webgl_context = this->webgl_context(); webgl_context && !webgl_context->is_context_lost())
+    if (auto* webgl_context = canvas_webgl_context(); webgl_context && !webgl_context->is_context_lost())
         return webgl_context->context().canvas_id();
     return {};
 }
 
-RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()
-{
-    auto const size = bitmap_size_for_canvas();
-    if (size.is_empty())
-        return nullptr;
-
-    RefPtr<Gfx::Bitmap> bitmap;
-    if (auto* webgl_context = this->webgl_context()) {
-        bitmap = webgl_context->context().read_back_drawing_buffer({ {}, size });
-    } else {
-        if (auto context = canvas_rendering_context_2d()) {
-            ensure_backing_storage();
-            if (auto pixels = context->read_pixels({ {}, size }); pixels && pixels->size() == size)
-                bitmap = pixels;
-        } else {
-            bitmap = create_transparent_canvas_bitmap(size);
-        }
-    }
-
-    return bitmap;
-}
-
 void HTMLCanvasElement::notify_compositor_connection_lost()
 {
-    if (auto* webgl_context = this->webgl_context())
+    if (auto* webgl_context = canvas_webgl_context())
         webgl_context->lose_context_from_compositor_loss();
 }
 
@@ -493,7 +498,7 @@ void HTMLCanvasElement::prepare_for_compositing()
 
 void HTMLCanvasElement::notify_compositor_backing_storage_lost()
 {
-    if (auto* webgl_context = this->webgl_context()) {
+    if (auto* webgl_context = canvas_webgl_context()) {
         webgl_context->restore_context_after_compositor_reconnect();
         return;
     }

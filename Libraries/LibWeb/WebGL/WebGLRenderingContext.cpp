@@ -35,28 +35,28 @@ GC_DEFINE_ALLOCATOR(WebGLRenderingContext);
 // https://www.khronos.org/registry/webgl/specs/latest/1.0/#fire-a-webgl-context-event
 // Returns false if the event was canceled (the page called preventDefault), which is how
 // webglcontextlost signals that the page wants the context restored.
-bool fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, Utf16FlyString const& type)
+bool fire_webgl_context_event(HTML::CanvasHost& canvas, Utf16FlyString const& type)
 {
     // To fire a WebGL context event named e means that an event using the WebGLContextEvent interface, with its type attribute [DOM4] initialized to e, its cancelable attribute initialized to true, and its isTrusted attribute [DOM4] initialized to true, is to be dispatched at the given object.
     // FIXME: Consider setting a status message.
-    auto event = WebGLContextEvent::create(type, Bindings::WebGLContextEventInit {}, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(canvas_element)));
+    auto event = WebGLContextEvent::create(type, Bindings::WebGLContextEventInit {}, HighResolutionTime::current_high_resolution_time(canvas.canvas_relevant_global_object()));
     event->set_is_trusted(true);
     event->set_cancelable(true);
-    return canvas_element.dispatch_event(*event);
+    return canvas.canvas_event_target().dispatch_event(*event);
 }
 
 // https://www.khronos.org/registry/webgl/specs/latest/1.0/#fire-a-webgl-context-creation-error
-void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_element)
+void fire_webgl_context_creation_error(HTML::CanvasHost& canvas)
 {
     // 1. Fire a WebGL context event named "webglcontextcreationerror" at canvas, optionally with its statusMessage attribute set to a platform dependent string about the nature of the failure.
-    fire_webgl_context_event(canvas_element, EventNames::webglcontextcreationerror);
+    fire_webgl_context_event(canvas, EventNames::webglcontextcreationerror);
 }
 
 // The drawing buffer's creation-time size, clamped like set_size() clamps resizes;
 // later resizes travel as SetDrawingBufferSize commands.
-static Gfx::IntSize initial_drawing_buffer_size(HTML::HTMLCanvasElement& canvas_element)
+static Gfx::IntSize initial_drawing_buffer_size(HTML::CanvasHost& canvas)
 {
-    auto size = canvas_element.bitmap_size_for_canvas(1, 1);
+    auto size = canvas.bitmap_size_for_canvas();
     return {
         clamp(size.width(), 1, max_webgl_drawing_buffer_dimension),
         clamp(size.height(), 1, max_webgl_drawing_buffer_dimension),
@@ -70,9 +70,9 @@ struct RemoteWebGLContext {
     RemoteWebGLTransport::CreateResult result;
 };
 
-Optional<RemoteWebGLContext> create_remote_webgl_context(HTML::HTMLCanvasElement& canvas_element, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
+Optional<RemoteWebGLContext> create_remote_webgl_context(HTML::CanvasHost& canvas, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
 {
-    auto& page = canvas_element.document().page();
+    auto& page = canvas.canvas_page();
     if (!page.has_compositor_host())
         return {};
     auto transport = page.compositor_host().create_webgl_transport();
@@ -81,7 +81,7 @@ Optional<RemoteWebGLContext> create_remote_webgl_context(HTML::HTMLCanvasElement
 
     auto result = transport->create_context(
         webgl_version,
-        initial_drawing_buffer_size(canvas_element),
+        initial_drawing_buffer_size(canvas),
         context_attributes.depth,
         context_attributes.stencil,
         context_attributes.antialias);
@@ -90,25 +90,25 @@ Optional<RemoteWebGLContext> create_remote_webgl_context(HTML::HTMLCanvasElement
 
     // NB: The display list must be re-recorded so its DrawCanvas command refers to the new remote context's
     //     canvas id. Content updates alone don't invalidate the display list, so do it here.
-    canvas_element.set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    canvas.did_create_canvas_backing_storage();
 
     return RemoteWebGLContext { transport.release_nonnull(), move(result) };
 }
 
 }
 
-OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::HTMLCanvasElement& canvas_element, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
+OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::CanvasHost& canvas, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
 {
-    auto remote = create_remote_webgl_context(canvas_element, webgl_version, context_attributes);
+    auto remote = create_remote_webgl_context(canvas, webgl_version, context_attributes);
     if (!remote.has_value())
         return {};
 
     return make<WebGLContextProxy>(move(remote->transport), webgl_version, move(remote->result.supported_extensions));
 }
 
-bool restore_webgl_context_proxy(WebGLContextProxy& context, HTML::HTMLCanvasElement& canvas_element, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
+bool restore_webgl_context_proxy(WebGLContextProxy& context, HTML::CanvasHost& canvas, WebGLVersion webgl_version, WebGLContextAttributes const& context_attributes)
 {
-    auto remote = create_remote_webgl_context(canvas_element, webgl_version, context_attributes);
+    auto remote = create_remote_webgl_context(canvas, webgl_version, context_attributes);
     if (!remote.has_value())
         return false;
 
@@ -162,14 +162,14 @@ GC::Ref<HTML::HTMLCanvasElement> WebGLRenderingContext::canvas_for_binding() con
     return *m_canvas_element;
 }
 
+HTML::CanvasHost& WebGLRenderingContext::canvas_host() const
+{
+    return *m_canvas_element;
+}
+
 void WebGLRenderingContext::did_update_canvas_content()
 {
-    m_canvas_element->set_canvas_content_dirty();
-
-    // NB: Don't request a display list recording here: the new content reaches the compositor through the canvas
-    //     surface registry when the canvas is presented, and the cached DrawCanvas command is invalidated when the
-    //     content generation moves in prepare_for_compositing.
-    m_canvas_element->set_needs_repaint(InvalidateDisplayList::No);
+    canvas_host().did_change_canvas_content();
 }
 
 Optional<WebGLContextAttributes> WebGLRenderingContext::get_context_attributes()

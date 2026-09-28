@@ -61,6 +61,11 @@ void OffscreenCanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
     m_size = size;
 }
 
+CanvasHost& OffscreenCanvasRenderingContext2D::canvas_host() const
+{
+    return *m_canvas;
+}
+
 GC::Ref<OffscreenCanvas> OffscreenCanvasRenderingContext2D::canvas()
 {
     return m_canvas;

@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Canvas/CanvasHost.h>
 #include <LibWeb/HTML/Canvas/CanvasSettings.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
@@ -24,7 +25,8 @@ using OffscreenRenderingContext = Variant<GC::Ref<OffscreenCanvasRenderingContex
 
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvas
 class OffscreenCanvas : public DOM::EventTarget
-    , public Web::Bindings::Transferable {
+    , public Web::Bindings::Transferable
+    , public CanvasHost {
     WEB_WRAPPABLE(OffscreenCanvas, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(OffscreenCanvas);
 
@@ -51,7 +53,18 @@ public:
     WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
     WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
 
-    Gfx::IntSize bitmap_size_for_canvas() const;
+    // ^CanvasHost
+    virtual Gfx::IntSize bitmap_size_for_canvas() const override;
+    virtual Canvas2DContextBase* canvas_2d_context() const override { return nullptr; }
+    virtual WebGL::WebGLRenderingContextBase* canvas_webgl_context() const override;
+    virtual Page& canvas_page() override;
+    virtual DOM::EventTarget& canvas_event_target() override { return *this; }
+    virtual JS::Object& canvas_relevant_global_object() const override { return relevant_global_object(); }
+    virtual GC::Ptr<Bindings::Wrappable> canvas_relevant_global_impl() const override { return m_global_object; }
+    virtual CSS::FontComputer& canvas_font_computer() override;
+    virtual CSS::ComputationContext canvas_font_computation_context() override;
+    virtual CSS::ColorResolutionContext canvas_color_resolution_context() override;
+    virtual CSSPixelRect canvas_viewport_rect() const override { return {}; }
 
     WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> transfer_to_image_bitmap();
 
@@ -59,8 +72,6 @@ public:
     GC::Ptr<WebIDL::CallbackType> oncontextlost();
     void set_oncontextrestored(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> oncontextrestored();
-
-    CSS::ComputationContext canvas_font_computation_context() const;
 
     enum class HasOrCreatedContext {
         No,

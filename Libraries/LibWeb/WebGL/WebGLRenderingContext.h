@@ -30,6 +30,7 @@ public:
     void did_update_canvas_content() override;
 
     virtual GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const override;
+    virtual HTML::CanvasHost& canvas_host() const override;
 
     Optional<WebGLContextAttributes> get_context_attributes();
 
@@ -56,10 +57,10 @@ private:
     WebGLContextAttributes m_actual_context_parameters {};
 };
 
-bool fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, Utf16FlyString const& type);
-void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_element);
+bool fire_webgl_context_event(HTML::CanvasHost&, Utf16FlyString const& type);
+void fire_webgl_context_creation_error(HTML::CanvasHost&);
 
-OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::HTMLCanvasElement&, WebGLVersion, WebGLContextAttributes const&);
-bool restore_webgl_context_proxy(WebGLContextProxy&, HTML::HTMLCanvasElement&, WebGLVersion, WebGLContextAttributes const&);
+OwnPtr<WebGLContextProxy> create_webgl_context_proxy(HTML::CanvasHost&, WebGLVersion, WebGLContextAttributes const&);
+bool restore_webgl_context_proxy(WebGLContextProxy&, HTML::CanvasHost&, WebGLVersion, WebGLContextAttributes const&);
 
 }

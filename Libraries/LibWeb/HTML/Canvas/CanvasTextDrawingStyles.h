@@ -19,9 +19,6 @@ public:
     Utf16String font() const;
     void set_font(Utf16View font) override;
 
-    // https://html.spec.whatwg.org/multipage/canvas.html#font-style-source-object
-    Variant<DOM::Document*, HTML::WorkerGlobalScope*> get_font_source_for_font_style_source_object(CanvasType& font_style_source_object);
-
     CanvasTextAlign text_align() const { return drawing_state().text_align; }
     void set_text_align(CanvasTextAlign text_align) { drawing_state().text_align = text_align; }
 

@@ -74,14 +74,14 @@ GC::Ref<HTML::HTMLCanvasElement> WebGL2RenderingContext::canvas_for_binding() co
     return *m_canvas_element;
 }
 
+HTML::CanvasHost& WebGL2RenderingContext::canvas_host() const
+{
+    return *m_canvas_element;
+}
+
 void WebGL2RenderingContext::did_update_canvas_content()
 {
-    m_canvas_element->set_canvas_content_dirty();
-
-    // NB: Don't request a display list recording here: the new content reaches the compositor through the canvas
-    //     surface registry when the canvas is presented, and the cached DrawCanvas command is invalidated when the
-    //     content generation moves in prepare_for_compositing.
-    m_canvas_element->set_needs_repaint(InvalidateDisplayList::No);
+    canvas_host().did_change_canvas_content();
 }
 
 Optional<WebGLContextAttributes> WebGL2RenderingContext::get_context_attributes()

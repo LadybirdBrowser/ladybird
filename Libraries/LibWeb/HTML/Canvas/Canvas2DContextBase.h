@@ -138,6 +138,7 @@ protected:
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     [[nodiscard]] Gfx::CanvasCommandList* canvas_command_list() override;
     JS::Realm& my_realm() override { return realm(); }
@@ -171,22 +172,6 @@ protected:
     bool ensure_remote_canvas_context();
 
     bool has_backing_storage() const { return m_transport != nullptr; }
-
-    // Marks the owning canvas as needing repaint/commit after a draw was recorded.
-    virtual void did_draw_hook() = 0;
-
-    // Page whose compositor host provides the remote canvas transport; null when unavailable.
-    virtual Page* page_for_compositor() = 0;
-
-    // Invoked right after the remote context is (re)created.
-    virtual void backing_storage_created_hook() { }
-
-    // Target for contextlost/contextrestored events.
-    virtual DOM::EventTarget& context_event_target() = 0;
-
-    // Style-resolved color for a drop-shadow() canvas filter; element canvases resolve
-    // against their computed style, offscreen canvases have no style context.
-    virtual Gfx::Color resolve_drop_shadow_color(CSS::DropShadowFilterStyleValue const&) const = 0;
 
     RefPtr<RemoteCanvas2DTransport> m_transport;
     RefPtr<Gfx::Bitmap> m_cached_readback;

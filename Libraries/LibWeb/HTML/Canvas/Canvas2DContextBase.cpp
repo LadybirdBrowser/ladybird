@@ -84,6 +84,11 @@ void Canvas2DContextBase::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_realm);
 }
 
+GC::Ptr<Bindings::Wrappable> Canvas2DContextBase::relevant_global_impl() const
+{
+    return canvas_host().canvas_relevant_global_impl();
+}
+
 size_t Canvas2DContextBase::external_memory_size() const
 {
     auto size = Base::external_memory_size();
@@ -274,7 +279,7 @@ void Canvas2DContextBase::did_draw(Gfx::FloatRect const&)
 {
     m_cached_readback = nullptr;
     // FIXME: Make use of the rect to reduce the invalidated area when possible.
-    did_draw_hook();
+    canvas_host().did_change_canvas_content();
 }
 
 Gfx::CanvasCommandList* Canvas2DContextBase::canvas_command_list()
@@ -295,10 +300,10 @@ bool Canvas2DContextBase::ensure_remote_canvas_context()
     if (m_transport)
         return true;
 
-    auto* page = page_for_compositor();
-    if (!page || !page->has_compositor_host())
+    auto& page = canvas_host().canvas_page();
+    if (!page.has_compositor_host())
         return false;
-    auto transport = page->compositor_host().create_canvas_2d_transport();
+    auto transport = page.compositor_host().create_canvas_2d_transport();
     if (!transport)
         return false;
 
@@ -382,7 +387,7 @@ void Canvas2DContextBase::notify_backing_storage_lost()
         //    attribute initialized to true.
         DOM::EventInit context_lost_event_init;
         context_lost_event_init.cancelable = true;
-        bool should_restore = context_event_target().dispatch_event(DOM::Event::create(realm().global_object(), HTML::EventNames::contextlost, context_lost_event_init));
+        bool should_restore = canvas_host().canvas_event_target().dispatch_event(DOM::Event::create(realm().global_object(), HTML::EventNames::contextlost, context_lost_event_init));
 
         // 6. If shouldRestore is false, then abort these steps.
         if (!should_restore)
@@ -398,7 +403,7 @@ void Canvas2DContextBase::notify_backing_storage_lost()
         set_context_lost(false);
 
         // 9. Fire an event named contextrestored at canvas.
-        context_event_target().dispatch_event(DOM::Event::create(realm().global_object(), HTML::EventNames::contextrestored));
+        canvas_host().canvas_event_target().dispatch_event(DOM::Event::create(realm().global_object(), HTML::EventNames::contextrestored));
     }));
 }
 
@@ -409,7 +414,7 @@ void Canvas2DContextBase::ensure_backing_storage()
     if (!ensure_remote_canvas_context())
         return;
 
-    backing_storage_created_hook();
+    canvas_host().did_create_canvas_backing_storage();
 }
 
 void Canvas2DContextBase::discard_backing_storage()
@@ -1014,17 +1019,10 @@ RefPtr<Gfx::FontCascadeList const> Canvas2DContextBase::font_cascade_list()
         set_font(u"10px sans-serif"sv);
     }
 
-    auto* document = canvas_element().visit(
-        [](GC::Ref<HTMLCanvasElement> canvas) -> DOM::Document* { return &canvas->document(); },
-        [](GC::Ref<OffscreenCanvas> canvas) -> DOM::Document* {
-            if (auto* window = window_from_global_object(canvas->relevant_global_object()))
-                return &window->associated_document();
-            return nullptr;
-        });
     // NB: Drawing states, including saved states, retain their cascades across font loads and font-display
     //     transitions. Refresh them lazily so cached invisible fallback glyphs and metrics cannot outlive
     //     the font environment that selected them.
-    if (document && drawing_state().font_environment_generation != document->font_computer().environment_generation()) {
+    if (drawing_state().font_environment_generation != canvas_host().canvas_font_computer().environment_generation()) {
         auto font = drawing_state().font_style_value->to_utf16_string(CSS::SerializationMode::ResolvedValue);
         set_font(font);
     }
@@ -1553,7 +1551,7 @@ void Canvas2DContextBase::set_filter(Utf16View filter)
                 function.offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y(), {}).absolute_length_to_px());
                 if (drop_shadow.radius())
                     function.amount = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius(), {}).absolute_length_to_px());
-                function.color = resolve_drop_shadow_color(drop_shadow);
+                function.color = drop_shadow.color() ? drop_shadow.color()->to_color(canvas_host().canvas_color_resolution_context()).value_or(Gfx::Color::Black) : Gfx::Color::Black;
                 break;
             }
             }
