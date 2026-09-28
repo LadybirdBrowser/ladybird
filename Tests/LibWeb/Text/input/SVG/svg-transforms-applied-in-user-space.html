@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+    <svg viewBox="0 -100 100 100" width="1000" height="1000">
+        <g transform="scale(0.5)">
+            <rect id="rect" x="40" y="-60" width="20" height="20" fill="green" />
+        </g>
+    </svg>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            const boundingRect = rect.getBoundingClientRect();
+            println(`${boundingRect.width}x${boundingRect.height} @ ${boundingRect.x},${boundingRect.y}`);
+        });
+    </script>
+</html>

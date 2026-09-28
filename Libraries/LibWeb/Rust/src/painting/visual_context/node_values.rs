@@ -73,8 +73,8 @@ pub(crate) fn transform_reference_box(
         VIEW_BOX => crate::painting::svg_viewport::nearest_svg_viewport_user_rect(layout_arena, slot)
             .map(|rect| {
                 CssPixelRect::new(
-                    CssPixels::nearest_value_for(rect.x as f64),
-                    CssPixels::nearest_value_for(rect.y as f64),
+                    CssPixels::default(),
+                    CssPixels::default(),
                     CssPixels::nearest_value_for(rect.width as f64),
                     CssPixels::nearest_value_for(rect.height as f64),
                 )
