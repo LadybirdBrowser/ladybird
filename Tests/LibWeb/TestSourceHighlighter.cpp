@@ -7,13 +7,13 @@
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
-#include <LibWebView/SourceHighlighter.h>
+#include <LibWeb/Loader/SourceHighlighter.h>
 
 static String highlight_source(String const& source, Syntax::Language language)
 {
     auto url = URL::Parser::basic_parse("https://example.com/source.html"sv).release_value();
     auto base_url = URL::Parser::basic_parse("https://example.com/base/"sv).release_value();
-    return WebView::highlight_source(url, base_url, source, language);
+    return Web::highlight_source(url, base_url, source, language);
 }
 
 TEST_CASE(highlight_script_with_braces)

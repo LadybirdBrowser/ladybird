@@ -14,11 +14,11 @@
 #include <LibSyntax/HighlighterClient.h>
 #include <LibSyntax/Language.h>
 #include <LibURL/Forward.h>
-#include <LibWebView/Forward.h>
+#include <LibWeb/Export.h>
 
-namespace WebView {
+namespace Web {
 
-class WEBVIEW_API SourceDocument final : public Syntax::Document {
+class WEB_API SourceDocument final : public Syntax::Document {
 public:
     static NonnullRefPtr<SourceDocument> create(String const& source)
     {
@@ -43,7 +43,7 @@ private:
     Vector<Syntax::TextDocumentLine> m_lines;
 };
 
-class WEBVIEW_API SourceHighlighterClient final : public Syntax::HighlighterClient {
+class WEB_API SourceHighlighterClient final : public Syntax::HighlighterClient {
 public:
     SourceHighlighterClient(String const& source, Syntax::Language);
     virtual ~SourceHighlighterClient() = default;
@@ -63,7 +63,7 @@ private:
     OwnPtr<Syntax::Highlighter> m_highlighter;
 };
 
-WEBVIEW_API String highlight_source(Optional<URL::URL> const&, URL::URL const& base_url, String const& source, Syntax::Language);
+WEB_API String highlight_source(Optional<URL::URL> const&, URL::URL const& base_url, String const& source, Syntax::Language);
 
 constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
     @media (prefers-color-scheme: dark) {
