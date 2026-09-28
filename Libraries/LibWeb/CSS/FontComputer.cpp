@@ -79,6 +79,8 @@ struct Traits<Web::CSS::ComputedFontCacheKey> : public DefaultTraits<Web::CSS::C
 
 namespace Web::CSS {
 
+FontComputer::FontComputer() = default;
+
 FontComputer::FontComputer(DOM::Document& document)
     : m_document(document)
 {
@@ -526,6 +528,9 @@ HashMap<FontFeatureValueKey, Vector<u32>> const& FontComputer::font_feature_valu
         // mapping between a (family name, feature block name, declaration name) tuple and the list of one or more
         // integers from the declaration’s value. If the same tuple appears more than once in a document (such as if a
         // single block), the last-defined one is used.
+
+        if (!m_document)
+            return font_feature_values;
 
         // FIXME: We only account for Author stylesheets here, we should also account for UserAgent and User
         m_document->style_scope().for_each_active_css_style_sheet([&](CSS::StyleSheetState const& sheet) {

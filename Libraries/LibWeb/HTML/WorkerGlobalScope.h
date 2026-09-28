@@ -108,6 +108,8 @@ public:
 
     // Non-IDL public methods
 
+    CSS::FontComputer& font_computer();
+
     URL::URL const& url() const { return m_url.value(); }
     void set_url(URL::URL const& url) { m_url = url; }
 
@@ -197,6 +199,8 @@ private:
 
     // https://drafts.csswg.org/css-font-loading/#font-source
     GC::Ptr<CSS::FontFaceSet> m_fonts;
+
+    GC::Ptr<CSS::FontComputer> m_font_computer;
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-WorkerGlobalScope-owner-set
     // A WorkerGlobalScope object has an associated owner set (a set of Document and WorkerGlobalScope objects). It is initially empty and populated when the worker is created or obtained.

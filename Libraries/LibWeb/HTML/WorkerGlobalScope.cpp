@@ -7,6 +7,7 @@
 
 #include <AK/Vector.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
@@ -60,6 +61,7 @@ void WorkerGlobalScope::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_internal_port);
     visitor.visit(m_page);
     visitor.visit(m_fonts);
+    visitor.visit(m_font_computer);
     visitor.visit(m_policy_container);
 }
 
@@ -171,6 +173,13 @@ GC::Ref<CSS::FontFaceSet> WorkerGlobalScope::fonts()
     if (!m_fonts)
         m_fonts = CSS::FontFaceSet::create(relevant_settings_object(*this));
     return *m_fonts;
+}
+
+CSS::FontComputer& WorkerGlobalScope::font_computer()
+{
+    if (!m_font_computer)
+        m_font_computer = heap().allocate<CSS::FontComputer>();
+    return *m_font_computer;
 }
 
 GC::Ref<PolicyContainer> WorkerGlobalScope::policy_container() const
