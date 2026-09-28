@@ -45,6 +45,7 @@ asm_dispatch_table:
     .quad asm_handler_End
     .quad asm_handler_GetLexicalEnvironment
     .quad asm_handler_GetImportMeta
+    .quad asm_handler_GetImport
     .quad asm_handler_GetNewTarget
     .quad asm_handler_GetSuperConstructor
     .quad asm_handler_SetLexicalEnvironment
@@ -230,7 +231,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsRhsInt32
     .quad asm_handler_JumpLooselyEqualsRhsInt32
     .quad asm_handler_JumpLooselyInequalsRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -662,6 +662,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_GetImportMeta_hot_end
     .quad asm_handler_GetImportMeta_cold
     .quad asm_handler_GetImportMeta_cold_end
+    .quad asm_handler_GetImport
+    .quad asm_handler_GetImport_hot_end
+    .quad asm_handler_GetImport_cold
+    .quad asm_handler_GetImport_cold_end
     .quad asm_handler_GetNewTarget
     .quad asm_handler_GetNewTarget_hot_end
     .quad asm_handler_GetNewTarget_cold
@@ -1402,10 +1406,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -8481,6 +8481,45 @@ asm_handler_GetImportMeta:
 asm_handler_GetImportMeta_hot_end:
 asm_handler_GetImportMeta_cold:
 asm_handler_GetImportMeta_cold_end:
+
+.p2align 4
+asm_handler_GetImport:
+    mov DWORD PTR [rbx + -64], r13d
+    lea r11, [r14 + r13]
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_get_import)
+    test rax, rax
+    js .Lasm_GetImport.scalar_result_done_0
+    bt rax, 32
+    jnc .Lasm_GetImport.scalar_result_done_0
+    lea rcx, [r14 + r13]
+    mov r10d, DWORD PTR [rcx + 4]
+    mov QWORD PTR [rbx + r10 * 8], rdx
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetImport.scalar_result_done_0:
+    test rax, rax
+    js .Lexit
+    bt rax, 32
+    jnc .Lasm_GetImport.slow_path_transfer_1
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetImport.slow_path_transfer_1:
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx + 15288]
+    add rbx, 128
+    mov rcx, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [rcx + 80]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_GetImport_hot_end:
+asm_handler_GetImport_cold:
+asm_handler_GetImport_cold_end:
 
 .p2align 4
 asm_handler_GetNewTarget:

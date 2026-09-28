@@ -52,6 +52,8 @@ public:
     Object* import_meta() { return m_import_meta.ptr(); }
     void set_import_meta(Badge<VM>, Object* import_meta) { m_import_meta = import_meta; }
 
+    ThrowCompletionOr<Value> get_imported_binding_value(VM&, u32 import_index, Utf16FlyString const& local_name);
+
     // Pre-computed module declaration instantiation data.
     // These are extracted from the AST at construction time so that
     // initialize_environment() can run without walking the AST.
@@ -89,12 +91,23 @@ private:
     void complete_bytecode_cache_install(GC::Ptr<Bytecode::Executable>, GC::Ptr<Bytecode::Executable> top_level_await_executable, NonnullRefPtr<RustIntegration::DecodedBytecodeCache>);
     void verify_executable_backing_invariants();
 
+    // The binding each import entry resolves to, indexed like m_import_entries.
+    struct ImportedBinding {
+        GC::Ptr<Object> namespace_ {};
+        GC::Ptr<Module> module {};
+        Utf16FlyString binding_name {};
+        GC::Ptr<ModuleEnvironment> environment {};
+        u32 binding_index { 0 };
+    };
+
     NonnullOwnPtr<ExecutionContext> m_execution_context; // [[Context]]
     GC::Ptr<Object> m_import_meta;                       // [[ImportMeta]]
     Vector<ImportEntry> m_import_entries;                // [[ImportEntries]]
     Vector<ExportEntry> m_local_export_entries;          // [[LocalExportEntries]]
     Vector<ExportEntry> m_indirect_export_entries;       // [[IndirectExportEntries]]
     Vector<ExportEntry> m_star_export_entries;           // [[StarExportEntries]]
+
+    Vector<ImportedBinding> m_imported_bindings;
 
     Vector<Utf16FlyString> m_var_declared_names;
     Vector<LexicalBinding> m_lexical_bindings;

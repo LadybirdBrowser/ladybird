@@ -207,14 +207,13 @@ Exception handlers:
   [ 158 ..  178] => handler block1
 
 
-set y$6fd15e99 destructuring-assignment.js:21:26
-  Registers: 6
+set y$f1335721 destructuring-assignment.js:21:26
+  Registers: 5
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
   [   0] Enter
-  [   8] ResolveBinding dst:reg5, `setValue`
-  [  18] SetResolvedBinding environment:reg5, `setValue`, src:arg0
-  [  28] End value:Undefined
+  [   8] SetLexicalBinding `setValue`, src:arg0
+  [  20] End value:Undefined

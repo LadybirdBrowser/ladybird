@@ -56,24 +56,24 @@ block0:
   [ 200] Return value:reg7
 
 
-$4bcefff2 block-scoping.js:5:18
+$cd30f87a block-scoping.js:5:18
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicGetBinding dst:reg5, `x`
-  [  18] Return value:reg5
+  [   8] GetBinding dst:reg5, `x`
+  [  20] Return value:reg5
 
 
-$3664423e block-scoping.js:9:18
+$b50249b6 block-scoping.js:9:18
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicGetBinding dst:reg5, `y`
-  [  18] Return value:reg5
+  [   8] GetBinding dst:reg5, `y`
+  [  20] Return value:reg5
 
 
 breakThroughBlockScopes$be53e73f block-scoping.js:16:5
@@ -120,14 +120,14 @@ block6:
   [ 130] Jump target:block2
 
 
-f$e7dc110a block-scoping.js:20:21
+f$667a1882 block-scoping.js:20:21
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicGetBinding dst:reg5, `x`
-  [  18] Return value:reg5
+  [   8] GetBinding dst:reg5, `x`
+  [  20] Return value:reg5
 
 
 3

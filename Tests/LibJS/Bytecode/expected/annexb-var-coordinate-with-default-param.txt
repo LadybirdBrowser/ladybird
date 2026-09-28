@@ -49,13 +49,13 @@ block2:
   [ 1a0] Return value:reg7
 
 
-g$252c8a88 annexb-var-coordinate-with-default-param.js:7:13
+g$27f07b98 annexb-var-coordinate-with-default-param.js:7:13
   Registers: 8
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicGetBinding dst:reg5, `x`
-  [  18] DynamicGetBinding dst:reg6, `y`
-  [  28] Add dst:reg7, lhs:reg5, rhs:reg6
-  [  38] Return value:reg7
+  [   8] GetBinding dst:reg5, `x`
+  [  20] GetBinding dst:reg6, `y`
+  [  38] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  48] Return value:reg7

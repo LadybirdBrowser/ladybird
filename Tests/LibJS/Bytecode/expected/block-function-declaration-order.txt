@@ -9,9 +9,9 @@ block0:
   [   8] GetLexicalEnvironment dst:reg4
   [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:2, is_catch_environment:false
   [  28] CreateMutableBinding environment:reg5, `f1`, can_be_deleted:false
-  [  38] NewFunction dst:reg6, shared_function_data_index:0
-  [  50] InitializeLexicalBinding `f1`, src:reg6
-  [  68] CreateMutableBinding environment:reg5, `f2`, can_be_deleted:false
+  [  38] CreateMutableBinding environment:reg5, `f2`, can_be_deleted:false
+  [  48] NewFunction dst:reg6, shared_function_data_index:0
+  [  60] InitializeLexicalBinding `f1`, src:reg6
   [  78] NewFunction dst:reg6, shared_function_data_index:1
   [  90] InitializeLexicalBinding `f2`, src:reg6
   [  a8] GetBinding dst:reg6, `f1`

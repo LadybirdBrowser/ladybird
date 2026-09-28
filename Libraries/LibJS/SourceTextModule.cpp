@@ -95,6 +95,11 @@ void SourceTextModule::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_import_meta);
+    for (auto const& imported_binding : m_imported_bindings) {
+        visitor.visit(imported_binding.namespace_);
+        visitor.visit(imported_binding.module);
+        visitor.visit(imported_binding.environment);
+    }
     m_execution_context->visit_edges(visitor);
     m_shared_function_data.visit_edges(visitor);
     for (auto const& function : m_functions_to_initialize)
@@ -107,6 +112,7 @@ size_t SourceTextModule::external_memory_size() const
 {
     size_t size = Base::external_memory_size();
     size = saturating_add_external_memory_size(size, import_entries_external_memory_size(m_import_entries));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(m_imported_bindings));
     size = saturating_add_external_memory_size(size, export_entries_external_memory_size(m_local_export_entries));
     size = saturating_add_external_memory_size(size, export_entries_external_memory_size(m_indirect_export_entries));
     size = saturating_add_external_memory_size(size, export_entries_external_memory_size(m_star_export_entries));
@@ -417,6 +423,10 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
     // 6. Set module.[[Environment]] to env.
     set_environment(environment);
 
+    // NB: A link that fails resets the module to unlinked, so this can run more than once.
+    m_imported_bindings.clear_with_capacity();
+    m_imported_bindings.ensure_capacity(m_import_entries.size());
+
     // 7. For each ImportEntry Record in of module.[[ImportEntries]], do
     for (auto const& import_entry : m_import_entries) {
         // a. Let importedModule be GetImportedModule(module, in.[[ModuleRequest]]).
@@ -428,10 +438,9 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
             auto namespace_ = imported_module->get_module_namespace(vm);
 
             // ii. Perform ! env.CreateImmutableBinding(in.[[LocalName]], true).
-            MUST(environment->create_immutable_binding(vm, import_entry.local_name, true));
-
             // iii. Perform ! env.InitializeBinding(in.[[LocalName]], namespace, normal).
-            MUST(environment->initialize_binding(vm, import_entry.local_name, namespace_, Environment::InitializeBindingHint::Normal));
+            // AD-HOC: Both steps are performed after step 24.
+            m_imported_bindings.unchecked_append({ .namespace_ = namespace_ });
         }
         // c. Else,
         else {
@@ -450,15 +459,15 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
                 auto namespace_ = resolution.module->get_module_namespace(vm);
 
                 // 2. Perform ! env.CreateImmutableBinding(in.[[LocalName]], true).
-                MUST(environment->create_immutable_binding(vm, import_entry.local_name, true));
-
                 // 3. Perform ! env.InitializeBinding(in.[[LocalName]], namespace, normal).
-                MUST(environment->initialize_binding(vm, import_entry.local_name, namespace_, Environment::InitializeBindingHint::Normal));
+                // AD-HOC: Both steps are performed after step 24.
+                m_imported_bindings.unchecked_append({ .namespace_ = namespace_ });
             }
             // iv. Else,
             else {
                 // 1. Perform env.CreateImportBinding(in.[[LocalName]], resolution.[[Module]], resolution.[[BindingName]]).
                 MUST(environment->create_import_binding(import_entry.local_name, resolution.module, resolution.export_name));
+                m_imported_bindings.unchecked_append({ .module = resolution.module, .binding_name = resolution.export_name });
             }
         }
     }
@@ -553,11 +562,48 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
     if (m_default_export_binding_name.has_value())
         MUST(environment->create_mutable_binding(vm, *m_default_export_binding_name, false));
 
+    // AD-HOC: Steps 7.b.ii-iii and 7.c.iii.2-3 are performed here. The bytecode generator places the module's own
+    //         declarations first in the module environment, since it cannot know which imports are namespaces.
+    for (size_t i = 0; i < m_import_entries.size(); ++i) {
+        auto namespace_ = m_imported_bindings[i].namespace_;
+        if (!namespace_)
+            continue;
+        auto const& local_name = m_import_entries[i].local_name;
+
+        // Perform ! env.CreateImmutableBinding(in.[[LocalName]], true).
+        MUST(environment->create_immutable_binding(vm, local_name, true));
+
+        // Perform ! env.InitializeBinding(in.[[LocalName]], namespace, normal).
+        MUST(environment->initialize_binding(vm, local_name, namespace_, Environment::InitializeBindingHint::Normal));
+    }
+
     // 25. Remove moduleContext from the execution context stack.
     vm.pop_execution_context();
 
     // 26. Return unused.
     return {};
+}
+
+ThrowCompletionOr<Value> SourceTextModule::get_imported_binding_value(VM& vm, u32 import_index, Utf16FlyString const& local_name)
+{
+    VERIFY(m_import_entries[import_index].local_name == local_name);
+    auto& imported_binding = m_imported_bindings[import_index];
+    if (imported_binding.namespace_)
+        return imported_binding.namespace_;
+
+    if (!imported_binding.environment) {
+        auto target_environment = imported_binding.module->environment();
+        if (!target_environment)
+            return vm.throw_completion<ReferenceError>(ErrorType::ModuleNoEnvironment);
+
+        Optional<size_t> binding_index;
+        MUST(target_environment->has_binding(imported_binding.binding_name, &binding_index));
+        VERIFY(binding_index.has_value());
+        imported_binding.environment = target_environment;
+        imported_binding.binding_index = static_cast<u32>(*binding_index);
+    }
+
+    return imported_binding.environment->get_binding_value_direct(vm, imported_binding.binding_index);
 }
 
 // 16.2.1.7.2.2 ResolveExport ( exportName [ , resolveSet ] ), https://tc39.es/ecma262/#sec-resolveexport

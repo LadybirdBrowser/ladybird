@@ -47,14 +47,14 @@ block0:
   [   8] End value:Undefined
 
 
-method$f198ceab class-environment.js:4:13
+method$7036d623 class-environment.js:4:13
   Registers: 6
   Blocks:    1
 
 block0:
   [   0] Enter
-  [   8] DynamicGetBinding dst:reg5, `Foo`
-  [  18] Return value:reg5
+  [   8] GetBinding dst:reg5, `Foo`
+  [  20] Return value:reg5
 
 
 true

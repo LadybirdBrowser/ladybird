@@ -44,6 +44,7 @@ asm_dispatch_table:
     .quad asm_handler_End
     .quad asm_handler_GetLexicalEnvironment
     .quad asm_handler_GetImportMeta
+    .quad asm_handler_GetImport
     .quad asm_handler_GetNewTarget
     .quad asm_handler_GetSuperConstructor
     .quad asm_handler_SetLexicalEnvironment
@@ -229,7 +230,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsRhsInt32
     .quad asm_handler_JumpLooselyEqualsRhsInt32
     .quad asm_handler_JumpLooselyInequalsRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -661,6 +661,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_GetImportMeta_hot_end
     .quad asm_handler_GetImportMeta_cold
     .quad asm_handler_GetImportMeta_cold_end
+    .quad asm_handler_GetImport
+    .quad asm_handler_GetImport_hot_end
+    .quad asm_handler_GetImport_cold
+    .quad asm_handler_GetImport_cold_end
     .quad asm_handler_GetNewTarget
     .quad asm_handler_GetNewTarget_hot_end
     .quad asm_handler_GetNewTarget_cold
@@ -1401,10 +1405,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -8427,6 +8427,45 @@ asm_handler_GetImportMeta:
 asm_handler_GetImportMeta_hot_end:
 asm_handler_GetImportMeta_cold:
 asm_handler_GetImportMeta_cold_end:
+
+.p2align 4
+asm_handler_GetImport:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_get_import)
+    tbnz x0, #63, .Lasm_GetImport.scalar_result_done_0
+    tbz x0, #32, .Lasm_GetImport.scalar_result_done_0
+    ldr w9, [x21, #4]
+    str x1, [x27, x9, lsl #3]
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetImport.scalar_result_done_0:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_GetImport.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetImport.slow_path_transfer_1:
+    ldr x28, [x20, #15288]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #80]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_GetImport_hot_end:
+asm_handler_GetImport_cold:
+asm_handler_GetImport_cold_end:
 
 .p2align 4
 asm_handler_GetNewTarget:

@@ -43,6 +43,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/SourceTextModule.h>
 #include <math.h>
 
 // ===== Slow path functions callable from assembly =====
@@ -654,6 +655,7 @@ DECLARE_SLOW_PATH(asm_slow_path_get_length_with_this, GetLengthWithThis);
 DECLARE_SLOW_PATH(asm_slow_path_get_method, GetMethod);
 DECLARE_SLOW_PATH(asm_slow_path_get_iterator, GetIterator);
 DECLARE_SLOW_PATH(asm_slow_path_get_import_meta, GetImportMeta);
+DECLARE_SLOW_PATH(asm_slow_path_get_import, GetImport);
 DECLARE_SLOW_PATH(asm_slow_path_get_new_target, GetNewTarget);
 DECLARE_SLOW_PATH(asm_slow_path_get_super_constructor, GetSuperConstructor);
 DECLARE_SLOW_PATH(asm_slow_path_get_global, GetGlobal);
@@ -1148,6 +1150,13 @@ DEFINE_SLOW_PATH(asm_slow_path_get_import_meta, GetImportMeta)
 {
     values.dst = vm->get_import_meta();
     return continue_after_slow_path(pc + sizeof(Op::GetImportMeta));
+}
+
+DEFINE_SLOW_PATH(asm_slow_path_get_import, GetImport)
+{
+    auto& module = as<SourceTextModule>(*vm->running_execution_context().script_or_module.get<GC::Ref<Module>>());
+    values.dst = ASM_TRY(*vm, pc, module.get_imported_binding_value(*vm, instruction->import_index(), vm->get_identifier(instruction->identifier())));
+    return continue_after_slow_path(pc + sizeof(Op::GetImport));
 }
 
 DEFINE_SLOW_PATH(asm_slow_path_get_new_target, GetNewTarget)

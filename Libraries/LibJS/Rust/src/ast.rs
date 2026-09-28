@@ -668,6 +668,9 @@ pub struct FunctionPayload {
     /// Each lazy-compile SFD carries an Arc clone so it can resolve its
     /// identifier IDs without depending on a parent generator.
     pub arena: Arc<AstArena>,
+    /// The environment the function closes over, as laid out by the
+    /// generators of its enclosing functions.
+    pub enclosing_environment_scope: Option<Arc<crate::bytecode::generator::EnclosingEnvironmentScope>>,
 }
 
 // =============================================================================
