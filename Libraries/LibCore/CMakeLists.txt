@@ -86,6 +86,10 @@ else ()
     list(APPEND SOURCES Platform/ProcessStatisticsUnimplemented.cpp)
 endif()
 
+if (APPLE AND NOT IOS)
+    list(APPEND SOURCES Platform/ThreadQoSMacOS.cpp)
+endif()
+
 if (LINUX OR BSD)
     list(APPEND SOURCES TimeZoneWatcherUnix.cpp)
 elseif (APPLE AND NOT IOS)
