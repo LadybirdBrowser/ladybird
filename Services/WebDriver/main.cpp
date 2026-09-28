@@ -19,7 +19,7 @@
 #include <LibMain/Main.h>
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
-#include <LibWebView/Utilities.h>
+#include <LibWebCommon/WebView/Utilities.h>
 #include <WebDriver/Client.h>
 #include <WebDriver/Session.h>
 

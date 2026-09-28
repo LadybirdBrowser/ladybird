@@ -44,6 +44,7 @@ set(SOURCES
     StorageAPI/StorageEndpoint.cpp
     StorageAPI/StorageKey.cpp
     WebDriver/Capabilities.cpp
+    WebDriver/Client.cpp
     WebDriver/Error.cpp
     WebDriver/Proxy.cpp
     WebDriver/Response.cpp
