@@ -16,6 +16,9 @@
 
 namespace Web::ContentSecurityPolicy::Directives {
 
+// https://w3c.github.io/webappsec-csp/#effective-directive-for-inline-check
+[[nodiscard]] Utf16FlyString get_the_effective_directive_for_inline_checks(Directive::InlineType);
+
 // https://w3c.github.io/webappsec-csp/#directive-inline-check
 // An inline check, which takes an Element, a type string, a policy, and a source string as arguments, and is executed
 // during § 4.2.3 Should element’s inline type behavior be blocked by Content Security Policy? and during § 4.2.4 Should

@@ -30,8 +30,6 @@ enum class [[nodiscard]] MatchResult {
 [[nodiscard]] Vector<Utf16FlyString> get_fetch_directive_fallback_list(Optional<Utf16FlyString> directive_name);
 ShouldExecute should_fetch_directive_execute(Optional<Utf16FlyString> effective_directive_name, Utf16FlyString const& directive_name, Policy const& policy);
 
-[[nodiscard]] Utf16FlyString get_the_effective_directive_for_inline_checks(Directive::InlineType type);
-
 MatchResult does_url_match_expression_in_origin_with_redirect_count(URL::URL const& url, Utf16View expression, URL::Origin const& origin, u8 redirect_count);
 MatchResult does_url_match_source_list_in_origin_with_redirect_count(URL::URL const& url, Vector<Utf16String> const& source_list, URL::Origin const& origin, u8 redirect_count);
 
@@ -41,7 +39,5 @@ MatchResult does_nonce_match_source_list(Utf16View nonce, Vector<Utf16String> co
 
 Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, Directive const& directive, Policy const& policy);
 Directive::Result script_directives_post_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, Directive const& directive, Policy const& policy);
-
-MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Element const> element, Vector<Utf16String> const& source_list, Directive::InlineType type, Utf16View source);
 
 }
