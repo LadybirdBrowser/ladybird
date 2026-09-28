@@ -3272,6 +3272,8 @@ fn compile_function_payload_to_bytecode(
     let mut generator = bytecode::generator::Generator::new();
     generator.arena = arena;
     generator.strict = function_data.is_strict_mode;
+    generator.contains_direct_call_to_eval_in_non_strict_mode =
+        function_data.parsing_insights.contains_direct_call_to_eval && !function_data.is_strict_mode;
     generator.this_value_needs_environment_resolution = sfd_metadata.this_value_needs_environment_resolution;
     generator.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
     generator.function_table = payload.function_table;
