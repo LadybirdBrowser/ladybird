@@ -1679,6 +1679,12 @@ handler DynamicTypeofBinding(
     cache: EnvironmentCoordinateCacheIndex
 ) @cold = call_slow_path(dynamic_typeof_binding);
 
+handler VerifyEnvironmentCoordinate(
+    identifier: IdentifierTableIndex,
+    coordinate: EnvironmentCoordinate,
+    mode: EnvironmentMode
+) @cold = call_slow_path(verify_environment_coordinate);
+
 handler HasPrivateId(
     dst: out Operand,
     base: Operand,
