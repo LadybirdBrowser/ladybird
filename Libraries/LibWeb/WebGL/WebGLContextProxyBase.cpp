@@ -193,6 +193,14 @@ void WebGLContextProxyBase::present_canvas_for_compositing(bool preserve_drawing
     m_transport->present_canvas(preserve_drawing_buffer);
 }
 
+void WebGLContextProxyBase::clear_drawing_buffer()
+{
+    if (m_lost)
+        return;
+    flush_commands();
+    m_transport->clear_drawing_buffer();
+}
+
 RefPtr<Gfx::Bitmap> WebGLContextProxyBase::read_back_drawing_buffer(Gfx::IntRect const& rect)
 {
     if (m_lost)

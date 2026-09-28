@@ -22,15 +22,14 @@ class WebGL2RenderingContext final : public WebGL2RenderingContextOverloads {
     GC_DECLARE_ALLOCATOR(WebGL2RenderingContext);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> create(JS::Realm&, HTML::HTMLCanvasElement& canvas_element, JS::Value options);
+    static JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> create(JS::Realm&, CanvasOwner, JS::Value options);
 
     virtual ~WebGL2RenderingContext() override;
 
     void prepare_for_compositing() override;
     void did_update_canvas_content() override;
 
-    virtual GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const override;
-    virtual HTML::CanvasHost& canvas_host() const override;
+    virtual CanvasOwner canvas_for_binding() const override;
 
     Optional<WebGLContextAttributes> get_context_attributes();
 
@@ -41,12 +40,12 @@ public:
     WebIDL::Long drawing_buffer_height() const;
 
 private:
-    WebGL2RenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<WebGLContextProxy> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
+    WebGL2RenderingContext(JS::Realm&, CanvasOwner, NonnullOwnPtr<WebGLContextProxy> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual bool reestablish_remote_context() override;
 
-    GC::Ref<HTML::HTMLCanvasElement> m_canvas_element;
+    CanvasOwner m_canvas;
 
     // https://www.khronos.org/registry/webgl/specs/latest/1.0/#context-creation-parameters
     // Each WebGLRenderingContext has context creation parameters, set upon creation, in a WebGLContextAttributes object.

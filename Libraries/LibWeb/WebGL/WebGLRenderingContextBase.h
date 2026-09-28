@@ -42,6 +42,9 @@ static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
 using TexImageSource = Variant<GC::Ref<HTML::ImageBitmap>, GC::Ref<HTML::ImageData>, GC::Ref<HTML::HTMLImageElement>, GC::Ref<HTML::HTMLCanvasElement>, GC::Ref<HTML::OffscreenCanvas>, GC::Ref<HTML::HTMLVideoElement>>;
 
+using CanvasOwner = Variant<GC::Ref<HTML::HTMLCanvasElement>, GC::Ref<HTML::OffscreenCanvas>>;
+HTML::CanvasHost& canvas_host_for(CanvasOwner const&);
+
 class WebGLRenderingContextBase : public Bindings::GCAllocatedWrappable {
     WEB_NON_IDL_WRAPPABLE(WebGLRenderingContextBase, Bindings::GCAllocatedWrappable);
 
@@ -51,8 +54,8 @@ public:
     using Uint32List = Variant<GC::Ref<JS::Uint32Array>, Vector<WebIDL::UnsignedLong>>;
 
     virtual WebGLContextProxy& context() = 0;
-    virtual GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const = 0;
-    virtual HTML::CanvasHost& canvas_host() const = 0;
+    virtual CanvasOwner canvas_for_binding() const = 0;
+    HTML::CanvasHost& canvas_host() const { return canvas_host_for(canvas_for_binding()); }
 
     u64 context_generation() const { return m_context_generation; }
     JS::Realm& realm() const { return *m_realm; }

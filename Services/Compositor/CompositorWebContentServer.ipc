@@ -54,6 +54,7 @@ endpoint CompositorWebContentServer
     webgl_drain_command_buffer(Compositing::CanvasId canvas_id) => ()
     webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps) =|
     webgl_present_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer) =|
+    webgl_clear_drawing_buffer(Compositing::CanvasId canvas_id) =|
     webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request) => (ByteBuffer reply)
     webgl_read_pixels(Compositing::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels) => (i32 length, i32 columns, i32 rows)
     webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data) => (bool success)

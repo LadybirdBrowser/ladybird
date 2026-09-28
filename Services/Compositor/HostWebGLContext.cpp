@@ -175,6 +175,13 @@ ErrorOr<NonnullRefPtr<Gfx::PaintingSurface>> HostWebGLContext::prepare_for_compo
     return drawing_surface.release_nonnull();
 }
 
+void HostWebGLContext::clear_drawing_buffer()
+{
+    m_gl_context->make_current();
+    m_gl_context->clear_buffer_to_default_values();
+    m_needs_clear_before_next_frame = false;
+}
+
 RefPtr<Gfx::PaintingSurface> HostWebGLContext::surface()
 {
     return m_gl_context->surface();

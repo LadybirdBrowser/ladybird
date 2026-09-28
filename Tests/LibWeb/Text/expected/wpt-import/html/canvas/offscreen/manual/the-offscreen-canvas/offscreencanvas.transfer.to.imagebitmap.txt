@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 6 tests
 
-5 Pass
-1 Fail
-Fail	Test that transferToImageBitmap returns an ImageBitmap with correct width and height
+6 Pass
+Pass	Test that transferToImageBitmap returns an ImageBitmap with correct width and height
 Pass	Test that transferToImageBitmap returns an ImageBitmap with correct color
 Pass	Test that transferToImageBitmap won't change context's property
 Pass	Test that transferToImageBitmap preserves transform

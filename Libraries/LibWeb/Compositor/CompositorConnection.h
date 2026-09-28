@@ -76,6 +76,7 @@ public:
     bool drain_webgl_command_buffer(Compositing::CanvasId);
     void send_webgl_commands(Compositing::CanvasId, ByteBuffer const&, Vector<Gfx::DecodedImageFrame> const& bitmaps);
     void present_webgl_canvas(Compositing::CanvasId, bool preserve_drawing_buffer);
+    void clear_webgl_drawing_buffer(Compositing::CanvasId);
     ByteBuffer webgl_sync_call(Compositing::CanvasId, ByteBuffer request);
     Compositing::WebGL::ReadPixelsResult read_webgl_pixels(Compositing::CanvasId, Compositing::WebGL::GLint x, Compositing::WebGL::GLint y, Compositing::WebGL::GLsizei width, Compositing::WebGL::GLsizei height, Compositing::WebGL::GLenum format, Compositing::WebGL::GLenum type, Compositing::WebGL::GLsizei buf_size, Core::AnonymousBuffer const& pixels);
     bool read_webgl_buffer_sub_data(Compositing::CanvasId, Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer const& data);

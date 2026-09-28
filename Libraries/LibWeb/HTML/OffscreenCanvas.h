@@ -83,6 +83,8 @@ public:
         Yes,
     };
     HasOrCreatedContext create_2d_context(CanvasRenderingContext2DSettings);
+    template<typename ContextType>
+    JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
     OffscreenRenderingContext const& context() const { return m_context; }
 
 private:

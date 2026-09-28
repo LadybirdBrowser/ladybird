@@ -85,6 +85,13 @@ private:
         m_connection->present_webgl_canvas(*m_canvas_id, preserve_drawing_buffer);
     }
 
+    virtual void clear_drawing_buffer() override
+    {
+        if (!m_canvas_id.has_value())
+            return;
+        m_connection->clear_webgl_drawing_buffer(*m_canvas_id);
+    }
+
     virtual ByteBuffer sync_call(ByteBuffer request) override
     {
         if (!m_canvas_id.has_value())

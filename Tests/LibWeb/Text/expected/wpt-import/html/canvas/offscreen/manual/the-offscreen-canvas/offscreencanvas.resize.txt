@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 10 tests
 
-8 Pass
-2 Fail
+10 Pass
 Pass	Verify that writing to the width and height attributes of an OffscreenCanvas works when there is no context attached.
 Pass	Verify that writing to the width and height attributes of an OffscreenCanvas works when there is a 2d context attached.
-Fail	Verify that writing to the width and height attributes of an OffscreenCanvas works when there is a webgl context attached.
+Pass	Verify that writing to the width and height attributes of an OffscreenCanvas works when there is a webgl context attached.
 Pass	Verify that writing to the width or height attribute of a placeholder canvas throws an exception
 Pass	Verify that writing to the width or height attribute of a placeholder canvas throws an exception even when not changing the value of the attribute.
 Pass	Verify that resizing a 2d context resets its state.
 Pass	Verify that setting the size of a 2d context to the same size it already had resets its state.
 Pass	Verify that resizing an OffscreenCanvas with a 2d context propagates the new size to its placeholder canvas asynchronously.
-Fail	Verify that resizing an OffscreenCanvas with a webgl context propagates the new size to its placeholder canvas asynchronously.
+Pass	Verify that resizing an OffscreenCanvas with a webgl context propagates the new size to its placeholder canvas asynchronously.
 Pass	Verify that drawImage uses the size of the frame as the intinsic size of a placeholder canvas.

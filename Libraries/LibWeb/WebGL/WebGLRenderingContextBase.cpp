@@ -22,6 +22,7 @@ extern "C" {
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -50,6 +51,11 @@ namespace Web::WebGL {
 WebGLRenderingContextBase::WebGLRenderingContextBase(JS::Realm& realm)
     : m_realm(realm)
 {
+}
+
+HTML::CanvasHost& canvas_host_for(CanvasOwner const& canvas)
+{
+    return canvas.visit([](auto const& canvas) -> HTML::CanvasHost& { return *canvas; });
 }
 
 GC::Ptr<Bindings::Wrappable> WebGLRenderingContextBase::relevant_global_impl() const

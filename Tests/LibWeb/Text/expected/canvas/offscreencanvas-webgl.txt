@@ -1,0 +1,36 @@
+Window: webgl: canvas is owner: true
+Window: webgl: same context on second call: true
+Window: webgl: 2d context after webgl: null
+Window: webgl: drawing buffer: 16x8
+Window: webgl: readPixels after clear: 0,255,0,255
+Window: webgl: transferToImageBitmap size: 16x8
+Window: webgl: readPixels after transferToImageBitmap: 0,0,0,0
+Window: webgl: transferred bitmap pixel: 0,255,0,255
+Window: webgl: drawImage(OffscreenCanvas) pixel: 0,0,255,255
+Window: webgl2: canvas is owner: true
+Window: webgl2: same context on second call: true
+Window: webgl2: 2d context after webgl2: null
+Window: webgl2: drawing buffer: 16x8
+Window: webgl2: readPixels after clear: 0,255,0,255
+Window: webgl2: transferToImageBitmap size: 16x8
+Window: webgl2: readPixels after transferToImageBitmap: 0,0,0,0
+Window: webgl2: transferred bitmap pixel: 0,255,0,255
+Window: webgl2: drawImage(OffscreenCanvas) pixel: 0,0,255,255
+Worker: webgl: canvas is owner: true
+Worker: webgl: same context on second call: true
+Worker: webgl: 2d context after webgl: null
+Worker: webgl: drawing buffer: 16x8
+Worker: webgl: readPixels after clear: 0,255,0,255
+Worker: webgl: transferToImageBitmap size: 16x8
+Worker: webgl: readPixels after transferToImageBitmap: 0,0,0,0
+Worker: webgl: transferred bitmap pixel: 0,255,0,255
+Worker: webgl: drawImage(OffscreenCanvas) pixel: 0,0,255,255
+Worker: webgl2: canvas is owner: true
+Worker: webgl2: same context on second call: true
+Worker: webgl2: 2d context after webgl2: null
+Worker: webgl2: drawing buffer: 16x8
+Worker: webgl2: readPixels after clear: 0,255,0,255
+Worker: webgl2: transferToImageBitmap size: 16x8
+Worker: webgl2: readPixels after transferToImageBitmap: 0,0,0,0
+Worker: webgl2: transferred bitmap pixel: 0,255,0,255
+Worker: webgl2: drawImage(OffscreenCanvas) pixel: 0,0,255,255
