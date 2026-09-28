@@ -280,7 +280,8 @@ bool element_matches_state(DOM::Element const& element, CSS::PseudoClass pseudo_
     case CSS::PseudoClass::PlaceholderShown:
         return element.matches_placeholder_shown_pseudo_class();
     case CSS::PseudoClass::Playing:
-        return media_element && !media_element->blocked() && !media_element->paused();
+        // :playing tracks the paused attribute alone, as element_states() publishes it.
+        return media_element && !media_element->paused();
     case CSS::PseudoClass::PopoverOpen:
         return element.has_attribute(HTML::AttributeNames::popover)
             && [&] {
