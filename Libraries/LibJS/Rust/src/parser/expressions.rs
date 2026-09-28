@@ -2418,15 +2418,10 @@ impl Parser<'_> {
             });
             Some(self.expression(start, ExpressionKind::Function(function_id)))
         } else {
-            let body_forbidden = if saved_formal_parameter_ctx {
-                ForbiddenTokens::none()
-            } else {
-                forbidden
-            };
             // https://tc39.es/ecma262/#prod-ArrowFunction
             // ArrowFunction[In, Yield, Await] :
             //   ArrowParameters[?Yield, ?Await] [no LineTerminator here] `=>` ConciseBody[?In]
-            let expression = self.parse_expression(PRECEDENCE_ASSIGNMENT, Associativity::Right, body_forbidden);
+            let expression = self.parse_expression(PRECEDENCE_ASSIGNMENT, Associativity::Right, forbidden);
             // C++ uses rule_start (function start) for ReturnStatement and FunctionBody.
             let return_statement = Statement::new(
                 self.range_from(start),
