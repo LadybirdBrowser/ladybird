@@ -54,14 +54,7 @@ Optional<ReadonlyBytes> HostWebGLContext::shared_command_buffer_range(u64 offset
 ErrorOr<void> HostWebGLContext::execute_commands(ReadonlyBytes bytes, Vector<Gfx::DecodedImageFrame> const& bitmaps)
 {
     m_gl_context->make_current();
-
-    // A non-preserving context's drawing buffer is cleared after being prepared for
-    // compositing, but the clear is deferred to here (the start of the next frame's
-    // commands) so a readback taken before then still sees the rendered frame.
-    if (m_needs_clear_before_next_frame) {
-        m_gl_context->clear_buffer_to_default_values();
-        m_needs_clear_before_next_frame = false;
-    }
+    clear_drawing_buffer_if_needed();
 
     return WebGLCommandList::for_each_command(bytes, [&]<typename Command>(Command const& command, [[maybe_unused]] ReadonlyBytes payload) -> ErrorOr<void> {
         if constexpr (IsSame<Command, Commands::SetDrawingBufferSize>) {
@@ -144,9 +137,21 @@ ErrorOr<void> HostWebGLContext::tex_sub_image3d_from_bitmap(Commands::TexSubImag
     return {};
 }
 
+// A non-preserving context's drawing buffer is cleared after being prepared for
+// compositing, but the clear is deferred until the next GL command or read, so a
+// readback of the presented frame taken before then still sees the rendered frame.
+void HostWebGLContext::clear_drawing_buffer_if_needed()
+{
+    if (!m_needs_clear_before_next_frame)
+        return;
+    m_gl_context->clear_buffer_to_default_values();
+    m_needs_clear_before_next_frame = false;
+}
+
 ErrorOr<ByteBuffer> HostWebGLContext::execute_sync_call(ReadonlyBytes request)
 {
     m_gl_context->make_current();
+    clear_drawing_buffer_if_needed();
     return handle_webgl_sync_call(*m_gl_context, m_objects, request);
 }
 
@@ -202,6 +207,7 @@ ReadPixelsResult HostWebGLContext::read_pixels_robust_angle(GLint x, GLint y, GL
     VERIFY(static_cast<size_t>(buf_size) <= pixels.size());
 
     m_gl_context->make_current();
+    clear_drawing_buffer_if_needed();
 
     GLsizei length = 0;
     GLsizei columns = 0;
