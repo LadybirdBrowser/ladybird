@@ -211,37 +211,64 @@ static int scheduling_priority_of_current_thread()
     return info.pth_priority;
 }
 
+// Adopts the role and reports the priority a user-interactive thread then gets, or 0 when a step fails.
+static int priority_of_a_user_interactive_thread_after_adopting_the_foreground_application_task_role()
+{
+    if (Core::Platform::adopt_foreground_application_task_role().is_error())
+        return 0;
+
+    task_category_policy_data_t category_policy {};
+    mach_msg_type_number_t count = TASK_CATEGORY_POLICY_COUNT;
+    boolean_t get_default = FALSE;
+    if (task_policy_get(mach_task_self(), TASK_CATEGORY_POLICY, reinterpret_cast<task_policy_t>(&category_policy), &count, &get_default) != KERN_SUCCESS)
+        return 0;
+    if (category_policy.role != TASK_FOREGROUND_APPLICATION)
+        return 0;
+
+    pthread_attr_t attributes;
+    if (pthread_attr_init(&attributes) != 0)
+        return 0;
+    if (pthread_attr_set_qos_class_np(&attributes, QOS_CLASS_USER_INTERACTIVE, 0) != 0)
+        return 0;
+    pthread_t thread;
+    auto create_result = pthread_create(&thread, &attributes, [](void*) -> void* { return reinterpret_cast<void*>(static_cast<intptr_t>(scheduling_priority_of_current_thread())); }, nullptr);
+    pthread_attr_destroy(&attributes);
+    if (create_result != 0)
+        return 0;
+    void* thread_priority = nullptr;
+    pthread_join(thread, &thread_priority);
+    auto priority = reinterpret_cast<intptr_t>(thread_priority);
+    return priority > 0 ? static_cast<int>(priority) : 0;
+}
+
+// Runs the operation in a child process without a sandbox and returns what it reported.
+static int run_in_child_process(Function<int()> const& operation)
+{
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0)
+        _exit(operation());
+
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    VERIFY(WIFEXITED(status));
+    return WEXITSTATUS(status);
+}
+
 // Without an application role the kernel squashes user-interactive threads down to the default class. The helpers
-// adopt the role before the sandbox, but the policy calls are plain Mach messages that the profile leaves open.
+// adopt the role before the sandbox, but the policy calls are plain Mach messages that the profile leaves open. What
+// the role unlocks depends on how the test process itself was launched: a task launched as an application reaches
+// priority 47, one launched as a daemon is capped at user-initiated, and a launchd job of the background kind is
+// capped at 20 whatever its role. So the sandboxed child is only held to what the same steps reach without a sandbox.
 TEST_CASE(sandboxed_process_can_adopt_the_foreground_application_task_role)
 {
-    static constexpr int priority_of_a_user_interactive_thread_in_a_foreground_application = 47;
+    auto priority_without_sandbox = run_in_child_process([] {
+        return priority_of_a_user_interactive_thread_after_adopting_the_foreground_application_task_role();
+    });
+    EXPECT(priority_without_sandbox > 0);
 
-    EXPECT_EQ(run_sandboxed([] {
-        if (Core::Platform::adopt_foreground_application_task_role().is_error())
-            return false;
-
-        task_category_policy_data_t category_policy {};
-        mach_msg_type_number_t count = TASK_CATEGORY_POLICY_COUNT;
-        boolean_t get_default = FALSE;
-        if (task_policy_get(mach_task_self(), TASK_CATEGORY_POLICY, reinterpret_cast<task_policy_t>(&category_policy), &count, &get_default) != KERN_SUCCESS)
-            return false;
-        if (category_policy.role != TASK_FOREGROUND_APPLICATION)
-            return false;
-
-        pthread_attr_t attributes;
-        if (pthread_attr_init(&attributes) != 0)
-            return false;
-        if (pthread_attr_set_qos_class_np(&attributes, QOS_CLASS_USER_INTERACTIVE, 0) != 0)
-            return false;
-        pthread_t thread;
-        auto create_result = pthread_create(&thread, &attributes, [](void*) -> void* { return reinterpret_cast<void*>(static_cast<intptr_t>(scheduling_priority_of_current_thread())); }, nullptr);
-        pthread_attr_destroy(&attributes);
-        if (create_result != 0)
-            return false;
-        void* thread_priority = nullptr;
-        pthread_join(thread, &thread_priority);
-        return reinterpret_cast<intptr_t>(thread_priority) == priority_of_a_user_interactive_thread_in_a_foreground_application;
+    EXPECT_EQ(run_sandboxed([&] {
+        return priority_of_a_user_interactive_thread_after_adopting_the_foreground_application_task_role() == priority_without_sandbox;
     }),
         Outcome::Allowed);
 }
