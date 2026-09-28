@@ -20,6 +20,7 @@
 #include <CoreVideo/CoreVideo.h>
 #include <VideoToolbox/VideoToolbox.h>
 #include <dispatch/dispatch.h>
+#include <sys/sysctl.h>
 
 namespace Media::VideoToolbox {
 
@@ -194,15 +195,32 @@ bool hardware_decoding_is_required(CodecID codec_id)
     }
 }
 
+bool is_running_in_virtual_machine()
+{
+    static bool const running_in_virtual_machine = [] {
+        int hypervisor_present = 0;
+        size_t size = sizeof(hypervisor_present);
+        if (sysctlbyname("kern.hv_vmm_present", &hypervisor_present, &size, nullptr, 0) != 0)
+            return false;
+        return hypervisor_present != 0;
+    }();
+    return running_in_virtual_machine;
+}
+
 DecoderErrorOr<VTDecompressionSessionRef> create_decompression_session(CodecID codec_id, DecoderFormat const& format, VTDecompressionOutputCallbackRecord const* callback)
 {
+    // A virtual machine's hardware decoding goes through paravirtualization, which leaks a connection per process.
+    auto hardware_is_usable = !is_running_in_virtual_machine();
+    if (hardware_decoding_is_required(codec_id) && !hardware_is_usable)
+        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "VideoToolbox has no decoder for this format"sv);
+
     VTRegisterSupplementalVideoDecoderIfAvailable(codec_type_from_codec_id(codec_id));
 
     RetainedRef<CFMutableDictionaryRef> specification { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
     if (hardware_decoding_is_required(codec_id))
         CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder, kCFBooleanTrue);
     else
-        CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder, kCFBooleanTrue);
+        CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder, hardware_is_usable ? kCFBooleanTrue : kCFBooleanFalse);
 
     VTDecompressionSessionRef session = nullptr;
     if (VTDecompressionSessionCreate(kCFAllocatorDefault, format.description.ref(), specification.ref(), format.destination_attributes.ref(), callback, &session) != noErr)
