@@ -1,0 +1,2 @@
+opener set to null
+popup.opener: null

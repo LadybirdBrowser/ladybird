@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup in another process than its opener sets its opener to null, and the opener sees that.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        // A popup's first navigation from this file keeps the opener's process, so it moves on to another site.
+        const crossSiteUrl = async (name, body) => {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>${body}<\/script>`,
+            }));
+            url.hostname = uniqueLocalhostHostname(name);
+            return url.href;
+        };
+        const popupUrlMovingTo = async (name, url) => httpServer.createEcho("GET", `/${name}-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>location.href = ${JSON.stringify(url)};<\/script>`,
+        });
+
+        const disowned = nextMessage();
+        const popup = window.open(await popupUrlMovingTo("disown-first", await crossSiteUrl("disown-cross-site", `const o = opener; opener = null; o.postMessage("opener set to null", "*");`)));
+        println(await disowned);
+        println(`popup.opener: ${popup.opener}`);
+        popup.close();
+    });
+</script>
