@@ -39,10 +39,11 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
         // A 2D source resolves to its live draw surface: the shared command
         // stream replays in recording order, so at this point the surface holds
         // exactly the commands recorded before the referencing DrawCanvas.
-        if (auto* context = this->context(Compositing::CanvasId { canvas_id })) {
-            if (auto* canvas_context = context->get_pointer<Canvas2DContext>())
-                return canvas_context->command_player->surface().ptr();
-        }
+        auto* context = this->context(Compositing::CanvasId { canvas_id });
+        if (!context)
+            return nullptr;
+        if (auto* canvas_context = context->get_pointer<Canvas2DContext>())
+            return canvas_context->command_player->surface().ptr();
         // WebGL sources are presented separately and resolve via the registry.
         return m_canvas_surface_registry.canvas_surface(Compositing::CanvasId { canvas_id });
     };
@@ -119,8 +120,8 @@ CanvasHost::CreateWebGLContextResult CanvasHost::create_webgl_context(Compositin
 
 void CanvasHost::destroy_context(Compositing::CanvasId canvas_id)
 {
-    m_contexts.remove(canvas_id);
-    m_canvas_surface_registry.remove_canvas_surface(canvas_id);
+    if (m_contexts.remove(canvas_id))
+        m_canvas_surface_registry.remove_canvas_surface(canvas_id);
 }
 
 bool CanvasHost::has_context(Compositing::CanvasId canvas_id) const
