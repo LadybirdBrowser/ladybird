@@ -469,6 +469,14 @@ void CompositorConnection::present_webgl_canvas(Compositing::CanvasId canvas_id,
     async_webgl_present_canvas(canvas_id, preserve_drawing_buffer);
 }
 
+void CompositorConnection::clear_webgl_drawing_buffer(Compositing::CanvasId canvas_id)
+{
+    if (!can_send_message_to_compositor())
+        return;
+
+    async_webgl_clear_drawing_buffer(canvas_id);
+}
+
 ByteBuffer CompositorConnection::webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request)
 {
     if (!can_send_message_to_compositor())

@@ -63,6 +63,7 @@ public:
     bool webgl_read_buffer_sub_data(Compositing::CanvasId, Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer data);
 
     void present_webgl_canvas(Compositing::CanvasId, bool preserve_drawing_buffer);
+    void clear_webgl_drawing_buffer(Compositing::CanvasId);
     Gfx::ShareableBitmap read_back_pixels(Compositing::CanvasId, Gfx::IntRect);
     RefPtr<Gfx::PaintingSurface> presented_surface(Compositing::CanvasId);
 

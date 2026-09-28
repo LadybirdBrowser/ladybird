@@ -297,6 +297,11 @@ void ConnectionFromWebContent::webgl_present_canvas(Compositing::CanvasId canvas
     m_canvas_host.present_webgl_canvas(canvas_id, preserve_drawing_buffer);
 }
 
+void ConnectionFromWebContent::webgl_clear_drawing_buffer(Compositing::CanvasId canvas_id)
+{
+    m_canvas_host.clear_webgl_drawing_buffer(canvas_id);
+}
+
 Messages::CompositorWebContentServer::WebglSyncCallResponse ConnectionFromWebContent::webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request)
 {
     return MUST(m_canvas_host.execute_webgl_sync_call(canvas_id, move(request)));

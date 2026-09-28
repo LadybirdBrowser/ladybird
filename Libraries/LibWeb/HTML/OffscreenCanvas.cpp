@@ -33,6 +33,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
+#include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
@@ -223,6 +224,8 @@ WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> OffscreenCanvas::transfer_to_image_bit
     // 4. Set this OffscreenCanvas object's bitmap to reference a newly created bitmap of the same dimensions and color space as the previous bitmap, and with its pixels initialized to transparent black, or opaque black if the rendering context' s alpha is false.
     if (auto* context = m_context.get_pointer<GC::Ref<OffscreenCanvasRenderingContext2D>>())
         (*context)->replace_bitmap_with_cleared_bitmap();
+    else if (auto* webgl_context = canvas_webgl_context())
+        webgl_context->context().clear_drawing_buffer();
 
     // 5. Return image.
     return image;
@@ -339,12 +342,22 @@ void OffscreenCanvas::commit_to_placeholder()
         return;
 
     Optional<Compositing::CanvasId> source_canvas_id;
-    if (auto* context = m_context.get_pointer<GC::Ref<OffscreenCanvasRenderingContext2D>>()) {
-        (*context)->ensure_backing_storage();
-        (*context)->prepare_for_compositing();
-        page.compositor_host().flush_canvas_2d_stream();
-        source_canvas_id = (*context)->canvas_id();
-    }
+    m_context.visit(
+        [&](GC::Ref<OffscreenCanvasRenderingContext2D>& context) {
+            context->ensure_backing_storage();
+            context->prepare_for_compositing();
+            page.compositor_host().flush_canvas_2d_stream();
+            source_canvas_id = context->canvas_id();
+        },
+        [&](OneOf<GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>> auto& context) {
+            if (context->is_context_lost())
+                return;
+            context->prepare_for_compositing();
+            source_canvas_id = context->context().canvas_id();
+        },
+        [](Empty) {
+            // Do nothing.
+        });
 
     auto clamp_dimension = [](WebIDL::UnsignedLongLong dimension) {
         return static_cast<int>(min(dimension, static_cast<WebIDL::UnsignedLongLong>(NumericLimits<int>::max())));
@@ -365,6 +378,21 @@ OffscreenCanvas::HasOrCreatedContext OffscreenCanvas::create_2d_context(CanvasRe
         return m_context.has<GC::Ref<OffscreenCanvasRenderingContext2D>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
     m_context = OffscreenCanvasRenderingContext2D::create(*this, context_attributes);
+    return HasOrCreatedContext::Yes;
+}
+
+template<typename ContextType>
+JS::ThrowCompletionOr<OffscreenCanvas::HasOrCreatedContext> OffscreenCanvas::create_webgl_context(JS::Value options)
+{
+    if (!m_context.has<Empty>())
+        return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
+
+    auto& realm = relevant_global_object().shape().realm();
+    auto maybe_context = TRY(ContextType::create(realm, WebGL::CanvasOwner { GC::Ref { *this } }, options));
+    if (!maybe_context)
+        return HasOrCreatedContext::No;
+
+    m_context = GC::Ref<ContextType>(*maybe_context);
     return HasOrCreatedContext::Yes;
 }
 
@@ -466,13 +494,15 @@ JS::ThrowCompletionOr<HTML::OffscreenRenderingContext> get_context(JS::Realm& re
     }
 
     if (context_id == OffscreenRenderingContextId::Webgl) {
-        dbgln("(STUBBED) OffscreenCanvas::get_context(Webgl)");
+        if (TRY(offscreen_canvas.create_webgl_context<WebGL::WebGLRenderingContext>(options)) == HTML::OffscreenCanvas::HasOrCreatedContext::Yes)
+            return offscreen_canvas.context().get<GC::Ref<WebGL::WebGLRenderingContext>>();
 
         return Empty {};
     }
 
     if (context_id == OffscreenRenderingContextId::Webgl2) {
-        dbgln("(STUBBED) OffscreenCanvas::get_context(Webgl2)");
+        if (TRY(offscreen_canvas.create_webgl_context<WebGL::WebGL2RenderingContext>(options)) == HTML::OffscreenCanvas::HasOrCreatedContext::Yes)
+            return offscreen_canvas.context().get<GC::Ref<WebGL::WebGL2RenderingContext>>();
 
         return Empty {};
     }

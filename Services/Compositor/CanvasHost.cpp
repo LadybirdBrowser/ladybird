@@ -240,6 +240,14 @@ void CanvasHost::present_webgl_canvas(Compositing::CanvasId canvas_id, bool pres
     m_canvas_surface_registry.set_canvas_surface(canvas_id, move(surface));
 }
 
+void CanvasHost::clear_webgl_drawing_buffer(Compositing::CanvasId canvas_id)
+{
+    auto* context = this->context(canvas_id);
+    if (!context || !context->has<WebGLContext>())
+        return;
+    as_webgl(*context).clear_drawing_buffer();
+}
+
 Gfx::ShareableBitmap CanvasHost::read_back_surface(Gfx::PaintingSurface& surface, Gfx::IntRect rect)
 {
     auto clipped_rect = rect.intersected(surface.rect());

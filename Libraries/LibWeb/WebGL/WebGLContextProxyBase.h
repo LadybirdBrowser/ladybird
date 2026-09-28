@@ -52,6 +52,7 @@ public:
     void set_size(Gfx::IntSize const&);
 
     void present_canvas_for_compositing(bool preserve_drawing_buffer);
+    void clear_drawing_buffer();
 
     RefPtr<Gfx::Bitmap> read_back_drawing_buffer(Gfx::IntRect const&);
 

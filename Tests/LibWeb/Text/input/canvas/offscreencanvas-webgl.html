@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    async function runChecks() {
+        const results = [];
+        for (const contextType of ["webgl", "webgl2"]) {
+            const canvas = new OffscreenCanvas(16, 8);
+            const gl = canvas.getContext(contextType);
+            if (!gl) {
+                results.push(`${contextType}: no context`);
+                continue;
+            }
+            results.push(`${contextType}: canvas is owner: ${gl.canvas === canvas}`);
+            results.push(`${contextType}: same context on second call: ${canvas.getContext(contextType) === gl}`);
+            results.push(`${contextType}: 2d context after ${contextType}: ${canvas.getContext("2d")}`);
+            results.push(`${contextType}: drawing buffer: ${gl.drawingBufferWidth}x${gl.drawingBufferHeight}`);
+
+            gl.clearColor(0, 1, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            const pixel = new Uint8Array(4);
+            gl.readPixels(1, 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+            results.push(`${contextType}: readPixels after clear: ${Array.from(pixel).join(",")}`);
+
+            const bitmap = canvas.transferToImageBitmap();
+            results.push(`${contextType}: transferToImageBitmap size: ${bitmap.width}x${bitmap.height}`);
+            gl.readPixels(1, 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+            results.push(`${contextType}: readPixels after transferToImageBitmap: ${Array.from(pixel).join(",")}`);
+
+            const checkCanvas = new OffscreenCanvas(16, 8);
+            const checkContext = checkCanvas.getContext("2d");
+            checkContext.drawImage(bitmap, 0, 0);
+            results.push(`${contextType}: transferred bitmap pixel: ${Array.from(checkContext.getImageData(1, 1, 1, 1).data).join(",")}`);
+
+            gl.clearColor(0, 0, 1, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            checkContext.drawImage(canvas, 0, 0);
+            results.push(`${contextType}: drawImage(OffscreenCanvas) pixel: ${Array.from(checkContext.getImageData(1, 1, 1, 1).data).join(",")}`);
+        }
+        return results;
+    }
+
+    asyncTest(async done => {
+        for (const line of await runChecks())
+            println(`Window: ${line}`);
+
+        const workerSource = `${runChecks.toString()}; runChecks().then(results => postMessage(results), error => postMessage(["FAIL: " + error]));`;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "application/javascript" })));
+        worker.onmessage = event => {
+            for (const line of event.data)
+                println(`Worker: ${line}`);
+            done();
+        };
+    });
+</script>
