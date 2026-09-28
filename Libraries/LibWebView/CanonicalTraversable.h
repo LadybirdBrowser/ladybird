@@ -106,6 +106,7 @@ public:
     void for_each_hosting_page(Function<void(WebContentPage&)> const&) const;
     void represent_group_in(WebContentClient&);
     void represent_group_everywhere();
+    void give_stand_in_its_opener(WebContentPage&);
     bool is_representing_page(WebContentPage const& page) const
     {
         return any_of(m_representing_pages, [&](auto const& representing_page) { return representing_page.ptr() == &page; });

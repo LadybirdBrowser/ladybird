@@ -266,9 +266,12 @@ void BrowsingContext::set_opener_browsing_context(GC::Ptr<BrowsingContext> opene
 }
 
 // NB: The browsing context active in a navigable another process hosts is there, and its WindowProxy stands for it.
-void BrowsingContext::set_opener_browsing_context(RemoteNavigable& navigable)
+void BrowsingContext::set_opener_browsing_context(Navigable& navigable)
 {
-    m_opener_browsing_context_window_proxy = navigable.active_window_proxy();
+    if (auto* remote_navigable = as_if<RemoteNavigable>(navigable))
+        m_opener_browsing_context_window_proxy = remote_navigable->active_window_proxy_in_realm_of(*m_window_proxy->window());
+    else
+        m_opener_browsing_context_window_proxy = navigable.active_window_proxy();
 }
 
 void BrowsingContext::visit_edges(Cell::Visitor& visitor)
