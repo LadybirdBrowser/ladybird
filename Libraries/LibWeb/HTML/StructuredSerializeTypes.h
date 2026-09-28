@@ -40,6 +40,7 @@ enum class TransferType : u8 {
     WritableStream = 5,
     TransformStream = 6,
     ImageBitmap = 7,
+    OffscreenCanvas = 8,
 };
 
 // The per-interface payload version encoded after every SerializableObject's interface name in

@@ -2354,6 +2354,8 @@ static bool is_transferable_interface_exposed_on_target_realm(TransferType name,
         return is_exposed(Bindings::InterfaceName::TransformStream, realm);
     case TransferType::ImageBitmap:
         return is_exposed(Bindings::InterfaceName::ImageBitmap, realm);
+    case TransferType::OffscreenCanvas:
+        return is_exposed(Bindings::InterfaceName::OffscreenCanvas, realm);
     case TransferType::Unknown:
         dbgln("Unknown interface type for transfer: {}", to_underlying(name));
         break;

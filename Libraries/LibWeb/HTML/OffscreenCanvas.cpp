@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -87,25 +88,70 @@ JS::Object& OffscreenCanvas::relevant_global_object() const
     return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
 }
 
-WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_steps(JS::Realm&, HTML::TransferDataEncoder&)
+// https://html.spec.whatwg.org/multipage/canvas.html#the-offscreencanvas-interface:transfer-steps
+WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_steps(JS::Realm& realm, HTML::TransferDataEncoder& data_holder)
 {
-    // FIXME: Implement this
-    dbgln("(STUBBED) OffscreenCanvas::transfer_steps(JS::Realm&, HTML::TransferDataEncoder&)");
+    // 1. If value's context mode is not equal to none, then throw an "InvalidStateError" DOMException.
+    if (!m_context.has<Empty>())
+        return WebIDL::InvalidStateError::create("Cannot transfer an OffscreenCanvas that has a rendering context"_utf16);
+
+    // 2. Set value's context mode to detached.
+    // NB: The [[Detached]] internal slot is set once these steps return, and it also stands for this context mode.
+
+    // 3. Let width and height be the dimensions of value's bitmap.
+    auto width = m_width;
+    auto height = m_height;
+
+    // FIXME: 4. Let language and direction be the values of value's inherited language and inherited direction.
+
+    // 5. Unset value's bitmap.
+    m_width = 0;
+    m_height = 0;
+
+    // 6. Set dataHolder.[[Width]] to width and dataHolder.[[Height]] to height.
+    TRY(encode_or_throw_data_clone_error(realm, data_holder, width));
+    TRY(encode_or_throw_data_clone_error(realm, data_holder, height));
+
+    // FIXME: 7. Set dataHolder.[[Language]] to language and dataHolder.[[Direction]] to direction.
+
+    // 8. Set dataHolder.[[PlaceholderCanvas]] to be a weak reference to value's placeholder canvas element, if value
+    //    has one, or null if it does not.
+    auto placeholder_link = m_placeholder_link;
+    m_placeholder_link.clear();
+    TRY(encode_or_throw_data_clone_error(realm, data_holder, placeholder_link.has_value()));
+    if (placeholder_link.has_value()) {
+        TRY(encode_or_throw_data_clone_error(realm, data_holder, placeholder_link->canvas_id.value()));
+        TRY(encode_or_throw_data_clone_error(realm, data_holder, placeholder_link->secret));
+    }
+
     return {};
 }
 
-WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&)
+// https://html.spec.whatwg.org/multipage/canvas.html#the-offscreencanvas-interface:transfer-receiving-steps
+WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_receiving_steps(JS::Realm& realm, HTML::TransferDataDecoder& data_holder)
 {
-    // FIXME: Implement this
-    dbgln("(STUBBED) OffscreenCanvas::transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&)");
+    // 1. Initialize value's bitmap to a rectangular array of transparent black pixels with width given by
+    //    dataHolder.[[Width]] and height given by dataHolder.[[Height]].
+    m_width = TRY(decode_or_throw_data_clone_error<WebIDL::UnsignedLongLong>(realm, data_holder));
+    m_height = TRY(decode_or_throw_data_clone_error<WebIDL::UnsignedLongLong>(realm, data_holder));
+
+    // FIXME: 2. Set value's inherited language to dataHolder.[[Language]] and its inherited direction to
+    //           dataHolder.[[Direction]].
+
+    // 3. If dataHolder.[[PlaceholderCanvas]] is not null, set value's placeholder canvas element to
+    //    dataHolder.[[PlaceholderCanvas]] (while maintaining the weak reference semantics).
+    if (TRY(decode_or_throw_data_clone_error<bool>(realm, data_holder))) {
+        auto canvas_id = TRY(decode_or_throw_data_clone_error<u64>(realm, data_holder));
+        auto secret = TRY(decode_or_throw_data_clone_error<u64>(realm, data_holder));
+        m_placeholder_link = Compositor::PlaceholderCanvasLink { Compositing::CanvasId { canvas_id }, secret };
+    }
+
     return {};
 }
 
 HTML::TransferType OffscreenCanvas::primary_interface() const
 {
-    // FIXME: Implement this
-    dbgln("(STUBBED) OffscreenCanvas::primary_interface()");
-    return {};
+    return TransferType::OffscreenCanvas;
 }
 
 void OffscreenCanvas::replace_bitmap()

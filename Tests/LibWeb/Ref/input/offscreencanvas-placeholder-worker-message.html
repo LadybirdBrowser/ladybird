@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/canvas-display-list-cache-update-ref.html">
+<canvas id="canvas" height="100" width="100"></canvas>
+<script id="workerSource" type="text/worker">
+    onmessage = event => {
+        const context = event.data.getContext("2d");
+        context.fillStyle = "rgb(0, 255, 0)";
+        context.fillRect(0, 0, 100, 100);
+        postMessage("drawn");
+    };
+</script>
+<script>
+    const worker = new Worker(URL.createObjectURL(new Blob([document.getElementById("workerSource").textContent], { type: "application/javascript" })));
+    const offscreenCanvas = canvas.transferControlToOffscreen();
+
+    function waitForGreenFrame() {
+        const checkCanvas = document.createElement("canvas");
+        checkCanvas.width = 1;
+        checkCanvas.height = 1;
+        const checkContext = checkCanvas.getContext("2d");
+        checkContext.drawImage(canvas, 50, 50, 1, 1, 0, 0, 1, 1);
+        if (Array.from(checkContext.getImageData(0, 0, 1, 1).data).join(",") !== "0,255,0,255") {
+            requestAnimationFrame(waitForGreenFrame);
+            return;
+        }
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    }
+    worker.onmessage = () => requestAnimationFrame(waitForGreenFrame);
+    worker.postMessage(offscreenCanvas, [offscreenCanvas]);
+</script>
+</html>

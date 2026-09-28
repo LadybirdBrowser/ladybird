@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+5 Pass
+1 Fail
+Pass	Test that OffscreenCanvas's size is correct after being transferred from a worker.
+Pass	Test that transfer an OffscreenCanvas that has a 2d context throws exception in a worker.
+Fail	Test that transfer an OffscreenCanvas that has a webgl context throws exception in a worker.
+Pass	Test that transfer an OffscreenCanvas twice throws exception in a worker.
+Pass	Test that calling getContext('2d') on a detached OffscreenCanvas throws exception in a worker.
+Pass	Test that calling getContext('webgl') on a detached OffscreenCanvas throws exception in a worker.
