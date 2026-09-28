@@ -26,10 +26,10 @@
 #endif
 #include <LibCore/Process.h>
 #include <LibCore/Promise.h>
-#include <LibWeb/WebDriver/Contexts.h>
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebCommon/WebDriver/Response.h>
+#include <LibWebCommon/WebDriver/SessionBrowsingContext.h>
 #include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
 #include <WebDriver/BrowserConnection.h>
 #include <WebDriver/Client.h>

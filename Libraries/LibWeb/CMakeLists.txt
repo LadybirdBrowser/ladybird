@@ -1061,7 +1061,6 @@ set(SOURCES
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
     WebDriver/Actions.cpp
-    WebDriver/Client.cpp
     WebDriver/Contexts.cpp
     WebDriver/ElementLocationStrategies.cpp
     WebDriver/ElementReference.cpp

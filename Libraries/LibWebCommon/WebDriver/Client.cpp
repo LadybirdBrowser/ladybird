@@ -19,7 +19,7 @@
 #include <AK/Time.h>
 #include <LibCore/Promise.h>
 #include <LibHTTP/Status.h>
-#include <LibWeb/WebDriver/Client.h>
+#include <LibWebCommon/WebDriver/Client.h>
 
 namespace Web::WebDriver {
 

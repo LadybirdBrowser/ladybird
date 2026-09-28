@@ -22,7 +22,7 @@
 #include <LibCore/Socket.h>
 #include <LibHTTP/Forward.h>
 #include <LibHTTP/HttpRequest.h>
-#include <LibWeb/Export.h>
+#include <LibWebCommon/Export.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebCommon/WebDriver/Response.h>
 
@@ -30,7 +30,7 @@ namespace Web::WebDriver {
 
 using Parameters = Vector<String>;
 
-class WEB_API Client : public Core::EventReceiver {
+class WEBCOMMON_API Client : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(Client);
 
 public:

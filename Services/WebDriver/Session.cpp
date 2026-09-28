@@ -21,13 +21,13 @@
 #    include <LibIPC/TransportBootstrapMach.h>
 #    include <LibWebView/Utilities.h>
 #endif
+#include <AK/Random.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/Transport.h>
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWebCommon/WebDriver/Proxy.h>
 #include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
 #include <LibWebCommon/WebDriver/UserPrompt.h>
@@ -70,7 +70,7 @@ ErrorOr<NonnullRefPtr<Session::NewSessionPromise>> Session::create(NonnullRefPtr
     auto state = adopt_ref(*new SessionCreationState(move(capabilities), flags));
 
     // 1. Let session id be the result of generating a UUID.
-    auto session_id = Web::Crypto::generate_random_uuid();
+    auto session_id = generate_random_uuid();
 
     // 2. Let session be a new session with session ID session id, and HTTP flag flags contains "http".
     auto session = adopt_ref(*new Session(client, state->capabilities.as_object(), move(session_id), flags));
