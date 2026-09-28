@@ -1254,7 +1254,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
         }
     }
 
-    auto update_inline_cache_for_property_change = [&] {
+    auto update_inline_cache_for_property_change = [&](bool writes_data_property) {
         // Non-standard: If the caller has requested cacheable metadata and the property is an own property, fill it in.
         if (!cacheable_metadata || !own_descriptor->property_offset.has_value())
             return;
@@ -1263,6 +1263,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
                 .type = CacheableSetPropertyMetadata::Type::ChangeOwnProperty,
                 .property_offset = own_descriptor->property_offset.value(),
                 .prototype = nullptr,
+                .writes_data_property = writes_data_property,
             };
         } else if (phase == PropertyLookupPhase::PrototypeChain) {
             VERIFY(shape().is_prototype_shape());
@@ -1271,6 +1272,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
                 .type = CacheableSetPropertyMetadata::Type::ChangePropertyInPrototypeChain,
                 .property_offset = own_descriptor->property_offset.value(),
                 .prototype = this,
+                .writes_data_property = writes_data_property,
             };
         }
     };
@@ -1311,7 +1313,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
             // NOTE: We don't cache non-setter properties in the prototype chain, as that's a weird
             //       use-case, and doesn't seem like something in need of optimization.
             if (phase == PropertyLookupPhase::OwnProperty)
-                update_inline_cache_for_property_change();
+                update_inline_cache_for_property_change(true);
 
             // iv. Return ? Receiver.[[DefineOwnProperty]](P, valueDesc).
             return TRY(receiver_object.internal_define_own_property(property_key, value_descriptor, &existing_descriptor));
@@ -1336,7 +1338,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
     if (!setter)
         return false;
 
-    update_inline_cache_for_property_change();
+    update_inline_cache_for_property_change(false);
 
     // 6. Perform ? Call(setter, Receiver, « V »).
     (void)TRY(call(vm, *setter, receiver, value));

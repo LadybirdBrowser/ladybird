@@ -2593,6 +2593,7 @@ handler PutById(
     guard property_cache.prototype == 0 else try_cache;
     guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
     guard object.named_properties[property_cache.property_offset] is not Value<Accessor> else try_cache;
+    guard property_cache.writes_data_property != 0 else try_cache;
     object.named_properties[property_cache.property_offset] = load(src);
     dispatch_next;
 }
@@ -2886,6 +2887,7 @@ handler SetGlobal(
     guard global_cache.shape == shape else try_environment;
     guard global_cache.shape_dictionary_generation == shape.dictionary_generation else try_environment;
     guard global_object.named_properties[global_cache.property_offset] is not Value<Accessor> else slow;
+    guard global_cache.writes_data_property != 0 else slow;
     global_object.named_properties[global_cache.property_offset] = load(src);
     dispatch_next;
 }

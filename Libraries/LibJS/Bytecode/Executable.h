@@ -78,6 +78,7 @@ struct PropertyLookupCache {
         u32 property_offset { 0 };
         u32 shape_dictionary_generation { 0 };
         bool direct_getter_validated { false };
+        bool writes_data_property { false };
         GC::RawPtr<Shape> from_shape;
         GC::RawPtr<Shape> shape;
         GC::RawPtr<Object> prototype;

@@ -70,6 +70,7 @@ struct CacheableSetPropertyMetadata {
     Type type { Type::NotCacheable };
     Optional<u32> property_offset;
     GC::Ptr<Object const> prototype;
+    bool writes_data_property { false };
 };
 
 enum class IndexedStorageKind : u8 {

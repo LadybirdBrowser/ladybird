@@ -4537,21 +4537,23 @@ asm_handler_PutById:
     jne .Lasm_PutById.ssa_block_2
     test rax, rax
     jnz .Lasm_PutById.ssa_block_2
+    mov edi, DWORD PTR [rcx + 4]
     mov eax, DWORD PTR [rcx + 8]
-    mov ecx, DWORD PTR [rcx + 4]
     cmp DWORD PTR [rdx + 92], eax
     jne .Lasm_PutById.ssa_block_2
     mov rax, QWORD PTR [rsi + 32]
     test rax, rax
     jz .Lasm_PutById.assert_failure_2
-    mov rdx, QWORD PTR [rax + rcx * 8]
+    mov rdx, QWORD PTR [rax + rdi * 8]
     mov r11, rdx
     shr r11, 48
     cmp r11w, 65532
     je .Lasm_PutById.ssa_block_2
-    mov edx, DWORD PTR [r14 + r13 + 12]
-    mov rdx, QWORD PTR [rbx + rdx * 8]
-    mov QWORD PTR [rax + rcx * 8], rdx
+    cmp BYTE PTR [rcx + 13], 0
+    jz .Lasm_PutById.ssa_block_2
+    mov ecx, DWORD PTR [r14 + r13 + 12]
+    mov rcx, QWORD PTR [rbx + rcx * 8]
+    mov QWORD PTR [rax + rdi * 8], rcx
     add r13d, 32
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -4930,17 +4932,19 @@ asm_handler_SetGlobal:
     mov r8d, DWORD PTR [rax + 8]
     cmp DWORD PTR [rdx + 92], r8d
     jne .Lasm_SetGlobal.ssa_block_2
-    mov rax, QWORD PTR [rsi + 32]
-    test rax, rax
+    mov rcx, QWORD PTR [rsi + 32]
+    test rcx, rcx
     jz .Lasm_SetGlobal.assert_failure_2
-    mov rcx, QWORD PTR [rax + rdi * 8]
-    mov r11, rcx
+    mov rdx, QWORD PTR [rcx + rdi * 8]
+    mov r11, rdx
     shr r11, 48
     cmp r11w, 65532
     je .Lasm_SetGlobal.ssa_block_1
-    mov ecx, DWORD PTR [r14 + r13 + 8]
-    mov rcx, QWORD PTR [rbx + rcx * 8]
-    mov QWORD PTR [rax + rdi * 8], rcx
+    cmp BYTE PTR [rax + 13], 0
+    jz .Lasm_SetGlobal.ssa_block_1
+    mov eax, DWORD PTR [r14 + r13 + 8]
+    mov rax, QWORD PTR [rbx + rax * 8]
+    mov QWORD PTR [rcx + rdi * 8], rax
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
