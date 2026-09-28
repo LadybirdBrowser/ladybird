@@ -998,6 +998,18 @@ void Page::discard()
         navigable->set_has_been_destroyed();
         navigable->remove_from_all_local_navigables();
     }
+
+    // The navigables of other processes this page held no longer stand for anything here, and a WindowProxy a script
+    // of another page holds for one of them is closed.
+    Vector<GC::Ref<HTML::RemoteNavigable>> remote_navigables;
+    for (auto& remote_navigable : HTML::all_remote_navigables()) {
+        if (&remote_navigable->page() == this)
+            remote_navigables.append(remote_navigable);
+    }
+    for (auto& remote_navigable : remote_navigables) {
+        remote_navigable->set_has_been_destroyed();
+        remote_navigable->remove_from_all_remote_navigables();
+    }
     client().page_did_close();
 }
 
