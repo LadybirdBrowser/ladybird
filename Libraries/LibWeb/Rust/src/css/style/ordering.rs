@@ -68,6 +68,130 @@ impl ElementCascadeCompactionTop1 {
     }
 }
 
+/// The winner state a compaction publishes for one of a node's targets.
+#[derive(Clone, Copy)]
+struct PublishedWinnerState {
+    target: Option<tree::PseudoElementTarget>,
+    state: CascadeStateID,
+    /// Whether a pseudo-element target's state holds a winner for everything its rules declare.
+    inventory_is_complete: bool,
+}
+
+/// What a match contributes to a compaction that depends on nothing but its match list.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct CompactionMatch {
+    rule: RuleID,
+    pseudo_element: Option<tree::PseudoElementTarget>,
+    specificity: Specificity,
+    tree_scope: TreeScopeID,
+    scope_proximity: u32,
+}
+
+impl CompactionMatch {
+    fn of(entry: &RuleMatch) -> Self {
+        Self {
+            rule: entry.rule,
+            pseudo_element: entry.pseudo_element,
+            specificity: entry.specificity,
+            tree_scope: entry.tree_scope,
+            scope_proximity: entry.scope_proximity,
+        }
+    }
+}
+
+/// What compacting one match list decided: the states it published and, unless compaction was
+/// blocked, which matches it kept.
+struct RememberedCompaction {
+    hash: u64,
+    matches: Box<[CompactionMatch]>,
+    states: SmallVec<[PublishedWinnerState; 2]>,
+    keep: Option<Box<[bool]>>,
+}
+
+/// Compactions that depend on nothing but their match lists, by list, as decided under one program
+/// version and winner group generation. A list is remembered the second time it is compacted: most
+/// lists are one element's own, and remembering those would only fill the table.
+#[derive(Default)]
+struct RememberedCompactions {
+    decided_under: Option<(ProgramVersion, u64)>,
+    /// The hashes of the lists compacted once since the table was last cleared.
+    seen: HashSet<u64>,
+    by_matches: hashbrown::HashTable<RememberedCompaction>,
+    nested_bytes: usize,
+}
+
+impl RememberedCompactions {
+    const LIMIT: usize = 1024;
+
+    fn hash_of(all: &[RuleMatch]) -> u64 {
+        let mut hasher = fast_hash::fast_hasher();
+        for entry in all {
+            CompactionMatch::of(entry).hash(&mut hasher);
+        }
+        hasher.finish()
+    }
+
+    /// Forget everything decided under another program version or winner group generation.
+    fn settle(&mut self, version: ProgramVersion, generation: u64) {
+        if self.decided_under != Some((version, generation)) {
+            self.seen.clear();
+            self.clear();
+            self.decided_under = Some((version, generation));
+        }
+    }
+
+    fn clear(&mut self) {
+        self.by_matches.clear();
+        self.nested_bytes = 0;
+    }
+
+    fn get(&self, hash: u64, all: &[RuleMatch]) -> Option<&RememberedCompaction> {
+        self.by_matches.find(hash, |remembered| {
+            remembered.hash == hash
+                && remembered
+                    .matches
+                    .iter()
+                    .copied()
+                    .eq(all.iter().map(CompactionMatch::of))
+        })
+    }
+
+    /// Whether the list hashing to `hash` was compacted before, noting that it is now.
+    fn seen_before(&mut self, hash: u64) -> bool {
+        if self.seen.len() >= 4 * Self::LIMIT {
+            self.seen.clear();
+        }
+        !self.seen.insert(hash)
+    }
+
+    fn remember(&mut self, hash: u64, all: &[RuleMatch], states: &[PublishedWinnerState], keep: Option<&[bool]>) {
+        if self.by_matches.len() >= Self::LIMIT {
+            self.clear();
+        }
+        let remembered = RememberedCompaction {
+            hash,
+            matches: all.iter().map(CompactionMatch::of).collect(),
+            states: states.into(),
+            keep: keep.map(Into::into),
+        };
+        self.nested_bytes += size_of_val(remembered.matches.as_ref())
+            + keep.map_or(0, size_of_val)
+            + if remembered.states.spilled() {
+                size_of_val(states)
+            } else {
+                0
+            };
+        self.by_matches
+            .insert_unique(hash, remembered, |remembered| remembered.hash);
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        (self.seen.capacity() * size_of::<u64>()
+            + self.by_matches.capacity() * size_of::<RememberedCompaction>()
+            + self.nested_bytes) as u64
+    }
+}
+
 pub(super) struct CascadeCompactionWorkspace {
     top_1: CascadeCompactionTop1,
     element_top_1: ElementCascadeCompactionTop1,
@@ -76,6 +200,8 @@ pub(super) struct CascadeCompactionWorkspace {
     /// them.
     published_winners: Vec<PropertyWinner>,
     published_targets: Vec<(Option<tree::PseudoElementTarget>, std::ops::Range<usize>)>,
+    published_states: SmallVec<[PublishedWinnerState; 2]>,
+    remembered: RememberedCompactions,
 }
 
 impl Default for CascadeCompactionWorkspace {
@@ -89,6 +215,8 @@ impl Default for CascadeCompactionWorkspace {
             keep: Vec::new(),
             published_winners: Vec::new(),
             published_targets: Vec::new(),
+            published_states: SmallVec::new(),
+            remembered: RememberedCompactions::default(),
         }
     }
 }
@@ -101,6 +229,12 @@ impl CascadeCompactionWorkspace {
             + (self.published_winners.capacity() * size_of::<PropertyWinner>()) as u64
             + (self.published_targets.capacity()
                 * size_of::<(Option<tree::PseudoElementTarget>, std::ops::Range<usize>)>()) as u64
+            + if self.published_states.spilled() {
+                (self.published_states.capacity() * size_of::<PublishedWinnerState>()) as u64
+            } else {
+                0
+            }
+            + self.remembered.capacity_bytes()
     }
 }
 
@@ -453,6 +587,32 @@ impl RetainedState {
             return;
         }
 
+        // A compaction that depends on nothing but its match list is decided once per list: rows
+        // built from one template repeat their lists, and each publishes what the first decided.
+        let mut remember_as = None;
+        if let Some(node) = publish_winners_for
+            && !has_continuations
+            && self.compaction_depends_only_on_matches(effects, node, all)
+        {
+            let remembered = &mut workspace.remembered;
+            remembered.settle(self.program.version(), self.winner_groups.generation());
+            let hash = RememberedCompactions::hash_of(all);
+            if let Some(remembered) = remembered.get(hash, all) {
+                self.publish_winner_states(effects, node, &remembered.states, counters);
+                if let Some(keep) = &remembered.keep {
+                    // The key holds every match, so the remembered decisions line up with the list; were one missing,
+                    // keeping its match only keeps a rule the cascade finds losing again.
+                    debug_assert_eq!(keep.len(), all.len());
+                    let mut keep = keep.iter();
+                    all.retain(|_| keep.next().copied().unwrap_or(true));
+                }
+                return;
+            }
+            if remembered.seen_before(hash) {
+                remember_as = Some(hash);
+            }
+        }
+
         // The number of declaration candidates can be orders of magnitude larger than the number
         // of semantic outputs: every rule may declare the same properties, while this reduction
         // stores only one winner per pseudo/property pair. Let the table grow with distinct keys
@@ -592,7 +752,8 @@ impl RetainedState {
             let winner_scratch_bytes = (winner_count * size_of::<PropertyWinner>()) as u64;
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, winner_scratch_bytes);
-            let mut published_row_count = 0;
+            let published_states = &mut workspace.published_states;
+            published_states.clear();
             for (target, range) in published_targets.iter() {
                 let winners = &published_winners[range.clone()];
                 let key = target.map_or_else(
@@ -607,37 +768,24 @@ impl RetainedState {
                     .ok()
                     .map(|(_, state)| state);
                 let state = self.intern_cascade_state(winners, previous, counters);
-                if let Some(target) = target {
-                    let inventory_is_complete =
-                        self.cascade_winner_inventory_is_complete_for_target(all, Some(node), Some(*target));
-                    let published = effects.winners.set_pseudo(
-                        &mut self.winner_groups,
-                        node,
-                        *target,
-                        state,
-                        self.program.version(),
-                        &mut self.memory,
-                    );
-                    if published && !inventory_is_complete {
-                        effects.winners.mark_pseudo_inventory_incomplete(node, *target);
-                    }
-                    published_row_count += usize::from(published);
-                } else {
-                    published_row_count += usize::from(effects.winners.set(
-                        &mut self.winner_groups,
-                        node,
-                        state,
-                        self.program.version(),
-                        &mut self.memory,
-                    ));
-                }
+                published_states.push(PublishedWinnerState {
+                    target: *target,
+                    state,
+                    inventory_is_complete: target.is_none_or(|target| {
+                        self.cascade_winner_inventory_is_complete_for_target(all, Some(node), Some(target))
+                    }),
+                });
             }
-            self.winner_groups.settle_memory(&mut self.memory);
-            counters.add(Counter::CascadeNodeHandlesPublished, published_row_count as u64);
+            self.publish_winner_states(effects, node, published_states, counters);
             self.memory.release(MemoryCategory::BatchScratch, winner_scratch_bytes);
         }
 
         if compaction_blocked {
+            if let Some(hash) = remember_as {
+                workspace
+                    .remembered
+                    .remember(hash, all, &workspace.published_states, None);
+            }
             self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
             return;
         }
@@ -719,6 +867,11 @@ impl RetainedState {
         }
         scratch_bytes = actual_scratch_bytes;
 
+        if let Some(hash) = remember_as {
+            workspace
+                .remembered
+                .remember(hash, all, &workspace.published_states, Some(keep));
+        }
         let mut index = 0;
         all.retain(|_| {
             let retained = keep[index];
@@ -726,6 +879,71 @@ impl RetainedState {
             retained
         });
         self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
+    }
+
+    /// Whether compacting `all` for `node` decides what it would for any other node with the same
+    /// matches: every match decides in the document or in the node's own tree, where its priority
+    /// depends on that tree alone and not on where the node is assigned or what it hosts, none
+    /// waits on a container, and the node has neither declarations of its own nor pseudo-element
+    /// rows its compaction would have to empty.
+    fn compaction_depends_only_on_matches(
+        &self,
+        effects: &AnswerEffects,
+        node: StyleNodeID,
+        all: &[RuleMatch],
+    ) -> bool {
+        let tree_scope = self.tree.tree_scope(node);
+        all.iter().all(|entry| {
+            (entry.tree_scope == TreeScopeID::DOCUMENT || entry.tree_scope == tree_scope)
+                && !self.program.rule_is_gated_by_container_query(entry.rule)
+        }) && !self.node_has_element_declaration_input(node)
+            && effects
+                .winners
+                .view(&self.winner_groups)
+                .pseudo_states(node)
+                .next()
+                .is_none()
+    }
+
+    fn publish_winner_states(
+        &mut self,
+        effects: &mut AnswerEffects,
+        node: StyleNodeID,
+        states: &[PublishedWinnerState],
+        counters: &mut Counters,
+    ) {
+        let mut published_row_count = 0;
+        for &PublishedWinnerState {
+            target,
+            state,
+            inventory_is_complete,
+        } in states
+        {
+            if let Some(target) = target {
+                let published = effects.winners.set_pseudo(
+                    &mut self.winner_groups,
+                    node,
+                    target,
+                    state,
+                    self.program.version(),
+                    &mut self.memory,
+                );
+                if published && !inventory_is_complete {
+                    effects.winners.mark_pseudo_inventory_incomplete(node, target);
+                }
+                published_row_count += usize::from(published);
+            } else {
+                published_row_count += usize::from(effects.winners.set(
+                    &mut self.winner_groups,
+                    node,
+                    state,
+                    self.program.version(),
+                    &mut self.memory,
+                ));
+            }
+        }
+        self.winner_groups.settle_memory(&mut self.memory);
+        counters.add(Counter::CascadeNodeHandlesPublished, published_row_count as u64);
     }
 
     /// Reuse a complete, freshly updated element winner state instead of reducing declarations

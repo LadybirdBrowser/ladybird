@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style id="rules"></style>
+<div id="container"></div>
+<script>
+    // More elements with a match list of their own than cascade compaction remembers in one style pass, each with a
+    // pseudo-element, so the pass forgets what it remembered and its compaction scratch shrinks.
+    let rules = "";
+    let elements = "";
+    for (let i = 0; i < 1500; ++i) {
+        rules += `.c${i} { width: ${i}px; } .c${i}::before { content: "${i}"; }\n`;
+        elements += `<span class="c${i}"></span>`;
+    }
+    document.getElementById("rules").textContent = rules;
+    document.getElementById("container").innerHTML = elements;
+    document.body.offsetWidth;
+</script>
