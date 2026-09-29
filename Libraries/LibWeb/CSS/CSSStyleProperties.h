@@ -82,6 +82,8 @@ public:
     virtual WebIDL::ExceptionOr<void> set_css_text(Utf16View) override;
 
     void set_declarations_from_text(Utf16View);
+    // Takes `source`'s declarations as they are, sharing them until either side changes.
+    void set_declarations_from(CSSStyleProperties const& source);
 
 private:
     CSSStyleProperties(Computed, Readonly, RustDeclarationBlock, Optional<DOM::AbstractElement>);

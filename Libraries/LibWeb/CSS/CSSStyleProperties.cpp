@@ -1840,6 +1840,11 @@ void CSSStyleProperties::set_declarations_from_text(Utf16View css_text)
     m_declarations.replace(parse_css_property_declaration_block(parsing_params, css_text));
 }
 
+void CSSStyleProperties::set_declarations_from(CSSStyleProperties const& source)
+{
+    m_declarations.replace(source.m_declarations);
+}
+
 CSSStyleProperties::CustomPropertyReferences const& CSSStyleProperties::custom_property_references() const
 {
     if (m_custom_property_references && m_custom_property_references_revision == revision())
