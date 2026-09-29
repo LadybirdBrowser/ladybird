@@ -472,7 +472,10 @@ void ComputedStyleWorkingSet::clear_animated_properties(Badge<StyleComputer>)
     if (!m_animated_properties)
         return;
 
-    m_animated_properties = nullptr;
+    // NB: Ending this element's effects must preserve animated values inherited from its parent.
+    m_animated_properties = adopt_ref(*new AnimatedProperties(m_animated_properties->overlay(), AnimatedProperties::InheritedOnly {}));
+    if (m_animated_properties->is_empty())
+        m_animated_properties = nullptr;
     clear_computed_font_list_cache();
 }
 
