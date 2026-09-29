@@ -251,10 +251,16 @@ void Client::playback_session_clock_changed(u64 session_id, Media::MediaTimeRead
         playback_manager->clock_changed({}, move(time_reader));
 }
 
-void Client::playback_session_metadata_parsed(u64 session_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<UnixDateTime> start_time_realtime)
+void Client::playback_session_media_source_added(u64 session_id, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<UnixDateTime> start_time_realtime)
 {
     if (auto* playback_manager = find_playback_manager(session_id))
-        playback_manager->metadata_parsed({}, audio_tracks, video_tracks, move(preferred_audio_track), move(preferred_video_track), start_time_realtime);
+        playback_manager->media_source_added({}, stream_id, move(audio_tracks), move(video_tracks), move(preferred_audio_track), move(preferred_video_track), start_time_realtime);
+}
+
+void Client::playback_session_media_stream_source_failed(u64 session_id, u64 stream_id, Media::DecoderError error)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->media_stream_source_failed({}, stream_id, move(error));
 }
 
 void Client::playback_session_duration_changed(u64 session_id, AK::Duration duration)

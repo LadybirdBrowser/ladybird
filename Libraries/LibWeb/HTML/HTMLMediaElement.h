@@ -172,6 +172,7 @@ public:
     void update_ready_state();
 
     void set_duration(Badge<MediaSourceExtensions::MediaSource>, double duration) { set_duration(duration); }
+    void media_source_metadata_available(Badge<MediaSourceExtensions::SourceBuffer>) { on_metadata_parsed(SourceType::Local); }
 
     MediaClient::RemotePlaybackManager& playback_manager()
     {
@@ -244,6 +245,7 @@ private:
     void set_up_playback_manager_for_remote();
     void set_up_playback_manager_for_local(Function<void(Utf16String)> failure_callback);
     void set_up_playback_manager_error_handler(Function<void(Utf16String)> failure_callback);
+    void handle_playback_manager_error(Media::DecoderError&&);
     enum class FetchingStatus : u8 {
         Ongoing,
         Complete,
@@ -434,6 +436,7 @@ private:
     bool m_current_resource_selection_is_explicit { false };
 
     OwnPtr<MediaClient::RemotePlaybackManager> m_playback_manager;
+    Function<void(Utf16String)> m_playback_manager_failure_callback;
 
     RefPtr<Core::Timer> m_playback_position_update_timer;
     GC::Ptr<VideoTrack> m_selected_video_track;

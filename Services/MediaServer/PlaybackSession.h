@@ -36,6 +36,8 @@ public:
     u64 id() const { return m_id; }
     Media::PlaybackManager& manager() { return *m_manager; }
 
+    void add_media_stream_source(u64 stream_id, NonnullRefPtr<Media::MediaStream> const&);
+
     void seek(u64 seek_request_id, AK::Duration timestamp, Media::SeekMode);
     void set_audio_track_enabled(u64 seek_request_id, Media::Track const&, bool enabled, bool resume_ended_playback);
     void reserve_video_sink(u64 seek_request_id, Media::Track const&, Media::VideoSinkHandle, bool resume_ended_playback);
@@ -56,24 +58,43 @@ private:
         Failed,
     };
 
+    enum class TrackAdditionOutcome {
+        Added,
+        Failed,
+    };
+
+    struct HeldMessage {
+        // Messages that report an append are dropped if that append fails.
+        Optional<u64> append_generation;
+        Function<void()> send;
+    };
+
     struct SourceBuffer {
         NonnullRefPtr<Media::MediaSourceExtensions::SourceBufferProcessor> processor;
         // The data of the next append, which arrives in pieces small enough for one message each.
         ByteBuffer pending_append_data;
         AppendOutcome append_outcome { AppendOutcome::Pending };
+        u64 append_generation { 0 };
         bool has_parser { false };
+
+        // Until the manager has added the first initialization segment's tracks, the renderer's messages wait, so
+        // that it knows the tracks before it processes the segment.
+        size_t pending_track_additions { 0 };
+        bool track_addition_failed { false };
+        u64 first_initialization_segment_append_generation { 0 };
+        Vector<HeldMessage> held_messages {};
     };
 
     SourceBuffer* find_source_buffer(u64 source_buffer_id);
+    void add_source_buffer_demuxer(u64 source_buffer_id, NonnullRefPtr<Media::Demuxer> const&);
+    void finish_source_buffer_track_addition(u64 source_buffer_id, TrackAdditionOutcome);
+    static void send_or_hold(SourceBuffer&, Optional<u64> append_generation, Function<void()>);
     void report_playback_state();
 
     ConnectionFromClient& m_connection;
     u64 m_id { 0 };
     NonnullOwnPtr<Media::PlaybackManager> m_manager;
     u64 m_applied_seek_request_id { 0 };
-
-    // Tracks reported by the manager since the last metadata report, which delivers them together.
-    Vector<Media::Track> m_tracks_added_since_last_metadata_report;
 
     HashMap<u64, SourceBuffer> m_source_buffers;
 };

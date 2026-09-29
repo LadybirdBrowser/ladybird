@@ -58,6 +58,7 @@ public:
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
     bool updating() const;
+    bool first_initialization_segment_received() const { return m_first_initialization_segment_received; }
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
     GC::Ref<HTML::TimeRanges> buffered();
@@ -122,6 +123,9 @@ private:
 
     // https://w3c.github.io/media-source/#sourcebuffer-range-removal
     bool m_range_removal_running { false };
+
+    // https://w3c.github.io/media-source/#dfn-first-initialization-segment-received-flag
+    bool m_first_initialization_segment_received { false };
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-audiotracks
     GC::Ref<HTML::AudioTrackList> m_audio_tracks;

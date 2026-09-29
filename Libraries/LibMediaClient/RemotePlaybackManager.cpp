@@ -14,6 +14,11 @@
 
 namespace MediaClient {
 
+static Media::DecoderError media_server_gone_error()
+{
+    return Media::DecoderError::with_description(Media::DecoderErrorCategory::Unknown, "The media server is gone"sv);
+}
+
 NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create(Media::AudioOutput audio_output)
 {
     auto client_or_error = Client::acquire();
@@ -160,10 +165,16 @@ void RemotePlaybackManager::disable_an_audio_track(Media::Track const& track)
         m_client->async_set_audio_track_enabled(m_session_id, m_latest_seek_request_id, track, false, false);
 }
 
-void RemotePlaybackManager::add_media_source(RemoteMediaStream& stream)
+NonnullRefPtr<RemotePlaybackManager::AddMediaSourcePromise> RemotePlaybackManager::add_media_source(RemoteMediaStream& stream)
 {
-    if (can_send())
-        m_client->async_add_media_stream_source(m_session_id, stream.id());
+    auto promise = AddMediaSourcePromise::construct();
+    if (!can_send()) {
+        promise->reject(media_server_gone_error());
+        return promise;
+    }
+    m_pending_media_stream_sources.set(stream.id(), promise);
+    m_client->async_add_media_stream_source(m_session_id, stream.id());
+    return promise;
 }
 
 void RemotePlaybackManager::start()
@@ -236,7 +247,13 @@ void RemotePlaybackManager::handle_connection_lost()
     m_client = nullptr;
     for (auto& [id, source_buffer] : m_source_buffers)
         source_buffer->connection_lost({});
-    dispatch_error(Media::DecoderError::with_description(Media::DecoderErrorCategory::Unknown, "The media server is gone"sv));
+    auto pending_media_stream_sources = move(m_pending_media_stream_sources);
+    if (!pending_media_stream_sources.is_empty()) {
+        for (auto& [id, promise] : pending_media_stream_sources)
+            promise->reject(media_server_gone_error());
+        return;
+    }
+    dispatch_error(media_server_gone_error());
 }
 
 void RemotePlaybackManager::dispatch_error(Media::DecoderError&& error)
@@ -253,7 +270,7 @@ void RemotePlaybackManager::clock_changed(Badge<Client>, Media::MediaTimeReader 
     m_time_reader = move(time_reader);
 }
 
-void RemotePlaybackManager::metadata_parsed(Badge<Client>, Vector<Media::Track> const& audio_tracks, Vector<Media::Track> const& video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime)
+void RemotePlaybackManager::media_source_added(Badge<Client>, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime)
 {
     m_audio_tracks.extend(audio_tracks);
     m_video_tracks.extend(video_tracks);
@@ -263,14 +280,17 @@ void RemotePlaybackManager::metadata_parsed(Badge<Client>, Vector<Media::Track> 
         m_preferred_video_track = preferred_video_track;
     m_start_time_realtime = start_time_realtime;
 
-    if (on_track_added) {
-        for (auto const& track : audio_tracks)
-            on_track_added(track);
-        for (auto const& track : video_tracks)
-            on_track_added(track);
-    }
-    if (on_metadata_parsed)
-        on_metadata_parsed();
+    // Sources the server added on its own, such as a source buffer's track buffers, have no promise here.
+    if (!stream_id.has_value())
+        return;
+    if (auto promise = m_pending_media_stream_sources.take(stream_id.value()); promise.has_value())
+        promise.value()->resolve(AddedTracks { move(audio_tracks), move(video_tracks) });
+}
+
+void RemotePlaybackManager::media_stream_source_failed(Badge<Client>, u64 stream_id, Media::DecoderError error)
+{
+    if (auto promise = m_pending_media_stream_sources.take(stream_id); promise.has_value())
+        promise.value()->reject(move(error));
 }
 
 void RemotePlaybackManager::duration_changed(Badge<Client>, AK::Duration duration)

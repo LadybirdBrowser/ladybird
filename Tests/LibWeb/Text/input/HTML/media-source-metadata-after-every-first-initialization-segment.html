@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<script>
+    // The element only has its metadata once every SourceBuffer has received its first initialization segment, and an
+    // append that delivers the last of them completes with the metadata already applied.
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        function append(sourceBuffer, data) {
+            sourceBuffer.appendBuffer(data);
+            return new Promise((resolve, reject) => {
+                sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                sourceBuffer.addEventListener("error", () => reject(new Error("error event on SourceBuffer")), { once: true });
+            });
+        }
+
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        video.addEventListener("loadedmetadata", () => println(`loadedmetadata: readyState=${readyStateName(video.readyState)}`));
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const audioSourceBuffer = mediaSource.addSourceBuffer('audio/mp4;codecs="mp4a.40.2"');
+                const videoSourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9"');
+
+                async function fetchAsset(name) {
+                    const response = await fetch(`../../../Assets/${name}`);
+                    if (!response.ok)
+                        throw new Error(`HTTP ${response.status} for ${name}`);
+                    return new Uint8Array(await response.arrayBuffer());
+                }
+                const audioData = await fetchAsset("aac-encoder-delay-tfdt.mp4");
+                const videoData = await fetchAsset("vp9-frame-rate-change.webm");
+
+                await append(audioSourceBuffer, audioData);
+                println(`audio append done: readyState=${readyStateName(video.readyState)}`);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                println(`later: readyState=${readyStateName(video.readyState)}`);
+
+                await append(videoSourceBuffer, videoData);
+                println(`video append done: readyState=${readyStateName(video.readyState)}`);
+                println(`enabled audio tracks: ${Array.from(video.audioTracks).filter(track => track.enabled).length}`);
+                println(`selected video tracks: ${Array.from(video.videoTracks).filter(track => track.selected).length}`);
+                done();
+            } catch (e) {
+                fail("sourceopen handler", e);
+            }
+        }, { once: true });
+    });
+</script>

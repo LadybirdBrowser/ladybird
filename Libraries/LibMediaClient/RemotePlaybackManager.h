@@ -16,6 +16,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
+#include <LibCore/Promise.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/AudioOutput.h>
 #include <LibMedia/DecoderError.h>
@@ -71,7 +72,12 @@ public:
     void enable_an_audio_track(Media::Track const&);
     void disable_an_audio_track(Media::Track const&);
 
-    void add_media_source(RemoteMediaStream&);
+    struct AddedTracks {
+        Vector<Media::Track> audio_tracks;
+        Vector<Media::Track> video_tracks;
+    };
+    using AddMediaSourcePromise = Core::Promise<AddedTracks, Media::DecoderError>;
+    NonnullRefPtr<AddMediaSourcePromise> add_media_source(RemoteMediaStream&);
 
     void start();
     void play();
@@ -86,8 +92,6 @@ public:
     void set_volume(double);
     void set_playback_rate(float);
 
-    Function<void()> on_metadata_parsed;
-    Function<void(Media::Track const&)> on_track_added;
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
@@ -98,7 +102,8 @@ public:
 
     void connection_lost(Badge<Client>) { handle_connection_lost(); }
     void clock_changed(Badge<Client>, Media::MediaTimeReader);
-    void metadata_parsed(Badge<Client>, Vector<Media::Track> const& audio_tracks, Vector<Media::Track> const& video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime);
+    void media_source_added(Badge<Client>, Optional<u64> stream_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<AK::UnixDateTime> start_time_realtime);
+    void media_stream_source_failed(Badge<Client>, u64 stream_id, Media::DecoderError);
     void duration_changed(Badge<Client>, AK::Duration);
     void state_changed(Badge<Client>, u64 applied_seek_request_id, Media::PlaybackState, bool is_playing, Media::AvailableData, AK::Duration current_time);
     void buffered_ranges_changed(Badge<Client>, Media::TimeRanges const&);
@@ -153,6 +158,7 @@ private:
 
     HashMap<Media::VideoSinkHandle, VideoSink> m_video_sinks;
     HashMap<u64, RemoteSourceBuffer*> m_source_buffers;
+    HashMap<u64, NonnullRefPtr<AddMediaSourcePromise>> m_pending_media_stream_sources;
 };
 
 }

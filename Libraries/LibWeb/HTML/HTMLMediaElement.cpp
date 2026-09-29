@@ -2177,20 +2177,6 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
     //     https://html.spec.whatwg.org/multipage/media.html#media-elements
     //     Therefore, we enumerate all the available tracks into our VideoTrackList and AudioTrackList.
 
-    // -> If the media resource is found to have an audio track
-    // -> If the media resource is found to have a video track
-    m_playback_manager->on_track_added = GC::weak_callback(*this, [](auto& self, auto& track) {
-        if (track.type() == Media::TrackType::Audio)
-            self.on_audio_track_added(track);
-        else
-            self.on_video_track_added(track);
-    });
-
-    // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
-    m_playback_manager->on_metadata_parsed = GC::weak_callback(*this, [](auto& self) {
-        self.on_metadata_parsed(SourceType::Remote);
-    });
-
     set_up_playback_manager_error_handler(GC::weak_callback(*this, [](auto& self, Utf16String error_message) {
         // 1. The user agent should cancel the fetching process.
         VERIFY(self.m_remote_fetch_data);
@@ -2201,7 +2187,22 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
         failure_callback(move(error_message));
     }));
 
-    m_playback_manager->add_media_source(*m_remote_fetch_data->stream);
+    m_playback_manager->add_media_source(*m_remote_fetch_data->stream)
+        ->when_resolved(GC::weak_callback(*this, [](auto& self, MediaClient::RemotePlaybackManager::AddedTracks& added_tracks) {
+            // -> If the media resource is found to have an audio track
+            for (auto const& track : added_tracks.audio_tracks)
+                self.on_audio_track_added(track);
+
+            // -> If the media resource is found to have a video track
+            for (auto const& track : added_tracks.video_tracks)
+                self.on_video_track_added(track);
+
+            // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
+            self.on_metadata_parsed(SourceType::Remote);
+        }))
+        .when_rejected(GC::weak_callback(*this, [](auto& self, Media::DecoderError& error) {
+            self.handle_playback_manager_error(move(error));
+        }));
 
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
@@ -2217,30 +2218,39 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_error_handler(Function<void(Utf16String)> failure_callback)
 {
-    m_playback_manager->on_error = GC::weak_callback(*this, [failure_callback = move(failure_callback)](auto& self, Media::DecoderError&& error) mutable {
-        auto const* playback_manager_ptr = self.m_playback_manager.ptr();
+    m_playback_manager_failure_callback = move(failure_callback);
+    m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
+        self.handle_playback_manager_error(move(error));
+    });
+}
 
-        // NB: Queue a task for this so that we don't destroy the PlaybackManager within one of its callbacks when we
-        //     call forget_media_resource_specific_tracks().
-        self.queue_a_media_element_task([error = move(error), playback_manager_ptr, failure_callback = move(failure_callback)](HTMLMediaElement& self) {
-            if (self.m_error)
-                return;
-            if (playback_manager_ptr != self.m_playback_manager.ptr())
-                return;
+// https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
+void HTMLMediaElement::handle_playback_manager_error(Media::DecoderError&& error)
+{
+    auto const* playback_manager_ptr = m_playback_manager.ptr();
 
-            // NB: The playback manager reports every failure through one callback, so the ready state decides which of the
-            //     failure steps below apply: until metadata arrives the resource was never established as usable.
+    // NB: Queue a task for this so that we don't destroy the PlaybackManager within one of its callbacks when we
+    //     call forget_media_resource_specific_tracks().
+    queue_a_media_element_task([error = move(error), playback_manager_ptr](HTMLMediaElement& self) {
+        if (self.m_error)
+            return;
+        if (playback_manager_ptr != self.m_playback_manager.ptr())
+            return;
 
-            // -> If the media data is corrupted
-            if (self.m_ready_state != ReadyState::HaveNothing) {
-                self.set_decoder_error(Utf16String::from_utf8(error.description()));
-                return;
-            }
+        // NB: Failures to add a media source and failures during playback are both handled here, so the ready state
+        //     decides which of the failure steps below apply: until metadata arrives the resource was never established
+        //     as usable.
 
-            // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
-            VERIFY(failure_callback);
-            failure_callback(Utf16String::from_utf8(error.description()));
-        });
+        // -> If the media data is corrupted
+        if (self.m_ready_state != ReadyState::HaveNothing) {
+            self.set_decoder_error(Utf16String::from_utf8(error.description()));
+            return;
+        }
+
+        // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
+        VERIFY(self.m_playback_manager_failure_callback);
+        auto failure_callback = move(self.m_playback_manager_failure_callback);
+        failure_callback(Utf16String::from_utf8(error.description()));
     });
 }
 
@@ -2254,44 +2264,8 @@ void HTMLMediaElement::set_up_playback_manager_for_local(Function<void(Utf16Stri
     m_has_enabled_preferred_audio_track = false;
     m_has_selected_preferred_video_track = false;
 
-    // NB: The spec is unclear on whether the following media resource track conditions should trigger multiple
-    //     times on one media resource, but it is implied to be possible by the start of the "Media elements"
-    //     section, where it says that a "media resource can have multiple audio and video tracks."
-    //     https://html.spec.whatwg.org/multipage/media.html#media-elements
-    //     Therefore, we enumerate all the available tracks into our VideoTrackList and AudioTrackList.
-
-    // AD-HOC: Enable the tracks in PlaybackManager if MediaSource already enabled them in the DOM.
-    //         Note that we do not want to call on_(audio/video)_track_added() here, since the MSE spec takes care
-    //         of setting up the tracks.
-    m_playback_manager->on_track_added = GC::weak_callback(*this, [](auto& self, auto& track) {
-        if (track.type() == Media::TrackType::Audio) {
-            self.m_audio_tracks->for_each_track([&](auto& element_track) {
-                if (!element_track.enabled())
-                    return IterationDecision::Continue;
-                if (element_track.track_in_playback_manager() == track) {
-                    self.m_playback_manager->enable_an_audio_track(track);
-                    return IterationDecision::Break;
-                }
-                return IterationDecision::Continue;
-            });
-        } else if (track.type() == Media::TrackType::Video) {
-            self.m_video_tracks->for_each_track([&](auto& element_track) {
-                if (!element_track.selected())
-                    return IterationDecision::Continue;
-                if (element_track.track_in_playback_manager() == track) {
-                    self.m_selected_video_track = element_track;
-                    self.attach_selected_video_track_sink(track);
-                    return IterationDecision::Break;
-                }
-                return IterationDecision::Continue;
-            });
-        }
-    });
-
-    // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
-    m_playback_manager->on_metadata_parsed = GC::weak_callback(*this, [](auto& self) {
-        self.on_metadata_parsed(SourceType::Local);
-    });
+    // NB: The Media Source Extensions spec creates the tracks in its initialization segment received algorithm, and
+    //     SourceBuffer runs the steps once enough of the media data has been fetched to determine its metadata.
 
     set_up_playback_manager_error_handler(GC::weak_callback(*this, [failure_callback = move(failure_callback)](auto& self, Utf16String error_message) {
         // 1. The user agent should cancel the fetching process.

@@ -38,7 +38,7 @@ HashMap<VideoSinkHandle, PlaybackManager*>& video_sink_registrations()
 
 }
 
-DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlaybackManager const& self, NonnullRefPtr<Demuxer> const& demuxer, Core::EventLoop& main_thread_event_loop)
+DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlaybackManager const& self, NonnullRefPtr<Demuxer> const& demuxer, Core::EventLoop& main_thread_event_loop, NonnullRefPtr<AddMediaSourcePromise>& promise)
 {
     // Create the video tracks and their producers.
     auto all_video_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Video));
@@ -88,19 +88,19 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
     auto duration = demuxer->total_duration().value_or(AK::Duration::zero());
     auto start_time_realtime = demuxer->start_time_realtime();
 
-    main_thread_event_loop.deferred_invoke([self, demuxer, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration, start_time_realtime] mutable {
+    main_thread_event_loop.deferred_invoke([self, demuxer, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration, start_time_realtime, promise = move(promise)] mutable {
         if (!self)
             return;
 
         for (auto const& existing_track : self->m_video_tracks) {
             if (video_tracks.contains_slow(existing_track)) {
-                self->dispatch_error(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate video track found"sv));
+                promise->reject(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate video track found"sv));
                 return;
             }
         }
         for (auto const& existing_track : self->m_audio_tracks) {
             if (audio_tracks.contains_slow(existing_track)) {
-                self->dispatch_error(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate audio track found"sv));
+                promise->reject(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate audio track found"sv));
                 return;
             }
         }
@@ -156,15 +156,12 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
                 self->m_audio_sink->start();
         }
 
-        if (self->on_track_added) {
-            for (size_t i = first_new_audio_index; i < self->m_audio_tracks.size(); i++)
-                self->on_track_added(self->m_audio_tracks[i]);
-            for (size_t i = first_new_video_index; i < self->m_video_tracks.size(); i++)
-                self->on_track_added(self->m_video_tracks[i]);
-        }
-
-        if (self->on_metadata_parsed)
-            self->on_metadata_parsed();
+        AddedTracks added_tracks;
+        for (size_t i = first_new_audio_index; i < self->m_audio_tracks.size(); i++)
+            added_tracks.audio_tracks.append(self->m_audio_tracks[i]);
+        for (size_t i = first_new_video_index; i < self->m_video_tracks.size(); i++)
+            added_tracks.video_tracks.append(self->m_video_tracks[i]);
+        promise->resolve(move(added_tracks));
     });
 
     return {};
@@ -195,45 +192,51 @@ PlaybackManager::~PlaybackManager()
     m_weak_link->revoke({});
 }
 
-void PlaybackManager::dispatch_media_init_error(WeakPlaybackManager self, Core::EventLoop& main_thread_event_loop, DecoderError error)
+void PlaybackManager::reject_media_source(WeakPlaybackManager self, NonnullRefPtr<AddMediaSourcePromise>&& promise, Core::EventLoop& main_thread_event_loop, DecoderError error)
 {
     if (error.category() == DecoderErrorCategory::EndOfStream)
         error = DecoderError::with_description(DecoderErrorCategory::Corrupted, "The media ended before its metadata could be read"sv);
-    main_thread_event_loop.deferred_invoke([self = move(self), error = move(error)] mutable {
+    main_thread_event_loop.deferred_invoke([self = move(self), promise = move(promise), error = move(error)] mutable {
         if (!self)
             return;
-        self->dispatch_error(move(error));
+        promise->reject(move(error));
     });
 }
 
-void PlaybackManager::add_media_source(NonnullRefPtr<MediaStream> const& stream)
+NonnullRefPtr<PlaybackManager::AddMediaSourcePromise> PlaybackManager::add_media_source(NonnullRefPtr<MediaStream> const& stream)
 {
     auto self = weak();
     auto& main_thread_event_loop = Core::EventLoop::current();
+    auto promise = AddMediaSourcePromise::construct();
 
-    Threading::ThreadPool::the().submit([self = move(self), stream, &main_thread_event_loop] mutable {
+    // The promise's reference count is not atomic, so the thread pool task must only ever move it.
+    Threading::ThreadPool::the().submit([self = move(self), stream, &main_thread_event_loop, promise = promise] mutable {
         auto demuxer_or_error = create_demuxer(stream);
         if (demuxer_or_error.is_error()) {
-            dispatch_media_init_error(move(self), main_thread_event_loop, demuxer_or_error.release_error());
+            reject_media_source(move(self), move(promise), main_thread_event_loop, demuxer_or_error.release_error());
             return;
         }
 
-        auto maybe_error = prepare_playback_from_demuxer(self, demuxer_or_error.release_value(), main_thread_event_loop);
+        auto maybe_error = prepare_playback_from_demuxer(self, demuxer_or_error.release_value(), main_thread_event_loop, promise);
         if (maybe_error.is_error())
-            dispatch_media_init_error(move(self), main_thread_event_loop, maybe_error.release_error());
+            reject_media_source(move(self), move(promise), main_thread_event_loop, maybe_error.release_error());
     });
+    return promise;
 }
 
-void PlaybackManager::add_media_source(NonnullRefPtr<Demuxer> const& demuxer)
+NonnullRefPtr<PlaybackManager::AddMediaSourcePromise> PlaybackManager::add_media_source(NonnullRefPtr<Demuxer> const& demuxer)
 {
     auto self = weak();
     auto& main_thread_event_loop = Core::EventLoop::current();
+    auto promise = AddMediaSourcePromise::construct();
 
-    Threading::ThreadPool::the().submit([self = move(self), demuxer, &main_thread_event_loop] mutable {
-        auto maybe_error = prepare_playback_from_demuxer(self, demuxer, main_thread_event_loop);
+    // The promise's reference count is not atomic, so the thread pool task must only ever move it.
+    Threading::ThreadPool::the().submit([self = move(self), demuxer, &main_thread_event_loop, promise = promise] mutable {
+        auto maybe_error = prepare_playback_from_demuxer(self, demuxer, main_thread_event_loop, promise);
         if (maybe_error.is_error())
-            dispatch_media_init_error(move(self), main_thread_event_loop, maybe_error.release_error());
+            reject_media_source(move(self), move(promise), main_thread_event_loop, maybe_error.release_error());
     });
+    return promise;
 }
 
 WeakPlaybackManager PlaybackManager::weak()

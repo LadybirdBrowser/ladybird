@@ -966,31 +966,47 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
         }
 
         // 6. Set [[first initialization segment received flag]] to true.
-        // AD-HOC: This is handled within SourceBufferProcessor, since it's observable immediately in the processing
-        //         loop.
+        m_first_initialization_segment_received = true;
     }
 
     // 6. Set [[pending initialization segment for changeType flag]] to false.
     // AD-HOC: This is handled within SourceBufferProcessor, same as the above inner step 6.
 
-    // 7. If the active track flag equals true, then run the following steps:
-    if (!active_track_flag)
-        return;
-
     // FIXME: Mirror the following steps to the Window when workers are supported.
     auto& media_element = *m_media_source->media_element_assigned_to();
 
-    // 8. Use the parent media source's mirror if necessary algorithm to run the following step in Window:
-    //        If the HTMLMediaElement's readyState attribute is greater than HAVE_CURRENT_DATA, then set
-    //        the HTMLMediaElement's readyState attribute to HAVE_METADATA.
+    // 7. If the active track flag equals true, then run the following steps:
+    // AD-HOC: The spec lists step 8 after this one, but it is meant to be its only substep.
+    //         See https://github.com/w3c/media-source/issues/380
+    if (active_track_flag) {
+        // 8. Use the parent media source's mirror if necessary algorithm to run the following step in Window:
+        //        If the HTMLMediaElement's readyState attribute is greater than HAVE_CURRENT_DATA, then set
+        //        the HTMLMediaElement's readyState attribute to HAVE_METADATA.
+        // NB: This step is handled by the unified readyState update method on HTMLMediaElement, based on conditions
+        //     that Media Source Extensions requires.
+        media_element.update_ready_state();
+    }
+
     // 9. If each object in sourceBuffers of the parent media source has [[first initialization segment received
     //    flag]] equal to true, then use the parent media source's mirror if necessary algorithm to run the
     //    following step in Window:
-    //        If the HTMLMediaElement's readyState attribute is HAVE_NOTHING, then set the HTMLMediaElement's
-    //        readyState attribute to HAVE_METADATA.
-    // NB: These steps are handled by the unified readyState update method on HTMLMediaElement, based on conditions
-    //     that Media Source Extensions requires.
-    media_element.update_ready_state();
+    auto all_source_buffers_received_first_initialization_segment = [&] {
+        auto& source_buffers = *m_media_source->source_buffers();
+        for (size_t i = 0; i < source_buffers.length(); i++) {
+            if (!source_buffers.item(i)->first_initialization_segment_received())
+                return false;
+        }
+        return true;
+    }();
+    if (all_source_buffers_received_first_initialization_segment) {
+        //    If the HTMLMediaElement's readyState attribute is HAVE_NOTHING, then set the HTMLMediaElement's
+        //    readyState attribute to HAVE_METADATA.
+        // NB: The media data processing steps for when "enough of the media data has been fetched to determine the
+        //     duration of the media resource, its dimensions, and other metadata" set the readyState, and also apply
+        //     to a media source.
+        if (media_element.ready_state() == HTML::HTMLMediaElement::ReadyState::HaveNothing)
+            media_element.media_source_metadata_available({});
+    }
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-buffer-append
