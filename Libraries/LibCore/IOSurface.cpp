@@ -11,6 +11,7 @@
 static_assert(false, "This file must only be used for macOS");
 #endif
 
+#import <CoreGraphics/CoreGraphics.h>
 #import <IOSurface/IOSurface.h>
 
 namespace Core {
@@ -58,6 +59,19 @@ IOSurfaceHandle::~IOSurfaceHandle()
         CFRelease(m_ref_wrapper->ref);
 }
 
+// A consumer that displays the surface directly, such as a CALayer, takes its color space from this property and
+// would otherwise treat the sRGB pixels as being in the display's color space.
+static CFPropertyListRef srgb_color_space_property_list()
+{
+    static CFPropertyListRef property_list = [] {
+        auto* color_space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+        auto* list = CGColorSpaceCopyPropertyList(color_space);
+        CGColorSpaceRelease(color_space);
+        return list;
+    }();
+    return property_list;
+}
+
 IOSurfaceHandle IOSurfaceHandle::create(int width, int height)
 {
     size_t bytes_per_element = 4;
@@ -80,6 +94,7 @@ IOSurfaceHandle IOSurfaceHandle::create(int width, int height)
 
     auto* ref = IOSurfaceCreate(props.ref());
     VERIFY(ref);
+    IOSurfaceSetValue(ref, CFSTR("IOSurfaceColorSpace"), srgb_color_space_property_list());
     return IOSurfaceHandle(make<IOSurfaceRefWrapper>(ref));
 }
 

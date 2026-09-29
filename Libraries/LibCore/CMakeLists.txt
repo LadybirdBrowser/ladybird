@@ -128,6 +128,7 @@ endif()
 
 if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework CoreFoundation")
+    target_link_libraries(LibCore PUBLIC "-framework CoreGraphics")
     target_link_libraries(LibCore PUBLIC "-framework CoreLocation")
     target_link_libraries(LibCore PUBLIC "-framework CoreServices")
     target_link_libraries(LibCore PUBLIC "-framework Foundation")
