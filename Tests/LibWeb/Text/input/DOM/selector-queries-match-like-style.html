@@ -1,0 +1,73 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    Foo, [dataFoo] { --m: 1; }
+</style>
+<div id="root"></div>
+<script>
+test(() => {
+    const HTML = "http://www.w3.org/1999/xhtml";
+    const SVG = "http://www.w3.org/2000/svg";
+    const root = document.getElementById("root");
+    const matchedByStyle = elements => elements.filter(element => getComputedStyle(element).getPropertyValue("--m").trim() === "1").map(element => element.id);
+    const ids = list => Array.from(list, element => element.id || element.localName).join(" ");
+
+    // Type and attribute selectors compare their lowercase form with an HTML element in an HTML document, and the
+    // form they were written in with any other element.
+    const names = [
+        Object.assign(document.createElementNS(HTML, "Foo"), { id: "html-Foo" }),
+        Object.assign(document.createElement("foo"), { id: "html-foo" }),
+        Object.assign(document.createElementNS(SVG, "Foo"), { id: "svg-Foo" }),
+    ];
+    const attributeNamed = [];
+    for (const [id, namespace] of [["html-dataFoo", HTML], ["svg-dataFoo", SVG]]) {
+        const element = document.createElementNS(namespace, "div");
+        element.id = id;
+        element.setAttributeNS(null, "dataFoo", "");
+        attributeNamed.push(element);
+    }
+    const lowercased = document.createElement("div");
+    lowercased.id = "html-datafoo";
+    lowercased.setAttribute("dataFoo", "");
+    attributeNamed.push(lowercased);
+    root.append(...names, ...attributeNamed);
+    println(`Foo: style [${matchedByStyle(names)}] query [${ids(root.querySelectorAll("Foo"))}]`);
+    println(`foo: query [${ids(root.querySelectorAll("foo"))}]`);
+    println(`[dataFoo]: style [${matchedByStyle(attributeNamed)}] query [${ids(root.querySelectorAll("[dataFoo]"))}]`);
+    println(`[datafoo]: query [${ids(root.querySelectorAll("[datafoo]"))}]`);
+
+    // Inside its own shadow tree the host is featureless: only a compound that names :host can match it.
+    const featureless = document.createElement("div");
+    featureless.innerHTML = `<span class="a"></span>`;
+    featureless.attachShadow({ mode: "open" }).innerHTML = `<style>:has(.a) > .x { --m: 1; }</style><div class="x" id="featureless-x"></div>`;
+    root.append(featureless);
+    const featurelessX = featureless.shadowRoot.querySelector(".x");
+    println(`:has(.a) > .x: style [${matchedByStyle([featurelessX])}] query [${ids(featureless.shadowRoot.querySelectorAll(":has(.a) > .x"))}]`);
+
+    // :host:has() reads the shadow tree, not the host's light tree.
+    const hosts = [];
+    for (const [id, light, shadow] of [["light-y", `<span class="y"></span>`, ""], ["shadow-y", "", `<span class="y"></span>`]]) {
+        const host = document.createElement("div");
+        host.innerHTML = light;
+        host.attachShadow({ mode: "open" }).innerHTML = `<style>:host:has(.y) .x { --m: 1; }</style><p><b class="x" id="${id}"></b></p>${shadow}`;
+        root.append(host);
+        hosts.push(host);
+    }
+    const hostHasStyle = hosts.flatMap(host => matchedByStyle([host.shadowRoot.querySelector(".x")]));
+    const hostHasQuery = hosts.map(host => ids(host.shadowRoot.querySelectorAll(":host:has(.y) .x"))).join(" ");
+    println(`:host:has(.y) .x: style [${hostHasStyle}] query [${hostHasQuery.trim()}]`);
+
+    // :root is the document element, and nothing in a fragment or a detached tree.
+    const fragment = document.createDocumentFragment();
+    fragment.append(document.createElement("i"), document.createElement("b"), document.createElement("i"));
+    fragment.children[0].className = "a";
+    fragment.children[2].className = "c";
+    println(`:root: document [${ids(document.querySelectorAll(":root"))}] fragment [${ids(fragment.querySelectorAll(":root"))}] detached ${document.createElement("div").matches(":root")}`);
+
+    // :scope is the element a query is scoped to, and the document element when it is scoped to anything else.
+    println(`:scope: document [${ids(document.querySelectorAll(":scope"))}] [${ids(document.querySelectorAll(":scope > body"))}] root [${ids(root.querySelectorAll(":scope > #html-foo"))}] fragment [${ids(fragment.querySelectorAll(":scope > i"))}]`);
+
+    // The children of a fragment have no parent element, but they are siblings all the same.
+    println(`fragment children: :first-child [${ids(fragment.querySelectorAll(":first-child"))}] :nth-child(2) [${ids(fragment.querySelectorAll(":nth-child(2)"))}] :last-of-type [${ids(fragment.querySelectorAll(":last-of-type"))}] .a ~ .c [${ids(fragment.querySelectorAll(".a ~ .c"))}] .a + b [${ids(fragment.querySelectorAll(".a + b"))}]`);
+});
+</script>

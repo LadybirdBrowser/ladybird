@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>querySelector with mixed-case attributes</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1997380">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+<div id="test-container"></div>
+
+<script>
+"use strict";
+
+const container = document.getElementById("test-container");
+
+function buildTestTree() {
+  // Build entire DOM tree structure first (without attributes)
+  const html1 = document.createElement("div");
+  html1.id = "html1";
+
+  const svg1 = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg1.id = "svg1";
+
+  const svg2 = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  svg2.id = "svg2";
+
+  const svg3 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  svg3.id = "svg3";
+
+  const html2 = document.createElement("div");
+  html2.id = "html2";
+
+  const math1 = document.createElementNS("http://www.w3.org/1998/Math/MathML", "math");
+  math1.id = "math1";
+
+  const math2 = document.createElementNS("http://www.w3.org/1998/Math/MathML", "mi");
+  math2.id = "math2";
+
+  const svg4 = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg4.id = "svg4";
+
+  const svg5 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  svg5.id = "svg5";
+
+  const html3 = document.createElement("div");
+  html3.id = "html3";
+
+  // Create foreignObject with HTML inside SVG (will go in svg1)
+  const foreign1 = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
+  foreign1.id = "foreign1";
+
+  const html4 = document.createElement("div");
+  html4.id = "html4";
+
+  const html5 = document.createElement("span");
+  html5.id = "html5";
+
+  // Create nested: HTML > SVG inside html2
+  const svg6 = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg6.id = "svg6";
+
+  const foreign2 = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
+  foreign2.id = "foreign2";
+
+  const html6 = document.createElement("div");
+  html6.id = "html6";
+
+  const svg7 = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg7.id = "svg7";
+
+  const svg8 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  svg8.id = "svg8";
+
+  // Build tree structure
+  svg2.appendChild(svg3);
+  svg1.appendChild(svg2);
+
+  // Add foreignObject with HTML to svg1
+  html4.appendChild(html5);
+  foreign1.appendChild(html4);
+  svg1.appendChild(foreign1);
+
+  html1.appendChild(svg1);
+
+  math1.appendChild(math2);
+  html2.appendChild(math1);
+
+  // Add deeply nested SVG > foreignObject > HTML > SVG to html2
+  svg7.appendChild(svg8);
+  html6.appendChild(svg7);
+  foreign2.appendChild(html6);
+  svg6.appendChild(foreign2);
+  html2.appendChild(svg6);
+
+  html1.appendChild(html2);
+
+  svg4.appendChild(svg5);
+
+  // Create wrapper container for all trees
+  const wrapper = document.createElement("div");
+  wrapper.appendChild(html1);
+  wrapper.appendChild(svg4);
+  wrapper.appendChild(html3);
+
+  // NOW set all attributes
+  html1.setAttribute("viewBox", "html-val");
+  html1.setAttribute("dataIndex", "0");
+  html1.setAttribute("testAttr", "alpha");
+
+  svg1.setAttribute("viewBox", "svg-val");
+  svg1.setAttribute("dataIndex", "1");
+  svg1.setAttribute("testAttr", "beta");
+
+  svg2.setAttribute("mixedCase", "foo");
+  svg2.setAttribute("dataValue", "first");
+
+  svg3.setAttribute("innerAttr", "found");
+
+  html2.setAttribute("viewBox", "nested");
+  html2.setAttribute("mathVariant", "bold");
+
+  math1.setAttribute("mathVariant", "italic");
+  math1.setAttribute("displayStyle", "true");
+
+  math2.setAttribute("testIndex", "5");
+  math2.setAttribute("dataValue", "second");
+
+  svg5.setAttribute("viewBox", "rect-val");
+  svg5.setAttribute("testIndex", "10");
+
+  html3.setAttribute("MixedCase", "bar");
+  html3.setAttribute("TestIndex", "20");
+
+  // Set attributes on foreignObject tree in svg1
+  foreign1.setAttribute("foreignAttr", "foreign-val");
+
+  html4.setAttribute("ForeignHTML", "inside-foreign");
+  html4.setAttribute("DataType", "html-in-svg");
+
+  html5.setAttribute("NestedCase", "span-val");
+
+  // Set attributes on deeply nested tree in html2
+  svg6.setAttribute("DeepSVG", "middle-svg");
+  svg6.setAttribute("CaseSensitive", "nested");
+
+  foreign2.setAttribute("SecondForeign", "deep-foreign");
+
+  html6.setAttribute("InnerHTML", "deep-html");
+  html6.setAttribute("DataType", "nested");
+
+  svg7.setAttribute("ReEnteredSVG", "back-to-svg");
+
+  svg8.setAttribute("DeepestAttr", "circle-val");
+  svg8.setAttribute("CaseSensitive", "deepest");
+
+  return wrapper;
+}
+
+function runTests(root) {
+  // DOM tree structure with attributes:
+  // <div id="test-container">
+  //   <div id="html1" viewBox="html-val" dataIndex="0" testAttr="alpha">
+  //     <svg id="svg1" viewBox="svg-val" dataIndex="1" testAttr="beta">
+  //       <g id="svg2" mixedCase="foo" dataValue="first">
+  //         <circle id="svg3" innerAttr="found">
+  //       </g>
+  //       <foreignObject id="foreign1" foreignAttr="foreign-val">
+  //         <div id="html4" ForeignHTML="inside-foreign" DataType="html-in-svg">
+  //           <span id="html5" NestedCase="span-val">
+  //         </div>
+  //       </foreignObject>
+  //     </svg>
+  //     <div id="html2" viewBox="nested" mathVariant="bold">
+  //       <math id="math1" mathVariant="italic" displayStyle="true">
+  //         <mi id="math2" testIndex="5" dataValue="second">
+  //       </math>
+  //       <svg id="svg6" DeepSVG="middle-svg" CaseSensitive="nested">
+  //         <foreignObject id="foreign2" SecondForeign="deep-foreign">
+  //           <div id="html6" InnerHTML="deep-html" DataType="nested">
+  //             <svg id="svg7" ReEnteredSVG="back-to-svg">
+  //               <circle id="svg8" DeepestAttr="circle-val" CaseSensitive="deepest">
+  //             </svg>
+  //           </div>
+  //         </foreignObject>
+  //       </svg>
+  //     </div>
+  //   </div>
+  //   <svg id="svg4">
+  //     <rect id="svg5" viewBox="rect-val" testIndex="10">
+  //   </svg>
+  //   <div id="html3" MixedCase="bar" TestIndex="20">
+  // </div>
+
+  // Test 1: viewBox with mixed case - HTML is case-insensitive, SVG is case-sensitive
+  let results = root.querySelectorAll("[viewBox]");
+  assert_equals(results.length, 4, "[viewBox] should match 2 HTML elements + 2 SVG elements");
+  let ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html1", "html2", "svg1", "svg5"], "[viewBox] should match correct elements");
+
+  // Test 2: viewbox lowercase - should only match HTML elements
+  results = root.querySelectorAll("[viewbox]");
+  assert_equals(results.length, 2, "[viewbox] should only match HTML elements");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html1", "html2"], "[viewbox] should only match HTML divs");
+
+  // Test 3: VIEWBOX uppercase - should only match HTML elements
+  results = root.querySelectorAll("[VIEWBOX]");
+  assert_equals(results.length, 2, "[VIEWBOX] should only match HTML elements");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html1", "html2"], "[VIEWBOX] should only match HTML divs");
+
+  // Test 4: mathVariant - HTML is case-insensitive, MathML is case-sensitive
+  results = root.querySelectorAll("[mathVariant]");
+  assert_equals(results.length, 2, "[mathVariant] should match HTML + MathML");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html2", "math1"], "[mathVariant] should match correct elements");
+
+  // Test 5: mathvariant lowercase - should only match HTML
+  results = root.querySelectorAll("[mathvariant]");
+  assert_equals(results.length, 1, "[mathvariant] should only match HTML");
+  assert_equals(results[0].id, "html2", "[mathvariant] should match html2");
+
+  // Test 6: dataIndex exact case
+  results = root.querySelectorAll("[dataIndex]");
+  assert_equals(results.length, 2, "[dataIndex] should match HTML and SVG");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html1", "svg1"], "[dataIndex] should match html1 and svg1");
+
+  // Test 7: dataindex lowercase - should only match HTML
+  results = root.querySelectorAll("[dataindex]");
+  assert_equals(results.length, 1, "[dataindex] should only match HTML");
+  assert_equals(results[0].id, "html1", "[dataindex] should match html1");
+
+  // Test 8: testIndex mixed case
+  // HTML elements: selector lowercased → [testindex] → matches html3
+  // SVG/MathML: selector used as-is → [testIndex] → matches math2, svg5 (case-sensitive)
+  results = root.querySelectorAll("[testIndex]");
+  assert_equals(results.length, 3, "[testIndex] should match 3 elements");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html3", "math2", "svg5"], "[testIndex] should match html3, math2, and svg5");
+
+  // Test 9: TestIndex with capital T
+  // HTML elements: selector lowercased → [testindex] → matches html3
+  // SVG/MathML: selector used as-is → [TestIndex] → no match (testIndex != TestIndex)
+  results = root.querySelectorAll("[TestIndex]");
+  assert_equals(results.length, 1, "[TestIndex] should only match HTML element");
+  assert_equals(results[0].id, "html3", "[TestIndex] should match html3");
+
+  // Test 10: testindex all lowercase
+  // HTML elements: selector lowercased → [testindex] → matches html3
+  // SVG/MathML: selector used as-is → [testindex] → no match (testIndex != testindex)
+  results = root.querySelectorAll("[testindex]");
+  assert_equals(results.length, 1, "[testindex] should only match HTML element");
+  assert_equals(results[0].id, "html3", "[testindex] should match html3");
+
+  // Test 11: mixedCase exact
+  // HTML elements: selector lowercased → [mixedcase] → matches html3
+  // SVG: selector used as-is → [mixedCase] → matches svg2 (case-sensitive)
+  results = root.querySelectorAll("[mixedCase]");
+  assert_equals(results.length, 2, "[mixedCase] should match 2 elements");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html3", "svg2"], "[mixedCase] should match html3 and svg2");
+
+  // Test 12: MixedCase capital M
+  // HTML elements: selector lowercased → [mixedcase] → matches html3
+  // SVG: selector used as-is → [MixedCase] → no match (mixedCase != MixedCase)
+  results = root.querySelectorAll("[MixedCase]");
+  assert_equals(results.length, 1, "[MixedCase] should only match HTML element");
+  assert_equals(results[0].id, "html3", "[MixedCase] should match html3");
+
+  // Test 13: mixedcase all lowercase
+  // HTML elements: selector lowercased → [mixedcase] → matches html3
+  // SVG: selector used as-is → [mixedcase] → no match (mixedCase != mixedcase)
+  results = root.querySelectorAll("[mixedcase]");
+  assert_equals(results.length, 1, "[mixedcase] should only match HTML element");
+  assert_equals(results[0].id, "html3", "[mixedcase] should match html3");
+
+  // Test 14: testAttr exact case
+  results = root.querySelectorAll("[testAttr]");
+  assert_equals(results.length, 2, "[testAttr] should match HTML and SVG");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html1", "svg1"], "[testAttr] should match html1 and svg1");
+
+  // Test 15: Attribute value matching with prefix
+  results = root.querySelectorAll('[viewBox^="svg"]');
+  assert_equals(results.length, 1, '[viewBox^="svg"] should match 1 SVG element');
+  assert_equals(results[0].id, "svg1", '[viewBox^="svg"] should match svg1');
+
+  // Test 16: Attribute value matching with exact match
+  results = root.querySelectorAll('[dataIndex="0"]');
+  assert_equals(results.length, 1, '[dataIndex="0"] should match 1 element');
+  assert_equals(results[0].id, "html1", '[dataIndex="0"] should match html1');
+
+  // Test 17: Nested element query
+  results = root.querySelectorAll("[innerAttr]");
+  assert_equals(results.length, 1, "[innerAttr] should match nested circle");
+  assert_equals(results[0].id, "svg3", "[innerAttr] should match svg3");
+
+  // Test 18: displayStyle on MathML
+  results = root.querySelectorAll("[displayStyle]");
+  assert_equals(results.length, 1, "[displayStyle] should match MathML");
+  assert_equals(results[0].id, "math1", "[displayStyle] should match math1");
+
+  // Test 19: displaystyle lowercase - should not match anything (no HTML element has it)
+  results = root.querySelectorAll("[displaystyle]");
+  assert_equals(results.length, 0, "[displaystyle] should not match anything");
+
+  // Test 20: Case-sensitive value matching with 's' flag
+  results = root.querySelectorAll('[testAttr="alpha" s]');
+  assert_equals(results.length, 1, '[testAttr="alpha" s] should match 1 element');
+  assert_equals(results[0].id, "html1", '[testAttr="alpha" s] should match html1');
+
+  // Test 21: Case-insensitive value matching with 'i' flag
+  results = root.querySelectorAll('[testAttr="ALPHA" i]');
+  assert_equals(results.length, 1, '[testAttr="ALPHA" i] should match 1 element');
+  assert_equals(results[0].id, "html1", '[testAttr="ALPHA" i] should match html1');
+
+  // Test 22: ForeignHTML - HTML inside foreignObject should be case-insensitive
+  results = root.querySelectorAll("[ForeignHTML]");
+  assert_equals(results.length, 1, "[ForeignHTML] should match HTML in foreignObject");
+  assert_equals(results[0].id, "html4", "[ForeignHTML] should match html4");
+
+  // Test 23: foreignhtml lowercase - should match HTML element in foreignObject
+  results = root.querySelectorAll("[foreignhtml]");
+  assert_equals(results.length, 1, "[foreignhtml] should match HTML in foreignObject");
+  assert_equals(results[0].id, "html4", "[foreignhtml] should match html4");
+
+
+  // Test 24: DataType - should match both HTML elements (case-insensitive)
+  results = root.querySelectorAll("[DataType]");
+  assert_equals(results.length, 2, "[DataType] should match 2 HTML elements");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html4", "html6"], "[DataType] should match html4 and html6");
+
+  // Test 25: datatype lowercase - should match both HTML elements
+  results = root.querySelectorAll("[datatype]");
+  assert_equals(results.length, 2, "[datatype] should match 2 HTML elements");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["html4", "html6"], "[datatype] should match html4 and html6");
+
+  // Test 26: CaseSensitive on SVG elements - case-sensitive
+  results = root.querySelectorAll("[CaseSensitive]");
+  assert_equals(results.length, 2, "[CaseSensitive] should match 2 SVG elements");
+  ids = Array.from(results).map(el => el.id).sort();
+  assert_array_equals(ids, ["svg6", "svg8"], "[CaseSensitive] should match svg6, svg8");
+
+  // Test 27: casesensitive lowercase - should NOT match SVG elements
+  results = root.querySelectorAll("[casesensitive]");
+  assert_equals(results.length, 0, "[casesensitive] should not match SVG elements");
+
+  // Test 28: NestedCase - HTML span inside foreignObject should be case-insensitive
+  results = root.querySelectorAll("[NestedCase]");
+  assert_equals(results.length, 1, "[NestedCase] should match HTML span in foreignObject");
+  assert_equals(results[0].id, "html5", "[NestedCase] should match html5");
+
+  // Test 29: nestedcase lowercase - should match HTML span
+  results = root.querySelectorAll("[nestedcase]");
+  assert_equals(results.length, 1, "[nestedcase] should match HTML span in foreignObject");
+  assert_equals(results[0].id, "html5", "[nestedcase] should match html5");
+
+  // Test 30: ReEnteredSVG - SVG inside HTML inside foreignObject should be case-sensitive
+  results = root.querySelectorAll("[ReEnteredSVG]");
+  assert_equals(results.length, 1, "[ReEnteredSVG] should match SVG nested in HTML in foreignObject");
+  assert_equals(results[0].id, "svg7", "[ReEnteredSVG] should match svg7");
+
+  // Test 31: reenteredsvg lowercase - should NOT match (SVG is case-sensitive)
+  results = root.querySelectorAll("[reenteredsvg]");
+  assert_equals(results.length, 0, "[reenteredsvg] should not match SVG element");
+
+  // Test 32: DeepestAttr - deeply nested SVG circle should be case-sensitive
+  results = root.querySelectorAll("[DeepestAttr]");
+  assert_equals(results.length, 1, "[DeepestAttr] should match deeply nested circle");
+  assert_equals(results[0].id, "svg8", "[DeepestAttr] should match svg8");
+
+  // Test 33: deepestattr lowercase - should NOT match
+  results = root.querySelectorAll("[deepestattr]");
+  assert_equals(results.length, 0, "[deepestattr] should not match SVG circle");
+
+  // Test 34: foreignAttr on foreignObject element - case-sensitive
+  results = root.querySelectorAll("[foreignAttr]");
+  assert_equals(results.length, 1, "[foreignAttr] should match foreignObject");
+  assert_equals(results[0].id, "foreign1", "[foreignAttr] should match foreign1");
+
+  // Test 35: foreignattr lowercase - should NOT match foreignObject (SVG namespace)
+  results = root.querySelectorAll("[foreignattr]");
+  assert_equals(results.length, 0, "[foreignattr] should not match foreignObject");
+
+  // Test 36: InnerHTML on HTML element inside foreignObject - case-insensitive
+  results = root.querySelectorAll("[InnerHTML]");
+  assert_equals(results.length, 1, "[InnerHTML] should match HTML in foreignObject");
+  assert_equals(results[0].id, "html6", "[InnerHTML] should match html6");
+
+  // Test 37: innerhtml lowercase - should match HTML in foreignObject
+  results = root.querySelectorAll("[innerhtml]");
+  assert_equals(results.length, 1, "[innerhtml] should match HTML in foreignObject");
+  assert_equals(results[0].id, "html6", "[innerhtml] should match html6");
+
+  // Test 38: DeepSVG on SVG element - case-sensitive
+  results = root.querySelectorAll("[DeepSVG]");
+  assert_equals(results.length, 1, "[DeepSVG] should match SVG element");
+  assert_equals(results[0].id, "svg6", "[DeepSVG] should match svg6");
+
+  // Test 39: deepsvg lowercase - should NOT match SVG
+  results = root.querySelectorAll("[deepsvg]");
+  assert_equals(results.length, 0, "[deepsvg] should not match SVG element");
+
+  // Test 40: SecondForeign on foreignObject element - case-sensitive
+  results = root.querySelectorAll("[SecondForeign]");
+  assert_equals(results.length, 1, "[SecondForeign] should match foreignObject");
+  assert_equals(results[0].id, "foreign2", "[SecondForeign] should match foreign2");
+
+  // Test 41: secondforeign lowercase - should NOT match foreignObject
+  results = root.querySelectorAll("[secondforeign]");
+  assert_equals(results.length, 0, "[secondforeign] should not match foreignObject");
+}
+
+test(() => {
+  const tree = buildTestTree();
+
+  // Test on disconnected tree first
+  runTests(tree);
+
+  // Now append to document and test again
+  container.appendChild(tree);
+  runTests(container);
+
+  container.innerHTML = "";
+}, "Mixed HTML/SVG/MathML tree with various mixed-case attributes");
+
+</script>
+</body>

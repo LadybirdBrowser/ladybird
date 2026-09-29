@@ -167,8 +167,8 @@ pub struct AttributeTest {
     pub any_namespace: bool,
     /// The ASCII-lowercase folding of `name`, equal to it when the name is already lowercase.
     ///
-    /// An attribute name is matched case-insensitively against an HTML element in an HTML document
-    /// and case-sensitively everywhere else, so which form applies is a property of the subject. Both
+    /// The lowercase selector name applies to HTML elements in HTML documents, and the written
+    /// selector name applies elsewhere. Both compare with the written attribute name. Both forms
     /// are carried in one test for the same reason `TagTest` does it: a disjunction of two attribute
     /// tests would widen the enclosing compound's dispatch key to universal.
     pub folded: StyleAtomID,
@@ -184,10 +184,10 @@ pub struct AttributeTest {
 
 /// A type selector's name, in the form it was written and in its ASCII-lowercase folding.
 ///
-/// Which of the two applies is a property of the element rather than of the selector: a type
-/// selector matches an HTML element in an HTML document ASCII case-insensitively and everything
-/// else case-sensitively. So `DIV` still has to reach `<div>`, while `foreignobject` must not reach
-/// an SVG `foreignObject`. Carrying both forms in one test keeps that a single feature: expressing
+/// The lowercase selector name applies to HTML elements in HTML documents, and the written name
+/// applies elsewhere. Both compare with the element's written local name. So `DIV` still has to
+/// reach `<div>`, while `foreignobject` must not reach an SVG `foreignObject`.
+/// Carrying both forms in one test keeps that a single feature: expressing
 /// it as a disjunction of two tag tests would widen the enclosing compound's dispatch key to
 /// universal, and a compound that dispatches universally rejects nothing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -215,10 +215,16 @@ impl TagTest {
 
     #[must_use]
     pub fn matches(self, tag: StyleAtomID, namespace: StyleAtomID) -> bool {
-        if tag == self.written {
-            return true;
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
+        // When comparing a CSS element type selector to the names of HTML elements in HTML documents, the CSS element type
+        // selector must first be converted to ASCII lowercase. The same selector when compared to other elements must be
+        // compared according to its original case. In both cases, to match, the values must be identical to each other
+        // (and therefore the comparison is case sensitive).
+        if !self.fold_in_namespace.is_none() && namespace == self.fold_in_namespace {
+            tag == self.folded
+        } else {
+            tag == self.written
         }
-        tag == self.folded && !self.fold_in_namespace.is_none() && namespace == self.fold_in_namespace
     }
 }
 
@@ -6710,28 +6716,26 @@ impl<'a> MatchEvaluator<'a> {
         row: MatchFactRow<'a>,
         test: AttributeTest,
     ) -> impl Iterator<Item = super::index::AttributeFact> {
-        // Whether this subject folds attribute names at all, which is one namespace comparison for
-        // the whole test rather than one per attribute.
+        // NB: Whether this subject folds selector names is one namespace comparison for the whole test
+        //     rather than one per attribute.
         let folds = !test.fold_in_namespace.is_none() && row.facts.namespace_of(row.row) == test.fold_in_namespace;
         row.facts
             .attributes_of(row.row)
             .iter()
             .copied()
             .filter(move |attribute| {
-                if !test.any_namespace {
-                    if attribute.name == test.name {
-                        return true;
-                    }
-                    if !folds {
-                        return false;
-                    }
-                }
-                let forms = row.facts.attribute_name_forms(attribute.name);
-                let (written, folded) = match test.any_namespace {
-                    true => (forms.local, forms.folded_local),
-                    false => (attribute.name, forms.folded_name),
+                // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
+                // When comparing the name part of a CSS attribute selector to the names of attributes on HTML elements in HTML
+                // documents, the name part of the CSS attribute selector must first be converted to ASCII lowercase. The same
+                // selector when compared to other attributes must be compared according to its original case. In both cases, the
+                // comparison is case-sensitive.
+                let name = if folds { test.folded } else { test.name };
+                let written = if test.any_namespace {
+                    row.facts.attribute_name_forms(attribute.name).local
+                } else {
+                    attribute.name
                 };
-                written == test.name || (folds && folded == test.folded)
+                written == name
             })
     }
 

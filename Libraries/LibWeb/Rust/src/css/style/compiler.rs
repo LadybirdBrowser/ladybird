@@ -192,23 +192,32 @@ impl NamespaceScope {
         }
     }
 
-    /// The constraint a qualified name places on its subject's namespace.
-    #[must_use]
-    fn test_for(&self, namespace_type: NamespaceType, prefix: Option<StyleAtomID>) -> Option<NamespaceTest> {
-        match namespace_type {
+    /// The constraint a qualified name places on its subject's namespace, or an error for a prefix the sheet never
+    /// declared.
+    fn test_for(
+        &self,
+        namespace_type: NamespaceType,
+        prefix: Option<StyleAtomID>,
+    ) -> Result<Option<NamespaceTest>, UndeclaredPrefix> {
+        Ok(match namespace_type {
             // `*|x` names every namespace, so it constrains nothing.
             NamespaceType::Any => None,
             // `|x` names the absence of one.
             NamespaceType::None => Some(NamespaceTest::None),
             NamespaceType::Default => self.default.map(Self::test_for_uri),
-            // A prefix the sheet never declared makes the selector invalid, which the parser has
-            // already rejected; nothing reaches here with one.
             NamespaceType::Named => prefix
                 .and_then(|prefix| self.by_prefix.iter().find(|(declared, _)| *declared == prefix))
-                .map(|&(_, uri)| Self::test_for_uri(uri)),
-        }
+                .map(|&(_, uri)| Self::test_for_uri(uri))
+                .ok_or(UndeclaredPrefix)?
+                .into(),
+        })
     }
 }
+
+/// https://drafts.csswg.org/css-namespaces/#css-qnames
+/// A qualified name with a prefix that has not been previously declared as a namespace prefix is invalid. The parser
+/// rejects such a selector, so one that reaches the compiler anyway matches nothing rather than every namespace.
+struct UndeclaredPrefix;
 
 /// Compiles parsed selectors into one program, interning names through the document's atom table.
 pub struct SelectorCompiler<'a> {
@@ -714,16 +723,20 @@ impl<'a> SelectorCompiler<'a> {
             // A qualified name constrains two things: the namespace and the name. `*` constrains
             // only the first, and only when its sheet gave it one to constrain.
             SimpleSelector::Universal(name) => Some(match self.namespace_test(name) {
-                Some(test) => self.builder.push_feature(FeatureTest::Namespace(test)),
-                None if self.compound_names_the_host => self.builder.push_never(),
-                None => self.builder.push_feature(FeatureTest::AnyElement),
+                Ok(Some(test)) => self.builder.push_feature(FeatureTest::Namespace(test)),
+                Ok(None) if self.compound_names_the_host => self.builder.push_never(),
+                Ok(None) => self.builder.push_feature(FeatureTest::AnyElement),
+                Err(UndeclaredPrefix) => {
+                    marker.get_or_insert(CompilationMarker::KnownNeverMatches(CompilationMarkerReason::Malformed));
+                    self.builder.push_never()
+                }
             }),
             SimpleSelector::TagName(name) => {
                 // Tag names are compared against the element's own local name, which preserves
-                // case. An HTML element in an HTML document has a lowercase local name, so a
-                // selector written `DIV` has to reach it through its lowercase form as well - but
-                // `foreignObject` must not be reachable by a lowercase-written selector, because
-                // SVG is case-sensitive. One test carrying both forms covers that.
+                // case. An HTML element in an HTML document is compared with the lowercase form, so a
+                // selector written `DIV` reaches `<div>` - but `foreignobject` must not reach an SVG
+                // `foreignObject`, because every other element is compared with the written form.
+                // One test carrying both forms covers that.
                 // A name the document never interned is one no element carries, so the test is
                 // unsatisfiable rather than absent. Leaving it out would let `div` match every
                 // element in a document holding no `div`.
@@ -744,11 +757,15 @@ impl<'a> SelectorCompiler<'a> {
                     fold_in_namespace: self.html_element_namespace,
                 }));
                 Some(match self.namespace_test(name) {
-                    Some(test) => {
+                    Ok(Some(test)) => {
                         let namespace = self.builder.push_feature(FeatureTest::Namespace(test));
                         self.builder.push_compound(&[tag, namespace])
                     }
-                    None => tag,
+                    Ok(None) => tag,
+                    Err(UndeclaredPrefix) => {
+                        marker.get_or_insert(CompilationMarker::KnownNeverMatches(CompilationMarkerReason::Malformed));
+                        self.builder.push_never()
+                    }
                 })
             }
             SimpleSelector::Id(name) => match self.name_identity(name) {
@@ -856,7 +873,10 @@ impl<'a> SelectorCompiler<'a> {
     }
 
     /// The namespace constraint a qualified name places, resolved through its sheet.
-    fn namespace_test(&mut self, name: &crate::css::selector::QualifiedName) -> Option<NamespaceTest> {
+    fn namespace_test(
+        &mut self,
+        name: &crate::css::selector::QualifiedName,
+    ) -> Result<Option<NamespaceTest>, UndeclaredPrefix> {
         let prefix = match name.namespace_type {
             NamespaceType::Named => Some((self.intern)(name.namespace.raw(), None)),
             _ => None,
@@ -890,8 +910,12 @@ impl<'a> SelectorCompiler<'a> {
             // however the sheet declared its default.
             NamespaceType::Default | NamespaceType::None => None,
             NamespaceType::Named => match self.namespace_test(&attribute.qualified_name) {
-                Some(NamespaceTest::Named(namespace)) => Some(namespace),
-                Some(NamespaceTest::None) | None => None,
+                Ok(Some(NamespaceTest::Named(namespace))) => Some(namespace),
+                Ok(Some(NamespaceTest::None) | None) => None,
+                Err(UndeclaredPrefix) => {
+                    marker.get_or_insert(CompilationMarker::KnownNeverMatches(CompilationMarkerReason::Malformed));
+                    return self.builder.push_never();
+                }
             },
         };
         let name = (self.intern)(raw, namespace);
@@ -1102,16 +1126,17 @@ impl<'a> SelectorCompiler<'a> {
                 }
             }
             Pc::State => {
-                let value = match pseudo_class.identifier_identity.optional_raw() {
-                    Some(identity) => (self.intern)(identity, None),
-                    None => match pseudo_class.identifier.as_ref() {
-                        Some(identifier) => self.intern_text(identifier),
-                        None => StyleAtomID::NONE,
-                    },
+                // The parser gives every state it reads an identity, and a custom state is only ever set
+                // by name, so one without names nothing an element can be in.
+                let Some(identity) = pseudo_class.identifier_identity.optional_raw() else {
+                    marker.get_or_insert(CompilationMarker::KnownNeverMatches(
+                        CompilationMarkerReason::PseudoClass,
+                    ));
+                    return Some(self.builder.push_never());
                 };
                 Some(self.builder.push(SelectorOp::ValueState {
                     kind: ValueStateTestKind::CustomState,
-                    value,
+                    value: (self.intern)(identity, None),
                 }))
             }
             Pc::Heading => {
