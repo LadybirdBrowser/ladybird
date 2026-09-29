@@ -34,7 +34,6 @@ public:
     [[nodiscard]] Optional<time_t> modified_time() const;
 
     [[nodiscard]] ByteBuffer clone_data() const;
-    [[nodiscard]] ByteBuffer release_data() &&;
     [[nodiscard]] ReadonlyBytes data() const;
     [[nodiscard]] FixedMemoryStream stream() const;
 

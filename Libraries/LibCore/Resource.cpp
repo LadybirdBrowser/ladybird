@@ -83,13 +83,6 @@ ByteBuffer Resource::clone_data() const
         [](DirectoryTag) -> ByteBuffer { VERIFY_NOT_REACHED(); });
 }
 
-ByteBuffer Resource::release_data() &&
-{
-    VERIFY(!m_data.has<DirectoryTag>());
-
-    return MUST(ByteBuffer::copy(m_data.get<NonnullOwnPtr<Core::MappedFile>>()->bytes()));
-}
-
 ReadonlyBytes Resource::data() const
 {
     return m_data.visit(
