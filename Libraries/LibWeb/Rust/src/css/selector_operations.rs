@@ -324,7 +324,6 @@ pub unsafe extern "C" fn rust_selector_contains_named_namespace(selector: *const
 pub unsafe extern "C" fn rust_selector_matches_simple_dom(
     selector: *const RustSelector,
     tag_name: usize,
-    lowercase_tag_name: usize,
     id: usize,
     lowercase_id: usize,
     classes: *const usize,
@@ -377,7 +376,7 @@ pub unsafe extern "C" fn rust_selector_matches_simple_dom(
                     ) =>
                 {
                     if fold_tag_name {
-                        name.interned_lowercase_name_identity() == Some(lowercase_tag_name)
+                        name.interned_lowercase_name_identity() == Some(tag_name)
                     } else {
                         name.interned_name_identity() == Some(tag_name)
                     }
