@@ -2350,20 +2350,40 @@ void Document::flush_throttled_animation_style_update_for_node(Node const& node)
         return;
 
     auto task_generation = relevant_settings_object().responsible_event_loop().task_generation();
-    for (auto& animation : m_associated_animations) {
-        if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
-            continue;
-        auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
-        auto target = effect.target();
-        if (!target
-            || (!target->is_shadow_including_inclusive_ancestor_of(node) && !node.is_shadow_including_inclusive_ancestor_of(*target))
-            || !effect.can_skip_per_frame_style_update())
-            continue;
-        if (m_is_updating_animated_style) {
-            m_effects_needing_animated_style_update_after_current_update.set(effect);
-        } else {
-            effect.request_element_scoped_observation_sample(task_generation);
+    auto flush_animations_targeting = [&](Node const& target) {
+        auto const* element = as_if<Element>(target);
+        if (!element)
+            return;
+        for (auto const& animation : element->associated_animations_unordered()) {
+            if (!animation->effect() || !is<Animations::KeyframeEffect>(*animation->effect()))
+                continue;
+            auto& effect = static_cast<Animations::KeyframeEffect&>(*animation->effect());
+            if (!effect.can_skip_per_frame_style_update())
+                continue;
+            if (m_is_updating_animated_style) {
+                m_effects_needing_animated_style_update_after_current_update.set(effect);
+            } else {
+                effect.request_element_scoped_observation_sample(task_generation);
+            }
         }
+    };
+
+    // An animation changes what this read sees only if its target is the node itself, one of its
+    // shadow-including ancestors, or one of its shadow-including descendants. An element's own
+    // animation list answers the first two directions along the ancestor chain, and the count of
+    // animations in a subtree prunes the third to the branches that hold one. A page with hundreds
+    // of throttled animations therefore costs a read that is far away from all of them one walk to
+    // the root, instead of two ancestor tests against every animation in the document.
+    for (auto const* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host())
+        flush_animations_targeting(*ancestor);
+
+    if (node.associated_animation_count_in_subtree() != 0) {
+        const_cast<Node&>(node).for_each_shadow_including_descendant([&](Node& descendant) {
+            if (descendant.associated_animation_count_in_subtree() == 0)
+                return TraversalDecision::SkipChildrenAndContinue;
+            flush_animations_targeting(descendant);
+            return TraversalDecision::Continue;
+        });
     }
 }
 

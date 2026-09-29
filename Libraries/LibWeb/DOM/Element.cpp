@@ -2952,6 +2952,8 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
     if (m_shadow_root == shadow_root)
         return;
     if (m_shadow_root) {
+        if (auto count = m_shadow_root->associated_animation_count_in_subtree())
+            change_associated_animation_count_in_subtree(-static_cast<i32>(count));
         if (is_connected())
             CSS::record_subtree_disconnecting(*m_shadow_root);
         m_shadow_root->set_host(nullptr);
@@ -2973,6 +2975,8 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
 
         m_shadow_root->set_host(this);
         m_shadow_root->set_is_connected(is_connected());
+        if (auto count = m_shadow_root->associated_animation_count_in_subtree())
+            change_associated_animation_count_in_subtree(count);
     }
     set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ElementSetShadowRoot);
 }

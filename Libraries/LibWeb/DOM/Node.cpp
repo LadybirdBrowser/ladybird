@@ -3897,6 +3897,8 @@ void Node::append_child_impl(GC::Ref<Node> node)
 
     TreeNode::append_child(node);
     node->set_root_for_subtree(root());
+    if (auto count = node->m_associated_animation_count_in_subtree)
+        change_associated_animation_count_in_subtree(count);
 }
 
 void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
@@ -3905,12 +3907,22 @@ void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
         return append_child_impl(move(node));
     TreeNode::insert_before(node, child);
     node->set_root_for_subtree(root());
+    if (auto count = node->m_associated_animation_count_in_subtree)
+        change_associated_animation_count_in_subtree(count);
 }
 
 void Node::remove_child_impl(GC::Ref<Node> node)
 {
+    if (auto count = node->m_associated_animation_count_in_subtree)
+        change_associated_animation_count_in_subtree(-static_cast<i32>(count));
     TreeNode::remove_child(node);
     node->set_root_for_subtree(node);
+}
+
+void Node::change_associated_animation_count_in_subtree(i32 delta)
+{
+    for (auto* node = this; node; node = node->parent_or_shadow_host())
+        node->m_associated_animation_count_in_subtree += delta;
 }
 
 void Node::set_root_for_subtree(Node& new_root)
