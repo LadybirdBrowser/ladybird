@@ -9,7 +9,7 @@
 #include <LibWebCommon/Page/InputEvent.h>
 #include <math.h>
 
-namespace Compositing {
+namespace Web {
 
 KeyEvent KeyEvent::clone_without_browser_data() const
 {
@@ -24,7 +24,7 @@ MouseEvent MouseEvent::clone_without_browser_data() const
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Compositing::KeyEvent const& event)
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::KeyEvent const& event)
 {
     TRY(encoder.encode(event.type));
     TRY(encoder.encode(event.key));
@@ -38,22 +38,22 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Compositing::KeyEvent const& event)
 }
 
 template<>
-ErrorOr<Compositing::KeyEvent> IPC::decode(Decoder& decoder)
+ErrorOr<Web::KeyEvent> IPC::decode(Decoder& decoder)
 {
-    auto type = TRY(decoder.decode<Compositing::KeyEvent::Type>());
-    auto key = TRY(decoder.decode<Compositing::KeyCode>());
-    auto modifiers = TRY(decoder.decode<Compositing::KeyModifier>());
+    auto type = TRY(decoder.decode<Web::KeyEvent::Type>());
+    auto key = TRY(decoder.decode<Web::UIEvents::KeyCode>());
+    auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());
     auto code_point = TRY(decoder.decode<u32>());
     auto repeat = TRY(decoder.decode<bool>());
     auto should_insert_text = TRY(decoder.decode<bool>());
     auto async_scroll_performed_default_action = TRY(decoder.decode<bool>());
     auto id = TRY(decoder.decode<u64>());
 
-    return Compositing::KeyEvent { type, key, modifiers, code_point, repeat, should_insert_text, nullptr, async_scroll_performed_default_action, id };
+    return Web::KeyEvent { type, key, modifiers, code_point, repeat, should_insert_text, nullptr, async_scroll_performed_default_action, id };
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Compositing::MouseEvent const& event)
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::MouseEvent const& event)
 {
     TRY(encoder.encode(event.type));
     TRY(encoder.encode(event.position));
@@ -73,28 +73,28 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Compositing::MouseEvent const& event
 }
 
 template<>
-ErrorOr<Compositing::MouseEvent> IPC::decode(Decoder& decoder)
+ErrorOr<Web::MouseEvent> IPC::decode(Decoder& decoder)
 {
-    auto type = TRY(decoder.decode<Compositing::MouseEvent::Type>());
-    auto position = TRY(decoder.decode<Compositing::DevicePixelPoint>());
-    auto screen_position = TRY(decoder.decode<Compositing::DevicePixelPoint>());
-    auto button = TRY(decoder.decode<Compositing::MouseButton>());
-    auto buttons = TRY(decoder.decode<Compositing::MouseButton>());
-    auto modifiers = TRY(decoder.decode<Compositing::KeyModifier>());
+    auto type = TRY(decoder.decode<Web::MouseEvent::Type>());
+    auto position = TRY(decoder.decode<Web::DevicePixelPoint>());
+    auto screen_position = TRY(decoder.decode<Web::DevicePixelPoint>());
+    auto button = TRY(decoder.decode<Web::UIEvents::MouseButton>());
+    auto buttons = TRY(decoder.decode<Web::UIEvents::MouseButton>());
+    auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());
     auto wheel_delta_x = TRY(decoder.decode<double>());
     auto wheel_delta_y = TRY(decoder.decode<double>());
-    auto wheel_delta_precision = TRY(decoder.decode<Compositing::WheelDeltaPrecision>());
-    auto scroll_gesture_phase = TRY(decoder.decode<Compositing::ScrollGesturePhase>());
+    auto wheel_delta_precision = TRY(decoder.decode<Web::WheelDeltaPrecision>());
+    auto scroll_gesture_phase = TRY(decoder.decode<Web::ScrollGesturePhase>());
     auto click_count = TRY(decoder.decode<int>());
     auto async_scroll_performed_default_action = TRY(decoder.decode<bool>());
     auto id = TRY(decoder.decode<u64>());
-    auto scrollbar_dragged_by_compositor = TRY(decoder.decode<Optional<Compositing::ScrollbarDraggedByCompositor>>());
+    auto scrollbar_dragged_by_compositor = TRY(decoder.decode<Optional<Web::ScrollbarDraggedByCompositor>>());
 
-    return Compositing::MouseEvent { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr, async_scroll_performed_default_action, id, scrollbar_dragged_by_compositor };
+    return Web::MouseEvent { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr, async_scroll_performed_default_action, id, scrollbar_dragged_by_compositor };
 }
 
 template<>
-WEBCOMMON_API ErrorOr<void> IPC::encode(Encoder& encoder, Compositing::PinchEvent const& event)
+WEBCOMMON_API ErrorOr<void> IPC::encode(Encoder& encoder, Web::PinchEvent const& event)
 {
     TRY(encoder.encode(event.position));
     TRY(encoder.encode(event.modifiers));
@@ -104,15 +104,15 @@ WEBCOMMON_API ErrorOr<void> IPC::encode(Encoder& encoder, Compositing::PinchEven
 }
 
 template<>
-WEBCOMMON_API ErrorOr<Compositing::PinchEvent> IPC::decode(Decoder& decoder)
+WEBCOMMON_API ErrorOr<Web::PinchEvent> IPC::decode(Decoder& decoder)
 {
-    auto position = TRY(decoder.decode<Compositing::DevicePixelPoint>());
-    auto modifiers = TRY(decoder.decode<Compositing::KeyModifier>());
+    auto position = TRY(decoder.decode<Web::DevicePixelPoint>());
+    auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());
     auto scale_delta = TRY(decoder.decode<double>());
     auto id = TRY(decoder.decode<u64>());
 
     if (isnan(scale_delta) || isinf(scale_delta))
         return Error::from_string_literal("IPC: Invalid scale_delta value");
 
-    return Compositing::PinchEvent { position, modifiers, scale_delta, id };
+    return Web::PinchEvent { position, modifiers, scale_delta, id };
 }

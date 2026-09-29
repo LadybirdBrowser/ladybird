@@ -113,7 +113,7 @@ RefPtr<WebContentPage> CanonicalTraversable::focused_navigable_host() const
 }
 
 // The origin, in the view's viewport, of the viewport of the local root holding the focused navigable in its page.
-Compositing::DevicePixelPoint CanonicalTraversable::focused_navigable_host_offset() const
+Web::DevicePixelPoint CanonicalTraversable::focused_navigable_host_offset() const
 {
     if (!m_focused_navigable_id.has_value())
         return {};
@@ -124,9 +124,9 @@ Compositing::DevicePixelPoint CanonicalTraversable::focused_navigable_host_offse
 }
 
 // The origin, in the view's viewport, of the viewport of the local root holding the navigable in its page.
-Compositing::DevicePixelPoint CanonicalTraversable::local_root_offset(CanonicalNavigable const& navigable) const
+Web::DevicePixelPoint CanonicalTraversable::local_root_offset(CanonicalNavigable const& navigable) const
 {
-    Compositing::DevicePixelPoint offset;
+    Web::DevicePixelPoint offset;
     for (auto const* ancestor = &navigable; ancestor; ancestor = ancestor->parent()) {
         if (ancestor->has_remote_host() && ancestor->viewport_rect().has_value())
             offset.translate_by(ancestor->viewport_rect()->location());
@@ -452,7 +452,7 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalTraversable::obtain_page_to_host
     VERIFY(current_entry);
     auto current_entry_descriptor = current_entry->descriptor();
 
-    Compositing::PageId page_id;
+    Web::PageId page_id;
     if (host && host->page_id_for_traversable(*this).has_value()) {
         page_id = *host->page_id_for_traversable(*this);
         host->async_begin_hosting_navigable(page_id, id(), current_entry_descriptor, system_visibility_state());

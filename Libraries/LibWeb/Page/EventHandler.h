@@ -55,10 +55,10 @@ public:
 
     void visit_edges(JS::Cell::Visitor& visitor) const;
 
-    EventResult handle_mousedown(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositing::ScrollbarDraggedByCompositor> const& = {}, Optional<RemoteInputEventTarget>* remote_target = nullptr);
+    EventResult handle_mousedown(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Web::ScrollbarDraggedByCompositor> const& = {}, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mousemove(CSSPixelPoint, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mouseup(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target = nullptr);
-    EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, Compositing::WheelDeltaPrecision = Compositing::WheelDeltaPrecision::Discrete, Compositing::ScrollGesturePhase = Compositing::ScrollGesturePhase::None, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr, Optional<RemoteInputEventTarget>* remote_target = nullptr);
+    EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, Web::WheelDeltaPrecision = Web::WheelDeltaPrecision::Discrete, Web::ScrollGesturePhase = Web::ScrollGesturePhase::None, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mouseleave();
 #if defined(AK_OS_MACOS)
     bool select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position);
@@ -252,7 +252,7 @@ private:
         Optional<CSS::PseudoElement> wheel_event_target_pseudo_element {};
         bool gesture_handed_to_nested_navigable { false };
         // Unset until the default action of this thread has moved a box, so for as long as the compositor scrolls.
-        Optional<Compositing::AsyncScrollNodeStableID> scrolling_box {};
+        Optional<Web::AsyncScrollNodeStableID> scrolling_box {};
     };
     Optional<WheelScrollLatch> m_wheel_scroll_latch;
 };

@@ -11,7 +11,7 @@
 
 namespace Web::Compositor {
 
-CompositorContextHandle::CompositorContextHandle(CompositorHost& host, Compositing::CompositorContextId context_id)
+CompositorContextHandle::CompositorContextHandle(CompositorHost& host, Web::CompositorContextId context_id)
     : m_host(host)
     , m_context_id(context_id)
 {
@@ -22,7 +22,7 @@ CompositorContextHandle::~CompositorContextHandle()
     m_host.destroy_context(m_context_id);
 }
 
-void CompositorContextHandle::set_parent_context(Optional<Compositing::CompositorContextId> parent_context_id)
+void CompositorContextHandle::set_parent_context(Optional<Web::CompositorContextId> parent_context_id)
 {
     m_host.set_parent_context(m_context_id, parent_context_id);
 }
@@ -76,17 +76,17 @@ void CompositorContextHandle::invalidate_wheel_event_listener_state(u64 generati
 }
 
 Compositing::AsyncScrollEnqueueResult CompositorContextHandle::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking)
+    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking)
 {
     return m_host.async_scroll_by(m_context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking);
 }
 
-Compositing::AsyncScrollEnqueueResult CompositorContextHandle::smooth_scroll_to(Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator)
+Compositing::AsyncScrollEnqueueResult CompositorContextHandle::smooth_scroll_to(Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator)
 {
     return m_host.smooth_scroll_to(m_context_id, stable_node_id, offset_in_device_pixels, main_thread_offset_in_device_pixels, viewport_rect, animation_kind, initiator);
 }
 
-void CompositorContextHandle::cancel_smooth_scroll(Compositing::AsyncScrollNodeStableID stable_node_id)
+void CompositorContextHandle::cancel_smooth_scroll(Web::AsyncScrollNodeStableID stable_node_id)
 {
     m_host.cancel_smooth_scroll(m_context_id, stable_node_id);
 }
@@ -130,7 +130,7 @@ CompositorHost::CompositorHost()
 
 CompositorHost::~CompositorHost() = default;
 
-OwnPtr<CompositorContextHandle> CompositorHost::create_context(Compositing::CompositorContextId context_id)
+OwnPtr<CompositorContextHandle> CompositorHost::create_context(Web::CompositorContextId context_id)
 {
     return adopt_own(*new CompositorContextHandle(*this, context_id));
 }

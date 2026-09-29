@@ -7,7 +7,7 @@
 #include <LibTest/TestCase.h>
 #include <LibWebCommon/PixelUnits.h>
 
-namespace Compositing {
+namespace Web {
 
 TEST_CASE(addition1)
 {

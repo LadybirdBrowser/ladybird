@@ -12,25 +12,25 @@
 
 namespace Compositing {
 
-static AsyncScrollNodeID scroll_node_id_for(UniqueNodeID document_id, Compositing::SpatialNodeIndex scroll_node_index)
+static AsyncScrollNodeID scroll_node_id_for(Web::UniqueNodeID document_id, Compositing::SpatialNodeIndex scroll_node_index)
 {
     return { .document_id = document_id, .scroll_node_index = scroll_node_index };
 }
 
-AsyncScrollNodeKind async_scroll_node_kind_for(Compositing::CompositorScrollNodeKind kind)
+Web::AsyncScrollNodeKind async_scroll_node_kind_for(Compositing::CompositorScrollNodeKind kind)
 {
     switch (kind) {
     case Compositing::CompositorScrollNodeKind::Viewport:
-        return AsyncScrollNodeKind::Viewport;
+        return Web::AsyncScrollNodeKind::Viewport;
     case Compositing::CompositorScrollNodeKind::Element:
-        return AsyncScrollNodeKind::Element;
+        return Web::AsyncScrollNodeKind::Element;
     case Compositing::CompositorScrollNodeKind::PseudoElement:
-        return AsyncScrollNodeKind::PseudoElement;
+        return Web::AsyncScrollNodeKind::PseudoElement;
     }
     VERIFY_NOT_REACHED();
 }
 
-static AsyncScrollNodeStableID stable_scroll_node_id_for(UniqueNodeID scrollable_node_id, Compositing::CompositorScrollNodeKind kind, u8 pseudo_element_type)
+static Web::AsyncScrollNodeStableID stable_scroll_node_id_for(Web::UniqueNodeID scrollable_node_id, Compositing::CompositorScrollNodeKind kind, u8 pseudo_element_type)
 {
     return {
         .node_id = scrollable_node_id,

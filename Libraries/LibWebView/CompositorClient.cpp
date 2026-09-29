@@ -27,7 +27,7 @@ void CompositorClient::die()
     }
 }
 
-void CompositorClient::did_allocate_backing_stores(Compositing::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+void CompositorClient::did_allocate_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
     auto web_content_client = WebContentClient::client_for_compositor_context_id(context_id);
     if (web_content_client.has_value()) {
@@ -45,7 +45,7 @@ void CompositorClient::did_allocate_backing_stores(Compositing::CompositorContex
         async_presented_bitmap_ready_to_paint(context_id, bitmap_ids[0]);
 }
 
-void CompositorClient::did_present_frame(Compositing::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
+void CompositorClient::did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
 {
     auto web_content_client = WebContentClient::client_for_compositor_context_id(context_id);
     if (web_content_client.has_value()) {
@@ -60,7 +60,7 @@ void CompositorClient::did_present_frame(Compositing::CompositorContextId contex
     async_presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
-static WebContentPage* page_for_compositor_context_id(Compositing::CompositorContextId context_id)
+static WebContentPage* page_for_compositor_context_id(Web::CompositorContextId context_id)
 {
     auto web_content_client = WebContentClient::client_for_compositor_context_id(context_id);
     if (!web_content_client.has_value())
@@ -71,13 +71,13 @@ static WebContentPage* page_for_compositor_context_id(Compositing::CompositorCon
     return web_content_client->page(*page_id);
 }
 
-void CompositorClient::did_consume_input_event(Compositing::CompositorContextId context_id, u64 event_id)
+void CompositorClient::did_consume_input_event(Web::CompositorContextId context_id, u64 event_id)
 {
     if (auto* page = page_for_compositor_context_id(context_id))
         page->did_consume_input_event_in_compositor(event_id);
 }
 
-void CompositorClient::did_not_dispatch_input_event(Compositing::CompositorContextId context_id, u64 event_id)
+void CompositorClient::did_not_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id)
 {
     if (auto* page = page_for_compositor_context_id(context_id))
         page->did_not_dispatch_input_event_through_compositor(event_id);

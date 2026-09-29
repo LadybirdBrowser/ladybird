@@ -1199,8 +1199,8 @@ public:
     void schedule_accumulated_visual_context_update(Element&, AccumulatedVisualContextUpdateScope);
     void schedule_accumulated_visual_context_update(Layout::Node const&, AccumulatedVisualContextUpdateScope);
 
-    Compositing::SnappedAreas const& snapped_areas_of_scroll_container(Compositing::AsyncScrollNodeStableID const&) const;
-    void set_snapped_areas_of_scroll_container(Compositing::AsyncScrollNodeStableID const&, Compositing::SnappedAreas);
+    Compositing::SnappedAreas const& snapped_areas_of_scroll_container(Web::AsyncScrollNodeStableID const&) const;
+    void set_snapped_areas_of_scroll_container(Web::AsyncScrollNodeStableID const&, Compositing::SnappedAreas);
     void forget_snapped_areas_of_scroll_container(Layout::Node const&);
 
     void schedule_list_item_renumber(Element& list_owner);
@@ -1938,7 +1938,7 @@ private:
 
     bool m_needs_accumulated_visual_contexts_update { false };
 
-    HashMap<Compositing::AsyncScrollNodeStableID, Compositing::SnappedAreas> m_scroll_container_snapped_areas;
+    HashMap<Web::AsyncScrollNodeStableID, Compositing::SnappedAreas> m_scroll_container_snapped_areas;
     Vector<WeakPtr<Layout::Node const>> m_scroll_snap_containers;
     bool m_needs_scroll_container_resnap { false };
     bool m_may_have_scroll_snap_areas { false };

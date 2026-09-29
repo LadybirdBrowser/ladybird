@@ -149,8 +149,8 @@ public:
     Optional<Web::HTML::CrossProcessId> const& focused_navigable_id() const { return m_focused_navigable_id; }
     void set_focused_navigable(CanonicalNavigable&, WebContentPage& requesting_page);
     RefPtr<WebContentPage> focused_navigable_host() const;
-    Compositing::DevicePixelPoint focused_navigable_host_offset() const;
-    Compositing::DevicePixelPoint local_root_offset(CanonicalNavigable const&) const;
+    Web::DevicePixelPoint focused_navigable_host_offset() const;
+    Web::DevicePixelPoint local_root_offset(CanonicalNavigable const&) const;
 
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
     CanonicalSessionHistoryEntry const* ongoing_browser_history_traversal_target_entry() const;

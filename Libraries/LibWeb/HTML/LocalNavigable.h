@@ -89,7 +89,7 @@ public:
     void clear_provisional_for() { m_provisional_for = nullptr; }
     static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry);
     void set_root_container_state(ReplicatedContainerState);
-    void set_parent_compositor_context(Optional<Compositing::CompositorContextId>);
+    void set_parent_compositor_context(Optional<Web::CompositorContextId>);
 
     bool is_closing() const { return m_closing; }
     void set_closing(bool value);
@@ -372,14 +372,14 @@ public:
     bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type, SnapStepAccumulation, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll);
     bool perform_a_scroll_step_for_key_input(Layout::Node&, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type);
     bool perform_a_snapped_momentum_scroll(Layout::Node&, CSSPixelPoint momentum_delta);
-    Layout::Node* layout_node_for_async_scroll_node_stable_id(Compositing::AsyncScrollNodeStableID);
+    Layout::Node* layout_node_for_async_scroll_node_stable_id(Web::AsyncScrollNodeStableID);
     void re_snap_scroll_containers_after_layout_change();
-    void abort_in_flight_smooth_scrolls(Compositing::AsyncScrollNodeStableID, SmoothScrollAbortCause);
-    void abort_in_flight_smooth_scrolls_taken_over_by_user_input(Compositing::AsyncScrollNodeStableID, CSSPixelPoint scroll_offset_at_gesture_start);
-    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Compositing::AsyncScrollNodeStableID>, Optional<CSSPixelPoint> scroll_offset_before_scroll = {}, SnapPositionSelection = SnapPositionSelection::AtGestureEnd);
+    void abort_in_flight_smooth_scrolls(Web::AsyncScrollNodeStableID, SmoothScrollAbortCause);
+    void abort_in_flight_smooth_scrolls_taken_over_by_user_input(Web::AsyncScrollNodeStableID, CSSPixelPoint scroll_offset_at_gesture_start);
+    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Web::AsyncScrollNodeStableID>, Optional<CSSPixelPoint> scroll_offset_before_scroll = {}, SnapPositionSelection = SnapPositionSelection::AtGestureEnd);
     void note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type);
-    RefPtr<Painting::Scrollbar> scrollbar_dragged_by_compositor(Compositing::ScrollbarDraggedByCompositor const&);
-    void note_user_scroll_gesture_phase(Compositing::ScrollGesturePhase);
+    RefPtr<Painting::Scrollbar> scrollbar_dragged_by_compositor(Web::ScrollbarDraggedByCompositor const&);
+    void note_user_scroll_gesture_phase(Web::ScrollGesturePhase);
     void defer_user_scroll_settlement();
     void snap_user_scroll_gestures_that_awaited_layout();
     void begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
@@ -390,7 +390,7 @@ protected:
     explicit LocalNavigable(
         GC::Ref<Page>,
         bool is_svg_page,
-        Compositing::PagePresentationRegistration = Compositing::PagePresentationRegistration::No);
+        Web::PagePresentationRegistration = Web::PagePresentationRegistration::No);
 
     void initialize_stand_in(RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry, GC::Ref<BrowsingContext>, GC::Ref<DOM::Document>, VisibilityState);
 
@@ -435,31 +435,31 @@ private:
 
     void resolve_async_scroll_operation(Compositing::AsyncScrollOperationID, AsyncScrollCompletion = AsyncScrollCompletion::Finished);
     void resolve_all_pending_async_scroll_operations();
-    void resolve_pending_smooth_scrolls(Compositing::AsyncScrollNodeStableID, SmoothScrollAbortCause);
+    void resolve_pending_smooth_scrolls(Web::AsyncScrollNodeStableID, SmoothScrollAbortCause);
     // Whether a programmatic scroll still needs a snap position selected for its destination, or was given a
     // destination that snap position selection already produced.
     enum class DestinationSnapping {
         SelectSnapPosition,
         DestinationIsSnapPosition,
     };
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositing::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {}, DestinationSnapping = DestinationSnapping::SelectSnapPosition, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll, Painting::ScrollKind = Painting::ScrollKind::Absolute);
-    Optional<CSSPixelPoint> scroll_offset_for(Compositing::AsyncScrollNodeStableID) const;
-    bool set_scroll_offset_for(Compositing::AsyncScrollNodeStableID, CSSPixelPoint);
-    void queue_scrollend_event(Compositing::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
-    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, Optional<Compositing::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
-    void queue_scrollend_event_for_finished_scroll(Compositing::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll);
-    void queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositing::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ScrollPromises const&);
-    ScrollPromises* promises_of_smooth_scroll_in_flight_toward(Compositing::AsyncScrollNodeStableID, CSSPixelPoint position, ScrollTrigger);
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Web::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {}, DestinationSnapping = DestinationSnapping::SelectSnapPosition, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll, Painting::ScrollKind = Painting::ScrollKind::Absolute);
+    Optional<CSSPixelPoint> scroll_offset_for(Web::AsyncScrollNodeStableID) const;
+    bool set_scroll_offset_for(Web::AsyncScrollNodeStableID, CSSPixelPoint);
+    void queue_scrollend_event(Web::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
+    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, Optional<Web::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
+    void queue_scrollend_event_for_finished_scroll(Web::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll);
+    void queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Web::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ScrollPromises const&);
+    ScrollPromises* promises_of_smooth_scroll_in_flight_toward(Web::AsyncScrollNodeStableID, CSSPixelPoint position, ScrollTrigger);
     // The scroll a new input to a scrolling box would interact with; a scroll driven by user input is reported over
     // any programmatic scroll also in flight.
     struct InFlightScroll {
         ScrollTrigger trigger { ScrollTrigger::Programmatic };
         Optional<CSSPixelPoint> destination_scroll_offset;
     };
-    Optional<InFlightScroll> in_flight_scroll_for(Optional<Compositing::AsyncScrollNodeStableID> const&) const;
+    Optional<InFlightScroll> in_flight_scroll_for(Optional<Web::AsyncScrollNodeStableID> const&) const;
     struct PendingUserScrollendTarget {
         GC::Ref<DOM::EventTarget> target;
-        Optional<Compositing::AsyncScrollNodeStableID> stable_node_id;
+        Optional<Web::AsyncScrollNodeStableID> stable_node_id;
         Optional<CSSPixelPoint> scroll_offset_at_gesture_start;
         Optional<CSSPixelPoint> unsnapped_scroll_destination;
         Compositing::SnapSelectionStrategy::Type intent { Compositing::SnapSelectionStrategy::Type::EndPosition };
@@ -467,8 +467,8 @@ private:
         SnapPositionSelection snap_position_selection { SnapPositionSelection::AtGestureEnd };
         bool awaits_layout_for_snapping { false };
     };
-    PendingUserScrollendTarget* latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget>, Optional<Compositing::AsyncScrollNodeStableID> const&);
-    void abandon_snapping_of_user_scroll_gesture(Compositing::AsyncScrollNodeStableID);
+    PendingUserScrollendTarget* latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget>, Optional<Web::AsyncScrollNodeStableID> const&);
+    void abandon_snapping_of_user_scroll_gesture(Web::AsyncScrollNodeStableID);
     void settle_user_scroll_gesture();
     void settle_user_scroll_gesture_if_input_deadline_passed();
     void reset_momentum_fling_state();
@@ -590,7 +590,7 @@ private:
     struct PendingAsyncScrollOperation {
         Compositing::AsyncScrollOperationID operation_id { 0 };
         ScrollPromises promises;
-        Optional<Compositing::AsyncScrollNodeStableID> stable_node_id;
+        Optional<Web::AsyncScrollNodeStableID> stable_node_id;
         Optional<CSSPixelPoint> initial_scroll_offset;
         Optional<CSSPixelPoint> destination_scroll_offset;
         ScrollTrigger trigger { ScrollTrigger::Programmatic };
@@ -603,7 +603,7 @@ private:
     u64 m_adopted_async_scroll_sequence { 0 };
 
     struct MainThreadSmoothScroll {
-        Compositing::AsyncScrollNodeStableID stable_node_id;
+        Web::AsyncScrollNodeStableID stable_node_id;
         Compositing::SmoothScrollAnimation animation;
         MonotonicTime last_tick;
         AK::Duration elapsed;

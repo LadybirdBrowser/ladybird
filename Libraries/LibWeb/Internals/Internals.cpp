@@ -107,22 +107,22 @@ namespace Web::Internals {
 
 static u16 s_echo_server_port { 0 };
 
-static Compositing::WheelDeltaPrecision wheel_delta_precision_from(bool precise)
+static Web::WheelDeltaPrecision wheel_delta_precision_from(bool precise)
 {
-    return precise ? Compositing::WheelDeltaPrecision::Precise : Compositing::WheelDeltaPrecision::Discrete;
+    return precise ? Web::WheelDeltaPrecision::Precise : Web::WheelDeltaPrecision::Discrete;
 }
 
-static Compositing::ScrollGesturePhase scroll_gesture_phase_from(Bindings::ScrollGesturePhase scroll_gesture_phase)
+static Web::ScrollGesturePhase scroll_gesture_phase_from(Bindings::ScrollGesturePhase scroll_gesture_phase)
 {
     switch (scroll_gesture_phase) {
     case Bindings::ScrollGesturePhase::None:
-        return Compositing::ScrollGesturePhase::None;
+        return Web::ScrollGesturePhase::None;
     case Bindings::ScrollGesturePhase::Ongoing:
-        return Compositing::ScrollGesturePhase::Ongoing;
+        return Web::ScrollGesturePhase::Ongoing;
     case Bindings::ScrollGesturePhase::Momentum:
-        return Compositing::ScrollGesturePhase::Momentum;
+        return Web::ScrollGesturePhase::Momentum;
     case Bindings::ScrollGesturePhase::Ended:
-        return Compositing::ScrollGesturePhase::Ended;
+        return Web::ScrollGesturePhase::Ended;
     }
     VERIFY_NOT_REACHED();
 }
@@ -538,12 +538,12 @@ void Internals::send_text(HTML::HTMLElement& target, Utf16String const& text, We
 void Internals::send_text_through_ui_process(Utf16String const& text)
 {
     for (auto code_point : text) {
-        for (auto type : { Compositing::KeyEvent::Type::KeyDown, Compositing::KeyEvent::Type::KeyUp }) {
-            Compositing::KeyEvent event;
+        for (auto type : { Web::KeyEvent::Type::KeyDown, Web::KeyEvent::Type::KeyUp }) {
+            Web::KeyEvent event;
             event.type = type;
             event.key = UIEvents::code_point_to_key_code(code_point);
             event.code_point = code_point;
-            event.should_insert_text = type == Compositing::KeyEvent::Type::KeyDown;
+            event.should_insert_text = type == Web::KeyEvent::Type::KeyDown;
             page().client().page_did_request_key_event_for_testing(move(event));
         }
     }
@@ -560,13 +560,13 @@ void Internals::click_through_ui_process(double x, double y)
     auto& page = this->page();
     auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
     auto local_root_id = window().navigable()->local_root()->id();
-    for (auto type : { Compositing::MouseEvent::Type::MouseDown, Compositing::MouseEvent::Type::MouseUp }) {
-        Compositing::MouseEvent event;
+    for (auto type : { Web::MouseEvent::Type::MouseDown, Web::MouseEvent::Type::MouseUp }) {
+        Web::MouseEvent event;
         event.type = type;
         event.position = position;
         event.screen_position = position;
         event.button = UIEvents::MouseButton::Primary;
-        event.buttons = type == Compositing::MouseEvent::Type::MouseDown ? UIEvents::MouseButton::Primary : UIEvents::MouseButton::None;
+        event.buttons = type == Web::MouseEvent::Type::MouseDown ? UIEvents::MouseButton::Primary : UIEvents::MouseButton::None;
         event.click_count = 1;
         page.client().page_did_request_webdriver_mouse_event(local_root_id, move(event), GC::create_function(heap(), [] { }));
     }
@@ -578,8 +578,8 @@ void Internals::wheel_through_ui_process(double x, double y, double delta_x, dou
     auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
     auto local_root_id = window().navigable()->local_root()->id();
 
-    Compositing::MouseEvent event;
-    event.type = Compositing::MouseEvent::Type::MouseWheel;
+    Web::MouseEvent event;
+    event.type = Web::MouseEvent::Type::MouseWheel;
     event.position = position;
     event.screen_position = position;
     event.wheel_delta_x = delta_x;
@@ -650,7 +650,7 @@ void Internals::mouse_down_on_scrollbar_dragged_by_compositor(double x, double y
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousedown(position, position, UIEvents::MouseButton::Primary, 0, 0, 1,
-        Compositing::ScrollbarDraggedByCompositor { .scroller_stable_node_id = *scroller_stable_node_id, .vertical = vertical });
+        Web::ScrollbarDraggedByCompositor { .scroller_stable_node_id = *scroller_stable_node_id, .vertical = vertical });
 }
 
 void Internals::mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)

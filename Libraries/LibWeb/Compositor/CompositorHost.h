@@ -46,8 +46,8 @@ public:
 
     ~CompositorContextHandle();
 
-    Compositing::CompositorContextId id() const { return m_context_id; }
-    void set_parent_context(Optional<Compositing::CompositorContextId>);
+    Web::CompositorContextId id() const { return m_context_id; }
+    void set_parent_context(Optional<Web::CompositorContextId>);
     void stop_presenting_to_client();
 
     void update_display_list(NonnullRefPtr<Compositing::DisplayList>, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, Compositing::ScrollStateSnapshot&&);
@@ -59,9 +59,9 @@ public:
     void invalidate_wheel_event_listener_state(u64 generation);
     void invalidate_keyboard_scroll_state(u64 generation);
     Compositing::AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
-        Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision, Compositing::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking = Compositing::AsyncScrollOperationTracking::No);
-    Compositing::AsyncScrollEnqueueResult smooth_scroll_to(Compositing::AsyncScrollNodeStableID, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator);
-    void cancel_smooth_scroll(Compositing::AsyncScrollNodeStableID);
+        Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking = Compositing::AsyncScrollOperationTracking::No);
+    Compositing::AsyncScrollEnqueueResult smooth_scroll_to(Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator);
+    void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Compositing::AsyncScrollUpdateFreshness);
     void viewport_size_updated(Gfx::IntSize, Compositing::WindowResizingInProgress);
     bool request_rendering_opportunity(double maximum_frames_per_second);
@@ -72,10 +72,10 @@ public:
 private:
     friend class CompositorHost;
 
-    CompositorContextHandle(CompositorHost&, Compositing::CompositorContextId);
+    CompositorContextHandle(CompositorHost&, Web::CompositorContextId);
 
     CompositorHost& m_host;
-    Compositing::CompositorContextId m_context_id;
+    Web::CompositorContextId m_context_id;
 };
 
 class WEB_API CompositorHost {
@@ -87,7 +87,7 @@ public:
 
     virtual ~CompositorHost();
 
-    OwnPtr<CompositorContextHandle> create_context(Compositing::CompositorContextId);
+    OwnPtr<CompositorContextHandle> create_context(Web::CompositorContextId);
 
     Compositing::Canvas2DCommandStream& canvas_2d_stream() { return *m_canvas_2d_stream; }
     void flush_canvas_2d_stream();
@@ -101,29 +101,29 @@ public:
     virtual void commit_placeholder_canvas(PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean) = 0;
     virtual PlaceholderCanvasPixels read_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect) = 0;
 
-    virtual void destroy_context(Compositing::CompositorContextId) = 0;
-    virtual void set_parent_context(Compositing::CompositorContextId, Optional<Compositing::CompositorContextId>) = 0;
-    virtual void stop_presenting_to_client(Compositing::CompositorContextId) = 0;
+    virtual void destroy_context(Web::CompositorContextId) = 0;
+    virtual void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>) = 0;
+    virtual void stop_presenting_to_client(Web::CompositorContextId) = 0;
 
-    virtual void update_display_list(Compositing::CompositorContextId, NonnullRefPtr<Compositing::DisplayList>, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, Compositing::ScrollStateSnapshot&&) = 0;
-    virtual void update_visual_context_tree(Compositing::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&) = 0;
+    virtual void update_display_list(Web::CompositorContextId, NonnullRefPtr<Compositing::DisplayList>, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, Compositing::ScrollStateSnapshot&&) = 0;
+    virtual void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&) = 0;
     virtual void add_video_sink(Media::VideoSinkHandle) = 0;
     virtual void remove_video_sink(Media::VideoSinkHandle) = 0;
     virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) = 0;
-    virtual void update_scroll_state(Compositing::CompositorContextId, Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState) = 0;
-    virtual void invalidate_wheel_event_listener_state(Compositing::CompositorContextId, u64 generation) = 0;
-    virtual void invalidate_keyboard_scroll_state(Compositing::CompositorContextId, u64 generation) = 0;
-    virtual Compositing::AsyncScrollEnqueueResult async_scroll_by(Compositing::CompositorContextId, UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-        Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision, Compositing::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking)
+    virtual void update_scroll_state(Web::CompositorContextId, Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState) = 0;
+    virtual void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation) = 0;
+    virtual void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation) = 0;
+    virtual Compositing::AsyncScrollEnqueueResult async_scroll_by(Web::CompositorContextId, UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+        Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking)
         = 0;
-    virtual Compositing::AsyncScrollEnqueueResult smooth_scroll_to(Compositing::CompositorContextId, Compositing::AsyncScrollNodeStableID, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator) = 0;
-    virtual void cancel_smooth_scroll(Compositing::CompositorContextId, Compositing::AsyncScrollNodeStableID) = 0;
-    virtual Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Compositing::CompositorContextId, Compositing::AsyncScrollUpdateFreshness) = 0;
-    virtual void viewport_size_updated(Compositing::CompositorContextId, Gfx::IntSize, Compositing::WindowResizingInProgress) = 0;
-    virtual bool request_rendering_opportunity(Compositing::CompositorContextId, double maximum_frames_per_second) = 0;
-    virtual void hurry_rendering_opportunity(Compositing::CompositorContextId) = 0;
-    virtual void present_frame(Compositing::CompositorContextId, Gfx::IntRect viewport_rect) = 0;
-    virtual void request_screenshot(Compositing::CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback) = 0;
+    virtual Compositing::AsyncScrollEnqueueResult smooth_scroll_to(Web::CompositorContextId, Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator) = 0;
+    virtual void cancel_smooth_scroll(Web::CompositorContextId, Web::AsyncScrollNodeStableID) = 0;
+    virtual Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::CompositorContextId, Compositing::AsyncScrollUpdateFreshness) = 0;
+    virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, Compositing::WindowResizingInProgress) = 0;
+    virtual bool request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second) = 0;
+    virtual void hurry_rendering_opportunity(Web::CompositorContextId) = 0;
+    virtual void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect) = 0;
+    virtual void request_screenshot(Web::CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback) = 0;
 
 protected:
     CompositorHost();

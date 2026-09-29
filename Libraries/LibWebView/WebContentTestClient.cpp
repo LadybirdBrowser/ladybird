@@ -32,7 +32,7 @@ void WebContentTestClient::die()
     // The WebContent process going away is handled by the main connection.
 }
 
-WebContentTestClientPageStub* WebContentTestClient::page_stub(Compositing::PageId const& page_id)
+WebContentTestClientPageStub* WebContentTestClient::page_stub(Web::PageId const& page_id)
 {
     return m_client.page(page_id);
 }
@@ -42,7 +42,7 @@ void WebContentTestClient::did_expire_cookies_with_time_offset(AK::Duration offs
     m_client.session().cookie_jar->expire_cookies_with_time_offset(offset);
 }
 
-void WebContentTestClient::did_spoof_document_origin_for_testing(Compositing::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::Origin origin)
+void WebContentTestClient::did_spoof_document_origin_for_testing(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::Origin origin)
 {
     if (auto* page = m_client.page(page_id))
         page->spoof_document_origin_for_testing(environment_id, move(origin));
@@ -53,7 +53,7 @@ void WebContentTestClient::did_store_hsts_policy_for_testing(String domain, HTTP
     m_client.session().hsts_store->store_policy(domain, policy);
 }
 
-Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentTestClient::did_request_ui_process_session_history_for_testing(Compositing::PageId page_id)
+Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentTestClient::did_request_ui_process_session_history_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
         return page->did_request_ui_process_session_history_for_testing();
@@ -61,7 +61,7 @@ Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingRespo
     return String {};
 }
 
-Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse WebContentTestClient::did_request_site_isolation_process_tree_for_testing(Compositing::PageId page_id)
+Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse WebContentTestClient::did_request_site_isolation_process_tree_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
         return page->did_request_site_isolation_process_tree_for_testing();
@@ -69,7 +69,7 @@ Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResp
     return String {};
 }
 
-Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse WebContentTestClient::did_request_capture_session_history_snapshot_for_testing(Compositing::PageId page_id)
+Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse WebContentTestClient::did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
         return page->did_request_capture_session_history_snapshot_for_testing();
@@ -77,7 +77,7 @@ Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestin
     return false;
 }
 
-Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse WebContentTestClient::did_request_restore_session_history_snapshot_for_testing(Compositing::PageId page_id)
+Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse WebContentTestClient::did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
         return page->did_request_restore_session_history_snapshot_for_testing();
@@ -85,7 +85,7 @@ Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestin
     return false;
 }
 
-Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse WebContentTestClient::did_request_register_session_store_tab_for_testing(Compositing::PageId page_id)
+Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse WebContentTestClient::did_request_register_session_store_tab_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
         return page->did_request_register_session_store_tab_for_testing();
@@ -93,7 +93,7 @@ Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingRespo
     return false;
 }
 
-Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse WebContentTestClient::did_request_session_store_tab_state_for_testing(Compositing::PageId page_id)
+Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse WebContentTestClient::did_request_session_store_tab_state_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
         return page->did_request_session_store_tab_state_for_testing();

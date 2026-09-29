@@ -72,7 +72,7 @@ class Tab final
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, Compositing::PageId page_index = 0);
+    Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, Web::PageId page_index = 0);
     virtual ~Tab() override;
 
     WebContentView& view() { return *m_view; }

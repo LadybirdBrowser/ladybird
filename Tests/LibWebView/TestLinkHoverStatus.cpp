@@ -43,10 +43,10 @@ public:
     virtual bool should_coordinate_browser_process() const override { return false; }
 };
 
-void move_mouse_to(WebView::ViewImplementation& view, Compositing::DevicePixelPoint position)
+void move_mouse_to(WebView::ViewImplementation& view, Web::DevicePixelPoint position)
 {
-    view.enqueue_input_event(Compositing::MouseEvent {
-        .type = Compositing::MouseEvent::Type::MouseMove,
+    view.enqueue_input_event(Web::MouseEvent {
+        .type = Web::MouseEvent::Type::MouseMove,
         .position = position,
         .screen_position = position,
         .browser_data = nullptr,
@@ -55,8 +55,8 @@ void move_mouse_to(WebView::ViewImplementation& view, Compositing::DevicePixelPo
 
 void leave_view(WebView::ViewImplementation& view)
 {
-    view.enqueue_input_event(Compositing::MouseEvent {
-        .type = Compositing::MouseEvent::Type::MouseLeave,
+    view.enqueue_input_event(Web::MouseEvent {
+        .type = Web::MouseEvent::Type::MouseLeave,
         .position = {},
         .screen_position = {},
         .browser_data = nullptr,

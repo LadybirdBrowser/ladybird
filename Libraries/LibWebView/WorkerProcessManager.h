@@ -40,7 +40,7 @@ public:
         bool operator==(SharedWorkerKey const&) const = default;
     };
 
-    Web::HTML::WorkerAgentId start_worker_agent(WebContentClient&, Compositing::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
+    Web::HTML::WorkerAgentId start_worker_agent(WebContentClient&, Web::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
     Web::HTML::WorkerAgentId start_worker_agent(WebWorkerClient&, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
     Optional<CanonicalWorkerEnvironmentSettingsObject const&> inside_settings(Web::HTML::WorkerAgentId) const;
     void update_site_compatibility_data(JsonValue const&);
@@ -52,7 +52,7 @@ public:
 
     void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, CanonicalEnvironmentSettingsObject const& source_settings, pid_t source_process_id, IsPrivate);
     ErrorOr<void> reconnect_to_request_server();
-    ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Compositing::PageId page_id);
+    ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Web::PageId page_id);
 
     Optional<u64> exclusive_performance_owner(pid_t) const;
 
@@ -74,7 +74,7 @@ private:
 
     struct WebContentOwner {
         WeakPtr<WebContentClient> client;
-        Compositing::PageId page_id { 0 };
+        Web::PageId page_id { 0 };
     };
 
     struct WebWorkerOwner {

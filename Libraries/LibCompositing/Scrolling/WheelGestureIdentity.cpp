@@ -18,19 +18,19 @@ WheelGestureIdentity::WheelGestureIdentity(Kind kind, Gfx::FloatPoint first_posi
 {
 }
 
-WheelGestureIdentity::Kind WheelGestureIdentity::kind_for(ScrollGesturePhase phase)
+WheelGestureIdentity::Kind WheelGestureIdentity::kind_for(Web::ScrollGesturePhase phase)
 {
-    return phase == ScrollGesturePhase::None ? Kind::PhaseLess : Kind::Phased;
+    return phase == Web::ScrollGesturePhase::None ? Kind::PhaseLess : Kind::Phased;
 }
 
-WheelGestureIdentity WheelGestureIdentity::started_by(Gfx::FloatPoint position, ScrollGesturePhase phase, u32 modifiers, MonotonicTime now)
+WheelGestureIdentity WheelGestureIdentity::started_by(Gfx::FloatPoint position, Web::ScrollGesturePhase phase, u32 modifiers, MonotonicTime now)
 {
     WheelGestureIdentity gesture { kind_for(phase), position, modifiers, now };
     gesture.advance_to(phase, now);
     return gesture;
 }
 
-bool WheelGestureIdentity::is_continued_by(Gfx::FloatPoint position, ScrollGesturePhase phase, u32 modifiers, MonotonicTime now, float position_slop) const
+bool WheelGestureIdentity::is_continued_by(Gfx::FloatPoint position, Web::ScrollGesturePhase phase, u32 modifiers, MonotonicTime now, float position_slop) const
 {
     if (now - m_last_event_time > user_scroll_settle_delay)
         return false;
@@ -40,14 +40,14 @@ bool WheelGestureIdentity::is_continued_by(Gfx::FloatPoint position, ScrollGestu
         return modifiers == m_modifiers && position.distance_from(m_first_position) <= position_slop;
     if (!m_ended_at.has_value())
         return true;
-    bool phase_may_follow_an_ended_gesture = phase == ScrollGesturePhase::Momentum || phase == ScrollGesturePhase::Ended;
+    bool phase_may_follow_an_ended_gesture = phase == Web::ScrollGesturePhase::Momentum || phase == Web::ScrollGesturePhase::Ended;
     return phase_may_follow_an_ended_gesture && now - *m_ended_at <= wheel_gesture_momentum_grace_after_end;
 }
 
-void WheelGestureIdentity::advance_to(ScrollGesturePhase phase, MonotonicTime now)
+void WheelGestureIdentity::advance_to(Web::ScrollGesturePhase phase, MonotonicTime now)
 {
     m_last_event_time = now;
-    if (phase != ScrollGesturePhase::Ended) {
+    if (phase != Web::ScrollGesturePhase::Ended) {
         m_ended_at.clear();
         return;
     }

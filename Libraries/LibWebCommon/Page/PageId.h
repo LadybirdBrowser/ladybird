@@ -10,7 +10,7 @@
 #include <AK/DistinctNumeric.h>
 #include <LibIPC/SenderClaim.h>
 
-namespace Compositing {
+namespace Web {
 
 // Identifies a page within one WebContent process. The UI process hands out page IDs and tracks which
 // connection each one belongs to, so a page ID in a message from a helper process is a claim about the
@@ -32,21 +32,14 @@ bool verify_sender_claim(Stub& stub, PageId const& page_id)
 
 }
 
-namespace Web {
-
-using Compositing::PageId;
-using Compositing::verify_sender_claim;
-
-}
-
 namespace IPC {
 
 template<>
-class SenderClaimReceiver<Compositing::PageId> {
+class SenderClaimReceiver<Web::PageId> {
 public:
     // True when the connection a message came from was given the page the message names. A receiver
     // that hands out no page IDs is not the party the claim is made to, so it accepts every page ID.
-    virtual bool may_act_for_page(Compositing::PageId) const { return true; }
+    virtual bool may_act_for_page(Web::PageId) const { return true; }
 
 protected:
     ~SenderClaimReceiver() = default;

@@ -17,7 +17,7 @@
 
 namespace Web {
 
-using InputEvent = Variant<Compositing::KeyEvent, Compositing::MouseEvent, DragEvent, Compositing::PinchEvent>;
+using InputEvent = Variant<Web::KeyEvent, Web::MouseEvent, DragEvent, Web::PinchEvent>;
 
 inline u64 input_event_id(InputEvent const& event)
 {

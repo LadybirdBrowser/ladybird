@@ -9,14 +9,14 @@
 #include <LibIPC/Encoder.h>
 #include <LibWebCommon/PixelUnits.h>
 
-namespace Compositing {
+namespace Web {
 
 }
 
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::CSSPixelPoint const& value)
+ErrorOr<void> encode(Encoder& encoder, Web::CSSPixelPoint const& value)
 {
     TRY(encoder.encode(value.x().raw_value()));
     TRY(encoder.encode(value.y().raw_value()));
@@ -24,15 +24,15 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::CSSPixelPoint const& value)
 }
 
 template<>
-ErrorOr<Compositing::CSSPixelPoint> decode(Decoder& decoder)
+ErrorOr<Web::CSSPixelPoint> decode(Decoder& decoder)
 {
     auto x = TRY(decoder.decode<i32>());
     auto y = TRY(decoder.decode<i32>());
-    return Compositing::CSSPixelPoint { Compositing::CSSPixels::from_raw(x), Compositing::CSSPixels::from_raw(y) };
+    return Web::CSSPixelPoint { Web::CSSPixels::from_raw(x), Web::CSSPixels::from_raw(y) };
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::DevicePixelPoint const& value)
+ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelPoint const& value)
 {
     TRY(encoder.encode(value.x()));
     TRY(encoder.encode(value.y()));
@@ -40,15 +40,15 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DevicePixelPoint const& valu
 }
 
 template<>
-ErrorOr<Compositing::DevicePixelPoint> decode(Decoder& decoder)
+ErrorOr<Web::DevicePixelPoint> decode(Decoder& decoder)
 {
-    auto x = TRY(decoder.decode<Compositing::DevicePixels>());
-    auto y = TRY(decoder.decode<Compositing::DevicePixels>());
-    return Compositing::DevicePixelPoint { x, y };
+    auto x = TRY(decoder.decode<Web::DevicePixels>());
+    auto y = TRY(decoder.decode<Web::DevicePixels>());
+    return Web::DevicePixelPoint { x, y };
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::DevicePixelSize const& value)
+ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelSize const& value)
 {
     TRY(encoder.encode(value.width()));
     TRY(encoder.encode(value.height()));
@@ -56,15 +56,15 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DevicePixelSize const& value
 }
 
 template<>
-ErrorOr<Compositing::DevicePixelSize> decode(Decoder& decoder)
+ErrorOr<Web::DevicePixelSize> decode(Decoder& decoder)
 {
-    auto width = TRY(decoder.decode<Compositing::DevicePixels>());
-    auto height = TRY(decoder.decode<Compositing::DevicePixels>());
-    return Compositing::DevicePixelSize { width, height };
+    auto width = TRY(decoder.decode<Web::DevicePixels>());
+    auto height = TRY(decoder.decode<Web::DevicePixels>());
+    return Web::DevicePixelSize { width, height };
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::DevicePixelRect const& value)
+ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelRect const& value)
 {
     TRY(encoder.encode(value.location()));
     TRY(encoder.encode(value.size()));
@@ -72,11 +72,11 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DevicePixelRect const& value
 }
 
 template<>
-ErrorOr<Compositing::DevicePixelRect> decode(Decoder& decoder)
+ErrorOr<Web::DevicePixelRect> decode(Decoder& decoder)
 {
-    auto location = TRY(decoder.decode<Compositing::DevicePixelPoint>());
-    auto size = TRY(decoder.decode<Compositing::DevicePixelSize>());
-    return Compositing::DevicePixelRect { location, size };
+    auto location = TRY(decoder.decode<Web::DevicePixelPoint>());
+    auto size = TRY(decoder.decode<Web::DevicePixelSize>());
+    return Web::DevicePixelRect { location, size };
 }
 
 }

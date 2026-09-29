@@ -165,10 +165,10 @@ public:
     void discard_pending_host();
     void discard_pending_host(WebContentPage const&);
 
-    Optional<Compositing::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
-    Compositing::DevicePixelRect const& viewport_intersection() const { return m_viewport_intersection; }
+    Optional<Web::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
+    Web::DevicePixelRect const& viewport_intersection() const { return m_viewport_intersection; }
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
-    void set_viewport(Compositing::DevicePixelRect, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio);
+    void set_viewport(Web::DevicePixelRect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio);
     void send_viewport_to_host() const;
     void send_viewport_to(WebContentPage&) const;
 
@@ -256,8 +256,8 @@ private:
     BlobURLHandle m_document_blob_url;
     Optional<Web::HTML::CrossProcessId> m_ongoing_navigation_traversal_operation_id;
     ActiveDocumentLoad m_active_document_load;
-    Optional<Compositing::DevicePixelRect> m_viewport_rect;
-    Compositing::DevicePixelRect m_viewport_intersection;
+    Optional<Web::DevicePixelRect> m_viewport_rect;
+    Web::DevicePixelRect m_viewport_intersection;
     double m_device_pixel_ratio { 1 };
 };
 

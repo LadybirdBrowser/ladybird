@@ -37,7 +37,7 @@ LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
     : LocalNavigable(
           page,
           page->client().is_svg_page_client(),
-          Compositing::PagePresentationRegistration::Yes)
+          Web::PagePresentationRegistration::Yes)
 {
 }
 

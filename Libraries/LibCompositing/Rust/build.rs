@@ -47,10 +47,10 @@ fn generate_ffi_header_strict(config: cbindgen::Config, sources: &[PathBuf], out
 
 fn expose_css_pixel_types_as_web_types(config: &mut cbindgen::Config) {
     for (rust_name, cpp_name) in [
-        ("CssPixels", "Compositing::CSSPixels"),
-        ("FfiCssPixelPoint", "Compositing::CSSPixelPoint"),
-        ("FfiCssPixelSize", "Compositing::CSSPixelSize"),
-        ("FfiCssPixelRect", "Compositing::CSSPixelRect"),
+        ("CssPixels", "Web::CSSPixels"),
+        ("FfiCssPixelPoint", "Web::CSSPixelPoint"),
+        ("FfiCssPixelSize", "Web::CSSPixelSize"),
+        ("FfiCssPixelRect", "Web::CSSPixelRect"),
     ] {
         config.export.exclude.push(rust_name.to_string());
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
@@ -117,8 +117,8 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("OptionalU32", "Optional<u32>"),
         ("OptionalF32", "Optional<float>"),
         ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
-        ("OptionalCssPixels", "Optional<Compositing::CSSPixels>"),
-        ("OptionalCssPixelRect", "Optional<Compositing::CSSPixelRect>"),
+        ("OptionalCssPixels", "Optional<Web::CSSPixels>"),
+        ("OptionalCssPixelRect", "Optional<Web::CSSPixelRect>"),
         ("OptionalIntRect", "Optional<Gfx::IntRect>"),
         ("OptionalFloatPoint", "Optional<Gfx::FloatPoint>"),
         ("OptionalFloatSize", "Optional<Gfx::FloatSize>"),
@@ -355,16 +355,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("Orientation", "Gfx::Orientation"),
         ("MaskKind", "Gfx::MaskKind"),
         ("ShouldAntiAlias", "Gfx::ShouldAntiAlias"),
-        ("CssPixels", "Compositing::CSSPixels"),
-        ("FfiCssPixelPoint", "Compositing::CSSPixelPoint"),
-        ("FfiCssPixelRect", "Compositing::CSSPixelRect"),
+        ("CssPixels", "Web::CSSPixels"),
+        ("FfiCssPixelPoint", "Web::CSSPixelPoint"),
+        ("FfiCssPixelRect", "Web::CSSPixelRect"),
         ("OptionalFloatRect", "Optional<Gfx::FloatRect>"),
         ("OptionalColor", "Optional<Gfx::Color>"),
         ("OptionalU32", "Optional<u32>"),
         ("OptionalF32", "Optional<float>"),
         ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
-        ("CompositorContextId", "Compositing::CompositorContextId"),
-        ("UniqueNodeId", "UniqueNodeID"),
+        ("CompositorContextId", "Web::CompositorContextId"),
+        ("UniqueNodeId", "Web::UniqueNodeID"),
     ];
     for (rust_name, cpp_name) in references_renamed_to_real_types {
         commands_config

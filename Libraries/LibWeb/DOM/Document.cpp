@@ -9867,7 +9867,7 @@ void Document::schedule_accumulated_visual_context_update(Element& element, Accu
     });
 }
 
-Compositing::SnappedAreas const& Document::snapped_areas_of_scroll_container(Compositing::AsyncScrollNodeStableID const& stable_node_id) const
+Compositing::SnappedAreas const& Document::snapped_areas_of_scroll_container(Web::AsyncScrollNodeStableID const& stable_node_id) const
 {
     static NeverDestroyed<Compositing::SnappedAreas const> no_snapped_areas;
     auto snapped_areas = m_scroll_container_snapped_areas.find(stable_node_id);
@@ -9876,7 +9876,7 @@ Compositing::SnappedAreas const& Document::snapped_areas_of_scroll_container(Com
     return snapped_areas->value;
 }
 
-void Document::set_snapped_areas_of_scroll_container(Compositing::AsyncScrollNodeStableID const& stable_node_id, Compositing::SnappedAreas snapped_areas)
+void Document::set_snapped_areas_of_scroll_container(Web::AsyncScrollNodeStableID const& stable_node_id, Compositing::SnappedAreas snapped_areas)
 {
     if (snapped_areas.is_empty()) {
         m_scroll_container_snapped_areas.remove(stable_node_id);

@@ -10,7 +10,7 @@
 #include <AK/EnumBits.h>
 #include <AK/Types.h>
 
-namespace Compositing {
+namespace Web::UIEvents {
 
 enum MouseButton : u8 {
     None = 0,
@@ -59,14 +59,5 @@ constexpr MouseButton button_code_to_mouse_button(i16 button)
         return MouseButton::Forward;
     return MouseButton::None;
 }
-
-}
-
-namespace Web::UIEvents {
-
-using Compositing::MouseButton;
-using enum Compositing::MouseButton;
-using Compositing::button_code_to_mouse_button;
-using Compositing::mouse_button_to_button_code;
 
 }

@@ -48,7 +48,7 @@ public:
     Vector<Compositing::AsyncScrollbar> const& scrollbars() const { return m_scrollbars; }
     bool has_captured_scrollbar() const { return m_captured_scrollbar_index.has_value(); }
     // The main thread still takes the mouse events of a drag that holds a scrollbar the display list paints.
-    Optional<Compositing::ScrollbarDraggedByCompositor> captured_scrollbar_painted_by_display_list() const;
+    Optional<Web::ScrollbarDraggedByCompositor> captured_scrollbar_painted_by_display_list() const;
 
     Optional<size_t> hit_test_scrollbar_painted_by_compositor(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
     Optional<Drag> begin_drag(Compositing::AsyncScrollTree const&, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position);

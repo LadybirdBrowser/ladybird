@@ -12,8 +12,8 @@
 
 using namespace Compositing;
 
-static UniqueNodeID const document_id { 1 };
-static UniqueNodeID const scroller_node_id { 7 };
+static Web::UniqueNodeID const document_id { 1 };
+static Web::UniqueNodeID const scroller_node_id { 7 };
 
 struct TreeWithNestedScroller {
     AccumulatedVisualContextTree tree;
@@ -133,7 +133,7 @@ TEST_CASE(scrollbar_names_its_scroller_by_stable_id)
     auto const& stable_id = state.scrollbars.first().scroller_stable_node_id;
     EXPECT(stable_id.has_value());
     EXPECT_EQ(stable_id->node_id, scroller_node_id);
-    EXPECT_EQ(stable_id->kind, Compositing::AsyncScrollNodeKind::Element);
+    EXPECT_EQ(stable_id->kind, Web::AsyncScrollNodeKind::Element);
 }
 
 TEST_CASE(scrollbar_without_a_scroll_node_has_no_stable_id)

@@ -297,7 +297,7 @@ static void set_page_cursor(Page& page, Gfx::Cursor cursor)
     }
 }
 
-EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count, Optional<Compositing::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor, Optional<RemoteInputEventTarget>* remote_target)
+EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count, Optional<Web::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor, Optional<RemoteInputEventTarget>* remote_target)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
@@ -785,7 +785,7 @@ static Layout::Node* scrolling_box_for_scroll_step(Layout::Node& target, CSSPixe
     return scrolling_box;
 }
 
-EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
+EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
 
@@ -837,7 +837,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     // The end of a gesture is reported to the compositor before the gesture settles here, so that a snap scroll
     // the compositor starts for it is the scroll the settlement finds in flight rather than one of its own.
-    if (scroll_gesture_phase == Compositing::ScrollGesturePhase::Ended && !async_scroll_performed_default_action && can_attempt_async_scroll
+    if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && !async_scroll_performed_default_action && can_attempt_async_scroll
         && visual_viewport->scale() == 1.0 && enqueue_async_scroll({})) {
         async_scroll_performed_default_action = true;
         m_navigable->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
@@ -847,7 +847,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     // Wheel activity marks the scroll gesture as still in progress even when it no longer moves any scrolling box.
     m_navigable->defer_user_scroll_settlement();
-    m_navigable->note_user_scroll_input_intent(wheel_delta_precision == Compositing::WheelDeltaPrecision::Discrete
+    m_navigable->note_user_scroll_input_intent(wheel_delta_precision == Web::WheelDeltaPrecision::Discrete
             ? Compositing::SnapSelectionStrategy::Type::Direction
             : Compositing::SnapSelectionStrategy::Type::EndPosition);
 
@@ -888,8 +888,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     }
 
     CSSPixelPoint wheel_step_delta { CSSPixels::nearest_value_for(wheel_delta_x), CSSPixels::nearest_value_for(wheel_delta_y) };
-    bool is_discrete_step = wheel_delta_precision == Compositing::WheelDeltaPrecision::Discrete;
-    bool wheel_step_may_snap = is_discrete_step || scroll_gesture_phase == Compositing::ScrollGesturePhase::Momentum;
+    bool is_discrete_step = wheel_delta_precision == Web::WheelDeltaPrecision::Discrete;
+    bool wheel_step_may_snap = is_discrete_step || scroll_gesture_phase == Web::ScrollGesturePhase::Momentum;
 
     auto snap_wheel_step_in = [&](Layout::Node& scrolling_box) -> bool {
         if (!wheel_step_may_snap)

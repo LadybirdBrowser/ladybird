@@ -32,7 +32,7 @@
 
 namespace Web::WebDriver {
 
-using DispatchMouseEvent = Function<void(Compositing::MouseEvent)>;
+using DispatchMouseEvent = Function<void(Web::MouseEvent)>;
 
 static Optional<ActionObject::Subtype> action_object_subtype_from_string(StringView action_subtype)
 {
@@ -1158,8 +1158,8 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_down_action(ActionObject
     //     set to the default value specified for hardware that doesn't support that property.
     switch (pointer_type) {
     case PointerInputSource::Subtype::Mouse: {
-        Compositing::MouseEvent event;
-        event.type = Compositing::MouseEvent::Type::MouseDown;
+        Web::MouseEvent event;
+        event.type = Web::MouseEvent::Type::MouseDown;
         event.position = position;
         event.screen_position = position;
         event.button = button;
@@ -1209,8 +1209,8 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_up_action(ActionObject::
     //    doesn't support that property.
     switch (pointer_type) {
     case PointerInputSource::Subtype::Mouse: {
-        Compositing::MouseEvent event;
-        event.type = Compositing::MouseEvent::Type::MouseUp;
+        Web::MouseEvent event;
+        event.type = Web::MouseEvent::Type::MouseUp;
         event.position = position;
         event.screen_position = position;
         event.button = button;
@@ -1263,8 +1263,8 @@ static ErrorOr<void, WebDriver::Error> perform_pointer_move(ActionObject::Pointe
 
         switch (action_object.pointer_type) {
         case PointerInputSource::Subtype::Mouse: {
-            Compositing::MouseEvent event;
-            event.type = Compositing::MouseEvent::Type::MouseMove;
+            Web::MouseEvent event;
+            event.type = Web::MouseEvent::Type::MouseMove;
             event.position = position;
             event.screen_position = position;
             event.buttons = buttons;
@@ -1377,14 +1377,14 @@ static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::Scro
 
     // AD-HOC: A scroll action emulates a mouse wheel, so its deltas are stepwise wheel input. A snap container the
     //         action scrolls therefore ends at the snap position the input selects, rather than at the requested delta.
-    Compositing::MouseEvent event;
-    event.type = Compositing::MouseEvent::Type::MouseWheel;
+    Web::MouseEvent event;
+    event.type = Web::MouseEvent::Type::MouseWheel;
     event.position = position;
     event.screen_position = position;
     event.modifiers = global_key_state.modifiers();
     event.wheel_delta_x = static_cast<double>(action_object.delta_x);
     event.wheel_delta_y = static_cast<double>(action_object.delta_y);
-    event.wheel_delta_precision = Compositing::WheelDeltaPrecision::Discrete;
+    event.wheel_delta_precision = Web::WheelDeltaPrecision::Discrete;
     dispatch_mouse_event(move(event));
 
     // 12. Return success with data null.
@@ -1430,7 +1430,7 @@ public:
         // NB: Pointer input goes through the UI process, which dispatches it to the process hosting the document under
         //     the pointer as it does the user's.
         m_tick_duration_has_passed = false;
-        DispatchMouseEvent dispatch_mouse_event = [this](Compositing::MouseEvent event) {
+        DispatchMouseEvent dispatch_mouse_event = [this](Web::MouseEvent event) {
             ++m_pending_mouse_event_count;
             m_browsing_context->page().client().page_did_request_webdriver_mouse_event(local_root(m_browsing_context)->id(), move(event), GC::create_function(heap(), [this]() {
                 --m_pending_mouse_event_count;

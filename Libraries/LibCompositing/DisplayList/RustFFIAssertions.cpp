@@ -168,8 +168,8 @@ static_assert(sizeof(Compositing::RustFFI::ImageFrameResourceId) == sizeof(Image
 static_assert(sizeof(Compositing::RustFFI::VideoSinkResourceId) == sizeof(VideoSinkResourceId));
 static_assert(sizeof(Compositing::RustFFI::DisplayListResourceId) == sizeof(DisplayListResourceId));
 static_assert(sizeof(Compositing::RustFFI::CanvasId) == sizeof(CanvasId));
-static_assert(sizeof(Compositing::RustFFI::CompositorContextId) == sizeof(Compositing::CompositorContextId));
-static_assert(sizeof(Compositing::RustFFI::UniqueNodeId) == sizeof(UniqueNodeID));
+static_assert(sizeof(Compositing::RustFFI::CompositorContextId) == sizeof(Web::CompositorContextId));
+static_assert(sizeof(Compositing::RustFFI::UniqueNodeId) == sizeof(Web::UniqueNodeID));
 static_assert(sizeof(Compositing::RustFFI::OptionalFloatRect) == sizeof(Optional<Gfx::FloatRect>));
 static_assert(alignof(Compositing::RustFFI::OptionalFloatRect) == alignof(Optional<Gfx::FloatRect>));
 static_assert(sizeof(Compositing::RustFFI::OptionalColor) == sizeof(Optional<Gfx::Color>));

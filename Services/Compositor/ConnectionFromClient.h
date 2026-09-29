@@ -39,25 +39,25 @@ private:
 
     virtual void die() override;
 
-    virtual void did_allocate_backing_stores(Compositing::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) override;
-    virtual void did_present_frame(Compositing::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) override;
-    virtual void did_consume_input_event(Compositing::CompositorContextId, u64 event_id) override;
-    virtual void did_not_dispatch_input_event(Compositing::CompositorContextId, u64 event_id) override;
+    virtual void did_allocate_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) override;
+    virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) override;
+    virtual void did_consume_input_event(Web::CompositorContextId, u64 event_id) override;
+    virtual void did_not_dispatch_input_event(Web::CompositorContextId, u64 event_id) override;
 
     virtual Messages::CompositorControlServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual void set_font_service_transport(IPC::TransportHandle) override;
     virtual void set_font_catalog(IPC::File, u64 size, u64 generation) override;
     virtual Messages::CompositorControlServer::ConnectWebContentResponse connect_web_content() override;
-    virtual void create_context(Compositing::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
-    virtual void viewport_size_updated(Compositing::CompositorContextId, Gfx::IntSize, Compositing::WindowResizingInProgress) override;
-    virtual void set_paused_debugger_overlay(Compositing::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action) override;
-    virtual void set_display_metadata(Compositing::CompositorContextId, Optional<u64>, double) override;
-    virtual void set_context_visibility(Compositing::CompositorContextId, Compositing::ContextVisibility) override;
-    virtual void handle_and_dispatch_mouse_event(Compositing::CompositorContextId, Compositing::MouseEvent) override;
-    virtual void handle_pinch_event(Compositing::CompositorContextId, Compositing::PinchEvent) override;
-    virtual Messages::CompositorControlServer::HandleKeyEventResponse handle_key_event(Compositing::CompositorContextId, Compositing::KeyEvent) override;
-    virtual Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse dispatch_key_event_to_web_content(Compositing::CompositorContextId, Compositing::KeyEvent) override;
-    virtual void presented_bitmap_ready_to_paint(Compositing::CompositorContextId, i32 bitmap_id) override;
+    virtual void create_context(Web::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
+    virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, Compositing::WindowResizingInProgress) override;
+    virtual void set_paused_debugger_overlay(Web::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action) override;
+    virtual void set_display_metadata(Web::CompositorContextId, Optional<u64>, double) override;
+    virtual void set_context_visibility(Web::CompositorContextId, Compositing::ContextVisibility) override;
+    virtual void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent) override;
+    virtual void handle_pinch_event(Web::CompositorContextId, Web::PinchEvent) override;
+    virtual Messages::CompositorControlServer::HandleKeyEventResponse handle_key_event(Web::CompositorContextId, Web::KeyEvent) override;
+    virtual Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse dispatch_key_event_to_web_content(Web::CompositorContextId, Web::KeyEvent) override;
+    virtual void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id) override;
     virtual void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) override;
     virtual void crash() override;
 

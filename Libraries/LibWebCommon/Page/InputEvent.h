@@ -15,7 +15,7 @@
 #include <LibWebCommon/UIEvents/KeyCode.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
 
-namespace Compositing {
+namespace Web {
 
 struct BrowserInputData {
     AK_ALLOC_WITH_KMALLOC;
@@ -32,8 +32,8 @@ struct WEBCOMMON_API KeyEvent {
     KeyEvent clone_without_browser_data() const;
 
     Type type;
-    Compositing::KeyCode key { Compositing::KeyCode::Key_Invalid };
-    Compositing::KeyModifier modifiers { Compositing::KeyModifier::Mod_None };
+    Web::UIEvents::KeyCode key { Web::UIEvents::KeyCode::Key_Invalid };
+    Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
     u32 code_point { 0 };
     bool repeat { false };
     bool should_insert_text { false };
@@ -45,18 +45,18 @@ struct WEBCOMMON_API KeyEvent {
     u64 id { 0 };
 };
 
-inline bool is_keyboard_scroll_key(Compositing::KeyCode key, u32 modifiers)
+inline bool is_keyboard_scroll_key(Web::UIEvents::KeyCode key, u32 modifiers)
 {
     switch (key) {
-    case Compositing::KeyCode::Key_Space:
-        return (modifiers & ~(Compositing::Mod_Shift | Compositing::Mod_Keypad)) == Compositing::Mod_None;
-    case Compositing::KeyCode::Key_PageUp:
-    case Compositing::KeyCode::Key_PageDown:
-    case Compositing::KeyCode::Key_Up:
-    case Compositing::KeyCode::Key_Down:
-    case Compositing::KeyCode::Key_Left:
-    case Compositing::KeyCode::Key_Right:
-        return (modifiers & ~Compositing::Mod_Keypad) == Compositing::Mod_None;
+    case Web::UIEvents::KeyCode::Key_Space:
+        return (modifiers & ~(Web::UIEvents::Mod_Shift | Web::UIEvents::Mod_Keypad)) == Web::UIEvents::Mod_None;
+    case Web::UIEvents::KeyCode::Key_PageUp:
+    case Web::UIEvents::KeyCode::Key_PageDown:
+    case Web::UIEvents::KeyCode::Key_Up:
+    case Web::UIEvents::KeyCode::Key_Down:
+    case Web::UIEvents::KeyCode::Key_Left:
+    case Web::UIEvents::KeyCode::Key_Right:
+        return (modifiers & ~Web::UIEvents::Mod_Keypad) == Web::UIEvents::Mod_None;
     default:
         return false;
     }
@@ -90,11 +90,11 @@ struct WEBCOMMON_API MouseEvent {
     MouseEvent clone_without_browser_data() const;
 
     Type type;
-    Compositing::DevicePixelPoint position;
-    Compositing::DevicePixelPoint screen_position;
-    Compositing::MouseButton button { Compositing::MouseButton::None };
-    Compositing::MouseButton buttons { Compositing::MouseButton::None };
-    Compositing::KeyModifier modifiers { Compositing::KeyModifier::Mod_None };
+    Web::DevicePixelPoint position;
+    Web::DevicePixelPoint screen_position;
+    Web::UIEvents::MouseButton button { Web::UIEvents::MouseButton::None };
+    Web::UIEvents::MouseButton buttons { Web::UIEvents::MouseButton::None };
+    Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
     double wheel_delta_x { 0 };
     double wheel_delta_y { 0 };
     WheelDeltaPrecision wheel_delta_precision { WheelDeltaPrecision::Discrete };
@@ -104,12 +104,12 @@ struct WEBCOMMON_API MouseEvent {
     OwnPtr<BrowserInputData> browser_data;
     bool async_scroll_performed_default_action { false };
     u64 id { 0 };
-    Optional<Compositing::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
+    Optional<Web::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
 };
 
 struct WEBCOMMON_API PinchEvent {
-    Compositing::DevicePixelPoint position;
-    Compositing::KeyModifier modifiers { Compositing::KeyModifier::Mod_None };
+    Web::DevicePixelPoint position;
+    Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
     double scale_delta;
     u64 id { 0 };
 };
@@ -119,21 +119,21 @@ struct WEBCOMMON_API PinchEvent {
 namespace IPC {
 
 template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Compositing::KeyEvent const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::KeyEvent const&);
 
 template<>
-WEBCOMMON_API ErrorOr<Compositing::KeyEvent> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::KeyEvent> decode(Decoder&);
 
 template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Compositing::MouseEvent const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::MouseEvent const&);
 
 template<>
-WEBCOMMON_API ErrorOr<Compositing::MouseEvent> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::MouseEvent> decode(Decoder&);
 
 template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Compositing::PinchEvent const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::PinchEvent const&);
 
 template<>
-WEBCOMMON_API ErrorOr<Compositing::PinchEvent> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::PinchEvent> decode(Decoder&);
 
 }

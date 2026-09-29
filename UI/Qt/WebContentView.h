@@ -82,7 +82,7 @@ class WebContentView final
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, Compositing::PageId page_index = 0, WebContentViewInitialState initial_state = {});
+    WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, Web::PageId page_index = 0, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
 
 #if !defined(LADYBIRD_QT_USE_RHI_WIDGET) && !defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
@@ -141,7 +141,7 @@ private:
     // ^WebView::ViewImplementation
     virtual void prepare_page_for_tab(WebView::WebContentPage&) override;
     virtual void update_zoom() override;
-    virtual Compositing::DevicePixelSize viewport_size() const override;
+    virtual Web::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) override;
@@ -170,16 +170,16 @@ private:
     void update_compositor_display_metadata();
     void update_compositor_display_metadata(WebView::WebContentPage&);
 
-    Compositing::DevicePixelPoint node_picker_position_for(QSinglePointEvent const&) const;
+    Web::DevicePixelPoint node_picker_position_for(QSinglePointEvent const&) const;
 
-    void enqueue_native_event(Compositing::MouseEvent::Type, QSinglePointEvent const& event);
+    void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
     void handle_pointer_leave();
 
     void enqueue_native_event(Web::DragEvent::Type, QDropEvent const& event);
     void finish_handling_drag_event(Web::DragEvent const&);
 
-    void enqueue_native_event(Compositing::KeyEvent::Type, QKeyEvent const& event);
-    void finish_handling_key_event(Compositing::KeyEvent const&);
+    void enqueue_native_event(Web::KeyEvent::Type, QKeyEvent const& event);
+    void finish_handling_key_event(Web::KeyEvent const&);
 
     void update_screen_rects();
     void update_screen_rects(WebView::WebContentPage&);

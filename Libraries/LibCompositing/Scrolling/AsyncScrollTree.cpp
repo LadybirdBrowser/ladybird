@@ -56,7 +56,7 @@ AsyncSnapContainer const* AsyncScrollTree::snap_container_for_node(AsyncScrollNo
     return nullptr;
 }
 
-AsyncScrollNode const* AsyncScrollTree::scroll_node_for_stable_id(AsyncScrollNodeStableID stable_node_id) const
+AsyncScrollNode const* AsyncScrollTree::scroll_node_for_stable_id(Web::AsyncScrollNodeStableID stable_node_id) const
 {
     for (auto const& node : m_scroll_nodes) {
         if (node.stable_node_id == stable_node_id)
@@ -258,15 +258,15 @@ Optional<Gfx::FloatPoint> AsyncScrollTree::scroll_offset_for_node(AsyncScrollNod
     return {};
 }
 
-CSSPixelPoint AsyncScrollTree::css_pixels_from_device_offset(Gfx::FloatPoint device_offset) const
+Web::CSSPixelPoint AsyncScrollTree::css_pixels_from_device_offset(Gfx::FloatPoint device_offset) const
 {
     return {
-        CSSPixels { device_offset.x() / m_device_pixels_per_css_pixel },
-        CSSPixels { device_offset.y() / m_device_pixels_per_css_pixel },
+        Web::CSSPixels { device_offset.x() / m_device_pixels_per_css_pixel },
+        Web::CSSPixels { device_offset.y() / m_device_pixels_per_css_pixel },
     };
 }
 
-Gfx::FloatPoint AsyncScrollTree::device_offset_from_css_pixels(CSSPixelPoint offset) const
+Gfx::FloatPoint AsyncScrollTree::device_offset_from_css_pixels(Web::CSSPixelPoint offset) const
 {
     return {
         static_cast<float>(offset.x().to_double() * m_device_pixels_per_css_pixel),
@@ -274,12 +274,12 @@ Gfx::FloatPoint AsyncScrollTree::device_offset_from_css_pixels(CSSPixelPoint off
     };
 }
 
-Optional<CSSPixelPoint> AsyncScrollTree::css_scroll_offset_for_node(AsyncScrollNodeID node_id, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
+Optional<Web::CSSPixelPoint> AsyncScrollTree::css_scroll_offset_for_node(AsyncScrollNodeID node_id, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     return scroll_offset_for_node(node_id, scroll_state_snapshot).map([&](auto device_offset) { return css_pixels_from_device_offset(device_offset); });
 }
 
-Optional<UniqueNodeID> AsyncScrollTree::document_id() const
+Optional<Web::UniqueNodeID> AsyncScrollTree::document_id() const
 {
     // The scroll nodes belong to the same document, whose viewport need not itself be scrollable.
     if (m_scroll_nodes.is_empty())
@@ -296,7 +296,7 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::viewport_scroll_node_id() const
     return {};
 }
 
-Optional<AsyncScrollNodeID> AsyncScrollTree::scroll_node_id_for_stable_id(AsyncScrollNodeStableID stable_node_id) const
+Optional<AsyncScrollNodeID> AsyncScrollTree::scroll_node_id_for_stable_id(Web::AsyncScrollNodeStableID stable_node_id) const
 {
     if (auto const* node = scroll_node_for_stable_id(stable_node_id))
         return node->node_id;
@@ -386,7 +386,7 @@ bool AsyncScrollTree::is_covered_by_hit_test_target_painted_after(u32 paint_orde
     return false;
 }
 
-Optional<AsyncScrollNodeID> AsyncScrollTree::scroll_node_for_keyboard_scroll(AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint delta, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
+Optional<AsyncScrollNodeID> AsyncScrollTree::scroll_node_for_keyboard_scroll(Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint delta, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     auto const* node = scroll_node_for_stable_id(stable_node_id);
     if (!node)

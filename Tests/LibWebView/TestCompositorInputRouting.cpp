@@ -42,22 +42,22 @@ public:
     virtual bool should_coordinate_browser_process() const override { return false; }
 };
 
-void scroll_wheel_at(WebView::ViewImplementation& view, Compositing::DevicePixelPoint position, double wheel_delta_y)
+void scroll_wheel_at(WebView::ViewImplementation& view, Web::DevicePixelPoint position, double wheel_delta_y)
 {
-    view.enqueue_input_event(Compositing::MouseEvent {
-        .type = Compositing::MouseEvent::Type::MouseWheel,
+    view.enqueue_input_event(Web::MouseEvent {
+        .type = Web::MouseEvent::Type::MouseWheel,
         .position = position,
         .screen_position = position,
         .wheel_delta_y = wheel_delta_y,
-        .wheel_delta_precision = Compositing::WheelDeltaPrecision::Precise,
+        .wheel_delta_precision = Web::WheelDeltaPrecision::Precise,
         .browser_data = nullptr,
     });
 }
 
-void move_mouse_to(WebView::ViewImplementation& view, Compositing::DevicePixelPoint position)
+void move_mouse_to(WebView::ViewImplementation& view, Web::DevicePixelPoint position)
 {
-    view.enqueue_input_event(Compositing::MouseEvent {
-        .type = Compositing::MouseEvent::Type::MouseMove,
+    view.enqueue_input_event(Web::MouseEvent {
+        .type = Web::MouseEvent::Type::MouseMove,
         .position = position,
         .screen_position = position,
         .browser_data = nullptr,

@@ -18,17 +18,17 @@ void ScrollSnapController::did_install_scrolling_state(Compositing::AsyncScrollT
     });
 }
 
-void ScrollSnapController::note_gesture_phase(Compositing::ScrollGesturePhase phase)
+void ScrollSnapController::note_gesture_phase(Web::ScrollGesturePhase phase)
 {
     switch (phase) {
-    case Compositing::ScrollGesturePhase::None:
+    case Web::ScrollGesturePhase::None:
         end_gesture();
         break;
-    case Compositing::ScrollGesturePhase::Ongoing:
+    case Web::ScrollGesturePhase::Ongoing:
         reset_momentum_fling_state();
         break;
-    case Compositing::ScrollGesturePhase::Momentum:
-    case Compositing::ScrollGesturePhase::Ended:
+    case Web::ScrollGesturePhase::Momentum:
+    case Web::ScrollGesturePhase::Ended:
         break;
     }
 }
@@ -80,32 +80,32 @@ bool ScrollSnapController::end_gestures_whose_input_ran_out(MonotonicTime now)
     return ended_any;
 }
 
-void ScrollSnapController::did_scroll_node_plainly(Compositing::AsyncScrollNodeStableID stable_node_id, Compositing::ScrollGesturePhase phase, Compositing::CSSPixelPoint scroll_offset_before_scroll)
+void ScrollSnapController::did_scroll_node_plainly(Web::AsyncScrollNodeStableID stable_node_id, Web::ScrollGesturePhase phase, Web::CSSPixelPoint scroll_offset_before_scroll)
 {
-    if (phase != Compositing::ScrollGesturePhase::Ongoing && phase != Compositing::ScrollGesturePhase::Momentum)
+    if (phase != Web::ScrollGesturePhase::Ongoing && phase != Web::ScrollGesturePhase::Momentum)
         return;
     auto& state = node_state(stable_node_id);
     if (!state.gesture_start.has_value())
         state.gesture_start = GestureStart { .offset = scroll_offset_before_scroll };
-    if (phase == Compositing::ScrollGesturePhase::Momentum)
+    if (phase == Web::ScrollGesturePhase::Momentum)
         state.gesture_start->travels_under_momentum = true;
 }
 
-void ScrollSnapController::did_start_main_thread_scroll(Compositing::AsyncScrollNodeStableID stable_node_id)
+void ScrollSnapController::did_start_main_thread_scroll(Web::AsyncScrollNodeStableID stable_node_id)
 {
     // A scroll started for any reason other than this controller's input is going somewhere the gesture never asked
     // for, so the gesture's steps then travel from the scrolling box itself.
     m_nodes.remove(stable_node_id);
 }
 
-void ScrollSnapController::did_start_snap_scroll(Compositing::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncScrollOperationID operation_id, Compositing::CSSPixelPoint destination)
+void ScrollSnapController::did_start_snap_scroll(Web::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncScrollOperationID operation_id, Web::CSSPixelPoint destination)
 {
     auto& state = node_state(stable_node_id);
     state.snap_scroll = InFlightSnapScroll { .operation_id = operation_id, .destination = destination };
     state.expected_scroll_offset = destination;
 }
 
-void ScrollSnapController::did_end_snap_scroll(Compositing::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncScrollOperationID operation_id, Optional<Compositing::CSSPixelPoint> scroll_offset)
+void ScrollSnapController::did_end_snap_scroll(Web::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncScrollOperationID operation_id, Optional<Web::CSSPixelPoint> scroll_offset)
 {
     if (!is_snap_scroll(stable_node_id, operation_id))
         return;
@@ -114,25 +114,25 @@ void ScrollSnapController::did_end_snap_scroll(Compositing::AsyncScrollNodeStabl
     state.expected_scroll_offset = scroll_offset;
 }
 
-bool ScrollSnapController::is_snap_scroll(Compositing::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncScrollOperationID operation_id) const
+bool ScrollSnapController::is_snap_scroll(Web::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncScrollOperationID operation_id) const
 {
     auto state = m_nodes.get(stable_node_id);
     return state.has_value() && state->snap_scroll.has_value() && state->snap_scroll->operation_id == operation_id;
 }
 
-Optional<Compositing::CSSPixelPoint> ScrollSnapController::unsnapped_destination_for_snap_scroll(Compositing::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncScrollOperationID operation_id) const
+Optional<Web::CSSPixelPoint> ScrollSnapController::unsnapped_destination_for_snap_scroll(Web::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncScrollOperationID operation_id) const
 {
     if (!is_snap_scroll(stable_node_id, operation_id))
         return {};
     return m_nodes.get(stable_node_id)->unsnapped_scroll_destination;
 }
 
-ScrollSnapController::NodeState& ScrollSnapController::node_state(Compositing::AsyncScrollNodeStableID stable_node_id)
+ScrollSnapController::NodeState& ScrollSnapController::node_state(Web::AsyncScrollNodeStableID stable_node_id)
 {
     return m_nodes.ensure(stable_node_id);
 }
 
-Compositing::SnapAxisCandidates const& ScrollSnapController::candidates_for(Compositing::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncSnapContainer const& snap_container)
+Compositing::SnapAxisCandidates const& ScrollSnapController::candidates_for(Web::AsyncScrollNodeStableID stable_node_id, Compositing::AsyncSnapContainer const& snap_container)
 {
     return m_candidates.ensure(stable_node_id, [&] {
         return Compositing::build_snap_candidates(snap_container.geometry, snap_container.areas, snap_container.geometry.axes);
@@ -149,7 +149,7 @@ Optional<ScrollSnapController::SnapTarget> ScrollSnapController::snap_target_for
     return SnapTarget { .stable_node_id = node->stable_node_id, .snap_container = snap_container, .current_scroll_offset = *current_scroll_offset };
 }
 
-static Compositing::CSSPixelPoint clamp_scroll_offset(Compositing::CSSPixelPoint offset, Compositing::SnapContainerGeometry const& geometry)
+static Web::CSSPixelPoint clamp_scroll_offset(Web::CSSPixelPoint offset, Compositing::SnapContainerGeometry const& geometry)
 {
     return {
         clamp(offset.x(), geometry.min_scroll_offset.x(), geometry.max_scroll_offset.x()),
@@ -158,12 +158,12 @@ static Compositing::CSSPixelPoint clamp_scroll_offset(Compositing::CSSPixelPoint
 }
 
 // A scroll travels only along axes the container selects no snap position in is left to the ordinary relative scroll.
-static bool selected_snap_position_along_travel(Compositing::SnapDestination const& selection, Compositing::CSSPixelPoint displacement)
+static bool selected_snap_position_along_travel(Compositing::SnapDestination const& selection, Web::CSSPixelPoint displacement)
 {
     return (selection.snapped_x && displacement.x() != 0) || (selection.snapped_y && displacement.y() != 0);
 }
 
-Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discrete_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Compositing::CSSPixelPoint delta, MonotonicTime now)
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discrete_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Web::CSSPixelPoint delta, MonotonicTime now)
 {
     auto target = snap_target_for(scroll_tree, scroll_state_snapshot, node_id);
     if (!target.has_value())
@@ -219,7 +219,7 @@ Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discre
     } };
 }
 
-Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_key_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Compositing::CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type, Optional<Compositing::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now)
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_key_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Web::CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now)
 {
     auto target = snap_target_for(scroll_tree, scroll_state_snapshot, node_id);
     if (!target.has_value())
@@ -280,7 +280,7 @@ Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_key_st
     } };
 }
 
-Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_momentum_delta(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Compositing::CSSPixelPoint momentum_delta)
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_momentum_delta(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Web::CSSPixelPoint momentum_delta)
 {
     if (m_momentum_snap_position_selection == MomentumSnapPositionSelection::ScrollingToSelectedPosition)
         return StepDecision { StepConsumed {} };
@@ -353,7 +353,7 @@ Vector<ScrollSnapController::GestureEndSnap> ScrollSnapController::decide_gestur
         // traveled under must not have passed a snap position that always stops on the way from where it started.
         Compositing::SnapSelectionStrategy strategy {
             .type = Compositing::SnapSelectionStrategy::Type::EndPosition,
-            .start_offset = state.gesture_start->travels_under_momentum ? Optional<Compositing::CSSPixelPoint> { state.gesture_start->offset } : Optional<Compositing::CSSPixelPoint> {},
+            .start_offset = state.gesture_start->travels_under_momentum ? Optional<Web::CSSPixelPoint> { state.gesture_start->offset } : Optional<Web::CSSPixelPoint> {},
             .displacement = current_scroll_offset - state.gesture_start->offset,
             .starting_positions_boundary = {},
         };
