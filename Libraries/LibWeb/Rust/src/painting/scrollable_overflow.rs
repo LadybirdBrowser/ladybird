@@ -851,7 +851,7 @@ pub(crate) fn update_scrollable_overflow(arena: &LayoutNodeArena) {
     // Keep already measured ancestors in the set so changes invalidate their paint caches
     // even when a cached recording would otherwise skip the subtree.
     let mut roots = Vec::new();
-    let mut seen = std::collections::HashSet::new();
+    let mut seen = crate::fast_hash::FastSet::default();
     let mut add = |slot: NodeSlotId| {
         if arena.paintable_row_is_populated(slot) && seen.insert(slot) {
             if !full_layout_commit || slot == viewport || box_holds_scroll_state(arena, slot) {
