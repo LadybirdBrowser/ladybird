@@ -779,8 +779,16 @@ impl RetainedState {
         let remaining_length = length_context(
             own_metrics(line_height_before_adjustments),
             results.font_metrics_depend_on_viewport_metrics,
-            document_root_font_metrics,
-            inputs.root_font_metrics_depend_on_viewport_metrics,
+            if is_document_element {
+                own_metrics(line_height_before_adjustments)
+            } else {
+                document_root_font_metrics
+            },
+            if is_document_element {
+                results.font_metrics_depend_on_viewport_metrics
+            } else {
+                inputs.root_font_metrics_depend_on_viewport_metrics
+            },
         );
         let input_line_height_metrics = if has(fact::CHECK_INPUT_LINE_HEIGHT) {
             FfiInputLineHeightMetrics {

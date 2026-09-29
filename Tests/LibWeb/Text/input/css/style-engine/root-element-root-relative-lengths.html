@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<script src="../../include.js"></script>
+<style>
+    html { font-size: 16px; padding: 1rem; margin: 2em; }
+    html.big { font-size: 24px; }
+    html::before { content: ""; font-size: 8px; line-height: 2rem; padding: 1rem; }
+</style>
+<body>
+<script>
+    test(() => {
+        const report = (label) => {
+            const style = getComputedStyle(document.documentElement);
+            println(`${label}: font-size ${style.fontSize}, padding ${style.paddingTop}, margin ${style.marginTop}`);
+            const pseudoStyle = getComputedStyle(document.documentElement, "::before");
+            println(`${label}::before: font-size ${pseudoStyle.fontSize}, line-height ${pseudoStyle.lineHeight}, padding ${pseudoStyle.paddingTop}`);
+        };
+        report("initial");
+        document.documentElement.className = "big";
+        report("html.big");
+        document.documentElement.className = "";
+        report("html.none");
+    });
+</script>
+</body>
+</html>
