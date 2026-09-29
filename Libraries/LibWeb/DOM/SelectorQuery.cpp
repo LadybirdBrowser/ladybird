@@ -372,7 +372,6 @@ bool SelectorQuery::matches_simple_selector_in_dom(Element const& element) const
         auto result = CSS::SelectorFFI::rust_selector_matches_simple_dom(
             &selector->rust_selector(),
             interned_name_identity(element.local_name()),
-            interned_name_identity(element.lowercased_local_name()),
             interned_name_identity(id),
             interned_name_identity(lowercase_id),
             class_identities.data(),

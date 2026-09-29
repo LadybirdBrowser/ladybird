@@ -1,5 +1,5 @@
-div: matches=true closest=true querySelectorAll=true
-DIV: matches=true closest=true querySelectorAll=true
+div: matches=false closest=false querySelectorAll=false
+DIV: matches=false closest=false querySelectorAll=false
 #container div: matches=false closest=false querySelectorAll=false
 #container > DIV: matches=false closest=false querySelectorAll=false
 :is(div): matches=false closest=false querySelectorAll=false

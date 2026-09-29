@@ -1,5 +1,5 @@
-Foo: style [html-foo,svg-Foo] query [html-Foo html-foo svg-Foo]
-foo: query [html-Foo html-foo]
+Foo: style [html-foo,svg-Foo] query [html-foo svg-Foo]
+foo: query [html-foo]
 [dataFoo]: style [svg-dataFoo,html-datafoo] query [svg-dataFoo html-datafoo]
 [datafoo]: query [html-datafoo]
 :has(.a) > .x: style [] query []
