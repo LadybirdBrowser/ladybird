@@ -321,7 +321,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         target = move(*result);
         chrome_widget = target->chrome_widget;
-        node = target->dom_node;
+        node = target->dom_node();
     } else {
         return EventResult::Dropped;
     }
@@ -508,7 +508,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         target = move(*result);
         chrome_widget = target->chrome_widget;
-        node = target->dom_node;
+        node = target->dom_node();
         start_index = target->index_in_node;
         hit_text_fragment = target->is_text_fragment;
     }
@@ -649,7 +649,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         target = move(*result);
         chrome_widget = target->chrome_widget;
-        node = target->dom_node;
+        node = target->dom_node();
     }
 
     auto click_count = m_mousedown_click_count;
@@ -863,11 +863,11 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     GC::Ptr<DOM::Node> wheel_event_target_node;
     Layout::Node* wheel_event_target_layout_node = nullptr;
     auto latch_gesture_to_wheel_event_target = [&](Target const& target, Layout::Node* target_layout_node) {
-        if (!wheel_event_has_delta || !target.dom_node)
+        if (!wheel_event_has_delta || !target.dom_node())
             return;
         m_wheel_scroll_latch = WheelScrollLatch {
             .gesture = Compositing::WheelGestureIdentity::started_by(gesture_position, scroll_gesture_phase, modifiers, now),
-            .wheel_event_target = target.dom_node,
+            .wheel_event_target = target.dom_node(),
             .wheel_event_target_pseudo_element = target_layout_node ? target_layout_node->generated_for_pseudo_element() : Optional<CSS::PseudoElement> {},
         };
     };
@@ -882,7 +882,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         hit_test_target = target_for_mouse_position(visual_viewport_position);
         if (hit_test_target.has_value()) {
             wheel_event_target_layout_node = hit_test_target->layout_node();
-            wheel_event_target_node = hit_test_target->dom_node;
+            wheel_event_target_node = hit_test_target->dom_node();
             latch_gesture_to_wheel_event_target(*hit_test_target, wheel_event_target_layout_node);
         }
     }
@@ -1090,10 +1090,11 @@ EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint vis
         return EventResult::Dropped;
 
     auto* target_layout_node = target->layout_node();
-    if (!target_layout_node || !target->dom_node)
+    auto target_dom_node = target->dom_node();
+    if (!target_layout_node || !target_dom_node)
         return EventResult::Dropped;
 
-    if (auto result = dispatch_event_to_nested_navigable(*target_layout_node, target->dom_node, visual_viewport_position, nullptr, [screen_position, modifiers, wheel_delta_y](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+    if (auto result = dispatch_event_to_nested_navigable(*target_layout_node, target_dom_node, visual_viewport_position, nullptr, [screen_position, modifiers, wheel_delta_y](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
             return event_handler.dispatch_synthetic_pinch_wheel_event(position, screen_position, modifiers, wheel_delta_y);
         });
         result.has_value()) {
@@ -1166,7 +1167,7 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         target = move(*result);
         chrome_widget = target->chrome_widget;
-        node = target->dom_node;
+        node = target->dom_node();
         hit_text_fragment = target->is_text_fragment;
     }
 
@@ -1734,7 +1735,7 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     GC::Ptr<DOM::Node> node;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         target = move(*result);
-        node = target->dom_node;
+        node = target->dom_node();
     } else {
         return EventResult::Dropped;
     }
@@ -2500,7 +2501,7 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
             .hit_node = result->hit_node,
             .arena = result->arena,
             .chrome_widget = result->chrome_widget,
-            .dom_node = result->dom_node(),
+            .node = result->dom_node(),
             .index_in_node = result->index_in_node,
             .is_text_fragment = result->is_text_fragment,
         };
@@ -2514,7 +2515,7 @@ GC::Ptr<DOM::Node> EventHandler::target_node_for_mouse_position(CSSPixelPoint po
     if (!target.has_value())
         return {};
 
-    return target->dom_node;
+    return target->dom_node();
 }
 
 GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visual_viewport_position) const
@@ -2685,7 +2686,7 @@ bool EventHandler::select_word_for_dictionary_lookup(CSSPixelPoint visual_viewpo
     if (!target_layout_node)
         return false;
 
-    if (auto dispatch_result = dispatch_event_to_nested_navigable(*target_layout_node, result->dom_node, visual_viewport_position, nullptr, [](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+    if (auto dispatch_result = dispatch_event_to_nested_navigable(*target_layout_node, result->dom_node(), visual_viewport_position, nullptr, [](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
             return event_handler.select_word_for_dictionary_lookup(position) ? EventResult::Handled : EventResult::Dropped;
         });
         dispatch_result.has_value()) {
