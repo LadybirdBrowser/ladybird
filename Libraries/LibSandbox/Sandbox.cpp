@@ -352,6 +352,16 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
 )~~~"sv);
     }
 
+    // CoreGraphics and CoreVideo reach the window server for anything about displays. Without it,
+    // CGGetActiveDisplayList() reports no displays and CVDisplayLinkCreateWithCGDisplay() fails with
+    // kCVReturnInvalidDisplay. The GPU processes of Chromium and WebKit allow the same service.
+    if (has_flag(options.system_services, SystemService::Display)) {
+        builder.append(R"~~~(
+(allow mach-lookup
+    (global-name "com.apple.windowserver.active"))
+)~~~"sv);
+    }
+
     return {};
 }
 

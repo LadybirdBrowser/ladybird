@@ -322,6 +322,18 @@ TEST_CASE(sandboxed_process_looks_up_only_its_own_mach_server)
     EXPECT_EQ(run_sandboxed({ .mach_server_name = browser_endpoint }, [&] { return can_look_up_bootstrap_service("com.apple.pasteboard.1"); }), Outcome::Denied);
 }
 
+TEST_CASE(sandboxed_process_reaches_the_window_server_only_when_granted)
+{
+    // Only a process in a GUI login session sees the window server at all.
+    if (!can_look_up_bootstrap_service("com.apple.windowserver.active")) {
+        warnln("Skipping: the window server is not reachable from this session");
+        return;
+    }
+
+    EXPECT_EQ(run_sandboxed({}, [] { return can_look_up_bootstrap_service("com.apple.windowserver.active"); }), Outcome::Denied);
+    EXPECT_EQ(run_sandboxed({ .system_services = Sandbox::SystemService::Display }, [] { return can_look_up_bootstrap_service("com.apple.windowserver.active"); }), Outcome::Allowed);
+}
+
 TEST_CASE(sandboxed_process_cannot_obtain_task_ports_for_other_processes)
 {
     auto parent = getpid();
