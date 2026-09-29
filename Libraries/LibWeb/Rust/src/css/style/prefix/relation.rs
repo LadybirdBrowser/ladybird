@@ -87,16 +87,22 @@ impl PrefixRelationProgram {
 
 /// The positions a compound or a step holds, which the relation asks about far more often than it changes. Most sets
 /// hold none or a handful: a set is listed in ascending order while that takes less room than a bitmap up to its last
-/// position, and is that bitmap, which answers with one load, once it takes more. A set that never held a position takes
-/// only its slot in the dense table of sets.
-#[derive(Default)]
-struct PositionSet(Option<Box<Positions>>);
-
-enum Positions {
+/// position, and is that bitmap, which answers with one load, once it takes more. The set lives in the dense table of
+/// sets, so asking it reads its buffer and nothing else; a set that never held a position allocates nothing.
+enum PositionSet {
     /// Ascending.
     Listed(Vec<u32>),
     /// Bit `position % 64` of word `position / 64` for each position, and how many there are.
-    Bits { words: Vec<u64>, len: usize },
+    Bits { words: Vec<u64>, len: u32 },
+}
+
+// The dense table holds a set per compound and per step, most of them empty.
+const _: () = assert!(size_of::<PositionSet>() == 32);
+
+impl Default for PositionSet {
+    fn default() -> Self {
+        Self::Listed(Vec::new())
+    }
 }
 
 impl FromIterator<usize> for PositionSet {
@@ -104,10 +110,7 @@ impl FromIterator<usize> for PositionSet {
     fn from_iter<I: IntoIterator<Item = usize>>(positions: I) -> Self {
         let list: Vec<u32> = positions.into_iter().map(position_u32).collect();
         debug_assert!(list.is_sorted());
-        if list.is_empty() {
-            return Self::default();
-        }
-        let mut set = Self(Some(Box::new(Positions::Listed(list))));
+        let mut set = Self::Listed(list);
         set.settle();
         set
     }
@@ -115,10 +118,9 @@ impl FromIterator<usize> for PositionSet {
 
 impl PositionSet {
     fn len(&self) -> usize {
-        match self.0.as_deref() {
-            None => 0,
-            Some(Positions::Listed(list)) => list.len(),
-            Some(Positions::Bits { len, .. }) => *len,
+        match self {
+            Self::Listed(list) => list.len(),
+            Self::Bits { len, .. } => *len as usize,
         }
     }
 
@@ -127,21 +129,17 @@ impl PositionSet {
     }
 
     fn contains(&self, position: usize) -> bool {
-        match self.0.as_deref() {
-            None => false,
-            Some(Positions::Listed(list)) => {
-                u32::try_from(position).is_ok_and(|position| list.binary_search(&position).is_ok())
-            }
-            Some(Positions::Bits { words, .. }) => has_bit(words, position),
+        match self {
+            Self::Listed(list) => u32::try_from(position).is_ok_and(|position| list.binary_search(&position).is_ok()),
+            Self::Bits { words, .. } => has_bit(words, position),
         }
     }
 
     /// The positions, ascending.
     fn iter(&self) -> impl Iterator<Item = usize> + '_ {
-        let (list, words): (&[u32], &[u64]) = match self.0.as_deref() {
-            None => (&[], &[]),
-            Some(Positions::Listed(list)) => (list, &[]),
-            Some(Positions::Bits { words, .. }) => (&[], words),
+        let (list, words): (&[u32], &[u64]) = match self {
+            Self::Listed(list) => (list, &[]),
+            Self::Bits { words, .. } => (&[], words),
         };
         list.iter().map(|&position| position as usize).chain(
             words
@@ -154,14 +152,13 @@ impl PositionSet {
     /// Removes the `departed` positions, which `live` no longer holds, returning whether the set held any. A list
     /// keeps what is live; a bitmap clears the departed.
     fn remove_departed(&mut self, departed: &[usize], live: &[bool]) -> bool {
-        match self.0.as_deref_mut() {
-            None => false,
-            Some(Positions::Listed(list)) => {
+        match self {
+            Self::Listed(list) => {
                 let before = list.len();
                 list.retain(|&position| live[position as usize]);
                 list.len() != before
             }
-            Some(Positions::Bits { words, len }) => {
+            Self::Bits { words, len } => {
                 let before = *len;
                 for &position in departed {
                     if has_bit(words, position) {
@@ -176,10 +173,9 @@ impl PositionSet {
 
     /// Empties the set into `into`, in ascending order. The set keeps its buffer.
     fn drain_into(&mut self, into: &mut Vec<usize>) {
-        match self.0.as_deref_mut() {
-            None => {}
-            Some(Positions::Listed(list)) => into.extend(list.drain(..).map(|position| position as usize)),
-            Some(Positions::Bits { words, len }) => {
+        match self {
+            Self::Listed(list) => into.extend(list.drain(..).map(|position| position as usize)),
+            Self::Bits { words, len } => {
                 for (index, word) in words.iter_mut().enumerate() {
                     into.extend(set_bits(index, std::mem::take(word)));
                 }
@@ -193,13 +189,9 @@ impl PositionSet {
         let Some(&last) = changes.last() else {
             return;
         };
-        match self
-            .0
-            .get_or_insert_with(|| Box::new(Positions::Listed(Vec::new())))
-            .as_mut()
-        {
-            Positions::Listed(list) => toggle_listed(list, changes),
-            Positions::Bits { words, len } => {
+        match self {
+            Self::Listed(list) => toggle_listed(list, changes),
+            Self::Bits { words, len } => {
                 if words.len() <= last / 64 {
                     words.resize(last / 64 + 1, 0);
                 }
@@ -222,11 +214,8 @@ impl PositionSet {
     /// to the last of them, and listed again once they take less than half the bitmap, so that a set whose size wavers
     /// around the bound does not convert back and forth.
     fn settle(&mut self) {
-        let Some(positions) = self.0.as_deref_mut() else {
-            return;
-        };
-        match positions {
-            Positions::Listed(list) => {
+        match self {
+            Self::Listed(list) => {
                 let Some(&last) = list.last() else {
                     return;
                 };
@@ -238,10 +227,11 @@ impl PositionSet {
                 for &position in list.iter() {
                     words[position as usize / 64] |= 1 << (position % 64);
                 }
-                *positions = Positions::Bits { words, len: list.len() };
+                let len = position_u32(list.len());
+                *self = Self::Bits { words, len };
             }
-            Positions::Bits { words, len } => {
-                if 2 * *len * size_of::<u32>() >= size_of_val(words.as_slice()) {
+            Self::Bits { words, len } => {
+                if 2 * *len as usize * size_of::<u32>() >= size_of_val(words.as_slice()) {
                     return;
                 }
                 let list = words
@@ -250,7 +240,7 @@ impl PositionSet {
                     .flat_map(|(index, &word)| set_bits(index, word))
                     .map(position_u32)
                     .collect();
-                *positions = Positions::Listed(list);
+                *self = Self::Listed(list);
             }
         }
     }
@@ -258,13 +248,10 @@ impl PositionSet {
 
 impl ShallowCapacityBytes for PositionSet {
     fn shallow_capacity_bytes(&self) -> u64 {
-        self.0.as_deref().map_or(0, |positions| {
-            size_of::<Positions>() as u64
-                + match positions {
-                    Positions::Listed(list) => list.shallow_capacity_bytes(),
-                    Positions::Bits { words, .. } => words.shallow_capacity_bytes(),
-                }
-        })
+        match self {
+            Self::Listed(list) => list.shallow_capacity_bytes(),
+            Self::Bits { words, .. } => words.shallow_capacity_bytes(),
+        }
     }
 }
 
@@ -1713,11 +1700,11 @@ impl PendingPrefixSteps {
 
 #[cfg(test)]
 mod tests {
-    use super::{PendingPrefixSteps, PositionSet, Positions, PrefixWalkMemo, ShallowCapacityBytes, toggle_listed};
+    use super::{PendingPrefixSteps, PositionSet, PrefixWalkMemo, ShallowCapacityBytes, toggle_listed};
     use std::collections::BTreeSet;
 
     fn is_bitmap(set: &PositionSet) -> bool {
-        matches!(set.0.as_deref(), Some(Positions::Bits { .. }))
+        matches!(set, PositionSet::Bits { .. })
     }
 
     #[test]
@@ -1858,8 +1845,8 @@ mod tests {
 
     #[test]
     fn empty_memberships_allocate_on_first_use_and_retain_warm_buffers() {
-        let listed = |set: &PositionSet| match set.0.as_deref() {
-            Some(Positions::Listed(list)) => Some(list.as_ptr()),
+        let listed = |set: &PositionSet| match set {
+            PositionSet::Listed(list) => Some(list.as_ptr()),
             _ => None,
         };
         let mut members = PositionSet::default();
