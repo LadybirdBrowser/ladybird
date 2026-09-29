@@ -2635,8 +2635,8 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
 // https://w3c.github.io/webappsec-fetch-metadata/#abstract-opdef-set-dest
 void set_sec_fetch_dest_header(Infrastructure::Request& request)
 {
-    // 1. Assert: r’s url is a potentially trustworthy URL.
-    VERIFY(SecureContexts::is_url_potentially_trustworthy(request.url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy);
+    // 1. Assert: r’s current URL is a potentially trustworthy URL.
+    VERIFY(SecureContexts::is_url_potentially_trustworthy(request.current_url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy);
 
     // 2. Let header be a Structured Header whose value is a token.
     // FIXME: This is handled below, as Serenity doesn't have APIs for RFC 8941.
@@ -2653,8 +2653,8 @@ void set_sec_fetch_dest_header(Infrastructure::Request& request)
 // https://w3c.github.io/webappsec-fetch-metadata/#abstract-opdef-set-dest
 void set_sec_fetch_mode_header(Infrastructure::Request& request)
 {
-    // 1. Assert: r’s url is a potentially trustworthy URL.
-    VERIFY(SecureContexts::is_url_potentially_trustworthy(request.url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy);
+    // 1. Assert: r’s current URL is a potentially trustworthy URL.
+    VERIFY(SecureContexts::is_url_potentially_trustworthy(request.current_url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy);
 
     // 2. Let header be a Structured Header whose value is a token.
     // FIXME: This is handled below, as Serenity doesn't have APIs for RFC 8941.
@@ -2669,8 +2669,8 @@ void set_sec_fetch_mode_header(Infrastructure::Request& request)
 // https://w3c.github.io/webappsec-fetch-metadata/#abstract-opdef-set-site
 void set_sec_fetch_site_header(Infrastructure::Request& request)
 {
-    // 1. Assert: r’s url is a potentially trustworthy URL.
-    VERIFY(SecureContexts::is_url_potentially_trustworthy(request.url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy);
+    // 1. Assert: r’s current URL is a potentially trustworthy URL.
+    VERIFY(SecureContexts::is_url_potentially_trustworthy(request.current_url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy);
 
     // 2. Let header be a Structured Header whose value is a token.
     // FIXME: This is handled below, as Serenity doesn't have APIs for RFC 8941.
@@ -2712,8 +2712,8 @@ void set_sec_fetch_site_header(Infrastructure::Request& request)
 // https://w3c.github.io/webappsec-fetch-metadata/#abstract-opdef-set-user
 void set_sec_fetch_user_header(Infrastructure::Request& request)
 {
-    // 1. Assert: r’s url is a potentially trustworthy URL.
-    VERIFY(SecureContexts::is_url_potentially_trustworthy(request.url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy);
+    // 1. Assert: r’s current URL is a potentially trustworthy URL.
+    VERIFY(SecureContexts::is_url_potentially_trustworthy(request.current_url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy);
 
     // 2. If r is not a navigation request, or if r’s user-activation is false, return.
     if (!request.is_navigation_request() || !request.user_activation())
@@ -2847,8 +2847,8 @@ void append_user_agent_client_hints_for_request(Infrastructure::Request& request
 // https://w3c.github.io/webappsec-fetch-metadata/#abstract-opdef-append-the-fetch-metadata-headers-for-a-request
 void append_fetch_metadata_headers_for_request(Infrastructure::Request& request)
 {
-    // 1. If r’s url is not an potentially trustworthy URL, return.
-    if (SecureContexts::is_url_potentially_trustworthy(request.url()) != SecureContexts::Trustworthiness::PotentiallyTrustworthy)
+    // 1. If r’s current URL is not an potentially trustworthy URL, return.
+    if (SecureContexts::is_url_potentially_trustworthy(request.current_url()) != SecureContexts::Trustworthiness::PotentiallyTrustworthy)
         return;
 
     // 2. Set the Sec-Fetch-Dest header for r.
