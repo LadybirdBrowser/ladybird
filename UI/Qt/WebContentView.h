@@ -29,8 +29,7 @@
 #include <QVariant>
 
 #ifdef AK_OS_MACOS
-#    define LADYBIRD_QT_USE_METAL_RHI_WIDGET 1
-#    define LADYBIRD_QT_USE_RHI_WIDGET 1
+#    define LADYBIRD_QT_USE_IOSURFACE_LAYER 1
 #elif defined(USE_DIRECTX)
 #    define LADYBIRD_QT_USE_D3D_RHI_WIDGET 1
 #    define LADYBIRD_QT_USE_RHI_WIDGET 1
@@ -86,7 +85,7 @@ public:
     WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, Compositing::PageId page_index = 0, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
 
-#ifndef LADYBIRD_QT_USE_RHI_WIDGET
+#if !defined(LADYBIRD_QT_USE_RHI_WIDGET) && !defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
     virtual void paintEvent(QPaintEvent*) override;
 #endif
     virtual void resizeEvent(QResizeEvent*) override;
@@ -204,21 +203,15 @@ private:
     CrashOverlayUrlLabel* m_crash_overlay_url { nullptr };
     QPushButton* m_crash_overlay_reload_button { nullptr };
 
-#ifdef AK_OS_MACOS
-    bool prepare_metal_renderer(unsigned long render_target_pixel_format);
-    bool update_imported_iosurface_texture(Gfx::SharedImageBuffer const&);
-    void release_metal_resources();
-    void release_imported_iosurface_texture();
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    bool ensure_iosurface_layer_attached_to_native_view();
+    void present_current_paintable_as_layer_contents();
+    void update_iosurface_layer_frame();
+    void update_iosurface_layer_background_color();
+    void detach_iosurface_layer_from_native_view();
+    void destroy_iosurface_layer();
 
-    void* m_metal_device { nullptr };
-    void* m_metal_library { nullptr };
-    void* m_metal_pipeline_state { nullptr };
-    void* m_metal_sampler_state { nullptr };
-    void* m_imported_iosurface_texture { nullptr };
-    Gfx::SharedImageBuffer const* m_imported_shared_image_buffer { nullptr };
-    unsigned long m_render_target_pixel_format { 0 };
-
-    bool m_repaint_retry_scheduled { false };
+    void* m_iosurface_layer { nullptr };
 #endif
 
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
