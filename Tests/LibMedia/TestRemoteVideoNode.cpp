@@ -335,10 +335,9 @@ TEST_CASE(video_presentation_server_releases_playback_edge_when_connection_dies)
 
     auto manager = PlaybackManager::create();
     bool metadata_parsed = false;
-    manager->on_metadata_parsed = [&] {
+    manager->add_media_source(create_demuxer(load_test_file(TEST_CLIP)))->when_resolved([&](auto&) {
         metadata_parsed = true;
-    };
-    manager->add_media_source(create_demuxer(load_test_file(TEST_CLIP)));
+    });
     if (!spin_until(loop, [&] { return metadata_parsed; })) {
         FAIL("Timed out waiting for metadata");
         return;

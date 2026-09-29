@@ -308,7 +308,7 @@ void ConnectionFromClient::add_media_stream_source(u64 session_id, u64 stream_id
     auto* stream = find_media_stream(stream_id);
     if (!session || !stream)
         return;
-    session->manager().add_media_source(NonnullRefPtr<Media::MediaStream>(*stream));
+    session->add_media_stream_source(stream_id, NonnullRefPtr<Media::MediaStream>(*stream));
 }
 
 void ConnectionFromClient::start_playback(u64 session_id)

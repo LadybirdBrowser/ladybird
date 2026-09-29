@@ -22,21 +22,6 @@ PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id, Media
 {
     m_manager->set_audio_output(audio_output);
 
-    m_manager->on_track_added = [this](Media::Track const& track) {
-        m_tracks_added_since_last_metadata_report.append(track);
-    };
-    m_manager->on_metadata_parsed = [this] {
-        Vector<Media::Track> audio_tracks;
-        Vector<Media::Track> video_tracks;
-        for (auto const& track : m_tracks_added_since_last_metadata_report) {
-            if (track.type() == Media::TrackType::Audio)
-                audio_tracks.append(track);
-            else if (track.type() == Media::TrackType::Video)
-                video_tracks.append(track);
-        }
-        m_tracks_added_since_last_metadata_report.clear();
-        m_connection.async_playback_session_metadata_parsed(m_id, move(audio_tracks), move(video_tracks), m_manager->preferred_audio_track(), m_manager->preferred_video_track(), m_manager->start_time_realtime());
-    };
     m_manager->on_playback_state_change = [this] {
         report_playback_state();
     };
@@ -64,6 +49,17 @@ void PlaybackSession::report_playback_state()
 {
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackSession({}): Reporting {} playing={} available={} time={} after seek {}", m_id, m_manager->state(), m_manager->is_playing(), to_underlying(m_manager->available_data()), m_manager->current_time(), m_applied_seek_request_id);
     m_connection.async_playback_session_state_changed(m_id, m_applied_seek_request_id, m_manager->state(), m_manager->is_playing(), m_manager->available_data(), m_manager->current_time());
+}
+
+void PlaybackSession::add_media_stream_source(u64 stream_id, NonnullRefPtr<Media::MediaStream> const& stream)
+{
+    m_manager->add_media_source(stream)
+        ->when_resolved([this, stream_id](Media::PlaybackManager::AddedTracks& added_tracks) {
+            m_connection.async_playback_session_media_source_added(m_id, stream_id, move(added_tracks.audio_tracks), move(added_tracks.video_tracks), m_manager->preferred_audio_track(), m_manager->preferred_video_track(), m_manager->start_time_realtime());
+        })
+        .when_rejected([this, stream_id](Media::DecoderError& error) {
+            m_connection.async_playback_session_media_stream_source_failed(m_id, stream_id, move(error));
+        });
 }
 
 void PlaybackSession::seek(u64 seek_request_id, AK::Duration timestamp, Media::SeekMode mode)
@@ -107,6 +103,52 @@ void PlaybackSession::disable_video_sink(u64 seek_request_id, Media::VideoSinkHa
     report_playback_state();
 }
 
+void PlaybackSession::add_source_buffer_demuxer(u64 source_buffer_id, NonnullRefPtr<Media::Demuxer> const& demuxer)
+{
+    m_manager->add_media_source(demuxer)
+        ->when_resolved([this, source_buffer_id](Media::PlaybackManager::AddedTracks& added_tracks) {
+            m_connection.async_playback_session_media_source_added(m_id, {}, move(added_tracks.audio_tracks), move(added_tracks.video_tracks), m_manager->preferred_audio_track(), m_manager->preferred_video_track(), m_manager->start_time_realtime());
+            finish_source_buffer_track_addition(source_buffer_id, TrackAdditionOutcome::Added);
+        })
+        .when_rejected([this, source_buffer_id](Media::DecoderError& error) {
+            dbgln("PlaybackSession({}): Could not add the tracks of source buffer {}: {}", m_id, source_buffer_id, error.description());
+            finish_source_buffer_track_addition(source_buffer_id, TrackAdditionOutcome::Failed);
+        });
+}
+
+void PlaybackSession::finish_source_buffer_track_addition(u64 source_buffer_id, TrackAdditionOutcome outcome)
+{
+    auto* source_buffer = find_source_buffer(source_buffer_id);
+    if (!source_buffer)
+        return;
+    VERIFY(source_buffer->pending_track_additions > 0);
+    source_buffer->pending_track_additions--;
+    if (outcome == TrackAdditionOutcome::Failed)
+        source_buffer->track_addition_failed = true;
+    if (source_buffer->pending_track_additions > 0)
+        return;
+
+    auto held_messages = move(source_buffer->held_messages);
+    if (exchange(source_buffer->track_addition_failed, false)) {
+        // The segment's tracks cannot be played, so the append that delivered it fails, and nothing it produced is
+        // reported. The renderer's append error algorithm resets the parser.
+        auto failed_append_generation = source_buffer->first_initialization_segment_append_generation;
+        held_messages.remove_all_matching([&](auto const& message) { return message.append_generation == failed_append_generation; });
+        m_connection.async_source_buffer_append_failed(m_id, source_buffer_id, failed_append_generation, source_buffer->processor->published_state());
+    }
+    for (auto& message : held_messages)
+        message.send();
+}
+
+void PlaybackSession::send_or_hold(SourceBuffer& source_buffer, Optional<u64> append_generation, Function<void()> send)
+{
+    if (source_buffer.pending_track_additions == 0) {
+        send();
+        return;
+    }
+    source_buffer.held_messages.append({ append_generation, move(send) });
+}
+
 PlaybackSession::SourceBuffer* PlaybackSession::find_source_buffer(u64 source_buffer_id)
 {
     auto it = m_source_buffers.find(source_buffer_id);
@@ -127,27 +169,41 @@ void PlaybackSession::create_source_buffer(u64 source_buffer_id)
         m_connection.async_source_buffer_duration_received(m_id, source_buffer_id, duration);
     });
     processor->set_first_initialization_segment_callback([this, source_buffer_id](Media::MediaSourceExtensions::InitializationSegmentData&& segment) {
+        auto* source_buffer = find_source_buffer(source_buffer_id);
+        if (!source_buffer)
+            return;
+        source_buffer->first_initialization_segment_append_generation = source_buffer->append_generation;
+
         Vector<Media::Track> audio_tracks;
         Vector<Media::Track> video_tracks;
         Vector<Media::Track> text_tracks;
         for (auto const& track_data : segment.audio_tracks) {
             audio_tracks.append(track_data.track);
-            m_manager->add_media_source(track_data.demuxer);
+            source_buffer->pending_track_additions++;
+            add_source_buffer_demuxer(source_buffer_id, track_data.demuxer);
         }
         for (auto const& track_data : segment.video_tracks) {
             video_tracks.append(track_data.track);
-            m_manager->add_media_source(track_data.demuxer);
+            source_buffer->pending_track_additions++;
+            add_source_buffer_demuxer(source_buffer_id, track_data.demuxer);
         }
         for (auto const& track_data : segment.text_tracks)
             text_tracks.append(track_data.track);
-        m_connection.async_source_buffer_first_initialization_segment_received(m_id, source_buffer_id, move(audio_tracks), move(video_tracks), move(text_tracks));
+        send_or_hold(*source_buffer, source_buffer->append_generation, [this, source_buffer_id, audio_tracks = move(audio_tracks), video_tracks = move(video_tracks), text_tracks = move(text_tracks)] mutable {
+            m_connection.async_source_buffer_first_initialization_segment_received(m_id, source_buffer_id, move(audio_tracks), move(video_tracks), move(text_tracks));
+        });
     });
     processor->set_append_error_callback([this, source_buffer_id] {
         if (auto* source_buffer = find_source_buffer(source_buffer_id))
             source_buffer->append_outcome = AppendOutcome::Failed;
     });
     processor->set_coded_frame_processing_done_callback([this, source_buffer_id](AK::Duration group_end_timestamp) {
-        m_connection.async_source_buffer_coded_frames_processed(m_id, source_buffer_id, group_end_timestamp);
+        auto* source_buffer = find_source_buffer(source_buffer_id);
+        if (!source_buffer)
+            return;
+        send_or_hold(*source_buffer, source_buffer->append_generation, [this, source_buffer_id, group_end_timestamp] {
+            m_connection.async_source_buffer_coded_frames_processed(m_id, source_buffer_id, group_end_timestamp);
+        });
     });
     processor->set_append_done_callback([this, source_buffer_id] {
         if (auto* source_buffer = find_source_buffer(source_buffer_id))
@@ -203,18 +259,24 @@ void PlaybackSession::run_source_buffer_append(u64 source_buffer_id, u64 append_
     source_buffer->processor->run(Commands::CodedFrameEviction { data.size(), m_manager->current_time() });
 
     source_buffer->append_outcome = AppendOutcome::Pending;
+    source_buffer->append_generation = append_generation;
     source_buffer->processor->run(Commands::BufferAppend { move(data) });
 
     // The callbacks run within the append and may have destroyed this source buffer's entry.
     source_buffer = find_source_buffer(source_buffer_id);
     if (!source_buffer)
         return;
+    auto state = source_buffer->processor->published_state();
     switch (source_buffer->append_outcome) {
     case AppendOutcome::Completed:
-        m_connection.async_source_buffer_append_completed(m_id, source_buffer_id, append_generation, source_buffer->processor->published_state());
+        send_or_hold(*source_buffer, append_generation, [this, source_buffer_id, append_generation, state = move(state)] mutable {
+            m_connection.async_source_buffer_append_completed(m_id, source_buffer_id, append_generation, move(state));
+        });
         break;
     case AppendOutcome::Failed:
-        m_connection.async_source_buffer_append_failed(m_id, source_buffer_id, append_generation, source_buffer->processor->published_state());
+        send_or_hold(*source_buffer, append_generation, [this, source_buffer_id, append_generation, state = move(state)] mutable {
+            m_connection.async_source_buffer_append_failed(m_id, source_buffer_id, append_generation, move(state));
+        });
         break;
     case AppendOutcome::Pending:
         VERIFY_NOT_REACHED();
@@ -227,7 +289,9 @@ void PlaybackSession::remove_source_buffer_coded_frames(u64 source_buffer_id, AK
     if (!source_buffer)
         return;
     source_buffer->processor->run(Commands::CodedFrameRemoval { start, end });
-    m_connection.async_source_buffer_removal_completed(m_id, source_buffer_id, source_buffer->processor->published_state());
+    send_or_hold(*source_buffer, {}, [this, source_buffer_id, state = source_buffer->processor->published_state()] mutable {
+        m_connection.async_source_buffer_removal_completed(m_id, source_buffer_id, move(state));
+    });
 }
 
 void PlaybackSession::run_source_buffer_command(u64 source_buffer_id, Media::MediaSourceExtensions::Command command)

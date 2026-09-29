@@ -18,6 +18,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Promise.h>
 #include <LibMedia/AudioOutput.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
@@ -103,15 +104,19 @@ public:
     void set_volume(double);
     void set_playback_rate(float);
 
-    Function<void()> on_metadata_parsed;
-    Function<void(Track const&)> on_track_added;
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
     Function<void(DecoderError&&)> on_error;
 
-    void add_media_source(NonnullRefPtr<MediaStream> const&);
-    void add_media_source(NonnullRefPtr<Demuxer> const&);
+    struct AddedTracks {
+        Vector<Track> audio_tracks;
+        Vector<Track> video_tracks;
+    };
+    // Settles on the thread that added the source, once its metadata is parsed and its tracks are added.
+    using AddMediaSourcePromise = Core::Promise<AddedTracks, DecoderError>;
+    NonnullRefPtr<AddMediaSourcePromise> add_media_source(NonnullRefPtr<MediaStream> const&);
+    NonnullRefPtr<AddMediaSourcePromise> add_media_source(NonnullRefPtr<Demuxer> const&);
 
     struct RemoteVideoEdge {
         NonnullRefPtr<RemoteVideoSink> sink;
@@ -186,7 +191,7 @@ private:
     PipelineStatus combined_pipeline_status() const;
     void check_for_demuxed_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
-    static void dispatch_media_init_error(WeakPlaybackManager, Core::EventLoop& main_thread_event_loop, DecoderError);
+    static void reject_media_source(WeakPlaybackManager, NonnullRefPtr<AddMediaSourcePromise>&&, Core::EventLoop& main_thread_event_loop, DecoderError);
     void dispatch_buffered_ranges_change();
 
     template<typename Self>
@@ -227,7 +232,7 @@ private:
         VERIFY_NOT_REACHED();
     }
 
-    static DecoderErrorOr<void> prepare_playback_from_demuxer(WeakPlaybackManager const&, NonnullRefPtr<Demuxer> const&, Core::EventLoop&);
+    static DecoderErrorOr<void> prepare_playback_from_demuxer(WeakPlaybackManager const&, NonnullRefPtr<Demuxer> const&, Core::EventLoop&, NonnullRefPtr<AddMediaSourcePromise>&);
 
     template<typename T, typename... Args>
     void replace_state_handler(Args&&... args);

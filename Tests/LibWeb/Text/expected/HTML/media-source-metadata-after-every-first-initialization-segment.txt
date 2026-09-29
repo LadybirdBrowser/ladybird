@@ -1,0 +1,6 @@
+audio append done: readyState=HAVE_NOTHING
+later: readyState=HAVE_NOTHING
+loadedmetadata: readyState=HAVE_METADATA
+video append done: readyState=HAVE_METADATA
+enabled audio tracks: 1
+selected video tracks: 1
