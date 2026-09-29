@@ -87,8 +87,22 @@ static ErrorOr<GpuBackingStore> create_shared_gpu_backing_store(Gfx::IntSize siz
 }
 #endif
 
+// A published store is released by the UI when it presents the next one, but on macOS the UI hands the
+// surface itself to the window server, which keeps reading it until it has composited the replacement.
+// A third store lets the compositor keep rendering through that window instead of waiting for it.
+static size_t backing_store_count_for(bool should_publish)
+{
+#ifdef AK_OS_MACOS
+    if (should_publish)
+        return 3;
+#else
+    (void)should_publish;
+#endif
+    return 2;
+}
+
 Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_stores_if_needed(
-    Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
+    Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress, bool should_publish)
 {
     if (viewport_size.is_empty())
         return {};
@@ -106,9 +120,10 @@ Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_st
 
     if (force_reallocate || m_allocated_size.is_empty() || !m_allocated_size.contains(minimum_needed_size)) {
         m_allocated_size = minimum_needed_size;
+        auto buffer_count = backing_store_count_for(should_publish);
         Vector<i32> bitmap_ids;
-        bitmap_ids.ensure_capacity(2);
-        for (size_t i = 0; i < 2; ++i)
+        bitmap_ids.ensure_capacity(buffer_count);
+        for (size_t i = 0; i < buffer_count; ++i)
             bitmap_ids.append(m_next_bitmap_id++);
         return Allocation { .size = minimum_needed_size, .bitmap_ids = move(bitmap_ids) };
     }
@@ -132,6 +147,7 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
         for (size_t i = 0; i < buffer_count; ++i) {
             m_backing_stores.append({
                 .surface = Gfx::PaintingSurface::create_with_size(allocation.size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, skia_backend_context),
+                .published_shared_image_buffer = nullptr,
                 .bitmap_id = allocation.bitmap_ids[i],
                 .state = BufferState::Available,
                 .accumulated_damage = { {}, allocation.size },
@@ -162,6 +178,7 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
             auto store = backing_store.release_value();
             m_backing_stores.append({
                 .surface = move(store.surface),
+                .published_shared_image_buffer = nullptr,
                 .bitmap_id = allocation.bitmap_ids[i],
                 .state = initial_buffer_state(i),
                 .accumulated_damage = { {}, allocation.size },
@@ -183,10 +200,12 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
     Vector<Gfx::SharedImage> shared_images;
     shared_images.ensure_capacity(buffer_count);
     for (size_t i = 0; i < buffer_count; ++i) {
-        auto buffer = Gfx::SharedImageBuffer::create(allocation.size);
-        shared_images.append(buffer.export_shared_image());
+        auto shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(allocation.size));
+        shared_images.append(shared_image_buffer->export_shared_image());
+        auto surface = create_shareable_bitmap_backing_store(allocation.size, *shared_image_buffer, skia_backend_context);
         m_backing_stores.append({
-            .surface = create_shareable_bitmap_backing_store(allocation.size, buffer, skia_backend_context),
+            .surface = move(surface),
+            .published_shared_image_buffer = move(shared_image_buffer),
             .bitmap_id = allocation.bitmap_ids[i],
             .state = initial_buffer_state(i),
             .accumulated_damage = { {}, allocation.size },
@@ -204,9 +223,26 @@ bool BackingStoreManager::is_valid() const
     return !m_backing_stores.is_empty();
 }
 
+bool BackingStoreManager::published_surface_is_in_use(BackingStore const& store)
+{
+#ifdef AK_OS_MACOS
+    // The send right exported to the UI counts as use as well, so a freshly published store reads as in use until
+    // the UI has imported it.
+    return store.published_shared_image_buffer && store.published_shared_image_buffer->iosurface_handle().is_in_use();
+#else
+    (void)store;
+    return false;
+#endif
+}
+
+bool BackingStoreManager::store_can_be_rendered_into(BackingStore const& store)
+{
+    return store.state == BufferState::Available && !published_surface_is_in_use(store);
+}
+
 bool BackingStoreManager::has_available_buffer() const
 {
-    return any_of(m_backing_stores, [](auto const& store) { return store.state == BufferState::Available; });
+    return any_of(m_backing_stores, [](auto const& store) { return store_can_be_rendered_into(store); });
 }
 
 Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_target(Gfx::IntRect frame_damage)
@@ -217,7 +253,7 @@ Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_
 
     for (size_t i = 0; i < m_backing_stores.size(); ++i) {
         auto& store = m_backing_stores[i];
-        if (store.state != BufferState::Available)
+        if (!store_can_be_rendered_into(store))
             continue;
 
         store.state = BufferState::Rendering;

@@ -16,6 +16,7 @@
 #include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
+#include <LibGfx/SharedImageBuffer.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
@@ -42,6 +43,26 @@ struct TestWebContentClient final : public Compositor::CompositorStateWebContent
     Vector<Compositing::MouseEvent> forwarded_mouse_events;
 };
 
+// Importing consumes the send rights a publication carries. Until then they keep IOSurfaceIsInUse reporting the
+// surfaces as in use, exactly as they do for the UI process before it imports them.
+static Vector<Gfx::SharedImageBuffer> import_shared_images(Vector<Gfx::SharedImage>& shared_images)
+{
+    Vector<Gfx::SharedImageBuffer> shared_image_buffers;
+    for (auto& shared_image : shared_images)
+        shared_image_buffers.append(Gfx::SharedImageBuffer::import_from_shared_image(move(shared_image)));
+    shared_images.clear();
+    return shared_image_buffers;
+}
+
+#ifdef AK_OS_MACOS
+// The handle a presenting process would hold. Use counts are system-wide, so marking the surface in use through it
+// is what the compositor's own handle observes.
+static Core::IOSurfaceHandle handle_for_marking_in_use(Gfx::SharedImageBuffer const& shared_image_buffer)
+{
+    return Core::IOSurfaceHandle::from_ref(shared_image_buffer.iosurface_handle().core_foundation_pointer());
+}
+#endif
+
 struct TestCompositorClient final : public Compositor::CompositorStateClient {
     struct PresentedFrame {
         Gfx::IntRect content_rect;
@@ -49,9 +70,10 @@ struct TestCompositorClient final : public Compositor::CompositorStateClient {
         i32 bitmap_id { 0 };
     };
 
-    virtual void did_allocate_backing_stores(Compositing::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&&) override
+    virtual void did_allocate_backing_stores(Compositing::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& shared_images) override
     {
         allocated_bitmap_ids = move(bitmap_ids);
+        allocated_shared_image_buffers = import_shared_images(shared_images);
     }
 
     virtual void did_present_frame(Compositing::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) override
@@ -70,6 +92,7 @@ struct TestCompositorClient final : public Compositor::CompositorStateClient {
     }
 
     Vector<i32> allocated_bitmap_ids;
+    Vector<Gfx::SharedImageBuffer> allocated_shared_image_buffers;
     Vector<PresentedFrame> presented_frames;
     Vector<u64> consumed_input_event_ids;
     Vector<u64> undispatched_input_event_ids;
@@ -247,6 +270,7 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
     context.viewport_size_updated(viewport_rect.size(), Compositing::WindowResizingInProgress::No);
     auto publication = context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed);
     VERIFY(publication.has_value());
+    auto imported_backing_stores = import_shared_images(publication->shared_images);
 
     auto paint_frame = [&](NonnullRefPtr<Compositing::DisplayList> display_list) {
         context.install_display_list_update(move(display_list), visual_context_tree, {});
@@ -254,7 +278,7 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
         EXPECT(context.present_synchronously(display_list_player, nullptr));
     };
 
-    // Paint both backing stores red before reusing the first one for a frame with no commands.
+    // Paint the first two backing stores red before reusing the first one for a frame with no commands.
     paint_frame(make_display_list(visual_context_tree, Gfx::Color::Red));
     EXPECT(context.acknowledge_presented_bitmap(publication->bitmap_ids[0]));
     paint_frame(make_display_list(visual_context_tree, Gfx::Color::Red));
@@ -322,7 +346,7 @@ TEST_CASE(pinch_zoom_copies_the_visual_context_tree_once_per_update)
 TEST_CASE(oversized_backing_stores_are_rejected)
 {
     Compositor::BackingStoreManager manager;
-    auto allocation = manager.resize_backing_stores_if_needed({ 40'000, 40'000 }, Compositing::WindowResizingInProgress::No);
+    auto allocation = manager.resize_backing_stores_if_needed({ 40'000, 40'000 }, Compositing::WindowResizingInProgress::No, true);
     VERIFY(allocation.has_value());
 
     auto publication = manager.allocate_backing_stores(*allocation, {}, true, Compositor::BackingStoreManager::GpuSharing::Disallowed);
@@ -330,6 +354,51 @@ TEST_CASE(oversized_backing_stores_are_rejected)
     EXPECT(!publication.has_value());
     EXPECT(!manager.is_valid());
 }
+
+#ifdef AK_OS_MACOS
+TEST_CASE(a_released_backing_store_is_not_reused_while_its_surface_is_in_use)
+{
+    Compositor::BackingStoreManager manager;
+    auto allocation = manager.resize_backing_stores_if_needed({ 4, 4 }, Compositing::WindowResizingInProgress::No, true);
+    VERIFY(allocation.has_value());
+    auto publication = manager.allocate_backing_stores(*allocation, {}, true, Compositor::BackingStoreManager::GpuSharing::Disallowed);
+    VERIFY(publication.has_value());
+    EXPECT_EQ(publication->bitmap_ids.size(), 3u);
+
+    auto imported_backing_stores = import_shared_images(publication->shared_images);
+    Vector<Core::IOSurfaceHandle> surfaces_as_seen_by_the_presenting_process;
+    for (auto const& shared_image_buffer : imported_backing_stores)
+        surfaces_as_seen_by_the_presenting_process.append(handle_for_marking_in_use(shared_image_buffer));
+    for (auto const& surface : surfaces_as_seen_by_the_presenting_process)
+        EXPECT(!surface.is_in_use());
+
+    // The first store is reserved as the initial front buffer; the window server keeps reading the other two.
+    surfaces_as_seen_by_the_presenting_process[1].increment_use_count();
+    surfaces_as_seen_by_the_presenting_process[2].increment_use_count();
+    EXPECT(!manager.has_available_buffer());
+    EXPECT(!manager.acquire_render_target({}).has_value());
+
+    surfaces_as_seen_by_the_presenting_process[2].decrement_use_count();
+    EXPECT(manager.has_available_buffer());
+    auto render_target_skipping_the_surface_in_use = manager.acquire_render_target({});
+    VERIFY(render_target_skipping_the_surface_in_use.has_value());
+    EXPECT_EQ(render_target_skipping_the_surface_in_use->bitmap_id, publication->bitmap_ids[2]);
+    manager.complete_rendering(publication->bitmap_ids[2], true);
+    EXPECT(!manager.has_available_buffer());
+
+    VERIFY(manager.release_buffer(publication->bitmap_ids[0]));
+    EXPECT(manager.has_available_buffer());
+    surfaces_as_seen_by_the_presenting_process[0].increment_use_count();
+    EXPECT(!manager.has_available_buffer());
+    surfaces_as_seen_by_the_presenting_process[0].decrement_use_count();
+    surfaces_as_seen_by_the_presenting_process[1].decrement_use_count();
+    auto lowest_reusable_render_target = manager.acquire_render_target({});
+    VERIFY(lowest_reusable_render_target.has_value());
+    EXPECT_EQ(lowest_reusable_render_target->bitmap_id, publication->bitmap_ids[0]);
+    manager.complete_rendering(publication->bitmap_ids[0], true);
+}
+#endif
+
 TEST_CASE(viewport_scrollbar_collapses_when_drag_is_released_away_from_scrollbar)
 {
     TestWebContentClient client;
@@ -1330,6 +1399,24 @@ struct PresentingContextFixture {
         compositor_state->present_frame(context_id, rect.value_or(viewport_rect));
         return wait_for_frame(already_presented);
     }
+
+    TestCompositorClient::PresentedFrame present_without_releasing(Gfx::IntRect rect)
+    {
+        auto already_presented = compositor_client.presented_frames.size();
+        compositor_state->present_frame(context_id, rect);
+        compositor_state->present_pending_frames_for_testing();
+        VERIFY(spin_event_loop_until(event_loop, 2000, [&] { return compositor_client.presented_frames.size() > already_presented; }));
+        return compositor_client.presented_frames.last();
+    }
+
+#ifdef AK_OS_MACOS
+    Core::IOSurfaceHandle handle_for_marking_in_use(i32 bitmap_id)
+    {
+        auto index = compositor_client.allocated_bitmap_ids.find_first_index(bitmap_id);
+        VERIFY(index.has_value());
+        return ::handle_for_marking_in_use(compositor_client.allocated_shared_image_buffers[*index]);
+    }
+#endif
 };
 
 struct RasterizingContextFixture {
@@ -1538,29 +1625,79 @@ TEST_CASE(resize_frames_coalesce_while_waiting_for_a_backing_store)
     auto visual_context_tree = make_visual_context_tree();
     fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
 
-    fixture.compositor_state->present_frame(fixture.context_id, fixture.viewport_rect);
-    EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 1u);
-    VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() == 1; }));
+    // The client holds the initial front buffer and every buffer it is presented afterwards, so one frame per
+    // remaining buffer leaves the compositor nothing to render into.
+    auto buffer_count = fixture.compositor_client.allocated_bitmap_ids.size();
+    for (size_t presented = 0; presented + 1 < buffer_count; ++presented) {
+        fixture.compositor_state->present_frame(fixture.context_id, { 0, static_cast<int>(presented), 32, 32 });
+        EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 1u);
+        VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() == presented + 1; }));
+    }
 
-    // Keep both buffers held by the client while newer content rectangles arrive.
+    // Newer content rectangles arriving while every buffer is held coalesce into one pending frame.
     fixture.compositor_state->present_frame(fixture.context_id, { 0, 5, 32, 32 });
     Gfx::IntRect latest_viewport_rect { 0, 10, 32, 32 };
     fixture.compositor_state->present_frame(fixture.context_id, latest_viewport_rect);
     fixture.compositor_state->present_pending_frames_for_testing();
     EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 0u);
-    EXPECT_EQ(fixture.compositor_client.presented_frames.size(), 1u);
+    EXPECT_EQ(fixture.compositor_client.presented_frames.size(), buffer_count - 1);
 
     fixture.compositor_state->presented_bitmap_ready_to_paint(fixture.context_id, fixture.compositor_client.allocated_bitmap_ids[0]);
     fixture.compositor_state->present_pending_frames_for_testing();
     EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 1u);
-    VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() == 2; }));
+    VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() == buffer_count; }));
     EXPECT_EQ(fixture.compositor_client.presented_frames.last().content_rect, latest_viewport_rect);
 
     fixture.release_all_buffers();
     fixture.compositor_state->present_pending_frames_for_testing();
     EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 0u);
-    EXPECT_EQ(fixture.compositor_client.presented_frames.size(), 2u);
+    EXPECT_EQ(fixture.compositor_client.presented_frames.size(), buffer_count);
 }
+
+#ifdef AK_OS_MACOS
+TEST_CASE(a_released_buffer_the_window_server_still_reads_keeps_the_scheduled_frame_pending)
+{
+    PresentingContextFixture fixture;
+    fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
+    EXPECT_EQ(fixture.compositor_client.allocated_bitmap_ids.size(), 3u);
+
+    // The client releases each presented buffer right away, but the window server keeps reading it, so every present
+    // has to skip the buffers released before it.
+    Vector<Core::IOSurfaceHandle> surfaces_still_read_by_the_window_server;
+    Vector<i32> presented_bitmap_ids;
+    for (int frame_index = 0; frame_index < 3; ++frame_index) {
+        auto frame = fixture.present_without_releasing({ 0, frame_index, 16, 16 });
+        EXPECT(!presented_bitmap_ids.contains_slow(frame.bitmap_id));
+        presented_bitmap_ids.append(frame.bitmap_id);
+        auto surface = fixture.handle_for_marking_in_use(frame.bitmap_id);
+        EXPECT(!surface.is_in_use());
+        surface.increment_use_count();
+        surfaces_still_read_by_the_window_server.append(move(surface));
+        fixture.compositor_state->presented_bitmap_ready_to_paint(fixture.context_id, frame.bitmap_id);
+    }
+
+    Gfx::IntRect blocked_viewport_rect { 0, 8, 16, 16 };
+    fixture.compositor_state->present_frame(fixture.context_id, blocked_viewport_rect);
+    for (int tick = 0; tick < 3; ++tick) {
+        fixture.compositor_state->present_pending_frames_for_testing();
+        EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 0u);
+        EXPECT_EQ(fixture.compositor_client.presented_frames.size(), 3u);
+    }
+
+    // No further release message arrives; the next tick alone notices the window server let go of the first buffer.
+    surfaces_still_read_by_the_window_server[0].decrement_use_count();
+    fixture.compositor_state->present_pending_frames_for_testing();
+    EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 1u);
+    VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() == 4; }));
+    EXPECT_EQ(fixture.compositor_client.presented_frames.last().content_rect, blocked_viewport_rect);
+    EXPECT_EQ(fixture.compositor_client.presented_frames.last().bitmap_id, presented_bitmap_ids[0]);
+
+    for (auto& surface : surfaces_still_read_by_the_window_server.span().slice(1))
+        surface.decrement_use_count();
+}
+#endif
 
 TEST_CASE(screenshot_between_presents_does_not_advance_the_baseline)
 {
@@ -1612,8 +1749,7 @@ TEST_CASE(backing_store_resize_waits_for_render_completion)
     EXPECT_EQ(frame->rendered_surface->size(), fixture.viewport_rect.size());
 
     fixture.finish(*frame);
-    auto publication = fixture.context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed);
-    VERIFY(publication.has_value());
+    EXPECT(fixture.context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed).has_value());
     fixture.viewport_rect.set_size(resized_viewport_size);
     auto resized_frame = fixture.prepare();
     VERIFY(resized_frame.has_value());
