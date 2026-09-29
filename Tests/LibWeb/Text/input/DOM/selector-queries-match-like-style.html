@@ -67,6 +67,9 @@ test(() => {
     // :scope is the element a query is scoped to, and the document element when it is scoped to anything else.
     println(`:scope: document [${ids(document.querySelectorAll(":scope"))}] [${ids(document.querySelectorAll(":scope > body"))}] root [${ids(root.querySelectorAll(":scope > #html-foo"))}] fragment [${ids(fragment.querySelectorAll(":scope > i"))}]`);
 
+    const isolated = document.implementation.createHTMLDocument("");
+    println(`:scope first: document ${document.querySelector(":scope") === document.documentElement}, isolated ${isolated.querySelector(":scope") === isolated.documentElement}, isolated children ${isolated.querySelectorAll(":scope > body").length}`);
+
     // The children of a fragment have no parent element, but they are siblings all the same.
     println(`fragment children: :first-child [${ids(fragment.querySelectorAll(":first-child"))}] :nth-child(2) [${ids(fragment.querySelectorAll(":nth-child(2)"))}] :last-of-type [${ids(fragment.querySelectorAll(":last-of-type"))}] .a ~ .c [${ids(fragment.querySelectorAll(".a ~ .c"))}] .a + b [${ids(fragment.querySelectorAll(".a + b"))}]`);
 });

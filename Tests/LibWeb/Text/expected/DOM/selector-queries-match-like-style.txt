@@ -5,5 +5,6 @@ foo: query [html-foo]
 :has(.a) > .x: style [] query []
 :host:has(.y) .x: style [shadow-y] query [shadow-y]
 :root: document [html] fragment [] detached false
-:scope: document [] [] root [html-foo] fragment []
+:scope: document [html] [body] root [html-foo] fragment []
+:scope first: document true, isolated true, isolated children 1
 fragment children: :first-child [i] :nth-child(2) [b] :last-of-type [b i] .a ~ .c [i] .a + b [b]
