@@ -413,7 +413,7 @@ WebIDL::ExceptionOr<void> Node::set_text_content(Optional<Utf16String> const& ma
 
     // Otherwise, do nothing.
 
-    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !unsafe_layout_node();
+    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !has_layout_box();
     if (is_connected() && !is_boxless_style_element)
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeSetTextContent);
 
@@ -1054,7 +1054,7 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
     if (any_of(nodes, [](auto const& node) { return node->is_connected(); }))
         run_post_connection_steps(nodes);
 
-    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !unsafe_layout_node();
+    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !has_layout_box();
     if (is_connected() && !is_boxless_style_element) {
         // NB: Called during DOM insertion, layout is not up to date.
         if (auto* element = as_if<Element>(*this); element && element->has_style() && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents() && parent_element()) {
@@ -1235,7 +1235,7 @@ void Node::run_node_iterator_pre_removing_steps()
 
 static bool node_contributes_to_layout_tree(Node const& node)
 {
-    if (node.unsafe_layout_node())
+    if (node.has_layout_box())
         return true;
 
     auto const* element = as_if<Element>(node);
@@ -3750,6 +3750,11 @@ size_t Node::length() const
 
     // 3. Return the number of node’s children.
     return child_count();
+}
+
+bool Node::is_rendered() const
+{
+    return m_layout_node && Painting::has_committed_box(*m_layout_node);
 }
 
 Layout::Node const* Node::layout_node() const
