@@ -2,3 +2,9 @@ position: 10px 20px
 position: 30px 40px
 variant: small-caps / no-common-ligatures
 variant: all-small-caps / common-ligatures
+background: 10px 20px
+background: 30px 40px
+font: normal / small-caps
+font: italic / small-caps
+border: 1px solid / 1px solid
+border: 2px solid / 2px solid
