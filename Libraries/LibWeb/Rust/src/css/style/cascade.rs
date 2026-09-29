@@ -1706,12 +1706,25 @@ impl WinnerGroups {
             property: winner.property,
             key: winner.key,
         });
+        // Neighboring winners mostly come from the same declaration block and share its priority,
+        // so each run of equal priorities is interned once.
+        let mut last_priority = None;
         let provenance: SmallVec<[_; WINNER_GROUP_PROPERTY_COUNT as usize]> = winners
             .iter()
-            .map(|winner| WinnerProvenance {
-                important: winner.important,
-                source: winner.source,
-                priority: self.intern_priority(winner.priority),
+            .map(|winner| {
+                let priority = match last_priority {
+                    Some((priority, id)) if priority == winner.priority => id,
+                    _ => {
+                        let id = self.intern_priority(winner.priority);
+                        last_priority = Some((winner.priority, id));
+                        id
+                    }
+                };
+                WinnerProvenance {
+                    important: winner.important,
+                    source: winner.source,
+                    priority,
+                }
             })
             .collect();
         let mut hasher = fast_hasher();
