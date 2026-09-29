@@ -22,10 +22,14 @@
         const activeTarget = document.createElement("div");
         activeTarget.style.transformOrigin = "center center 1px";
         document.body.append(activeTarget);
-        activeTarget.animate([
+        // The active animation runs on a timeline only this test moves, so it samples once per step here, however
+        // many display ticks land between the frames.
+        const activeTimeline = internals.createInternalAnimationTimeline();
+        const activeAnimation = new Animation(new KeyframeEffect(activeTarget, [
             { transform: "translateX(0px)" },
             { transform: "translateX(100px)" },
-        ], { duration: 100000, iterations: Infinity });
+        ], { duration: 100000, iterations: Infinity }), activeTimeline);
+        activeAnimation.play();
 
         const hiddenTarget = document.createElement("div");
         hiddenTarget.style.visibility = "hidden";
@@ -39,10 +43,12 @@
         for (let i = 0; i < 4; ++i)
             await nextFrame();
         internals.resetStyleInvalidationCounters();
-        for (let i = 0; i < 4; ++i)
+        for (let i = 1; i <= 4; ++i) {
+            activeTimeline.setTime(i * 1000);
             await nextFrame();
+        }
         const steadyCounters = internals.getStyleInvalidationCounters();
-        println(`completed effects stay out of animated style updates: ${steadyCounters.animatedStyleOverlayBuilds <= 6}`);
+        println(`completed effects stay out of animated style updates: ${steadyCounters.animatedStyleOverlayBuilds <= 4}`);
         println(`stable skip eligibility is cached: ${steadyCounters.animationStyleSkipCacheHits > 0}`);
 
         const unrelatedTarget = document.createElement("div");
@@ -63,13 +69,24 @@
         hiddenAnimation.effect.updateTiming({ iterations: Infinity });
         await nextFrame();
 
+        activeAnimation.cancel();
+        const hiddenTimeline = internals.createInternalAnimationTimeline();
+        hiddenAnimation.timeline = hiddenTimeline;
+        // Changing timelines preserves the start time, so align it with this timeline's origin.
+        hiddenAnimation.startTime = 0;
+        hiddenTimeline.setTime(0);
+        await nextFrame();
         const visibleChild = document.createElement("div");
         visibleChild.style.visibility = "visible";
         hiddenTarget.append(visibleChild);
-        internals.resetStyleInvalidationCounters();
-        for (let i = 0; i < 4; ++i)
+        let descendantUpdatesEveryStep = true;
+        for (let i = 1; i <= 4; ++i) {
+            internals.resetStyleInvalidationCounters();
+            hiddenTimeline.setTime(i * 1000);
             await nextFrame();
-        println(`descendant style changes invalidate skip eligibility: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 4}`);
+            descendantUpdatesEveryStep &&= internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds > 0;
+        }
+        println(`descendant style changes invalidate skip eligibility: ${descendantUpdatesEveryStep}`);
 
         const siblingTarget = document.createElement("div");
         siblingTarget.style.cssText = "opacity: 0; transform-origin: center center 1px";
