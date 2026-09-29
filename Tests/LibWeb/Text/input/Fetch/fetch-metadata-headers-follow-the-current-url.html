@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Fetch Metadata headers go only to a potentially trustworthy URL, and after a redirect it's the request's current
+    // URL that has to be one. 0.0.0.0 reaches the test server without being potentially trustworthy, as localhost is.
+    // The requests come from a popup on 0.0.0.0, since this page on localhost is a secure context, which mixed content
+    // checks would stop from requesting 0.0.0.0 at all.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const id = crypto.randomUUID();
+
+        function onHost(url, hostname) {
+            const result = new URL(url);
+            result.hostname = hostname;
+            return result.href;
+        }
+
+        async function redirectStart(name, fromHost, toHost) {
+            const target = await server.createEcho("GET", `/fetch-metadata-${name}-target-${id}`, {
+                status: 200,
+                headers: { "Content-Type": "text/plain" },
+                body: "target",
+            });
+            const start = await server.createEcho("GET", `/fetch-metadata-${name}-start-${id}`, {
+                status: 302,
+                headers: { "Location": onHost(target, toHost) },
+            });
+            return onHost(start, fromHost);
+        }
+
+        const starts = [
+            await redirectStart("trustworthy-to-not", "localhost", "0.0.0.0"),
+            await redirectStart("not-to-trustworthy", "0.0.0.0", "localhost"),
+        ];
+        // The responses are cross-origin and opaque, and may well be blocked; only the requests matter here.
+        const popupURL = await server.createEcho("GET", `/fetch-metadata-popup-${id}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                (async () => {
+                    for (const url of ${JSON.stringify(starts)})
+                        await fetch(url, { mode: "no-cors" }).catch(() => {});
+                    opener.postMessage("done", "*");
+                })();
+            <\/script>`,
+        });
+
+        window.addEventListener("message", async () => {
+            async function recorded(path) {
+                const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/${path}`);
+                return response.ok ? await response.json() : null;
+            }
+            function describe(headers) {
+                if (!headers)
+                    return "not fetched";
+                const names = Object.keys(headers).filter(name => name.toLowerCase().startsWith("sec-fetch-")).sort();
+                return names.length ? names.join(", ") : "no Sec-Fetch- headers";
+            }
+            for (const name of ["trustworthy-to-not", "not-to-trustworthy"]) {
+                const first = describe(await recorded(`fetch-metadata-${name}-start-${id}`));
+                const second = describe(await recorded(`fetch-metadata-${name}-target-${id}`));
+                println(`${name}: first hop ${first}; second hop ${second}`);
+            }
+            popup.close();
+            done();
+        }, { once: true });
+
+        const popup = window.open(onHost(popupURL, "0.0.0.0"));
+    });
+</script>

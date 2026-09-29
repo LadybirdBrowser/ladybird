@@ -1,0 +1,2 @@
+trustworthy-to-not: first hop Sec-Fetch-Dest, Sec-Fetch-Mode, Sec-Fetch-Site; second hop no Sec-Fetch- headers
+not-to-trustworthy: first hop no Sec-Fetch- headers; second hop Sec-Fetch-Dest, Sec-Fetch-Mode, Sec-Fetch-Site
