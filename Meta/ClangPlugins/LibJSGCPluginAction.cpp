@@ -371,6 +371,13 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         if (field->isAnonymousStructOrUnion())
             continue;
 
+        if (auto const* field_record = m_context.getBaseElementType(field->getType())->getAsCXXRecordDecl(); field_record && record_inherits_from_cell(*field_record)) {
+            auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "GC::Cell type %0 must be allocated with GC::Heap::allocate(), not stored by value");
+            auto builder = diag_engine.Report(field->getLocation(), diag_id);
+            builder << field_record->getName();
+            continue;
+        }
+
         auto validation_results = validate_field_qualified_type(field);
 
         if (validation_results) {
@@ -709,6 +716,22 @@ bool LibJSGCVisitor::VisitCXXMethodDecl(clang::CXXMethodDecl* method)
         builder << method_name;
     }
 
+    return true;
+}
+
+bool LibJSGCVisitor::VisitCXXConstructExpr(clang::CXXConstructExpr* construct_expression)
+{
+    if (construct_expression->getConstructionKind() != clang::CXXConstructionKind::Complete)
+        return true;
+
+    auto const* record = construct_expression->getConstructor()->getParent();
+    if (!record_inherits_from_cell(*record))
+        return true;
+
+    auto& diag_engine = m_context.getDiagnostics();
+    auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "GC::Cell type %0 must be allocated with GC::Heap::allocate()");
+    auto builder = diag_engine.Report(construct_expression->getBeginLoc(), diag_id);
+    builder << record->getName();
     return true;
 }
 
