@@ -147,7 +147,11 @@ public:
     template<typename Callback>
     void for_each_command_header(Callback callback) const
     {
-        for_each_command_header(command_bytes(), move(callback));
+        for (auto const& run : command_runs()) {
+            for_each_command_header(command_bytes_of_run(run), [&](auto const& header, auto payload) {
+                callback(run.context, header, payload);
+            });
+        }
     }
 
 private:
@@ -178,11 +182,8 @@ private:
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 };
 
-// The run table the Rust builder records while it writes the tape, derived from the tape alone;
-// tests build tapes by hand and debug builds check that both agree.
-COMPOSITING_API Vector<DisplayListCommandRun> compute_display_list_command_runs(ReadonlyBytes command_bytes);
-// Runs must start at offset zero, follow each other without gaps, stay aligned, end at the tape's
-// end, and under DISPLAY_LIST_RUNS_DEBUG match the table recomputed from the tape.
+// Runs must start at offset zero, follow each other without gaps, stay aligned, and end at the tape's
+// end. Under DISPLAY_LIST_RUNS_DEBUG their boundaries and summaries are checked against the commands.
 COMPOSITING_API ErrorOr<void> validate_display_list_command_runs(ReadonlyBytes command_bytes, ReadonlySpan<DisplayListCommandRun>);
 COMPOSITING_API ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const&, AccumulatedVisualContextTree const&);
 

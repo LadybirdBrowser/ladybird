@@ -5,7 +5,7 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::display_list::builder::{HEADER_SIZE, for_each_command, read_header};
+use crate::painting::display_list::builder::{HEADER_SIZE, RecordedDisplayList, for_each_command, read_header};
 use crate::painting::display_list::commands::*;
 use crate::painting::record::RecordingOutput;
 use crate::painting::record::trace::DamageSummary;
@@ -100,19 +100,25 @@ fn zero_resource_ids_minted_per_recording(command_type: DisplayListCommandType, 
 
 struct DecodedCommand<'a> {
     header: DisplayListCommandHeader,
+    context: ContextRef,
     offset: usize,
     payload: &'a [u8],
 }
 
-fn decode_commands(bytes: &[u8]) -> Vec<DecodedCommand<'_>> {
+fn decode_commands(recording: &RecordedDisplayList) -> Vec<DecodedCommand<'_>> {
     let mut commands = Vec::new();
-    for_each_command(bytes, |header, offset, payload| {
-        commands.push(DecodedCommand {
-            header: *header,
-            offset,
-            payload,
+    for run in &recording.command_runs {
+        let start = run.offset as usize;
+        let end = (run.offset + run.size) as usize;
+        for_each_command(&recording.bytes[start..end], |header, offset, payload| {
+            commands.push(DecodedCommand {
+                header: *header,
+                context: run.context,
+                offset: start + offset,
+                payload,
+            });
         });
-    });
+    }
     commands
 }
 
@@ -133,8 +139,8 @@ pub(crate) fn verify_assembled_recording_matches_fresh(
         .as_ref()
         .expect("verification needs the capture log of the assembled recording");
     let assembled_bytes = &assembled_recording.display_list.bytes;
-    let assembled_commands = decode_commands(assembled_bytes);
-    let from_scratch_commands = decode_commands(&recording_from_scratch.display_list.bytes);
+    let assembled_commands = decode_commands(&assembled_recording.display_list);
+    let from_scratch_commands = decode_commands(&recording_from_scratch.display_list);
 
     for (index, (assembled_command, from_scratch_command)) in
         assembled_commands.iter().zip(&from_scratch_commands).enumerate()
@@ -143,7 +149,10 @@ pub(crate) fn verify_assembled_recording_matches_fresh(
         let mut from_scratch_payload = from_scratch_command.payload.to_vec();
         zero_resource_ids_minted_per_recording(assembled_command.header.command_type, &mut assembled_payload);
         zero_resource_ids_minted_per_recording(from_scratch_command.header.command_type, &mut from_scratch_payload);
-        if assembled_command.header == from_scratch_command.header && assembled_payload == from_scratch_payload {
+        if assembled_command.context == from_scratch_command.context
+            && assembled_command.header == from_scratch_command.header
+            && assembled_payload == from_scratch_payload
+        {
             continue;
         }
         let first_differing_byte = assembled_payload
@@ -154,12 +163,14 @@ pub(crate) fn verify_assembled_recording_matches_fresh(
                 format!("payload byte {byte}")
             });
         panic!(
-            "assembled recording verification failed: command #{index} at offset {} (assembled {:?}, from scratch {:?}) differs at {}\n  enclosing capture: {}\n  header assembled:     {:?}\n  header from scratch:  {:?}\n  payload assembled:    {}\n  payload from scratch: {}",
+            "assembled recording verification failed: command #{index} at offset {} (assembled {:?}, from scratch {:?}) differs at {}\n  enclosing capture: {}\n  context assembled:    {:?}\n  context from scratch: {:?}\n  header assembled:     {:?}\n  header from scratch:  {:?}\n  payload assembled:    {}\n  payload from scratch: {}",
             assembled_command.offset,
             assembled_command.header.command_type,
             from_scratch_command.header.command_type,
             first_differing_byte,
             describe_enclosing_capture(&log.command_byte_captures, assembled_command.offset),
+            assembled_command.context,
+            from_scratch_command.context,
             assembled_command.header,
             from_scratch_command.header,
             hexdump(&assembled_payload),

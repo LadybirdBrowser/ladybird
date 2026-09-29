@@ -52,13 +52,13 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
         async_scrolling_state.device_pixels_per_css_pixel = metadata->device_pixels_per_css_pixel;
     }
 
-    auto read_compositor_metadata = [&](Compositing::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+    auto read_compositor_metadata = [&](Compositing::ContextRef context, Compositing::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         auto append_wheel_hit_test_target = [&](auto const& command, Gfx::CornerRadii corner_radii) {
             Optional<AsyncScrollNodeID> target_node_id;
             if (command.target_scroll_node_index.value())
                 target_node_id = scroll_node_id_for(command.document_id, command.target_scroll_node_index);
             async_scrolling_state.wheel_hit_test_targets.append({
-                .context = header.context,
+                .context = context,
                 .rect = command.rect,
                 .corner_radii = corner_radii,
                 .target_node_id = target_node_id,
@@ -71,7 +71,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
             auto command = Compositing::read_display_list_command_payload<Compositing::CompositorBlockingWheelEventRegion>(payload);
             async_scrolling_state.has_blocking_wheel_event_listeners = true;
             async_scrolling_state.blocking_wheel_event_regions.append({
-                .context = header.context,
+                .context = context,
                 .rect = command.rect,
             });
             break;
@@ -107,7 +107,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
         case Compositing::DisplayListCommandType::CompositorMainThreadWheelEventRegion: {
             auto command = Compositing::read_display_list_command_payload<Compositing::CompositorMainThreadWheelEventRegion>(payload);
             async_scrolling_state.main_thread_wheel_event_regions.append({
-                .context = header.context,
+                .context = context,
                 .rect = command.rect,
             });
             break;
@@ -118,7 +118,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
                 .scroll_node_id = scroll_node_id_for(command.document_id, command.scroll_node_index),
                 .scroller_stable_node_id = {},
                 .scroll_node_index = command.scroll_node_index,
-                .context = header.context,
+                .context = context,
                 .paint_order_index = next_paint_order_index++,
                 .gutter_rect = command.gutter_rect,
                 .thumb_rect = command.thumb_rect,
@@ -177,7 +177,9 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
     for (auto const& run : display_list.command_runs()) {
         if (!run.has_compositor_metadata)
             continue;
-        Compositing::DisplayList::for_each_command_header(display_list.command_bytes_of_run(run), read_compositor_metadata);
+        Compositing::DisplayList::for_each_command_header(display_list.command_bytes_of_run(run), [&](auto const& header, auto payload) {
+            read_compositor_metadata(run.context, header, payload);
+        });
     }
 
     for (auto& scrollbar : async_scrolling_state.scrollbars) {

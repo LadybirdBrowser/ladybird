@@ -36,7 +36,7 @@ struct AnimatedContentViewportEffect {
 
 // Whether the content the tree's animations move at the sample time can reach the viewport.
 COMPOSITING_API AnimatedContentViewportEffect animated_content_may_affect_viewport(
-    ReadonlyBytes display_list_commands,
+    DisplayList const&,
     AccumulatedVisualContextTree const&,
     ScrollStateSnapshot const&,
     Gfx::IntRect viewport_rect,

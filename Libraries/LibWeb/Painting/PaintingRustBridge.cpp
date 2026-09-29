@@ -405,6 +405,11 @@ Utf16String serialize_painting_dump(DOM::Document const& document, Compositing::
             *byte_count = bytes.size();
             return bytes.data();
         },
+        .command_runs = [](void*, void const* display_list_pointer, size_t* run_count) -> Compositing::DisplayListCommandRun const* {
+            auto runs = static_cast<Compositing::DisplayList const*>(display_list_pointer)->command_runs();
+            *run_count = runs.size();
+            return runs.data();
+        },
         .nested_display_list = [](void* context_pointer, u64 display_list_id) -> void const* {
             auto& context = *static_cast<DumpContext*>(context_pointer);
             return &context.resource_storage.display_list(Compositing::DisplayListResourceId { display_list_id });
