@@ -11,6 +11,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
+#include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
@@ -68,6 +69,18 @@ Optional<URL::URL> determine_requests_referrer(Fetch::Infrastructure::Request co
         [&](Fetch::Infrastructure::Request::Referrer referrer) -> Optional<URL::URL> {
             // Note: If request’s referrer is "no-referrer", Fetch will not call into this algorithm.
             VERIFY(referrer == Fetch::Infrastructure::Request::Referrer::Client);
+
+            // NB: A snapshot of an environment in another process — a navigation's fetch client, once the navigation
+            //     continues in the process hosting its target — has a global object from this process, so it answers
+            //     from the global object it was taken from.
+            if (auto const* snapshot = as_if<HTML::EnvironmentSettingsSnapshot>(*environment)) {
+                if (auto const* window = snapshot->serialized_global().get_pointer<HTML::SerializedWindow>()) {
+                    if (snapshot->origin().is_opaque())
+                        return {};
+                    return window->associated_document.url;
+                }
+                return environment->creation_url;
+            }
 
             // FIXME: Add a const global_object() getter to ESO
             auto& global_object = const_cast<HTML::EnvironmentSettingsObject&>(*environment).global_object();

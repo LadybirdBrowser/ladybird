@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A page that navigates a cross-site iframe hosted in another process is the navigation's referrer — rather than
+    // whatever document the iframe's own process was showing when the navigation continued there.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const pageOrigin = new URL(httpServer.baseURL).origin;
+        const runId = crypto.randomUUID();
+        const childHost = uniqueLocalhostHostname("oop-iframe-referrer");
+
+        async function echo(name) {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>",
+            }));
+            url.hostname = childHost;
+            return url;
+        }
+
+        const childUrl = await echo("oop-iframe-referrer-child");
+        const targetUrl = await echo("oop-iframe-referrer-target");
+
+        const iframe = document.createElement("iframe");
+        iframe.name = "child";
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        if (!await waitForCondition(() => internals.dumpSiteIsolationProcessTree().includes("remote"))) {
+            println("iframe did not become remote");
+            return;
+        }
+
+        const link = document.createElement("a");
+        link.href = targetUrl;
+        link.target = "child";
+        document.body.appendChild(link);
+        link.click();
+
+        const headersUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-iframe-referrer-target-${runId}`;
+        let headers = null;
+        for (let attempt = 0; attempt < 200 && headers === null; ++attempt) {
+            try {
+                const response = await fetch(headersUrl);
+                if (response.ok)
+                    headers = await response.json();
+            } catch {}
+            if (headers === null)
+                await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        const referer = headers?.["Referer"]?.[0];
+        println(`Referer: ${referer === undefined ? "(none)" : referer.replaceAll(pageOrigin, "<page-origin>").replaceAll(childUrl.origin, "<iframe-origin>")}`);
+    });
+</script>

@@ -32,6 +32,10 @@ public:
     virtual Optional<u64> agent_cluster_id() const override { return m_agent_cluster_id; }
     virtual double time_origin() const override { return m_time_origin; }
 
+    // The global object of the environment this was taken from, which its own global object isn't: A snapshot runs in
+    // a realm of the process it's used in.
+    SerializedGlobal const& serialized_global() const { return m_serialized_global; }
+
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -42,6 +46,7 @@ private:
     GC::Ref<PolicyContainer> m_policy_container;
     Optional<u64> m_agent_cluster_id;
     double m_time_origin { 0 };
+    SerializedGlobal m_serialized_global;
 };
 
 }
