@@ -10,6 +10,7 @@
 #include <AK/Error.h>
 #include <AK/MemoryStream.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/Span.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
@@ -35,6 +36,7 @@ public:
 
     [[nodiscard]] ByteBuffer clone_data() const;
     [[nodiscard]] ReadonlyBytes data() const;
+    [[nodiscard]] NonnullOwnPtr<Core::MappedFile> release_mapped_file();
     [[nodiscard]] FixedMemoryStream stream() const;
 
     [[nodiscard]] Vector<String> children() const;
@@ -61,7 +63,7 @@ private:
     String m_path; // Relative to scheme root. File: abspath, Resource: resource root
     Scheme m_scheme;
 
-    Variant<DirectoryTag, NonnullOwnPtr<Core::MappedFile>> m_data;
+    Variant<DirectoryTag, OwnPtr<Core::MappedFile>> m_data;
     time_t m_modified_time {};
 };
 
