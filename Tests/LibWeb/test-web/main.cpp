@@ -1080,6 +1080,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Compositing::D
         static constexpr Array support_file_patterns {
             "*/wpt-import/*/support/*"sv,
             "*/wpt-import/*/resources/*"sv,
+            "*/wpt-import/resources/*"sv,
             "*/wpt-import/common/*"sv,
             "*/wpt-import/images/*"sv,
         };
