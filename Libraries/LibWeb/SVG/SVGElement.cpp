@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -194,9 +196,33 @@ Vector<CSS::StyleProperty> const& SVGElement::presentation_attribute_style() con
     return *m_presentation_attribute_style;
 }
 
-RefPtr<CSS::StyleValue const> SVGElement::parse_presentation_attribute(CSS::PropertyID property_id, Utf16View value) const
+namespace {
+
+struct PresentationAttributeValueKey {
+    CSS::PropertyID property_id;
+    bool in_quirks_mode;
+    u32 value_hash;
+    Utf16String value;
+
+    static u32 hash(CSS::PropertyID property_id, bool in_quirks_mode, u32 value_hash)
+    {
+        return pair_int_hash(value_hash, (to_underlying(property_id) << 1) | in_quirks_mode);
+    }
+};
+
+struct PresentationAttributeValueKeyTraits : DefaultTraits<PresentationAttributeValueKey> {
+    static unsigned hash(PresentationAttributeValueKey const& key) { return PresentationAttributeValueKey::hash(key.property_id, key.in_quirks_mode, key.value_hash); }
+    static bool equals(PresentationAttributeValueKey const& a, PresentationAttributeValueKey const& b)
+    {
+        return a.property_id == b.property_id && a.in_quirks_mode == b.in_quirks_mode && a.value == b.value;
+    }
+};
+
+}
+
+static RefPtr<CSS::StyleValue const> parse_presentation_attribute_uncached(DOM::Document const& document, CSS::PropertyID property_id, Utf16View value)
 {
-    CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
+    CSS::Parser::ParsingParams parsing_context { document, CSS::Parser::ParsingMode::SVGPresentationAttribute };
     // NB: <path>'s `d` presentational attribute is a special case - the attribute and the CSS properties
     //     syntaxes differ with the attribute being a raw path string but the CSS property only accepting a
     //     path() function. To account for this we wrap the attribute value in a path function before parsing.
@@ -228,6 +254,30 @@ RefPtr<CSS::StyleValue const> SVGElement::parse_presentation_attribute(CSS::Prop
     }
 
     return parse_css_value(parsing_context, value, property_id);
+}
+
+// Every copy of an icon repeats its presentation attributes, and each copy that gets a style parses them. A value
+// without a function in it, like a path's data and a transform list, parses the same in any document of the same
+// mode, and a parsed value is immutable, so the copies share one.
+RefPtr<CSS::StyleValue const> SVGElement::parse_presentation_attribute(CSS::PropertyID property_id, Utf16View value) const
+{
+    if (property_id != CSS::PropertyID::D && property_id != CSS::PropertyID::Transform && value.contains(u'('))
+        return parse_presentation_attribute_uncached(document(), property_id, value);
+
+    static NeverDestroyed<HashMap<PresentationAttributeValueKey, RefPtr<CSS::StyleValue const>, PresentationAttributeValueKeyTraits>> s_values;
+    auto& values = *s_values;
+    auto const in_quirks_mode = document().in_quirks_mode();
+    auto const value_hash = value.hash();
+    auto hash = PresentationAttributeValueKey::hash(property_id, in_quirks_mode, value_hash);
+    if (auto it = values.find(hash, [&](auto const& entry) { return entry.key.property_id == property_id && entry.key.in_quirks_mode == in_quirks_mode && entry.key.value == value; }); it != values.end())
+        return it->value;
+
+    auto parsed = parse_presentation_attribute_uncached(document(), property_id, value);
+    // A page that generates its attributes would grow this without bound.
+    if (values.size() >= 4096)
+        values.clear();
+    values.set({ property_id, in_quirks_mode, value_hash, Utf16String::from_utf16(value) }, parsed);
+    return parsed;
 }
 
 void SVGElement::update_presentation_attribute_style(Utf16FlyString const& name, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
