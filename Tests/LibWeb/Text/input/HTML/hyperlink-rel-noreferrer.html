@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe name="target"></iframe>
+<script>
+    // Following a hyperlink navigates with its hyperlink referrer policy, which is "no-referrer" when its link types
+    // include noreferrer — whatever its referrerpolicy attribute says.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const id = crypto.randomUUID();
+        const frame = document.querySelector("iframe");
+
+        async function follow(name, attributes) {
+            const url = await server.createEcho("GET", `/hyperlink-${name}-${id}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>",
+            });
+            const link = document.createElement("a");
+            link.href = url;
+            link.target = "target";
+            for (const [attribute, value] of Object.entries(attributes))
+                link.setAttribute(attribute, value);
+            document.body.append(link);
+
+            const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+            link.click();
+            await loaded;
+
+            const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/hyperlink-${name}-${id}`);
+            const headers = response.ok ? await response.json() : null;
+            println(`${name}: Referer ${headers?.["Referer"] ? "sent" : "not sent"}`);
+        }
+
+        await follow("plain", {});
+        await follow("noreferrer", { rel: "noreferrer" });
+        await follow("noreferrer-among-others", { rel: "nofollow NoReferrer" });
+        await follow("noreferrer-over-referrerpolicy", { rel: "noreferrer", referrerpolicy: "unsafe-url" });
+        await follow("referrerpolicy-no-referrer", { referrerpolicy: "no-referrer" });
+        done();
+    });
+</script>

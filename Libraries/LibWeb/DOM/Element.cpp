@@ -469,32 +469,34 @@ Utf16String Element::get_an_elements_target(Optional<Utf16String> target) const
     return {};
 }
 
+bool Element::link_types_include(Utf16View link_type) const
+{
+    auto link_types = get_attribute_ns({}, HTML::AttributeNames::rel).value_or({});
+    size_t start = 0;
+    for (size_t i = 0; i <= link_types.length_in_code_units(); ++i) {
+        if (i != link_types.length_in_code_units() && !Infra::is_ascii_whitespace(link_types.code_unit_at(i)))
+            continue;
+
+        if (i > start && link_types.substring_view(start, i - start).equals_ignoring_ascii_case(link_type))
+            return true;
+        start = i + 1;
+    }
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/links.html#get-an-element's-noopener
 HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL const& url, Utf16View target)
 {
     // To get an element's noopener, given an a, area, or form element element, a URL record url, and a string target,
     // perform the following steps. They return a boolean.
-    auto link_types = get_attribute_ns({}, HTML::AttributeNames::rel).value_or({});
-    auto has_link_type = [&](Utf16View link_type) {
-        size_t start = 0;
-        for (size_t i = 0; i <= link_types.length_in_code_units(); ++i) {
-            if (i != link_types.length_in_code_units() && !Infra::is_ascii_whitespace(link_types.code_unit_at(i)))
-                continue;
-
-            if (i > start && link_types.substring_view(start, i - start).equals_ignoring_ascii_case(link_type))
-                return true;
-            start = i + 1;
-        }
-        return false;
-    };
 
     // 1. If element's link types include the noopener or noreferrer keyword, then return true.
-    if (has_link_type(u"noopener"sv) || has_link_type(u"noreferrer"sv))
+    if (link_types_include(u"noopener"sv) || link_types_include(u"noreferrer"sv))
         return HTML::TokenizedFeature::NoOpener::Yes;
 
     // 2. If element's link types do not include the opener keyword and
     //    target is an ASCII case-insensitive match for "_blank", then return true.
-    if (!has_link_type(u"opener"sv) && target.equals_ignoring_ascii_case(u"_blank"sv))
+    if (!link_types_include(u"opener"sv) && target.equals_ignoring_ascii_case(u"_blank"sv))
         return HTML::TokenizedFeature::NoOpener::Yes;
 
     // 3. If url's blob URL entry is not null:
@@ -592,18 +594,26 @@ void Element::follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML:
         url_string_with_suffix = url_string_builder.to_string();
     }
 
-    // 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
-    auto referrer_policy_attribute = attribute(HTML::AttributeNames::referrerpolicy);
-    auto referrer_policy = ReferrerPolicy::from_string(referrer_policy_attribute.has_value() ? referrer_policy_attribute->utf16_view() : u""sv).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
-
-    // FIXME: 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
-
-    // 13. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to referrerPolicy and userInvolvement set to userInvolvement.
+    // 11. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to subject's
+    //     hyperlink referrer policy, userInvolvement set to userInvolvement, and sourceElement set to subject.
+    // FIXME: Set sourceElement.
     auto url = url_string_with_suffix.has_value()
         ? URL::Parser::basic_parse(url_string_with_suffix->utf16_view())
         : URL::Parser::basic_parse(url_string);
     VERIFY(url.has_value());
-    MUST(target_navigable->navigate({ .url = url.release_value(), .source_document = document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
+    MUST(target_navigable->navigate({ .url = url.release_value(), .source_document = document(), .referrer_policy = hyperlink_referrer_policy(), .user_involvement = user_involvement }));
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#hyperlink-referrer-policy
+ReferrerPolicy::ReferrerPolicy Element::hyperlink_referrer_policy() const
+{
+    // 1. If subject's link types includes the noreferrer keyword, then return "no-referrer".
+    if (link_types_include(u"noreferrer"sv))
+        return ReferrerPolicy::ReferrerPolicy::NoReferrer;
+
+    // 2. Return the current state of subject's referrerpolicy content attribute.
+    auto referrer_policy_attribute = attribute(HTML::AttributeNames::referrerpolicy);
+    return ReferrerPolicy::from_string(referrer_policy_attribute.has_value() ? referrer_policy_attribute->utf16_view() : u""sv).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#downloading-hyperlinks
