@@ -2088,6 +2088,9 @@ pub struct ParsedStyleSheet {
     rules: Box<[Arc<ParsedRule>]>,
     items: Box<[ParsedRuleChild]>,
     native_roots: Box<[usize]>,
+    /// The positions among `native_roots` of the rules that are, or hold, a rule a media evaluation reads: all of the
+    /// sheet an evaluation reaches while the sheet's own media holds as it did.
+    media_holding_roots: Box<[usize]>,
     diagnostics: Box<[FfiSyntaxDiagnostic]>,
     declaration_errors: Box<[usize]>,
 }
@@ -2679,6 +2682,7 @@ impl SyntaxParseBuilder {
             rules: self.rules.into_boxed_slice(),
             items: self.items.into_boxed_slice(),
             native_roots: Box::default(),
+            media_holding_roots: Box::default(),
             diagnostics: self.diagnostics.into_boxed_slice(),
             declaration_errors: declaration_errors.into_boxed_slice(),
         };
@@ -2692,6 +2696,16 @@ impl SyntaxParseBuilder {
         } else {
             shared_rules::native_child_indices(&parsed.items, None)
         };
+        parsed.media_holding_roots = (0..parsed.native_roots.len())
+            .filter(|&position| {
+                let index = parsed.native_roots[position];
+                if parsed.items.is_empty() {
+                    parsed.rules[index].holds_media_rules()
+                } else {
+                    matches!(&parsed.items[index], ParsedRuleChild::Rule(rule) if rule.holds_media_rules())
+                }
+            })
+            .collect();
         parsed
     }
 
@@ -3804,6 +3818,16 @@ mod tests {
         let mut parse = SyntaxParseBuilder::new(&raw const context, false);
         parse.append_roots(&rules);
         parse.finish()
+    }
+
+    #[test]
+    fn a_sheet_indexes_the_top_level_rules_that_hold_media_rules() {
+        let parsed = parse_test_stylesheet(
+            b"a { color: red } @media (min-width: 1px) { b { color: blue } } \
+              c { d { color: green } @media print { color: red } } @supports (color: red) { e { color: red } } \
+              f { color: red }",
+        );
+        assert_eq!(&*parsed.media_holding_roots, &[1, 2]);
     }
 
     #[test]
