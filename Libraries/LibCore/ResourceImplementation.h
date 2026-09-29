@@ -32,7 +32,6 @@ protected:
     virtual String filesystem_path_for_resource_scheme(String const&) = 0;
 
     static NonnullRefPtr<Resource> make_resource(String full_path, NonnullOwnPtr<Core::MappedFile>, time_t modified_time);
-    static NonnullRefPtr<Resource> make_resource(String full_path, ByteBuffer, time_t modified_time);
     static NonnullRefPtr<Resource> make_directory_resource(String full_path, time_t modified_time);
 };
 
