@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCompositing/InputEvent.h>
 #include <LibCompositing/Scrolling/WheelGestureIdentity.h>
 #include <LibCompositing/Types.h>
+#include <LibWebCommon/Page/InputEvent.h>
 
 namespace Compositing {
 

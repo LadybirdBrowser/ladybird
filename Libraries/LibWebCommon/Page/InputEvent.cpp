@@ -4,10 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCompositing/InputEvent.h>
-#include <LibCompositing/Types.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <math.h>
 
 namespace Compositing {
@@ -95,7 +94,7 @@ ErrorOr<Compositing::MouseEvent> IPC::decode(Decoder& decoder)
 }
 
 template<>
-COMPOSITING_API ErrorOr<void> IPC::encode(Encoder& encoder, Compositing::PinchEvent const& event)
+WEBCOMMON_API ErrorOr<void> IPC::encode(Encoder& encoder, Compositing::PinchEvent const& event)
 {
     TRY(encoder.encode(event.position));
     TRY(encoder.encode(event.modifiers));
@@ -105,7 +104,7 @@ COMPOSITING_API ErrorOr<void> IPC::encode(Encoder& encoder, Compositing::PinchEv
 }
 
 template<>
-COMPOSITING_API ErrorOr<Compositing::PinchEvent> IPC::decode(Decoder& decoder)
+WEBCOMMON_API ErrorOr<Compositing::PinchEvent> IPC::decode(Decoder& decoder)
 {
     auto position = TRY(decoder.decode<Compositing::DevicePixelPoint>());
     auto modifiers = TRY(decoder.decode<Compositing::KeyModifier>());

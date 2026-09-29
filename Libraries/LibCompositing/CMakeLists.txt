@@ -10,8 +10,6 @@ set(SOURCES
     DisplayList/DisplayListResourceTransaction.cpp
     DisplayList/RustFFIAssertions.cpp
     DisplayList/VisualContextTreeTestBuilder.cpp
-    InputEvent.cpp
-    PixelUnits.cpp
     Scrolling/AsyncScrollTree.cpp
     Scrolling/AsyncScrollingState.cpp
     Scrolling/ScrollSnapSelection.cpp
@@ -56,6 +54,7 @@ target_link_libraries(libcompositing_rust INTERFACE LibGfx)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libcompositing_rust)
 
 ladybird_lib(LibCompositing compositing EXPLICIT_SYMBOL_EXPORT)
+target_link_libraries(LibCompositing PUBLIC LibWebCommon)
 target_link_libraries(LibCompositing PRIVATE LibCore LibGfx LibIPC LibMedia skia libcompositing_rust)
 
 # The WebGL command stream headers include ANGLE's GLES headers for the GL constants and types,
@@ -93,7 +92,7 @@ if(NOT BUILD_SHARED_LIBS)
 
     # POST_BUILD steps don't track inputs, so the bridge files depend on the Rust archive: when it
     # changes, LibCompositing re-archives and the merge picks up the fresh objects.
-    foreach(bridge IN ITEMS DisplayList/AccumulatedVisualContext.cpp DisplayList/DisplayList.cpp DisplayList/DisplayListDamage.cpp DisplayList/DisplayListResourceStorage.cpp DisplayList/VisualContextTreeTestBuilder.cpp PixelUnits.cpp)
+    foreach(bridge IN ITEMS DisplayList/AccumulatedVisualContext.cpp DisplayList/DisplayList.cpp DisplayList/DisplayListDamage.cpp DisplayList/DisplayListResourceStorage.cpp DisplayList/VisualContextTreeTestBuilder.cpp)
         set_property(SOURCE ${bridge} APPEND PROPERTY OBJECT_DEPENDS ${_libcompositing_rust_lib})
     endforeach()
 endif()

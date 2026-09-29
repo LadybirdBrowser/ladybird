@@ -8,10 +8,10 @@
 
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
 

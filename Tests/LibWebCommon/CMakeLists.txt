@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestCSSPixels.cpp
     TestSiteCompatibility.cpp
     TestStrings.cpp
 )

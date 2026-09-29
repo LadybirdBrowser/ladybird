@@ -5,9 +5,9 @@
  */
 
 #include <AK/Math.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Compositing {
 

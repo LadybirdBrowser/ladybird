@@ -10,11 +10,11 @@
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Variant.h>
-#include <LibCompositing/InputEvent.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibCompositing/Scrolling/ScrollSnapSelection.h>
 #include <LibCompositing/Types.h>
+#include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Compositing {
 

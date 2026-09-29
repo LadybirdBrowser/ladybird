@@ -9,7 +9,6 @@
 #include <AK/JsonObject.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/WeakPtr.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
@@ -20,6 +19,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibRequests/Request.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>

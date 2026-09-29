@@ -1,6 +1,3 @@
-#include <LibCompositing/InputEvent.h>
-#include <LibCompositing/PageId.h>
-#include <LibCompositing/Types.h>
 #include <LibCore/SharedVersion.h>
 #include <LibGfx/Rect.h>
 #include <LibHTTP/Cookie/Cookie.h>
@@ -42,8 +39,10 @@
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebCommon/Page/ContextMenuForInputEventsTarget.h>
 #include <LibWebCommon/Page/DragEvent.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/MediaContextMenu.h>
 #include <LibWebCommon/Page/NavigationTarget.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>

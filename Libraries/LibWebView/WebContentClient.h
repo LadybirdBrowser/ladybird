@@ -15,7 +15,6 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/WeakPtr.h>
-#include <LibCompositing/PageId.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
@@ -46,6 +45,7 @@
 #include <LibWebCommon/HTML/WebViewHints.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebCommon/Page/EventResult.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>

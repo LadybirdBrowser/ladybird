@@ -7,13 +7,13 @@
 #pragma once
 
 #include <AK/OwnPtr.h>
-#include <LibCompositing/Export.h>
-#include <LibCompositing/KeyCode.h>
-#include <LibCompositing/MouseButton.h>
-#include <LibCompositing/PixelUnits.h>
-#include <LibCompositing/Scrolling/AsyncScrollNodeStableID.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
+#include <LibWebCommon/Export.h>
+#include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
+#include <LibWebCommon/PixelUnits.h>
+#include <LibWebCommon/UIEvents/KeyCode.h>
+#include <LibWebCommon/UIEvents/MouseButton.h>
 
 namespace Compositing {
 
@@ -23,7 +23,7 @@ struct BrowserInputData {
     virtual ~BrowserInputData() = default;
 };
 
-struct COMPOSITING_API KeyEvent {
+struct WEBCOMMON_API KeyEvent {
     enum class Type : u8 {
         KeyDown,
         KeyUp,
@@ -78,7 +78,7 @@ enum class ScrollGesturePhase : u8 {
     Ended,
 };
 
-struct COMPOSITING_API MouseEvent {
+struct WEBCOMMON_API MouseEvent {
     enum class Type : u8 {
         MouseDown,
         MouseUp,
@@ -107,7 +107,7 @@ struct COMPOSITING_API MouseEvent {
     Optional<Compositing::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
 };
 
-struct COMPOSITING_API PinchEvent {
+struct WEBCOMMON_API PinchEvent {
     Compositing::DevicePixelPoint position;
     Compositing::KeyModifier modifiers { Compositing::KeyModifier::Mod_None };
     double scale_delta;
@@ -119,21 +119,21 @@ struct COMPOSITING_API PinchEvent {
 namespace IPC {
 
 template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::KeyEvent const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Compositing::KeyEvent const&);
 
 template<>
-COMPOSITING_API ErrorOr<Compositing::KeyEvent> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Compositing::KeyEvent> decode(Decoder&);
 
 template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::MouseEvent const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Compositing::MouseEvent const&);
 
 template<>
-COMPOSITING_API ErrorOr<Compositing::MouseEvent> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Compositing::MouseEvent> decode(Decoder&);
 
 template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::PinchEvent const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Compositing::PinchEvent const&);
 
 template<>
-COMPOSITING_API ErrorOr<Compositing::PinchEvent> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Compositing::PinchEvent> decode(Decoder&);
 
 }

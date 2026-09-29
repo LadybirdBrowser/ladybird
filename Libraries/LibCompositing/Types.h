@@ -14,21 +14,15 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCompositing/Export.h>
-#include <LibCompositing/PageId.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibIPC/Forward.h>
+#include <LibWebCommon/Page/CompositorContextId.h>
+#include <LibWebCommon/Page/PageId.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Compositing {
 
-AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, CompositorContextId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, ScreenshotRequestId);
-
-inline CompositorContextId compositor_context_id_for_page(Compositing::PageId page_id)
-{
-    VERIFY(page_id.value() > 0);
-    return CompositorContextId { page_id.value() };
-}
 
 enum class WindowResizingInProgress : u8 {
     No,
@@ -38,11 +32,6 @@ enum class WindowResizingInProgress : u8 {
 enum class ContextVisibility : u8 {
     Visible,
     Hidden,
-};
-
-enum class PagePresentationRegistration {
-    No,
-    Yes,
 };
 
 // Where a reader of the compositor's async scroll updates takes them from: the ones the compositor pushed
@@ -121,16 +110,6 @@ inline constexpr AK::Duration user_scroll_settle_delay = AK::Duration::from_mill
 }
 
 namespace IPC {
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::AsyncScrollNodeStableID const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::AsyncScrollNodeStableID> decode(Decoder&);
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::ScrollbarDraggedByCompositor const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::ScrollbarDraggedByCompositor> decode(Decoder&);
 
 template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::KeyboardScrollState const&);

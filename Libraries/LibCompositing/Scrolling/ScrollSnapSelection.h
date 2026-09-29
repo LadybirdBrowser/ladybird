@@ -11,7 +11,7 @@
 #include <AK/Vector.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
-#include <LibCompositing/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 // Scroll snap position selection over geometry that has already been collected from layout, so that the same
 // selection runs on the main thread and in the compositor process. Everything here is in CSS pixels.

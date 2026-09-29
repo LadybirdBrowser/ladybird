@@ -17,9 +17,9 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <AK/kmalloc.h>
-#include <LibCompositing/PageId.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 

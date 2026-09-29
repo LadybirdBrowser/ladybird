@@ -1,4 +1,4 @@
-#include <LibCompositing/PageId.h>
+#include <LibWebCommon/Page/PageId.h>
 
 endpoint WebContentTestServer
 {

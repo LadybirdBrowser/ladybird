@@ -9,9 +9,9 @@
 
 #include <AK/Optional.h>
 #include <AK/kmalloc.h>
-#include <LibCompositing/PageId.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/SessionStore.h>

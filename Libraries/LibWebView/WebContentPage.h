@@ -13,13 +13,13 @@
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/WeakPtr.h>
-#include <LibCompositing/InputEvent.h>
-#include <LibCompositing/PageId.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>

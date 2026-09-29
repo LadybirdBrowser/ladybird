@@ -13,7 +13,6 @@
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
 #include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
@@ -22,6 +21,7 @@
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
 #include <LibTest/TestCase.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <Tests/LibCompositing/DisplayListTestHelpers.h>
 
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {

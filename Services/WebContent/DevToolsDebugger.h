@@ -9,9 +9,9 @@
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Weakable.h>
-#include <LibCompositing/PageId.h>
 #include <LibGC/Root.h>
 #include <LibJS/Debugger.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/WebView/Debugger.h>
 #include <WebContent/Forward.h>
 

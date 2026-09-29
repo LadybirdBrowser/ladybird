@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCompositing/PixelUnits.h>
 #include <LibTest/TestCase.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Compositing {
 

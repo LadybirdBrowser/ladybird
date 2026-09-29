@@ -9,7 +9,9 @@
 #include <AK/HashFunctions.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
-#include <LibCompositing/Forward.h>
+#include <LibIPC/Forward.h>
+#include <LibWebCommon/Export.h>
+#include <LibWebCommon/Forward.h>
 
 namespace Compositing {
 
@@ -47,3 +49,17 @@ struct AK::Traits<Compositing::AsyncScrollNodeStableID> : DefaultTraits<Composit
             pair_int_hash(to_underlying(stable_node_id.kind), stable_node_id.pseudo_element_type));
     }
 };
+
+namespace IPC {
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Compositing::AsyncScrollNodeStableID const&);
+template<>
+WEBCOMMON_API ErrorOr<Compositing::AsyncScrollNodeStableID> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Compositing::ScrollbarDraggedByCompositor const&);
+template<>
+WEBCOMMON_API ErrorOr<Compositing::ScrollbarDraggedByCompositor> decode(Decoder&);
+
+}

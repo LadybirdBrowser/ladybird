@@ -13,12 +13,12 @@
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
-#include <LibCompositing/PageId.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Forward.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
 

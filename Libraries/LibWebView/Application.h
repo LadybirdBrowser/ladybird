@@ -14,8 +14,6 @@
 #include <AK/LexicalPath.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/Optional.h>
-#include <LibCompositing/InputEvent.h>
-#include <LibCompositing/PageId.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
@@ -40,6 +38,8 @@
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowserProcess.h>

@@ -9,7 +9,6 @@
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
@@ -18,6 +17,7 @@
 #include <LibGfx/SystemTheme.h>
 #include <LibMain/Main.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>

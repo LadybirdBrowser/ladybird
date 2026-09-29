@@ -13,8 +13,6 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
-#include <LibCompositing/KeyCode.h>
-#include <LibCompositing/MouseButton.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Resource.h>
 #include <LibCore/Timer.h>
@@ -24,6 +22,8 @@
 #include <LibGfx/Palette.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SystemTheme.h>
+#include <LibWebCommon/UIEvents/KeyCode.h>
+#include <LibWebCommon/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/PlatformColors.h>

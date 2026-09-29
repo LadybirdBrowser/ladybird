@@ -16,13 +16,13 @@
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
-#include <LibCompositing/Scrolling/AsyncScrollNodeStableID.h>
 #include <LibCompositing/Scrolling/ScrollSnapSelection.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
+#include <LibWebCommon/Page/AsyncScrollNodeStableID.h>
 
 namespace Compositing {
 

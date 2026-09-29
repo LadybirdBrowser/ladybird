@@ -1,7 +1,7 @@
-#include <LibCompositing/PageId.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibURL/Origin.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
+#include <LibWebCommon/Page/PageId.h>
 
 endpoint WebContentTestClient routed by Compositing::PageId page_id
 {

@@ -13,9 +13,9 @@
 #include <LibCompositing/DisplayList/ContextRef.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/Forward.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Compositing {
 
