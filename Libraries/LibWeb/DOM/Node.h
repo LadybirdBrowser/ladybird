@@ -409,6 +409,10 @@ public:
 
     Layout::Node const* unsafe_layout_node() const { return m_layout_node.ptr(); }
     Layout::Node* unsafe_layout_node() { return m_layout_node.ptr(); }
+    // Whether the last layout tree build gave this node a box, and whether layout committed geometry for it. Code
+    // that only needs to know whether there is a box should ask these instead of reaching for the box.
+    [[nodiscard]] bool has_layout_box() const { return m_layout_node; }
+    [[nodiscard]] bool is_rendered() const;
     Element const* first_letter_owner_for_layout_subtree_from(Node const& inclusive_ancestor) const;
     Element* first_letter_owner_for_layout_subtree_from(Node const& inclusive_ancestor)
     {

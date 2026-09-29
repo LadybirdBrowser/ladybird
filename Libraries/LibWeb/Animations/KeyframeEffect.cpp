@@ -1133,7 +1133,7 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
 
     // NB: Transforms cannot affect rendering without a layout box. This also covers SVG content inside
     //     display-none subtrees and closed details elements.
-    if (target->document().layout_is_up_to_date() && !target->unsafe_layout_node())
+    if (target->document().layout_is_up_to_date() && !target->has_layout_box())
         return cache_result(true);
     if (target->namespace_uri() == Namespace::SVG)
         return cache_result(false);

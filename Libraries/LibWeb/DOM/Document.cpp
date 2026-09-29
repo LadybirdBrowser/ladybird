@@ -9102,10 +9102,8 @@ void Document::process_top_layer_removals()
     // NB: Called during top layer processing.
     for (auto& element : m_top_layer_pending_removals) {
         // FIXME: Implement overlay property
-        auto const* layout_node = element->unsafe_layout_node();
-        if (!layout_node || !Painting::has_committed_box(*layout_node)) {
+        if (!element->is_rendered())
             elements_to_remove.append(element);
-        }
     }
 
     for (auto& element : elements_to_remove) {

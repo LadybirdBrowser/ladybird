@@ -638,7 +638,7 @@ CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect c
     if (!row)
         return {};
     auto const& document = node.document();
-    if (!document.layout_node() || !has_committed_box(*document.layout_node()))
+    if (!document.has_committed_viewport_box())
         return rect;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().transform_rect_to_viewport(
@@ -653,7 +653,7 @@ Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPi
     if (!row)
         return {};
     auto const& document = node.document();
-    if (!document.layout_node() || !has_committed_box(*document.layout_node()))
+    if (!document.has_committed_viewport_box())
         return position;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().transform_point_for_hit_test(
@@ -670,7 +670,7 @@ CSSPixelPoint inverse_transform_point(Layout::Node const& node, CSSPixelPoint po
     if (!row)
         return {};
     auto const& document = node.document();
-    if (!document.layout_node() || !has_committed_box(*document.layout_node()))
+    if (!document.has_committed_viewport_box())
         return position;
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto result = document.visual_context_tree().inverse_transform_point(row->accumulated_visual_context.spatial, position.to_type<float>() * pixel_ratio);
@@ -891,7 +891,7 @@ CSSPixelPoint cumulative_scroll_compensation(Layout::Node const& node)
     if (index == Compositing::VISUAL_VIEWPORT_NODE_INDEX)
         return {};
     auto const& document = node.document();
-    if (!document.layout_node() || !has_committed_box(*document.layout_node()))
+    if (!document.has_committed_viewport_box())
         return {};
     auto pixel_ratio = static_cast<float>(document.page().client().device_pixels_per_css_pixel());
     auto device_offset = document.visual_context_tree().cumulative_scroll_chain_offset(index, document.scroll_state_snapshot());
