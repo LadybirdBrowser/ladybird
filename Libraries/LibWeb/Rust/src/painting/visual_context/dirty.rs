@@ -53,6 +53,11 @@ impl BoxDirtyBits {
     pub fn is_value_only(&self) -> bool {
         self.0 == VisualContextBoxDirtyKind::StyleValueChange.bit()
     }
+
+    /// Whether the box only moved, with its style and content as they were.
+    pub fn is_move_only(&self) -> bool {
+        self.0 == VisualContextBoxDirtyKind::MovedWithDescendants.bit()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

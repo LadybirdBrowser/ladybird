@@ -325,7 +325,8 @@ impl<'a> PaintableCommit<'a> {
         if !offset_unchanged {
             self.arena()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::MovedWithDescendants);
-        } else if !fragment_content_unchanged {
+        }
+        if !fragment_content_unchanged {
             self.arena()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::RecommittedInPlace);
         }
