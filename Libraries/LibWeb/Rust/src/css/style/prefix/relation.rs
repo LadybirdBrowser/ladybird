@@ -852,8 +852,10 @@ impl PrefixRelation {
                 walk_truth.clear();
                 let mut changes = Vec::new();
                 let previous_matches = contains_sorted_positions(&self.matches[step_index], &affected);
-                for (&position, previously_matched) in affected.iter().zip(previous_matches) {
-                    let mut matched = candidates.binary_search(&position).is_ok();
+                let candidate_matches = contains_sorted_positions(candidates, &affected);
+                for ((&position, previously_matched), mut matched) in
+                    affected.iter().zip(previous_matches).zip(candidate_matches)
+                {
                     if matched && let Some(predecessor) = predecessor {
                         let predecessor = &self.matches[predecessor.0 as usize];
                         let contains = |position: usize| predecessor.binary_search(&(position as u32)).is_ok();
@@ -1422,25 +1424,36 @@ fn step_is_inert(automaton: &PrefixAutomaton, matches: &[PrefixMembership<u32>],
             .is_some_and(|predecessor| matches[predecessor.0 as usize].is_empty())
 }
 
-// Queries already arrive in sorted slot order. Scan the membership once when its
-// population fits the estimated cost of separate binary searches for the batch.
-fn contains_sorted_positions<'a>(members: &'a [u32], positions: &'a [usize]) -> impl Iterator<Item = bool> + 'a {
+/// Whether each of the ascending `positions` is one of the ascending `members`. Each is looked for from where the one
+/// before it stopped, so a batch reads the members in order, and costs the logarithm of each gap it crosses rather
+/// than of the whole set.
+fn contains_sorted_positions<'a, T: Copy + Ord + TryFrom<usize>>(
+    members: &'a [T],
+    positions: &'a [usize],
+) -> impl Iterator<Item = bool> + 'a {
     debug_assert!(positions.is_sorted());
-    let mut remaining = (members.len()
-        <= positions
-            .len()
-            .saturating_mul(members.len().checked_ilog2().unwrap_or(0) as usize + 1))
-    .then_some(members);
+    let mut rest = members;
     positions.iter().map(move |&position| {
-        if let Some(members) = &mut remaining {
-            while members.first().is_some_and(|&member| (member as usize) < position) {
-                *members = &members[1..];
-            }
-            members.first().is_some_and(|&member| member as usize == position)
-        } else {
-            u32::try_from(position).is_ok_and(|position| members.binary_search(&position).is_ok())
-        }
+        let Ok(position) = T::try_from(position) else {
+            rest = &[];
+            return false;
+        };
+        rest = &rest[count_below(rest, position)..];
+        rest.first() == Some(&position)
     })
+}
+
+/// How many of the ascending `members` are below `position`, found with a stride that doubles from the start until it
+/// passes `position`.
+fn count_below<T: Ord>(members: &[T], position: T) -> usize {
+    let mut below = 0;
+    let mut stride = 1;
+    while below + stride <= members.len() && members[below + stride - 1] < position {
+        below += stride;
+        stride *= 2;
+    }
+    let end = (below + stride - 1).min(members.len());
+    below + members[below..end].partition_point(|member| *member < position)
 }
 
 // Merge a batch of membership flips once. Repeated Vec::insert/remove would move the
