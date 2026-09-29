@@ -18,6 +18,7 @@ EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::Execu
     , m_policy_container(create_a_policy_container_from_serialized_policy_container(serialized_settings.policy_container))
     , m_agent_cluster_id(serialized_settings.agent_cluster_id)
     , m_time_origin(serialized_settings.time_origin)
+    , m_serialized_global(serialized_settings.global)
 {
     // Why can't we put these in the init list? grandparent class members are strange it seems
     this->id = serialized_settings.id;
