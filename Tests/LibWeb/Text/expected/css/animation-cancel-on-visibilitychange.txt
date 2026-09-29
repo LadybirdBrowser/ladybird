@@ -1,0 +1,2 @@
+Before cancellation: matrix(1, 0, 0, 1, 50, 0)
+After cancellation: matrix(1, 0, 0, 1, 10, 0)

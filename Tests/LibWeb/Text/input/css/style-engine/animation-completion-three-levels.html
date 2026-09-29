@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #ancestor { color: green; }
+    #child, #grandchild { color: inherit; }
+</style>
+<div id="ancestor"><div id="child"><div id="grandchild"></div></div></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const animation = ancestor.animate([{ color: "red" }, { color: "blue" }], { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 500;
+        internals.updateStyle();
+        println(`sampled: ${getComputedStyle(ancestor).color}, ${getComputedStyle(child).color}, ${getComputedStyle(grandchild).color}`);
+
+        animation.cancel();
+        internals.updateStyle();
+        println(`cancelled: ${getComputedStyle(ancestor).color}, ${getComputedStyle(child).color}, ${getComputedStyle(grandchild).color}`);
+    });
+</script>
