@@ -8,12 +8,14 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/SharedImage.h>
+#include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/Size.h>
 
 namespace Compositor {
@@ -45,7 +47,7 @@ public:
     BackingStoreManager() = default;
 
     Optional<Allocation> resize_backing_stores_if_needed(
-        Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress);
+        Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress, bool should_publish);
     Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish, GpuSharing);
 
     void invalidate() { m_allocated_size = {}; }
@@ -67,10 +69,14 @@ private:
 
     struct BackingStore {
         RefPtr<Gfx::PaintingSurface> surface;
+        OwnPtr<Gfx::SharedImageBuffer> published_shared_image_buffer;
         i32 bitmap_id { -1 };
         BufferState state { BufferState::Available };
         Gfx::IntRect accumulated_damage;
     };
+
+    static bool published_surface_is_in_use(BackingStore const&);
+    static bool store_can_be_rendered_into(BackingStore const&);
 
     int m_next_bitmap_id { 0 };
 

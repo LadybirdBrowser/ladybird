@@ -1178,7 +1178,7 @@ Optional<BackingStoreManager::Publication> ContextState::resize_backing_stores_i
             m_last_rasterized_frame.clear();
         }
     }
-    auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(raster_size(), m_window_resize_in_progress);
+    auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(raster_size(), m_window_resize_in_progress, presents_to_client());
     if (!allocation.has_value())
         return {};
     m_latest_rendered_surface = nullptr;
