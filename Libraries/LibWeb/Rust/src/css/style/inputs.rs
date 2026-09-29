@@ -1344,16 +1344,9 @@ impl StyleEngineState {
                     {
                         return false;
                     }
-                    let rule = self.retained.routing.rule_of(route);
-                    !self.retained.program.declarations_are_complete_for(rule)
-                        || self
-                            .retained
-                            .program
-                            .declared_properties_of(rule)
-                            .iter()
-                            .any(|declared| {
-                                crate::css::property_metadata::property_may_affect_layout_geometry(declared.property)
-                            })
+                    self.retained
+                        .program
+                        .rule_may_affect_layout_geometry(self.retained.routing.rule_of(route))
                 })
             })
         })
