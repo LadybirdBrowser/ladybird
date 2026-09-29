@@ -1307,11 +1307,6 @@ void WebContentPage::history_operation_ready(Web::HTML::CrossProcessId operation
     traversable().did_receive_history_operation_ready(*this, operation_id, move(result));
 }
 
-void WebContentPage::history_step_unload_cancelation_result(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
-{
-    traversable().did_receive_history_step_unload_cancelation_result(*this, operation_id, result, unload_prompt_shown);
-}
-
 void WebContentPage::beforeunload_check_result(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     traversable().did_receive_beforeunload_check_result(*this, operation_id, result, unload_prompt_shown);
@@ -1634,7 +1629,7 @@ void WebContentPage::begin_navigation_unload_check(CanonicalNavigable& target_na
         inclusive_descendants.append(navigable.id());
         return IterationDecision::Continue;
     });
-    target_navigable.top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), *this, Web::HTML::UnloadPromptShown::No,
+    (void)target_navigable.top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), {}, {}, *this, Web::HTML::UnloadPromptShown::No,
         [page = NonnullRefPtr<WebContentPage>(*this), navigable_id = target_navigable.id(), navigation_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
             if (result != Web::HTML::HistoryStepResult::Applied) {
                 // The navigation parked for its population is not coming; the recorded load ends as a failed one.
@@ -2320,7 +2315,7 @@ void WebContentPage::request_unload_check(Web::HTML::CrossProcessId navigable_id
         inclusive_descendants.append(descendant.id());
         return IterationDecision::Continue;
     });
-    navigable->top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), {}, Web::HTML::UnloadPromptShown::No,
+    (void)navigable->top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), {}, {}, {}, Web::HTML::UnloadPromptShown::No,
         [page = NonnullRefPtr<WebContentPage>(*this), check_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown) {
             page->async_unload_check_result(check_id, result);
         });

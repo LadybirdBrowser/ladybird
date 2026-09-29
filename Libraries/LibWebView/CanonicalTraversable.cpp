@@ -985,16 +985,7 @@ struct CanonicalTraversable::HistoryOperation {
     bool owns_navigation_transaction { false };
     bool check_for_cancelation { false };
     Function<void()> on_browser_traversal_ready;
-    Function<void(Web::HTML::HistoryStepResult)> pending_unload_cancelation;
-    RefPtr<WebContentPage> unload_cancelation_endpoint;
-
-    struct PendingBeforeunloadGroup {
-        NonnullRefPtr<WebContentPage> endpoint;
-        Vector<Web::HTML::CrossProcessId> navigable_ids;
-    };
-    Vector<PendingBeforeunloadGroup> pending_beforeunload_groups;
-    RefPtr<WebContentPage> dispatched_beforeunload_endpoint;
-    Web::HTML::UnloadPromptShown beforeunload_prompt_shown { Web::HTML::UnloadPromptShown::No };
+    Optional<Web::HTML::CrossProcessId> beforeunload_check_id;
 
     struct PendingChangingJob {
         AK_ALLOC_WITH_KMALLOC;
@@ -1233,7 +1224,7 @@ Optional<CanonicalTraversable::BrowserHistoryTraversalDiagnostic> CanonicalTrave
             .target_step = parameters.target_step,
             .target_step_index = target->target_step_index,
             .changes_top_level_entry = target->changes_top_level_entry,
-            .stage = operation.value->pending_unload_cancelation
+            .stage = operation.value->beforeunload_check_id.has_value()
                 ? BrowserHistoryTraversalDiagnostic::Stage::CheckingCancelation
                 : BrowserHistoryTraversalDiagnostic::Stage::ApplyingInWebContent,
         };
@@ -1311,11 +1302,6 @@ void CanonicalTraversable::did_lose_page(WebContentPage& page, WebContentProcess
     };
     Vector<PendingUnloadCompletion> unload_completions;
     Vector<PendingJobCompletions> job_completions;
-    Vector<Web::HTML::CrossProcessId> beforeunload_advances;
-    auto advance_beforeunload_once = [&](Web::HTML::CrossProcessId operation_id) {
-        if (!beforeunload_advances.contains_slow(operation_id))
-            beforeunload_advances.append(operation_id);
-    };
 
     auto lost_endpoint_is_root = page_hosting(*this) == page;
 
@@ -1342,19 +1328,6 @@ void CanonicalTraversable::did_lose_page(WebContentPage& page, WebContentProcess
     for (auto& operation_entry : m_history_operations) {
         auto& operation = *operation_entry.value;
 
-        if (!lost_endpoint_is_root
-            && operation.unload_cancelation_endpoint
-            && endpoint_matches(*operation.unload_cancelation_endpoint)) {
-            operation.unload_cancelation_endpoint.clear();
-            advance_beforeunload_once(operation.operation_id);
-        }
-
-        if (operation.dispatched_beforeunload_endpoint
-            && endpoint_matches(*operation.dispatched_beforeunload_endpoint)) {
-            operation.dispatched_beforeunload_endpoint.clear();
-            advance_beforeunload_once(operation.operation_id);
-        }
-
         // The tab's document is recovered by applying the interrupted step again in a page obtained after the crash.
         // An embedded process's document is discarded, so complete its other queued history work as missing-endpoint
         // work instead of leaving the traversal queue waiting for replies that cannot arrive.
@@ -1379,9 +1352,12 @@ void CanonicalTraversable::did_lose_page(WebContentPage& page, WebContentProcess
         }
     }
 
-    // A check waiting on the lost page proceeds past it: its documents are gone.
+    // A check waiting on the lost page proceeds past it: its documents are gone. A traversal waiting on the tab's own
+    // lost document is applied again once the tab recovers.
     Vector<Web::HTML::CrossProcessId> beforeunload_check_advances;
     for (auto& check : m_pending_beforeunload_checks) {
+        if (lost_endpoint_is_root && check.value.target_entry)
+            continue;
         if (check.value.dispatched_endpoint && endpoint_matches(*check.value.dispatched_endpoint)) {
             check.value.dispatched_endpoint.clear();
             beforeunload_check_advances.append(check.key);
@@ -1395,10 +1371,6 @@ void CanonicalTraversable::did_lose_page(WebContentPage& page, WebContentProcess
     for (auto& completions : job_completions) {
         if (auto* operation = find_history_operation(completions.operation_id))
             complete_history_jobs_of_lost_page(*operation, move(completions.changing_jobs), move(completions.nonchanging_updates));
-    }
-    for (auto operation_id : beforeunload_advances) {
-        if (auto* operation = find_history_operation(operation_id))
-            dispatch_next_beforeunload_group(*operation);
     }
 }
 
@@ -2004,47 +1976,20 @@ void CanonicalTraversable::complete_history_jobs_of_lost_page(HistoryOperation& 
 ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(Web::HTML::CrossProcessId operation_id)
 {
     return {
-        .run_unload_cancelation_job = [this, operation_id](ApplyHistoryStepJobs::UnloadCancelationJob job, Function<void(Web::HTML::HistoryStepResult)> on_complete) {
-            auto* operation = find_history_operation(operation_id);
-            if (!operation)
+        .check_if_unloading_is_canceled = [this, operation_id](Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, NonnullRefPtr<CanonicalSessionHistoryEntry> target_entry, Web::HTML::UserNavigationInvolvement user_involvement_for_navigate_event, Function<void(Web::HTML::HistoryStepResult)> on_complete) {
+            if (!find_history_operation(operation_id))
                 return;
-            operation->pending_unload_cancelation = move(on_complete);
-            operation->unload_cancelation_endpoint.clear();
-            operation->pending_beforeunload_groups.clear();
-            operation->dispatched_beforeunload_endpoint.clear();
-            operation->beforeunload_prompt_shown = Web::HTML::UnloadPromptShown::No;
-
-            // The traversable's active-document process runs the navigate-event portion of the check. Other
-            // processes only run beforeunload for the crossing documents they host.
-            auto traversable_endpoint = page_hosting(*this);
-            Vector<Web::HTML::CrossProcessId> traversable_subset;
-            for (auto navigable_id : job.navigables_crossing_documents) {
-                auto navigable = find(navigable_id);
-                if (!navigable.has_value())
-                    continue;
-                auto endpoint = page_hosting(*navigable);
-                if (!endpoint)
-                    continue;
-                if (endpoint == traversable_endpoint) {
-                    traversable_subset.append(navigable_id);
-                    continue;
-                }
-                auto group = operation->pending_beforeunload_groups.find_if([&](auto const& group) {
-                    return group.endpoint == endpoint;
+            auto check_id = check_if_unloading_is_canceled(move(navigables_that_need_before_unload), move(target_entry), user_involvement_for_navigate_event, {}, Web::HTML::UnloadPromptShown::No,
+                [this, operation_id, on_complete = move(on_complete)](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown) {
+                    auto* operation = find_history_operation(operation_id);
+                    if (!operation)
+                        return;
+                    operation->beforeunload_check_id.clear();
+                    on_complete(result);
                 });
-                if (group == operation->pending_beforeunload_groups.end())
-                    operation->pending_beforeunload_groups.append({ endpoint.release_nonnull(), { navigable_id } });
-                else
-                    group->navigable_ids.append(navigable_id);
-            }
-
-            if (!traversable_endpoint || !traversable_endpoint->is_open()) {
-                dispatch_next_beforeunload_group(*operation);
-                return;
-            }
-
-            operation->unload_cancelation_endpoint = traversable_endpoint;
-            traversable_endpoint->async_run_history_step_unload_cancelation_job(operation_id, job.target_entry->descriptor(), move(traversable_subset), job.user_involvement); },
+            // The check can finish, and the operation with it, before it returns.
+            if (auto* operation = find_history_operation(operation_id))
+                operation->beforeunload_check_id = check_id; },
         .queue_navigation_api_state_clear_task = [this, operation_id](Web::HTML::CrossProcessId navigable_id) {
             auto* operation = find_history_operation(operation_id);
             auto navigable = find(navigable_id);
@@ -2863,6 +2808,8 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
     if (!operation.has_value())
         return;
     auto& taken_operation = **operation;
+    if (taken_operation.beforeunload_check_id.has_value())
+        m_pending_beforeunload_checks.remove(*taken_operation.beforeunload_check_id);
 
     // A changing job still pending when its operation finishes never activates the document it populated. The job
     // stays with the operation: its completion can be what finished it.
@@ -2936,64 +2883,21 @@ void CanonicalTraversable::abandon_history_operations()
     }
 }
 
-void CanonicalTraversable::did_receive_history_step_unload_cancelation_result(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
-{
-    auto* operation = find_history_operation(operation_id);
-    if (!operation)
-        return;
-    if (operation->unload_cancelation_endpoint != source_page) {
-        return;
-    }
-    operation->unload_cancelation_endpoint.clear();
-    if (!operation->pending_unload_cancelation)
-        return;
-
-    if (result != Web::HTML::HistoryStepResult::Applied) {
-        complete_unload_cancelation(*operation, result);
-        return;
-    }
-
-    operation->beforeunload_prompt_shown = unload_prompt_shown;
-    dispatch_next_beforeunload_group(*operation);
-}
-
-void CanonicalTraversable::dispatch_next_beforeunload_group(HistoryOperation& operation)
-{
-    while (!operation.pending_beforeunload_groups.is_empty()) {
-        auto group = operation.pending_beforeunload_groups.take_first();
-        // A missing endpoint's documents are already gone. They contribute "proceed".
-        if (!group.endpoint->is_open())
-            continue;
-
-        operation.dispatched_beforeunload_endpoint = group.endpoint;
-        group.endpoint->async_run_beforeunload_check(operation.operation_id, move(group.navigable_ids), operation.beforeunload_prompt_shown);
-        return;
-    }
-
-    complete_unload_cancelation(operation, Web::HTML::HistoryStepResult::Applied);
-}
-
-void CanonicalTraversable::complete_unload_cancelation(HistoryOperation& operation, Web::HTML::HistoryStepResult result)
-{
-    operation.unload_cancelation_endpoint.clear();
-    operation.pending_beforeunload_groups.clear();
-    operation.dispatched_beforeunload_endpoint.clear();
-    if (auto pending = move(operation.pending_unload_cancelation))
-        pending(result);
-}
-
-void CanonicalTraversable::check_if_unloading_is_canceled(Vector<Web::HTML::CrossProcessId> navigable_ids, RefPtr<WebContentPage> skipped_endpoint, Web::HTML::UnloadPromptShown unload_prompt_shown, Function<void(Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown)> on_complete)
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
+// NB: The steps run in the pages hosting the documents, one page at a time. A skipped endpoint has run its part already.
+Optional<Web::HTML::CrossProcessId> CanonicalTraversable::check_if_unloading_is_canceled(Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, RefPtr<CanonicalSessionHistoryEntry> target_entry, Optional<Web::HTML::UserNavigationInvolvement> user_involvement_for_navigate_event, RefPtr<WebContentPage> skipped_endpoint, Web::HTML::UnloadPromptShown unload_prompt_shown, Function<void(Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown)> on_complete)
 {
     PendingBeforeunloadCheck check;
-    check.unload_prompt_shown = unload_prompt_shown;
-    for (auto navigable_id : navigable_ids) {
+    check.target_entry = target_entry;
+    check.user_involvement_for_navigate_event = user_involvement_for_navigate_event;
+
+    // 1. Let documentsToFireBeforeunload be the active document of each item in navigablesThatNeedBeforeUnload.
+    for (auto navigable_id : navigables_that_need_before_unload) {
         auto navigable = find(navigable_id);
         if (!navigable.has_value())
             continue;
         auto endpoint = page_hosting(*navigable);
-        if (!endpoint)
-            continue;
-        if (skipped_endpoint == endpoint)
+        if (!endpoint || endpoint == skipped_endpoint)
             continue;
         auto group = check.groups.find_if([&](auto const& group) {
             return group.endpoint == endpoint;
@@ -3004,15 +2908,37 @@ void CanonicalTraversable::check_if_unloading_is_canceled(Vector<Web::HTML::Cros
             group->navigable_ids.append(navigable_id);
     }
 
+    // 2. Let unloadPromptShown be false.
+    // NB: A check continuing a navigation's own starts from whether that one showed a prompt.
+    check.unload_prompt_shown = unload_prompt_shown;
+
+    // 4. If traversable was given:
+    // NB: The traversable's host runs this step, with beforeunload for the documents it hosts, before any other page
+    //     fires beforeunload.
+    if (auto traversable_host = target_entry ? page_hosting(*this) : nullptr) {
+        auto group = check.groups.find_if([&](auto const& group) {
+            return group.endpoint == traversable_host;
+        });
+        BeforeunloadGroup traversable_group { traversable_host.release_nonnull(), {}, true };
+        if (group != check.groups.end()) {
+            traversable_group.navigable_ids = move(group->navigable_ids);
+            check.groups.remove(group.index());
+        }
+        check.groups.prepend(move(traversable_group));
+    }
+
     if (check.groups.is_empty()) {
         on_complete(Web::HTML::HistoryStepResult::Applied, unload_prompt_shown);
-        return;
+        return {};
     }
 
     check.on_complete = move(on_complete);
     auto check_id = Application::the().allocate_ui_process_cross_process_id();
     m_pending_beforeunload_checks.set(check_id, move(check));
     dispatch_next_beforeunload_group(check_id);
+    if (!m_pending_beforeunload_checks.contains(check_id))
+        return {};
+    return check_id;
 }
 
 void CanonicalTraversable::dispatch_next_beforeunload_group(Web::HTML::CrossProcessId check_id)
@@ -3020,53 +2946,42 @@ void CanonicalTraversable::dispatch_next_beforeunload_group(Web::HTML::CrossProc
     auto check = m_pending_beforeunload_checks.find(check_id);
     if (check == m_pending_beforeunload_checks.end())
         return;
+
+    // 7. For each document of documentsToFireBeforeunload, queue a global task on the navigation and traversal task
+    //    source given document's relevant global object to run the steps:
+    // NB: Each page runs these for the documents it hosts, and the next page is asked once it has replied.
     while (!check->value.groups.is_empty()) {
         auto group = check->value.groups.take_first();
         // A missing endpoint's documents are already gone. They contribute "proceed".
         if (!group.endpoint->is_open())
             continue;
         check->value.dispatched_endpoint = group.endpoint;
-        group.endpoint->async_run_beforeunload_check(check_id, move(group.navigable_ids), check->value.unload_prompt_shown);
+        Optional<Web::HTML::SessionHistoryEntryDescriptor> target_entry;
+        if (group.is_traversable_host)
+            target_entry = check->value.target_entry->descriptor();
+        group.endpoint->async_run_beforeunload_check(check_id, move(group.navigable_ids), move(target_entry), check->value.user_involvement_for_navigate_event, check->value.unload_prompt_shown);
         return;
     }
+
+    // 8. Wait for completedTasks to be totalTasks.
+    // 9. Return finalStatus.
     auto completed_check = m_pending_beforeunload_checks.take(check_id);
     completed_check->on_complete(Web::HTML::HistoryStepResult::Applied, completed_check->unload_prompt_shown);
 }
 
 void CanonicalTraversable::did_receive_beforeunload_check_result(WebContentPage& source_page, Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
-    // A check of its own, or one of a history step's unload cancelation job.
-    if (auto check = m_pending_beforeunload_checks.find(check_id); check != m_pending_beforeunload_checks.end()) {
-        if (check->value.dispatched_endpoint != source_page) {
-            return;
-        }
-        check->value.dispatched_endpoint.clear();
-        if (result != Web::HTML::HistoryStepResult::Applied) {
-            auto completed_check = m_pending_beforeunload_checks.take(check_id);
-            completed_check->on_complete(result, unload_prompt_shown);
-            return;
-        }
-        check->value.unload_prompt_shown = unload_prompt_shown;
-        dispatch_next_beforeunload_group(check_id);
+    auto check = m_pending_beforeunload_checks.find(check_id);
+    if (check == m_pending_beforeunload_checks.end() || check->value.dispatched_endpoint != source_page)
         return;
-    }
-
-    auto operation_id = check_id;
-    auto* operation = find_history_operation(operation_id);
-    if (!operation)
-        return;
-    if (operation->dispatched_beforeunload_endpoint != source_page) {
-        return;
-    }
-    operation->dispatched_beforeunload_endpoint.clear();
-
+    check->value.dispatched_endpoint.clear();
     if (result != Web::HTML::HistoryStepResult::Applied) {
-        complete_unload_cancelation(*operation, result);
+        auto completed_check = m_pending_beforeunload_checks.take(check_id);
+        completed_check->on_complete(result, unload_prompt_shown);
         return;
     }
-
-    operation->beforeunload_prompt_shown = unload_prompt_shown;
-    dispatch_next_beforeunload_group(*operation);
+    check->value.unload_prompt_shown = unload_prompt_shown;
+    dispatch_next_beforeunload_group(check_id);
 }
 
 void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document)

@@ -115,8 +115,7 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     set_hosted_root_viewport(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Compositing::DevicePixelSize size, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio) =|
     history_operation_started(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id) =|
     reconstruct_child_navigable_history(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::ReconstructedChildNavigation navigation) =|
-    run_history_step_unload_cancelation_job(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
-    run_beforeunload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
+    run_beforeunload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Optional<Web::HTML::SessionHistoryEntryDescriptor> target_entry, Optional<Web::HTML::UserNavigationInvolvement> user_involvement_for_navigate_event, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     discard_embedded_page(Compositing::PageId page_id) =|
     queue_navigation_api_state_clear_task(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
     continue_history_navigation_population(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::HistoryNavigationPopulation population) =|

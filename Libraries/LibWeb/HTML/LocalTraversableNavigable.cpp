@@ -199,38 +199,6 @@ void LocalTraversableNavigable::reset_session_history_for_testing()
     active_window()->navigation()->initialize_the_navigation_api_entries_for_reconstructed_session_history(entries_for_navigation_api, active_entry);
 }
 
-void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry_descriptor, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>> on_complete)
-{
-    (void)operation_id;
-
-    auto target_entry = resolve_local_session_history_entry(move(target_entry_descriptor));
-
-    // 5. If checkForCancelation is true, and the result of checking if unloading is canceled given
-    //    navigablesCrossingDocuments, traversable, targetStep, and userInvolvement is not "continue", then return
-    //    that result.
-    Vector<GC::Root<LocalNavigable>> navigables;
-    navigables.ensure_capacity(navigables_crossing_documents.size());
-    for (auto navigable_id : navigables_crossing_documents) {
-        if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed() && navigable->active_document())
-            navigables.append(*navigable);
-    }
-    check_if_unloading_is_canceled(move(navigables), *this, move(target_entry), user_involvement, UnloadPromptShown::No,
-        GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown unload_prompt_shown) {
-            switch (result) {
-            case CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload:
-                on_complete->function()(HistoryStepResult::CanceledByBeforeUnload, unload_prompt_shown);
-                return;
-            case CheckIfUnloadingIsCanceledResult::CanceledByNavigate:
-                on_complete->function()(HistoryStepResult::CanceledByNavigate, unload_prompt_shown);
-                return;
-            case CheckIfUnloadingIsCanceledResult::Continue:
-                on_complete->function()(HistoryStepResult::Applied, unload_prompt_shown);
-                return;
-            }
-            VERIFY_NOT_REACHED();
-        }));
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-close
 // AD-HOC: Step 6 of window.close(), requested through the UI process by a document another process hosts, whose

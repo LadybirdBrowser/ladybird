@@ -41,8 +41,6 @@ public:
     bool is_created_by_web_content() const { return m_is_created_by_web_content; }
     void set_is_created_by_web_content(bool value) { m_is_created_by_web_content = value; }
 
-    void run_ui_history_step_unload_cancelation_job(CrossProcessId operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>>);
-
     void reset_session_history_for_testing();
 
     enum class PromptToUnload : bool {

@@ -247,7 +247,6 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     did_request_set_system_visibility_state(Compositing::PageId page_id, Web::HTML::VisibilityState visibility_state) =|
     request_history_operation(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters) =|
     history_operation_ready(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result) =|
-    history_step_unload_cancelation_result(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     beforeunload_check_result(Compositing::PageId page_id, Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     changing_navigable_history_job_ready(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document) =|
     changing_navigable_unload_preparation_complete(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|

@@ -605,20 +605,7 @@ void ConnectionFromClient::reconstruct_child_navigable_history(Compositing::Page
     navigable->route_child_created_during_history_reconstruction(move(navigation));
 }
 
-void ConnectionFromClient::run_history_step_unload_cancelation_job(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value()) {
-        async_history_step_unload_cancelation_result(page_id, operation_id, Web::HTML::HistoryStepResult::Applied, Web::HTML::UnloadPromptShown::No);
-        return;
-    }
-
-    as<Web::HTML::LocalTraversableNavigable>(*page->page().local_traversable()).run_ui_history_step_unload_cancelation_job(operation_id, move(target_entry), move(navigables_crossing_documents), user_involvement, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
-        async_history_step_unload_cancelation_result(page_id, operation_id, result, unload_prompt_shown);
-    }));
-}
-
-void ConnectionFromClient::run_beforeunload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown)
+void ConnectionFromClient::run_beforeunload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Optional<Web::HTML::SessionHistoryEntryDescriptor> target_entry, Optional<Web::HTML::UserNavigationInvolvement> user_involvement_for_navigate_event, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -626,7 +613,7 @@ void ConnectionFromClient::run_beforeunload_check(Compositing::PageId page_id, W
         return;
     }
 
-    page->page().history_executor().run_ui_beforeunload_check(move(navigable_ids), unload_prompt_shown, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, check_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
+    page->page().history_executor().run_ui_beforeunload_check(move(navigable_ids), move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, check_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
         async_beforeunload_check_result(page_id, check_id, result, unload_prompt_shown);
     }));
 }
