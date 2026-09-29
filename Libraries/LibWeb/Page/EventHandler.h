@@ -134,11 +134,12 @@ private:
         Compositing::RustFFI::NodeSlotId hit_node;
         NonnullRefPtr<Layout::NodeArena> arena;
         RefPtr<Painting::ChromeWidget> chrome_widget;
-        GC::Ptr<DOM::Node> dom_node;
+        GC::Ptr<DOM::Node> node;
         Optional<int> index_in_node;
         bool is_text_fragment { false };
 
         Layout::Node* layout_node() const;
+        GC::Ptr<DOM::Node> dom_node() const { return node; }
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
     GC::Ptr<DOM::Node> focus_candidate_for_position(CSSPixelPoint) const;

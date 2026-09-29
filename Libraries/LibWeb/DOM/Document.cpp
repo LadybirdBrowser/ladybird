@@ -9998,7 +9998,7 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
     //    the transforms that apply to the descendants of the viewport, return the associated element and terminate
     //    these steps.
     auto result = hit_test_display_list->hit_test(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
-    if (result.has_value() && (result->chrome_widget || result->node))
+    if (result.has_value() && (result->chrome_widget || result->dom_node()))
         return result;
 
     // 3. If the document has a root element, return the root element and terminate these steps.
