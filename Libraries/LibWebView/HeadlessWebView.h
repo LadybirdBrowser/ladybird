@@ -53,10 +53,12 @@ protected:
     HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size, IsPrivate = IsPrivate::No);
 
     void propagate_web_content_crash(WebContentCrashReason);
+    HeadlessWebView& adopt_child_web_view(NonnullOwnPtr<HeadlessWebView>);
     void discard_child_web_view(HeadlessWebView&);
     void schedule_forced_close();
     void prepare_page_for_tab(WebContentPage&) override;
     void update_zoom() override;
+    ViewImplementation* create_view_for_new_tab_or_window(IsPrivate) override;
 
     virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }

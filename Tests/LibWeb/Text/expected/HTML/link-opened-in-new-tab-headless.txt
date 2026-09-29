@@ -1,0 +1,2 @@
+middle-click: opened; this page still at link-opened-in-new-tab-headless.html
+ctrl-click: opened; this page still at link-opened-in-new-tab-headless.html

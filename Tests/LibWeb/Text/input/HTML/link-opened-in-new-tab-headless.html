@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A headless view has no tabs, so a link the user opens in a new tab — with a middle-click, or a click with the
+    // platform's Ctrl key held — opens in a view of its own.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const id = crypto.randomUUID();
+        const platformCtrl = /mac/i.test(navigator.platform) ? internals.MOD_SUPER : internals.MOD_CTRL;
+
+        async function recorded(path) {
+            const url = `${server.baseURL}/recorded-request-headers/echo/${path}`;
+            for (let attempt = 0; attempt < 600; ++attempt) {
+                try {
+                    const response = await fetch(url);
+                    if (response.ok)
+                        return await response.json();
+                } catch {}
+                await timeout(25);
+            }
+            return null;
+        }
+
+        async function open(name, button, modifiers) {
+            const url = await server.createEcho("GET", `/link-new-tab-${name}-${id}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>",
+            });
+            const link = document.createElement("a");
+            link.href = url;
+            link.textContent = name;
+            link.style.display = "block";
+            document.body.append(link);
+
+            const rect = link.getBoundingClientRect();
+            internals.click(rect.x + rect.width / 2, rect.y + rect.height / 2, 1, button, modifiers);
+            const headers = await recorded(`link-new-tab-${name}-${id}`);
+            println(`${name}: ${headers ? "opened" : "not opened"}; this page still at ${location.pathname.split("/").pop()}`);
+            link.remove();
+        }
+
+        await open("middle-click", 1, internals.MOD_NONE);
+        await open("ctrl-click", 0, platformCtrl);
+        done();
+    });
+</script>
