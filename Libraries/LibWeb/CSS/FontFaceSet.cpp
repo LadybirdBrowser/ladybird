@@ -146,8 +146,10 @@ void FontFaceSet::synchronize_css_connected_font_order()
         });
     };
 
+    // Every sheet added or removed asks again. Without a face from a rule the walk over their rules finds nothing.
     auto& document = window->associated_document();
-    document.for_each_active_css_style_sheet(append_fonts_from_sheet);
+    if (!connected_font_faces.is_empty())
+        document.for_each_active_css_style_sheet(append_fonts_from_sheet);
 
     for (auto& font_face : m_font_faces) {
         if (font_face->is_css_connected() && !ordered_font_faces.contains_slow(font_face))
