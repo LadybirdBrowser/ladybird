@@ -5,7 +5,6 @@
  */
 
 #include <AK/Array.h>
-#include <AK/ByteBuffer.h>
 #include <AK/Math.h>
 #include <AK/Queue.h>
 #include <AK/Stream.h>
@@ -130,7 +129,7 @@ TEST_CASE(caret_blink_phase_is_sampled_from_its_web_content_reset_time)
 
 static NonnullRefPtr<Compositing::DisplayList> make_display_list(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Optional<Gfx::Color> color, Optional<Gfx::Color> surface_clear_color = {}, Compositing::ContextRef context = {})
 {
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     if (color.has_value()) {
         auto command = Compositing::FillRect { { 0, 0, 4, 4 }, *color, Gfx::CompositingAndBlendingOperator::Normal, Compositing::NO_EFFECT_NODE };
         append_display_list_command(command_bytes, command, command.rect, context);
@@ -180,7 +179,7 @@ static Compositing::AccumulatedVisualContextTree make_scrollable_viewport_visual
 
 static NonnullRefPtr<Compositing::DisplayList> make_scrollable_viewport_display_list(Compositing::AccumulatedVisualContextTree const& visual_context_tree, bool with_viewport_scrollbar = true, Optional<Compositing::ContextRef> wheel_hit_test_context = {})
 {
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     Compositing::UniqueNodeID document_id { 1 };
     Compositing::SpatialNodeIndex scroll_node_index { 1 };
     VERIFY(visual_context_tree.spatial_node_count() > scroll_node_index.value());
@@ -759,7 +758,7 @@ struct Fill {
 
 static NonnullRefPtr<Compositing::DisplayList> make_fills_display_list(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Vector<Fill> const& fills, Optional<Gfx::Color> surface_clear_color = {}, Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata = {})
 {
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     for (auto const& fill : fills) {
         Compositing::FillRect command { fill.rect, fill.color, Gfx::CompositingAndBlendingOperator::Normal, Compositing::NO_EFFECT_NODE };
         append_display_list_command(command_bytes, command, fill.bounded ? Optional<Gfx::IntRect> { fill.rect } : Optional<Gfx::IntRect> {}, fill.context);
@@ -834,7 +833,7 @@ static NestedScrollbarScene make_nested_scrollbar_scene(NestedScrollbarSceneOpti
 
     Compositing::UniqueNodeID document_id { 1 };
     auto document_id_of_nested_scroller = options.document_id_of_nested_scroller.value_or(document_id);
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     append_display_list_command(
         command_bytes,
         Compositing::CompositorScrollNode {
@@ -1891,7 +1890,7 @@ TEST_CASE(canvas_content_changes_damage_the_canvas_rect)
     auto canvas_id = canvas_surface_registry.create_canvas_surface(make_canvas_surface());
 
     auto visual_context_tree = make_visual_context_tree();
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     Compositing::DrawCanvas draw_canvas {
         .dst_rect = { 4, 4, 4, 4 },
         .canvas_id = canvas_id,
@@ -2034,7 +2033,7 @@ TEST_CASE(child_context_presents_repaint_the_parent)
     fixture.compositor_state->viewport_size_updated(child_context_id, { 8, 8 }, Compositing::WindowResizingInProgress::No);
 
     auto visual_context_tree = make_visual_context_tree();
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     Compositing::DrawCompositedContext draw_composited_context {
         .dst_rect = { 4, 4, 8, 8 },
         .child_context_id = child_context_id,
@@ -2065,7 +2064,7 @@ TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
     auto visual_context_tree = builder.finish();
     Compositing::UniqueNodeID document_id { 1 };
 
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     append_display_list_command(
         command_bytes,
         Compositing::CompositorScrollNode {
@@ -2156,7 +2155,7 @@ TEST_CASE(clip_paths_round_trip_through_serialized_tree_bytes)
 // A scroll container that snaps along its y axis, with snap areas every 100 pixels.
 static NonnullRefPtr<Compositing::DisplayList> make_snap_container_display_list(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::CompositorScrollNodeKind kind = Compositing::CompositorScrollNodeKind::Viewport)
 {
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     Compositing::UniqueNodeID document_id { 1 };
     Compositing::SpatialNodeIndex scroll_node_index { 1 };
     VERIFY(visual_context_tree.spatial_node_count() > scroll_node_index.value());

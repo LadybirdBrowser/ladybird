@@ -128,6 +128,8 @@ pub unsafe extern "C" fn display_list_compute_damage(
 pub unsafe extern "C" fn display_list_animated_content_may_affect_viewport(
     command_bytes: *const u8,
     command_bytes_length: usize,
+    command_runs: *const crate::display_list::commands::DisplayListCommandRun,
+    command_run_count: usize,
     tree: *const c_void,
     scroll_offsets: *const libgfx_rust::FloatPoint,
     scroll_offsets_len: usize,
@@ -138,6 +140,7 @@ pub unsafe extern "C" fn display_list_animated_content_may_affect_viewport(
     unsafe {
         crate::display_list::damage::animated_content_may_affect_viewport_at(
             ffi_slice(command_bytes, command_bytes_length),
+            ffi_slice(command_runs, command_run_count),
             tree_from_handle(tree),
             ffi_slice(scroll_offsets, scroll_offsets_len),
             viewport_rect,

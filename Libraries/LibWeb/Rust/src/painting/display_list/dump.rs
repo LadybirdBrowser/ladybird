@@ -35,6 +35,11 @@ pub struct FfiPaintingDumpCallbacks {
         unsafe extern "C" fn(context: *mut c_void, layout_node_shell: *mut c_void, description_sink: *mut c_void),
     pub command_bytes:
         unsafe extern "C" fn(context: *mut c_void, display_list: *const c_void, byte_count: *mut usize) -> *const u8,
+    pub command_runs: unsafe extern "C" fn(
+        context: *mut c_void,
+        display_list: *const c_void,
+        run_count: *mut usize,
+    ) -> *const DisplayListCommandRun,
     pub nested_display_list: unsafe extern "C" fn(context: *mut c_void, display_list_id: u64) -> *const c_void,
     pub append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
 }
@@ -59,6 +64,14 @@ impl FfiPaintingDumpCallbacks {
         assert!(!bytes.is_null());
         // SAFETY: The host reported `byte_count` readable bytes at `bytes`.
         unsafe { std::slice::from_raw_parts(bytes, byte_count) }
+    }
+
+    fn command_runs(&self, display_list: *const c_void) -> &[DisplayListCommandRun] {
+        let mut run_count = 0;
+        // SAFETY: The host owns the display list for the duration of the dump and returns its live runs.
+        let runs = unsafe { (self.command_runs)(self.context, display_list, &raw mut run_count) };
+        // SAFETY: The host reported `run_count` readable runs at `runs`.
+        unsafe { libcompositing_rust::ffi::ffi_slice(runs, run_count) }
     }
 
     fn nested_display_list(&self, display_list_id: DisplayListResourceId) -> *const c_void {
@@ -166,19 +179,24 @@ fn dump_commands(
     display_list: *const c_void,
     base_indent: usize,
 ) {
-    dump_command_bytes(output, callbacks, callbacks.command_bytes(display_list), base_indent);
+    let bytes = callbacks.command_bytes(display_list);
+    for run in callbacks.command_runs(display_list) {
+        let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
+        dump_command_bytes(output, callbacks, run_bytes, run.context, base_indent);
+    }
 }
 
 fn dump_command_bytes(
     output: &mut String,
     callbacks: &FfiPaintingDumpCallbacks,
     command_bytes: &[u8],
+    context: ContextRef,
     base_indent: usize,
 ) {
     for_each_command(command_bytes, |header, _, payload| {
         push_indent(output, base_indent);
         write!(output, "{}@", header.command_type.name()).unwrap();
-        write_context(output, header.context);
+        write_context(output, context);
         dump_command(output, header.command_type, payload);
         if header.inline_clip_count > 0 {
             dump_inline_clips(output, header, payload);
@@ -189,7 +207,14 @@ fn dump_command_bytes(
         }
         output.push('\n');
 
-        dump_records_inside(output, callbacks, header.command_type, payload, base_indent + 1);
+        dump_records_inside(
+            output,
+            callbacks,
+            header.command_type,
+            payload,
+            context,
+            base_indent + 1,
+        );
         let Some(nested) = nested_display_lists(header.command_type, payload) else {
             return;
         };
@@ -220,6 +245,7 @@ fn dump_records_inside(
     callbacks: &FfiPaintingDumpCallbacks,
     command_type: DisplayListCommandType,
     payload: &[u8],
+    context: ContextRef,
     indent: usize,
 ) {
     for_each_nested_record_span(command_type, payload, |role, span| {
@@ -236,7 +262,7 @@ fn dump_records_inside(
             output.push_str(label);
             nested_indent += 1;
         }
-        dump_command_bytes(output, callbacks, span_bytes(payload, span), nested_indent);
+        dump_command_bytes(output, callbacks, span_bytes(payload, span), context, nested_indent);
     });
 }
 
@@ -805,7 +831,7 @@ mod tests {
             let header = read_header(bytes);
             let payload = &bytes[HEADER_SIZE..HEADER_SIZE + header.payload_size as usize];
             let mut output = format!("{}@", header.command_type.name());
-            write_context(&mut output, header.context);
+            write_context(&mut output, builder.command_runs()[0].context);
             dump_command(&mut output, header.command_type, payload);
             output
         };

@@ -78,31 +78,6 @@ NonnullRefPtr<DisplayList> DisplayList::create_from_command_bytes(AccumulatedVis
     return display_list;
 }
 
-Vector<DisplayListCommandRun> compute_display_list_command_runs(ReadonlyBytes command_bytes)
-{
-    Vector<DisplayListCommandRun> runs;
-    u32 offset = 0;
-    DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes) {
-        auto record_size = static_cast<u32>(sizeof(DisplayListCommandHeader) + header.payload_size);
-        if (runs.is_empty() || runs.last().context != header.context) {
-            DisplayListCommandRun new_run {};
-            new_run.offset = offset;
-            new_run.context = header.context;
-            runs.append(new_run);
-        }
-        auto& run = runs.last();
-        run.size += record_size;
-        offset += record_size;
-        if (display_list_command_is_compositor_metadata(header.command_type))
-            run.has_compositor_metadata = true;
-        else if (header.has_bounding_rect)
-            run.ink_bounds.unite(header.bounding_rect);
-        else
-            run.has_unbounded_draw = true;
-    });
-    return runs;
-}
-
 ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree)
 {
     auto command_runs = display_list.command_runs();
@@ -117,13 +92,41 @@ ErrorOr<void> validate_display_list_command_runs(ReadonlyBytes command_bytes, Re
     for (auto const& run : runs) {
         if (run.offset != next_offset || run.size == 0 || run.size % DisplayList::command_alignment != 0)
             return Error::from_string_literal("Display list command runs do not cover the command bytes");
+        if (run.size > command_bytes.size() - next_offset)
+            return Error::from_string_literal("Display list command runs exceed the command bytes");
         next_offset += run.size;
     }
     if (next_offset != command_bytes.size())
         return Error::from_string_literal("Display list command runs do not cover the command bytes");
     if constexpr (DISPLAY_LIST_RUNS_DEBUG) {
-        if (runs != compute_display_list_command_runs(command_bytes).span())
-            return Error::from_string_literal("Display list command runs disagree with the command bytes");
+        Optional<ContextRef> previous_context;
+        for (auto const& run : runs) {
+            if (previous_context == run.context)
+                return Error::from_string_literal("Adjacent display list command runs share a visual context");
+            previous_context = run.context;
+            DisplayListCommandRun computed_run {};
+            computed_run.offset = run.offset;
+            computed_run.context = run.context;
+            auto bytes = command_bytes.slice(run.offset, run.size);
+            for (size_t offset = 0; offset < bytes.size();) {
+                if (bytes.size() - offset < sizeof(DisplayListCommandHeader))
+                    return Error::from_string_literal("Display list command run ends inside a command header");
+                auto header = read_display_list_object<DisplayListCommandHeader>(bytes.slice(offset));
+                auto record_size = sizeof(DisplayListCommandHeader) + static_cast<size_t>(header.payload_size);
+                if (record_size > bytes.size() - offset || record_size % DisplayList::command_alignment != 0)
+                    return Error::from_string_literal("Display list command run ends inside a command");
+                offset += record_size;
+                computed_run.size += record_size;
+                if (display_list_command_is_compositor_metadata(header.command_type))
+                    computed_run.has_compositor_metadata = true;
+                else if (header.has_bounding_rect)
+                    computed_run.ink_bounds.unite(header.bounding_rect);
+                else
+                    computed_run.has_unbounded_draw = true;
+            }
+            if (computed_run != run)
+                return Error::from_string_literal("Display list command run summary disagrees with its command bytes");
+        }
     }
     return {};
 }

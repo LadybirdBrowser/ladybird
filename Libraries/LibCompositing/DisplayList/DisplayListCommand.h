@@ -137,7 +137,7 @@ decltype(auto) visit_display_list_command(
 }
 
 static_assert(IsTriviallyCopyable<DisplayListCommandHeader>);
-static_assert(sizeof(DisplayListCommandHeader) == 48);
+static_assert(sizeof(DisplayListCommandHeader) == 32);
 static_assert(IsTriviallyCopyable<DisplayListCommandRun>);
 static_assert(sizeof(DisplayListCommandRun) == 40);
 static_assert(IsTriviallyCopyable<DisplayListGlyph>);

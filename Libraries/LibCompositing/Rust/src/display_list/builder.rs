@@ -161,6 +161,7 @@ pub struct DisplayListBuilder {
     bytes: Vec<u8>,
     runs: Vec<DisplayListCommandRun>,
     open_group_depth: usize,
+    open_group_context: Option<ContextRef>,
 }
 
 impl DisplayListBuilder {
@@ -218,7 +219,7 @@ impl DisplayListBuilder {
         let payload_size = padded_record_size - HEADER_SIZE;
         let entries_offset = payload_size - entries_size;
         debug_assert_eq!(entries_offset % COMMAND_ALIGNMENT, 0);
-        let header = Self::header_for(command, inline_clips, inline_transform, context, payload_size);
+        let header = Self::header_for(command, inline_clips, inline_transform, payload_size);
         let start = self.bytes.len();
         self.bytes.resize(start + padded_record_size, 0);
         header.write_ffi_bytes(&mut self.bytes[start..start + HEADER_SIZE]);
@@ -235,7 +236,9 @@ impl DisplayListBuilder {
             &header,
         );
         if self.open_group_depth == 0 {
-            note_command(&mut self.runs, &header, start, padded_record_size);
+            note_command(&mut self.runs, &header, context, start, padded_record_size);
+        } else {
+            self.note_group_context(context);
         }
     }
 
@@ -317,15 +320,10 @@ impl DisplayListBuilder {
             std::mem::size_of::<C>() <= group.fixed_payload_size,
             "a group must be finished with the command type it was begun with"
         );
+        self.note_group_context(context);
         self.open_group_depth -= 1;
         let payload_end = self.bytes.len();
-        let nested_records_end = self.group_nested_records_end(&group);
         let payload_start = group.payload_start();
-        if cfg!(debug_assertions) {
-            for_each_command(&self.bytes[group.content_start..nested_records_end], |header, _, _| {
-                assert_eq!(header.context, context, "a group's nested records share its context");
-            });
-        }
         let inline_clips = group.suspended_inline_clips;
         let (path_spans, unpadded_payload_size) =
             Self::place_inline_clip_paths(&inline_clips, payload_end - payload_start);
@@ -334,13 +332,22 @@ impl DisplayListBuilder {
             (HEADER_SIZE + unpadded_payload_size + entries_size).next_multiple_of(COMMAND_ALIGNMENT);
         let payload_size = padded_record_size - HEADER_SIZE;
         let entries_offset = payload_size - entries_size;
-        let header = Self::header_for(command, &inline_clips, None, context, payload_size);
+        let header = Self::header_for(command, &inline_clips, None, payload_size);
         self.bytes.resize(group.record_start + padded_record_size, 0);
         header.write_ffi_bytes(&mut self.bytes[group.record_start..group.record_start + HEADER_SIZE]);
         command.write_ffi_bytes(&mut self.bytes[payload_start..payload_start + std::mem::size_of::<C>()]);
         self.write_tail_entries(&inline_clips, None, &path_spans, payload_start, entries_offset, &header);
         if self.open_group_depth == 0 {
-            note_command(&mut self.runs, &header, group.record_start, padded_record_size);
+            note_command(&mut self.runs, &header, context, group.record_start, padded_record_size);
+            self.open_group_context = None;
+        }
+    }
+
+    fn note_group_context(&mut self, context: ContextRef) {
+        if let Some(group_context) = self.open_group_context {
+            debug_assert_eq!(group_context, context, "a group's nested records share its context");
+        } else {
+            self.open_group_context = Some(context);
         }
     }
 
@@ -376,7 +383,6 @@ impl DisplayListBuilder {
         command: &C,
         inline_clips: &[PendingInlineClip],
         inline_transform: Option<AffineTransform>,
-        context: ContextRef,
         payload_size: usize,
     ) -> DisplayListCommandHeader {
         let inline_clip_count = u8::try_from(inline_clips.len()).expect("too many inline clips on one command");
@@ -398,7 +404,6 @@ impl DisplayListBuilder {
             inline_clip_count,
             has_inline_transform: inline_transform.is_some(),
             payload_size: u32::try_from(payload_size).expect("display list payload exceeds u32"),
-            context,
             bounding_rect: bounding_rect.unwrap_or_default(),
         }
     }
@@ -459,9 +464,19 @@ impl DisplayListBuilder {
         }
         let source_range = &source.bytes[range.offset as usize..(range.offset + range.size) as usize];
         self.bytes.extend_from_slice(source_range);
-        match rewrite.filter(|rewrite| !rewrite.is_identity()) {
-            Some(rewrite) => self.note_appended_records(destination_offset, Some(rewrite)),
-            None => self.note_runs_copied_from_source(&source.command_runs, range, destination_offset),
+        let rewrite = rewrite.filter(|rewrite| !rewrite.is_identity());
+        self.note_runs_copied_from_source(&source.command_runs, range, destination_offset, rewrite);
+        if let Some(rewrite) = rewrite
+            && !rewrite.recorded_context.effect.is_none()
+            && rewrite.recorded_context.effect != rewrite.current_context.effect
+        {
+            let mut offset = destination_offset;
+            while offset < self.bytes.len() {
+                let header = read_header(&self.bytes[offset..]);
+                rewrite_background_color_animation_effect(&mut self.bytes, offset, &header, rewrite);
+                offset += HEADER_SIZE + header.payload_size as usize;
+            }
+            assert_eq!(offset, self.bytes.len());
         }
         u32::try_from(destination_offset).expect("display list exceeds u32")
     }
@@ -471,6 +486,7 @@ impl DisplayListBuilder {
         source_runs: &[DisplayListCommandRun],
         range: CommandRange,
         destination_offset: usize,
+        rewrite: Option<ContextRewrite>,
     ) {
         let range_end = range.offset + range.size;
         let first = source_runs.partition_point(|run| run.offset + run.size <= range.offset);
@@ -481,11 +497,13 @@ impl DisplayListBuilder {
             let start = run.offset.max(range.offset);
             let end = (run.offset + run.size).min(range_end);
             let destination_start = destination_offset + (start - range.offset) as usize;
+            let context = rewrite.map_or(run.context, |rewrite| rewrite.rewrite(run.context));
             if start == run.offset && end == run.offset + run.size {
                 push_or_merge_run(
                     &mut self.runs,
                     DisplayListCommandRun {
                         offset: u32::try_from(destination_start).expect("display list exceeds u32"),
+                        context,
                         ..*run
                     },
                 );
@@ -494,32 +512,15 @@ impl DisplayListBuilder {
             let Self { bytes, runs, .. } = self;
             let destination_end = destination_offset + (end - range.offset) as usize;
             for_each_command(&bytes[destination_start..destination_end], |header, offset, payload| {
-                note_command(runs, header, destination_start + offset, HEADER_SIZE + payload.len());
+                note_command(
+                    runs,
+                    header,
+                    context,
+                    destination_start + offset,
+                    HEADER_SIZE + payload.len(),
+                );
             });
         }
-    }
-
-    // Folds the records appended from `start` on into the run table, first rewriting their
-    // contexts when a spliced capture is replayed under different ones.
-    fn note_appended_records(&mut self, start: usize, rewrite: Option<ContextRewrite>) {
-        let Self { bytes, runs, .. } = self;
-        let mut offset = start;
-        while offset < bytes.len() {
-            let mut header = read_header(&bytes[offset..]);
-            if let Some(rewrite) = rewrite {
-                let context = rewrite.rewrite(header.context);
-                if context != header.context {
-                    header.context = context;
-                    let field_offset = offset + std::mem::offset_of!(DisplayListCommandHeader, context);
-                    context.write_ffi_bytes(&mut bytes[field_offset..field_offset + std::mem::size_of::<ContextRef>()]);
-                }
-                rewrite_background_color_animation_effect(bytes, offset, &header, rewrite);
-            }
-            let record_size = HEADER_SIZE + header.payload_size as usize;
-            note_command(runs, &header, offset, record_size);
-            offset += record_size;
-        }
-        assert_eq!(offset, bytes.len());
     }
 }
 
@@ -563,18 +564,19 @@ fn push_or_merge_run(runs: &mut Vec<DisplayListCommandRun>, run: DisplayListComm
     runs.push(run);
 }
 
-fn note_command(
+pub(crate) fn note_command(
     runs: &mut Vec<DisplayListCommandRun>,
     header: &DisplayListCommandHeader,
+    context: ContextRef,
     offset: usize,
     record_size: usize,
 ) {
     let offset = u32::try_from(offset).expect("display list exceeds u32");
     let record_size = u32::try_from(record_size).expect("display list record exceeds u32");
-    if runs.last().is_none_or(|run| run.context != header.context) {
+    if runs.last().is_none_or(|run| run.context != context) {
         runs.push(DisplayListCommandRun {
             offset,
-            context: header.context,
+            context,
             ..Default::default()
         });
     }
@@ -588,15 +590,6 @@ fn note_command(
     } else {
         run.has_unbounded_draw = true;
     }
-}
-
-// The run table a tape's own headers describe, for tapes that were not built by a builder.
-pub fn command_runs_of_tape(bytes: &[u8]) -> Vec<DisplayListCommandRun> {
-    let mut runs = Vec::new();
-    for_each_command(bytes, |header, offset, payload| {
-        note_command(&mut runs, header, offset, HEADER_SIZE + payload.len());
-    });
-    runs
 }
 
 pub fn for_each_command<'a>(bytes: &'a [u8], mut f: impl FnMut(&DisplayListCommandHeader, usize, &'a [u8])) {
@@ -647,14 +640,6 @@ pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
         inline_clip_count: cursor.u8_at(std::mem::offset_of!(DisplayListCommandHeader, inline_clip_count)),
         has_inline_transform: cursor.bool_at(std::mem::offset_of!(DisplayListCommandHeader, has_inline_transform)),
         payload_size: cursor.u32_at(std::mem::offset_of!(DisplayListCommandHeader, payload_size)),
-        context: {
-            let base = std::mem::offset_of!(DisplayListCommandHeader, context);
-            ContextRef {
-                spatial: SpatialNodeIndex(cursor.u32_at(base + std::mem::offset_of!(ContextRef, spatial))),
-                clip: ClipNodeIndex(cursor.u32_at(base + std::mem::offset_of!(ContextRef, clip))),
-                effect: EffectNodeIndex(cursor.u32_at(base + std::mem::offset_of!(ContextRef, effect))),
-            }
-        },
         bounding_rect: {
             let base = std::mem::offset_of!(DisplayListCommandHeader, bounding_rect);
             libgfx_rust::IntRect {
@@ -729,9 +714,12 @@ mod tests {
         }
     }
 
-    fn header_contexts(builder: &DisplayListBuilder) -> Vec<ContextRef> {
+    fn command_contexts(builder: &DisplayListBuilder) -> Vec<ContextRef> {
         let mut contexts = Vec::new();
-        for_each_command(builder.bytes(), |header, _, _| contexts.push(header.context));
+        for run in builder.command_runs() {
+            let bytes = &builder.bytes()[run.offset as usize..(run.offset + run.size) as usize];
+            for_each_command(bytes, |_, _, _| contexts.push(run.context));
+        }
         contexts
     }
 
@@ -776,6 +764,25 @@ mod tests {
         assert_eq!(runs[0].ink_bounds, IntRect::new(0, 0, 30, 30));
         assert!(!runs[0].has_unbounded_draw);
         assert!(!runs[0].has_compositor_metadata);
+    }
+
+    #[test]
+    fn command_bytes_are_independent_of_the_run_context() {
+        let mut a = DisplayListBuilder::new();
+        let mut b = DisplayListBuilder::new();
+        let command = fill_rect(10, 20, 30, 40);
+        a.append(&command, &[], context(1, None));
+        b.append(
+            &command,
+            &[],
+            ContextRef {
+                spatial: SpatialNodeIndex(2),
+                clip: ClipNodeIndex(3),
+                effect: EffectNodeIndex(4),
+            },
+        );
+        assert_eq!(a.bytes(), b.bytes());
+        assert_ne!(a.command_runs()[0].context, b.command_runs()[0].context);
     }
 
     #[test]
@@ -924,7 +931,8 @@ mod tests {
         );
         let source_header = read_header(source.bytes());
         let spliced_header = read_header(&builder.bytes()[destination_offset as usize..]);
-        assert_eq!(spliced_header.context, current);
+        assert_eq!(builder.command_runs()[0].context, current);
+        assert_eq!(builder.bytes(), source.bytes());
         assert_eq!(spliced_header.inline_clip_count, source_header.inline_clip_count);
         let payload_of = |bytes: &[u8], offset: usize| {
             let header = read_header(&bytes[offset..]);
@@ -974,7 +982,7 @@ mod tests {
             Some(rewrite(context(2, Some(1)), context(3, Some(7)))),
         );
         assert_eq!(
-            header_contexts(&builder),
+            command_contexts(&builder),
             vec![
                 context(3, Some(5)),
                 context(3, Some(6)),
@@ -1004,7 +1012,7 @@ mod tests {
             Some(rewrite(recorded, current)),
         );
         assert_eq!(
-            header_contexts(&builder),
+            command_contexts(&builder),
             vec![current, ContextRef::spatial_only(current.spatial)]
         );
         assert_runs_cover_tape(&builder);
@@ -1120,27 +1128,44 @@ mod tests {
         for_each_command(&source.bytes, |_, offset, _| record_offsets.push(offset as u32));
         record_offsets.push(source.bytes.len() as u32);
 
-        for (start_index, &start) in record_offsets.iter().enumerate() {
-            for &end in &record_offsets[start_index + 1..] {
-                let range = CommandRange {
-                    offset: start,
-                    size: end - start,
-                };
-                let mut copied = DisplayListBuilder::new();
-                copied.append(&fill_rect(0, 0, 1, 1), &[], context(1, None));
-                copied.append_command_range(&source, range, None);
+        for context_rewrite in [None, Some(rewrite(context(1, None), context(2, Some(0))))] {
+            for (start_index, &start) in record_offsets.iter().enumerate() {
+                for &end in &record_offsets[start_index + 1..] {
+                    let range = CommandRange {
+                        offset: start,
+                        size: end - start,
+                    };
+                    let mut copied = DisplayListBuilder::new();
+                    copied.append(&fill_rect(0, 0, 1, 1), &[], context(1, None));
+                    copied.append_command_range(&source, range, context_rewrite);
 
-                let mut walked = DisplayListBuilder::new();
-                walked.append(&fill_rect(0, 0, 1, 1), &[], context(1, None));
-                let destination_offset = walked.bytes.len();
-                walked
-                    .bytes
-                    .extend_from_slice(&source.bytes[start as usize..end as usize]);
-                walked.note_appended_records(destination_offset, None);
+                    let mut walked = DisplayListBuilder::new();
+                    walked.append(&fill_rect(0, 0, 1, 1), &[], context(1, None));
+                    let destination_offset = walked.bytes.len();
+                    walked
+                        .bytes
+                        .extend_from_slice(&source.bytes[start as usize..end as usize]);
+                    for run in &source.command_runs {
+                        let run_start = run.offset.max(start) as usize;
+                        let run_end = (run.offset + run.size).min(end) as usize;
+                        if run_start >= run_end {
+                            continue;
+                        }
+                        for_each_command(&source.bytes[run_start..run_end], |header, offset, payload| {
+                            note_command(
+                                &mut walked.runs,
+                                header,
+                                context_rewrite.map_or(run.context, |rewrite| rewrite.rewrite(run.context)),
+                                destination_offset + run_start - start as usize + offset,
+                                HEADER_SIZE + payload.len(),
+                            );
+                        });
+                    }
 
-                assert_eq!(copied.bytes(), walked.bytes());
-                assert_eq!(copied.command_runs(), walked.command_runs(), "range {range:?}");
-                assert_runs_cover_tape(&copied);
+                    assert_eq!(copied.bytes(), walked.bytes());
+                    assert_eq!(copied.command_runs(), walked.command_runs(), "range {range:?}");
+                    assert_runs_cover_tape(&copied);
+                }
             }
         }
     }

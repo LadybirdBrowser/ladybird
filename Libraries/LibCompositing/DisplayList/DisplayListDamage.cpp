@@ -38,15 +38,17 @@ Optional<Gfx::IntRect> compute_display_list_damage(
 }
 
 AnimatedContentViewportEffect animated_content_may_affect_viewport(
-    ReadonlyBytes display_list_commands,
+    DisplayList const& display_list,
     AccumulatedVisualContextTree const& visual_context_tree,
     ScrollStateSnapshot const& scroll_state,
     Gfx::IntRect viewport_rect,
     i64 sample_time_ns)
 {
+    auto command_bytes = display_list.command_bytes();
+    auto command_runs = display_list.command_runs();
     auto scroll_offsets = scroll_state.device_offsets();
     auto effect = Compositing::RustFFI::display_list_animated_content_may_affect_viewport(
-        display_list_commands.data(), display_list_commands.size(), visual_context_tree.rust_handle(),
+        command_bytes.data(), command_bytes.size(), command_runs.data(), command_runs.size(), visual_context_tree.rust_handle(),
         scroll_offsets.data(), scroll_offsets.size(), viewport_rect, sample_time_ns);
     return {
         .may_affect_viewport = effect.may_affect_viewport,

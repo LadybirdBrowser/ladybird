@@ -14,11 +14,18 @@
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
 
+struct TestDisplayList {
+    ByteBuffer bytes;
+    Vector<Compositing::DisplayListCommandRun> runs;
+};
+
 // Appends one record the way the Rust builder writes it: header, payload, then zero padding up to
 // the command alignment.
 template<Compositing::DisplayListCommand Command>
-void append_display_list_command(ByteBuffer& command_bytes, Command const& command, Optional<Gfx::IntRect> bounding_rect = {}, Compositing::ContextRef context = {})
+void append_display_list_command(TestDisplayList& display_list, Command const& command, Optional<Gfx::IntRect> bounding_rect = {}, Compositing::ContextRef context = {})
 {
+    auto& command_bytes = display_list.bytes;
+    auto offset = command_bytes.size();
     auto payload = Compositing::display_list_object_bytes(command);
     auto record_size = sizeof(Compositing::DisplayListCommandHeader) + payload.size();
     auto payload_size = align_up_to(record_size, Compositing::DisplayList::command_alignment) - sizeof(Compositing::DisplayListCommandHeader);
@@ -28,20 +35,32 @@ void append_display_list_command(ByteBuffer& command_bytes, Command const& comma
         .inline_clip_count = 0,
         .has_inline_transform = false,
         .payload_size = static_cast<u32>(payload_size),
-        .context = context,
         .bounding_rect = bounding_rect.value_or({}),
     };
     command_bytes.append(Compositing::display_list_object_bytes(header));
     command_bytes.append(payload);
     command_bytes.resize(align_up_to(command_bytes.size(), Compositing::DisplayList::command_alignment), ByteBuffer::ZeroFillNewElements::Yes);
+    if (display_list.runs.is_empty() || display_list.runs.last().context != context) {
+        Compositing::DisplayListCommandRun run {};
+        run.offset = offset;
+        run.context = context;
+        display_list.runs.append(run);
+    }
+    auto& run = display_list.runs.last();
+    run.size += command_bytes.size() - offset;
+    if (Compositing::display_list_command_is_compositor_metadata(header.command_type))
+        run.has_compositor_metadata = true;
+    else if (bounding_rect.has_value())
+        run.ink_bounds.unite(*bounding_rect);
+    else
+        run.has_unbounded_draw = true;
 }
 
 // Round-trips a freshly built display list through the IPC encoder, so the receiver gets it the way the compositor
 // process would.
-inline NonnullRefPtr<Compositing::DisplayList> decode_display_list(Compositing::AccumulatedVisualContextTree const& visual_context_tree, ByteBuffer command_bytes, Optional<Gfx::Color> surface_clear_color = {}, Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata = {})
+inline NonnullRefPtr<Compositing::DisplayList> decode_display_list(Compositing::AccumulatedVisualContextTree const& visual_context_tree, TestDisplayList commands, Optional<Gfx::Color> surface_clear_color = {}, Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata = {})
 {
-    auto command_runs = Compositing::compute_display_list_command_runs(command_bytes);
-    auto display_list = Compositing::DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
+    auto display_list = Compositing::DisplayList::create_from_command_bytes(visual_context_tree, move(commands.bytes), move(commands.runs));
     if (surface_clear_color.has_value())
         display_list->set_surface_clear_color(*surface_clear_color);
     if (async_scrolling_metadata.has_value())

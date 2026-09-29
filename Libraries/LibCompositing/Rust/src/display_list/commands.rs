@@ -491,7 +491,7 @@ ffi_bytes_fields!(DisplayListGradientColorStops {
     repeating
 });
 
-// Keep payloads aligned after the three-index context, including inline object arrays.
+// Keep command payloads aligned, including inline object arrays.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C, align(16))]
 pub struct DisplayListCommandHeader {
@@ -500,7 +500,6 @@ pub struct DisplayListCommandHeader {
     pub inline_clip_count: u8,
     pub has_inline_transform: bool,
     pub payload_size: u32,
-    pub context: ContextRef,
     pub bounding_rect: IntRect,
 }
 ffi_bytes_fields!(DisplayListCommandHeader {
@@ -509,10 +508,9 @@ ffi_bytes_fields!(DisplayListCommandHeader {
     inline_clip_count,
     has_inline_transform,
     payload_size,
-    context,
     bounding_rect
 });
-const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 48);
+const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 32);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
@@ -559,8 +557,8 @@ pub const INLINE_TRANSFORM_ENTRY_SIZE: usize = std::mem::size_of::<DisplayListIn
 const _: () = assert!(INLINE_TRANSFORM_ENTRY_SIZE == 32);
 
 // A maximal sequence of consecutive commands sharing one visual context, summarized as the tape is
-// built so that replay can enter a context, cull, and depth-sort per run instead of rediscovering
-// the runs from every command header. Runs are contiguous and cover the whole tape.
+// built so that replay can enter a context, cull, and depth-sort per run. The run owns the visual
+// context of its commands, including records nested inside groups. Runs cover the whole tape.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct DisplayListCommandRun {

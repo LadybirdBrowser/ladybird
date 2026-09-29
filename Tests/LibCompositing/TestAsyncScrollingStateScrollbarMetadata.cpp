@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteBuffer.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
@@ -30,7 +29,7 @@ static TreeWithNestedScroller tree_with_nested_scroller()
     return { builder.finish(), viewport_scroll_node_index, nested_scroll_node_index };
 }
 
-static Compositing::AsyncScrollingState state_from(AccumulatedVisualContextTree const& tree, ByteBuffer command_bytes)
+static Compositing::AsyncScrollingState state_from(AccumulatedVisualContextTree const& tree, TestDisplayList command_bytes)
 {
     auto display_list = decode_display_list(tree, move(command_bytes), {}, DisplayList::AsyncScrollingMetadata { .viewport_rect = { 0, 0, 100, 100 } });
     return Compositing::async_scrolling_state_from_display_list(*display_list);
@@ -41,7 +40,7 @@ static ContextRef in_spatial_node(SpatialNodeIndex spatial)
     return { spatial };
 }
 
-static void append_nested_scroll_node(ByteBuffer& command_bytes, TreeWithNestedScroller const& nested)
+static void append_nested_scroll_node(TestDisplayList& command_bytes, TreeWithNestedScroller const& nested)
 {
     append_display_list_command(
         command_bytes,
@@ -63,7 +62,7 @@ static void append_nested_scroll_node(ByteBuffer& command_bytes, TreeWithNestedS
         in_spatial_node(nested.viewport_scroll_node_index));
 }
 
-static void append_wheel_hit_test_target(ByteBuffer& command_bytes, SpatialNodeIndex target_scroll_node_index, Gfx::FloatRect rect, ContextRef context)
+static void append_wheel_hit_test_target(TestDisplayList& command_bytes, SpatialNodeIndex target_scroll_node_index, Gfx::FloatRect rect, ContextRef context)
 {
     append_display_list_command(
         command_bytes,
@@ -76,7 +75,7 @@ static void append_wheel_hit_test_target(ByteBuffer& command_bytes, SpatialNodeI
         context);
 }
 
-static void append_scrollbar_painted_by_display_list(ByteBuffer& command_bytes, SpatialNodeIndex scroll_node_index, ContextRef context, bool display_list_paints_enlarged_scrollbar)
+static void append_scrollbar_painted_by_display_list(TestDisplayList& command_bytes, SpatialNodeIndex scroll_node_index, ContextRef context, bool display_list_paints_enlarged_scrollbar)
 {
     append_display_list_command(
         command_bytes,
@@ -105,7 +104,7 @@ static void append_scrollbar_painted_by_display_list(ByteBuffer& command_bytes, 
 TEST_CASE(scrollbar_painted_by_display_list_keeps_its_context_and_geometry)
 {
     auto nested = tree_with_nested_scroller();
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     append_nested_scroll_node(command_bytes, nested);
     append_scrollbar_painted_by_display_list(command_bytes, nested.nested_scroll_node_index, in_spatial_node(nested.viewport_scroll_node_index), true);
 
@@ -124,7 +123,7 @@ TEST_CASE(scrollbar_painted_by_display_list_keeps_its_context_and_geometry)
 TEST_CASE(scrollbar_names_its_scroller_by_stable_id)
 {
     auto nested = tree_with_nested_scroller();
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     // The scrollbar is recorded after its scroll node in paint order, but resolution does not depend on that.
     append_scrollbar_painted_by_display_list(command_bytes, nested.nested_scroll_node_index, in_spatial_node(nested.viewport_scroll_node_index), false);
     append_nested_scroll_node(command_bytes, nested);
@@ -140,7 +139,7 @@ TEST_CASE(scrollbar_names_its_scroller_by_stable_id)
 TEST_CASE(scrollbar_without_a_scroll_node_has_no_stable_id)
 {
     auto nested = tree_with_nested_scroller();
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     append_scrollbar_painted_by_display_list(command_bytes, nested.nested_scroll_node_index, in_spatial_node(nested.viewport_scroll_node_index), false);
 
     auto state = state_from(nested.tree, move(command_bytes));
@@ -154,7 +153,7 @@ TEST_CASE(scrollbars_and_wheel_hit_test_targets_share_one_paint_order)
     auto outer_context = in_spatial_node(nested.viewport_scroll_node_index);
     auto inner_context = in_spatial_node(nested.nested_scroll_node_index);
 
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     append_wheel_hit_test_target(command_bytes, nested.nested_scroll_node_index, { 10, 10, 40, 40 }, outer_context);
     append_nested_scroll_node(command_bytes, nested);
     append_wheel_hit_test_target(command_bytes, nested.nested_scroll_node_index, { 10, 10, 40, 140 }, inner_context);

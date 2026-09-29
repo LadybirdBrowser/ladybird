@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteBuffer.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
@@ -26,13 +25,13 @@ static AccumulatedVisualContextTree tree_with_one_scroll_node()
     return builder.finish();
 }
 
-static Compositing::AsyncScrollingState state_from(AccumulatedVisualContextTree const& tree, ByteBuffer command_bytes, double device_pixels_per_css_pixel)
+static Compositing::AsyncScrollingState state_from(AccumulatedVisualContextTree const& tree, TestDisplayList command_bytes, double device_pixels_per_css_pixel)
 {
     auto display_list = decode_display_list(tree, move(command_bytes), {}, DisplayList::AsyncScrollingMetadata { .viewport_rect = { 0, 0, 100, 100 }, .device_pixels_per_css_pixel = device_pixels_per_css_pixel });
     return Compositing::async_scrolling_state_from_display_list(*display_list);
 }
 
-static void append_scroll_node(ByteBuffer& command_bytes)
+static void append_scroll_node(TestDisplayList& command_bytes)
 {
     append_display_list_command(
         command_bytes,
@@ -52,7 +51,7 @@ static void append_scroll_node(ByteBuffer& command_bytes)
         });
 }
 
-static void append_snap_container(ByteBuffer& command_bytes)
+static void append_snap_container(TestDisplayList& command_bytes)
 {
     append_display_list_command(
         command_bytes,
@@ -69,7 +68,7 @@ static void append_snap_container(ByteBuffer& command_bytes)
         });
 }
 
-static void append_snap_area(ByteBuffer& command_bytes, i64 node_id, u8 pseudo_element_type, CSSPixelRect rect, Compositing::SnapAlign align_y, bool always_stop)
+static void append_snap_area(TestDisplayList& command_bytes, i64 node_id, u8 pseudo_element_type, CSSPixelRect rect, Compositing::SnapAlign align_y, bool always_stop)
 {
     append_display_list_command(
         command_bytes,
@@ -88,7 +87,7 @@ static void append_snap_area(ByteBuffer& command_bytes, i64 node_id, u8 pseudo_e
 TEST_CASE(snap_geometry_is_read_from_the_display_list)
 {
     auto tree = tree_with_one_scroll_node();
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     append_scroll_node(command_bytes);
     append_snap_container(command_bytes);
     append_snap_area(command_bytes, 3, 0, CSSPixelRect { 0, 0, 100, 100 }, Compositing::SnapAlign::Start, false);
@@ -129,7 +128,7 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
 TEST_CASE(a_snap_area_recorded_without_its_container_is_ignored)
 {
     auto tree = tree_with_one_scroll_node();
-    ByteBuffer command_bytes;
+    TestDisplayList command_bytes;
     append_scroll_node(command_bytes);
     append_snap_area(command_bytes, 3, 0, CSSPixelRect { 0, 0, 100, 100 }, Compositing::SnapAlign::Start, false);
 

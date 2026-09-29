@@ -678,7 +678,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
             requires_direct_replay = requires_direct_replay || nested_display_list_requires_direct_replay(nested_display_list_id, visited_display_lists);
     };
 
-    Function<void(ReadonlyBytes, bool)> scan_records = [&](ReadonlyBytes command_bytes, bool inside_isolated_group) {
+    Function<void(ReadonlyBytes, ContextRef, bool)> scan_records = [&](ReadonlyBytes command_bytes, ContextRef context, bool inside_isolated_group) {
         DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
             if (requires_direct_replay)
                 return;
@@ -700,16 +700,17 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
                     if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal
                         && !blends_with_isolated_backdrop_color
                         && !inside_isolated_group
-                        && !visual_context_tree.effect_is_isolated_by_layer(header.context.effect))
+                        && !visual_context_tree.effect_is_isolated_by_layer(context.effect))
                         requires_direct_replay = true;
                 }
                 for_each_command_byte_range_inside(command, payload, [&](ReadonlyBytes nested_records) {
-                    scan_records(nested_records, true);
+                    scan_records(nested_records, context, true);
                 });
             });
         });
     };
-    scan_records(list_resource.display_list->command_bytes(), false);
+    for (auto const& run : list_resource.display_list->command_runs())
+        scan_records(list_resource.display_list->command_bytes_of_run(run), run.context, false);
 
     resource.requires_direct_replay = requires_direct_replay;
     return requires_direct_replay;
