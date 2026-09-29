@@ -2864,8 +2864,11 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
         return;
     auto& taken_operation = **operation;
 
-    // A changing job still pending when its operation finishes never activates the document it populated.
+    // A changing job still pending when its operation finishes never activates the document it populated. The job
+    // stays with the operation: its completion can be what finished it.
     for (auto const& [navigable_id, pending_job] : taken_operation.pending_changing_jobs) {
+        if (pending_job->population_loader)
+            pending_job->population_loader->reclaim_response_body_after_failed_handoff();
         if (auto navigable = find(navigable_id); navigable.has_value() && pending_job->document)
             navigable->abandon_populated_document(*pending_job->document);
     }
