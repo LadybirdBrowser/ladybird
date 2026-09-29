@@ -65,12 +65,6 @@ SystemFontProvider& FontDatabase::install_system_font_provider(NonnullOwnPtr<Sys
     return *m_system_font_provider;
 }
 
-StringView FontDatabase::system_font_provider_name() const
-{
-    VERIFY(m_system_font_provider);
-    return m_system_font_provider->name();
-}
-
 FontDatabase::FontDatabase() = default;
 
 RefPtr<Gfx::Font> FontDatabase::get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings, Optional<Gfx::ShapeFeatures> const& shape_features)

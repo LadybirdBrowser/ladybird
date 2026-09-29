@@ -67,7 +67,6 @@ public:
     virtual RefPtr<Typeface> get_typeface_by_local_name(String const&) override;
     virtual RefPtr<Gfx::Font> get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) override;
     virtual Optional<FlyString> resolve_generic_family(StringView family_name, u16 weight, u8 slope) override;
-    virtual StringView name() const LIFETIME_BOUND override { return "Shared"sv; }
 
 private:
     struct CodePointCacheKey {
