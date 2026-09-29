@@ -5,27 +5,36 @@
     #position.changed { --position: 30px 40px; }
     #variant { --variant: small-caps no-common-ligatures; font-variant: var(--variant); }
     #variant.changed { --variant: all-small-caps common-ligatures; }
+    #background { --position: 10px 20px; background: green var(--position); }
+    #background.changed { --position: 30px 40px; }
+    #font { --style: small-caps; font: var(--style) 16px serif; }
+    #font.changed { --style: italic small-caps; }
+    #border { --width: 1px; border: var(--width) solid green; }
+    #border.changed { --width: 2px; }
 </style>
 <div id="position"></div>
 <div id="variant">text</div>
+<div id="background"></div>
+<div id="font">text</div>
+<div id="border"></div>
 <script>
     test(() => {
-        const position = document.getElementById("position");
-        const variant = document.getElementById("variant");
+        const cases = [
+            ["position", style => style.backgroundPosition],
+            ["variant", style => `${style.fontVariantCaps} / ${style.fontVariantLigatures}`],
+            ["background", style => style.backgroundPosition],
+            ["font", style => `${style.fontStyle} / ${style.fontVariantCaps}`],
+            ["border", style => `${style.borderTopWidth} ${style.borderTopStyle} / ${style.borderLeftWidth} ${style.borderLeftStyle}`],
+        ];
         const output = [];
         internals.updateStyle();
-        output.push(`position: ${getComputedStyle(position).backgroundPosition}`);
-        position.classList.add("changed");
-        internals.updateStyle();
-        output.push(`position: ${getComputedStyle(position).backgroundPosition}`);
-        const sampleVariant = () => {
-            const style = getComputedStyle(variant);
-            output.push(`variant: ${style.fontVariantCaps} / ${style.fontVariantLigatures}`);
-        };
-        sampleVariant();
-        variant.classList.add("changed");
-        internals.updateStyle();
-        sampleVariant();
+        for (const [id, sample] of cases) {
+            const element = document.getElementById(id);
+            output.push(`${id}: ${sample(getComputedStyle(element))}`);
+            element.classList.add("changed");
+            internals.updateStyle();
+            output.push(`${id}: ${sample(getComputedStyle(element))}`);
+        }
         output.forEach(println);
     });
 </script>
