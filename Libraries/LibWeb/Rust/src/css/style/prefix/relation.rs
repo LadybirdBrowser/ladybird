@@ -25,7 +25,7 @@ use super::{
 // PrefixRelation, while every scope using that automaton shares its traversal and lookup tables.
 pub(super) struct PrefixRelationProgram {
     // Step identities are in dispatch order, so retain their dependency order separately.
-    queue: Vec<(u32, PrefixOutputKind)>,
+    queue: Vec<QueuedStep>,
     step_ranks: Vec<u32>,
     compound_step_offsets: Vec<u32>,
     compound_steps: Vec<u32>,
@@ -39,6 +39,16 @@ pub(super) struct PrefixRelationProgram {
 thread_local! {
     static RELATION_PROGRAM_MEMORY: std::cell::RefCell<super::super::memory::MemoryController> =
         std::cell::RefCell::new(super::super::memory::MemoryController::new(super::super::memory::DeviceClass::ForegroundDesktop));
+}
+
+/// A step in dependency order, with what an update reads of it as it runs: how it is reached, its compound and its
+/// predecessor (`u32::MAX` for none). Updates run steps in this order, so they read these one after another.
+#[derive(Clone, Copy)]
+struct QueuedStep {
+    step: u32,
+    axis: PrefixOutputKind,
+    compound: u32,
+    predecessor: u32,
 }
 
 impl PrefixRelationProgram {
@@ -865,19 +875,22 @@ impl PrefixRelation {
         // Every local change is seeded before evaluation. Dependency order ensures that a step
         // runs once, after all changes to its predecessor, and only propagates a changed result.
         while let Some(rank) = self.pending_steps.pop_first() {
-            let (step_index, axis) = self.program.queue[rank];
-            let step_index = step_index as usize;
-            let step = &automaton.steps[step_index];
-            let compound_index = step.compound.0 as usize;
-            let predecessor = automaton.predecessor_of(PrefixStepID(step_index as u32));
+            let QueuedStep {
+                step: step_index,
+                axis,
+                compound: compound_index,
+                predecessor,
+            } = self.program.queue[rank];
+            let (step_index, compound_index) = (step_index as usize, compound_index as usize);
+            let predecessor = (predecessor != u32::MAX).then_some(predecessor as usize);
             let first_change = changed_positions.len();
-            if predecessor.is_some_and(|predecessor| self.matches[predecessor.0 as usize].is_empty()) {
+            if predecessor.is_some_and(|predecessor| self.matches[predecessor].is_empty()) {
                 // No predecessor witness can satisfy any outgoing combinator. Remove the old
                 // matches directly without evaluating local predicates or changed geometry.
                 self.matches[step_index].drain_into(&mut changed_positions);
             } else {
                 let predecessor_changes = predecessor
-                    .and_then(|predecessor| step_changes.get(&(predecessor.0 as usize)))
+                    .and_then(|predecessor| step_changes.get(&predecessor))
                     .map_or(&[][..], |run| &changed_positions[run.clone()]);
                 let geometry = match axis {
                     PrefixOutputKind::Child => geometry_memberships[0]
@@ -1015,7 +1028,7 @@ impl PrefixRelation {
                         !has_bit(&self.arrived, position) && self.matches[step_index].contains(position);
                     let mut matched = candidates.contains(position);
                     if matched && let Some(predecessor) = predecessor {
-                        let predecessor = &self.matches[predecessor.0 as usize];
+                        let predecessor = &self.matches[predecessor];
                         let contains = |position| predecessor.contains(position);
                         matched = match axis {
                             PrefixOutputKind::Child | PrefixOutputKind::NextSibling => {
@@ -1085,7 +1098,7 @@ impl PrefixRelation {
                 counters.bump(Counter::PrefixRelationStops);
                 continue;
             }
-            for successor in automaton.outputs_for(step) {
+            for successor in automaton.outputs_for(&automaton.steps[step_index]) {
                 match successor.kind {
                     PrefixOutputKind::UniqueTerminal | PrefixOutputKind::SharedTerminal => {
                         for &position in &changed_positions[changes.clone()] {
@@ -1445,6 +1458,12 @@ impl PrefixAutomaton {
                 queue: queue
                     .into_iter()
                     .map(|(step, axis)| (u32::try_from(step).expect("prefix step space exhausted"), axis))
+                    .map(|(step, axis)| QueuedStep {
+                        step,
+                        axis,
+                        compound: self.steps[step as usize].compound.0,
+                        predecessor: self.step_predecessors[step as usize],
+                    })
                     .collect::<Box<[_]>>()
                     .into_vec(),
                 step_ranks,
