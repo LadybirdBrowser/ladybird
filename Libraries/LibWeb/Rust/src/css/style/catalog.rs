@@ -1709,7 +1709,7 @@ pub(super) struct BatchMatchingTraversal {
     pub(super) dispatch_workspace: DispatchCandidateWorkspace,
     pub(super) dispatch_workspace_bytes: u64,
     pub(super) cascade_compaction_workspace: ordering::CascadeCompactionWorkspace,
-    pub(super) cascade_compaction_workspace_bytes: u64,
+    pub(super) cascade_compaction_workspace_memory: MemoryLease,
 }
 
 /// Current-side matching scratch produced by the transaction immediately before a style

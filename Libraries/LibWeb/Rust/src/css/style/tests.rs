@@ -3277,6 +3277,44 @@ fn cascade_matching_publishes_the_same_top_1_winners_it_compacts() {
 }
 
 #[test]
+fn a_repeated_match_list_publishes_what_its_first_compaction_decided() {
+    let (mut engine, nodes) = linear_document();
+    let losing = add_target_rule(&mut engine, StyleSheetObjectID(1), StyleAtomID(200));
+    let lower = add_target_rule(&mut engine, StyleSheetObjectID(2), StyleAtomID(201));
+    let later = add_target_rule(&mut engine, StyleSheetObjectID(3), StyleAtomID(202));
+    engine.set_rule_declared_properties(losing, &[(1, false)], true);
+    engine.set_rule_declared_properties(lower, &[(1, false), (2, false)], true);
+    engine.set_rule_declared_properties(later, &[(1, false)], true);
+    commit_test_setup(&mut engine);
+    let matches_of = |engine: &StyleEngine, node| {
+        vec![
+            concrete_rule_match(engine, node, losing, 0, None),
+            concrete_rule_match(engine, node, lower, 1, None),
+            concrete_rule_match(engine, node, later, 2, None),
+        ]
+    };
+
+    // The second list marks it as one to remember, and the third publishes what was remembered.
+    for node in [nodes[0], nodes[1], nodes[2]] {
+        let compacted = engine.matches_for_cascade(matches_of(&engine, node), false, Some(node));
+
+        assert_eq!(
+            compacted.iter().map(|entry| entry.rule).collect::<Vec<_>>(),
+            vec![lower, later]
+        );
+        let key = WinnerGroupKey::current(node, engine.program.version());
+        assert!(
+            matches!(engine.winner_groups.winner(key, 1), Lookup::Known(winner) if winner.source == WinnerSource::Rule(later))
+        );
+        assert!(
+            matches!(engine.winner_groups.winner(key, 2), Lookup::Known(winner) if winner.source == WinnerSource::Rule(lower))
+        );
+    }
+    assert_eq!(engine.counters().get(Counter::CascadeNodeHandlesPublished), 3);
+    assert_eq!(engine.counters().get(Counter::CascadeStatesInterned), 1);
+}
+
+#[test]
 fn a_pseudo_winner_keeps_only_its_own_target_matches() {
     let (mut engine, nodes) = linear_document();
     let before = PseudoElementTarget::new(PseudoElementKind(0));
