@@ -1,6 +1,5 @@
 set(TEST_SOURCES
     BenchmarkDisplayListRecording.cpp
-    TestSiteCompatibility.cpp
     TestAudioWorkletPipe.cpp
     TestContentBlocker.cpp
     TestControlMessageQueue.cpp
@@ -26,7 +25,6 @@ set(TEST_SOURCES
     TestSharedCompiledStyleSheet.cpp
     TestSimpleRealm.cpp
     TestSourceHighlighter.cpp
-    TestStrings.cpp
     TestStructuredSerializeCorpus.cpp
     TestStructuredSerializeDurability.cpp
     TestStructuredSerializeFormat.cpp
@@ -66,7 +64,6 @@ target_link_libraries(TestContentBlocker PRIVATE LibURL)
 if (NOT WIN32)
     target_link_libraries(TestCSSSyntaxParser PRIVATE LibThreading)
 endif()
-target_link_libraries(TestSiteCompatibility PRIVATE LibURL)
 target_link_libraries(TestDownloadReader PRIVATE LibGC LibJS LibURL)
 target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS LibRequests LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
