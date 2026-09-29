@@ -36,11 +36,6 @@ NonnullRefPtr<Resource> ResourceImplementation::make_resource(String full_path, 
     return adopt_ref(*new Resource(move(full_path), Resource::Scheme::Resource, move(file), modified_time));
 }
 
-NonnullRefPtr<Resource> ResourceImplementation::make_resource(String full_path, ByteBuffer buffer, time_t modified_time)
-{
-    return adopt_ref(*new Resource(move(full_path), Resource::Scheme::Resource, move(buffer), modified_time));
-}
-
 NonnullRefPtr<Resource> ResourceImplementation::make_directory_resource(String full_path, time_t modified_time)
 {
     return adopt_ref(*new Resource(move(full_path), Resource::Scheme::Resource, Resource::DirectoryTag {}, modified_time));

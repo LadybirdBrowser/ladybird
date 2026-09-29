@@ -57,13 +57,12 @@ private:
     };
 
     Resource(String path, Scheme, NonnullOwnPtr<Core::MappedFile>, time_t modified_time);
-    Resource(String path, Scheme, ByteBuffer, time_t modified_time);
     Resource(String path, Scheme, DirectoryTag, time_t modified_time);
 
     String m_path; // Relative to scheme root. File: abspath, Resource: resource root
     Scheme m_scheme;
 
-    Variant<DirectoryTag, NonnullOwnPtr<Core::MappedFile>, ByteBuffer> m_data;
+    Variant<DirectoryTag, NonnullOwnPtr<Core::MappedFile>> m_data;
     time_t m_modified_time {};
 };
 

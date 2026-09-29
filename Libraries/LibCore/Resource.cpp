@@ -19,14 +19,6 @@ Resource::Resource(String path, Scheme scheme, NonnullOwnPtr<Core::MappedFile> f
 {
 }
 
-Resource::Resource(String path, Scheme scheme, ByteBuffer buffer, time_t modified_time)
-    : m_path(move(path))
-    , m_scheme(scheme)
-    , m_data(move(buffer))
-    , m_modified_time(modified_time)
-{
-}
-
 Resource::Resource(String path, Scheme scheme, DirectoryTag, time_t modified_time)
     : m_path(move(path))
     , m_scheme(scheme)
@@ -88,7 +80,6 @@ ByteBuffer Resource::clone_data() const
 {
     return m_data.visit(
         [](NonnullOwnPtr<Core::MappedFile> const& file) { return MUST(ByteBuffer::copy(file->bytes())); },
-        [](ByteBuffer const& buffer) { return buffer; },
         [](DirectoryTag) -> ByteBuffer { VERIFY_NOT_REACHED(); });
 }
 
@@ -96,16 +87,13 @@ ByteBuffer Resource::release_data() &&
 {
     VERIFY(!m_data.has<DirectoryTag>());
 
-    if (m_data.has<NonnullOwnPtr<Core::MappedFile>>())
-        return MUST(ByteBuffer::copy(m_data.get<NonnullOwnPtr<Core::MappedFile>>()->bytes()));
-    return move(m_data).get<ByteBuffer>();
+    return MUST(ByteBuffer::copy(m_data.get<NonnullOwnPtr<Core::MappedFile>>()->bytes()));
 }
 
 ReadonlyBytes Resource::data() const
 {
     return m_data.visit(
         [](NonnullOwnPtr<Core::MappedFile> const& file) { return file->bytes(); },
-        [](ByteBuffer const& buffer) { return buffer.bytes(); },
         [](DirectoryTag) -> ReadonlyBytes { VERIFY_NOT_REACHED(); });
 }
 
