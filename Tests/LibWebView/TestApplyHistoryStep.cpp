@@ -66,9 +66,9 @@ public:
     using ChangingNavigableHistoryStepJob = WebView::ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob;
     using ApplyChangingNavigableHistoryStepContinuation = WebView::ApplyHistoryStepJobs::ApplyChangingNavigableHistoryStepContinuation;
 
-    struct UnloadCancelationJob {
+    struct UnloadingCheck {
         NonnullRefPtr<WebView::CanonicalSessionHistoryEntry> target_entry;
-        Vector<Web::HTML::CrossProcessId> navigables_crossing_documents;
+        Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload;
         Function<void(Web::HTML::HistoryStepResult)> on_complete;
     };
     struct ChangingJob {
@@ -88,7 +88,7 @@ public:
     WebView::ApplyHistoryStepJobs jobs()
     {
         return {
-            .run_unload_cancelation_job = [this](WebView::ApplyHistoryStepJobs::UnloadCancelationJob job, Function<void(Web::HTML::HistoryStepResult)> on_complete) { unload_cancelation_jobs.append({ move(job.target_entry), move(job.navigables_crossing_documents), move(on_complete) }); },
+            .check_if_unloading_is_canceled = [this](Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, NonnullRefPtr<WebView::CanonicalSessionHistoryEntry> target_entry, Web::HTML::UserNavigationInvolvement, Function<void(Web::HTML::HistoryStepResult)> on_complete) { unloading_checks.append({ move(target_entry), move(navigables_that_need_before_unload), move(on_complete) }); },
             .queue_navigation_api_state_clear_task = [this](Web::HTML::CrossProcessId navigable_id) { navigation_api_state_clear_tasks.append(navigable_id); },
             .select_changing_navigable_history_step_job_endpoint = [this](ChangingNavigableHistoryStepJob& job) {
                 selected_changing_job_endpoints.append(job.navigable_id);
@@ -99,7 +99,7 @@ public:
         };
     }
 
-    Vector<UnloadCancelationJob> unload_cancelation_jobs;
+    Vector<UnloadingCheck> unloading_checks;
     Vector<Web::HTML::CrossProcessId> navigation_api_state_clear_tasks;
     Vector<Web::HTML::CrossProcessId> selected_changing_job_endpoints;
     Vector<ChangingJob> changing_jobs;
@@ -267,7 +267,7 @@ TEST_CASE(traversal_runs_the_changing_root_job_and_commits_the_target_step)
     test.with_two_top_level_entries();
 
     auto& operation = test.traverse_to_step(0);
-    EXPECT(test.runner.unload_cancelation_jobs.is_empty());
+    EXPECT(test.runner.unloading_checks.is_empty());
 
     EXPECT_EQ(test.runner.selected_changing_job_endpoints.size(), 1uz);
     EXPECT_EQ(test.runner.selected_changing_job_endpoints[0], root_id());
@@ -372,15 +372,15 @@ TEST_CASE(canceled_unloading_returns_before_any_changing_jobs)
     test.with_two_top_level_entries();
 
     test.traverse_to_step(0, true);
-    EXPECT_EQ(test.runner.unload_cancelation_jobs.size(), 1uz);
+    EXPECT_EQ(test.runner.unloading_checks.size(), 1uz);
     auto* target_entry = test.history.get_the_target_history_entry(test.traversable, 0);
     VERIFY(target_entry);
     EXPECT(!test.traversable.current_session_history_entry_is(*target_entry));
-    auto& job = test.runner.unload_cancelation_jobs[0];
+    auto& job = test.runner.unloading_checks[0];
     EXPECT_EQ(job.target_entry->step, 0);
     EXPECT_EQ(job.target_entry->url, parse_url("https://a.example/"sv));
-    EXPECT_EQ(job.navigables_crossing_documents.size(), 1uz);
-    EXPECT_EQ(job.navigables_crossing_documents[0], root_id());
+    EXPECT_EQ(job.navigables_that_need_before_unload.size(), 1uz);
+    EXPECT_EQ(job.navigables_that_need_before_unload[0], root_id());
     job.on_complete(Web::HTML::HistoryStepResult::CanceledByBeforeUnload);
 
     EXPECT(test.runner.changing_jobs.is_empty());
@@ -398,7 +398,7 @@ TEST_CASE(disallowed_initiator_returns_before_the_cancelation_check)
     test.traverse_to_step(0, true, child_id(),
         Web::InitiatorSourceSnapshot { .sandboxing_flags = Web::HTML::SandboxingFlagSet::SandboxedTopLevelNavigationWithoutUserActivation, .has_transient_activation = false });
 
-    EXPECT(test.runner.unload_cancelation_jobs.is_empty());
+    EXPECT(test.runner.unloading_checks.is_empty());
     EXPECT(test.runner.changing_jobs.is_empty());
     EXPECT(test.result == Web::HTML::HistoryStepResult::InitiatorDisallowed);
     EXPECT_EQ(test.current_step(), 1);
@@ -412,7 +412,7 @@ TEST_CASE(allowed_initiator_proceeds_to_the_cancelation_check)
 
     test.traverse_to_step(0, true, child_id(), Web::InitiatorSourceSnapshot {});
 
-    EXPECT_EQ(test.runner.unload_cancelation_jobs.size(), 1uz);
+    EXPECT_EQ(test.runner.unloading_checks.size(), 1uz);
     EXPECT(!test.result.has_value());
 }
 
@@ -424,7 +424,7 @@ TEST_CASE(initiator_without_a_snapshot_fails_closed)
 
     test.traverse_to_step(0, true, child_id());
 
-    EXPECT(test.runner.unload_cancelation_jobs.is_empty());
+    EXPECT(test.runner.unloading_checks.is_empty());
     EXPECT(test.runner.changing_jobs.is_empty());
     EXPECT(test.result == Web::HTML::HistoryStepResult::InitiatorDisallowed);
 }
@@ -436,7 +436,7 @@ TEST_CASE(sandboxed_removed_initiator_is_disallowed)
 
     test.traverse_to_step(0, true, child_id(), Web::InitiatorSourceSnapshot { .sandboxing_flags = Web::HTML::SandboxingFlagSet::SandboxedNavigation });
 
-    EXPECT(test.runner.unload_cancelation_jobs.is_empty());
+    EXPECT(test.runner.unloading_checks.is_empty());
     EXPECT(test.runner.changing_jobs.is_empty());
     EXPECT(test.result == Web::HTML::HistoryStepResult::InitiatorDisallowed);
 }
@@ -448,7 +448,7 @@ TEST_CASE(unsandboxed_removed_initiator_proceeds_to_the_cancelation_check)
 
     test.traverse_to_step(0, true, child_id(), Web::InitiatorSourceSnapshot {});
 
-    EXPECT_EQ(test.runner.unload_cancelation_jobs.size(), 1uz);
+    EXPECT_EQ(test.runner.unloading_checks.size(), 1uz);
     EXPECT(!test.result.has_value());
 }
 

@@ -112,11 +112,7 @@ void ApplyHistoryStep::apply_the_history_step()
         return;
     }
 
-    m_jobs.run_unload_cancelation_job({
-                                          .target_entry = *target_entry,
-                                          .navigables_crossing_documents = move(navigables_crossing_documents),
-                                          .user_involvement = m_user_involvement,
-                                      },
+    m_jobs.check_if_unloading_is_canceled(move(navigables_crossing_documents), *target_entry, m_user_involvement,
         [this](Web::HTML::HistoryStepResult result) {
             if (m_completed)
                 return;

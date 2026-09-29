@@ -31,15 +31,9 @@ namespace WebView {
 // loss, and must not call back after its operation completes.
 struct WEBVIEW_API ApplyHistoryStepJobs {
 
-    // "5. If checkForCancelation is true, and the result of checking if unloading is canceled given
-    //  navigablesCrossingDocuments, traversable, targetStep, and userInvolvement is not "continue", then return that
-    //  result." — beforeunload runs where the documents live.
-    struct UnloadCancelationJob {
-        NonnullRefPtr<CanonicalSessionHistoryEntry> target_entry;
-        Vector<Web::HTML::CrossProcessId> navigables_crossing_documents;
-        Web::HTML::UserNavigationInvolvement user_involvement { Web::HTML::UserNavigationInvolvement::None };
-    };
-    Function<void(UnloadCancelationJob, Function<void(Web::HTML::HistoryStepResult)> on_complete)> run_unload_cancelation_job;
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
+    // NB: Given targetStep's target entry, which the traversable's host resolves no further.
+    Function<void(Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, NonnullRefPtr<CanonicalSessionHistoryEntry> target_entry, Web::HTML::UserNavigationInvolvement user_involvement_for_navigate_event, Function<void(Web::HTML::HistoryStepResult)> on_complete)> check_if_unloading_is_canceled;
 
     // NB: This queued work runs in the process hosting the active Window.
     Function<void(Web::HTML::CrossProcessId navigable_id)> queue_navigation_api_state_clear_task;
