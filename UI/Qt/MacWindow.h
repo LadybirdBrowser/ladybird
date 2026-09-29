@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/Platform.h>
+#include <AK/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibWebView/Forward.h>
 
@@ -20,6 +22,8 @@ class Color;
 namespace Ladybird {
 
 #if defined(AK_OS_MACOS)
+// The CGDirectDisplayID of the screen the widget's window is on, or of the main screen while it has no window yet.
+Optional<u64> appkit_display_id_for_window(QWidget&);
 void hide_appkit_window_title(QWidget&);
 void offset_appkit_window_controls(QWidget&, int x_offset, int y_offset);
 void install_appkit_event_capture();
