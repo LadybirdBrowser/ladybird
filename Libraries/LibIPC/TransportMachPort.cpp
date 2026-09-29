@@ -610,13 +610,16 @@ ErrorOr<void> TransportMachPort::post_message(MessageDataType bytes, Vector<Atta
 TransportMachPort::ShouldShutdown TransportMachPort::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)
 {
     Vector<NonnullOwnPtr<Message>> messages;
+    bool eof;
     {
         MutexLocker locker(m_incoming_mutex);
         messages = move(m_incoming_messages);
+        // Snapshot EOF with the messages so later arrivals cannot be skipped by reporting shutdown.
+        eof = m_peer_eof;
     }
     for (auto& message : messages)
         callback(move(*message));
-    return m_peer_eof ? ShouldShutdown::Yes : ShouldShutdown::No;
+    return eof ? ShouldShutdown::Yes : ShouldShutdown::No;
 }
 
 ErrorOr<TransportHandle> TransportMachPort::release_for_transfer()
