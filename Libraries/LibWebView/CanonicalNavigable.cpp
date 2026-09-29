@@ -781,11 +781,13 @@ void CanonicalNavigable::abandon_populated_document(Optional<PopulatedDocument>&
 {
     if (!populated_document.has_value())
         return;
-    RefPtr<WebContentPage> host = populated_document->document->host();
+    NonnullRefPtr document = populated_document->document;
+    RefPtr<WebContentPage> host = document->host();
     populated_document.clear();
     if (!host || top_level_traversable().hosts(*this, *host) || pending_host_matches(*host))
         return;
     host->async_discard_provisional_navigable(id());
+    top_level_traversable().end_history_jobs(*this, document.ptr());
     top_level_traversable().release_page_if_unused(host.release_nonnull());
 }
 

@@ -567,6 +567,26 @@ void WebContentPage::close()
     m_is_open = false;
     m_needs_beforeunload_check = true;
     m_history_recorded_url_for_current_load.clear();
+    auto owed_replies = move(m_owed_replies);
+    for (auto owed : owed_replies)
+        owe_reply(owed);
+}
+
+void WebContentPage::owe_reply(OwedReply owed)
+{
+    if (m_is_open) {
+        m_owed_replies.set(owed);
+        return;
+    }
+    Core::deferred_invoke([traversable = m_traversable, owed] {
+        if (traversable)
+            traversable->did_not_receive_reply(owed);
+    });
+}
+
+bool WebContentPage::take_owed_reply(OwedReply owed)
+{
+    return m_owed_replies.remove(owed);
 }
 
 void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
