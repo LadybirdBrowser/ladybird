@@ -228,8 +228,6 @@ public:
     bool enable_primary_paste() const { return m_enable_primary_paste; }
     void set_enable_primary_paste(bool b) { m_enable_primary_paste = b; }
 
-    bool async_scrolling_enabled() const { return m_async_scrolling_enabled; }
-    void set_async_scrolling_enabled(bool b) { m_async_scrolling_enabled = b; }
     u64 wheel_event_listener_state_generation() const { return m_wheel_event_listener_state_generation; }
     void invalidate_compositor_wheel_event_listener_state();
     void invalidate_compositor_keyboard_scroll_state();
@@ -460,7 +458,6 @@ private:
     bool m_should_block_pop_ups { true };
     bool m_enable_autoscroll { true };
     bool m_enable_primary_paste { true };
-    bool m_async_scrolling_enabled { false };
     u64 m_wheel_event_listener_state_generation { 0 };
     u64 m_keyboard_scroll_state_generation { 0 };
     bool m_keyboard_scroll_state_is_current { false };

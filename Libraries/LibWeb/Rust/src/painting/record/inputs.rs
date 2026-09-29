@@ -30,7 +30,6 @@ pub(crate) struct UncapturedContentInputs {
     pub has_blocking_wheel_event_region_covering_viewport: bool,
     pub chrome_metrics: FfiChromeMetrics,
     pub paint_viewport_scrollbars: bool,
-    pub async_scrolling_enabled: bool,
     pub middle_button_scroll_origin: Option<CssPixelPoint>,
     pub canvas_color: Color,
     pub background_color: Color,

@@ -94,7 +94,7 @@ public:
         Gfx::IntRect damage_rect;
     };
 
-    ContextState(Compositing::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::CanvasSurfaceRegistry const&, bool async_scrolling_enabled, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
+    ContextState(Compositing::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, Compositing::CanvasSurfaceRegistry const&, Function<void(Gfx::IntRect)> schedule_caret_repaint = {});
     ~ContextState();
 
     bool is_owned_by(CompositorStateWebContentClient const&) const;
@@ -282,7 +282,6 @@ private:
     Compositing::CanvasSurfaceRegistry const& m_canvas_surface_registry;
     Compositing::CompositorContextId m_context_id;
     Optional<u64> m_page_id;
-    bool const m_async_scrolling_enabled { true };
 
     bool m_presents_to_client { false };
     Optional<Compositing::CompositorContextId> m_parent_context_id;

@@ -5667,7 +5667,7 @@ static bool adopt_async_viewport_scroll_delta(LocalNavigable& navigable, CSSPixe
 
 void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness freshness)
 {
-    if (!page().async_scrolling_enabled() || !has_compositor_context())
+    if (!has_compositor_context())
         return;
 
     // The compositor process may have already presented newer scroll offsets. Adopt the latest ones before running
@@ -6989,9 +6989,8 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
         }
     }
 
-    // NB: A page can lack compositor scroll state before its first paint, or
-    //     asynchronous scrolling can be disabled. Keep the same algorithm on
-    //     the main thread in those cases.
+    // NB: A page can lack compositor scroll state before its first paint. Keep
+    //     the same algorithm on the main thread in that case.
     if (has_compositor_context()) {
         // NB: The compositor rejected the replacement, so consume its last
         //     offset before falling back to a main-thread animation.

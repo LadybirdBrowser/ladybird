@@ -317,8 +317,6 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
         arguments.append("--collect-garbage-on-every-allocation"sv);
     if (web_content_options.paint_viewport_scrollbars == PaintViewportScrollbars::No)
         arguments.append("--disable-scrollbar-painting"sv);
-    if (web_content_options.enable_async_scrolling == EnableAsyncScrolling::No)
-        arguments.append("--disable-async-scrolling"sv);
     if (web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         arguments.append("--tuple-file-origins"sv);
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
@@ -422,8 +420,6 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
         arguments.append("--force-cpu-painting"sv);
     if (web_content_options.force_fontconfig == WebView::ForceFontconfig::Yes)
         arguments.append("--force-fontconfig"sv);
-    if (web_content_options.enable_async_scrolling == EnableAsyncScrolling::No)
-        arguments.append("--disable-async-scrolling"sv);
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());

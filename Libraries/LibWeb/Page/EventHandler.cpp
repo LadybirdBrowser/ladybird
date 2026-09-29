@@ -813,7 +813,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     m_navigable->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
 
     auto visual_viewport = document->visual_viewport();
-    auto can_attempt_async_scroll = m_navigable->page().async_scrolling_enabled() && m_navigable->has_compositor_context();
+    auto can_attempt_async_scroll = m_navigable->has_compositor_context();
 
     // Hands the wheel input to the compositor, which scrolls from the offsets it holds now; the operation it starts
     // for the input is the one a caller follows.

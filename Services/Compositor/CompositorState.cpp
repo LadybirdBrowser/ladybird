@@ -17,15 +17,14 @@ namespace Compositor {
 
 static constexpr int gpu_completion_check_interval_ms = 1;
 
-NonnullRefPtr<CompositorState> CompositorState::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, bool async_scrolling_enabled)
+NonnullRefPtr<CompositorState> CompositorState::create(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
 {
-    return adopt_ref(*new CompositorState(move(skia_backend_context), async_scrolling_enabled));
+    return adopt_ref(*new CompositorState(move(skia_backend_context)));
 }
 
-CompositorState::CompositorState(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, bool async_scrolling_enabled)
+CompositorState::CompositorState(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
     : m_skia_backend_context(move(skia_backend_context))
     , m_display_list_player(make<Compositing::DisplayListPlayerSkia>(m_skia_backend_context))
-    , m_async_scrolling_enabled(async_scrolling_enabled)
 {
 }
 
@@ -135,7 +134,7 @@ void CompositorState::create_context(Compositing::CompositorContextId context_id
         VERIFY(context_id == Compositing::compositor_context_id_for_page(*page_id));
 
     auto& context = *m_contexts.ensure(context_id, [&] {
-        return make<ContextState>(context_id, page_id, web_content_client, m_canvas_surface_registry, m_async_scrolling_enabled, [this, context_id](Gfx::IntRect damage_rect) {
+        return make<ContextState>(context_id, page_id, web_content_client, m_canvas_surface_registry, [this, context_id](Gfx::IntRect damage_rect) {
             schedule_caret_repaint(context_id, damage_rect);
         });
     });
@@ -528,12 +527,10 @@ void CompositorState::handle_and_dispatch_mouse_event(Compositing::CompositorCon
 
     auto is_wheel_event = event.type == Compositing::MouseEvent::Type::MouseWheel;
     ContextState::ContextUpdateResult result;
-    if (is_wheel_event) {
-        if (m_async_scrolling_enabled)
-            result = context->handle_wheel_event(event);
-    } else {
+    if (is_wheel_event)
+        result = context->handle_wheel_event(event);
+    else
         result = context->handle_mouse_event(event);
-    }
 
     // Schedules the present, publishes the scroll updates the event produced and asks for a rendering update, all of
     // which reach WebContent ahead of the event itself on the same connection.
@@ -562,9 +559,6 @@ void CompositorState::handle_pinch_event(Compositing::CompositorContextId contex
 
 Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Compositing::CompositorContextId context_id, Compositing::UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking)
 {
-    if (!m_async_scrolling_enabled)
-        return {};
-
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
@@ -582,9 +576,6 @@ Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Compositi
 
 Compositing::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator)
 {
-    if (!m_async_scrolling_enabled)
-        return {};
-
     auto* context = context_if_present(context_id);
     VERIFY(context);
 

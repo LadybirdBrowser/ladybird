@@ -71,7 +71,7 @@ public:
 
 class CompositorState final : public RefCounted<CompositorState> {
 public:
-    static NonnullRefPtr<CompositorState> create(RefPtr<Gfx::SkiaBackendContext>, bool async_scrolling_enabled);
+    static NonnullRefPtr<CompositorState> create(RefPtr<Gfx::SkiaBackendContext>);
     ~CompositorState();
 
     enum class ContextOwnerCheckResult {
@@ -137,7 +137,7 @@ public:
     PlaceholderCanvasPixels read_placeholder_canvas_pixels(CompositorStateWebContentClient&, Compositing::CanvasId, Gfx::IntRect);
 
 private:
-    CompositorState(RefPtr<Gfx::SkiaBackendContext>, bool async_scrolling_enabled);
+    CompositorState(RefPtr<Gfx::SkiaBackendContext>);
 
     struct PendingAsyncPresent {
         PendingAsyncPresent(Compositing::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
@@ -224,7 +224,6 @@ private:
     HashMap<Optional<u64>, OwnPtr<VSyncScheduler>> m_vsync_schedulers_by_display;
     RefPtr<Core::Timer> m_gpu_completion_timer;
     CompositorStateClient* m_client { nullptr };
-    bool m_async_scrolling_enabled { true };
 
     // LUID of the GPU adapter the client can present shared GPU textures on, if any.
     Optional<u64> m_client_gpu_presentation_adapter_luid;

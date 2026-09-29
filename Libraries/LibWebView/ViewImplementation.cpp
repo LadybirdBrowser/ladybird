@@ -683,8 +683,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         // navigable another page hosts scrolls there.
         if (&focused_navigable_host() == &page()
             && (key_event->type == Compositing::KeyEvent::Type::KeyUp
-                || (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
-                    && m_client_state.has_usable_bitmap && !preceding_input_may_change_target))) {
+                || (m_client_state.has_usable_bitmap && !preceding_input_may_change_target))) {
             auto handled = page().handle_key_event_in_compositor(*key_event);
             key_event->async_scroll_performed_default_action = handled && key_event->type == Compositing::KeyEvent::Type::KeyDown;
         }

@@ -551,7 +551,7 @@ void Page::invalidate_compositor_keyboard_scroll_state()
         return;
     m_keyboard_scroll_state_is_current = false;
     ++m_keyboard_scroll_state_generation;
-    if (m_async_scrolling_enabled && has_local_traversable() && local_traversable()->has_compositor_context()) {
+    if (has_local_traversable() && local_traversable()->has_compositor_context()) {
         // No synchronous barrier is needed if the last publication already disabled keyboard scrolling.
         if (m_keyboard_scroll_state_is_scrollable)
             local_traversable()->compositor_context().invalidate_keyboard_scroll_state(m_keyboard_scroll_state_generation);
@@ -602,7 +602,7 @@ void Page::keyboard_scroll_editability_changed(DOM::Document& document)
 
 Compositing::KeyboardScrollState Page::take_keyboard_scroll_state_for_compositor(u64 visual_context_tree_structural_epoch)
 {
-    if (!m_async_scrolling_enabled || !has_local_traversable() || !local_traversable()->has_compositor_context())
+    if (!has_local_traversable() || !local_traversable()->has_compositor_context())
         return {};
     auto snapshot = local_traversable()->event_handler().keyboard_scroll_snapshot();
     m_keyboard_scroll_event_path = move(snapshot.event_path);
@@ -620,9 +620,6 @@ Compositing::KeyboardScrollState Page::take_keyboard_scroll_state_for_compositor
 void Page::invalidate_compositor_wheel_event_listener_state()
 {
     ++m_wheel_event_listener_state_generation;
-
-    if (!m_async_scrolling_enabled)
-        return;
 
     for (auto const& root : local_roots()) {
         if (root->has_compositor_context())
