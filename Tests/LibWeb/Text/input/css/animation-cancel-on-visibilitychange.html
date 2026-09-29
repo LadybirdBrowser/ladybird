@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="visibility: hidden; transform: translateX(10px); transform-origin: center center 1px"></div>
+<script>
+    promiseTest(async () => {
+        const target = document.getElementById("target");
+        const timeline = internals.createInternalAnimationTimeline();
+        const animation = new Animation(new KeyframeEffect(target, [
+            { transform: "translateX(50px)" },
+            { transform: "translateX(50px)" },
+        ], { duration: 100, iterations: Infinity }), timeline);
+        animation.play();
+        timeline.setTime(0);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`Before cancellation: ${getComputedStyle(target).transform}`);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        await setSystemVisibilityState("hidden");
+        document.addEventListener("visibilitychange", () => animation.cancel(), { once: true });
+        await setSystemVisibilityState("visible");
+        await new Promise(resolve => setTimeout(resolve, 0));
+        println(`After cancellation: ${getComputedStyle(target).transform}`);
+    });
+</script>

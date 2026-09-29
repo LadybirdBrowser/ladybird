@@ -2263,14 +2263,19 @@ void Document::sample_animation_effects_needing_style_update()
     GC::RootVector<GC::Ref<Animations::Animation>> animations;
     if (m_force_throttled_animation_style_update) {
         for (auto& animation : m_associated_animations) {
-            if (animation.is_idle() || !animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+            if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
+                continue;
+            auto& effect = static_cast<Animations::KeyframeEffect&>(*animation.effect());
+            // NB: Dirty idle effects still need to remove their last sampled values after cancellation.
+            if (animation.is_idle() && !m_effects_needing_animated_style_update.contains(effect))
                 continue;
             animations.append(animation);
         }
     } else {
         for (auto& effect : m_effects_needing_animated_style_update) {
             auto animation = effect.associated_animation();
-            if (!animation || animation->is_idle())
+            // NB: A canceled animation still needs to remove its last sampled values.
+            if (!animation)
                 continue;
             animations.append(*animation);
         }
