@@ -118,6 +118,7 @@ public:
     bool page_hosts_any(WebContentPage const&) const;
     void stop_hosting_in_page(CanonicalNavigable&, NonnullRefPtr<WebContentPage>);
     void release_page_if_unused(NonnullRefPtr<WebContentPage>);
+    void end_history_jobs(CanonicalNavigable const&, CanonicalDocument const* populated_document = nullptr);
 
     Optional<ViewImplementation&> view() const;
     void set_view(Badge<ViewImplementation>, ViewImplementation&);
@@ -127,6 +128,7 @@ public:
     void did_activate_document_in(Badge<CanonicalNavigable>, WebContentPage& host);
     void remove_child_navigables_of(CanonicalNavigable&, CanonicalDocument const&);
     void did_lose_page(WebContentPage&, WebContentProcessLost);
+    void did_not_receive_reply(OwedReply const&);
 
     TraversableSessionHistory const& session_history() const { return m_session_history; }
     NonnullRefPtr<CanonicalSessionHistoryEntry> session_history_entry_for(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry const&) const;
@@ -189,6 +191,7 @@ private:
     void add_history_operation_completion_endpoint(HistoryOperation&, NonnullRefPtr<WebContentPage>);
     bool select_changing_navigable_history_step_job_endpoint(HistoryOperation&, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob&);
     void dispatch_changing_navigable_history_step_job(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
+    void did_fail_history_navigation_population(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, WebContentPage&);
     void continue_history_navigation_population(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
     void dispatch_changing_navigable_history_step_continuation(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
     void send_changing_navigable_continuation_task(HistoryOperation&, Web::HTML::CrossProcessId navigable_id, Web::HTML::UnloadDisplayedDocument);
@@ -206,7 +209,7 @@ private:
     RefPtr<WebContentPage> changing_job_endpoint(HistoryOperation const&, Web::HTML::CrossProcessId navigable_id) const;
     void dispatch_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
     void complete_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
-    void complete_history_jobs_of_lost_page(HistoryOperation&, Vector<Web::HTML::CrossProcessId> changing_jobs, Vector<Web::HTML::CrossProcessId> nonchanging_updates);
+    [[nodiscard]] Function<void()> end_changing_navigable_history_step_job(HistoryOperation&, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
     ApplyHistoryStepJobs create_apply_history_step_jobs(Web::HTML::CrossProcessId operation_id);
     void run_direct_history_operation(HistoryOperation&);
     void traverse_the_history_by_a_delta_at_queue_position(HistoryOperation&, Web::TraverseByDeltaHistoryOperationParameters const&);
@@ -279,7 +282,6 @@ private:
         RefPtr<CanonicalSessionHistoryEntry> target_entry;
         Optional<Web::HTML::UserNavigationInvolvement> user_involvement_for_navigate_event;
         Vector<BeforeunloadGroup> groups;
-        RefPtr<WebContentPage> dispatched_endpoint;
         Web::HTML::UnloadPromptShown unload_prompt_shown { Web::HTML::UnloadPromptShown::No };
         Function<void(Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown)> on_complete;
     };

@@ -541,14 +541,12 @@ void WebContentClient::did_lose_process()
         return IterationDecision::Continue;
     });
 
-    // Every page reads as closed before pending history work resolves against this endpoint.
+    // Closing a page settles the replies it owed once this task is over.
     for (auto const& lost : lost_pages)
         lost.page->close();
 
     destroy_all_compositor_contexts();
 
-    // Resolve any history work waiting on this endpoint before removing the canonical page subtrees that identify
-    // their owning traversables. A missing renderer is an exactly-once completion for descendant unload tasks.
     for (auto const& lost : lost_pages) {
         // The view displaying the tab waits for the events it handed down to this page.
         if (!lost.view_id.has_value())

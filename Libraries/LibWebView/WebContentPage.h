@@ -29,6 +29,36 @@
 
 namespace WebView {
 
+// A reply a page owes its traversable for a message the traversable sent it.
+struct OwedReply {
+    enum class Kind : u8 {
+        BeforeunloadCheck,
+        ChangingJob,
+        UnloadPreparation,
+        ContinuationApplied,
+        NonchangingUpdate,
+        DescendantUnload,
+    };
+
+    Kind kind;
+    Web::HTML::CrossProcessId id;
+    Web::HTML::CrossProcessId navigable_id;
+
+    bool operator==(OwedReply const&) const = default;
+};
+
+}
+
+template<>
+struct AK::Traits<WebView::OwedReply> : public DefaultTraits<WebView::OwedReply> {
+    static unsigned hash(WebView::OwedReply const& reply)
+    {
+        return pair_int_hash(to_underlying(reply.kind), pair_int_hash(Traits<Web::HTML::CrossProcessId>::hash(reply.id), Traits<Web::HTML::CrossProcessId>::hash(reply.navigable_id)));
+    }
+};
+
+namespace WebView {
+
 class WEBVIEW_API WebContentPage final
     : public RefCounted<WebContentPage>
     , public WebContentClientPageStub
@@ -68,6 +98,9 @@ public:
     // awaiting a detached close remains open; it still coordinates its own close.
     bool is_open() const { return m_is_open; }
     void close();
+
+    void owe_reply(OwedReply);
+    bool take_owed_reply(OwedReply);
 
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
     bool detached_close_pending() const { return m_detached_close_pending; }
@@ -310,6 +343,7 @@ private:
     bool m_detached_close_pending { false };
     Optional<String> m_history_recorded_url_for_current_load;
     HashTable<u64> m_renderer_owned_downloads;
+    HashTable<OwedReply> m_owed_replies;
 };
 
 }
