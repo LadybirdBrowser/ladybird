@@ -547,6 +547,9 @@ private:
 
     Vector<PendingNavigation> m_pending_navigations;
 
+    // The navigation IDs of javascript: URL navigations whose navigate to a javascript: URL task is queued.
+    Vector<Utf16String> m_queued_javascript_url_navigations;
+
     bool m_is_svg_page { false };
     bool m_needs_repaint { true };
     bool m_needs_to_record_display_list { true };
