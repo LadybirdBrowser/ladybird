@@ -21,7 +21,6 @@ class SystemFontProvider {
 public:
     virtual ~SystemFontProvider();
 
-    virtual StringView name() const = 0;
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {}) = 0;
     virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) = 0;
     virtual RefPtr<Typeface> get_typeface_by_id(u64 generation, u64 face_id);
@@ -43,7 +42,6 @@ public:
     RefPtr<Typeface> get_typeface_by_local_name(String const&);
     Optional<FlyString> resolve_generic_family(StringView family_name, u16 weight, u8 slope);
     void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
-    [[nodiscard]] StringView system_font_provider_name() const;
     [[nodiscard]] bool has_system_font_provider() const { return m_system_font_provider; }
 
     void set_force_freetype_rasterization(bool force) { m_force_freetype_rasterization = force; }
