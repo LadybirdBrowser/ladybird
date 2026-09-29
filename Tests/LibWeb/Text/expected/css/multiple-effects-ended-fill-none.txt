@@ -1,0 +1,4 @@
+inherited value after own effect ends: rgb(200, 0, 0)
+own base value after fill none: rgb(255, 255, 255)
+ended effect omitted from getAnimations: 0
+inherited value after recompute: rgb(200, 0, 0)

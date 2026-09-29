@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes parent-color { from, to { color: rgb(200, 0, 0); } }
+    @keyframes child-background { from { background-color: black; } to { background-color: green; } }
+    #parent { animation: parent-color 1000s linear infinite paused; }
+    #child { background-color: white; animation: child-background 1000ms linear none paused; }
+</style>
+<div id="parent"><div id="child"></div></div>
+<script>
+    test(() => {
+        const child = document.getElementById("child");
+        const ownAnimation = child.getAnimations()[0];
+        ownAnimation.currentTime = 1500;
+        const style = getComputedStyle(child);
+        println(`inherited value after own effect ends: ${style.color}`);
+        println(`own base value after fill none: ${style.backgroundColor}`);
+        println(`ended effect omitted from getAnimations: ${child.getAnimations().length}`);
+        child.style.paddingLeft = "1px";
+        println(`inherited value after recompute: ${getComputedStyle(child).color}`);
+    });
+</script>

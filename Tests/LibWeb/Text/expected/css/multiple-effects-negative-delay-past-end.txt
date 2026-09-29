@@ -1,0 +1,4 @@
+inherited value: rgb(200, 0, 0)
+past effect contributes nothing: rgb(255, 255, 255)
+child effect count: 0
+parent effect count: 1
