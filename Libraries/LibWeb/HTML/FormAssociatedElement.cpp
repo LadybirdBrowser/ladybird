@@ -824,11 +824,10 @@ void FormAssociatedElement::RareData::visit_edges(JS::Cell::Visitor& visitor)
 // when the defaults it should hold differ from the ones it holds.
 void FormAssociatedTextControlElement::set_own_inline_style(DOM::Element& element, CSS::CSSStyleProperties const& defaults)
 {
-    auto defaults_text = defaults.serialized();
-    if (auto current = element.inline_style(); current && current->owner_node().has_value() && current->serialized() == defaults_text)
+    if (auto current = element.inline_style(); current && current->owner_node().has_value() && current->serialized() == defaults.serialized())
         return;
     auto style = CSS::CSSStyleProperties::create_element_inline_style({ element });
-    style->set_declarations_from_text(defaults_text);
+    style->set_declarations_from(defaults);
     element.set_inline_style(style);
 }
 
