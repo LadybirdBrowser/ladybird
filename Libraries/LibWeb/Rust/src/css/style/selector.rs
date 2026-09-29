@@ -4345,6 +4345,10 @@ impl RoutingRegistry {
         program: &StyleSheetProgram,
         programs: &SelectorPrograms,
     ) -> bool {
+        // The view the last transaction prepared answers until the program's routing liveness moves.
+        if self.route_liveness_version == Some(program.routing_liveness_version()) {
+            return self.route_liveness.contains(route.index());
+        }
         let header = self.routes.headers[route.index()];
         let (selector_program, _) = programs.entry_location(header.entry);
         program.rule_can_decide(header.rule)

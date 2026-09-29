@@ -292,6 +292,8 @@ struct RuleDeclarationData {
     /// canonical identity may have rewritten. Empty when the rule arrived without them.
     written_values: Vec<RetainedStyleValueData>,
     written_value_checks: Vec<super::publication::WrittenValueChecks>,
+    /// Whether a declared property may move layout geometry, including custom properties.
+    may_affect_layout_geometry: bool,
     /// The custom properties the rule declares, in declaration order, and the values they were
     /// written with, parallel to them: a custom property resolves from its written spelling.
     custom_declarations: Vec<CustomDeclaration>,
@@ -1335,10 +1337,15 @@ impl StyleSheetProgram {
             .zip(&written_values)
             .map(|(declared, value)| super::publication::WrittenValueChecks::prepare(declared.property, value))
             .collect();
+        let may_affect_layout_geometry = !custom_declarations.is_empty()
+            || declared
+                .iter()
+                .any(|declared| crate::css::property_metadata::property_may_affect_layout_geometry(declared.property));
         entry.declarations = share_rule_declarations(RuleDeclarationData {
             declared_properties: declared,
             written_values,
             written_value_checks,
+            may_affect_layout_geometry,
             custom_declarations,
             custom_written_values,
         });
@@ -1469,6 +1476,12 @@ impl StyleSheetProgram {
     ) -> Option<&RetainedStyleValueData> {
         self.written_winner_declaration(rule, property, important, value)
             .map(|(_, value)| value)
+    }
+
+    /// Whether a match of this rule may move geometry. Incomplete declarations cannot prove independence.
+    pub(super) fn rule_may_affect_layout_geometry(&self, rule: RuleID) -> bool {
+        let rule = &self.rules[rule.0 as usize];
+        !rule.declarations_are_complete || rule.may_affect_layout_geometry
     }
 
     pub(super) fn written_value_checks(&self, rule: RuleID, index: usize) -> super::publication::WrittenValueChecks {
