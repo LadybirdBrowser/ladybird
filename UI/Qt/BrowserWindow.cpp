@@ -71,18 +71,30 @@ static bool should_use_screen_signal_for_dpi_changes()
     return QGuiApplication::platformName() != "wayland";
 }
 
+#if !defined(AK_OS_MACOS)
 static Optional<u64> display_id_for_screen(QScreen* screen)
 {
     if (!screen)
         return {};
 
-    // Qt does not expose a portable physical display identifier. The compositor only
-    // needs a stable per-process grouping key for Qt-backed windows.
+    // Qt does not expose a portable physical display identifier. Away from macOS the compositor only needs a
+    // stable per-process grouping key for Qt-backed windows.
     static u64 next_display_id = 1;
     static HashMap<QScreen*, u64> display_ids;
     return display_ids.ensure(screen, [] {
         return next_display_id++;
     });
+}
+#endif
+
+static Optional<u64> display_id_for_window([[maybe_unused]] QWidget& window, [[maybe_unused]] QScreen* screen)
+{
+#if defined(AK_OS_MACOS)
+    // The compositor drives a CVDisplayLink per display, which needs the CGDirectDisplayID of the window's screen.
+    return appkit_display_id_for_window(window);
+#else
+    return display_id_for_screen(screen);
+#endif
 }
 
 static int visible_browser_window_count()
@@ -239,7 +251,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     // Listen for DPI changes
     m_device_pixel_ratio = devicePixelRatio();
     m_current_screen = screen();
-    m_display_id = display_id_for_screen(m_current_screen);
+    m_display_id = display_id_for_window(*this, m_current_screen);
     if (m_current_screen)
         m_refresh_rate = m_current_screen->refreshRate();
 
@@ -908,7 +920,7 @@ void BrowserWindow::screen_changed(QScreen* screen)
     if (m_device_pixel_ratio != devicePixelRatio())
         device_pixel_ratio_changed(devicePixelRatio());
 
-    auto display_id = display_id_for_screen(m_current_screen);
+    auto display_id = display_id_for_window(*this, m_current_screen);
     auto refresh_rate = m_current_screen ? m_current_screen->refreshRate() : m_refresh_rate;
     if (m_display_id != display_id || m_refresh_rate != refresh_rate)
         display_metadata_changed(display_id, refresh_rate);
@@ -1213,6 +1225,13 @@ void BrowserWindow::exit_fullscreen()
         showMaximized();
     else
         showNormal();
+}
+
+void BrowserWindow::showEvent(QShowEvent* event)
+{
+    QMainWindow::showEvent(event);
+    // The native window exists by now and knows the screen it settled on.
+    screen_changed(screen());
 }
 
 bool BrowserWindow::event(QEvent* event)

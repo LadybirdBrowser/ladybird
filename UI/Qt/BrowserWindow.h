@@ -201,6 +201,7 @@ private:
     virtual bool event(QEvent*) override;
     virtual bool eventFilter(QObject*, QEvent*) override;
     virtual void resizeEvent(QResizeEvent*) override;
+    virtual void showEvent(QShowEvent*) override;
     virtual void changeEvent(QEvent* event) override;
     virtual void moveEvent(QMoveEvent*) override;
     virtual void paintEvent(QPaintEvent*) override;

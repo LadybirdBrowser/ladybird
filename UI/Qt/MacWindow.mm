@@ -11,6 +11,7 @@
 #include <QAbstractNativeEventFilter>
 #include <QCoreApplication>
 #include <QWidget>
+#include <QWindow>
 #include <UI/Qt/WebContentView.h>
 
 #import <Cocoa/Cocoa.h>
@@ -303,6 +304,25 @@ void install_appkit_event_capture()
         application->installNativeEventFilter(filter);
         installed = true;
     }
+}
+
+Optional<u64> appkit_display_id_for_window(QWidget& widget)
+{
+    NSScreen* screen = nil;
+    // winId() would create the native window, so only a window that already has one is asked for its screen.
+    if (auto* window_widget = widget.window(); window_widget && window_widget->windowHandle()) {
+        if (auto* view = reinterpret_cast<NSView*>(window_widget->winId()))
+            screen = view.window.screen;
+    }
+    if (screen == nil)
+        screen = NSScreen.mainScreen;
+    if (screen == nil)
+        return {};
+
+    NSNumber* screen_number = screen.deviceDescription[@"NSScreenNumber"];
+    if (screen_number == nil)
+        return {};
+    return static_cast<u64>(screen_number.unsignedLongLongValue);
 }
 
 void hide_appkit_window_title(QWidget& widget)
