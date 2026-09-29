@@ -480,14 +480,17 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             .expect("every pending box below the viewport has a paint parent");
         let input = pending.input;
         let work_bits = plan.work.get(&slot).copied();
+        // A box that only moved changes no more than the boxes a moved ancestor carries along: only the nodes that
+        // depend on its geometry.
+        let moved = pending.cascade.geometry_walk || work_bits.is_some_and(|bits| bits.is_move_only());
         let (rebuild, subtree_may_own_geometry_dependent_nodes) = if scope.rebuilds_every_box() {
             (true, false)
         } else {
             let record = layout_arena.paintable_visual_context_record(slot);
             let record = record.as_deref();
-            let rebuild = work_bits.is_some()
+            let rebuild = work_bits.is_some_and(|bits| !bits.is_move_only())
                 || record.is_none_or(|record| record.inherited_input != input)
-                || (pending.cascade.geometry_walk && record.is_some_and(|record| record.owns_geometry_dependent_nodes));
+                || (moved && record.is_some_and(|record| record.owns_geometry_dependent_nodes));
             (
                 rebuild,
                 record.is_some_and(|record| record.subtree_may_own_geometry_dependent_nodes),
@@ -591,7 +594,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         } else {
             let cascade = ChildCascade {
                 input_changed: false,
-                geometry_walk: pending.cascade.geometry_walk && subtree_may_own_geometry_dependent_nodes,
+                geometry_walk: moved && subtree_may_own_geometry_dependent_nodes,
             };
             (cascade, None)
         };
