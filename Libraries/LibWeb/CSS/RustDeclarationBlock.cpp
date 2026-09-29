@@ -118,6 +118,13 @@ void RustDeclarationBlock::replace(RustDeclarationBlock const& source)
     rust_declaration_block_replace(m_block, source.m_block);
 }
 
+bool RustDeclarationBlock::shares_declarations_with(RustDeclarationBlock const& other) const
+{
+    RustDeclarationBlockSnapshot declarations { rust_declaration_block_snapshot(m_block) };
+    RustDeclarationBlockSnapshot other_declarations { rust_declaration_block_snapshot(other.m_block) };
+    return declarations.data() == other_declarations.data();
+}
+
 u64 RustDeclarationBlock::identity() const
 {
     return rust_declaration_block_identity(m_block);

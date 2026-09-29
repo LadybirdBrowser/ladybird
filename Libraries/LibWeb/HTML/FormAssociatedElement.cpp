@@ -824,7 +824,9 @@ void FormAssociatedElement::RareData::visit_edges(JS::Cell::Visitor& visitor)
 // when the defaults it should hold differ from the ones it holds.
 void FormAssociatedTextControlElement::set_own_inline_style(DOM::Element& element, CSS::CSSStyleProperties const& defaults)
 {
-    if (auto current = element.inline_style(); current && current->owner_node().has_value() && current->serialized() == defaults.serialized())
+    // Every value change asks again, and nearly always the element holds the defaults already. The element's copy
+    // shares the declarations it was given until either side changes, so sharing answers that without serializing.
+    if (auto current = element.inline_style(); current && current->owner_node().has_value() && current->declaration_block().shares_declarations_with(defaults.declaration_block()))
         return;
     auto style = CSS::CSSStyleProperties::create_element_inline_style({ element });
     style->set_declarations_from(defaults);
