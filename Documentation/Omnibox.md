@@ -1,8 +1,7 @@
 # Omnibox
 
 Ladybird's omnibox combines URL entry, search, history, bookmarks, adaptive learning, and remote
-search suggestions. The implementation is shared by the Qt and AppKit frontends through
-`LibWebView`.
+search suggestions. The implementation is used by the UI frontend through `LibWebView`.
 
 The central rule is that ordering, automatic selection, and inline completion are separate
 decisions. A result may be useful enough to display near the top without being safe to select or
@@ -20,7 +19,7 @@ The implementation is divided into a few focused components:
 - `AutocompleteMuxer` merges duplicate destinations, applies diversity rules, and constructs the
   final result list.
 - `HistoryStore`, `BookmarkStore`, and the omnibox engagement tables provide local evidence.
-- `UI/Qt/Autocomplete` and `UI/AppKit/Interface/Autocomplete` render the shared suggestion model.
+- `UI/Qt/Autocomplete` renders the shared suggestion model.
 
 `OmniboxSuggestionProvider` is the boundary between the editing state machine and suggestion
 generation. The production provider wraps `Autocomplete`; tests use a scripted provider so they can
@@ -271,8 +270,8 @@ Both native frontends render the same ordered suggestion list without source hea
 use a search icon. Local navigation rows use a favicon when available and otherwise a globe.
 Bookmarks receive a star badge.
 
-Matched portions of titles and URLs use shared match ranges from `LibWebView`, ensuring Qt and
-AppKit highlight the same text. The match uses both weight and brightness so it remains visible in
+Matched portions of titles and URLs use shared match ranges from `LibWebView`, ensuring the UI
+highlights the same text. The match uses both weight and brightness so it remains visible in
 dark and light themes.
 
 The popup displays at most six rows before scrolling. Rows with a title use two lines; URL-only and

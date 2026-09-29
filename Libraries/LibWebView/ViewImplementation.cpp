@@ -1979,14 +1979,6 @@ void ViewImplementation::unmark_text_from_input_method()
     host.async_unmark_text_from_input_method();
 }
 
-Optional<Compositing::DevicePixelRect> ViewImplementation::get_input_caret_rect()
-{
-    // Returns the most-recent caret position pushed by WebContent (see set_input_method_state). Deliberately makes no
-    // synchronous IPC request: This is read from inside AppKit text-input callbacks, where blocking can re-enter the
-    // run loop and deadlock the input method.
-    return m_input_method_state.caret_rect;
-}
-
 void ViewImplementation::set_input_method_state(Badge<WebContentPage>, InputMethodState state)
 {
     m_input_method_state = move(state);

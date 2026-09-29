@@ -15,8 +15,8 @@ There are two types of ports that can be made to Ladybird:
 
 There are currently two supported UI ports:
 
-- Qt6: The generic UI port.
-- AppKit/Cocoa: The macOS native port, which uses the AppKit framework.
+* [Android UI](https://developer.android.com/develop/ui) - The native UI on Android.
+* [Qt](https://doc.qt.io/qt-6/) - The UI used on all other platforms.
 
 ### Platform Ports
 
