@@ -461,12 +461,14 @@ TypefaceSkia::GlyphPage const& TypefaceSkia::glyph_page(size_t page_index) const
     struct GlyphPageCache {
         AK_ALLOC_WITH_KMALLOC;
 
+        u64 last_use { 0 };
         OwnPtr<GlyphPage> page_zero;
         HashMap<size_t, NonnullOwnPtr<GlyphPage>> pages;
     };
     struct ThreadGlyphPageCaches {
         u64 last_typeface_id { 0 };
         GlyphPageCache* last_cache { nullptr };
+        u64 use_clock { 0 };
         HashMap<u64, NonnullOwnPtr<GlyphPageCache>> caches;
     };
     // NB: -Wexit-time-destructors is a Clang-only warning, and GCC rejects the
@@ -484,12 +486,22 @@ TypefaceSkia::GlyphPage const& TypefaceSkia::glyph_page(size_t page_index) const
             cache = it->value.ptr();
         } else {
             constexpr size_t maximum_cached_typefaces = 128;
-            if (caches.size() >= maximum_cached_typefaces)
-                caches.remove(caches.begin());
+            if (caches.size() >= maximum_cached_typefaces) {
+                // NB: Evict the cache this thread used least recently. The caches of typefaces that are gone go first,
+                //     and the ones a text run alternates between stay: evicting any other would have them evict each
+                //     other at every switch once the caches of a long session filled up.
+                auto least_recently_used = caches.begin();
+                for (auto it = caches.begin(); it != caches.end(); ++it) {
+                    if (it->value->last_use < least_recently_used->value->last_use)
+                        least_recently_used = it;
+                }
+                caches.remove(least_recently_used);
+            }
             auto new_cache = make<GlyphPageCache>();
             cache = new_cache.ptr();
             caches.set(m_glyph_cache_id, move(new_cache));
         }
+        cache->last_use = ++thread_caches.use_clock;
         thread_caches.last_typeface_id = m_glyph_cache_id;
         thread_caches.last_cache = cache;
     }
@@ -512,8 +524,16 @@ TypefaceSkia::GlyphPage const& TypefaceSkia::glyph_page(size_t page_index) const
     return *glyph_page_ptr;
 }
 
+static thread_local u64 s_glyph_pages_populated_on_this_thread = 0;
+
+u64 TypefaceSkia::glyph_pages_populated_on_this_thread()
+{
+    return s_glyph_pages_populated_on_this_thread;
+}
+
 void TypefaceSkia::populate_glyph_page(GlyphPage& glyph_page, size_t page_index) const
 {
+    ++s_glyph_pages_populated_on_this_thread;
     u32 first_code_point = page_index * GlyphPage::glyphs_per_page;
     for (size_t i = 0; i < GlyphPage::glyphs_per_page; ++i) {
         u32 code_point = first_code_point + i;
