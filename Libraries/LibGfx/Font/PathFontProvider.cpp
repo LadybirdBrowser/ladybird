@@ -64,7 +64,7 @@ void PathFontProvider::for_each_typeface_in_uri(StringView uri, HashTable<String
     }
     auto root = root_or_error.release_value();
 
-    root->for_each_descendant_file([&](Core::Resource const& resource) -> IterationDecision {
+    root->for_each_descendant_file([&](Core::Resource& resource) -> IterationDecision {
         auto uri = resource.uri();
         auto path = LexicalPath(uri.bytes_as_string_view());
         auto is_truetype = path.has_extension(".ttf"sv) || path.has_extension(".ttc"sv) || path.has_extension(".otf"sv);
