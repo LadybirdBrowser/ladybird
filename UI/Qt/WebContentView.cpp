@@ -93,11 +93,13 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     setAttribute(Qt::WA_DontCreateNativeAncestors);
     setAttribute(Qt::WA_NativeWindow);
     setParent(window);
-#    ifdef LADYBIRD_QT_USE_METAL_RHI_WIDGET
-    setApi(QRhiWidget::Api::Metal);
-#    else
     setApi(QRhiWidget::Api::Direct3D11);
-#    endif
+#elif defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
+    // The page is shown by a layer of this widget's own native view; Qt neither erases nor paints the area under it.
+    setAttribute(Qt::WA_DontCreateNativeAncestors);
+    setAttribute(Qt::WA_NativeWindow);
+    setAttribute(Qt::WA_OpaquePaintEvent);
+    setAttribute(Qt::WA_NoSystemBackground);
 #endif
 
     if (parent_client)
@@ -126,6 +128,11 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     m_display_id = initial_state.display_id;
 
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    on_page_background_color_change = [this](Gfx::Color) {
+        update_iosurface_layer_background_color();
+    };
+#endif
 
     QObject::connect(qGuiApp, &QGuiApplication::screenRemoved, this, [this](QScreen*) {
         update_screen_rects();
@@ -227,8 +234,8 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
 WebContentView::~WebContentView()
 {
-#ifdef AK_OS_MACOS
-    release_metal_resources();
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    destroy_iosurface_layer();
 #elif defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
     destroy_vulkan_window();
 #endif
@@ -803,8 +810,10 @@ Optional<WebContentView::Paintable> WebContentView::current_paintable() const
 
 void WebContentView::schedule_repaint()
 {
-#ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
+#if defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
     schedule_vulkan_window_update();
+#elif defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
+    present_current_paintable_as_layer_contents();
 #else
 #    ifdef LADYBIRD_QT_USE_RHI_WIDGET
     m_force_full_repaint = true;
@@ -848,7 +857,7 @@ void WebContentView::did_accept_presented_backing_store(i32, Gfx::IntRect damage
 #endif
 }
 
-#ifndef LADYBIRD_QT_USE_RHI_WIDGET
+#if !defined(LADYBIRD_QT_USE_RHI_WIDGET) && !defined(LADYBIRD_QT_USE_IOSURFACE_LAYER)
 void WebContentView::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
@@ -1099,6 +1108,9 @@ void WebContentView::set_crash_overlay_visible(bool visible)
 void WebContentView::resizeEvent(QResizeEvent* event)
 {
     WebContentViewBase::resizeEvent(event);
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    update_iosurface_layer_frame();
+#endif
 
     if (!has_display_page())
         return;
@@ -1146,6 +1158,9 @@ void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 {
     m_device_pixel_ratio = device_pixel_ratio;
     update_viewport_size();
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    present_current_paintable_as_layer_contents();
+#endif
 }
 
 void WebContentView::set_vertical_tab_overlay_insets([[maybe_unused]] int left, [[maybe_unused]] int right)
@@ -1217,6 +1232,10 @@ void WebContentView::showEvent(QShowEvent* event)
 {
     WebContentViewBase::showEvent(event);
     set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    // A frame may have arrived before this view had a native view to attach its layer to.
+    present_current_paintable_as_layer_contents();
+#endif
 }
 
 void WebContentView::hideEvent(QHideEvent* event)
@@ -1496,6 +1515,13 @@ bool WebContentView::event(QEvent* event)
 
     if (event->type() == QEvent::ActivationChange)
         update_page_focus();
+
+#ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
+    if (event->type() == QEvent::WinIdChange)
+        present_current_paintable_as_layer_contents();
+    if (event->type() == QEvent::PlatformSurface && static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed)
+        detach_iosurface_layer_from_native_view();
+#endif
 
     return WebContentViewBase::event(event);
 }
