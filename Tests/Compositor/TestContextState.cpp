@@ -550,7 +550,7 @@ TEST_CASE(requesting_a_rendering_opportunity_again_only_updates_its_rate)
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 1 }, 1, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Compositing::CompositorContextId { 1 }, 1, client, canvas_surface_registry };
 
     EXPECT(context.request_rendering_opportunity(60));
     EXPECT(!context.request_rendering_opportunity(30));
