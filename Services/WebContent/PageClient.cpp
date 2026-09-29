@@ -73,7 +73,6 @@
 namespace WebContent {
 
 static bool s_is_headless { false };
-static bool s_async_scrolling_enabled { false };
 static constexpr size_t s_max_download_data_ipc_chunk_size = 16 * MiB;
 
 GC_DEFINE_ALLOCATOR(PageClient);
@@ -130,11 +129,6 @@ void PageClient::set_is_headless(bool is_headless)
     s_is_headless = is_headless;
 }
 
-void PageClient::set_async_scrolling_enabled(bool enabled)
-{
-    s_async_scrolling_enabled = enabled;
-}
-
 GC::Ref<PageClient> PageClient::create(PageHost& page_host, Compositing::PageId id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
 {
     return GC::Heap::the().allocate<PageClient>(page_host, id, pending_root_navigable_id);
@@ -146,7 +140,6 @@ PageClient::PageClient(PageHost& owner, Compositing::PageId id, Optional<Web::HT
     , m_id(id)
     , m_pending_root_navigable_id(pending_root_navigable_id)
 {
-    m_page->set_async_scrolling_enabled(s_async_scrolling_enabled);
     setup_palette();
 
     m_frame_timer = Core::Timer::create_single_shot(0, [this] { frame_timer_fired(); });

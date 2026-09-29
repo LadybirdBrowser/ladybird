@@ -645,7 +645,6 @@ RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document& documen
     inputs.wheel_event_listener_state_generation = document.page().wheel_event_listener_state_generation();
     inputs.chrome_metrics = document.page().chrome_metrics();
     inputs.paint_viewport_scrollbars = should_paint_viewport_scrollbars();
-    inputs.async_scrolling_enabled = document.page().async_scrolling_enabled();
     if (auto navigable = document.navigable()) {
         if (auto handler = navigable->event_handler().middle_button_scroll_handler(); handler.has_value()) {
             inputs.middle_button_scroll_active = true;

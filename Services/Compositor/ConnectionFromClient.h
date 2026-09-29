@@ -35,7 +35,7 @@ public:
     virtual ~ConnectionFromClient() override = default;
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RefPtr<Gfx::SkiaBackendContext>, bool async_scrolling_enabled);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RefPtr<Gfx::SkiaBackendContext>);
 
     virtual void die() override;
 

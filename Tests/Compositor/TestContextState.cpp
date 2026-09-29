@@ -239,7 +239,7 @@ TEST_CASE(rasterization_clears_damaged_pixels_to_the_canvas_color_in_presentatio
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     Compositing::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
     auto visual_context_tree = Compositing::VisualContextTreeTestBuilder().finish();
     auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
@@ -272,7 +272,7 @@ TEST_CASE(wheel_hit_testing_ignores_targets_from_a_larger_visual_context_tree)
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     Compositing::VisualContextTreeTestBuilder builder;
     auto scroll_node = builder.append_scroll(Compositing::VISUAL_VIEWPORT_NODE_INDEX);
     auto removed_transform = builder.append_transform(scroll_node, Gfx::FloatMatrix4x4::identity());
@@ -303,7 +303,7 @@ TEST_CASE(pinch_zoom_copies_the_visual_context_tree_once_per_update)
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -334,7 +334,7 @@ TEST_CASE(viewport_scrollbar_collapses_when_drag_is_released_away_from_scrollbar
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -361,7 +361,7 @@ TEST_CASE(viewport_scrollbar_drag_ignores_non_primary_mouse_up)
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -380,7 +380,7 @@ TEST_CASE(context_visibility_and_pending_frame_state)
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 1 }, 1, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Compositing::CompositorContextId { 1 }, 1, client, canvas_surface_registry };
     auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
 
     EXPECT(!context.set_visibility(Compositing::ContextVisibility::Visible));
@@ -405,7 +405,7 @@ TEST_CASE(hidden_context_coalesces_presents_and_presents_once_when_shown)
     Core::EventLoop event_loop;
     TestCompositorClient compositor_client;
     TestWebContentClient web_content_client;
-    auto compositor_state = Compositor::CompositorState::create({}, false);
+    auto compositor_state = Compositor::CompositorState::create({});
     compositor_state->set_client(compositor_client);
 
     u64 page_id = 1;
@@ -435,7 +435,7 @@ TEST_CASE(dragging_a_viewport_scrollbar_reports_a_user_scroll_gesture_until_it_i
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -488,7 +488,7 @@ TEST_CASE(pending_scroll_updates_go_ahead_of_a_rendering_update_request)
 {
     RecordingWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -510,7 +510,7 @@ TEST_CASE(dragging_a_scrollbar_thumb_scrolls_its_scroller_to_where_the_thumb_was
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -542,7 +542,7 @@ TEST_CASE(losing_the_scrollbar_a_drag_holds_ends_its_user_scroll_gesture)
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -559,7 +559,7 @@ TEST_CASE(ui_overlay_uses_the_current_viewport_size)
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
 
     context.viewport_size_updated({ 640, 480 }, Compositing::WindowResizingInProgress::No);
     context.did_submit_prepared_frame({ 12, 18, 640, 480 });
@@ -576,7 +576,7 @@ TEST_CASE(ui_overlay_hover_changes_require_repainting)
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
 
     EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, {}));
     EXPECT(!context.set_paused_debugger_overlay(true, 1.0, {}, {}));
@@ -801,7 +801,7 @@ struct NestedScrollbarContextFixture {
 
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
 };
 
 TEST_CASE(dragging_a_nested_scrollbar_scrolls_its_scroller_and_names_it_for_the_main_thread)
@@ -849,7 +849,7 @@ TEST_CASE(a_viewport_scrollbar_drag_is_not_named_for_the_main_thread)
 {
     TestWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
 
@@ -1280,8 +1280,8 @@ struct PresentingContextFixture {
     Compositing::CompositorContextId context_id;
     Gfx::IntRect viewport_rect;
 
-    explicit PresentingContextFixture(Gfx::IntSize viewport_size = test_viewport_rect.size(), bool async_scrolling_enabled = false)
-        : compositor_state(Compositor::CompositorState::create({}, async_scrolling_enabled))
+    explicit PresentingContextFixture(Gfx::IntSize viewport_size = test_viewport_rect.size())
+        : compositor_state(Compositor::CompositorState::create({}))
         , context_id(Compositing::compositor_context_id_for_page(1))
         , viewport_rect({}, viewport_size)
     {
@@ -1340,7 +1340,7 @@ struct RasterizingContextFixture {
     Gfx::IntRect viewport_rect;
 
     explicit RasterizingContextFixture(Gfx::IntSize viewport_size = test_viewport_rect.size())
-        : context(Compositing::CompositorContextId { 1 }, 1, client, canvas_surface_registry, false)
+        : context(Compositing::CompositorContextId { 1 }, 1, client, canvas_surface_registry)
         , viewport_rect({}, viewport_size)
     {
         context.viewport_size_updated(viewport_size, Compositing::WindowResizingInProgress::No);
@@ -1696,7 +1696,7 @@ static Compositing::MouseEvent ui_mouse_move_event(int x, int y, u64 id)
 
 TEST_CASE(ui_wheel_event_is_forwarded_flagged_after_the_scroll_updates_it_produced)
 {
-    PresentingContextFixture fixture { { 100, 100 }, true };
+    PresentingContextFixture fixture { { 100, 100 } };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     fixture.install(make_scrollable_viewport_display_list(visual_context_tree, true, Compositing::ContextRef {}), visual_context_tree);
     fixture.present();
@@ -1714,7 +1714,7 @@ TEST_CASE(ui_wheel_event_is_forwarded_flagged_after_the_scroll_updates_it_produc
 
 TEST_CASE(shift_swaps_the_wheel_axes_in_the_compositor)
 {
-    PresentingContextFixture fixture { { 100, 100 }, true };
+    PresentingContextFixture fixture { { 100, 100 } };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     fixture.install(make_scrollable_viewport_display_list(visual_context_tree, true, Compositing::ContextRef {}), visual_context_tree);
     fixture.present();
@@ -1736,7 +1736,7 @@ TEST_CASE(shift_swaps_the_wheel_axes_in_the_compositor)
 
 TEST_CASE(ui_mouse_move_over_a_compositor_painted_scrollbar_is_consumed)
 {
-    PresentingContextFixture fixture { { 100, 100 }, true };
+    PresentingContextFixture fixture { { 100, 100 } };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     fixture.install(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree);
     fixture.present();
@@ -1752,7 +1752,7 @@ TEST_CASE(ui_mouse_move_over_a_compositor_painted_scrollbar_is_consumed)
 
 TEST_CASE(ui_mouse_move_off_the_scrollbars_is_forwarded_unchanged)
 {
-    PresentingContextFixture fixture { { 100, 100 }, true };
+    PresentingContextFixture fixture { { 100, 100 } };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     fixture.install(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree);
     fixture.present();
@@ -1771,7 +1771,7 @@ TEST_CASE(ui_mouse_move_off_the_scrollbars_is_forwarded_unchanged)
 
 TEST_CASE(ui_mouse_event_for_a_missing_context_is_reported_as_not_dispatched)
 {
-    PresentingContextFixture fixture { { 100, 100 }, true };
+    PresentingContextFixture fixture { { 100, 100 } };
 
     fixture.compositor_state->handle_and_dispatch_mouse_event(Compositing::CompositorContextId { 999 }, ui_mouse_move_event(20, 20, 8));
 
@@ -1782,7 +1782,7 @@ TEST_CASE(ui_mouse_event_for_a_missing_context_is_reported_as_not_dispatched)
 
 TEST_CASE(compositor_initiated_presents_request_full_damage)
 {
-    PresentingContextFixture fixture { { 100, 100 }, true };
+    PresentingContextFixture fixture { { 100, 100 } };
     auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
     fixture.install(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree);
     fixture.present();
@@ -1826,7 +1826,7 @@ TEST_CASE(child_context_presents_repaint_the_parent)
 
 TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
 {
-    PresentingContextFixture fixture { { 100, 100 }, true };
+    PresentingContextFixture fixture { { 100, 100 } };
     Compositing::VisualContextTreeTestBuilder builder;
     auto viewport_scroll_node_index = builder.append_scroll(Compositing::VISUAL_VIEWPORT_NODE_INDEX);
     auto nested_scroll_node_index = builder.append_scroll(viewport_scroll_node_index);
@@ -1992,7 +1992,7 @@ static constexpr Compositing::AsyncScrollNodeStableID snap_container_stable_id {
 struct SnapContainerContextFixture {
     RecordingWebContentClient client;
     Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Compositor::ContextState context { Compositing::CompositorContextId { 0 }, 0, client, canvas_surface_registry };
     Compositing::AccumulatedVisualContextTree visual_context_tree { make_scrollable_viewport_visual_context_tree() };
     MonotonicTime now { MonotonicTime::now() };
 

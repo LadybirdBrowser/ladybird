@@ -17,7 +17,7 @@ TEST_CASE(non_windows_transport_initialization_disconnects_web_content)
     auto paired_transport = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto client_transport = TRY_OR_FAIL(paired_transport.remote_handle.create_transport());
     auto client = adopt_ref(*new Web::Compositor::CompositorConnection(move(client_transport)));
-    auto compositor_state = Compositor::CompositorState::create({}, false);
+    auto compositor_state = Compositor::CompositorState::create({});
     auto connection = Compositor::ConnectionFromWebContent::construct(move(paired_transport.local), move(compositor_state), 1);
 
     bool disconnected = false;

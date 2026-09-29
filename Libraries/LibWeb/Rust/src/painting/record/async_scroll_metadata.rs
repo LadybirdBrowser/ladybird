@@ -351,7 +351,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     fn record_viewport_scrollbar_state(&mut self, paintable: NodeSlotId) {
         let records_viewport_scrollbars = self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
-            && self.inputs.uncaptured.async_scrolling_enabled
             && self.inputs.uncaptured.paint_viewport_scrollbars
             && self.layout_arena.node_style_if_live(paintable).is_some_and(|style| {
                 style.misc_reset().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE

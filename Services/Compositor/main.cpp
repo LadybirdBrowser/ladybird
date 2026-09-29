@@ -30,7 +30,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool enable_test_mode = false;
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
-    bool disable_async_scrolling = false;
     bool disable_sandbox = false;
 
     int crash_report_fd = -1;
@@ -43,7 +42,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
-    args_parser.add_option(disable_async_scrolling, "Disable async scrolling", "disable-async-scrolling");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.parse(arguments);
 
@@ -87,7 +85,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         TRY(Compositor::apply_sandbox(mach_server_name, cache_path, resource_root));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<Compositor::ConnectionFromClient>(
-        mach_server_name, move(skia_backend_context), !disable_async_scrolling));
+        mach_server_name, move(skia_backend_context)));
 
     return event_loop.exec();
 }

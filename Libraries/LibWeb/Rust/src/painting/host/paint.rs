@@ -27,7 +27,6 @@ pub struct FfiRecordingInputs {
     pub wheel_event_listener_state_generation: u64,
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     pub paint_viewport_scrollbars: bool,
-    pub async_scrolling_enabled: bool,
     pub middle_button_scroll_active: bool,
     pub middle_button_scroll_origin: used_values::FfiCssPixelPoint,
     pub canvas_fill_rect: used_values::OptionalIntRect,
@@ -116,7 +115,6 @@ impl FfiRecordingInputs {
                     .has_blocking_wheel_event_region_covering_viewport,
                 chrome_metrics: self.chrome_metrics,
                 paint_viewport_scrollbars: self.paint_viewport_scrollbars,
-                async_scrolling_enabled: self.async_scrolling_enabled,
                 middle_button_scroll_origin: self
                     .middle_button_scroll_active
                     .then(|| self.middle_button_scroll_origin.into()),

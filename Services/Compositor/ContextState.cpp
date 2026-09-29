@@ -108,12 +108,11 @@ static void clamp_visual_viewport_transform_to_viewport(Compositing::TransformWi
     transform.matrix[1, 3] = clamp(transform.matrix[1, 3], min_y, 0.0f);
 }
 
-ContextState::ContextState(Compositing::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Compositing::CanvasSurfaceRegistry const& canvas_surface_registry, bool async_scrolling_enabled, Function<void(Gfx::IntRect)> schedule_caret_repaint)
+ContextState::ContextState(Compositing::CompositorContextId context_id, Optional<u64> page_id, CompositorStateWebContentClient& web_content_client, Compositing::CanvasSurfaceRegistry const& canvas_surface_registry, Function<void(Gfx::IntRect)> schedule_caret_repaint)
     : m_web_content_client(web_content_client)
     , m_canvas_surface_registry(canvas_surface_registry)
     , m_context_id(context_id)
     , m_page_id(page_id)
-    , m_async_scrolling_enabled(async_scrolling_enabled)
     , m_schedule_caret_repaint(move(schedule_caret_repaint))
 {
     if (page_id.has_value())
@@ -197,9 +196,6 @@ void ContextState::install_display_list_update(
     update_caret_blink_timer();
     if (m_async_visual_viewport_transform.has_value() && visual_viewport_transforms_match(m_visual_context_tree->visual_viewport_transform(), *m_async_visual_viewport_transform))
         m_async_visual_viewport_transform.clear();
-
-    if (!m_async_scrolling_enabled)
-        return;
 
     auto async_scrolling_state = Compositing::async_scrolling_state_from_display_list(*m_display_list);
     auto async_scrolling_viewport_rect = async_scrolling_state.viewport_rect;
@@ -392,7 +388,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Compositing::Ke
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
     }
 
-    if (!m_async_scrolling_enabled || !presents_to_client() || m_paused_debugger_overlay_visible
+    if (!presents_to_client() || m_paused_debugger_overlay_visible
         || m_visibility != Compositing::ContextVisibility::Visible
         || !Compositing::is_keyboard_scroll_key(event.key, event.modifiers)
         || !m_keyboard_scroll_state.target.has_value()
