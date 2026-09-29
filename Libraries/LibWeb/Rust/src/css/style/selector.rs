@@ -4124,6 +4124,8 @@ pub struct RoutingRegistry {
     /// pass, never per route, so the lock is a formality that makes the registry shareable.
     live_sibling_workspace: Mutex<SiblingCandidateWorkspace>,
     live_sequence_index: Mutex<SequenceEntryIndex>,
+    /// The live routes whose rules may move layout geometry, part of the liveness view.
+    geometry_routes: BitColumn,
     route_liveness_version: Option<u64>,
     memory: MemoryLease,
     nested_memory: MemoryLease,
@@ -4142,6 +4144,7 @@ impl Default for RoutingRegistry {
             live_sequence_entries: Vec::new(),
             live_sibling_workspace: Mutex::new(SiblingCandidateWorkspace::new(&[])),
             live_sequence_index: Mutex::new(SequenceEntryIndex::default()),
+            geometry_routes: BitColumn::default(),
             route_liveness_version: None,
             memory: MemoryLease::new(MemoryCategory::RoutingRegistry),
             nested_memory: MemoryLease::new(MemoryCategory::RoutingRegistry),
@@ -4355,6 +4358,23 @@ impl RoutingRegistry {
             && program.rule_version(header.rule).selector_program == Some(selector_program)
     }
 
+    /// Whether a live route `key` reaches belongs to a rule a match of which may move layout geometry. The view the
+    /// last transaction prepared answers until the program's routing liveness moves; after that each route is looked up.
+    pub(super) fn key_may_affect_layout_geometry(
+        &self,
+        key: RoutingKey,
+        program: &StyleSheetProgram,
+        programs: &SelectorPrograms,
+    ) -> bool {
+        let routes = self.routes_for(key);
+        if self.route_liveness_version == Some(program.routing_liveness_version()) {
+            return routes.iter().any(|route| self.geometry_routes.contains(route.index()));
+        }
+        routes.iter().copied().any(|route| {
+            self.route_is_live(route, program, programs) && program.rule_may_affect_layout_geometry(self.rule_of(route))
+        })
+    }
+
     /// Rebuild the liveness view when the program's routing liveness version moves.
     ///
     /// This takes `&mut self` so the view itself needs no interior mutability: the registry is on
@@ -4365,14 +4385,14 @@ impl RoutingRegistry {
             return;
         }
         let mut liveness = std::mem::take(&mut self.route_liveness);
+        let mut geometry_routes = std::mem::take(&mut self.geometry_routes);
         for index in 0..self.routes.headers.len() {
             let header = self.routes.headers[index];
             let (selector_program, _) = programs.entry_location(header.entry);
-            liveness.set(
-                index,
-                program.rule_can_decide(header.rule)
-                    && program.rule_version(header.rule).selector_program == Some(selector_program),
-            );
+            let live = program.rule_can_decide(header.rule)
+                && program.rule_version(header.rule).selector_program == Some(selector_program);
+            liveness.set(index, live);
+            geometry_routes.set(index, live && program.rule_may_affect_layout_geometry(header.rule));
         }
         let mut live_relational_routes = std::mem::take(&mut self.live_relational_routes);
         live_relational_routes.clear();
@@ -4422,6 +4442,7 @@ impl RoutingRegistry {
         }
         let sequence_index = SequenceEntryIndex::build(&live_sequence_entries, self);
         self.route_liveness = liveness;
+        self.geometry_routes = geometry_routes;
         self.live_relational_routes = live_relational_routes;
         self.live_sibling_entries = live_sibling_entries;
         self.live_sequence_entries = live_sequence_entries;
@@ -4699,6 +4720,7 @@ impl RoutingRegistry {
                     + self.by_input.capacity_bytes()
                     + self.arrival_by_input.capacity_bytes()
                     + self.route_liveness.capacity_bytes()
+                    + self.geometry_routes.capacity_bytes()
                     + self.live_relational_routes.capacity() as u64 * size_of::<LiveRelationalRoute>() as u64
                     + self.live_sibling_entries.capacity() as u64 * size_of::<SiblingEntry>() as u64
                     + self.live_sibling_workspace.lock().expect(LIVENESS_LOCK).capacity_bytes()

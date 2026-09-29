@@ -262,6 +262,47 @@ fn pending_paint_only_local_inputs_preserve_layout_geometry() {
 }
 
 #[test]
+fn pending_geometry_inputs_see_declaration_completeness_changes() {
+    let (mut engine, nodes) = linear_document();
+    let target = StyleAtomID(200);
+    let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    engine.set_rule_declared_properties(rule, &[(property_id::BACKGROUND_COLOR, false)], true);
+    discard_transaction(&mut engine);
+    prepare_route_liveness(&mut engine);
+
+    engine.set_rule_declared_properties(rule, &[(property_id::BACKGROUND_COLOR, false)], false);
+    discard_transaction(&mut engine);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
+    assert!(engine.pending_transaction_may_affect_layout_geometry());
+    discard_transaction(&mut engine);
+    prepare_route_liveness(&mut engine);
+
+    engine.set_rule_declared_properties(rule, &[(property_id::BACKGROUND_COLOR, false)], true);
+    discard_transaction(&mut engine);
+    add_feature(&mut engine, nodes[2], LocalFeatureKey::Class(target));
+    assert!(!engine.pending_transaction_may_affect_layout_geometry());
+}
+
+#[test]
+fn pending_inputs_see_a_rule_whose_declarations_came_to_move_geometry() {
+    let (mut engine, nodes) = linear_document();
+    let target = StyleAtomID(200);
+    let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    engine.set_rule_declared_properties(rule, &[(property_id::BACKGROUND_COLOR, false)], true);
+    discard_transaction(&mut engine);
+    prepare_route_liveness(&mut engine);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
+    assert!(!engine.pending_transaction_may_affect_layout_geometry());
+    discard_transaction(&mut engine);
+
+    // The view prepared for the paint-only rule does not answer for the rule it became.
+    engine.set_rule_declared_properties(rule, &[(property_id::WIDTH, false)], true);
+    discard_transaction(&mut engine);
+    add_feature(&mut engine, nodes[2], LocalFeatureKey::Class(target));
+    assert!(engine.pending_transaction_may_affect_layout_geometry());
+}
+
+#[test]
 fn pending_layout_and_incomplete_local_inputs_may_change_geometry() {
     for (property, declarations_are_complete) in [
         (property_id::WIDTH, true),
@@ -505,6 +546,13 @@ fn set_atom_feature(engine: &mut StyleEngine, node: StyleNodeID, feature: LocalF
         InputValue::Feature(FeatureValue::Absent),
         InputValue::Feature(FeatureValue::Atom(atom)),
     );
+}
+
+fn prepare_route_liveness(engine: &mut StyleEngine) {
+    let retained = &mut engine.retained;
+    std::sync::Arc::get_mut(&mut retained.routing)
+        .expect("routing is not shared outside a planning epoch")
+        .prepare_route_liveness(&retained.program, &retained.programs);
 }
 
 fn discard_transaction(engine: &mut StyleEngine) {
