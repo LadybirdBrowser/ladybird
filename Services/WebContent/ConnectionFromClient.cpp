@@ -17,6 +17,7 @@
 #include <AK/QuickSort.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibDevTools/IndexedDBSerialization.h>
