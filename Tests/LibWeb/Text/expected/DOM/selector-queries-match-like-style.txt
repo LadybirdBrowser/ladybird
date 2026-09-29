@@ -1,0 +1,9 @@
+Foo: style [html-foo,svg-Foo] query [html-Foo html-foo svg-Foo]
+foo: query [html-Foo html-foo]
+[dataFoo]: style [svg-dataFoo,html-datafoo] query [svg-dataFoo html-datafoo]
+[datafoo]: query [html-datafoo]
+:has(.a) > .x: style [] query []
+:host:has(.y) .x: style [shadow-y] query [shadow-y]
+:root: document [html] fragment [] detached false
+:scope: document [] [] root [html-foo] fragment []
+fragment children: :first-child [i] :nth-child(2) [b] :last-of-type [b i] .a ~ .c [i] .a + b [b]
