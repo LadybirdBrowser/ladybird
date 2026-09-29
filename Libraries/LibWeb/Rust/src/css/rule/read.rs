@@ -501,6 +501,23 @@ impl NativeRuleList {
         self.visit_rules(&mut |rule| walk(rule, visit))
     }
 
+    /// Visits the rules of [`Self::visit_rules`] a media evaluation reaches while the media of the list's sheet holds
+    /// as it did: those that are, or hold, a `@media` or `@import` rule.
+    pub(crate) fn visit_media_holding_rules(
+        &self,
+        visit: &mut impl FnMut(RuleRef<'_>) -> ControlFlow<()>,
+    ) -> ControlFlow<()> {
+        // A rule the CSSOM exposed or edited may hold a `@media` rule the parse did not.
+        if self.rules.borrow().is_some() || !self.exposed_rules.borrow().is_empty() {
+            return self.visit_rules(visit);
+        }
+        let parsed = self.parsed_source.borrow();
+        let Some(parsed) = parsed.as_ref() else {
+            return ControlFlow::Continue(());
+        };
+        parsed.visit_media_holding_rules(&mut |rule| visit(RuleRef::Shared(rule, self)))
+    }
+
     pub(crate) fn visit_rules(&self, visit: &mut impl FnMut(RuleRef<'_>) -> ControlFlow<()>) -> ControlFlow<()> {
         if let Some(rules) = self.rules.borrow().as_ref() {
             for rule in rules {

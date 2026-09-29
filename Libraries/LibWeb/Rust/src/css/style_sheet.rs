@@ -146,7 +146,7 @@ impl NativeStyleSheet {
                     .get(&sheet.identity())
                     .map_or(!self.previous.sheets.is_empty(), |previous| *previous != matches);
                 self.result.any_changed |= changed;
-                let _ = sheet.rules.visit_rules(&mut |rule| {
+                let mut visit = |rule: RuleRef<'_>| {
                     if matches {
                         self.rule(sheet, rule, conditions_hold, ancestor_changed || changed);
                     }
@@ -154,7 +154,16 @@ impl NativeStyleSheet {
                         note_changed(rule, &mut self.result);
                     }
                     ControlFlow::Continue(())
-                });
+                };
+                // Of a sheet whose own media holds as it did, only the rules that are or hold a `@media` or `@import`
+                // rule evaluate anything.
+                let _ = if changed {
+                    sheet.rules.visit_rules(&mut visit)
+                } else if matches {
+                    sheet.rules.visit_media_holding_rules(&mut visit)
+                } else {
+                    ControlFlow::Continue(())
+                };
                 if changed && !ancestor_changed {
                     sheet.visit_conditions(self.environment, conditions_hold && matches, self.publish);
                 }

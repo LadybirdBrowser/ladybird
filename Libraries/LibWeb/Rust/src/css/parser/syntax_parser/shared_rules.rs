@@ -98,6 +98,21 @@ impl ParsedRuleList {
         ControlFlow::Continue(())
     }
 
+    /// Visits the rules of [`Self::visit_rules`] that are, or hold, a rule a media evaluation reads: of a sheet's
+    /// top-level rules, the few its parse found; of a rule's children, all.
+    pub(crate) fn visit_media_holding_rules<'a>(
+        &'a self,
+        visit: &mut impl FnMut(SharedRule<'a>) -> ControlFlow<()>,
+    ) -> ControlFlow<()> {
+        if self.parent.is_some() {
+            return self.visit_rules(visit);
+        }
+        for &position in &self.sheet.media_holding_roots {
+            visit(self.rule_at(position))?;
+        }
+        ControlFlow::Continue(())
+    }
+
     pub(crate) fn len(&self) -> usize {
         self.parent
             .as_ref()
@@ -195,6 +210,18 @@ impl ParsedRule {
             ParsedRuleKind::CounterStyle => NativeRuleType::CounterStyle,
             ParsedRuleKind::Property => NativeRuleType::Property,
         })
+    }
+}
+
+impl ParsedRule {
+    /// Whether the rule is, or holds, a rule a media evaluation reads: a `@media` rule, or an `@import`, whose sheet
+    /// may hold one.
+    pub(super) fn holds_media_rules(&self) -> bool {
+        matches!(self.rule_kind, ParsedRuleKind::Media | ParsedRuleKind::Import)
+            || self
+                .children
+                .iter()
+                .any(|child| matches!(child, ParsedRuleChild::Rule(rule) if rule.holds_media_rules()))
     }
 }
 
