@@ -46,6 +46,8 @@ public:
     // Observe the same document-thread owner, including subsequent mutations.
     RustDeclarationBlock retain() const;
     void replace(RustDeclarationBlock const&);
+    // True while both blocks hold the same immutable data, e.g. after replace() and before either changes.
+    bool shares_declarations_with(RustDeclarationBlock const&) const;
     bool is_empty() const;
     u64 identity() const;
     u64 revision() const;
