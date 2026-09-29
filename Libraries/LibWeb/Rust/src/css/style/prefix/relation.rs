@@ -853,9 +853,12 @@ impl PrefixRelation {
             }
             self.pending_steps.insert(self.program.step_ranks[step] as usize);
         }
-        let mut step_changes: HashMap<usize, Vec<usize>> = HashMap::default();
+        // What each step that ran changed is a run of `changed_positions`, which `step_changes` names by step.
+        let mut changed_positions = Vec::new();
+        let mut step_changes: HashMap<usize, std::ops::Range<usize>> = HashMap::default();
         let mut terminal_changes = Vec::new();
         let mut affected = Vec::new();
+        let mut descendants = Vec::new();
         let mut following_parents = HashSet::default();
         let mut walk_truth = std::mem::take(&mut self.walk_truth);
         let mut ancestor_chain = Vec::new();
@@ -867,15 +870,15 @@ impl PrefixRelation {
             let step = &automaton.steps[step_index];
             let compound_index = step.compound.0 as usize;
             let predecessor = automaton.predecessor_of(PrefixStepID(step_index as u32));
+            let first_change = changed_positions.len();
             if predecessor.is_some_and(|predecessor| self.matches[predecessor.0 as usize].is_empty()) {
                 // No predecessor witness can satisfy any outgoing combinator. Remove the old
                 // matches directly without evaluating local predicates or changed geometry.
-                affected.clear();
-                self.matches[step_index].drain_into(&mut affected);
+                self.matches[step_index].drain_into(&mut changed_positions);
             } else {
                 let predecessor_changes = predecessor
                     .and_then(|predecessor| step_changes.get(&(predecessor.0 as usize)))
-                    .map_or(&[][..], Vec::as_slice);
+                    .map_or(&[][..], |run| &changed_positions[run.clone()]);
                 let geometry = match axis {
                     PrefixOutputKind::Child => geometry_memberships[0]
                         .get(&compound_index)
@@ -931,7 +934,7 @@ impl PrefixRelation {
                             // Enumerate a small changed subtree directly. If it is larger than
                             // the candidate set, test those candidates against the changed roots.
                             // The bound is the other join input's size, not a tuned batch cutoff.
-                            let mut descendants = Vec::new();
+                            descendants.clear();
                             let mut complete = true;
                             'sources: for &source in predecessor_changes {
                                 if !self.live[source] {
@@ -948,7 +951,8 @@ impl PrefixRelation {
                             if complete {
                                 affected.extend(
                                     descendants
-                                        .into_iter()
+                                        .iter()
+                                        .copied()
                                         .filter(|&position| candidates.contains(position)),
                                 );
                             } else {
@@ -1005,7 +1009,6 @@ impl PrefixRelation {
                     continue;
                 }
                 walk_truth.clear();
-                let mut changes = Vec::new();
                 for &position in &affected {
                     // A step runs once per update, so what it held is what it held before, which no arrival is in.
                     let previously_matched =
@@ -1069,23 +1072,23 @@ impl PrefixRelation {
                         };
                     }
                     if previously_matched != matched {
-                        changes.push(position);
+                        changed_positions.push(position);
                     }
                 }
                 let members = &mut self.matches[step_index];
                 let before = members.shallow_capacity_bytes();
-                members.toggle(&changes);
+                members.toggle(&changed_positions[first_change..]);
                 self.nested_capacity_bytes = self.nested_capacity_bytes - before + members.shallow_capacity_bytes();
-                affected = changes;
             }
-            if affected.is_empty() {
+            let changes = first_change..changed_positions.len();
+            if changes.is_empty() {
                 counters.bump(Counter::PrefixRelationStops);
                 continue;
             }
             for successor in automaton.outputs_for(step) {
                 match successor.kind {
                     PrefixOutputKind::UniqueTerminal | PrefixOutputKind::SharedTerminal => {
-                        for &position in &affected {
+                        for &position in &changed_positions[changes.clone()] {
                             terminal_changes.push((position, EntryID(successor.target)));
                         }
                     }
@@ -1095,15 +1098,17 @@ impl PrefixRelation {
                     }
                 }
             }
-            step_changes.insert(step_index, std::mem::take(&mut affected));
+            step_changes.insert(step_index, changes);
         }
         terminal_changes.sort_unstable();
         terminal_changes.dedup();
         self.changed_answers.clear();
+        let mut old = Vec::new();
         let mut cursor = 0;
         while cursor < terminal_changes.len() {
             let position = terminal_changes[cursor].0;
-            let old = self.answers[position].clone();
+            old.clear();
+            old.extend_from_slice(&self.answers[position]);
             while cursor < terminal_changes.len() && terminal_changes[cursor].0 == position {
                 let entry = terminal_changes[cursor].1;
                 // Multiple paths can produce the same terminal. Losing one path changes the
@@ -1126,8 +1131,11 @@ impl PrefixRelation {
                 cursor += 1;
             }
             if self.live[position] && old != self.answers[position] {
-                self.changed_answers
-                    .push((self.nodes[position], old, self.answers[position].clone()));
+                self.changed_answers.push((
+                    self.nodes[position],
+                    std::mem::take(&mut old),
+                    self.answers[position].clone(),
+                ));
             }
         }
         for targets in &mut self.geometry_targets {
