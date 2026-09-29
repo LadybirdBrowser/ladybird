@@ -75,60 +75,213 @@ impl PrefixRelationProgram {
     }
 }
 
-/// Most selector memberships in a small document are empty. Keep their vector headers out of
-/// the dense table, while retaining an allocated buffer when a previously populated list empties.
-#[allow(clippy::box_collection)]
-struct PrefixMembership<T>(Option<Box<Vec<T>>>);
+/// The positions a compound or a step holds, which the relation asks about far more often than it changes. Most sets
+/// hold none or a handful: a set is listed in ascending order while that takes less room than a bitmap up to its last
+/// position, and is that bitmap, which answers with one load, once it takes more. A set that never held a position takes
+/// only its slot in the dense table of sets.
+#[derive(Default)]
+struct PositionSet(Option<Box<Positions>>);
 
-impl<T> Default for PrefixMembership<T> {
-    fn default() -> Self {
-        Self(None)
+enum Positions {
+    /// Ascending.
+    Listed(Vec<u32>),
+    /// Bit `position % 64` of word `position / 64` for each position, and how many there are.
+    Bits { words: Vec<u64>, len: usize },
+}
+
+impl FromIterator<usize> for PositionSet {
+    /// The set of the ascending `positions`.
+    fn from_iter<I: IntoIterator<Item = usize>>(positions: I) -> Self {
+        let list: Vec<u32> = positions.into_iter().map(position_u32).collect();
+        debug_assert!(list.is_sorted());
+        if list.is_empty() {
+            return Self::default();
+        }
+        let mut set = Self(Some(Box::new(Positions::Listed(list))));
+        set.settle();
+        set
     }
 }
 
-impl<T> From<Vec<T>> for PrefixMembership<T> {
-    fn from(values: Vec<T>) -> Self {
-        Self((!values.is_empty()).then(|| Box::new(values)))
-    }
-}
-
-impl<T> std::ops::Deref for PrefixMembership<T> {
-    type Target = [T];
-    fn deref(&self) -> &[T] {
-        self.0.as_deref().map_or(&[], Vec::as_slice)
-    }
-}
-
-impl<'a, T> IntoIterator for &'a PrefixMembership<T> {
-    type Item = &'a T;
-    type IntoIter = std::slice::Iter<'a, T>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-impl<T> PrefixMembership<T> {
-    fn make_mut(&mut self) -> &mut Vec<T> {
-        self.0.get_or_insert_with(Box::default)
-    }
-
-    fn retain(&mut self, predicate: impl FnMut(&T) -> bool) {
-        if let Some(values) = &mut self.0 {
-            values.retain(predicate);
+impl PositionSet {
+    fn len(&self) -> usize {
+        match self.0.as_deref() {
+            None => 0,
+            Some(Positions::Listed(list)) => list.len(),
+            Some(Positions::Bits { len, .. }) => *len,
         }
     }
 
-    fn drain(&mut self, _: std::ops::RangeFull) -> impl Iterator<Item = T> + '_ {
-        self.0.iter_mut().flat_map(|values| values.drain(..))
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn contains(&self, position: usize) -> bool {
+        match self.0.as_deref() {
+            None => false,
+            Some(Positions::Listed(list)) => {
+                u32::try_from(position).is_ok_and(|position| list.binary_search(&position).is_ok())
+            }
+            Some(Positions::Bits { words, .. }) => has_bit(words, position),
+        }
+    }
+
+    /// The positions, ascending.
+    fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        let (list, words): (&[u32], &[u64]) = match self.0.as_deref() {
+            None => (&[], &[]),
+            Some(Positions::Listed(list)) => (list, &[]),
+            Some(Positions::Bits { words, .. }) => (&[], words),
+        };
+        list.iter().map(|&position| position as usize).chain(
+            words
+                .iter()
+                .enumerate()
+                .flat_map(|(index, &word)| set_bits(index, word)),
+        )
+    }
+
+    /// Removes the `departed` positions, which `live` no longer holds, returning whether the set held any. A list
+    /// keeps what is live; a bitmap clears the departed.
+    fn remove_departed(&mut self, departed: &[usize], live: &[bool]) -> bool {
+        match self.0.as_deref_mut() {
+            None => false,
+            Some(Positions::Listed(list)) => {
+                let before = list.len();
+                list.retain(|&position| live[position as usize]);
+                list.len() != before
+            }
+            Some(Positions::Bits { words, len }) => {
+                let before = *len;
+                for &position in departed {
+                    if has_bit(words, position) {
+                        words[position / 64] &= !(1 << (position % 64));
+                        *len -= 1;
+                    }
+                }
+                *len != before
+            }
+        }
+    }
+
+    /// Empties the set into `into`, in ascending order. The set keeps its buffer.
+    fn drain_into(&mut self, into: &mut Vec<usize>) {
+        match self.0.as_deref_mut() {
+            None => {}
+            Some(Positions::Listed(list)) => into.extend(list.drain(..).map(|position| position as usize)),
+            Some(Positions::Bits { words, len }) => {
+                for (index, word) in words.iter_mut().enumerate() {
+                    into.extend(set_bits(index, std::mem::take(word)));
+                }
+                *len = 0;
+            }
+        }
+    }
+
+    /// Flips whether the set holds each of the ascending, distinct `changes`.
+    fn toggle(&mut self, changes: &[usize]) {
+        let Some(&last) = changes.last() else {
+            return;
+        };
+        match self
+            .0
+            .get_or_insert_with(|| Box::new(Positions::Listed(Vec::new())))
+            .as_mut()
+        {
+            Positions::Listed(list) => toggle_listed(list, changes),
+            Positions::Bits { words, len } => {
+                if words.len() <= last / 64 {
+                    words.resize(last / 64 + 1, 0);
+                }
+                for &position in changes {
+                    let word = &mut words[position / 64];
+                    let bit = 1 << (position % 64);
+                    *word ^= bit;
+                    if *word & bit != 0 {
+                        *len += 1;
+                    } else {
+                        *len -= 1;
+                    }
+                }
+            }
+        }
+        self.settle();
+    }
+
+    /// Keeps the set in the form that takes less room: listed until its positions take more room than the bitmap up
+    /// to the last of them, and listed again once they take less than half the bitmap, so that a set whose size wavers
+    /// around the bound does not convert back and forth.
+    fn settle(&mut self) {
+        let Some(positions) = self.0.as_deref_mut() else {
+            return;
+        };
+        match positions {
+            Positions::Listed(list) => {
+                let Some(&last) = list.last() else {
+                    return;
+                };
+                let word_count = last as usize / 64 + 1;
+                if size_of_val(list.as_slice()) <= word_count * size_of::<u64>() {
+                    return;
+                }
+                let mut words = vec![0_u64; word_count];
+                for &position in list.iter() {
+                    words[position as usize / 64] |= 1 << (position % 64);
+                }
+                *positions = Positions::Bits { words, len: list.len() };
+            }
+            Positions::Bits { words, len } => {
+                if 2 * *len * size_of::<u32>() >= size_of_val(words.as_slice()) {
+                    return;
+                }
+                let list = words
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(index, &word)| set_bits(index, word))
+                    .map(position_u32)
+                    .collect();
+                *positions = Positions::Listed(list);
+            }
+        }
     }
 }
 
-impl<T> ShallowCapacityBytes for PrefixMembership<T> {
+impl ShallowCapacityBytes for PositionSet {
     fn shallow_capacity_bytes(&self) -> u64 {
-        self.0
-            .as_ref()
-            .map_or(0, |values| size_of::<Vec<T>>() as u64 + values.shallow_capacity_bytes())
+        self.0.as_deref().map_or(0, |positions| {
+            size_of::<Positions>() as u64
+                + match positions {
+                    Positions::Listed(list) => list.shallow_capacity_bytes(),
+                    Positions::Bits { words, .. } => words.shallow_capacity_bytes(),
+                }
+        })
     }
+}
+
+/// A position as a set lists it: a relation holds nowhere near 2^32 elements.
+fn position_u32(position: usize) -> u32 {
+    debug_assert!(
+        u32::try_from(position).is_ok(),
+        "prefix relation position space exhausted"
+    );
+    position as u32
+}
+
+fn has_bit(words: &[u64], position: usize) -> bool {
+    words
+        .get(position / 64)
+        .is_some_and(|word| word & (1 << (position % 64)) != 0)
+}
+
+/// The positions the bits of word `index` of a bitmap stand for, ascending.
+fn set_bits(index: usize, mut word: u64) -> impl Iterator<Item = usize> {
+    std::iter::from_fn(move || {
+        (word != 0).then(|| {
+            let bit = word.trailing_zeros() as usize;
+            word &= word - 1;
+            index * 64 + bit
+        })
+    })
 }
 
 pub(in crate::css::style) struct PrefixRelation {
@@ -142,8 +295,8 @@ pub(in crate::css::style) struct PrefixRelation {
     live: Vec<bool>,
     free_slots: Vec<usize>,
     departures: Vec<usize>,
-    compound_matches: Vec<PrefixMembership<usize>>,
-    matches: Vec<PrefixMembership<u32>>,
+    compound_matches: Vec<PositionSet>,
+    matches: Vec<PositionSet>,
     walk_truth: PrefixWalkMemo,
     pending_steps: PendingPrefixSteps,
     positional: Vec<u32>,
@@ -447,7 +600,7 @@ impl PrefixRelation {
                     if let Some(compounds) = self.program.compounds_for_key(&key) {
                         for compound in compounds {
                             for step in self.program.steps_for_compound(compound) {
-                                if self.matches[step].binary_search(&(removed as u32)).is_ok()
+                                if self.matches[step].contains(removed)
                                     && automaton
                                         .outputs_for(&automaton.steps[step])
                                         .iter()
@@ -465,9 +618,8 @@ impl PrefixRelation {
             removed_steps.dedup();
             for &step in &removed_steps {
                 let members = &self.matches[step];
-                let contains = |position: usize| members.binary_search(&(position as u32)).is_ok();
                 let mut previous = self.previous[frontier];
-                while previous != usize::MAX && !contains(previous) {
+                while previous != usize::MAX && !members.contains(previous) {
                     previous = self.previous[previous];
                 }
                 if previous != usize::MAX {
@@ -481,13 +633,12 @@ impl PrefixRelation {
                         // Geometry only needs the candidates which matched before this batch.
                         if matches!(output.kind, PrefixOutputKind::FollowingSibling)
                             && self.compound_matches[automaton.steps[output.target as usize].compound.0 as usize]
-                                .binary_search(&position)
-                                .is_ok()
+                                .contains(position)
                         {
                             result.entry(output.target as usize).or_default().push(position);
                         }
                     }
-                    if contains(position) {
+                    if members.contains(position) {
                         break;
                     }
                     node = old_evaluation.tree.next_element_sibling(current);
@@ -526,14 +677,11 @@ impl PrefixRelation {
                 continue;
             };
             for compound in compounds {
-                let members = &mut self.compound_matches[compound];
-                let before = members.len();
-                members.retain(|&position| self.live[position]);
-                if members.len() == before {
+                if !self.compound_matches[compound].remove_departed(&self.departures, &self.live) {
                     continue;
                 }
                 for step in self.program.steps_for_compound(compound) {
-                    self.matches[step].retain(|&position| self.live[position as usize]);
+                    self.matches[step].remove_departed(&self.departures, &self.live);
                 }
             }
         }
@@ -644,7 +792,7 @@ impl PrefixRelation {
                                         .unwrap(),
                                 }
                             });
-                    if self.compound_matches[index].binary_search(&position).is_ok() != matched {
+                    if self.compound_matches[index].contains(position) != matched {
                         changed_compounds.entry(index).or_default().push(position);
                     }
                 }
@@ -655,10 +803,8 @@ impl PrefixRelation {
             changes.dedup();
             let members = &mut self.compound_matches[index];
             let before = members.shallow_capacity_bytes();
-            if !changes.is_empty() {
-                toggle_members(members.make_mut(), changes);
-            }
-            self.nested_capacity_bytes += members.shallow_capacity_bytes() - before;
+            members.toggle(changes);
+            self.nested_capacity_bytes = self.nested_capacity_bytes - before + members.shallow_capacity_bytes();
         }
         let mut geometry_memberships: [HashMap<usize, Vec<usize>>; 4] = std::array::from_fn(|_| HashMap::default());
         for (axis, targets) in self.geometry_targets.iter().enumerate() {
@@ -672,7 +818,7 @@ impl PrefixRelation {
                     .for_each_dispatch_key(row.row, evaluation.tree.parent(node).is_none(), |key| {
                         if let Some(compounds) = self.program.compounds_for_key(&key) {
                             for compound in compounds {
-                                if self.compound_matches[compound].binary_search(&position).is_ok() {
+                                if self.compound_matches[compound].contains(position) {
                                     geometry_memberships[axis].entry(compound).or_default().push(position);
                                 }
                             }
@@ -716,7 +862,7 @@ impl PrefixRelation {
                 // No predecessor witness can satisfy any outgoing combinator. Remove the old
                 // matches directly without evaluating local predicates or changed geometry.
                 affected.clear();
-                affected.extend(self.matches[step_index].drain(..).map(|position| position as usize));
+                self.matches[step_index].drain_into(&mut affected);
             } else {
                 let predecessor_changes = predecessor
                     .and_then(|predecessor| step_changes.get(&(predecessor.0 as usize)))
@@ -756,7 +902,7 @@ impl PrefixRelation {
                             for &source in predecessor_changes {
                                 for child in evaluation.tree.children(self.nodes[source]) {
                                     let position = self.positions[child.element_index().unwrap() as usize];
-                                    if candidates.binary_search(&position).is_ok() {
+                                    if candidates.contains(position) {
                                         affected.push(position);
                                     }
                                 }
@@ -766,7 +912,7 @@ impl PrefixRelation {
                             for &source in predecessor_changes {
                                 if let Some(next) = evaluation.tree.next_element_sibling(self.nodes[source]) {
                                     let position = self.positions[next.element_index().unwrap() as usize];
-                                    if candidates.binary_search(&position).is_ok() {
+                                    if candidates.contains(position) {
                                         affected.push(position);
                                     }
                                 }
@@ -794,11 +940,11 @@ impl PrefixRelation {
                                 affected.extend(
                                     descendants
                                         .into_iter()
-                                        .filter(|position| candidates.binary_search(position).is_ok()),
+                                        .filter(|&position| candidates.contains(position)),
                                 );
                             } else {
                                 walk_truth.clear();
-                                for &position in candidates {
+                                for position in candidates.iter() {
                                     ancestor_chain.clear();
                                     let mut source = self.parents[position];
                                     let mut found = false;
@@ -834,7 +980,7 @@ impl PrefixRelation {
                                 let mut follows_source = false;
                                 for node in evaluation.tree.children(self.nodes[parent]) {
                                     let position = self.position_of(Some(node));
-                                    if follows_source && candidates.binary_search(&position).is_ok() {
+                                    if follows_source && candidates.contains(position) {
                                         affected.push(position);
                                     }
                                     follows_source |= predecessor_changes.binary_search(&position).is_ok();
@@ -851,14 +997,12 @@ impl PrefixRelation {
                 }
                 walk_truth.clear();
                 let mut changes = Vec::new();
-                let previous_matches = contains_sorted_positions(&self.matches[step_index], &affected);
-                let candidate_matches = contains_sorted_positions(candidates, &affected);
-                for ((&position, previously_matched), mut matched) in
-                    affected.iter().zip(previous_matches).zip(candidate_matches)
-                {
+                for &position in &affected {
+                    let previously_matched = self.matches[step_index].contains(position);
+                    let mut matched = candidates.contains(position);
                     if matched && let Some(predecessor) = predecessor {
                         let predecessor = &self.matches[predecessor.0 as usize];
-                        let contains = |position: usize| predecessor.binary_search(&(position as u32)).is_ok();
+                        let contains = |position| predecessor.contains(position);
                         matched = match axis {
                             PrefixOutputKind::Child | PrefixOutputKind::NextSibling => {
                                 let source = if matches!(axis, PrefixOutputKind::Child) {
@@ -919,10 +1063,8 @@ impl PrefixRelation {
                 }
                 let members = &mut self.matches[step_index];
                 let before = members.shallow_capacity_bytes();
-                if !changes.is_empty() {
-                    toggle_members(members.make_mut(), &changes);
-                }
-                self.nested_capacity_bytes += members.shallow_capacity_bytes() - before;
+                members.toggle(&changes);
+                self.nested_capacity_bytes = self.nested_capacity_bytes - before + members.shallow_capacity_bytes();
                 affected = changes;
             }
             if affected.is_empty() {
@@ -957,7 +1099,7 @@ impl PrefixRelation {
                 // selector answer only when no other path still matches this element.
                 let matched = self.program.terminal_steps[&entry]
                     .iter()
-                    .any(|&step| self.matches[step].binary_search(&(position as u32)).is_ok());
+                    .any(|&step| self.matches[step].contains(position));
                 let entries = &mut self.answers[position];
                 match (entries.binary_search(&entry), matched) {
                     (Ok(index), false) => {
@@ -1308,12 +1450,12 @@ impl PrefixAutomaton {
             departures: Vec::new(),
             compound_matches: compound_matches
                 .into_iter()
-                .map(PrefixMembership::from)
+                .map(PositionSet::from_iter)
                 .collect::<Box<[_]>>()
                 .into_vec(),
             matches: matches
                 .into_iter()
-                .map(PrefixMembership::from)
+                .map(|positions| positions.into_iter().map(|position| position as usize).collect())
                 .collect::<Box<[_]>>()
                 .into_vec(),
             walk_truth: PrefixWalkMemo::default(),
@@ -1417,56 +1559,20 @@ fn local_match_key(identity: u32, is_root: bool, compound: usize) -> u64 {
 // nothing to add and nothing to remove. Leaving it out of the queue is free: a predecessor that
 // gains members later in the same update queues its successors through the automaton's outputs,
 // and the queued step still reads its own compound and geometry changes when it runs.
-fn step_is_inert(automaton: &PrefixAutomaton, matches: &[PrefixMembership<u32>], step: usize) -> bool {
+fn step_is_inert(automaton: &PrefixAutomaton, matches: &[PositionSet], step: usize) -> bool {
     matches[step].is_empty()
         && automaton
             .predecessor_of(PrefixStepID(step as u32))
             .is_some_and(|predecessor| matches[predecessor.0 as usize].is_empty())
 }
 
-/// Whether each of the ascending `positions` is one of the ascending `members`. Each is looked for from where the one
-/// before it stopped, so a batch reads the members in order, and costs the logarithm of each gap it crosses rather
-/// than of the whole set.
-fn contains_sorted_positions<'a, T: Copy + Ord + TryFrom<usize>>(
-    members: &'a [T],
-    positions: &'a [usize],
-) -> impl Iterator<Item = bool> + 'a {
-    debug_assert!(positions.is_sorted());
-    let mut rest = members;
-    positions.iter().map(move |&position| {
-        let Ok(position) = T::try_from(position) else {
-            rest = &[];
-            return false;
-        };
-        rest = &rest[count_below(rest, position)..];
-        rest.first() == Some(&position)
-    })
-}
-
-/// How many of the ascending `members` are below `position`, found with a stride that doubles from the start until it
-/// passes `position`.
-fn count_below<T: Ord>(members: &[T], position: T) -> usize {
-    let mut below = 0;
-    let mut stride = 1;
-    while below + stride <= members.len() && members[below + stride - 1] < position {
-        below += stride;
-        stride *= 2;
-    }
-    let end = (below + stride - 1).min(members.len());
-    below + members[below..end].partition_point(|member| *member < position)
-}
-
 // Merge a batch of membership flips once. Repeated Vec::insert/remove would move the
 // unaffected tail once per changed element, multiplying batch size by the set's population.
-fn toggle_members<T: Copy + Ord + TryFrom<usize>>(members: &mut Vec<T>, changes: &[usize])
-where
-    T::Error: std::fmt::Debug,
-{
-    let convert = |position| T::try_from(position).unwrap();
-    match changes {
+fn toggle_listed(members: &mut Vec<u32>, changes: &[usize]) {
+    let (lowest, highest) = match *changes {
         [] => return,
-        &[position] => {
-            let position = convert(position);
+        [position] => {
+            let position = position_u32(position);
             match members.binary_search(&position) {
                 Ok(index) => {
                     members.remove(index);
@@ -1475,20 +1581,20 @@ where
             }
             return;
         }
-        _ => {}
-    }
-    let first = members.partition_point(|&position| position < convert(changes[0]));
-    let end = members.partition_point(|&position| position <= convert(*changes.last().unwrap()));
+        [lowest, .., highest] => (position_u32(lowest), position_u32(highest)),
+    };
+    let first = members.partition_point(|&position| position < lowest);
+    let end = members.partition_point(|&position| position <= highest);
     let removed_prefix = members[first..end]
         .iter()
         .zip(changes)
-        .take_while(|&(member, position)| *member == convert(*position))
+        .take_while(|&(member, position)| *member == position_u32(*position))
         .count();
     let mut cursor = first + removed_prefix;
     let changes = &changes[removed_prefix..];
     let mut replacement = Vec::with_capacity(end - cursor + changes.len());
     for &position in changes {
-        let position = convert(position);
+        let position = position_u32(position);
         while cursor < end && members[cursor] < position {
             replacement.push(members[cursor]);
             cursor += 1;
@@ -1565,12 +1671,15 @@ impl PendingPrefixSteps {
 
 #[cfg(test)]
 mod tests {
-    use super::{PendingPrefixSteps, PrefixWalkMemo, contains_sorted_positions, toggle_members};
+    use super::{PendingPrefixSteps, PositionSet, Positions, PrefixWalkMemo, ShallowCapacityBytes, toggle_listed};
+    use std::collections::BTreeSet;
+
+    fn is_bitmap(set: &PositionSet) -> bool {
+        matches!(set.0.as_deref(), Some(Positions::Bits { .. }))
+    }
 
     #[test]
     fn ordered_prefix_membership_queries_preserve_gaps_duplicates_and_boundary_slots() {
-        use std::collections::BTreeSet;
-
         for slots in [
             Vec::new(),
             vec![0],
@@ -1580,7 +1689,8 @@ mod tests {
             vec![1, 63, 64, 127, 128, 10_000, u32::MAX],
         ] {
             let expected: BTreeSet<_> = slots.iter().copied().collect();
-            let members = slots;
+            let members: PositionSet = slots.iter().map(|&slot| slot as usize).collect();
+            assert!(members.iter().eq(slots.iter().map(|&slot| slot as usize)));
             for positions in [
                 Vec::new(),
                 vec![5000],
@@ -1588,13 +1698,69 @@ mod tests {
                 vec![0, 1, 1, 63, 64, 64, 127, 128, 10_000, u32::MAX as usize, usize::MAX],
                 (0..10_001).collect(),
             ] {
-                let actual: Vec<_> = contains_sorted_positions(&members, &positions).collect();
+                let actual: Vec<_> = positions.iter().map(|&position| members.contains(position)).collect();
                 let expected: Vec<_> = positions
                     .iter()
                     .map(|&position| u32::try_from(position).is_ok_and(|position| expected.contains(&position)))
                     .collect();
                 assert_eq!(actual, expected);
             }
+        }
+    }
+
+    #[test]
+    fn position_sets_answer_alike_listed_or_as_a_bitmap() {
+        let mut set = PositionSet::default();
+        let mut model = BTreeSet::new();
+        let mut seed = 1_u64;
+        let mut was_bitmap = false;
+        let mut was_listed_again = false;
+        for round in 0..400 {
+            // Batches grow the set past the bitmap bound, then shrink it back below half of it.
+            let mut changes = BTreeSet::new();
+            if round < 200 {
+                for _ in 0..16 {
+                    seed = seed
+                        .wrapping_mul(6_364_136_223_846_793_005)
+                        .wrapping_add(1_442_695_040_888_963_407);
+                    changes.insert((seed >> 33) as usize % 2_000);
+                }
+            } else {
+                changes.extend(model.iter().copied().step_by(3).take(16));
+            }
+            let changes: Vec<_> = changes.into_iter().collect();
+            set.toggle(&changes);
+            for &position in &changes {
+                if !model.remove(&position) {
+                    model.insert(position);
+                }
+            }
+            was_listed_again |= was_bitmap && !is_bitmap(&set);
+            was_bitmap |= is_bitmap(&set);
+            assert_eq!(set.len(), model.len());
+            assert!(set.iter().eq(model.iter().copied()));
+            assert!((0..2_100).all(|position| set.contains(position) == model.contains(&position)));
+        }
+        assert!(was_bitmap && was_listed_again);
+
+        for stride in [1, 97] {
+            let positions: Vec<usize> = (0..2_000).step_by(stride).collect();
+            let mut set: PositionSet = positions.iter().copied().collect();
+            assert_eq!(is_bitmap(&set), stride == 1);
+            let departed: Vec<_> = positions.iter().copied().step_by(2).collect();
+            let mut live = vec![true; 2_000];
+            for &position in &departed {
+                live[position] = false;
+            }
+            assert!(set.remove_departed(&departed, &live));
+            assert!(!set.remove_departed(&departed, &live));
+            let kept: Vec<_> = positions.iter().copied().skip(1).step_by(2).collect();
+            assert_eq!(set.len(), kept.len());
+            assert!(set.iter().eq(kept.iter().copied()));
+            let mut drained = Vec::new();
+            set.drain_into(&mut drained);
+            assert_eq!(drained, kept);
+            assert!(set.is_empty() && set.iter().next().is_none());
         }
     }
 
@@ -1617,13 +1783,13 @@ mod tests {
     #[test]
     fn batched_membership_flips_preserve_the_unchanged_ranges() {
         let mut members = vec![1_u32, 3, 5, 7, 9];
-        toggle_members(&mut members, &[0, 3, 4, 7, 8]);
+        toggle_listed(&mut members, &[0, 3, 4, 7, 8]);
         assert_eq!(members, [0, 1, 4, 5, 8, 9]);
-        toggle_members(&mut members, &[0, 3, 4, 7, 8]);
+        toggle_listed(&mut members, &[0, 3, 4, 7, 8]);
         assert_eq!(members, [1, 3, 5, 7, 9]);
-        toggle_members(&mut members, &[1, 3, 5, 7, 9]);
+        toggle_listed(&mut members, &[1, 3, 5, 7, 9]);
         assert!(members.is_empty());
-        toggle_members(&mut members, &[2, 4, 6]);
+        toggle_listed(&mut members, &[2, 4, 6]);
         assert_eq!(members, [2, 4, 6]);
     }
 
@@ -1647,27 +1813,30 @@ mod tests {
             assert_eq!(pending.pop_first(), None);
         }
     }
-}
-
-#[cfg(test)]
-mod membership_storage_tests {
-    use super::*;
 
     #[test]
     fn empty_memberships_allocate_on_first_use_and_retain_warm_buffers() {
-        let mut members = PrefixMembership::<u32>::default();
+        let listed = |set: &PositionSet| match set.0.as_deref() {
+            Some(Positions::Listed(list)) => Some(list.as_ptr()),
+            _ => None,
+        };
+        let mut members = PositionSet::default();
         assert_eq!(members.shallow_capacity_bytes(), 0);
-        assert_eq!(members.drain(..).count(), 0);
-        members.retain(|_| false);
+        let mut drained = Vec::new();
+        members.drain_into(&mut drained);
+        assert!(drained.is_empty());
+        assert!(!members.remove_departed(&[1], &[true, false]));
         assert_eq!(members.shallow_capacity_bytes(), 0);
-        toggle_members(members.make_mut(), &[1, 3]);
-        assert_eq!(&*members, &[1, 3]);
-        let buffer = members.as_ptr();
+        members.toggle(&[1, 3]);
+        assert!(members.iter().eq([1, 3]));
+        let buffer = listed(&members);
+        assert!(buffer.is_some(), "a small set is listed");
         let capacity = members.shallow_capacity_bytes();
-        assert_eq!(members.drain(..).collect::<Vec<_>>(), [1, 3]);
-        toggle_members(members.make_mut(), &[2, 4]);
-        assert_eq!(members.as_ptr(), buffer);
+        members.drain_into(&mut drained);
+        assert_eq!(drained, [1, 3]);
+        members.toggle(&[2, 4]);
+        assert_eq!(listed(&members), buffer);
         assert_eq!(members.shallow_capacity_bytes(), capacity);
-        assert_eq!(&*members, &[2, 4]);
+        assert!(members.iter().eq([2, 4]));
     }
 }
