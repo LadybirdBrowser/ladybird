@@ -89,20 +89,6 @@ bool is_integral_multiple(double value, double step)
 
 namespace Web::HTML {
 
-// A user-agent shadow tree's inner elements share their default declarations, parsed once, but each
-// holds its own copy: a declaration block is an element's own input, and one shared between elements
-// would change every one of them at once while telling none. The element's copy is replaced only
-// when the defaults it should hold differ from the ones it holds.
-static void set_own_inline_style(DOM::Element& element, CSS::CSSStyleProperties const& defaults)
-{
-    auto defaults_text = defaults.serialized();
-    if (auto current = element.inline_style(); current && current->owner_node().has_value() && current->serialized() == defaults_text)
-        return;
-    auto style = CSS::CSSStyleProperties::create_element_inline_style({ element });
-    style->set_declarations_from_text(defaults_text);
-    element.set_inline_style(style);
-}
-
 GC_DEFINE_ALLOCATOR(HTMLInputElement);
 
 Layout::Node const* HTMLInputElement::image_provider_layout_node() const
