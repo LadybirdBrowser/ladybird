@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame"></iframe>
+<script>
+    asyncTest(done => {
+        const source = `<svg xmlns="http://www.w3.org/2000/svg" style="font-size:32px;line-height:40px">
+            <style>
+                @keyframes local { from, to { width:2em;height:2lh } }
+                @keyframes root { from, to { margin-left:2rem;margin-top:2rlh } }
+                .subject { font-size:20px;line-height:30px }
+                #local-animated { animation:local 1000s paused }
+                #local-reference { width:2em;height:2lh }
+                #root-animated { animation:root 1000s paused }
+                #root-reference { margin-left:2rem;margin-top:2rlh }
+            </style>
+            <foreignObject width="300" height="200">
+                <div xmlns="http://www.w3.org/1999/xhtml" id="parent" style="font-size:10px;line-height:12px">
+                    <div id="local-animated" class="subject"/><div id="local-reference" class="subject"/>
+                    <div id="root-animated" class="subject"/><div id="root-reference" class="subject"/>
+                </div>
+            </foreignObject>
+        </svg>`;
+        const frame = document.getElementById("frame");
+        frame.onload = () => {
+            const view = frame.contentWindow;
+            const doc = frame.contentDocument;
+            const style = id => view.getComputedStyle(doc.getElementById(id));
+            println(`SVG root local units: ${style("local-animated").width === style("local-reference").width}, ${style("local-animated").height === style("local-reference").height}`);
+            println(`SVG root root units: ${style("root-animated").marginLeft === style("root-reference").marginLeft}, ${style("root-animated").marginTop === style("root-reference").marginTop}`);
+            println(`SVG root absolute margins: ${style("root-animated").marginLeft}, ${style("root-animated").marginTop}`);
+            done();
+        };
+        frame.src = URL.createObjectURL(new Blob([source], { type: "image/svg+xml" }));
+    });
+</script>

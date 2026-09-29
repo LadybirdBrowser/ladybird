@@ -2266,7 +2266,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         // with the pseudo-element styles it still computes.
         install_custom_property_environment();
         set_computed_style({}, new_style_record);
-        if (is_html_html_element())
+        if (is_document_element())
             style_computer.update_root_element_font_metrics(*computed_style());
         counters.element_computed_style_changes++;
         auto invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
@@ -2310,7 +2310,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         // the next computation on this element derives a fresh one.
         set_style_input_record(nullptr);
         set_computed_style({}, new_style_record);
-        if (is_html_html_element()) {
+        if (is_document_element()) {
             // Root-relative units read document-global font metrics rather than inherited style.
             // Every descendant must recompute when they move.
             auto const root_font_metrics_before = style_computer.root_element_font_metrics();
@@ -2418,7 +2418,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     if (mode == StyleRecomputeMode::Verification)
         did_change_custom_properties = false;
     style_record_delta.old_style_record = old_style_record;
-    bool root_font_metrics_changed = is_html_html_element()
+    bool root_font_metrics_changed = is_document_element()
         && (root_font_metrics_before_recompute != style_computer.root_element_font_metrics()
             || root_font_metrics_depended_on_viewport_before_recompute != style_computer.root_element_font_metrics_depend_on_viewport_metrics());
     if (style_record_is_unchanged(style_record_delta))
