@@ -634,6 +634,7 @@ JS_DEFINE_NATIVE_FUNCTION(ScriptObject::gc)
 
 class ReplConsoleClient final : public JS::ConsoleClient {
     GC_CELL(ReplConsoleClient, JS::ConsoleClient);
+    GC_DECLARE_ALLOCATOR(ReplConsoleClient);
 
 public:
     ReplConsoleClient(JS::Console& console)
@@ -709,6 +710,8 @@ public:
 private:
     int m_group_stack_depth { 0 };
 };
+
+GC_DEFINE_ALLOCATOR(ReplConsoleClient);
 
 #if !defined(AK_OS_WINDOWS) && !defined(AK_OS_ANDROID)
 static Vector<ByteString> complete_repl_line(StringView line)
@@ -1009,8 +1012,8 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, [[maybe_unused]] bool 
     auto& realm = *root_execution_context->realm;
 
     auto& console_object = *realm.intrinsics().console_object();
-    ReplConsoleClient console_client(console_object.console());
-    console_object.console().set_client(console_client);
+    auto console_client = g_vm->heap().allocate<ReplConsoleClient>(console_object.console());
+    console_object.console().set_client(*console_client);
     g_vm->heap().set_should_collect_on_every_allocation(gc_on_every_allocation);
 
     auto& global_environment = realm.global_environment();
@@ -1112,8 +1115,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         auto& realm = *root_execution_context->realm;
         auto& console_object = *realm.intrinsics().console_object();
-        ReplConsoleClient console_client(console_object.console());
-        console_object.console().set_client(console_client);
+        auto console_client = g_vm->heap().allocate<ReplConsoleClient>(console_object.console());
+        console_object.console().set_client(*console_client);
         g_vm->heap().set_should_collect_on_every_allocation(gc_on_every_allocation);
 
         StringBuilder builder;
