@@ -18,8 +18,6 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
-#include <LibCompositing/PageId.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Forward.h>
@@ -31,6 +29,8 @@
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
+#include <LibWebCommon/Page/PageId.h>
+#include <LibWebCommon/PixelUnits.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalDocument.h>

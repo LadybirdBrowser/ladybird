@@ -8,8 +8,8 @@
 
 #include <AK/Function.h>
 #include <AK/Platform.h>
-#include <LibCompositing/PageId.h>
 #include <LibURL/URL.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <UI/Qt/BrowserWindow.h>

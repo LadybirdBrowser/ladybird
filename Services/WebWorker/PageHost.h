@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include <LibCompositing/PageId.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibGfx/Rect.h>
 #include <LibHTTP/Forward.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
+#include <LibWebCommon/PixelUnits.h>
 #include <WebWorker/Forward.h>
 
 namespace WebWorker {

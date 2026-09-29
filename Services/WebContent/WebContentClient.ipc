@@ -1,5 +1,3 @@
-#include <LibCompositing/PageId.h>
-#include <LibCompositing/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
@@ -52,10 +50,12 @@
 #include <LibWebCommon/HTML/WebViewHints.h>
 #include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/Page/CompositorContextId.h>
 #include <LibWebCommon/Page/ContextMenuForInputEventsTarget.h>
 #include <LibWebCommon/Page/EventResult.h>
 #include <LibWebCommon/Page/MediaContextMenu.h>
 #include <LibWebCommon/Page/NavigationTarget.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>

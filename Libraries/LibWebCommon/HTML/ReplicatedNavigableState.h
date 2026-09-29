@@ -9,7 +9,6 @@
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
-#include <LibCompositing/Types.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -17,6 +16,7 @@
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/Page/CompositorContextId.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {

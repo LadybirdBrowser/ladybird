@@ -23,8 +23,6 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Weakable.h>
-#include <LibCompositing/InputEvent.h>
-#include <LibCompositing/PageId.h>
 #include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Forward.h>
@@ -54,6 +52,8 @@
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebCommon/Page/DragEvent.h>
 #include <LibWebCommon/Page/EventResult.h>
+#include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>

@@ -9,9 +9,9 @@
 
 #include <AK/Optional.h>
 #include <AK/kmalloc.h>
-#include <LibCompositing/PageId.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Settings.h>

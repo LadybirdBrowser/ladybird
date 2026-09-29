@@ -10,10 +10,10 @@
 
 #include <AK/Badge.h>
 #include <AK/RefPtr.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Forward.h>
+#include <LibWebCommon/PixelUnits.h>
 #include <LibWebView/HeadlessWebView.h>
 
 namespace TestWeb {

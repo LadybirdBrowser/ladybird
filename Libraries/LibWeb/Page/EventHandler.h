@@ -12,7 +12,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibCompositing/Scrolling/WheelGestureIdentity.h>
 #include <LibCompositing/Types.h>
@@ -28,6 +27,7 @@
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/Forward.h>
 #include <LibWebCommon/Page/EventResult.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>

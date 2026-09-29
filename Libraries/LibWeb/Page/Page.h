@@ -15,7 +15,6 @@
 #include <AK/Queue.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibCompositing/Types.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
@@ -81,6 +80,7 @@
 #include <LibWebCommon/IndexedDB/TransactionChanges.h>
 #include <LibWebCommon/Page/ContextMenuForInputEventsTarget.h>
 #include <LibWebCommon/Page/EventResult.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/MediaContextMenu.h>
 #include <LibWebCommon/Page/NavigationTarget.h>
 #include <LibWebCommon/Page/PageId.h>

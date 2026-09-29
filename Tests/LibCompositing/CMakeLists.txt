@@ -2,7 +2,6 @@ set(TEST_SOURCES
     BenchmarkForceDarkImageFilter.cpp
     TestAsyncScrollingStateScrollbarMetadata.cpp
     TestAsyncScrollingStateSnapMetadata.cpp
-    TestCSSPixels.cpp
     TestDisplayListCommandRuns.cpp
     TestForceDarkImageFilter.cpp
     TestPausedDebuggerOverlay.cpp

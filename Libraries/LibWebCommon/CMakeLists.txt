@@ -39,8 +39,11 @@ set(SOURCES
     Loader/DownloadFilename.cpp
     Loader/SiteCompatibility.cpp
     MimeSniff/MimeType.cpp
+    Page/AsyncScrollNodeStableID.cpp
     Page/DragEvent.cpp
+    Page/InputEvent.cpp
     Page/MediaContextMenu.cpp
+    PixelUnits.cpp
     ReferrerPolicy/ReferrerPolicy.cpp
     StorageAPI/StorageEndpoint.cpp
     StorageAPI/StorageKey.cpp
@@ -125,7 +128,6 @@ if (NOT APPLE AND NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
 endif()
 
 ladybird_lib(LibWebCommon webcommon EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibWebCommon PUBLIC LibCompositing)
 # NB: The enumerations of LibWeb's IDL modules are generated into LibWebCommon along with LibWeb's bindings.
 add_dependencies(LibWebCommon generate_bindings)
 target_link_libraries(LibWebCommon PRIVATE LibCore LibCrypto LibFileSystem LibGfx LibHTTP LibIPC LibURL)

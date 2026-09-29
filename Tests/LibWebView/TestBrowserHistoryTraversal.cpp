@@ -8,8 +8,6 @@
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
-#include <LibCompositing/InputEvent.h>
-#include <LibCompositing/KeyCode.h>
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
@@ -21,6 +19,8 @@
 #include <LibIPC/Transport.h>
 #include <LibMain/Main.h>
 #include <LibURL/Parser.h>
+#include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/UIEvents/KeyCode.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CookieJar.h>

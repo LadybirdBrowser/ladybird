@@ -1,7 +1,7 @@
-#include <LibCompositing/Types.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
+#include <LibCompositing/Types.h>
 #include <LibGfx/Size.h>
+#include <LibWebCommon/Page/InputEvent.h>
 
 endpoint CompositorWebContentClient
 {

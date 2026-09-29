@@ -11,25 +11,6 @@
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::AsyncScrollNodeStableID const& stable_node_id)
-{
-    TRY(encoder.encode(stable_node_id.node_id));
-    TRY(encoder.encode(stable_node_id.kind));
-    TRY(encoder.encode(stable_node_id.pseudo_element_type));
-    return {};
-}
-
-template<>
-ErrorOr<Compositing::AsyncScrollNodeStableID> decode(Decoder& decoder)
-{
-    return Compositing::AsyncScrollNodeStableID {
-        .node_id = TRY(decoder.decode<Compositing::UniqueNodeID>()),
-        .kind = TRY(decoder.decode<Compositing::AsyncScrollNodeKind>()),
-        .pseudo_element_type = TRY(decoder.decode<u8>()),
-    };
-}
-
-template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::KeyboardScrollState const& state)
 {
     TRY(encoder.encode(state.generation));
@@ -171,23 +152,6 @@ ErrorOr<Compositing::PendingAsyncScrollUpdates> decode(Decoder& decoder)
         .started_user_scrolls = TRY(decoder.decode<Vector<Compositing::StartedUserScroll>>()),
         .user_scroll_gesture_in_progress = TRY(decoder.decode<bool>()),
         .user_scroll_gesture_ended = TRY(decoder.decode<bool>()),
-    };
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::ScrollbarDraggedByCompositor const& scrollbar)
-{
-    TRY(encoder.encode(scrollbar.scroller_stable_node_id));
-    TRY(encoder.encode(scrollbar.vertical));
-    return {};
-}
-
-template<>
-ErrorOr<Compositing::ScrollbarDraggedByCompositor> decode(Decoder& decoder)
-{
-    return Compositing::ScrollbarDraggedByCompositor {
-        .scroller_stable_node_id = TRY(decoder.decode<Compositing::AsyncScrollNodeStableID>()),
-        .vertical = TRY(decoder.decode<bool>()),
     };
 }
 

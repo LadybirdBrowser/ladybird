@@ -7,9 +7,9 @@
 #include <AK/Debug.h>
 #include <AK/Math.h>
 #include <Compositor/ConnectionFromWebContent.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/System.h>
+#include <LibWebCommon/Page/InputEvent.h>
 
 namespace Compositor {
 

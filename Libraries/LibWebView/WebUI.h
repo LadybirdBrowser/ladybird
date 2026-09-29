@@ -16,9 +16,9 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-#include <LibCompositing/PageId.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Forward.h>
 #include <WebContent/WebUIClientEndpoint.h>
 #include <WebContent/WebUIServerEndpoint.h>

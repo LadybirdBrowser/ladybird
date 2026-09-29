@@ -16,8 +16,6 @@
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
-#include <LibCompositing/InputEvent.h>
-#include <LibCompositing/PageId.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibCompositing/WebGL/Types.h>
@@ -30,6 +28,8 @@
 #include <LibMedia/Forward.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Export.h>
+#include <LibWebCommon/Page/InputEvent.h>
+#include <LibWebCommon/Page/PageId.h>
 
 namespace Web::Compositor {
 

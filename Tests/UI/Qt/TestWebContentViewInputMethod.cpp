@@ -5,8 +5,8 @@
  */
 
 #include <AK/Utf16String.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibTest/TestCase.h>
+#include <LibWebCommon/PixelUnits.h>
 #include <UI/Qt/InputMethodUtils.h>
 
 #include <QRectF>

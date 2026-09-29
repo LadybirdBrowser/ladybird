@@ -12,10 +12,10 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
-#include <LibCompositing/PageId.h>
 #include <LibGC/Root.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <WebContent/Forward.h>
 
 namespace Web {

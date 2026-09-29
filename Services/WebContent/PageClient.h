@@ -12,8 +12,6 @@
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Utf16String.h>
-#include <LibCompositing/PageId.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
@@ -28,7 +26,9 @@
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
+#include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Response.h>

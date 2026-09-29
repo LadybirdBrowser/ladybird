@@ -8,9 +8,9 @@
 
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/Page/DragEvent.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>

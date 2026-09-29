@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <LibCompositing/PageId.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Forward.h>
 #include <WebContent/WebContentTestClientEndpoint.h>
 #include <WebContent/WebContentTestServerEndpoint.h>

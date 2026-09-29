@@ -13,7 +13,6 @@
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Directory.h>
@@ -43,6 +42,7 @@
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
 #include <LibWebCommon/Loader/UserAgent.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>

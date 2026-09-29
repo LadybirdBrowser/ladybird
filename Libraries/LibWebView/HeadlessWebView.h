@@ -7,11 +7,11 @@
 #pragma once
 
 #include <AK/Utf16String.h>
-#include <LibCompositing/PageId.h>
-#include <LibCompositing/PixelUnits.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Forward.h>
+#include <LibWebCommon/Page/PageId.h>
+#include <LibWebCommon/PixelUnits.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ViewImplementation.h>
 

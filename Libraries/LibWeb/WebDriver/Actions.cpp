@@ -12,7 +12,6 @@
 #include <AK/JsonValue.h>
 #include <AK/Math.h>
 #include <AK/Utf8View.h>
-#include <LibCompositing/InputEvent.h>
 #include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Crypto/Crypto.h>
@@ -29,6 +28,7 @@
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebDriver/Properties.h>
+#include <LibWebCommon/Page/InputEvent.h>
 
 namespace Web::WebDriver {
 
