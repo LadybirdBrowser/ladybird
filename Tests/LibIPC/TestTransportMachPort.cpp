@@ -194,3 +194,32 @@ TEST_CASE(close_after_sending_delivers_queued_messages_then_eof)
     auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
     EXPECT_EQ(read_until_eof(*peer, 42), 32uz);
 }
+
+TEST_CASE(eof_during_read_callback_preserves_pending_messages)
+{
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+
+    IPC::MessageDataType payload;
+    payload.append(42);
+    Vector<IPC::Attachment> attachments;
+    TRY_OR_FAIL(paired.local->post_message(move(payload), attachments));
+    paired.local->flush();
+    peer->wait_until_incoming_is_current();
+
+    size_t received = 0;
+    auto should_shutdown = peer->read_as_many_messages_as_possible_without_blocking([&](auto&&) {
+        ++received;
+        IPC::MessageDataType next_payload;
+        next_payload.append(43);
+        MUST(paired.local->post_message(move(next_payload), attachments));
+        paired.local->close_after_sending_all_pending_messages();
+
+        // Publish the second message and EOF while the first message's callback is running.
+        // The receive barrier follows both on the same port, so no timing assumptions are needed.
+        peer->wait_until_incoming_is_current();
+    });
+    EXPECT_EQ(received, 1uz);
+    EXPECT_EQ(should_shutdown, IPC::TransportMachPort::ShouldShutdown::No);
+    EXPECT_EQ(read_until_eof(*peer, 43), 1uz);
+}
