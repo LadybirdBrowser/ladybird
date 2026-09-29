@@ -11,7 +11,8 @@ use super::*;
 
 #[derive(Clone, Copy)]
 enum CascadeCompactionCandidate {
-    Rule(usize),
+    /// A declaration of the rule at this index of the match list.
+    Rule(usize, DeclaredProperty),
     Element(ElementDeclarationKind, DeclaredProperty),
 }
 
@@ -489,12 +490,12 @@ impl RetainedState {
                     Some(_) => top_1.consider(
                         (entry.pseudo_element, declared.property),
                         priority,
-                        CascadeCompactionCandidate::Rule(match_index),
+                        CascadeCompactionCandidate::Rule(match_index, *declared),
                     ),
                     None => element_top_1.consider(
                         declared.property,
                         priority,
-                        CascadeCompactionCandidate::Rule(match_index),
+                        CascadeCompactionCandidate::Rule(match_index, *declared),
                     ),
                 }
             }
@@ -550,32 +551,19 @@ impl RetainedState {
                 if has_continuations {
                     published_winners.extend(self.resolved_cascade_winners_for_properties(node, all, target, None));
                 } else {
-                    let materialize = |property, priority, payload| {
-                        let (key, important, source) = match payload {
-                            CascadeCompactionCandidate::Rule(match_index) => {
-                                let entry = &all[match_index];
-                                let declared = *self
-                                    .program
-                                    .declared_properties_of(entry.rule)
-                                    .iter()
-                                    .find(|declared| declared.property == property)
-                                    .expect("winner candidate came from the rule's declaration inventory");
-                                (
-                                    Self::retained_rule_winner_key(declared),
-                                    declared.important,
-                                    WinnerSource::Rule(entry.rule),
-                                )
+                    let materialize = |priority, payload| {
+                        let (declared, source) = match payload {
+                            CascadeCompactionCandidate::Rule(match_index, declared) => {
+                                (declared, WinnerSource::Rule(all[match_index].rule))
                             }
-                            CascadeCompactionCandidate::Element(kind, declared) => (
-                                Self::retained_rule_winner_key(declared),
-                                declared.important,
-                                WinnerSource::Element(kind),
-                            ),
+                            CascadeCompactionCandidate::Element(kind, declared) => {
+                                (declared, WinnerSource::Element(kind))
+                            }
                         };
                         PropertyWinner {
-                            property,
-                            important,
-                            key,
+                            property: declared.property,
+                            important: declared.important,
+                            key: Self::retained_rule_winner_key(declared),
                             priority,
                             source,
                         }
@@ -585,13 +573,13 @@ impl RetainedState {
                             element_top_1
                                 .winners()
                                 .iter()
-                                .map(|winner| materialize(winner.key, winner.priority, winner.payload)),
+                                .map(|winner| materialize(winner.priority, winner.payload)),
                         ),
                         Some(_) => published_winners.extend(
                             top_1
                                 .winners()
                                 .filter(|winner| winner.key.0 == target)
-                                .map(|winner| materialize(winner.key.1, winner.priority, winner.payload)),
+                                .map(|winner| materialize(winner.priority, winner.payload)),
                         ),
                     }
                 }
@@ -663,34 +651,37 @@ impl RetainedState {
             }
         }
         for winner in top_1.unordered_winners() {
-            if let CascadeCompactionCandidate::Rule(match_index) = winner.payload {
+            if let CascadeCompactionCandidate::Rule(match_index, _) = winner.payload {
                 keep[match_index] = true;
             }
         }
         for winner in &element_top_1.winners {
-            if let CascadeCompactionCandidate::Rule(match_index) = winner.payload {
+            if let CascadeCompactionCandidate::Rule(match_index, _) = winner.payload {
                 keep[match_index] = true;
             }
         }
-        // A published winner names its rule but not the match it came from, so the matches it needs
-        // are found by scanning. The scan stays inside the winner's own target: a rule winning for
-        // one pseudo element says nothing about that rule's matches against another target, and
-        // retaining those would keep matches that reduction from winner states already drops.
-        for (target, range) in published_targets.iter() {
-            for &winner in &published_winners[range.clone()] {
-                let mut current = Some(winner);
-                while let Some(winner) = current {
-                    if let WinnerSource::Rule(rule) = winner.source {
-                        for (index, entry) in all.iter().enumerate() {
-                            if entry.rule == rule && entry.pseudo_element == *target {
-                                keep[index] = true;
+        // A winner resolved through continuations names its rule but not the match it came from, so
+        // the matches it needs are found by scanning. The scan stays inside the winner's own target:
+        // a rule winning for one pseudo element says nothing about that rule's matches against
+        // another target, and retaining those would keep matches that reduction from winner states
+        // already drops. Every other published winner came from a top-1 candidate kept above.
+        if has_continuations {
+            for (target, range) in published_targets.iter() {
+                for &winner in &published_winners[range.clone()] {
+                    let mut current = Some(winner);
+                    while let Some(winner) = current {
+                        if let WinnerSource::Rule(rule) = winner.source {
+                            for (index, entry) in all.iter().enumerate() {
+                                if entry.rule == rule && entry.pseudo_element == *target {
+                                    keep[index] = true;
+                                }
                             }
                         }
+                        current = self
+                            .winner_groups
+                            .continuation(winner.key.continuation)
+                            .and_then(|continuation| continuation.winner);
                     }
-                    current = self
-                        .winner_groups
-                        .continuation(winner.key.continuation)
-                        .and_then(|continuation| continuation.winner);
                 }
             }
         }
