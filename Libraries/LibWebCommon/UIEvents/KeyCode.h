@@ -12,7 +12,7 @@
 #include <AK/Types.h>
 #include <AK/Utf16View.h>
 
-namespace Compositing {
+namespace Web::UIEvents {
 
 #define ENUMERATE_KEY_CODES                                          \
     __ENUMERATE_KEY_CODE(Invalid, "Invalid", 0x00)                   \
@@ -281,16 +281,5 @@ inline KeyCode code_point_to_key_code(u32 code_point)
         return KeyCode::Key_Invalid;
     }
 }
-
-}
-
-namespace Web::UIEvents {
-
-using Compositing::KeyCode;
-using enum Compositing::KeyCode;
-using Compositing::KeyModifier;
-using enum Compositing::KeyModifier;
-using Compositing::code_point_to_key_code;
-using Compositing::key_code_from_string;
 
 }

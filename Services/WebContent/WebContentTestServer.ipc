@@ -2,5 +2,5 @@
 
 endpoint WebContentTestServer
 {
-    reset_session_history_for_testing(Compositing::PageId page_id) =|
+    reset_session_history_for_testing(Web::PageId page_id) =|
 }

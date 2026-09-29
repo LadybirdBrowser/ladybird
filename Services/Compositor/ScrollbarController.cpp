@@ -21,7 +21,7 @@ static Gfx::Orientation orientation_for_scrollbar(Compositing::AsyncScrollbar co
 // A scroll node index can be given to another scroller by the next display list, so a scrollbar is recognized by the
 // stable id of its scroller wherever both display lists name one.
 struct ScrollbarIdentity {
-    Optional<Compositing::AsyncScrollNodeStableID> scroller_stable_node_id;
+    Optional<Web::AsyncScrollNodeStableID> scroller_stable_node_id;
     Compositing::AsyncScrollNodeID scroll_node_id;
     bool vertical { false };
 };
@@ -129,14 +129,14 @@ void ScrollbarController::set_scrollbars(Vector<Compositing::AsyncScrollbar> con
         m_thumb_grab_position = 0;
 }
 
-Optional<Compositing::ScrollbarDraggedByCompositor> ScrollbarController::captured_scrollbar_painted_by_display_list() const
+Optional<Web::ScrollbarDraggedByCompositor> ScrollbarController::captured_scrollbar_painted_by_display_list() const
 {
     if (!m_captured_scrollbar_index.has_value())
         return {};
     auto const& scrollbar = m_scrollbars[*m_captured_scrollbar_index];
     if (scrollbar.is_painted_by_compositor || !scrollbar.scroller_stable_node_id.has_value())
         return {};
-    return Compositing::ScrollbarDraggedByCompositor {
+    return Web::ScrollbarDraggedByCompositor {
         .scroller_stable_node_id = *scrollbar.scroller_stable_node_id,
         .vertical = scrollbar.vertical,
     };

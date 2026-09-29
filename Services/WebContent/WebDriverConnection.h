@@ -121,7 +121,7 @@ private:
     Web::WebDriver::Response wait_for_navigation();
     void wait_for_navigation_to_complete(OnNavigationComplete);
 
-    Gfx::IntPoint calculate_absolute_position_of_element(Compositing::CSSPixelRect);
+    Gfx::IntPoint calculate_absolute_position_of_element(Web::CSSPixelRect);
     Gfx::IntRect calculate_absolute_rect_of_element(Web::DOM::Element const& element);
 
     using GetStartNode = GC::Ref<GC::Function<ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error>()>>;

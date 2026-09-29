@@ -48,10 +48,10 @@ enum class AsyncScrollUpdateFreshness : u8 {
 // selection of a scroll that snapped along no axis carries only the destination. Repeated reports for the same
 // operation update its accumulated input without starting another animation.
 struct StartedUserScroll {
-    AsyncScrollNodeStableID stable_node_id;
+    Web::AsyncScrollNodeStableID stable_node_id;
     AsyncScrollOperationID operation_id { 0 };
-    CSSPixelPoint initial_scroll_offset;
-    CSSPixelPoint unsnapped_scroll_destination;
+    Web::CSSPixelPoint initial_scroll_offset;
+    Web::CSSPixelPoint unsnapped_scroll_destination;
     SnapDestination selection;
     bool settles_gesture { false };
 };
@@ -61,13 +61,13 @@ struct StartedUserScroll {
 struct KeyboardScrollState {
     u64 generation { 0 };
     u64 visual_context_tree_structural_epoch { 0 };
-    Optional<AsyncScrollNodeStableID> target;
+    Optional<Web::AsyncScrollNodeStableID> target;
     float page_scroll_distance { 0 };
     float arrow_scroll_distance { 0 };
 };
 
 struct PendingAsyncScrollUpdates {
-    Optional<UniqueNodeID> document_id;
+    Optional<Web::UniqueNodeID> document_id;
     // The publication these updates were handed out in, per context and increasing. A scroll state
     // snapshot WebContent produces after adopting them carries it back.
     u64 sequence { 0 };

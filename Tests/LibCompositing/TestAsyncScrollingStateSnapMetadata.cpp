@@ -15,7 +15,7 @@ using namespace Compositing;
 // The recorder writes a pseudo-element box as its CSS enum value plus one; the value itself is opaque here.
 static constexpr u8 second_area_pseudo_element_type = 3;
 
-static UniqueNodeID const document_id { 1 };
+static Web::UniqueNodeID const document_id { 1 };
 static SpatialNodeIndex const scroll_node_index { 1 };
 
 static AccumulatedVisualContextTree tree_with_one_scroll_node()
@@ -37,7 +37,7 @@ static void append_scroll_node(TestDisplayList& command_bytes)
         command_bytes,
         CompositorScrollNode {
             .document_id = document_id,
-            .scrollable_node_id = UniqueNodeID { 2 },
+            .scrollable_node_id = Web::UniqueNodeID { 2 },
             .scroll_node_index = scroll_node_index,
             .parent_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX,
             .scrollport_rect = { 0, 0, 100, 100 },
@@ -58,9 +58,9 @@ static void append_snap_container(TestDisplayList& command_bytes)
         CompositorSnapContainer {
             .document_id = document_id,
             .scroll_node_index = scroll_node_index,
-            .snapport = CSSPixelRect { 10, 10, 80, 80 },
-            .min_scroll_offset = CSSPixelPoint { 0, 0 },
-            .max_scroll_offset = CSSPixelPoint { 0, 400 },
+            .snapport = Web::CSSPixelRect { 10, 10, 80, 80 },
+            .min_scroll_offset = Web::CSSPixelPoint { 0, 0 },
+            .max_scroll_offset = Web::CSSPixelPoint { 0, 400 },
             .strictness = to_underlying(Compositing::SnapStrictness::Mandatory),
             .snaps_x = false,
             .snaps_y = true,
@@ -68,14 +68,14 @@ static void append_snap_container(TestDisplayList& command_bytes)
         });
 }
 
-static void append_snap_area(TestDisplayList& command_bytes, i64 node_id, u8 pseudo_element_type, CSSPixelRect rect, Compositing::SnapAlign align_y, bool always_stop)
+static void append_snap_area(TestDisplayList& command_bytes, i64 node_id, u8 pseudo_element_type, Web::CSSPixelRect rect, Compositing::SnapAlign align_y, bool always_stop)
 {
     append_display_list_command(
         command_bytes,
         CompositorSnapArea {
             .document_id = document_id,
             .scroll_node_index = scroll_node_index,
-            .area_node_id = UniqueNodeID { node_id },
+            .area_node_id = Web::UniqueNodeID { node_id },
             .pseudo_element_type = pseudo_element_type,
             .rect = rect,
             .align_x = to_underlying(Compositing::SnapAlign::None),
@@ -90,8 +90,8 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
     TestDisplayList command_bytes;
     append_scroll_node(command_bytes);
     append_snap_container(command_bytes);
-    append_snap_area(command_bytes, 3, 0, CSSPixelRect { 0, 0, 100, 100 }, Compositing::SnapAlign::Start, false);
-    append_snap_area(command_bytes, 2, second_area_pseudo_element_type, CSSPixelRect { CSSPixels(0), CSSPixels(100.5), CSSPixels(100), CSSPixels(100) }, Compositing::SnapAlign::Center, true);
+    append_snap_area(command_bytes, 3, 0, Web::CSSPixelRect { 0, 0, 100, 100 }, Compositing::SnapAlign::Start, false);
+    append_snap_area(command_bytes, 2, second_area_pseudo_element_type, Web::CSSPixelRect { Web::CSSPixels(0), Web::CSSPixels(100.5), Web::CSSPixels(100), Web::CSSPixels(100) }, Compositing::SnapAlign::Center, true);
 
     auto state = state_from(tree, move(command_bytes), 2.0);
     EXPECT_EQ(state.device_pixels_per_css_pixel, 2.0);
@@ -100,9 +100,9 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
 
     auto const& container = state.snap_containers.first();
     EXPECT_EQ(container.node_id, state.scroll_nodes.first().node_id);
-    EXPECT_EQ(container.geometry.snapport, CSSPixelRect(10, 10, 80, 80));
-    EXPECT_EQ(container.geometry.min_scroll_offset, CSSPixelPoint(0, 0));
-    EXPECT_EQ(container.geometry.max_scroll_offset, CSSPixelPoint(0, 400));
+    EXPECT_EQ(container.geometry.snapport, Web::CSSPixelRect(10, 10, 80, 80));
+    EXPECT_EQ(container.geometry.min_scroll_offset, Web::CSSPixelPoint(0, 0));
+    EXPECT_EQ(container.geometry.max_scroll_offset, Web::CSSPixelPoint(0, 400));
     EXPECT_EQ(container.geometry.strictness, Compositing::SnapStrictness::Mandatory);
     EXPECT(!container.geometry.axes.x);
     EXPECT(container.geometry.axes.y);
@@ -110,17 +110,17 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
 
     EXPECT_EQ(container.areas.size(), 2u);
     auto const& first_area = container.areas[0];
-    EXPECT_EQ(first_area.identity.node_id, UniqueNodeID(3));
+    EXPECT_EQ(first_area.identity.node_id, Web::UniqueNodeID(3));
     EXPECT(!first_area.identity.is_pseudo_element());
-    EXPECT_EQ(first_area.rect, CSSPixelRect(0, 0, 100, 100));
+    EXPECT_EQ(first_area.rect, Web::CSSPixelRect(0, 0, 100, 100));
     EXPECT_EQ(first_area.align_x, Compositing::SnapAlign::None);
     EXPECT_EQ(first_area.align_y, Compositing::SnapAlign::Start);
     EXPECT(!first_area.always_stop);
 
     auto const& second_area = container.areas[1];
-    EXPECT_EQ(second_area.identity.node_id, UniqueNodeID(2));
+    EXPECT_EQ(second_area.identity.node_id, Web::UniqueNodeID(2));
     EXPECT_EQ(second_area.identity.pseudo_element_type, second_area_pseudo_element_type);
-    EXPECT_EQ(second_area.rect.y(), CSSPixels(100.5));
+    EXPECT_EQ(second_area.rect.y(), Web::CSSPixels(100.5));
     EXPECT_EQ(second_area.align_y, Compositing::SnapAlign::Center);
     EXPECT(second_area.always_stop);
 }
@@ -130,7 +130,7 @@ TEST_CASE(a_snap_area_recorded_without_its_container_is_ignored)
     auto tree = tree_with_one_scroll_node();
     TestDisplayList command_bytes;
     append_scroll_node(command_bytes);
-    append_snap_area(command_bytes, 3, 0, CSSPixelRect { 0, 0, 100, 100 }, Compositing::SnapAlign::Start, false);
+    append_snap_area(command_bytes, 3, 0, Web::CSSPixelRect { 0, 0, 100, 100 }, Compositing::SnapAlign::Start, false);
 
     auto state = state_from(tree, move(command_bytes), 1.0);
     EXPECT_EQ(state.scroll_nodes.size(), 1u);

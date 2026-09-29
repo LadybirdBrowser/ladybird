@@ -13,15 +13,15 @@
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibTest/TestCase.h>
 
-static Compositing::AsyncScrollNodeID const viewport_node_id { .document_id = Compositing::UniqueNodeID { 1 }, .scroll_node_index = Compositing::SpatialNodeIndex { 1 } };
-static Compositing::UniqueNodeID const viewport_document_node_id { 2 };
+static Compositing::AsyncScrollNodeID const viewport_node_id { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = Compositing::SpatialNodeIndex { 1 } };
+static Web::UniqueNodeID const viewport_document_node_id { 2 };
 
 static Compositing::AsyncScrollingState make_scrolling_state_with_viewport_scroll_node(float max_scroll_offset_y)
 {
     Compositing::AsyncScrollingState state;
     state.scroll_nodes.append({
         .node_id = viewport_node_id,
-        .stable_node_id = { .node_id = viewport_document_node_id, .kind = Compositing::AsyncScrollNodeKind::Viewport, .pseudo_element_type = 0 },
+        .stable_node_id = { .node_id = viewport_document_node_id, .kind = Web::AsyncScrollNodeKind::Viewport, .pseudo_element_type = 0 },
         .parent_node_id = {},
         .scrollport_rect = { 0, 0, 800, 600 },
         .min_scroll_offset = { 0, 0 },
@@ -235,12 +235,12 @@ TEST_CASE(a_scroller_at_its_edge_hands_a_delta_to_its_ancestors_only_when_chaini
     auto nested_scroll_node = builder.append_scroll(viewport_scroll_node);
     auto visual_context_tree = builder.finish();
 
-    Compositing::AsyncScrollNodeID const nested_scroll_node_id { .document_id = Compositing::UniqueNodeID { 1 }, .scroll_node_index = nested_scroll_node };
+    Compositing::AsyncScrollNodeID const nested_scroll_node_id { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = nested_scroll_node };
     auto make_scroll_tree_with_nested_scroller_that_scrolls_by_10 = [&] {
         auto state = make_scrolling_state_with_viewport_scroll_node(2000);
         state.scroll_nodes.append({
             .node_id = nested_scroll_node_id,
-            .stable_node_id = { .node_id = Compositing::UniqueNodeID { 3 }, .kind = Compositing::AsyncScrollNodeKind::Element, .pseudo_element_type = 0 },
+            .stable_node_id = { .node_id = Web::UniqueNodeID { 3 }, .kind = Web::AsyncScrollNodeKind::Element, .pseudo_element_type = 0 },
             .parent_node_id = viewport_node_id,
             .scrollport_rect = { 0, 0, 100, 100 },
             .min_scroll_offset = { 0, 0 },
@@ -290,7 +290,7 @@ TEST_CASE(a_scroller_at_its_edge_hands_a_delta_to_its_ancestors_only_when_chaini
         // Once the child moves, the remainder of the delta does not scroll its ancestor.
         auto scroll_offset = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 30 }, visual_context_tree, snapshot, Compositing::ScrollChaining::ToScrollableAncestors);
         EXPECT(scroll_offset.has_value());
-        EXPECT_EQ(scroll_offset->stable_node_id.node_id, (Compositing::UniqueNodeID { 3 }));
+        EXPECT_EQ(scroll_offset->stable_node_id.node_id, (Web::UniqueNodeID { 3 }));
         EXPECT_EQ(scroll_offset->unadopted_scroll_delta, (Gfx::FloatPoint { 0, 10 }));
         EXPECT_EQ(snapshot.device_offset_for_index(viewport_scroll_node), (Gfx::FloatPoint { 0, 0 }));
         EXPECT_EQ(snapshot.device_offset_for_index(nested_scroll_node), (Gfx::FloatPoint { 0, -10 }));

@@ -29,14 +29,14 @@ endpoint CompositorWebContentServer
     remove_video_sink(Media::VideoSinkHandle video_sink_handle) =|
     set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick) =|
 
-    set_parent_context(Compositing::CompositorContextId context_id, Optional<Compositing::CompositorContextId> parent_context_id) =|
-    stop_presenting_to_client(Compositing::CompositorContextId context_id) =|
-    destroy_context(Compositing::CompositorContextId context_id) =|
+    set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id) =|
+    stop_presenting_to_client(Web::CompositorContextId context_id) =|
+    destroy_context(Web::CompositorContextId context_id) =|
 
-    update_display_list(Compositing::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot scroll_state_snapshot) =|
-    update_display_list_resources(Compositing::CompositorContextId context_id, Compositing::DisplayListResourceTransaction resource_transaction) =|
-    update_visual_context_tree(Compositing::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction) =|
-    update_scroll_state(Compositing::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state) =|
+    update_display_list(Web::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot scroll_state_snapshot) =|
+    update_display_list_resources(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction resource_transaction) =|
+    update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction) =|
+    update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state) =|
 
     create_canvas_2d_context(Gfx::IntSize size, bool alpha) => (bool success, Compositing::CanvasId canvas_id)
     update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontResource> fonts) =|
@@ -59,16 +59,16 @@ endpoint CompositorWebContentServer
     webgl_read_pixels(Compositing::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels) => (i32 length, i32 columns, i32 rows)
     webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data) => (bool success)
 
-    invalidate_wheel_event_listener_state(Compositing::CompositorContextId context_id, u64 generation) =|
-    invalidate_keyboard_scroll_state(Compositing::CompositorContextId context_id, u64 generation) => ()
-    async_scroll_by(Compositing::CompositorContextId context_id, Compositing::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking) => (Compositing::AsyncScrollEnqueueResult result)
-    smooth_scroll_to(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator) => (Compositing::AsyncScrollEnqueueResult result)
-    cancel_smooth_scroll(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id) =|
+    invalidate_wheel_event_listener_state(Web::CompositorContextId context_id, u64 generation) =|
+    invalidate_keyboard_scroll_state(Web::CompositorContextId context_id, u64 generation) => ()
+    async_scroll_by(Web::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking) => (Compositing::AsyncScrollEnqueueResult result)
+    smooth_scroll_to(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator) => (Compositing::AsyncScrollEnqueueResult result)
+    cancel_smooth_scroll(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stable_node_id) =|
 
-    take_pending_async_scroll_updates(Compositing::CompositorContextId context_id) => (Compositing::PendingAsyncScrollUpdates updates)
-    viewport_size_updated(Compositing::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress) =|
-    request_rendering_opportunity(Compositing::CompositorContextId context_id, double maximum_frames_per_second) =|
-    hurry_rendering_opportunity(Compositing::CompositorContextId context_id) =|
-    present_frame(Compositing::CompositorContextId context_id, Gfx::IntRect viewport_rect) =|
-    request_screenshot(Compositing::CompositorContextId context_id, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) =|
+    take_pending_async_scroll_updates(Web::CompositorContextId context_id) => (Compositing::PendingAsyncScrollUpdates updates)
+    viewport_size_updated(Web::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress) =|
+    request_rendering_opportunity(Web::CompositorContextId context_id, double maximum_frames_per_second) =|
+    hurry_rendering_opportunity(Web::CompositorContextId context_id) =|
+    present_frame(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect) =|
+    request_screenshot(Web::CompositorContextId context_id, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) =|
 }

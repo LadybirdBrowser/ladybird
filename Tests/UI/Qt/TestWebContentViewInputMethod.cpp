@@ -56,7 +56,7 @@ TEST_CASE(cursor_and_surrounding_text_map_to_queries)
 TEST_CASE(caret_rect_scales_by_device_pixel_ratio_and_falls_back_when_absent)
 {
     WebView::ViewImplementation::InputMethodState state;
-    state.caret_rect = Compositing::DevicePixelRect { 10, 20, 2, 30 };
+    state.caret_rect = Web::DevicePixelRect { 10, 20, 2, 30 };
 
     // Device pixels map to logical pixels; width and height are clamped to at least 1 — so the input-method overlay
     // anchor is never empty.

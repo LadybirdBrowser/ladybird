@@ -10,11 +10,11 @@
 #include <AK/DistinctNumeric.h>
 #include <LibWebCommon/Page/PageId.h>
 
-namespace Compositing {
+namespace Web {
 
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, CompositorContextId);
 
-inline CompositorContextId compositor_context_id_for_page(Compositing::PageId page_id)
+inline CompositorContextId compositor_context_id_for_page(Web::PageId page_id)
 {
     VERIFY(page_id.value() > 0);
     return CompositorContextId { page_id.value() };

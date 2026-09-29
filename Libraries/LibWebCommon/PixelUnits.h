@@ -20,7 +20,7 @@
 #include <LibWebCommon/Export.h>
 #include <math.h>
 
-namespace Compositing {
+namespace Web {
 
 /// DevicePixels: A position or length on the physical display.
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(int, DevicePixels, Arithmetic, CastToUnderlying, Comparison, Increment);
@@ -446,49 +446,49 @@ using DevicePixelSize = Gfx::Size<DevicePixels>;
 
 }
 
-constexpr Compositing::CSSPixels abs(Compositing::CSSPixels const& value)
+constexpr Web::CSSPixels abs(Web::CSSPixels const& value)
 {
     return value.abs();
 }
 
-constexpr Compositing::CSSPixels floor(Compositing::CSSPixels const& value)
+constexpr Web::CSSPixels floor(Web::CSSPixels const& value)
 {
-    return Compositing::CSSPixels::from_raw(value.raw_value() & ~Compositing::CSSPixels::radix_mask);
+    return Web::CSSPixels::from_raw(value.raw_value() & ~Web::CSSPixels::radix_mask);
 }
 
-constexpr Compositing::CSSPixels ceil(Compositing::CSSPixels const& value)
+constexpr Web::CSSPixels ceil(Web::CSSPixels const& value)
 {
-    auto floor_value = value.raw_value() & ~Compositing::CSSPixels::radix_mask;
-    auto ceil_value = floor_value + (value.raw_value() & Compositing::CSSPixels::radix_mask ? Compositing::CSSPixels::fixed_point_denominator : 0);
-    return Compositing::CSSPixels::from_raw(ceil_value);
+    auto floor_value = value.raw_value() & ~Web::CSSPixels::radix_mask;
+    auto ceil_value = floor_value + (value.raw_value() & Web::CSSPixels::radix_mask ? Web::CSSPixels::fixed_point_denominator : 0);
+    return Web::CSSPixels::from_raw(ceil_value);
 }
 
-constexpr Compositing::CSSPixels round(Compositing::CSSPixels const& value)
+constexpr Web::CSSPixels round(Web::CSSPixels const& value)
 {
     // FIXME: Maybe do this with bit-fiddling instead
     if (value > 0)
-        return floor(value + Compositing::CSSPixels::from_raw(Compositing::CSSPixels::fixed_point_denominator >> 1 /* 0.5 */));
-    return ceil(value - Compositing::CSSPixels::from_raw(Compositing::CSSPixels::fixed_point_denominator >> 1 /* 0.5 */));
+        return floor(value + Web::CSSPixels::from_raw(Web::CSSPixels::fixed_point_denominator >> 1 /* 0.5 */));
+    return ceil(value - Web::CSSPixels::from_raw(Web::CSSPixels::fixed_point_denominator >> 1 /* 0.5 */));
 }
 
-inline Compositing::CSSPixels sqrt(Compositing::CSSPixels const& value)
+inline Web::CSSPixels sqrt(Web::CSSPixels const& value)
 {
-    return Compositing::CSSPixels::nearest_value_for(AK::sqrt(value.to_float()));
+    return Web::CSSPixels::nearest_value_for(AK::sqrt(value.to_float()));
 }
 
-constexpr Compositing::DevicePixels abs(Compositing::DevicePixels const& value)
+constexpr Web::DevicePixels abs(Web::DevicePixels const& value)
 {
     return AK::abs(value.value());
 }
 
-constexpr Compositing::CSSPixels square_distance_between(Compositing::CSSPixelPoint const& a, Compositing::CSSPixelPoint const& b)
+constexpr Web::CSSPixels square_distance_between(Web::CSSPixelPoint const& a, Web::CSSPixelPoint const& b)
 {
     auto delta_x = abs(a.x() - b.x());
     auto delta_y = abs(a.y() - b.y());
     return delta_x * delta_x + delta_y * delta_y;
 }
 
-constexpr Compositing::CSSPixelPoint constrained(Compositing::CSSPixelPoint const& point, Compositing::CSSPixelRect const& rect)
+constexpr Web::CSSPixelPoint constrained(Web::CSSPixelPoint const& point, Web::CSSPixelRect const& rect)
 {
     return {
         clamp(point.x(), rect.left(), rect.right() - 1),
@@ -498,7 +498,7 @@ constexpr Compositing::CSSPixelPoint constrained(Compositing::CSSPixelPoint cons
 
 template<>
 template<>
-[[nodiscard]] ALWAYS_INLINE Compositing::CSSPixelRect Compositing::CSSPixelRect::to_rounded<Compositing::CSSPixels>() const
+[[nodiscard]] ALWAYS_INLINE Web::CSSPixelRect Web::CSSPixelRect::to_rounded<Web::CSSPixels>() const
 {
     return {
         round(x()),
@@ -511,44 +511,44 @@ template<>
 namespace AK {
 
 template<>
-struct Traits<Compositing::CSSPixels> : public DefaultTraits<Compositing::CSSPixels> {
-    static unsigned hash(Compositing::CSSPixels const& key)
+struct Traits<Web::CSSPixels> : public DefaultTraits<Web::CSSPixels> {
+    static unsigned hash(Web::CSSPixels const& key)
     {
         return Traits<int>::hash(key.raw_value());
     }
 
-    static bool equals(Compositing::CSSPixels const& a, Compositing::CSSPixels const& b)
+    static bool equals(Web::CSSPixels const& a, Web::CSSPixels const& b)
     {
         return a == b;
     }
 };
 
 template<>
-struct Traits<Compositing::DevicePixels> : public DefaultTraits<Compositing::DevicePixels> {
-    static unsigned hash(Compositing::DevicePixels const& key)
+struct Traits<Web::DevicePixels> : public DefaultTraits<Web::DevicePixels> {
+    static unsigned hash(Web::DevicePixels const& key)
     {
-        return Traits<Compositing::DevicePixels::Type>::hash(key.value());
+        return Traits<Web::DevicePixels::Type>::hash(key.value());
     }
 
-    static bool equals(Compositing::DevicePixels const& a, Compositing::DevicePixels const& b)
+    static bool equals(Web::DevicePixels const& a, Web::DevicePixels const& b)
     {
         return a == b;
     }
 };
 
 template<>
-struct Formatter<Compositing::CSSPixels> : Formatter<double> {
-    ErrorOr<void> format(FormatBuilder& builder, Compositing::CSSPixels const& value)
+struct Formatter<Web::CSSPixels> : Formatter<double> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSSPixels const& value)
     {
         return Formatter<double>::format(builder, value.to_double());
     }
 };
 
 template<>
-struct Formatter<Compositing::DevicePixels> : Formatter<Compositing::DevicePixels::Type> {
-    ErrorOr<void> format(FormatBuilder& builder, Compositing::DevicePixels const& value)
+struct Formatter<Web::DevicePixels> : Formatter<Web::DevicePixels::Type> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::DevicePixels const& value)
     {
-        return Formatter<Compositing::DevicePixels::Type>::format(builder, value.value());
+        return Formatter<Web::DevicePixels::Type>::format(builder, value.value());
     }
 };
 
@@ -557,37 +557,23 @@ struct Formatter<Compositing::DevicePixels> : Formatter<Compositing::DevicePixel
 namespace IPC {
 
 template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Compositing::CSSPixelPoint const& value);
+WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Web::CSSPixelPoint const& value);
 template<>
-WEBCOMMON_API ErrorOr<Compositing::CSSPixelPoint> decode(Decoder& decoder);
+WEBCOMMON_API ErrorOr<Web::CSSPixelPoint> decode(Decoder& decoder);
 
 template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Compositing::DevicePixelPoint const& value);
+WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelPoint const& value);
 template<>
-WEBCOMMON_API ErrorOr<Compositing::DevicePixelPoint> decode(Decoder& decoder);
+WEBCOMMON_API ErrorOr<Web::DevicePixelPoint> decode(Decoder& decoder);
 
 template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Compositing::DevicePixelSize const& value);
+WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelSize const& value);
 template<>
-WEBCOMMON_API ErrorOr<Compositing::DevicePixelSize> decode(Decoder& decoder);
+WEBCOMMON_API ErrorOr<Web::DevicePixelSize> decode(Decoder& decoder);
 
 template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Compositing::DevicePixelRect const& value);
+WEBCOMMON_API ErrorOr<void> encode(Encoder& encoder, Web::DevicePixelRect const& value);
 template<>
-WEBCOMMON_API ErrorOr<Compositing::DevicePixelRect> decode(Decoder& decoder);
-
-}
-
-namespace Web {
-
-using Compositing::CSSPixelFraction;
-using Compositing::CSSPixelPoint;
-using Compositing::CSSPixelRect;
-using Compositing::CSSPixels;
-using Compositing::CSSPixelSize;
-using Compositing::DevicePixelPoint;
-using Compositing::DevicePixelRect;
-using Compositing::DevicePixels;
-using Compositing::DevicePixelSize;
+WEBCOMMON_API ErrorOr<Web::DevicePixelRect> decode(Decoder& decoder);
 
 }

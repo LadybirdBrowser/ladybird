@@ -13,7 +13,7 @@
 static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position, Optional<Gfx::IntRect> expanded_thumb_rect = {})
 {
     auto vertical = orientation == Gfx::Orientation::Vertical;
-    auto document_id = Compositing::UniqueNodeID { 1 };
+    auto document_id = Web::UniqueNodeID { 1 };
     auto scroll_node_index = Compositing::SpatialNodeIndex { 1 };
     auto scroll_node_id = Compositing::AsyncScrollNodeID {
         .document_id = document_id,
@@ -24,8 +24,8 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
     scrolling_state.scroll_nodes.append({
         .node_id = scroll_node_id,
         .stable_node_id = {
-            .node_id = Compositing::UniqueNodeID { 2 },
-            .kind = Compositing::AsyncScrollNodeKind::Viewport,
+            .node_id = Web::UniqueNodeID { 2 },
+            .kind = Web::AsyncScrollNodeKind::Viewport,
             .pseudo_element_type = 0,
         },
         .parent_node_id = {},

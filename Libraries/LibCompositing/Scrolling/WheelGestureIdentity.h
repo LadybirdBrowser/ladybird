@@ -23,11 +23,11 @@ inline constexpr float wheel_gesture_position_slop_in_css_pixels = 10;
 // the rules here, so that they agree on the scroller an event belongs to without telling each other.
 class COMPOSITING_API WheelGestureIdentity {
 public:
-    static WheelGestureIdentity started_by(Gfx::FloatPoint position, ScrollGesturePhase, u32 modifiers, MonotonicTime now);
+    static WheelGestureIdentity started_by(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
 
     // Positions and the slop are in whatever unit the caller routes in.
-    bool is_continued_by(Gfx::FloatPoint position, ScrollGesturePhase, u32 modifiers, MonotonicTime now, float position_slop) const;
-    void advance_to(ScrollGesturePhase, MonotonicTime now);
+    bool is_continued_by(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now, float position_slop) const;
+    void advance_to(Web::ScrollGesturePhase, MonotonicTime now);
 
 private:
     enum class Kind : u8 {
@@ -37,7 +37,7 @@ private:
 
     WheelGestureIdentity(Kind, Gfx::FloatPoint first_position, u32 modifiers, MonotonicTime now);
 
-    static Kind kind_for(ScrollGesturePhase);
+    static Kind kind_for(Web::ScrollGesturePhase);
 
     Kind m_kind;
     Gfx::FloatPoint m_first_position;

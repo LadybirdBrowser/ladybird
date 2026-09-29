@@ -39,8 +39,8 @@ constexpr size_t cards_per_row = 40;
 constexpr int card_width = 20;
 constexpr int card_height = 12;
 constexpr size_t timed_iterations = 200;
-constexpr Compositing::DevicePixelSize viewport_size { Compositing::DevicePixels(800), Compositing::DevicePixels(600) };
-constexpr Compositing::CSSPixelSize css_viewport_size { Compositing::CSSPixels(800), Compositing::CSSPixels(600) };
+constexpr Web::DevicePixelSize viewport_size { Web::DevicePixels(800), Web::DevicePixels(600) };
+constexpr Web::CSSPixelSize css_viewport_size { Web::CSSPixels(800), Web::CSSPixels(600) };
 
 enum class DocumentShape {
     FlatCards,
@@ -92,12 +92,12 @@ public:
 
     void set_page(GC::Ref<Web::Page> page) { m_page = page; }
 
-    virtual Compositing::PageId id() const override { return Compositing::PageId { 1 }; }
+    virtual Web::PageId id() const override { return Web::PageId { 1 }; }
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
     virtual bool is_connection_open() const override { return true; }
     virtual Gfx::Palette palette() const override { return Gfx::Palette(*m_palette_impl); }
-    virtual Compositing::DevicePixelRect screen_rect() const override { return { { Compositing::DevicePixels(0), Compositing::DevicePixels(0) }, viewport_size }; }
+    virtual Web::DevicePixelRect screen_rect() const override { return { { Web::DevicePixels(0), Web::DevicePixels(0) }, viewport_size }; }
     virtual double zoom_level() const override { return 1.0; }
     virtual double device_pixel_ratio() const override { return 1.0; }
     virtual double device_pixels_per_css_pixel() const override { return 1.0; }
@@ -106,7 +106,7 @@ public:
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return Web::CSS::PreferredMotion::NoPreference; }
     virtual size_t screen_count() const override { return 1; }
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { return m_input_event_queue; }
-    virtual void report_finished_handling_input_event(Compositing::PageId, u64, Web::EventResult) override { }
+    virtual void report_finished_handling_input_event(Web::PageId, u64, Web::EventResult) override { }
     virtual Web::HTML::CrossProcessId allocate_cross_process_id() override { return { 1, m_next_cross_process_id++ }; }
     virtual void request_frame() override { }
     virtual void request_file(Web::FileRequest) override { }

@@ -42,7 +42,7 @@ public:
 
     static ReadonlySpan<Page> pages();
     static Optional<Page const&> page_for_host(StringView);
-    static ErrorOr<RefPtr<WebUI>> create(WebContentClient&, Compositing::PageId page_id, String host);
+    static ErrorOr<RefPtr<WebUI>> create(WebContentClient&, Web::PageId page_id, String host);
     virtual ~WebUI();
 
     String const& host() const { return m_host; }

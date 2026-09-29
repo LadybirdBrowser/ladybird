@@ -30,16 +30,16 @@ using AsyncScrollOperationID = u64;
 
 // Stable identifier for a scroll node in a document; the node index alone is not unique across nested documents.
 struct AsyncScrollNodeID {
-    UniqueNodeID document_id;
+    Web::UniqueNodeID document_id;
     Compositing::SpatialNodeIndex scroll_node_index;
 
     bool operator==(AsyncScrollNodeID const&) const = default;
 };
 
-COMPOSITING_API AsyncScrollNodeKind async_scroll_node_kind_for(Compositing::CompositorScrollNodeKind);
+COMPOSITING_API Web::AsyncScrollNodeKind async_scroll_node_kind_for(Compositing::CompositorScrollNodeKind);
 
 struct AsyncScrollOffset {
-    AsyncScrollNodeStableID stable_node_id;
+    Web::AsyncScrollNodeStableID stable_node_id;
     Gfx::FloatPoint compositor_scroll_offset;
     Gfx::FloatPoint unadopted_scroll_delta;
     // The most recent nonzero delta of a relative scroll in each axis, such as a wheel or panning scroll. Absolute
@@ -60,7 +60,7 @@ struct AsyncScrollOffset {
 // One scrollable area from the paint snapshot.
 struct AsyncScrollNode {
     AsyncScrollNodeID node_id;
-    AsyncScrollNodeStableID stable_node_id;
+    Web::AsyncScrollNodeStableID stable_node_id;
     Optional<AsyncScrollNodeID> parent_node_id;
     Gfx::IntRect scrollport_rect;
     Gfx::FloatPoint min_scroll_offset;
@@ -93,7 +93,7 @@ struct MainThreadWheelEventRegion {
 
 struct AsyncScrollbar {
     AsyncScrollNodeID scroll_node_id;
-    Optional<AsyncScrollNodeStableID> scroller_stable_node_id;
+    Optional<Web::AsyncScrollNodeStableID> scroller_stable_node_id;
     Compositing::SpatialNodeIndex scroll_node_index;
     // The rects of a scrollbar the display list paints are in the space of this context.
     Compositing::ContextRef context;

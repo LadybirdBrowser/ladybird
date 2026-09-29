@@ -12,10 +12,10 @@
 namespace Compositing {
 
 struct SnapAxisGeometry {
-    CSSPixels snapport_start;
-    CSSPixels snapport_size;
-    CSSPixels min_offset;
-    CSSPixels max_offset;
+    Web::CSSPixels snapport_start;
+    Web::CSSPixels snapport_size;
+    Web::CSSPixels min_offset;
+    Web::CSSPixels max_offset;
 };
 
 static SnapAxisGeometry x_axis_geometry(SnapContainerGeometry const& geometry)
@@ -38,9 +38,9 @@ static SnapAxisGeometry y_axis_geometry(SnapContainerGeometry const& geometry)
     };
 }
 
-static Optional<SnapPositionCandidate> snap_position_candidate_for_axis(SnapAlign alignment, CSSPixels area_start, CSSPixels area_size, SnapAxisGeometry const& geometry)
+static Optional<SnapPositionCandidate> snap_position_candidate_for_axis(SnapAlign alignment, Web::CSSPixels area_start, Web::CSSPixels area_size, SnapAxisGeometry const& geometry)
 {
-    CSSPixels offset;
+    Web::CSSPixels offset;
     switch (alignment) {
     case SnapAlign::None:
         return {};
@@ -71,9 +71,9 @@ static Optional<SnapPositionCandidate> snap_position_candidate_for_axis(SnapAlig
     return candidate;
 }
 
-static void restrict_covering_ranges_to_valid_snap_positions(Vector<SnapPositionCandidate>& candidates, CSSPixels snapport_size)
+static void restrict_covering_ranges_to_valid_snap_positions(Vector<SnapPositionCandidate>& candidates, Web::CSSPixels snapport_size)
 {
-    Vector<CSSPixels> snap_positions;
+    Vector<Web::CSSPixels> snap_positions;
     snap_positions.ensure_capacity(candidates.size());
     for (auto const& candidate : candidates)
         snap_positions.unchecked_append(candidate.offset);
@@ -86,7 +86,7 @@ static void restrict_covering_ranges_to_valid_snap_positions(Vector<SnapPosition
         auto covering_range = candidate.covering_ranges.first();
         candidate.covering_ranges.clear_with_capacity();
 
-        auto append_valid_offsets_between = [&](CSSPixels start, CSSPixels end) {
+        auto append_valid_offsets_between = [&](Web::CSSPixels start, Web::CSSPixels end) {
             start = max(start, covering_range.start);
             end = min(end, covering_range.end);
             if (start <= end)
@@ -104,43 +104,43 @@ static void restrict_covering_ranges_to_valid_snap_positions(Vector<SnapPosition
 
 // AD-HOC: Offsets within one pixel of the offset a scroll travels from count as being at it, so that a fractional
 //         scroll offset cannot re-select the snap position the scroll started from. This matches other engines.
-static constexpr CSSPixels SNAP_POSITION_BOUNDARY_TOLERANCE = 1;
+static constexpr Web::CSSPixels SNAP_POSITION_BOUNDARY_TOLERANCE = 1;
 
-static bool is_beyond_in_direction(CSSPixels offset, CSSPixels boundary, CSSPixels direction)
+static bool is_beyond_in_direction(Web::CSSPixels offset, Web::CSSPixels boundary, Web::CSSPixels direction)
 {
     if (direction > 0)
         return offset >= boundary + SNAP_POSITION_BOUNDARY_TOLERANCE;
     return offset <= boundary - SNAP_POSITION_BOUNDARY_TOLERANCE;
 }
 
-static bool is_at_or_beyond_in_direction(CSSPixels offset, CSSPixels boundary, CSSPixels direction)
+static bool is_at_or_beyond_in_direction(Web::CSSPixels offset, Web::CSSPixels boundary, Web::CSSPixels direction)
 {
     if (direction > 0)
         return offset >= boundary;
     return offset <= boundary;
 }
 
-bool snap_area_is_visible_at_cross_axis_offset(SnapPositionCandidate const& candidate, CSSPixels cross_axis_offset)
+bool snap_area_is_visible_at_cross_axis_offset(SnapPositionCandidate const& candidate, Web::CSSPixels cross_axis_offset)
 {
     return cross_axis_offset > candidate.cross_axis_visible_range_start && cross_axis_offset < candidate.cross_axis_visible_range_end;
 }
 
 // Every offset within a covering range is a valid snap position of the area that contributes it.
-bool candidate_has_snap_position_at(SnapPositionCandidate const& candidate, CSSPixels offset)
+bool candidate_has_snap_position_at(SnapPositionCandidate const& candidate, Web::CSSPixels offset)
 {
     if (candidate.offset == offset)
         return true;
     return any_of(candidate.covering_ranges, [&](auto const& covering_range) { return offset >= covering_range.start && offset <= covering_range.end; });
 }
 
-static bool chosen_offset_is_visible_at_cross_axis_offset(Vector<SnapPositionCandidate> const& candidates, CSSPixels offset, CSSPixels cross_axis_offset)
+static bool chosen_offset_is_visible_at_cross_axis_offset(Vector<SnapPositionCandidate> const& candidates, Web::CSSPixels offset, Web::CSSPixels cross_axis_offset)
 {
     return any_of(candidates, [&](auto const& candidate) {
         return snap_area_is_visible_at_cross_axis_offset(candidate, cross_axis_offset) && candidate_has_snap_position_at(candidate, offset);
     });
 }
 
-SnapDestination snap_destination_for(CSSPixelPoint unsnapped_destination, Optional<CSSPixels> x_offset, Optional<CSSPixels> y_offset, SnapAxes evaluated_axes)
+SnapDestination snap_destination_for(Web::CSSPixelPoint unsnapped_destination, Optional<Web::CSSPixels> x_offset, Optional<Web::CSSPixels> y_offset, SnapAxes evaluated_axes)
 {
     return {
         .position = { x_offset.value_or(unsnapped_destination.x()), y_offset.value_or(unsnapped_destination.y()) },
@@ -151,21 +151,21 @@ SnapDestination snap_destination_for(CSSPixelPoint unsnapped_destination, Option
     };
 }
 
-bool chosen_offsets_are_mutually_visible(SnapAxisCandidates const& candidates, CSSPixels x_offset, CSSPixels y_offset)
+bool chosen_offsets_are_mutually_visible(SnapAxisCandidates const& candidates, Web::CSSPixels x_offset, Web::CSSPixels y_offset)
 {
     return chosen_offset_is_visible_at_cross_axis_offset(candidates.x_candidates, x_offset, y_offset)
         && chosen_offset_is_visible_at_cross_axis_offset(candidates.y_candidates, y_offset, x_offset);
 }
 
-Optional<SnapAxisChoice> choose_snap_offset_for_axis(Vector<SnapPositionCandidate> const& candidates, SnapAxisSelection const& selection, CSSPixels snapport_size, SnapStrictness strictness, Optional<CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area)
+Optional<SnapAxisChoice> choose_snap_offset_for_axis(Vector<SnapPositionCandidate> const& candidates, SnapAxisSelection const& selection, Web::CSSPixels snapport_size, SnapStrictness strictness, Optional<Web::CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area)
 {
     // AD-HOC: The parameters under which a proximity snap container snaps are left to the user agent. Match the
     //         threshold used by other engines, one third of the snapport size in the snapping axis.
     auto proximity_range = snapport_size / 3;
 
     Optional<SnapAxisChoice> best_choice;
-    CSSPixels best_distance = 0;
-    auto consider_candidate = [&](CSSPixels offset, SnapPositionCandidate const& candidate) {
+    Web::CSSPixels best_distance = 0;
+    auto consider_candidate = [&](Web::CSSPixels offset, SnapPositionCandidate const& candidate) {
         auto distance = abs(offset - selection.destination);
         if (strictness == SnapStrictness::Proximity && distance > proximity_range)
             return;
@@ -258,7 +258,7 @@ SnapAxes axes_to_evaluate(SnapAxes container_axes, SnapSelectionStrategy const& 
     // NB: A scroll selects a snap position only in the axes it traveled in, so that the offset of an axis its input
     //     never moved is left where it is. A scroll that traveled in no axis, such as one with only an intended end
     //     position, selects a snap position in every axis the container snaps in.
-    auto snaps_in_axis = [&](bool container_snaps_in_axis, CSSPixels axis_displacement) {
+    auto snaps_in_axis = [&](bool container_snaps_in_axis, Web::CSSPixels axis_displacement) {
         return container_snaps_in_axis && (strategy.displacement.is_zero() || axis_displacement != 0);
     };
     return {
@@ -303,7 +303,7 @@ SnapAxisCandidates build_snap_candidates(SnapContainerGeometry const& geometry, 
     return candidates;
 }
 
-Vector<SnapAreaIdentity> snap_areas_at_offset(Vector<SnapPositionCandidate> const& candidates, CSSPixels offset, CSSPixels cross_axis_offset)
+Vector<SnapAreaIdentity> snap_areas_at_offset(Vector<SnapPositionCandidate> const& candidates, Web::CSSPixels offset, Web::CSSPixels cross_axis_offset)
 {
     Vector<SnapAreaIdentity> areas;
     for (auto const& candidate : candidates) {
@@ -316,7 +316,7 @@ Vector<SnapAreaIdentity> snap_areas_at_offset(Vector<SnapPositionCandidate> cons
 }
 
 // https://drafts.csswg.org/css-scroll-snap-1/#choosing
-SnapDestination select_snap_destination(SnapContainerGeometry const& geometry, SnapAxisCandidates const& candidates, CSSPixelPoint destination, SnapSelectionStrategy const& strategy, SnapAxes evaluated_axes)
+SnapDestination select_snap_destination(SnapContainerGeometry const& geometry, SnapAxisCandidates const& candidates, Web::CSSPixelPoint destination, SnapSelectionStrategy const& strategy, SnapAxes evaluated_axes)
 {
     bool snaps_x = evaluated_axes.x;
     bool snaps_y = evaluated_axes.y;
@@ -326,7 +326,7 @@ SnapDestination select_snap_destination(SnapContainerGeometry const& geometry, S
     auto const& snapport = geometry.snapport;
     auto strictness = geometry.strictness;
 
-    auto axis_selection = [&](CSSPixels axis_destination, CSSPixels axis_displacement, Optional<CSSPixels> axis_start, Optional<CSSPixels> axis_boundary) {
+    auto axis_selection = [&](Web::CSSPixels axis_destination, Web::CSSPixels axis_displacement, Optional<Web::CSSPixels> axis_start, Optional<Web::CSSPixels> axis_boundary) {
         if (!axis_start.has_value() || axis_displacement == 0) {
             return SnapAxisSelection {
                 .destination = axis_destination,
@@ -336,7 +336,7 @@ SnapDestination select_snap_destination(SnapContainerGeometry const& geometry, S
             };
         }
 
-        Optional<CSSPixels> boundary;
+        Optional<Web::CSSPixels> boundary;
         if (strategy.type != SnapSelectionStrategy::Type::EndPosition)
             boundary = axis_boundary.value_or(*axis_start);
 
@@ -347,7 +347,7 @@ SnapDestination select_snap_destination(SnapContainerGeometry const& geometry, S
             .starting_positions_boundary = boundary,
         };
     };
-    auto axis_of = [](Optional<CSSPixelPoint> const& offset, bool horizontal) -> Optional<CSSPixels> {
+    auto axis_of = [](Optional<Web::CSSPixelPoint> const& offset, bool horizontal) -> Optional<Web::CSSPixels> {
         if (!offset.has_value())
             return {};
         return horizontal ? offset->x() : offset->y();
@@ -355,10 +355,10 @@ SnapDestination select_snap_destination(SnapContainerGeometry const& geometry, S
     auto x_selection = axis_selection(destination.x(), strategy.displacement.x(), axis_of(strategy.start_offset, true), axis_of(strategy.starting_positions_boundary, true));
     auto y_selection = axis_selection(destination.y(), strategy.displacement.y(), axis_of(strategy.start_offset, false), axis_of(strategy.starting_positions_boundary, false));
 
-    auto choose_x = [&](Optional<CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area = {}) {
+    auto choose_x = [&](Optional<Web::CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area = {}) {
         return choose_snap_offset_for_axis(candidates.x_candidates, x_selection, snapport.width(), strictness, cross_axis_offset, only_area);
     };
-    auto choose_y = [&](Optional<CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area = {}) {
+    auto choose_y = [&](Optional<Web::CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area = {}) {
         return choose_snap_offset_for_axis(candidates.y_candidates, y_selection, snapport.height(), strictness, cross_axis_offset, only_area);
     };
 
@@ -421,7 +421,7 @@ SnapDestination select_snap_destination(SnapContainerGeometry const& geometry, S
     return snap_destination;
 }
 
-SnapDestination select_snap_destination(SnapContainerGeometry const& geometry, ReadonlySpan<SnapAreaGeometry> areas, CSSPixelPoint destination, SnapSelectionStrategy const& strategy)
+SnapDestination select_snap_destination(SnapContainerGeometry const& geometry, ReadonlySpan<SnapAreaGeometry> areas, Web::CSSPixelPoint destination, SnapSelectionStrategy const& strategy)
 {
     auto evaluated_axes = axes_to_evaluate(geometry.axes, strategy);
     if (evaluated_axes.is_empty())
@@ -447,7 +447,7 @@ void MomentumFlingEstimator::reset()
     m_consecutively_decaying_momentum_deltas = 0;
 }
 
-Optional<CSSPixelPoint> MomentumFlingEstimator::estimate_remaining_displacement(CSSPixelPoint momentum_delta)
+Optional<Web::CSSPixelPoint> MomentumFlingEstimator::estimate_remaining_displacement(Web::CSSPixelPoint momentum_delta)
 {
     auto previous_momentum_delta = m_previous_momentum_delta;
     m_previous_momentum_delta = momentum_delta;
@@ -476,9 +476,9 @@ Optional<CSSPixelPoint> MomentumFlingEstimator::estimate_remaining_displacement(
     // Each delta keeps the same share of the one before it, so the deltas still to come sum to the delta given
     // divided by the share it loses each time.
     auto remaining_distance_factor = 1 / (1 - min(decay_share, maximum_slow_momentum_decay_share));
-    return CSSPixelPoint {
-        CSSPixels::nearest_value_for(momentum_delta.x().to_double() * remaining_distance_factor),
-        CSSPixels::nearest_value_for(momentum_delta.y().to_double() * remaining_distance_factor),
+    return Web::CSSPixelPoint {
+        Web::CSSPixels::nearest_value_for(momentum_delta.x().to_double() * remaining_distance_factor),
+        Web::CSSPixels::nearest_value_for(momentum_delta.y().to_double() * remaining_distance_factor),
     };
 }
 

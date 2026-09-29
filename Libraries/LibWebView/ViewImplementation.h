@@ -158,7 +158,7 @@ public:
         String url;
         Optional<ByteBuffer> favicon_png;
     };
-    static Compositing::KeyModifier history_traversal_key_modifier();
+    static Web::UIEvents::KeyModifier history_traversal_key_modifier();
     void traverse_the_history_by_delta(
         int delta,
         CheckForCancelation = CheckForCancelation::Yes,
@@ -252,15 +252,15 @@ public:
     void stop_node_picker();
     void clear_node_picker();
     bool is_node_picker_active() const { return m_node_picker_active; }
-    void node_picker_hover(Compositing::DevicePixelPoint);
-    void node_picker_pick(Compositing::DevicePixelPoint);
-    void node_picker_preview(Compositing::DevicePixelPoint);
+    void node_picker_hover(Web::DevicePixelPoint);
+    void node_picker_pick(Web::DevicePixelPoint);
+    void node_picker_preview(Web::DevicePixelPoint);
     void node_picker_cancel();
 
-    void inspect_dom_node(Compositing::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options = {});
-    void inspect_grid_layouts(Compositing::UniqueNodeID root_node_id);
-    void inspect_current_grid(Compositing::UniqueNodeID node_id);
-    void inspect_current_flexbox(Compositing::UniqueNodeID node_id, bool only_look_at_parents);
+    void inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options = {});
+    void inspect_grid_layouts(Web::UniqueNodeID root_node_id);
+    void inspect_current_grid(Web::UniqueNodeID node_id);
+    void inspect_current_flexbox(Web::UniqueNodeID node_id, bool only_look_at_parents);
     void retrieve_devtools_sources(DevTools::DevToolsDelegate::OnSourcesReceived);
     void request_devtools_source(Web::HTML::ScriptRegistryIdentifier const&);
     void attach_debugger(DevTools::DevToolsDelegate::OnDebuggerPaused, DevTools::DevToolsDelegate::OnDebuggerResumed);
@@ -278,31 +278,31 @@ public:
     void evaluate_javascript_in_debugger_frame(u64 frame_id, String const&, DevTools::DevToolsDelegate::OnDebuggerEvaluationComplete);
     void retrieve_debugger_object_properties(u64 object_id, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived);
     void retrieve_debugger_source_positions(Web::HTML::ScriptRegistryIdentifier, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived);
-    void resolve_dom_node_url(Optional<Compositing::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived);
+    void resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived);
     void clear_inspected_dom_node();
 
-    void highlight_dom_node(Compositing::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element);
+    void highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element);
     void clear_highlighted_dom_node();
-    void highlight_flexbox(Compositing::UniqueNodeID node_id, JsonValue options);
-    void clear_flexbox_highlight(Compositing::UniqueNodeID node_id);
-    void highlight_grid(Compositing::UniqueNodeID node_id, JsonValue options);
-    void clear_grid_highlight(Compositing::UniqueNodeID node_id);
+    void highlight_flexbox(Web::UniqueNodeID node_id, JsonValue options);
+    void clear_flexbox_highlight(Web::UniqueNodeID node_id);
+    void highlight_grid(Web::UniqueNodeID node_id, JsonValue options);
+    void clear_grid_highlight(Web::UniqueNodeID node_id);
 
     void set_listen_for_dom_mutations(bool);
     void did_connect_devtools_client();
     void did_disconnect_devtools_client();
-    void get_dom_node_inner_html(Compositing::UniqueNodeID node_id);
-    void get_dom_node_outer_html(Compositing::UniqueNodeID node_id);
-    void set_dom_node_outer_html(Compositing::UniqueNodeID node_id, String const& html);
-    void set_dom_node_text(Compositing::UniqueNodeID node_id, String const& text);
-    void set_dom_node_tag(Compositing::UniqueNodeID node_id, Utf16FlyString const& name);
-    void add_dom_node_attributes(Compositing::UniqueNodeID node_id, ReadonlySpan<Attribute> attributes);
-    void replace_dom_node_attribute(Compositing::UniqueNodeID node_id, Utf16FlyString const& name, ReadonlySpan<Attribute> replacement_attributes);
-    void create_child_element(Compositing::UniqueNodeID node_id);
-    void create_child_text_node(Compositing::UniqueNodeID node_id);
-    void insert_dom_node_before(Compositing::UniqueNodeID node_id, Compositing::UniqueNodeID parent_node_id, Optional<Compositing::UniqueNodeID> sibling_node_id);
-    void clone_dom_node(Compositing::UniqueNodeID node_id);
-    void remove_dom_node(Compositing::UniqueNodeID node_id);
+    void get_dom_node_inner_html(Web::UniqueNodeID node_id);
+    void get_dom_node_outer_html(Web::UniqueNodeID node_id);
+    void set_dom_node_outer_html(Web::UniqueNodeID node_id, String const& html);
+    void set_dom_node_text(Web::UniqueNodeID node_id, String const& text);
+    void set_dom_node_tag(Web::UniqueNodeID node_id, Utf16FlyString const& name);
+    void add_dom_node_attributes(Web::UniqueNodeID node_id, ReadonlySpan<Attribute> attributes);
+    void replace_dom_node_attribute(Web::UniqueNodeID node_id, Utf16FlyString const& name, ReadonlySpan<Attribute> replacement_attributes);
+    void create_child_element(Web::UniqueNodeID node_id);
+    void create_child_text_node(Web::UniqueNodeID node_id);
+    void insert_dom_node_before(Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id);
+    void clone_dom_node(Web::UniqueNodeID node_id);
+    void remove_dom_node(Web::UniqueNodeID node_id);
 
     void list_style_sheets();
     void request_style_sheet_source(Web::CSS::StyleSheetIdentifier const&);
@@ -333,7 +333,7 @@ public:
         i32 anchor_position { 0 };
         Utf16String text_before_cursor;
         Utf16String text_after_cursor;
-        Optional<Compositing::DevicePixelRect> caret_rect;
+        Optional<Web::DevicePixelRect> caret_rect;
     };
 
     void set_marked_text_from_input_method(Utf16String const& text);
@@ -365,7 +365,7 @@ public:
     void run_webdriver_commands_waiting_for_a_document(Badge<CanonicalTraversable>);
     void did_complete_webdriver_content_command(Badge<WebContentPage>, u64 command_id, Web::WebDriver::Response);
     void did_set_webdriver_current_browsing_context(Badge<WebContentPage>, u64 command_id, Web::HTML::CrossProcessId navigable_id);
-    void enqueue_webdriver_mouse_event(Badge<WebContentPage>, Compositing::MouseEvent, Function<void()> on_handled);
+    void enqueue_webdriver_mouse_event(Badge<WebContentPage>, Web::MouseEvent, Function<void()> on_handled);
     void did_lose_page(Badge<CanonicalTraversable>, WebContentPage&, WebContentProcessLost);
     void move_pending_webdriver_commands_to_new_host(Badge<CanonicalNavigable>, Web::HTML::CrossProcessId navigable_id, WebContentPage& old_host, WebContentPage& new_host);
     void set_webdriver_current_browsing_context_to_top_level();
@@ -385,7 +385,7 @@ public:
         Full,
     };
     NonnullRefPtr<Core::Promise<LexicalPath>> take_screenshot(ScreenshotType);
-    NonnullRefPtr<Core::Promise<LexicalPath>> take_dom_node_screenshot(Compositing::UniqueNodeID);
+    NonnullRefPtr<Core::Promise<LexicalPath>> take_dom_node_screenshot(Web::UniqueNodeID);
     virtual void did_receive_screenshot(Badge<WebContentPage>, Gfx::ShareableBitmap const&);
 
     NonnullRefPtr<Core::Promise<String>> request_internal_page_info(PageInfoType);
@@ -409,7 +409,7 @@ public:
 
     Function<void()> on_ready_to_paint;
     Function<void(TabPerformanceStats const&)> on_performance_stats;
-    Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, WebContentClient& page_process, Optional<Compositing::PageId>)> on_new_web_view;
+    Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, WebContentClient& page_process, Optional<Web::PageId>)> on_new_web_view;
     Function<void()> on_activate_tab;
     Function<void()> on_close;
     Function<void(URL::URL const&)> on_link_hover;
@@ -444,9 +444,9 @@ public:
     Function<void(Optional<JsonObject>)> on_received_current_grid;
     Function<void(Optional<JsonObject>)> on_received_current_flexbox;
     Function<void(JsonObject)> on_received_accessibility_tree;
-    Function<void(Compositing::UniqueNodeID)> on_received_hovered_node_id;
+    Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
     Function<void(Mutation)> on_dom_mutation_received;
-    Function<void(Optional<Compositing::UniqueNodeID> const& node_id)> on_finished_editing_dom_node;
+    Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finished_editing_dom_node;
     Function<void(String)> on_received_dom_node_html;
     Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
     Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, Utf16String const&)> on_received_style_sheet_source;
@@ -477,7 +477,7 @@ public:
     Function<void(WebContentPage& requesting_page, u64 request_id)> on_stop_geolocation_position_watch;
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
-    Function<void(Compositing::KeyEvent const&)> on_finish_handling_key_event;
+    Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
     Function<void(Web::DragEvent const&)> on_finish_handling_drag_event;
     Function<void(String const&)> on_test_finish;
     Function<void(double milliseconds)> on_set_test_timeout;
@@ -522,10 +522,10 @@ public:
 
     WebContentClient& client();
     WebContentClient const& client() const;
-    Compositing::PageId page_id() const;
+    Web::PageId page_id() const;
     WebContentPage& page() const;
 
-    virtual Compositing::DevicePixelSize viewport_size() const = 0;
+    virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const = 0;
 
@@ -634,7 +634,7 @@ protected:
 
     struct SharedBitmap {
         i32 id { -1 };
-        Compositing::DevicePixelSize last_painted_size;
+        Web::DevicePixelSize last_painted_size;
         OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
     };
 
@@ -754,7 +754,7 @@ protected:
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
 
     OwnPtr<Gfx::SharedImageBuffer> m_backup_shared_image_buffer;
-    Compositing::DevicePixelSize m_backup_bitmap_size;
+    Web::DevicePixelSize m_backup_bitmap_size;
     Gfx::Color m_page_background_color { 255, 255, 255 };
     Gfx::Color m_system_canvas_background_color { 255, 255, 255 };
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
@@ -890,12 +890,12 @@ protected:
         Picked,
         Previewed,
     };
-    void request_node_picker_hit_test(NodePickerRequestType, Compositing::DevicePixelPoint);
-    void did_receive_node_picker_hit_test(u64 request_id, Compositing::UniqueNodeID);
+    void request_node_picker_hit_test(NodePickerRequestType, Web::DevicePixelPoint);
+    void did_receive_node_picker_hit_test(u64 request_id, Web::UniqueNodeID);
     void did_receive_indexed_database_inspection(u64 request_id, JsonObject);
 
     bool m_node_picker_active { false };
-    Optional<Compositing::UniqueNodeID> m_node_picker_hovered_node_id;
+    Optional<Web::UniqueNodeID> m_node_picker_hovered_node_id;
     u64 m_next_node_picker_request_id { 1 };
     HashMap<u64, NodePickerRequestType> m_pending_node_picker_requests;
     DevTools::DevToolsDelegate::OnNodePickerEvent m_on_node_picker_event;

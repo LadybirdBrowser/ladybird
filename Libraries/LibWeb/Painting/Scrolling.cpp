@@ -231,13 +231,13 @@ static u8 pseudo_element_type_for(Layout::Node const& node)
     return static_cast<u8>(to_underlying(*pseudo_element));
 }
 
-Optional<Compositing::AsyncScrollNodeStableID> async_scroll_node_stable_id(Layout::Node const& node)
+Optional<Web::AsyncScrollNodeStableID> async_scroll_node_stable_id(Layout::Node const& node)
 {
     auto scroll_node_kind = scroll_node_kind_for(node);
     if (!scroll_node_kind.has_value())
         return {};
 
-    return Compositing::AsyncScrollNodeStableID {
+    return Web::AsyncScrollNodeStableID {
         .node_id = scrollable_node_id_for(node),
         .kind = Compositing::async_scroll_node_kind_for(*scroll_node_kind),
         .pseudo_element_type = pseudo_element_type_for(node),

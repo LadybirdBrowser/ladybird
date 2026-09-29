@@ -27,8 +27,8 @@ struct WEBCOMMON_API CharacterDataMutation {
 };
 
 struct WEBCOMMON_API ChildListMutation {
-    Vector<Compositing::UniqueNodeID> added;
-    Vector<Compositing::UniqueNodeID> removed;
+    Vector<Web::UniqueNodeID> added;
+    Vector<Web::UniqueNodeID> removed;
     size_t target_child_count { 0 };
 };
 
@@ -36,7 +36,7 @@ struct WEBCOMMON_API Mutation {
     using Type = Variant<AttributeMutation, CharacterDataMutation, ChildListMutation>;
 
     String type;
-    Compositing::UniqueNodeID target { 0 };
+    Web::UniqueNodeID target { 0 };
     String serialized_target;
     Type mutation;
 };

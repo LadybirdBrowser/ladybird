@@ -125,7 +125,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(blob_url_store.resolve(victim_blob_url, {}).has_value());
     }
 
-    auto expect_rejected = [&](StringView what, Function<void(WebContentClientStub&, Compositing::PageId)> send) {
+    auto expect_rejected = [&](StringView what, Function<void(WebContentClientStub&, Web::PageId)> send) {
         auto view = create_view();
         Optional<WebView::ViewImplementation::WebContentCrashReason> crash_reason;
         view->on_web_content_crashed = [&](auto reason) { crash_reason = reason; };

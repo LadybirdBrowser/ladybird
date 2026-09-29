@@ -49,7 +49,7 @@ struct HostedNavigableState {
     bool is_closing { false };
     ReplicatedContainerState container;
     bool delays_the_load_event_of_its_container { false };
-    Optional<Compositing::CompositorContextId> compositor_context_id;
+    Optional<Web::CompositorContextId> compositor_context_id;
 };
 
 struct ReplicatedNavigableState {
@@ -75,7 +75,7 @@ struct ReplicatedNavigableState {
     bool delays_the_load_event_of_its_container { false };
     bool has_session_history_entry_and_ready_for_navigation { false };
 
-    Optional<Compositing::CompositorContextId> compositor_context_id;
+    Optional<Web::CompositorContextId> compositor_context_id;
 };
 
 struct RemoteNavigableDescriptor {
