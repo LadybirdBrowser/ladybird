@@ -105,83 +105,100 @@ enum class InvalidateLayoutTreeReason {
 
 [[nodiscard]] Utf16View to_string(InvalidateLayoutTreeReason);
 
-#define ENUMERATE_UPDATE_LAYOUT_REASONS(X)   \
-    X(AutoScrollSelection)                   \
-    X(ChildDocumentStyleUpdate)              \
-    X(CursorLineNavigation)                  \
-    X(Debugging)                             \
-    X(DocumentElementFromPoint)              \
-    X(DocumentElementsFromPoint)             \
-    X(DocumentCaretPositionFromPoint)        \
-    X(DocumentFindMatchingText)              \
-    X(DocumentReadinessComplete)             \
-    X(DocumentSetDesignMode)                 \
-    X(DumpDisplayList)                       \
-    X(ElementCheckVisibility)                \
-    X(ElementClientHeight)                   \
-    X(ElementClientWidth)                    \
-    X(ElementGetClientRects)                 \
-    X(ElementIsPotentiallyScrollable)        \
-    X(ElementScroll)                         \
-    X(ElementScrollHeight)                   \
-    X(ElementScrollIntoView)                 \
-    X(ElementScrollLeft)                     \
-    X(ElementScrollTop)                      \
-    X(ElementScrollWidth)                    \
-    X(ElementSetScrollLeft)                  \
-    X(ElementSetScrollTop)                   \
-    X(EventHandlerDispatchChromeWidgetEvent) \
-    X(EventHandlerHandleDragAndDrop)         \
-    X(EventHandlerHandleKeyDown)             \
-    X(EventHandlerHandleMouseDown)           \
-    X(EventHandlerHandleMouseMove)           \
-    X(EventHandlerHandleMouseUp)             \
-    X(EventHandlerHandleMouseWheel)          \
-    X(EventHandlerRunActivationBehavior)     \
-    X(EventHandlerShowContextMenu)           \
-    X(FontFaceSetReady)                      \
-    X(HTMLElementGetTheTextSteps)            \
-    X(HTMLElementOffsetHeight)               \
-    X(HTMLElementOffsetLeft)                 \
-    X(HTMLElementOffsetParent)               \
-    X(HTMLElementOffsetTop)                  \
-    X(HTMLElementOffsetWidth)                \
-    X(HTMLElementScrollParent)               \
-    X(HTMLEventLoopRenderingUpdate)          \
-    X(HTMLImageElementHeight)                \
-    X(HTMLImageElementWidth)                 \
-    X(HTMLImageElementX)                     \
-    X(HTMLImageElementY)                     \
-    X(HTMLInputElementHeight)                \
-    X(HTMLInputElementWidth)                 \
-    X(HTMLLabelElementActivationBehavior)    \
-    X(InspectAccessibilityTree)              \
-    X(InspectDOMTree)                        \
-    X(InspectDevToolsLayoutData)             \
-    X(InputCaretRect)                        \
-    X(InternalsLayoutTest)                   \
-    X(InternalsHitTest)                      \
-    X(MediaQueryListMatches)                 \
-    X(NavigableSelectedText)                 \
-    X(NavigableViewportScroll)               \
-    X(NodeNameOrDescription)                 \
-    X(RangeGetClientRects)                   \
-    X(ResolvedCSSStyleDeclarationProperty)   \
-    X(SVGDecodedImageDataRender)             \
-    X(ScrollCursorIntoView)                  \
-    X(ProcessScreenshot)                     \
-    X(SVGGraphicsElementGetBBox)             \
-    X(SVGGraphicsElementGetScreenCTM)        \
-    X(SVGLengthValue)                        \
-    X(SVGPathLength)                         \
-    X(ViewTransitionCapture)                 \
-    X(WindowScroll)
+// The second argument says whether up-to-date layout geometry is all that a read naming the reason
+// needs, so that the read can be answered from what committed layout already holds. A read that
+// also consults computed style, paint state or the visual context tree is not one of these, even
+// when it reads geometry as well, and neither is anything that mutates. False is the conservative
+// answer, and is what every reason whose call sites have not been checked keeps.
+#define ENUMERATE_UPDATE_LAYOUT_REASONS(X)          \
+    X(AutoScrollSelection, false)                   \
+    X(ChildDocumentStyleUpdate, false)              \
+    X(CursorLineNavigation, true)                   \
+    X(Debugging, false)                             \
+    X(DocumentElementFromPoint, false)              \
+    X(DocumentElementsFromPoint, false)             \
+    X(DocumentCaretPositionFromPoint, false)        \
+    X(DocumentFindMatchingText, false)              \
+    X(DocumentReadinessComplete, false)             \
+    X(DocumentSetDesignMode, false)                 \
+    X(DumpDisplayList, false)                       \
+    X(ElementCheckVisibility, false)                \
+    X(ElementClientHeight, true)                    \
+    X(ElementClientWidth, true)                     \
+    X(ElementGetClientRects, true)                  \
+    X(ElementIsPotentiallyScrollable, false)        \
+    X(ElementScroll, false)                         \
+    X(ElementScrollHeight, false)                   \
+    X(ElementScrollIntoView, false)                 \
+    X(ElementScrollLeft, false)                     \
+    X(ElementScrollTop, false)                      \
+    X(ElementScrollWidth, false)                    \
+    X(ElementSetScrollLeft, false)                  \
+    X(ElementSetScrollTop, false)                   \
+    X(EventHandlerDispatchChromeWidgetEvent, false) \
+    X(EventHandlerHandleDragAndDrop, false)         \
+    X(EventHandlerHandleKeyDown, false)             \
+    X(EventHandlerHandleMouseDown, false)           \
+    X(EventHandlerHandleMouseMove, false)           \
+    X(EventHandlerHandleMouseUp, false)             \
+    X(EventHandlerHandleMouseWheel, false)          \
+    X(EventHandlerRunActivationBehavior, false)     \
+    X(EventHandlerShowContextMenu, false)           \
+    X(FontFaceSetReady, false)                      \
+    X(HTMLElementGetTheTextSteps, false)            \
+    X(HTMLElementOffsetHeight, true)                \
+    X(HTMLElementOffsetLeft, true)                  \
+    X(HTMLElementOffsetParent, true)                \
+    X(HTMLElementOffsetTop, true)                   \
+    X(HTMLElementOffsetWidth, true)                 \
+    X(HTMLElementScrollParent, true)                \
+    X(HTMLEventLoopRenderingUpdate, false)          \
+    X(HTMLImageElementHeight, true)                 \
+    X(HTMLImageElementWidth, true)                  \
+    X(HTMLImageElementX, true)                      \
+    X(HTMLImageElementY, true)                      \
+    X(HTMLInputElementHeight, true)                 \
+    X(HTMLInputElementWidth, true)                  \
+    X(HTMLLabelElementActivationBehavior, false)    \
+    X(InspectAccessibilityTree, false)              \
+    X(InspectDOMTree, false)                        \
+    X(InspectDevToolsLayoutData, false)             \
+    X(InputCaretRect, false)                        \
+    X(InternalsLayoutTest, false)                   \
+    X(InternalsHitTest, false)                      \
+    X(MediaQueryListMatches, false)                 \
+    X(NavigableSelectedText, false)                 \
+    X(NavigableViewportScroll, false)               \
+    X(NodeNameOrDescription, false)                 \
+    X(RangeGetClientRects, false)                   \
+    X(ResolvedCSSStyleDeclarationProperty, false)   \
+    X(SVGDecodedImageDataRender, false)             \
+    X(ScrollCursorIntoView, false)                  \
+    X(ProcessScreenshot, false)                     \
+    X(SVGGraphicsElementGetBBox, true)              \
+    X(SVGGraphicsElementGetScreenCTM, false)        \
+    X(SVGLengthValue, false)                        \
+    X(SVGPathLength, false)                         \
+    X(ViewTransitionCapture, false)                 \
+    X(WindowScroll, false)
 
 enum class UpdateLayoutReason {
-#define ENUMERATE_UPDATE_LAYOUT_REASON(e) e,
+#define ENUMERATE_UPDATE_LAYOUT_REASON(e, reads_layout_geometry) e,
     ENUMERATE_UPDATE_LAYOUT_REASONS(ENUMERATE_UPDATE_LAYOUT_REASON)
 #undef ENUMERATE_UPDATE_LAYOUT_REASON
 };
+
+[[nodiscard]] constexpr bool reason_reads_layout_geometry(UpdateLayoutReason reason)
+{
+    switch (reason) {
+#define ENUMERATE_UPDATE_LAYOUT_REASON(e, reads_layout_geometry) \
+    case UpdateLayoutReason::e:                                  \
+        return reads_layout_geometry;
+        ENUMERATE_UPDATE_LAYOUT_REASONS(ENUMERATE_UPDATE_LAYOUT_REASON)
+#undef ENUMERATE_UPDATE_LAYOUT_REASON
+    }
+    VERIFY_NOT_REACHED();
+}
 
 [[nodiscard]] Utf16View to_string(UpdateLayoutReason);
 
@@ -1482,6 +1499,10 @@ protected:
     void initialize_document();
 
 private:
+    // Whether nothing this document has pending could change layout geometry: style, layout and every input
+    // that feeds them are settled.
+    [[nodiscard]] bool is_clean_for_layout_geometry_read() const;
+
     void did_add_supported_property_name();
     friend struct AdoptedStyleSheetsAccess;
 

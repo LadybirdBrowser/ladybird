@@ -1964,6 +1964,19 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
     m_document->set_needs_repaint();
 }
 
+bool Document::is_clean_for_layout_geometry_read() const
+{
+    return m_has_completed_style_update
+        && layout_is_up_to_date()
+        && m_elements_with_dirty_style_attributes.is_empty()
+        && !style_computer().style_engine().has_pending_transaction()
+        && !m_needs_media_rule_evaluation
+        && !m_needs_animated_style_update
+        && m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
+        && m_elements_with_pending_top_layer_membership_change.is_empty()
+        && !m_top_layer_needs_layout_zone_rebuild;
+}
+
 void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutReason reason)
 {
     if (!node.is_connected())
@@ -1972,13 +1985,29 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
     if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate)
         flush_throttled_animation_style_update_for_node(node);
 
+    auto const reads_layout_geometry = reason_reads_layout_geometry(reason);
+    auto embedding_document_chain_is_clean = [&] {
+        auto const* embedded_document = this;
+        while (auto navigable = embedded_document->navigable()) {
+            auto embedding_document = navigable->container_document();
+            if (!embedding_document || embedding_document.ptr() == embedded_document)
+                return true;
+            if (!embedding_document->is_clean_for_layout_geometry_read())
+                return false;
+            embedded_document = embedding_document.ptr();
+        }
+        return true;
+    };
+
+    // Nothing is waiting anywhere, so committed layout already answers the read and the pipeline
+    // would find no work to do. A geometry read also seals the before-change style that a later CSS
+    // transition starts from, but with no style input pending there is nothing left to seal, so a
+    // document that declares transitions does not have to give up its clean reads over it either.
+    if (reads_layout_geometry && is_clean_for_layout_geometry_read() && embedding_document_chain_is_clean())
+        return;
+
     auto* document_element = this->document_element();
     auto const may_have_style_query_dependencies = document_element && document_element->is_style_query_container();
-    auto const reads_layout_geometry = reason == UpdateLayoutReason::ElementGetClientRects
-        || reason == UpdateLayoutReason::ElementClientWidth
-        || reason == UpdateLayoutReason::ElementClientHeight
-        || reason == UpdateLayoutReason::HTMLElementOffsetWidth
-        || reason == UpdateLayoutReason::HTMLElementOffsetHeight;
     if (reads_layout_geometry
         && m_has_completed_style_update
         && layout_is_up_to_date()
@@ -1989,29 +2018,6 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
         && !m_top_layer_needs_layout_zone_rebuild
         && !style_computer().style_engine().css_transitions_may_observe_style_changes()
         && !may_have_style_query_dependencies) {
-        auto document_is_clean_for_layout_geometry_read = [](Document const& document) {
-            return document.m_has_completed_style_update
-                && document.layout_is_up_to_date()
-                && document.m_elements_with_dirty_style_attributes.is_empty()
-                && !document.style_computer().style_engine().has_pending_transaction()
-                && !document.m_needs_media_rule_evaluation
-                && !document.m_needs_animated_style_update
-                && document.m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
-                && document.m_elements_with_pending_top_layer_membership_change.is_empty()
-                && !document.m_top_layer_needs_layout_zone_rebuild;
-        };
-        auto embedding_document_chain_is_clean = [&] {
-            auto const* embedded_document = this;
-            while (auto navigable = embedded_document->navigable()) {
-                auto embedding_document = navigable->container_document();
-                if (!embedding_document || embedding_document.ptr() == embedded_document)
-                    return true;
-                if (!document_is_clean_for_layout_geometry_read(*embedding_document))
-                    return false;
-                embedded_document = embedding_document.ptr();
-            }
-            return true;
-        };
         if (embedding_document_chain_is_clean()) {
             synchronize_dirty_style_attributes();
             if (!style_computer().style_engine().pending_transaction_may_affect_layout_geometry()) {
@@ -10742,8 +10748,8 @@ Utf16View to_string(InvalidateLayoutTreeReason reason)
 Utf16View to_string(UpdateLayoutReason reason)
 {
     switch (reason) {
-#define ENUMERATE_UPDATE_LAYOUT_REASON(e) \
-    case UpdateLayoutReason::e:           \
+#define ENUMERATE_UPDATE_LAYOUT_REASON(e, reads_layout_geometry) \
+    case UpdateLayoutReason::e:                                  \
         return #e##sv;
         ENUMERATE_UPDATE_LAYOUT_REASONS(ENUMERATE_UPDATE_LAYOUT_REASON)
 #undef ENUMERATE_UPDATE_LAYOUT_REASON
