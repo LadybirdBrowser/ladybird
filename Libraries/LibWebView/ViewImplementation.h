@@ -579,6 +579,9 @@ protected:
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();
 
     virtual void update_zoom();
+
+    // The view to show a tab or window opened from this view in, or null for the application to open one of its own.
+    virtual ViewImplementation* create_view_for_new_tab_or_window(IsPrivate) { return nullptr; }
     void apply_zoom_for_current_host();
 
     void handle_resize();

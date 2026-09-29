@@ -41,24 +41,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
             ? HeadlessWebView::create_child(*this, page_process, *page_index)
             : HeadlessWebView::create(m_theme, m_viewport_size, this->is_private());
 
-        auto* child_web_view = web_view.ptr();
-        auto weak_this = make_weak_ptr<HeadlessWebView>();
-        web_view->m_parent_web_view = weak_this;
-        auto discard_child_web_view = [weak_this, child_web_view]() {
-            if (weak_this)
-                weak_this->discard_child_web_view(*child_web_view);
-        };
-
-        // Propagate crashes from child views to parent, so parent tests don't hang
-        // waiting for a child that crashed.
-        web_view->on_web_content_crashed = [child_web_view, discard_child_web_view](auto crash_reason) {
-            child_web_view->propagate_web_content_crash(crash_reason);
-            discard_child_web_view();
-        };
-        web_view->on_close = move(discard_child_web_view);
-
-        m_child_web_views.append(move(web_view));
-        return m_child_web_views.last()->handle();
+        return adopt_child_web_view(move(web_view)).handle();
     };
 
     on_reposition_window = [this](auto position) {
@@ -178,6 +161,33 @@ void HeadlessWebView::propagate_web_content_crash(WebContentCrashReason crash_re
 
     if (on_web_content_crashed)
         on_web_content_crashed(crash_reason);
+}
+
+HeadlessWebView& HeadlessWebView::adopt_child_web_view(NonnullOwnPtr<HeadlessWebView> web_view)
+{
+    auto* child_web_view = web_view.ptr();
+    auto weak_this = make_weak_ptr<HeadlessWebView>();
+    web_view->m_parent_web_view = weak_this;
+    auto discard_child_web_view = [weak_this, child_web_view]() {
+        if (weak_this)
+            weak_this->discard_child_web_view(*child_web_view);
+    };
+
+    // Propagate crashes from child views to parent, so parent tests don't hang waiting for a child that crashed.
+    web_view->on_web_content_crashed = [child_web_view, discard_child_web_view](auto crash_reason) {
+        child_web_view->propagate_web_content_crash(crash_reason);
+        discard_child_web_view();
+    };
+    web_view->on_close = move(discard_child_web_view);
+
+    m_child_web_views.append(move(web_view));
+    return *m_child_web_views.last();
+}
+
+// A headless browser has no tabs or windows, so what the browser UI would open in a new one gets a view of its own.
+ViewImplementation* HeadlessWebView::create_view_for_new_tab_or_window(IsPrivate is_private)
+{
+    return &adopt_child_web_view(HeadlessWebView::create(m_theme, m_viewport_size, is_private));
 }
 
 void HeadlessWebView::discard_child_web_view(HeadlessWebView& child_web_view)

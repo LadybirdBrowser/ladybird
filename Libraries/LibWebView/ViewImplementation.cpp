@@ -351,6 +351,11 @@ void ViewImplementation::open_url_in_new_tab(URL::URL const& url, Web::HTML::Act
         return;
     }
 
+    if (auto* view = create_view_for_new_tab_or_window(is_private())) {
+        view->load(url);
+        return;
+    }
+
     Application::the().open_url_in_new_tab(url, activate_tab);
 }
 
@@ -358,6 +363,11 @@ void ViewImplementation::open_url_in_new_window(URL::URL const& url, IsPrivate i
 {
     if (!is_url_handled_internally(url)) {
         handle_external_url_from_user_input(url);
+        return;
+    }
+
+    if (auto* view = create_view_for_new_tab_or_window(is_private)) {
+        view->load(url);
         return;
     }
 
