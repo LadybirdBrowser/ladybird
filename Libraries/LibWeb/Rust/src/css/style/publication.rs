@@ -593,7 +593,9 @@ impl RetainedState {
             state,
             facts,
             cohort_parent,
-            environment.unwrap_or(0),
+            // An unchanged environment is not necessarily empty. Distinguish it from a
+            // record moving to the empty environment when both started with the same style.
+            current_environment,
             RootFontInputs::from_document(&inputs),
         );
         if let Some(&new_style_record) = scratch.cohorts.get(&cohort) {

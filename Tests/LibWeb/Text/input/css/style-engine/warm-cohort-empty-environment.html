@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { width: 10px; }
+    .moved { width: 20px; }
+    .keep { --value: retained; }
+</style>
+<div id="first" class="item keep"></div>
+<div id="second" class="item keep"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        println(`before: ${getComputedStyle(first).width} ${getComputedStyle(second).width}`);
+        // Both elements change to the same ordinary winners, but only the first loses its
+        // custom-property environment. The second must not take the first's computed record.
+        first.className = "item moved";
+        second.className = "item keep moved";
+        internals.updateStyle();
+        println(`first: ${getComputedStyle(first).width} [${getComputedStyle(first).getPropertyValue("--value")}]`);
+        println(`second: ${getComputedStyle(second).width} [${getComputedStyle(second).getPropertyValue("--value")}]`);
+    });
+</script>
