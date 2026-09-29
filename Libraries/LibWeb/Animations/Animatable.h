@@ -56,6 +56,7 @@ public:
     WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations(Bindings::GetAnimationsOptions const& options);
     WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> get_animations_internal(GetAnimationsSorted sorted, GetAnimationsOptions const& options);
     ReadonlySpan<GC::Ref<Animation>> associated_animations_in_composite_order();
+    ReadonlySpan<GC::Ref<Animation>> associated_animations_unordered() const { return m_impl ? m_impl->associated_animations.span() : ReadonlySpan<GC::Ref<Animation>> {}; }
     void invalidate_associated_animation_composite_order();
     bool has_relevant_animations() const;
     bool has_associated_animations() const;
