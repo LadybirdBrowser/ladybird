@@ -539,7 +539,7 @@ void CompositorConnection::mouse_event(u64 page_id, Compositing::MouseEvent even
 void CompositorConnection::request_rendering_update()
 {
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (navigable->is_local_root())
+        if (navigable->is_local_root() && navigable->has_compositor_context())
             navigable->page().client().request_frame();
     }
 }
