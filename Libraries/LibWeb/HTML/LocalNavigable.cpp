@@ -2574,6 +2574,22 @@ static void create_navigation_params_by_fetching(
         request->set_referrer(Fetch::Infrastructure::Request::Referrer::NoReferrer);
     }
 
+    // AD-HOC: A traversal or reload is fetched with the document that asked for it as the request's client — or, when
+    //         none did, navigable's active document (see "apply the history step") — so the request's origin would be
+    //         that document's, rather than that of the document whose navigation created the entry. We make the
+    //         entry's initiator origin the request's instead, so Sec-Fetch-Site, and a resubmitted POST's Origin, go
+    //         out as they did the first time.
+    //         See https://github.com/whatwg/html/issues/13003.
+    //
+    //         Blink and Gecko do the same — Blink ConstructCommonNavigationParams() passes the navigation entry's
+    //         frame_entry.initiator_origin(), and Gecko SessionHistoryInfo gives the load the entry's triggering
+    //         principal — while WebKit follows HTML here.
+    // NB: For any other navigation, the entry's initiator origin is its source document's — the fetch client's. An
+    //     opaque one is left to HTML's behavior: It's what a navigation from the browser's UI records — which sends
+    //     Sec-Fetch-Site:none anyway, and must still reach a file: URL — as well as what a sandboxed document does.
+    if (initiator_origin.has_value() && !initiator_origin->is_opaque())
+        request->set_origin(*initiator_origin);
+
     // 6. If documentResource is a POST resource:
     if (auto* post_resource = document_resource.get_pointer<POSTResource>()) {
         // 1. Set request's method to `POST`.

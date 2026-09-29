@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe name="frame"></iframe>
+<script>
+    // This page sends an iframe to a cross-site document, which then navigates the iframe to a document on its own
+    // site and goes back. The traversal fetches the first cross-site document again, and it's this page's navigation
+    // that created that entry — so the fetch goes out as cross-site again, not as same-origin with the document the
+    // traversal left.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const id = crypto.randomUUID();
+        const otherSite = uniqueLocalhostHostname("sec-fetch-site-traversal");
+
+        async function echo(name, body, extraHeaders = {}) {
+            const url = new URL(await server.createEcho("GET", `/${name}-${id}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", ...extraHeaders },
+                body,
+            }));
+            url.hostname = otherSite;
+            return url;
+        }
+
+        const leftUrl = await echo("sec-fetch-site-traversal-left", `<!DOCTYPE html><script>onload = () => setTimeout(() => history.back());<\/script>`);
+        // The unload handler keeps the entry's document from being kept for the traversal, which then fetches it again.
+        const entryUrl = await echo("sec-fetch-site-traversal-entry", `<!DOCTYPE html><script>
+            onunload = () => {};
+            if (sessionStorage.getItem(${JSON.stringify(id)}))
+                parent.postMessage("traversed", "*");
+            else
+                onload = () => setTimeout(() => { sessionStorage.setItem(${JSON.stringify(id)}, "1"); location.href = ${JSON.stringify(leftUrl.href)}; });
+        <\/script>`, { "Cache-Control": "no-store" });
+
+        window.addEventListener("message", async () => {
+            const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/sec-fetch-site-traversal-entry-${id}`);
+            const headers = response.ok ? await response.json() : null;
+            println(`entry fetched again by the traversal: ${headers?.["Sec-Fetch-Site"]?.[0]} (${headers?.["Sec-Fetch-Dest"]?.[0]})`);
+            done();
+        }, { once: true });
+
+        const link = document.createElement("a");
+        link.href = entryUrl;
+        link.target = "frame";
+        document.body.append(link);
+        link.click();
+    });
+</script>
