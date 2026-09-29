@@ -24,7 +24,7 @@
 #if defined(AK_OS_MACOS)
 #    include <QColorSpace>
 #    include <QSurfaceFormat>
-#    include <UI/AppKit/Utilities/ApplicationIcon.h>
+#    include <UI/Qt/ApplicationIcon.h>
 #    include <UI/Qt/MacWindow.h>
 #endif
 

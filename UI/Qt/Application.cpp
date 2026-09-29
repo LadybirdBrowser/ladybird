@@ -13,18 +13,14 @@
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
+#include <UI/Qt/ExternalURLHandler.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/ProcessManagerWindow.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WebContentView.h>
 
-#if defined(AK_OS_LINUX)
-#    include <UI/Qt/ExternalURLHandler.h>
-#endif
-
 #if defined(AK_OS_MACOS)
-#    include <UI/AppKit/Utilities/ExternalURLHandler.h>
 #    include <UI/Qt/MacWindow.h>
 #endif
 

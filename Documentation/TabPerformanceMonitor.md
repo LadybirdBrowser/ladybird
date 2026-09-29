@@ -5,7 +5,7 @@
 
 Enable **Show tab performance monitor** in **Settings → Advanced**, or set
 `debug.ui.show_tab_performance_monitor` to `true`. It defaults to `false`.
-The Qt and AppKit toolbars display the current tab's statistics inline.
+The UI's toolbars display the current tab's statistics inline.
 Each tab retains its own CPU history while monitoring is enabled.
 
 `LibWebView::TabPerformanceMonitor` resolves browser ownership and supplies

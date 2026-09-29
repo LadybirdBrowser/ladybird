@@ -2726,7 +2726,7 @@ void ConnectionFromClient::update_input_method_state(Compositing::PageId page_id
         return;
 
     // Push the updated input state to the UI, so platform input methods can place their overlays. We deliberately
-    // push this asynchronously instead of answering a synchronous request from inside an AppKit text-input callback.
+    // push this asynchronously instead of answering a synchronous request from inside a UI-side text-input callback.
     // Blocking there re-enters the run loop and can deadlock input-method server <-> UI <-> WebContent message flow.
     Optional<Compositing::DevicePixelRect> caret_rect;
     bool is_enabled = false;

@@ -339,7 +339,6 @@ public:
     void set_marked_text_from_input_method(Utf16String const& text);
     void commit_text_from_input_method(Utf16String const& text, i32 replacement_start = 0, i32 replacement_length = 0);
     void unmark_text_from_input_method();
-    Optional<Compositing::DevicePixelRect> get_input_caret_rect();
     InputMethodState const& input_method_state() const { return m_input_method_state; }
     void set_input_method_state(Badge<WebContentPage>, InputMethodState);
 

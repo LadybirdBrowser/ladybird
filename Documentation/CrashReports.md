@@ -54,10 +54,10 @@ formatting and backtrace generation, and remains available if those fail.
 
 ## Architecture
 
-After a crash, the browser displays a native AppKit or Qt overlay and retains
-the failed URL, title and committed history entry. The replacement WebContent
-process remains dormant until the user chooses a recovery action. The overlay
-provides reload and report-folder actions directly in the browser process.
+After a crash, the browser displays a native overlay and retains the failed URL,
+title and committed history entry. The replacement WebContent process remains
+dormant until the user chooses a recovery action. The overlay provides reload
+and report-folder actions directly in the browser process.
 
 The browser creates an unlinked temporary file before spawning each helper and
 passes a descriptor to the child. The child cannot access the report directory.

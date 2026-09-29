@@ -1,4 +1,3 @@
-include(cmake/GUIFramework.cmake)
 include(cmake/ResourceFiles.cmake)
 
 if (APPLE)
@@ -48,8 +47,11 @@ function(create_ladybird_bundle target_name)
     copy_resources_to_build(${resource_base_dir} ${target_name})
 endfunction()
 
-# Select UI Framework
-add_subdirectory(${LADYBIRD_GUI_FRAMEWORK})
+if (ANDROID OR VCPKG_TARGET_ANDROID)
+    add_subdirectory("Android")
+else()
+    add_subdirectory("Qt")
+endif()
 
 if (NOT TARGET ladybird)
     message(FATAL_ERROR "UI Framework selection must declare a ladybird target")

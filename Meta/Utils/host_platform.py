@@ -22,23 +22,6 @@ class HostSystem(enum.IntEnum):
     BSD = enum.auto()
 
 
-class GUIFramework(enum.IntEnum):
-    Qt = enum.auto()
-    AppKit = enum.auto()
-    Android = enum.auto()
-
-    @classmethod
-    def from_string(cls, gui: str) -> "GUIFramework":
-        try:
-            return cls[gui]
-        except KeyError:
-            # argparse does not catch KeyError, so we return a ValueError for better command line errors.
-            raise ValueError(f"Unknown GUIFramework: {gui!r}") from None
-
-    def __str__(self):
-        return self.name
-
-
 class Platform:
     def __init__(self):
         self.system = platform.system()
@@ -93,17 +76,3 @@ class Platform:
 
         libc, _ = platform.libc_ver()
         return libc
-
-    def valid_gui_frameworks(self) -> list[GUIFramework]:
-        """
-        List of valid GUI frameworks based on target platform.
-        Keep in sync with Meta/CMake/gui_framework.cmake
-        """
-        if self.host_system == HostSystem.macOS:
-            return [GUIFramework.Qt, GUIFramework.AppKit]
-        return [GUIFramework.Qt]
-
-    def default_gui_framework(self) -> GUIFramework:
-        if self.host_system == HostSystem.macOS:
-            return GUIFramework.AppKit
-        return GUIFramework.Qt

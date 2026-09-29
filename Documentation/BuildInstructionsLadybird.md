@@ -137,17 +137,12 @@ Xcode 15 or clang from homebrew is required to successfully build ladybird.
 
 ```
 xcode-select --install
-brew install autoconf autoconf-archive automake ccache cmake libtool nasm ninja pkg-config
+brew install autoconf autoconf-archive automake ccache cmake libtool nasm ninja pkg-config qt
 ```
 
 If you wish to use clang from homebrew instead:
 ```
 brew install llvm@21
-```
-
-If you also plan to use the Qt UI on macOS:
-```
-brew install qt
 ```
 
 > [!NOTE]
@@ -248,19 +243,8 @@ including sanitizer options. It does not update the binary or change its build c
 ### The User Interfaces
 
 Ladybird will be built with one of the following browser frontends, depending on the platform:
-* [AppKit](https://developer.apple.com/documentation/appkit?language=objc) - The native UI on macOS.
-* [Qt](https://doc.qt.io/qt-6/) - The UI used on all other platforms.
 * [Android UI](https://developer.android.com/develop/ui) - The native UI on Android.
-
-You can pick the UI using the `LADYBIRD_GUI_FRAMEWORK` option, or the `--gui` argument to ladybird.py.
-For example, to force building with the Qt UI:
-
-```bash
-# From /path/to/ladybird
-cmake --preset Release -DLADYBIRD_GUI_FRAMEWORK=Qt
-# Or
-./Meta/ladybird.py run --gui=Qt
-```
+* [Qt](https://doc.qt.io/qt-6/) - The UI used on all other platforms.
 
 ### Build error messages you may encounter
 

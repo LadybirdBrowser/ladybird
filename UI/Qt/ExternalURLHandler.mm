@@ -7,8 +7,8 @@
 #include <AK/AtomicRefCounted.h>
 
 #import <Cocoa/Cocoa.h>
-#import <UI/AppKit/Utilities/Conversions.h>
-#import <UI/AppKit/Utilities/ExternalURLHandler.h>
+#import <UI/Qt/Conversions.h>
+#import <UI/Qt/ExternalURLHandler.h>
 
 namespace Ladybird {
 
