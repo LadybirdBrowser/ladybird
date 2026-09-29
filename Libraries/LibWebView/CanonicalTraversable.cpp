@@ -2945,15 +2945,6 @@ void CanonicalTraversable::did_receive_history_step_unload_cancelation_result(We
     if (!operation->pending_unload_cancelation)
         return;
 
-    // This result means browser UI Back stopped an uncommitted navigation before the normal unload
-    // cancellation checks began. Complete the phase without checking the other document hosts.
-    if (result == Web::HTML::HistoryStepResult::CanceledPendingNavigation) {
-        if (operation->is_browser_traversal())
-            result = Web::HTML::HistoryStepResult::Applied;
-        complete_unload_cancelation(*operation, result);
-        return;
-    }
-
     if (result != Web::HTML::HistoryStepResult::Applied) {
         complete_unload_cancelation(*operation, result);
         return;

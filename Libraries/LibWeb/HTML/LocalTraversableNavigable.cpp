@@ -204,22 +204,6 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
     (void)operation_id;
 
     auto target_entry = resolve_local_session_history_entry(move(target_entry_descriptor));
-    if (user_involvement == UserNavigationInvolvement::BrowserUI
-        && ongoing_navigation().has<Utf16String>()
-        && target_entry == current_session_history_entry()
-        && target_entry == active_session_history_entry()
-        && !target_entry->document_state()->reload_pending()) {
-        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#nav-traversal-ui
-        // https://html.spec.whatwg.org/multipage/document-lifecycle.html#stop-document-loading
-        // INTEROP: A browser UI traversal back to the still-active entry while a new document is loading
-        //          cancels the pending navigation before entering the specified apply the history step algorithm.
-        //          The standard describes browser UI traversal and stopping loading separately, but does not
-        //          prescribe how Back interacts with an uncommitted navigation. Chromium, WebKit, and Gecko all
-        //          stop the uncommitted load in this situation.
-        stop_loading();
-        on_complete->function()(HistoryStepResult::CanceledPendingNavigation, UnloadPromptShown::No);
-        return;
-    }
 
     // 5. If checkForCancelation is true, and the result of checking if unloading is canceled given
     //    navigablesCrossingDocuments, traversable, targetStep, and userInvolvement is not "continue", then return
