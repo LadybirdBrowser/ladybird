@@ -306,6 +306,9 @@ pub(in crate::css::style) struct PrefixRelation {
     answers: Vec<Vec<EntryID>>,
     pub(in crate::css::style) changed_answers: Vec<(StyleNodeID, Vec<EntryID>, Vec<EntryID>)>,
     arrivals: Vec<usize>,
+    /// A bit per position for the arrivals of the update in progress, which hold no membership yet: an arrival's slot
+    /// is new, or was taken out of every set as it departed.
+    arrived: Vec<u64>,
     pub(in crate::css::style) handled_routing_keys: HashMap<RoutingKey, bool>,
     // Routine prefix-cache accounting must not walk every selector set for each matching node.
     capacity_bytes: u64,
@@ -395,6 +398,7 @@ impl PrefixRelation {
                 .map(|(_, old, new)| old.shallow_capacity_bytes() + new.shallow_capacity_bytes())
                 .sum::<u64>()
             + self.arrivals.shallow_capacity_bytes()
+            + self.arrived.shallow_capacity_bytes()
             + self.handled_routing_keys.shallow_capacity_bytes();
     }
 
@@ -466,6 +470,10 @@ impl PrefixRelation {
                 };
                 self.positions.insert(node.raw() as usize, position);
                 self.arrivals.push(position);
+                if self.arrived.len() <= position / 64 {
+                    self.arrived.resize(position / 64 + 1, 0);
+                }
+                self.arrived[position / 64] |= 1 << (position % 64);
                 touched.push(node);
             }
         }
@@ -526,7 +534,7 @@ impl PrefixRelation {
         }
         if self.sibling_order_is_preserved {
             self.sibling_order_is_preserved = self.old_previous.iter().all(|&(position, mut previous)| {
-                if self.arrivals.binary_search(&position).is_ok() {
+                if has_bit(&self.arrived, position) {
                     return true;
                 }
                 // Departed slots still hold their old links. Arrivals hold only current links.
@@ -535,7 +543,7 @@ impl PrefixRelation {
                     previous = self.previous[previous];
                 }
                 let mut current_previous = self.previous[position];
-                while current_previous != usize::MAX && self.arrivals.binary_search(&current_previous).is_ok() {
+                while current_previous != usize::MAX && has_bit(&self.arrived, current_previous) {
                     current_previous = self.previous[current_previous];
                 }
                 previous == current_previous
@@ -589,7 +597,7 @@ impl PrefixRelation {
         }
         let mut removed_steps = Vec::new();
         for &(frontier, old_previous) in &self.old_previous {
-            if self.arrivals.binary_search(&frontier).is_ok() {
+            if has_bit(&self.arrived, frontier) {
                 continue;
             }
             removed_steps.clear();
@@ -712,7 +720,8 @@ impl PrefixRelation {
             // Geometry frontiers include retained nodes whose local facts did not change.
             // Preserve their predicate memberships, revisiting only changed positional tests.
             // A changed parent conservatively requires checking :root again.
-            let local_changed = self.arrivals.binary_search(&position).is_ok()
+            let arrived = has_bit(&self.arrived, position);
+            let local_changed = arrived
                 || self.geometry_targets[0].binary_search(&position).is_ok()
                 || !super::rows_have_equal_local_facts_between(
                     row.facts,
@@ -792,7 +801,7 @@ impl PrefixRelation {
                                         .unwrap(),
                                 }
                             });
-                    if self.compound_matches[index].contains(position) != matched {
+                    if (!arrived && self.compound_matches[index].contains(position)) != matched {
                         changed_compounds.entry(index).or_default().push(position);
                     }
                 }
@@ -998,7 +1007,9 @@ impl PrefixRelation {
                 walk_truth.clear();
                 let mut changes = Vec::new();
                 for &position in &affected {
-                    let previously_matched = self.matches[step_index].contains(position);
+                    // A step runs once per update, so what it held is what it held before, which no arrival is in.
+                    let previously_matched =
+                        !has_bit(&self.arrived, position) && self.matches[step_index].contains(position);
                     let mut matched = candidates.contains(position);
                     if matched && let Some(predecessor) = predecessor {
                         let predecessor = &self.matches[predecessor.0 as usize];
@@ -1132,6 +1143,9 @@ impl PrefixRelation {
         }
         self.departures.clear();
         self.old_previous.clear();
+        for &position in &self.arrivals {
+            self.arrived[position / 64] = 0;
+        }
         self.walk_truth = walk_truth;
         self.refresh_capacity_bytes();
         self.verify_answers(evaluation);
@@ -1467,6 +1481,7 @@ impl PrefixAutomaton {
             answers: output,
             changed_answers: Vec::new(),
             arrivals: Vec::new(),
+            arrived: Vec::new(),
             handled_routing_keys: HashMap::default(),
             capacity_bytes: 0,
             nested_capacity_bytes: 0,
