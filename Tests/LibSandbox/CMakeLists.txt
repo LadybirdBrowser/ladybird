@@ -14,5 +14,5 @@ if (APPLE)
         ${LADYBIRD_SOURCE_DIR}/Services/RendererSandboxMacOS.cpp
     )
     target_include_directories(TestHelperSandboxes PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
-    target_link_libraries(TestHelperSandboxes PRIVATE "-framework CoreFoundation" "-framework Security")
+    target_link_libraries(TestHelperSandboxes PRIVATE "-framework CoreFoundation" "-framework CoreGraphics" "-framework Security")
 endif()

@@ -7,6 +7,7 @@
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/LexicalPath.h>
+#include <CoreGraphics/CoreGraphics.h>
 #include <LibCore/System.h>
 #include <LibTest/TestCase.h>
 #include <Security/Security.h>
@@ -14,6 +15,8 @@
 #include <Services/RendererSandbox.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <mach/mach.h>
+#include <servers/bootstrap.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -100,6 +103,31 @@ TEST_CASE(compositor_cannot_touch_other_applications_caches)
     auto cache_path = temporary_cache_path();
     for (auto flags : { O_RDONLY, O_WRONLY })
         EXPECT_EQ(run_in_helper_sandbox([&] { return Compositor::apply_sandbox({}, cache_path, {}); }, [&] { return can_open(other_application.file, flags); }), Outcome::Denied);
+}
+
+static bool can_reach_the_window_server()
+{
+    mach_port_t port = MACH_PORT_NULL;
+    return bootstrap_look_up(bootstrap_port, "com.apple.windowserver.active", &port) == KERN_SUCCESS;
+}
+
+static bool sees_an_active_display()
+{
+    u32 active_display_count = 0;
+    return CGGetActiveDisplayList(0, nullptr, &active_display_count) == kCGErrorSuccess && active_display_count > 0;
+}
+
+TEST_CASE(compositor_sees_the_displays)
+{
+    // Only a process in a GUI login session with a display can see them at all.
+    if (!can_reach_the_window_server() || !sees_an_active_display()) {
+        warnln("Skipping: no display is visible from this session");
+        return;
+    }
+
+    auto cache_path = temporary_cache_path();
+    EXPECT_EQ(run_in_helper_sandbox([&] { return Compositor::apply_sandbox({}, cache_path, {}); }, [] { return can_reach_the_window_server(); }), Outcome::Allowed);
+    EXPECT_EQ(run_in_helper_sandbox([&] { return Compositor::apply_sandbox({}, cache_path, {}); }, [] { return sees_an_active_display(); }), Outcome::Allowed);
 }
 
 TEST_CASE(renderer_cannot_touch_other_applications_caches)
