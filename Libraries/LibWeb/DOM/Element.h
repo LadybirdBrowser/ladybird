@@ -41,6 +41,7 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::Animations {
@@ -212,12 +213,14 @@ public:
 
     Utf16String get_an_elements_target(Optional<Utf16String> target = {}) const;
     HTML::TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, Utf16View target);
+    bool link_types_include(Utf16View) const;
 
     bool cannot_navigate() const;
 
     HTML::HTMLHyperlinkElementUtils const* created_hyperlink() const;
     bool creates_a_hyperlink() const;
     void follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
+    ReferrerPolicy::ReferrerPolicy hyperlink_referrer_policy() const;
     void download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
     void activate_the_hyperlink(Event const&);
 

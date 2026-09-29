@@ -1,0 +1,5 @@
+plain: Referer sent
+noreferrer: Referer not sent
+noreferrer-among-others: Referer not sent
+noreferrer-over-referrerpolicy: Referer not sent
+referrerpolicy-no-referrer: Referer not sent
