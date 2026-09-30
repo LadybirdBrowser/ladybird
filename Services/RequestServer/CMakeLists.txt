@@ -1,5 +1,6 @@
 set(SOURCES
     AIA.cpp
+    AlternativeServices.cpp
     ConnectionFromClient.cpp
     ControlConnectionFromClient.cpp
     CURL.cpp
