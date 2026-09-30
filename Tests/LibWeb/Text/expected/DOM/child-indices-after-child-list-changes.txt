@@ -1,0 +1,26 @@
+initial: 60 children, PASS
+element inserted first: 61 children, PASS
+element inserted in the middle: 62 children, PASS
+element removed from the middle: 61 children, PASS
+last element removed: 60 children, PASS
+element appended: 61 children, PASS
+text and comment inserted: 61 children, PASS
+element replaced: 61 children, PASS
+element moved backwards: 61 children, PASS
+first element moved last: 61 children, PASS
+element moved with moveBefore: 61 children, PASS
+fragment inserted: 66 children, PASS
+elements moved out: 58 children, PASS
+elements moved in: 8 children, PASS
+elements moved back: 66 children, PASS
+element replaced with two: 67 children, PASS
+children replaced: 4 children, PASS
+same names in another namespace inserted: 16 children, PASS
+last element moved first: 16 children, PASS
+fragment: 20 children, PASS
+fragment after changes: 20 children, PASS
+shadow root: 20 children, PASS
+shadow root after changes: 20 children, PASS
+document: 1 children, PASS
+document after its element is replaced: 1 children, PASS
+last child after 2000 prepends: PASS

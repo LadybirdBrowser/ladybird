@@ -189,6 +189,21 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
         auto const& node = node_from_ffi(pointer);
         auto const* parent = node.parent();
         return node_to_ffi(parent ? parent->first_child_of_type<Element>() : &node); },
+    .child_index = [](void const* element, CSS::SelectorFFI::FfiChildIndex which) {
+        using enum CSS::SelectorFFI::FfiChildIndex;
+        using enum Element::ChildIndexAmong;
+        auto const& subject = element_from_ffi(element);
+        switch (which) {
+        case FromStart:
+            return subject.child_index(Siblings);
+        case FromEnd:
+            return subject.child_index_from_end(Siblings);
+        case OfTypeFromStart:
+            return subject.child_index(SiblingsOfType);
+        case OfTypeFromEnd:
+            return subject.child_index_from_end(SiblingsOfType);
+        }
+        VERIFY_NOT_REACHED(); },
     .next_element_in_subtree = [](void const* node, void const* root, uintptr_t local_name) -> void const* {
         auto const& stay_within = node_from_ffi(root);
         for (auto const* next = node_from_ffi(node).next_in_pre_order(&stay_within); next; next = next->next_in_pre_order(&stay_within)) {

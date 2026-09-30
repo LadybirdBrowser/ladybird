@@ -321,6 +321,18 @@ public:
     bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     ReadonlySpan<Utf16FlyString> class_names() const { return m_classes; }
 
+    // https://drafts.csswg.org/selectors/#child-index
+    // The element's 1-based index among its inclusive element siblings, or among those with its type, counted from
+    // the first or from the last. An element remembers its indices until its parent's element children next move, so
+    // asking every child of a parent for its index walks them about once.
+    enum class ChildIndexAmong : u8 {
+        Siblings,
+        SiblingsOfType,
+    };
+    u32 child_index(ChildIndexAmong) const;
+    u32 child_index_from_end(ChildIndexAmong) const;
+    void forget_child_indices() { m_parent_child_index_generation = 0; }
+
     // The element's StyleEngine identity, or 0 while it has none. Disconnected and never-styled
     // elements keep 0, which is what makes them free.
     [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
@@ -975,6 +987,12 @@ private:
     bool m_uses_document_global_custom_element_registry : 1 { false };
     bool m_has_name : 1 { false };
     mutable bool m_style_attribute_is_dirty : 1 { false };
+
+    // The child indices the element remembers, or zero for those not counted yet, and the generation of its parent's
+    // child list they were counted in; zero for none.
+    mutable u32 m_parent_child_index_generation { 0 };
+    mutable u32 m_child_index { 0 };
+    mutable u32 m_child_index_of_type { 0 };
 
     mutable Optional<Utf16String> m_lang_value;
 

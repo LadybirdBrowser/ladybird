@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="list"></div>
+<div id="other"></div>
+<script>
+    test(() => {
+        const selectors = [":nth-child(3n+1)", ":nth-last-child(2n)", ":nth-of-type(2n+1)", ":nth-last-of-type(3n)", ":first-of-type", ":last-child"];
+
+        // What each positional pseudo-class says about an element, counted by hand.
+        function expected(element, selector) {
+            const siblings = Array.from(element.parentNode.children);
+            const ofType = siblings.filter(sibling => sibling.localName === element.localName && sibling.namespaceURI === element.namespaceURI);
+            const index = siblings.indexOf(element) + 1;
+            const indexOfType = ofType.indexOf(element) + 1;
+            const fromEnd = siblings.length - index + 1;
+            const ofTypeFromEnd = ofType.length - indexOfType + 1;
+            switch (selector) {
+            case ":nth-child(3n+1)": return index % 3 === 1;
+            case ":nth-last-child(2n)": return fromEnd % 2 === 0;
+            case ":nth-of-type(2n+1)": return indexOfType % 2 === 1;
+            case ":nth-last-of-type(3n)": return ofTypeFromEnd % 3 === 0;
+            case ":first-of-type": return indexOfType === 1;
+            case ":last-child": return fromEnd === 1;
+            }
+        }
+
+        // Each element is asked alone, from the last to the first, so the first question counts every sibling. Then the
+        // parent is asked for all of them at once.
+        function check(step, parent) {
+            let mismatches = 0;
+            const children = Array.from(parent.children);
+            for (const selector of selectors) {
+                for (let i = children.length - 1; i >= 0; --i)
+                    mismatches += children[i].matches(selector) !== expected(children[i], selector) ? 1 : 0;
+                const matched = new Set(parent.querySelectorAll(selector));
+                for (const child of children)
+                    mismatches += matched.has(child) !== expected(child, selector) ? 1 : 0;
+            }
+            println(`${step}: ${children.length} children, ${mismatches === 0 ? "PASS" : `FAIL (${mismatches} mismatches)`}`);
+        }
+
+        const tags = ["p", "i", "p", "b", "i", "p"];
+        for (let i = 0; i < 60; ++i)
+            list.append(document.createElement(tags[i % tags.length]));
+        check("initial", list);
+
+        list.prepend(document.createElement("i"));
+        check("element inserted first", list);
+
+        list.insertBefore(document.createElement("p"), list.children[30]);
+        check("element inserted in the middle", list);
+
+        list.children[10].remove();
+        check("element removed from the middle", list);
+
+        list.lastElementChild.remove();
+        check("last element removed", list);
+
+        list.append(document.createElement("b"));
+        check("element appended", list);
+
+        list.insertBefore(document.createTextNode("text"), list.children[5]);
+        list.insertBefore(document.createComment("comment"), list.children[6]);
+        check("text and comment inserted", list);
+
+        list.replaceChild(document.createElement("b"), list.children[20]);
+        check("element replaced", list);
+
+        list.insertBefore(list.children[40], list.children[3]);
+        check("element moved backwards", list);
+
+        list.append(list.children[0]);
+        check("first element moved last", list);
+
+        list.moveBefore(list.children[50], list.children[2]);
+        check("element moved with moveBefore", list);
+
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < 5; ++i)
+            fragment.append(document.createElement(tags[i]));
+        list.insertBefore(fragment, list.children[12]);
+        check("fragment inserted", list);
+
+        for (const child of Array.from(list.children).slice(0, 8))
+            other.append(child);
+        check("elements moved out", list);
+        check("elements moved in", other);
+        for (const child of Array.from(other.children))
+            list.prepend(child);
+        check("elements moved back", list);
+
+        list.children[7].replaceWith(document.createElement("i"), document.createElement("p"));
+        check("element replaced with two", list);
+
+        list.innerHTML = "<p></p><i></i><p></p><p></p>";
+        check("children replaced", list);
+
+        // Elements with the same local name in another namespace are of another type.
+        for (let i = 0; i < 12; ++i)
+            list.insertBefore(document.createElementNS("http://example.com/ns", tags[i % tags.length]), list.children[i % 5]);
+        check("same names in another namespace inserted", list);
+        list.insertBefore(list.lastElementChild, list.firstElementChild);
+        check("last element moved first", list);
+
+        // Parents that are not elements.
+        const fragment2 = document.createDocumentFragment();
+        for (let i = 0; i < 20; ++i)
+            fragment2.append(document.createElement(tags[i % tags.length]));
+        check("fragment", fragment2);
+        fragment2.prepend(document.createElement("b"));
+        fragment2.children[9].remove();
+        check("fragment after changes", fragment2);
+
+        const shadowRoot = other.attachShadow({ mode: "open" });
+        for (let i = 0; i < 20; ++i)
+            shadowRoot.append(document.createElement(tags[i % tags.length]));
+        check("shadow root", shadowRoot);
+        shadowRoot.insertBefore(document.createElement("i"), shadowRoot.children[4]);
+        shadowRoot.lastElementChild.remove();
+        check("shadow root after changes", shadowRoot);
+
+        const xmlDocument = document.implementation.createDocument(null, "root");
+        check("document", xmlDocument);
+        xmlDocument.prepend(xmlDocument.createComment("comment"));
+        xmlDocument.replaceChild(xmlDocument.createElement("other"), xmlDocument.documentElement);
+        check("document after its element is replaced", xmlDocument);
+
+        // The last child is asked for after every prepend, which must not recount the list each time.
+        list.innerHTML = "";
+        let lastChildMismatches = 0;
+        for (let i = 0; i < 2000; ++i) {
+            list.prepend(document.createElement("p"));
+            lastChildMismatches += list.lastElementChild.matches(":last-child") ? 0 : 1;
+            lastChildMismatches += list.firstElementChild.matches(":last-child") === (i === 0) ? 0 : 1;
+        }
+        println(`last child after 2000 prepends: ${lastChildMismatches === 0 ? "PASS" : `FAIL (${lastChildMismatches} mismatches)`}`);
+    });
+</script>
