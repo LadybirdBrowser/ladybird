@@ -254,23 +254,30 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
         RETURNING cache_key, vary_key;
     )#"sv));
 
-    TRY(database.try_execute_statement(
-        remove_malformed_entries,
-        [&](auto statement_id) -> ErrorOr<void> {
-            auto cache_key = database.result_i64_checked(statement_id, 0);
-            auto vary_key = database.result_i64_checked(statement_id, 1);
-            if (cache_key.is_error() || vary_key.is_error())
+    if (auto result = database.try_execute_statement(
+            remove_malformed_entries,
+            [&](auto statement_id) -> ErrorOr<void> {
+                auto cache_key = database.result_i64_checked(statement_id, 0);
+                auto vary_key = database.result_i64_checked(statement_id, 1);
+                if (cache_key.is_error() || vary_key.is_error())
+                    return {};
+
+                remove_cache_entry_files(cache_directory, decode_cache_key_from_database(cache_key.value()), decode_cache_key_from_database(vary_key.value()));
                 return {};
+            },
+            limits.maximum_disk_cache_size);
+        result.is_error())
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to remove malformed cache entries:\033[0m {}", result.error());
 
-            remove_cache_entry_files(cache_directory, decode_cache_key_from_database(cache_key.value()), decode_cache_key_from_database(vary_key.value()));
-            return {};
-        },
-        limits.maximum_disk_cache_size));
-
+    // NB: SQLite's signed sum can overflow; treat failure as a full cache to trigger eviction.
     i64 total_estimated_size { 0 };
-    TRY(database.try_execute_statement(
-        statements.select_total_estimated_size,
-        [&](auto statement_id) -> ErrorOr<void> { total_estimated_size = database.result_column<i64>(statement_id, 0); return {}; }));
+    if (auto result = database.try_execute_statement(
+            statements.select_total_estimated_size,
+            [&](auto statement_id) -> ErrorOr<void> { total_estimated_size = database.result_column<i64>(statement_id, 0); return {}; });
+        result.is_error()) {
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to compute cache size:\033[0m {}", result.error());
+        total_estimated_size = NumericLimits<i64>::max();
+    }
 
     return CacheIndex { database, statements, limits, total_estimated_size };
 }
@@ -368,7 +375,7 @@ void CacheIndex::remove_entries_exceeding_cache_limit(Function<void(u64 cache_ke
     if (m_total_estimated_size <= m_limits.maximum_disk_cache_size)
         return;
 
-    m_database->execute_statement(
+    auto result = m_database->try_execute_statement(
         m_statements.remove_entries_exceeding_cache_limit,
         [&](auto statement_id) -> ErrorOr<void> {
             auto cache_key = decode_cache_key_from_database(m_database->result_column<i64>(statement_id, 0));
@@ -382,6 +389,9 @@ void CacheIndex::remove_entries_exceeding_cache_limit(Function<void(u64 cache_ke
             return {};
         },
         m_limits.maximum_disk_cache_size);
+
+    if (result.is_error())
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to evict cache entries:\033[0m {}", result.error());
 }
 
 void CacheIndex::remove_variants_exceeding_limit(u64 cache_key, u64 vary_key_to_keep, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
@@ -607,12 +617,12 @@ Requests::CacheSizes CacheIndex::estimate_cache_size_accessed_since(UnixDateTime
 {
     Requests::CacheSizes sizes;
 
-    m_database->execute_statement(
+    (void)m_database->try_execute_statement(
         m_statements.estimate_cache_size_accessed_since,
         [&](auto statement_id) -> ErrorOr<void> { sizes.since_requested_time = static_cast<u64>(m_database->result_column<i64>(statement_id, 0)); return {}; },
         since);
 
-    m_database->execute_statement(
+    (void)m_database->try_execute_statement(
         m_statements.estimate_cache_size_accessed_since,
         [&](auto statement_id) -> ErrorOr<void> { sizes.total = static_cast<u64>(m_database->result_column<i64>(statement_id, 0)); return {}; },
         UnixDateTime::earliest());
