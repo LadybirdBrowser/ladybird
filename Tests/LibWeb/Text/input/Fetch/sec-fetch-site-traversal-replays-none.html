@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A page the user reached by typing its address is fetched again with Sec-Fetch-Site:none when a traversal goes
+    // back to it: by the browser's Back button, and by a page's own history.back() too — as in Blink and Gecko, which
+    // replay what the entry's first navigation sent for every traversal.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = new URLSearchParams(location.search).get("run");
+
+        if (runId) {
+            async function recorded(path) {
+                const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/${path}`);
+                return response.ok ? await response.json() : null;
+            }
+            const ui = await recorded(`sec-fetch-site-back-button-${runId}`);
+            println(`typed page, fetched again by the Back button: ${ui?.["Sec-Fetch-Site"]?.[0]}`);
+            const script = await recorded(`sec-fetch-site-history-back-${runId}`);
+            println(`typed page, fetched again by history.back(): ${script?.["Sec-Fetch-Site"]?.[0]}`);
+            done();
+            return;
+        }
+
+        const id = crypto.randomUUID();
+        const finish = new URL(location.href);
+        finish.search = `?run=${id}`;
+
+        // Each typed page is left for a page that goes back to it; the unload handler keeps it from being kept for the
+        // traversal, which then fetches it again. The second fetch moves on.
+        async function typedPage(name, goBack, next) {
+            const leftURL = await server.createEcho("GET", `/sec-fetch-site-${name}-left-${id}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>onload = () => setTimeout(() => ${goBack});<\/script>`,
+            });
+            return await server.createEcho("GET", `/sec-fetch-site-${name}-${id}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                body: `<!DOCTYPE html><script>
+                    onunload = () => {};
+                    const key = ${JSON.stringify(`${name}-${id}`)};
+                    if (sessionStorage.getItem(key))
+                        onload = () => setTimeout(() => internals.loadURL(${JSON.stringify(next)}));
+                    else
+                        onload = () => setTimeout(() => { sessionStorage.setItem(key, "1"); location.href = ${JSON.stringify(leftURL)}; });
+                <\/script>`,
+            });
+        }
+
+        const scriptURL = await typedPage("history-back", "history.back()", finish.href);
+        const uiURL = await typedPage("back-button", "internals.traverseHistoryThroughUIProcess(-1)", scriptURL);
+        internals.loadURL(uiURL);
+    });
+</script>

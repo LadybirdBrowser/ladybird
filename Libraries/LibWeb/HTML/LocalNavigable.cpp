@@ -124,6 +124,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
         Optional<URL::Origin> origin,
         DocumentResource resource,
         bool ever_populated,
+        UserAgentInitiated user_agent_initiated,
         Utf16String navigable_target_name)
         : coop_enforcement_result(move(coop_enforcement_result))
         , current_url(move(current_url))
@@ -137,6 +138,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
         , origin(move(origin))
         , resource(move(resource))
         , ever_populated(ever_populated)
+        , user_agent_initiated(user_agent_initiated)
         , navigable_target_name(move(navigable_target_name))
     {
     }
@@ -171,6 +173,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     Optional<URL::Origin> origin;
     DocumentResource resource;
     bool ever_populated = false;
+    UserAgentInitiated user_agent_initiated { UserAgentInitiated::No };
     Utf16String navigable_target_name;
 
     // Accumulated redirect output
@@ -2467,6 +2470,9 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         new_doc_state->set_resource(state_holder->resource);
         new_doc_state->set_ever_populated(state_holder->ever_populated);
         new_doc_state->set_navigable_target_name(state_holder->navigable_target_name);
+        // NB: Not one of the spec's document state fields. It's kept across the redirect so a traversal back to the
+        //     entry still sends Sec-Fetch-Site:none for a URL the user agent supplied.
+        new_doc_state->set_user_agent_initiated(state_holder->user_agent_initiated);
         state_holder->replacement_document_state = new_doc_state;
         state_holder->initiator_origin = {};
         state_holder->about_base_url = {};
@@ -2504,6 +2510,7 @@ static void create_navigation_params_by_fetching(
     Utf16String navigable_target_name,
     bool reload_pending,
     bool ever_populated,
+    UserAgentInitiated user_agent_initiated,
     GC::Ptr<LocalNavigable> navigable,
     GC::Ref<SourceSnapshotParams> source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
@@ -2624,6 +2631,22 @@ static void create_navigation_params_by_fetching(
     if (source_snapshot_params->has_transient_activation)
         request->set_user_activation(true);
 
+    // NB: What step 4 of Fetch Metadata's "set site" asks about. Only a top-level navigation can be one the user
+    // caused through the user agent itself, so a subframe never qualifies however its parent was reached.
+    // https://w3c.github.io/webappsec-fetch-metadata/#abstract-opdef-set-site
+    //
+    // AD-HOC: A traversal or reload replays what its entry recorded, whoever started it. A page's own history.back() or
+    //         location.reload() isn't "explicitly caused by a user's interaction with the user agent", and replaying
+    //         none for it lets the page have a URL it steers (through a redirect, e.g.) sent as none. But Fetch
+    //         Metadata doesn't say what a traversal sends, and Blink and Gecko replay it whoever started the traversal.
+    //         See https://github.com/w3c/webappsec-fetch-metadata/issues/100 and
+    //         https://github.com/whatwg/html/issues/13003.
+    //
+    //         Blink GetInitiatorRelation() finds that the entry has no initiator, and Gecko
+    //         IsUserTriggeredForSecFetchSite() that its triggering principal is the system's.
+    if (user_agent_initiated == UserAgentInitiated::Yes && navigable && navigable->is_top_level_traversable())
+        request->set_user_agent_initiated(true);
+
     // 10. If navigable's container is non-null:
     // NB: The container's local name is read through the navigable, which replicates it for a container in another
     //     process.
@@ -2678,7 +2701,8 @@ static void create_navigation_params_by_fetching(
     // AD-HOC: Store required variables on the state holder to keep them alive whilst waiting on the fetch to complete.
     auto state_holder = realm.heap().allocate<NavigationParamsFetchStateHolder>(move(coop_enforcement_result), request->current_url(), request,
         move(initiator_origin), move(history_policy_container), move(about_base_url), source_snapshot_params,
-        request_referrer, request_referrer_policy, move(origin), move(document_resource), ever_populated, move(navigable_target_name));
+        request_referrer, request_referrer_policy, move(origin), move(document_resource), ever_populated, user_agent_initiated,
+        move(navigable_target_name));
     state_holder->navigable = navigable;
     state_holder->csp_navigation_type = csp_navigation_type;
     state_holder->navigation_timing_type = navigation_timing_type;
@@ -2807,6 +2831,7 @@ static void create_navigation_params_for_population(
     Utf16String navigable_target_name,
     bool reload_pending,
     bool ever_populated,
+    UserAgentInitiated user_agent_initiated,
     GC::Ref<SourceSnapshotParams> source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
@@ -2857,6 +2882,7 @@ static void create_navigation_params_for_population(
                 navigable_target_name,
                 reload_pending,
                 ever_populated,
+                user_agent_initiated,
                 &navigable,
                 source_snapshot_params,
                 target_snapshot_params,
@@ -2905,6 +2931,7 @@ void LocalNavigable::populate_session_history_entry_document(
     Utf16String navigable_target_name,
     bool reload_pending,
     bool ever_populated,
+    UserAgentInitiated user_agent_initiated,
     GC::Ref<SourceSnapshotParams> source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
@@ -2996,6 +3023,7 @@ void LocalNavigable::populate_session_history_entry_document(
         move(navigable_target_name),
         reload_pending,
         ever_populated,
+        user_agent_initiated,
         source_snapshot_params,
         target_snapshot_params,
         user_involvement,
@@ -3245,6 +3273,7 @@ void LocalNavigable::create_navigation_params_for_navigation(NavigationPopulatio
         document_state.navigable_target_name,
         document_state.reload_pending,
         document_state.ever_populated,
+        document_state.user_agent_initiated,
         source_snapshot_params,
         request.target_snapshot_params,
         request.user_involvement,

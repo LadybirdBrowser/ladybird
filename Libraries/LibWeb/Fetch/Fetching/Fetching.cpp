@@ -2675,8 +2675,10 @@ void set_sec_fetch_site_header(Infrastructure::Request& request)
     // 3. Set header’s value to same-origin.
     auto value = "same-origin"sv;
 
-    // FIXME: 4. If r is a navigation request that was explicitly caused by a user’s interaction with the user agent (by typing an address
-    //           into the user agent directly, for example, or by clicking a bookmark, etc.), then set header’s value to none.
+    // 4. If r is a navigation request that was explicitly caused by a user’s interaction with the user agent (by typing an address
+    //    into the user agent directly, for example, or by clicking a bookmark, etc.), then set header’s value to none.
+    if (request.is_navigation_request() && request.user_agent_initiated())
+        value = "none"sv;
 
     // 5. If header’s value is not none, then for each url in r’s url list:
     if (!value.equals_ignoring_ascii_case("none"sv)) {

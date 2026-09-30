@@ -1,0 +1,3 @@
+typed address: none (navigate)
+iframe in that page: same-origin (iframe)
+URL the page chose: same-origin (navigate)
