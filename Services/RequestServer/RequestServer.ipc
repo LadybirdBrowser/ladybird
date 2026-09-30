@@ -21,7 +21,6 @@ endpoint RequestServer
     adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) =|
     release_request_transfer_lease(int source_client_id, u64 source_request_id) =|
     stop_request(u64 request_id) => (bool success)
-    set_certificate(u64 request_id, ByteString certificate, ByteString key) => (bool success)
 
     ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) =|
 
@@ -35,6 +34,5 @@ endpoint RequestServer
     websocket_send(u64 websocket_id, bool is_text, ByteBuffer data) =|
     websocket_send_shared(u64 websocket_id, bool is_text, Core::AnonymousBuffer data) =|
     websocket_close(u64 websocket_id, u16 code, ByteString reason) =|
-    websocket_set_certificate(u64 request_id, ByteString certificate, ByteString key) => (bool success)
 
 }
