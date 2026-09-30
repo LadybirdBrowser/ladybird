@@ -1063,6 +1063,7 @@ impl LayoutNodeArena {
         self.layer_image_paint_facts.get_mut().remove(&id);
         self.svg_paint_resources.forget_slot(id);
         self.paint_state.get_mut().selection_pseudo_styles.remove(&id);
+        self.paint_state.get_mut().search_text_pseudo_styles.remove(&id);
         let data = self.data_mut(index);
         debug_assert!(
             data.parent.get().is_invalid()

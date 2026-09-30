@@ -416,6 +416,7 @@ private:
     };
     FindInPageResult perform_find_in_page_query(FindInPageQuery const&, Optional<SearchDirection> = {});
     void update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches);
+    void set_find_in_page_active_match(GC::Ptr<DOM::Range>);
 
     void on_pending_dialog_closed();
 
@@ -517,6 +518,7 @@ private:
     size_t m_find_in_page_match_index { 0 };
     Optional<FindInPageQuery> m_last_find_in_page_query;
     URL::URL m_last_find_in_page_url;
+    GC::Weak<DOM::Document> m_find_in_page_active_match_document;
 
     bool m_listen_for_dom_mutations { false };
     Optional<CSS::PreferredColorScheme> m_preferred_color_scheme_override_for_testing;

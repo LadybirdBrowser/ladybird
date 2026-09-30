@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-current-color-ref.html">
+<style>
+p {
+    color: red;
+    font-size: 20px;
+    line-height: 1.5;
+}
+p::selection {
+    background-color: yellow;
+    color: blue;
+}
+p::search-text {
+    background-color: currentColor;
+    color: currentColor;
+}
+b::search-text {
+    background-color: white;
+    color: currentColor;
+    text-decoration: underline currentColor;
+    text-shadow: 0 10px currentColor;
+}
+</style>
+<p>Find the nee<b>dle</b> in this haystack</p>
+<script>
+internals.findInPage("needle");
+</script>

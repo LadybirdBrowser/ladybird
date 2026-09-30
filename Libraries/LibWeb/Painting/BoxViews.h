@@ -83,8 +83,8 @@ WEB_API CSSPixelRect caret_rect_for_child_offset(Layout::Node const&, size_t off
 WEB_API Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document&);
 WEB_API Layout::RustFFI::FfiFocusedTextControlSelection resolve_focused_text_control_selection(DOM::Document const&);
 WEB_API Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(DOM::Document const&, Vector<u8>& path_bytes);
-WEB_API void push_selection_pseudo_style(DOM::Element const&);
-WEB_API void push_selection_pseudo_style_of_parent(Layout::TextNode&);
+WEB_API void push_highlight_pseudo_styles(DOM::Element const&);
+WEB_API void push_highlight_pseudo_styles_of_parent(Layout::TextNode&);
 
 // The identity a mark on this box goes into the document's invalidation journal under: its node's, if the box is the one
 // the layout node arena binds to that node. Any other box (anonymous, generated for a pseudo-element, or one of several
