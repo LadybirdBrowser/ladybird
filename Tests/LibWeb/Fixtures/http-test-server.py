@@ -912,13 +912,8 @@ def start_server(port, static_directory, ca_cert_output=None):
     )
 
     if ca_cert_output:
-        # Setup below can fail or be skipped (no 'cryptography'), and it is the only writer of this fixed path. A PEM
-        # left by an earlier run would then still be trusted, with a root key matching none of the servers now
-        # running - surfacing as a confusing TLS failure rather than the setup error it is.
-        try:
-            os.remove(ca_cert_output)
-        except FileNotFoundError:
-            pass
+        # Avoid trusting a stale CA if setup fails. Preserve the inode granted by the sandbox.
+        open(ca_cert_output, "wb").close()
 
         try:
             _setup_aia_test_servers(httpd.socket.getsockname()[1], ca_cert_output)

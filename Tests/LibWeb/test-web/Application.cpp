@@ -10,6 +10,7 @@
 #include <AK/LexicalPath.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
+#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 
@@ -92,7 +93,11 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
 
     // Trust the AIA integration test's root CA (written by the http-test-server fixture) — so its broken-chain HTTPS
     // hosts validate once their intermediate is fetched. Must match the path passed in HttpEchoServerFixture::setup.
-    request_server_options.certificates.append(LexicalPath::join(Core::StandardPaths::tempfile_directory(), "ladybird-aia-test-ca.pem"sv).string());
+    // Create the file before sandbox startup; the fixture must overwrite the same inode.
+    auto aia_test_ca_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "ladybird-aia-test-ca.pem"sv).string();
+    if (auto file = Core::File::open(aia_test_ca_path, Core::File::OpenMode::Write); file.is_error())
+        warnln("Unable to create {}: {}", aia_test_ca_path, file.error());
+    request_server_options.certificates.append(move(aia_test_ca_path));
 
     web_content_options.is_test_mode = WebView::IsTestMode::Yes;
 
