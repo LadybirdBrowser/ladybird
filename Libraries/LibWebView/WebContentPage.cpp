@@ -31,6 +31,7 @@
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
+#include <LibWebView/WebContentTestClient.h>
 #include <LibWebView/WebUI.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -2501,6 +2502,15 @@ void WebContentPage::did_request_traverse_history_by_delta_for_testing(i32 delta
 {
     if (displays_tab())
         view().traverse_the_history_by_delta(delta);
+}
+
+void WebContentPage::reset_session_history_for_testing()
+{
+    auto* test_connection = client().test_connection();
+    if (!test_connection)
+        return;
+    client().transport().flush();
+    test_connection->async_reset_session_history_for_testing(m_id);
 }
 
 void WebContentPage::did_reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor active_entry)
