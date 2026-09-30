@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    table { border-spacing: 0; }
+    td { padding: 0; font: 10px/10px SerenitySans; }
+    .spacer { width: 10px; }
+    #scroller { overflow: auto; width: 100px; height: 20px; }
+</style>
+<div id="scroller"><table><tr><td><div class="spacer" id="middle-spacer" style="height: 150px"></div></td><td style="vertical-align: middle">text</td></tr></table></div>
+<table><tr><td><div class="spacer" id="top-spacer" style="height: 20px"></div></td><td id="top-cell" style="vertical-align: top">text</td></tr></table>
+<script>
+    test(() => {
+        const lines = [];
+        const scroller = document.getElementById("scroller");
+        lines.push(`scrollHeight before the row shrinks: ${scroller.scrollHeight}`);
+        document.getElementById("middle-spacer").style.height = "20px";
+        lines.push(`scrollHeight after the row shrinks: ${scroller.scrollHeight}`);
+
+        const topCell = document.getElementById("top-cell");
+        const elementNearCellBottom = () => {
+            const rect = topCell.getBoundingClientRect();
+            return document.elementFromPoint(rect.left + 5, rect.bottom - 5).id;
+        };
+        lines.push(`hit before the row grows: ${elementNearCellBottom()}`);
+        document.getElementById("top-spacer").style.height = "100px";
+        lines.push(`hit after the row grows: ${elementNearCellBottom()}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>
