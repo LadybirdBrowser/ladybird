@@ -277,13 +277,18 @@ Messages::RequestServer::GetClientIdResponse ConnectionFromClient::get_client_id
     return client_id();
 }
 
+// Transfer leases outlive request-map entries during handoff.
+bool ConnectionFromClient::is_live_request_id(u64 request_id) const
+{
+    return m_active_requests.contains(request_id) || m_request_transfer_leases.contains({ client_id(), request_id });
+}
+
 void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Optional<HTTP::NetworkIsolationKey> network_isolation_key, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id)
 {
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
 
-    Requests::RequestTransferLeaseKey lease_key { client_id(), request_id };
-    if (m_active_requests.contains(request_id) || m_request_transfer_leases.contains(lease_key)) {
+    if (is_live_request_id(request_id)) {
         did_misbehave("reused live request ID");
         return;
     }
@@ -326,6 +331,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
         }
     }
 
+    Requests::RequestTransferLeaseKey lease_key { client_id(), request_id };
     auto transfer_lease = create_transfer_lease
         ? Optional<Requests::RequestTransferLeaseKey> { lease_key }
         : Optional<Requests::RequestTransferLeaseKey> {};
@@ -339,6 +345,11 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
 
 void ConnectionFromClient::adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease)
 {
+    if (is_live_request_id(target_request_id)) {
+        did_misbehave("reused live request ID");
+        return;
+    }
+
     auto lease_key = Requests::RequestTransferLeaseKey { source_client_id, source_request_id };
     auto transfer_lease = m_request_transfer_leases.get(lease_key);
     if (!transfer_lease.has_value()) {
@@ -715,6 +726,11 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
 
 void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
+    if (is_live_request_id(request_id)) {
+        did_misbehave("reused live request ID");
+        return;
+    }
+
     if (!is_fetchable_url(url))
         return;
 
