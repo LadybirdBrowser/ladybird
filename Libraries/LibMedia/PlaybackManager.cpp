@@ -156,7 +156,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
                 self->m_audio_sink->start();
         }
 
-        AddedTracks added_tracks;
+        AddedTracks added_tracks { .demuxer = demuxer, .audio_tracks = {}, .video_tracks = {} };
         for (size_t i = first_new_audio_index; i < self->m_audio_tracks.size(); i++)
             added_tracks.audio_tracks.append(self->m_audio_tracks[i]);
         for (size_t i = first_new_video_index; i < self->m_video_tracks.size(); i++)
@@ -740,10 +740,10 @@ AvailableData PlaybackManager::available_data()
 
 TimeRanges PlaybackManager::buffered_time_ranges() const
 {
-    Vector<DemuxerScanState const*> active_sources;
+    Vector<DemuxerScanState> active_sources;
     for (auto const& demuxer : m_demuxers) {
         if (source_has_enabled_track(demuxer))
-            active_sources.append(&demuxer->scan_state());
+            active_sources.append(demuxer->scan_state());
     }
     return DemuxerScanState::buffered_ranges_of_sources(active_sources);
 }

@@ -14,6 +14,6 @@ PASS: appendBuffer() for slice 3/3
 buffered after slice 3/3: [0.004-12.044]
 PASS: slice 3 appended
 PASS: endOfStream succeeded
-buffered after endOfStream: [0.004-12.044]
+buffered after endOfStream: [0.004-12.0545]
 PASS: play() promise resolved
 PASS: playing

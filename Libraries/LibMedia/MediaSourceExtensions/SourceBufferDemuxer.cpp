@@ -74,13 +74,26 @@ AK::Duration SourceBufferDemuxer::highest_end_time_while_locked() const
     return highest_end_time;
 }
 
+Vector<Media::TimeRanges> SourceBufferDemuxer::track_buffered_ranges_while_locked() const
+{
+    Vector<Media::TimeRanges> track_buffered_ranges;
+    for (auto const& data : m_tracks) {
+        if (contributes_to_buffered_ranges(*data))
+            track_buffered_ranges.append(coalesced_track_buffer_ranges(*data));
+    }
+    return track_buffered_ranges;
+}
+
+Vector<Media::TimeRanges> SourceBufferDemuxer::track_buffered_ranges() const
+{
+    MutexLocker locker { m_mutex };
+    return track_buffered_ranges_while_locked();
+}
+
 Media::DemuxerScanState SourceBufferDemuxer::scan_state_while_locked() const
 {
     Media::DemuxerScanState scan_state;
-    for (auto const& data : m_tracks) {
-        if (contributes_to_buffered_ranges(*data))
-            scan_state.track_buffered_ranges.append(coalesced_track_buffer_ranges(*data));
-    }
+    scan_state.track_buffered_ranges = track_buffered_ranges_while_locked();
     scan_state.reached_end_of_stream = m_reached_end_of_stream;
     scan_state.duration = highest_end_time_while_locked();
     return scan_state;

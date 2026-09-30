@@ -15,6 +15,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibMedia/DemuxerScanState.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/Track.h>
 #include <LibMediaClient/Forward.h>
@@ -32,6 +33,10 @@ public:
     u64 id() const { return m_id; }
 
     Media::MediaSourceExtensions::PublishedState const& published_state() const { return m_published_state; }
+    Media::DemuxerScanState scan_state() const;
+
+    Vector<Media::Track> const& audio_tracks() const { return m_audio_tracks; }
+    Vector<Media::Track> const& video_tracks() const { return m_video_tracks; }
 
     void set_content_type_subtype(StringView subtype);
 
@@ -76,7 +81,13 @@ private:
     u64 m_session_id { 0 };
     u64 m_id { 0 };
 
+    void notify_playback_manager_of_state_change();
+
     Media::MediaSourceExtensions::PublishedState m_published_state;
+    // Whether the end of the stream has been reached is decided here, so it takes effect on the ranges at once.
+    bool m_reached_end_of_stream { false };
+    Vector<Media::Track> m_audio_tracks;
+    Vector<Media::Track> m_video_tracks;
     Optional<ByteBuffer> m_pending_append;
     Optional<u64> m_append_generation_awaiting_outcome;
 };
