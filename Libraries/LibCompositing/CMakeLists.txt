@@ -56,6 +56,7 @@ target_link_libraries(libcompositing_rust INTERFACE LibGfx)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libcompositing_rust)
 
 ladybird_lib(LibCompositing compositing EXPLICIT_SYMBOL_EXPORT)
+add_dependencies(LibCompositing generate_GLFunctions.cpp)
 target_link_libraries(LibCompositing PRIVATE LibCore LibGfx LibIPC LibMedia skia libcompositing_rust)
 
 # The WebGL command stream headers include ANGLE's GLES headers for the GL constants and types,
