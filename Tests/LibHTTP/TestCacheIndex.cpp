@@ -386,6 +386,23 @@ TEST_CASE(clearing_every_entry_does_not_depend_on_row_contents)
     EXPECT(!reloaded_index.find_entry(1, *request_headers).has_value());
 }
 
+TEST_CASE(overflowing_cache_size_sums_do_not_abort)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
+    auto now = UnixDateTime::now();
+
+    TRY_OR_FAIL(state.index.create_entry(1, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET data_size = 9223372036854775807, request_headers = x'', response_headers = x'' WHERE cache_key = 1;"sv));
+
+    TRY_OR_FAIL(state.index.create_entry(2, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+    state.index.set_maximum_disk_cache_size(40);
+    state.index.remove_entries_exceeding_cache_limit({});
+    (void)state.index.estimate_cache_size_accessed_since(UnixDateTime::earliest());
+}
+
 TEST_CASE(stored_vary_wildcard_does_not_match)
 {
     auto state = create_cache_index();
