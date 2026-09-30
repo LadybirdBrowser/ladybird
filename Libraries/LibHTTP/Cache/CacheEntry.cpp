@@ -189,6 +189,15 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
         return Error::from_string_literal("Cache entry has been deleted");
     }
 
+    if (m_cache_footer.data_size + data.size() > m_index.maximum_disk_cache_entry_size()) {
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mCache entry exceeds allowed maximum size for\033[0m {}", m_url);
+
+        remove_incomplete_temporary_file();
+        close_and_destroy_cache_entry();
+
+        return Error::from_string_literal("Cache entry size exceeds allowed maximum");
+    }
+
     if (auto result = m_file->write_until_depleted(data); result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to write data to cache entry for\033[0m {}: {}", m_url, result.error());
 
