@@ -179,21 +179,26 @@ public:
         VERIFY(!response);
     }
 
-    Optional<Requests::NetworkError> take_request_finished_error(u64 request_id)
+    template<typename MessageType>
+    NonnullOwnPtr<MessageType> take_client_message()
     {
-        Optional<Optional<Requests::NetworkError>> network_error;
-        while (!network_error.has_value()) {
+        OwnPtr<MessageType> result;
+        while (!result) {
             m_remote_transport->wait_until_readable();
             (void)m_remote_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
                 auto message = MUST(RequestClientEndpoint::decode_message(raw_message.bytes.bytes(), raw_message.attachments));
-                if (network_error.has_value() || message->message_id() != Messages::RequestClient::RequestFinished::static_message_id())
-                    return;
-                auto const& request_finished = static_cast<Messages::RequestClient::RequestFinished const&>(*message);
-                VERIFY(request_finished.request_id() == request_id);
-                network_error = request_finished.network_error();
+                if (!result && message->message_id() == MessageType::static_message_id())
+                    result = message.template release_nonnull<MessageType>();
             });
         }
-        return network_error.release_value();
+        return result.release_nonnull();
+    }
+
+    Optional<Requests::NetworkError> take_request_finished_error(u64 request_id)
+    {
+        auto request_finished = take_client_message<Messages::RequestClient::RequestFinished>();
+        VERIFY(request_finished->request_id() == request_id);
+        return request_finished->network_error();
     }
 
     void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease = false)
@@ -349,6 +354,23 @@ TEST_CASE(invalid_request_headers_are_rejected)
     TestConnection connection { server };
 
     connection.start_request(0, {}, "GET"sv, { { "X-Valid"sv, "a b"sv }, { "X-Empty"sv, ""sv } });
+    EXPECT_EQ(control.take_cookie_request()->request_id(), 0u);
+    EXPECT(connection.is_open());
+}
+
+TEST_CASE(websockets_to_unsupported_urls_are_refused)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+
+    for (auto url : { "http://localhost/"sv, "gopher://localhost/"sv, "ws://localhost:6667/"sv, "wss://localhost:25/"sv }) {
+        connection.websocket_connect(0, URL::Parser::basic_parse(url).release_value());
+        EXPECT_EQ(connection.take_client_message<Messages::RequestClient::WebsocketClosed>()->websocket_id(), 0u);
+        EXPECT(connection.is_open());
+    }
+
+    connection.websocket_connect(0, URL::Parser::basic_parse("ws://localhost:8080/"sv).release_value());
     EXPECT_EQ(control.take_cookie_request()->request_id(), 0u);
     EXPECT(connection.is_open());
 }
