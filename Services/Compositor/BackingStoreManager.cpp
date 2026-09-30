@@ -237,7 +237,13 @@ bool BackingStoreManager::published_surface_is_in_use(BackingStore const& store)
 
 bool BackingStoreManager::store_can_be_rendered_into(BackingStore const& store)
 {
-    return store.state == BufferState::Available && !published_surface_is_in_use(store);
+    if (store.state != BufferState::Available)
+        return false;
+    // Only the client hands a store to the window server, so whatever uses a store the client was never presented
+    // is the send right still on its way there.
+    if (!store.was_presented_to_client)
+        return true;
+    return !published_surface_is_in_use(store);
 }
 
 bool BackingStoreManager::has_available_buffer() const
@@ -276,6 +282,8 @@ void BackingStoreManager::complete_rendering(i32 bitmap_id, bool wait_for_releas
         m_backing_stores[*m_latest_rendered_store_index].state = BufferState::Available;
 
     store.state = BufferState::Presented;
+    if (wait_for_release)
+        store.was_presented_to_client = true;
     m_latest_rendered_store_index = m_rendering_store_index;
     m_rendering_store_index.clear();
 }

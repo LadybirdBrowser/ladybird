@@ -373,30 +373,63 @@ TEST_CASE(a_released_backing_store_is_not_reused_while_its_surface_is_in_use)
     for (auto const& surface : surfaces_as_seen_by_the_presenting_process)
         EXPECT(!surface.is_in_use());
 
-    // The first store is reserved as the initial front buffer; the window server keeps reading the other two.
+    auto present_into = [&](size_t store_index) {
+        auto render_target = manager.acquire_render_target({});
+        VERIFY(render_target.has_value());
+        EXPECT_EQ(render_target->bitmap_id, publication->bitmap_ids[store_index]);
+        manager.complete_rendering(publication->bitmap_ids[store_index], true);
+    };
+
+    // The first store is reserved as the initial front buffer. Present each store once, as only a store the client
+    // has been presented can be read by the window server.
+    present_into(1);
+    VERIFY(manager.release_buffer(publication->bitmap_ids[0]));
+    present_into(0);
+    VERIFY(manager.release_buffer(publication->bitmap_ids[1]));
     surfaces_as_seen_by_the_presenting_process[1].increment_use_count();
-    surfaces_as_seen_by_the_presenting_process[2].increment_use_count();
+    present_into(2);
+    VERIFY(manager.release_buffer(publication->bitmap_ids[0]));
+
+    // The client shows the third store; the window server keeps reading the other two.
+    surfaces_as_seen_by_the_presenting_process[0].increment_use_count();
     EXPECT(!manager.has_available_buffer());
     EXPECT(!manager.acquire_render_target({}).has_value());
 
-    surfaces_as_seen_by_the_presenting_process[2].decrement_use_count();
+    surfaces_as_seen_by_the_presenting_process[1].decrement_use_count();
     EXPECT(manager.has_available_buffer());
-    auto render_target_skipping_the_surface_in_use = manager.acquire_render_target({});
-    VERIFY(render_target_skipping_the_surface_in_use.has_value());
-    EXPECT_EQ(render_target_skipping_the_surface_in_use->bitmap_id, publication->bitmap_ids[2]);
-    manager.complete_rendering(publication->bitmap_ids[2], true);
+    present_into(1);
     EXPECT(!manager.has_available_buffer());
 
-    VERIFY(manager.release_buffer(publication->bitmap_ids[0]));
+    VERIFY(manager.release_buffer(publication->bitmap_ids[2]));
     EXPECT(manager.has_available_buffer());
-    surfaces_as_seen_by_the_presenting_process[0].increment_use_count();
+    surfaces_as_seen_by_the_presenting_process[2].increment_use_count();
     EXPECT(!manager.has_available_buffer());
+    surfaces_as_seen_by_the_presenting_process[2].decrement_use_count();
     surfaces_as_seen_by_the_presenting_process[0].decrement_use_count();
-    surfaces_as_seen_by_the_presenting_process[1].decrement_use_count();
-    auto lowest_reusable_render_target = manager.acquire_render_target({});
-    VERIFY(lowest_reusable_render_target.has_value());
-    EXPECT_EQ(lowest_reusable_render_target->bitmap_id, publication->bitmap_ids[0]);
-    manager.complete_rendering(publication->bitmap_ids[0], true);
+    present_into(0);
+}
+
+TEST_CASE(a_backing_store_the_client_was_never_presented_is_rendered_into_while_its_send_right_is_in_flight)
+{
+    Compositor::BackingStoreManager manager;
+    auto allocation = manager.resize_backing_stores_if_needed({ 4, 4 }, Compositing::WindowResizingInProgress::No, true);
+    VERIFY(allocation.has_value());
+    // The publication is not imported, so its send rights keep every surface reading as in use.
+    auto publication = manager.allocate_backing_stores(*allocation, {}, true, Compositor::BackingStoreManager::GpuSharing::Disallowed);
+    VERIFY(publication.has_value());
+
+    EXPECT(manager.has_available_buffer());
+    auto render_target = manager.acquire_render_target({});
+    VERIFY(render_target.has_value());
+    EXPECT_EQ(render_target->bitmap_id, publication->bitmap_ids[1]);
+    manager.complete_rendering(publication->bitmap_ids[1], true);
+
+    // Once the client has been presented the store, use of its surface keeps the compositor out of it.
+    VERIFY(manager.release_buffer(publication->bitmap_ids[1]));
+    auto render_target_skipping_the_presented_store = manager.acquire_render_target({});
+    VERIFY(render_target_skipping_the_presented_store.has_value());
+    EXPECT_EQ(render_target_skipping_the_presented_store->bitmap_id, publication->bitmap_ids[2]);
+    manager.complete_rendering(publication->bitmap_ids[2], true);
 }
 #endif
 

@@ -73,6 +73,7 @@ private:
         i32 bitmap_id { -1 };
         BufferState state { BufferState::Available };
         Gfx::IntRect accumulated_damage;
+        bool was_presented_to_client { false };
     };
 
     static bool published_surface_is_in_use(BackingStore const&);
