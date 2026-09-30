@@ -234,10 +234,12 @@ public:
             MUST(socket->set_blocking(false));
             m_sockets.append(move(socket));
             auto& connection = *m_sockets.last();
-            connection.on_ready_to_read = [&connection] {
+            connection.on_ready_to_read = [this, &connection] {
                 auto buffer = MUST(ByteBuffer::create_uninitialized(4096));
-                if (MUST(connection.read_some(buffer)).is_empty())
+                auto request = MUST(connection.read_some(buffer));
+                if (request.is_empty())
                     return;
+                m_received_request = ByteString { request };
                 connection.on_ready_to_read = nullptr;
                 MUST(connection.set_blocking(true));
                 MUST(connection.write_until_depleted(
@@ -251,7 +253,10 @@ public:
         return URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/", *m_server->local_port())).release_value();
     }
 
+    ByteString const& received_request() const { return m_received_request; }
+
 private:
+    ByteString m_received_request;
     RefPtr<Core::TCPServer> m_server;
     Vector<NonnullOwnPtr<Core::TCPSocket>> m_sockets;
 };
@@ -518,4 +523,25 @@ TEST_CASE(transferring_request_reissues_response_storage_for_new_owner)
     control.stored_response_cookies_and_hsts_policy(source_connection.client_id(), 0, initial_storage_request->store_request_id());
     control.stored_response_cookies_and_hsts_policy(target_connection.client_id(), 1, transferred_storage_request->store_request_id());
     EXPECT(control.is_open());
+}
+
+TEST_CASE(url_credentials_are_not_sent)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+    SetCookieServer http_server;
+
+    auto url = http_server.url();
+    url.set_username("user"sv);
+    url.set_password("secret"sv);
+
+    connection.start_request(0, url);
+    auto cookie_request = control.take_cookie_request();
+    control.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch, cookie_request->cookie_request_id());
+    (void)control.wait_for_storage_request(server.event_loop);
+
+    EXPECT(http_server.received_request().starts_with("GET / HTTP/1.1\r\n"sv));
+    EXPECT(!http_server.received_request().contains("Authorization"sv, CaseSensitivity::CaseInsensitive));
+    EXPECT(!http_server.received_request().contains("user"sv));
 }

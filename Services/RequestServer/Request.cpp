@@ -36,6 +36,14 @@ static long s_connect_timeout_seconds = 90L;
 static AK::Duration s_wait_for_cache_timeout = AK::Duration::from_seconds(10);
 static AK::Duration s_revalidation_stall_timeout = AK::Duration::from_seconds(30);
 
+// Let Fetch authorize credentials; otherwise curl sends URL credentials itself.
+static ByteString url_without_credentials(URL::URL url)
+{
+    url.set_username(""sv);
+    url.set_password(""sv);
+    return url.to_byte_string();
+}
+
 static CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[maybe_unused]] void* aia_collector)
 {
     // Everything below casts ssl_context to an SSL_CTX, which only holds when curl is built against OpenSSL.
@@ -1233,7 +1241,8 @@ void Request::handle_connect_state()
 
     set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
 
-    set_option(CURLOPT_URL, m_url.to_byte_string().characters());
+    set_option(CURLOPT_URL, url_without_credentials(m_url).characters());
+    set_option(CURLOPT_DISALLOW_USERNAME_IN_URL, 1L);
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_PROTOCOLS_STR, "http,https");
     set_option(CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
@@ -1300,7 +1309,8 @@ void Request::handle_fetch_state()
         set_option(CURLOPT_ACCEPT_ENCODING, ""); // Empty string lets curl define the accepted encodings.
     }
 
-    set_option(CURLOPT_URL, m_url.to_byte_string().characters());
+    set_option(CURLOPT_URL, url_without_credentials(m_url).characters());
+    set_option(CURLOPT_DISALLOW_USERNAME_IN_URL, 1L);
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_PROTOCOLS_STR, "http,https");
     set_option(CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
