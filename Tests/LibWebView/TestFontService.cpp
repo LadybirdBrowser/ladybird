@@ -41,7 +41,7 @@ struct FontServiceTestAccess {
 TEST_CASE(dynamic_matches_reuse_platform_faces_without_merging_equal_metadata)
 {
     auto file = MUST(Core::MappedFile::map("../LibGfx/test-inputs/fonts/text.ttf"sv));
-    auto first_face = MUST(Gfx::TypefaceSkia::load_from_buffer(file->bytes()));
+    NonnullRefPtr<Gfx::TypefaceSkia> first_face = as<Gfx::TypefaceSkia>(*MUST(Gfx::Typeface::try_load_from_temporary_memory(file->bytes())));
     // Change a glyph advance without changing the family, style, collection index, or byte length.
     auto second_data = MUST(ByteBuffer::copy(file->bytes()));
     auto bytes = second_data.bytes();
@@ -62,7 +62,7 @@ TEST_CASE(dynamic_matches_reuse_platform_faces_without_merging_equal_metadata)
         break;
     }
     VERIFY(changed_metric);
-    auto second_face = MUST(Gfx::TypefaceSkia::load_from_buffer(bytes));
+    NonnullRefPtr<Gfx::TypefaceSkia> second_face = as<Gfx::TypefaceSkia>(*MUST(Gfx::Typeface::try_load_from_temporary_memory(bytes)));
     EXPECT_NE(first_face->platform_typeface_id(), second_face->platform_typeface_id());
     EXPECT_EQ(first_face->family(), second_face->family());
     EXPECT_EQ(first_face->weight(), second_face->weight());
