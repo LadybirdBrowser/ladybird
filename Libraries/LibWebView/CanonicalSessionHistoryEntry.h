@@ -16,6 +16,7 @@
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
+#include <LibWebCommon/HTML/UserAgentInitiated.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -55,6 +56,7 @@ public:
     Web::HTML::DocumentResource resource;
     bool reload_pending { false };
     bool ever_populated { false };
+    Web::HTML::UserAgentInitiated user_agent_initiated { Web::HTML::UserAgentInitiated::No };
     Utf16String navigable_target_name;
     Vector<CanonicalNestedHistory> nested_histories;
 

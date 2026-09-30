@@ -20,6 +20,7 @@
 #include <LibWebCommon/HTML/SerializationRecords.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryIdentity.h>
+#include <LibWebCommon/HTML/UserAgentInitiated.h>
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
@@ -56,6 +57,7 @@ struct SessionHistoryDocumentStateDescriptor {
     DocumentResource resource;
     bool reload_pending { false };
     bool ever_populated { false };
+    UserAgentInitiated user_agent_initiated { UserAgentInitiated::No };
     Utf16String navigable_target_name;
     // AD-HOC: Only the UI process uses nested histories, so they are not encoded.
     Vector<SessionHistoryNestedHistoryDescriptor> nested_histories;

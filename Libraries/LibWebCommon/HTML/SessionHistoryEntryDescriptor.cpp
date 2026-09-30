@@ -34,6 +34,7 @@ SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(Cr
             .resource = Empty {},
             .reload_pending = false,
             .ever_populated = false,
+            .user_agent_initiated = UserAgentInitiated::No,
             .navigable_target_name = move(navigable_target_name),
             .nested_histories = {},
         },
@@ -201,6 +202,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryDocumentSta
     TRY(encoder.encode(document_state.resource));
     TRY(encoder.encode(document_state.reload_pending));
     TRY(encoder.encode(document_state.ever_populated));
+    TRY(encoder.encode(document_state.user_agent_initiated));
     TRY(encoder.encode(document_state.navigable_target_name));
     return {};
 }
@@ -218,6 +220,7 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
     auto resource = TRY(decoder.decode<Web::HTML::DocumentResource>());
     auto reload_pending = TRY(decoder.decode<bool>());
     auto ever_populated = TRY(decoder.decode<bool>());
+    auto user_agent_initiated = TRY(decoder.decode<Web::HTML::UserAgentInitiated>());
     auto navigable_target_name = TRY(decoder.decode<Utf16String>());
 
     return Web::HTML::SessionHistoryDocumentStateDescriptor {
@@ -231,6 +234,7 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
         .resource = move(resource),
         .reload_pending = reload_pending,
         .ever_populated = ever_populated,
+        .user_agent_initiated = user_agent_initiated,
         .navigable_target_name = move(navigable_target_name),
         .nested_histories = {},
     };

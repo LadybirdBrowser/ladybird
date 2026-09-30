@@ -333,7 +333,7 @@ static void insert_minimal_entry(Database::Database& database, SessionHistorySna
         static_cast<i64>(0), absent_text, absent_text, absent_text, absent_port, absent_text,
         static_cast<i64>(0), absent_text, static_cast<i64>(0),
         static_cast<i64>(0), absent_text,
-        absent_text, String {}, ever_populated, false);
+        absent_text, String {}, ever_populated, false, false);
 }
 
 static i32 count_tab_rows(Database::Database& database, StringView table, i64 tab_id)
@@ -460,6 +460,7 @@ TEST_CASE(snapshot_round_trips_flat_entries)
     rich_entry.document_state.navigable_target_name = "main"_utf16;
     rich_entry.document_state.ever_populated = true;
     rich_entry.document_state.reload_pending = true;
+    rich_entry.document_state.user_agent_initiated = Web::HTML::UserAgentInitiated::Yes;
 
     auto plain_entry = make_entry(1, "https://b.example/"sv, 2, 0x33, 0x44, "keyB"sv, "idB"sv, {});
     plain_entry.document_state.initiator_origin = URL::Origin { "https"_string, URL::Host { "b.example"_string }, Optional<u16> {}, URL::Host { "b.example"_string } };
@@ -498,6 +499,7 @@ TEST_CASE(snapshot_round_trips_flat_entries)
         EXPECT(restored_state.navigable_target_name == original_state.navigable_target_name);
         EXPECT(restored_state.ever_populated == original_state.ever_populated);
         EXPECT(restored_state.reload_pending == original_state.reload_pending);
+        EXPECT(restored_state.user_agent_initiated == original_state.user_agent_initiated);
         EXPECT(restored_state.resource.has<Utf16String>() == original_state.resource.has<Utf16String>());
         if (original_state.resource.has<Utf16String>())
             EXPECT(restored_state.resource.get<Utf16String>() == original_state.resource.get<Utf16String>());
@@ -506,6 +508,39 @@ TEST_CASE(snapshot_round_trips_flat_entries)
     // is_same_origin ignores the domain, so pin each domain column explicitly.
     EXPECT_EQ(loaded.entries[0].document_state.origin->domain()->serialize(), "a.example"_string);
     EXPECT_EQ(loaded.entries[1].document_state.initiator_origin->domain()->serialize(), "b.example"_string);
+}
+
+// A database from before the user_agent_initiated column gains it with every entry saved there as No.
+TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_no)
+{
+    auto database = make_database();
+    auto statements = prepare_snapshot_tables(*database);
+
+    insert_tab_row(*database, 42);
+
+    auto entry = make_entry(0, "https://a.example/"sv, 1, 0x11, 0x22, "keyA"sv, "idA"sv, {});
+    entry.document_state.user_agent_initiated = Web::HTML::UserAgentInitiated::Yes;
+
+    WebView::SessionHistorySnapshot snapshot;
+    snapshot.entries.append(move(entry));
+    snapshot.used_steps = { 0 };
+    snapshot.current_used_step_index = 0;
+
+    TRY_OR_FAIL(store_session_history_snapshot(*database, statements, 42, snapshot));
+
+    // Take the database back to the baseline schema, keeping the entry's row.
+    TRY_OR_FAIL(database->execute_raw(R"#(
+        ALTER TABLE SessionEntries DROP COLUMN user_agent_initiated;
+        UPDATE SchemaVersions SET version = 1 WHERE store = 'Sessions';
+    )#"sv));
+
+    auto migrated_statements = prepare_snapshot_tables(*database);
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 2u });
+
+    auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 42, 0));
+    EXPECT_EQ(loaded.entries.size(), 1uz);
+    EXPECT(loaded.entries[0].url == snapshot.entries[0].url);
+    EXPECT(loaded.entries[0].document_state.user_agent_initiated == Web::HTML::UserAgentInitiated::No);
 }
 
 TEST_CASE(snapshot_load_rejects_non_contiguous_entries)

@@ -4147,6 +4147,8 @@ void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure:
     document_state->set_about_base_url(old_doc_state->about_base_url());
     document_state->set_ever_populated(true);
     document_state->set_navigable_target_name(old_doc_state->navigable_target_name());
+    // NB: Not one of the spec's document state fields. The entry keeps its URL, so it keeps what its fetch recorded.
+    document_state->set_user_agent_initiated(old_doc_state->user_agent_initiated());
     document_state->set_document_id(new_document->unique_id());
 
     // 12. Let historyEntry be a new session history entry, with

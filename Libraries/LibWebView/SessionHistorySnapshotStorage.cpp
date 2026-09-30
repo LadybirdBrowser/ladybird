@@ -553,7 +553,7 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
                 initiator_origin_kind, initiator_origin_nonce, initiator_origin_scheme,
                 initiator_origin_host, initiator_origin_port, initiator_origin_domain,
                 referrer_kind, referrer_url, referrer_policy, resource_kind, resource_string,
-                about_base_url, navigable_target_name, ever_populated, reload_pending)
+                about_base_url, navigable_target_name, ever_populated, reload_pending, user_agent_initiated)
             VALUES (
                 :history_id, :entry_ordinal, :step, :url, :document_state_namespace_id, :document_state_local_id,
                 :classic_state, :navigation_state,
@@ -563,7 +563,7 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
                 :initiator_origin_kind, :initiator_origin_nonce, :initiator_origin_scheme,
                 :initiator_origin_host, :initiator_origin_port, :initiator_origin_domain,
                 :referrer_kind, :referrer_url, :referrer_policy, :resource_kind, :resource_string,
-                :about_base_url, :navigable_target_name, :ever_populated, :reload_pending);
+                :about_base_url, :navigable_target_name, :ever_populated, :reload_pending, :user_agent_initiated);
         )#"sv)),
         .insert_used_step = TRY(database.prepare_statement(
             "INSERT INTO SessionUsedSteps (tab_id, step_ordinal, step) VALUES (:tab_id, :step_ordinal, :step);"sv)),
@@ -612,7 +612,7 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
                 initiator_origin_kind, initiator_origin_nonce, initiator_origin_scheme,
                 initiator_origin_host, initiator_origin_port, initiator_origin_domain,
                 referrer_kind, referrer_url, referrer_policy, resource_kind, resource_string,
-                about_base_url, navigable_target_name, ever_populated, reload_pending
+                about_base_url, navigable_target_name, ever_populated, reload_pending, user_agent_initiated
             FROM SessionEntries
             INNER JOIN SessionHistories ON SessionEntries.history_id = SessionHistories.id
             WHERE SessionHistories.tab_id = :tab_id;
@@ -828,6 +828,7 @@ static ErrorOr<void> store_history_entries(Database::Database& database, Session
             TRY(bind("navigable_target_name"sv, document_state.navigable_target_name));
             TRY(bind("ever_populated"sv, document_state.ever_populated));
             TRY(bind("reload_pending"sv, document_state.reload_pending));
+            TRY(bind("user_agent_initiated"sv, document_state.user_agent_initiated == Web::HTML::UserAgentInitiated::Yes));
             return {};
         }));
         ++entry_ordinal;
@@ -910,6 +911,7 @@ struct EntryRow {
     Utf16String navigable_target_name;
     bool ever_populated { false };
     bool reload_pending { false };
+    bool user_agent_initiated { false };
 };
 
 struct PolicyContainerRow {
@@ -1194,6 +1196,7 @@ static ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> build_entry(EntryRow&& 
     entry.document_state.resource = resource;
     entry.document_state.reload_pending = row.reload_pending;
     entry.document_state.ever_populated = row.ever_populated;
+    entry.document_state.user_agent_initiated = row.user_agent_initiated ? Web::HTML::UserAgentInitiated::Yes : Web::HTML::UserAgentInitiated::No;
     entry.document_state.navigable_target_name = row.navigable_target_name;
     entry.classic_history_api_state = Web::HTML::StorageSerializationRecord { move(row.classic_state) };
     entry.navigation_api_state = Web::HTML::StorageSerializationRecord { move(row.navigation_state) };
@@ -1332,6 +1335,7 @@ ErrorOr<SessionHistorySnapshot> load_session_history_snapshot(Database::Database
             row.navigable_target_name = TRY(read_snapshot_utf16_text(result_row, "navigable_target_name"sv, totals));
             row.ever_populated = TRY(result_row.read_bool("ever_populated"sv));
             row.reload_pending = TRY(result_row.read_bool("reload_pending"sv));
+            row.user_agent_initiated = TRY(result_row.read_bool("user_agent_initiated"sv));
             return row;
         }));
 
