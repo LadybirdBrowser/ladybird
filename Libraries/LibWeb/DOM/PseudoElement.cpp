@@ -47,16 +47,11 @@ void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
         m_counters_set->visit_edges(visitor);
 }
 
-// A pseudo-element has no StyleNodeID of its own: its box is the row bound to its generator's StyleNodeID and its type.
-// The generated content inside the box carries the same pair, so only this binding tells the box from its content.
 Layout::NodeWithStyle* SyntheticPseudoElement::unsafe_layout_node() const
 {
     if (!m_originating_element)
         return nullptr;
-    auto* arena = m_originating_element->document().layout_node_arena_if_created();
-    if (!arena)
-        return nullptr;
-    return static_cast<Layout::NodeWithStyle*>(Layout::RustFFI::layout_arena_bound_pseudo_element_shell(arena->handle(), m_originating_element->style_node_id().value(), Layout::Node::encode_generated_for(m_type)));
+    return m_originating_element->pseudo_element_unsafe_layout_node(m_type);
 }
 
 void SyntheticPseudoElement::set_layout_node(Layout::NodeWithStyle* value)
