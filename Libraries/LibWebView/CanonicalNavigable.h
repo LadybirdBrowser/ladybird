@@ -118,6 +118,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
     void navigate(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
+    Web::HTML::PreparedNavigationDescriptor prepare_navigation(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
     void begin_navigation(Web::HTML::PreparedNavigationDescriptor);
     bool has_navigation_waiting_for_traversal() const { return m_navigation_waiting_for_traversal.has_value(); }
     void begin_navigation_waiting_for_traversal();

@@ -1373,6 +1373,16 @@ void Internals::crash_remote_frame_processes()
     window().associated_document().page().client().crash_remote_frame_processes_for_testing();
 }
 
+void Internals::stop_loading_through_ui_process()
+{
+    window().associated_document().page().client().stop_loading_through_ui_process_for_testing();
+}
+
+void Internals::reload_through_ui_process()
+{
+    window().associated_document().page().client().reload_through_ui_process_for_testing();
+}
+
 GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
 {
     auto& realm = window().principal_realm();

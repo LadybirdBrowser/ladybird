@@ -190,6 +190,8 @@ public:
     Utf16String dump_session_store_tab_state();
     Utf16String dump_site_isolation_process_tree();
     void crash_remote_frame_processes();
+    void stop_loading_through_ui_process();
+    void reload_through_ui_process();
     GC::Ref<WebIDL::Promise> flush_session_history_traversal_queue();
     bool has_html_parser_end_state(DOM::Document& document) { return document.has_html_parser_end_state(); }
 

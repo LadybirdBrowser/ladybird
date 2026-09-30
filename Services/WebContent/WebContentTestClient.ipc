@@ -17,6 +17,8 @@ endpoint WebContentTestClient routed by Web::PageId page_id
     [NotRouted] did_request_ui_process_session_history_for_testing(Web::PageId page_id) => (String session_history)
     [NotRouted] did_request_site_isolation_process_tree_for_testing(Web::PageId page_id) => (String process_tree)
     did_request_crash_of_remote_frame_processes_for_testing(Web::PageId page_id) =|
+    did_request_stop_loading_for_testing(Web::PageId page_id) =|
+    did_request_reload_for_testing(Web::PageId page_id) =|
 
     did_reset_session_history_for_testing(Web::PageId page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry) =|
     [NotRouted] did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id) => (bool captured)

@@ -54,6 +54,35 @@ static Utf16String generate_a_random_uuid()
     return Utf16String::from_ascii_without_validation(uuid.bytes());
 }
 
+// A navigation made again from the same source — one the user stopped, or a crash cut short — as a GET: A retry
+// shouldn't resubmit a form behind the user's back, so the document resource isn't sent again.
+Web::HTML::PreparedNavigationDescriptor prepare_navigation_to_retry(Web::HTML::PreparedNavigationDescriptor navigation)
+{
+    navigation.document_resource = {};
+    navigation.navigation_api_state = {};
+    navigation.csp_navigation_type = Web::ContentSecurityPolicy::Directives::NavigationType::Other;
+    navigation.navigation_id = generate_a_random_uuid();
+    return navigation;
+}
+
+Web::HTML::PreparedNavigationDescriptor prepare_navigation_to_retry(Web::HTML::NavigationStartRequest const& request)
+{
+    return prepare_navigation_to_retry({
+        .url = request.url,
+        .document_resource = {},
+        .history_handling = request.history_handling,
+        .navigation_api_state = {},
+        .referrer_policy = request.request_referrer_policy,
+        .user_involvement = request.user_involvement,
+        .navigation_id = {},
+        .initial_insertion = Web::HTML::InitialInsertion::No,
+        .csp_navigation_type = request.csp_navigation_type,
+        .source_snapshot_params = request.source_snapshot_params,
+        .initiator_origin_snapshot = request.initiator_origin,
+        .initiator_base_url_snapshot = request.initiator_base_url.value_or(URL::about_blank()),
+    });
+}
+
 static Web::HTML::HistoryHandlingBehavior to_history_handling_behavior(Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     VERIFY(history_handling != Web::Bindings::NavigationHistoryBehavior::Auto);
@@ -69,6 +98,12 @@ static bool navigation_must_be_a_replace(URL::URL const& url, CanonicalDocument 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 // NB: This is a navigation from the browser's UI, whose sourceDocument is null.
 void CanonicalNavigable::navigate(URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+{
+    begin_navigation(prepare_navigation(move(url), move(document_resource), history_handling));
+}
+
+// Steps 1 to 7 of navigate, for a navigation from the browser's UI.
+Web::HTML::PreparedNavigationDescriptor CanonicalNavigable::prepare_navigation(URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     auto user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI;
 
@@ -98,7 +133,7 @@ void CanonicalNavigable::navigate(URL::URL url, Web::HTML::DocumentResource docu
     //    continue these steps.
     // NB: The remaining steps run here, but for those that need navigable's active document, which run in the process
     //     hosting it.
-    begin_navigation({
+    return {
         .url = move(url),
         .document_resource = move(document_resource),
         .history_handling = history_handling,
@@ -111,7 +146,7 @@ void CanonicalNavigable::navigate(URL::URL url, Web::HTML::DocumentResource docu
         .source_snapshot_params = move(source_snapshot_params),
         .initiator_origin_snapshot = move(initiator_origin_snapshot),
         .initiator_base_url_snapshot = move(initiator_base_url_snapshot),
-    });
+    };
 }
 
 // Continue the navigate algorithm at step 9 with the values prepared by steps 1-7.
@@ -261,6 +296,7 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
         .navigation_api_key = generate_a_random_uuid(),
         .navigation_api_id = generate_a_random_uuid(),
     };
+    ongoing_navigation.retry = prepare_navigation_to_retry(*ongoing_navigation.start_request);
     ongoing_navigation.phase = CanonicalNavigation::Phase::AwaitingUnloadCheck;
     set_navigation_population_worker(*worker);
     worker->async_set_ongoing_navigation(id(), navigation_id);

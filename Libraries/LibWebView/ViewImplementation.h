@@ -608,10 +608,19 @@ protected:
     WebContentPage& focused_navigable_host() const;
     void reset_page_media_state();
 
+    // A navigation to make again on reload: one the user stopped before its document was activated, or one a crash cut
+    // short. It's made again from the source it was first made from, when it has one (a javascript: URL has none).
+    struct NavigationToRetry {
+        URL::URL url;
+        Optional<Web::HTML::PreparedNavigationDescriptor> navigation;
+    };
+    Optional<NavigationToRetry> navigation_to_retry_for_ongoing_navigation() const;
+    void retry_navigation(NavigationToRetry, Web::Bindings::NavigationHistoryBehavior);
+
     struct CrashState;
     void handle_web_content_process_crash();
     void respawn_web_content_process_after_crash();
-    void prepare_for_navigation_after_crash(Optional<URL::URL> navigation_to_retry = {});
+    void prepare_for_navigation_after_crash(Optional<NavigationToRetry> navigation_to_retry = {});
     void set_crash_state(Optional<CrashState>);
 
     String current_host_for_settings() const;
@@ -663,7 +672,7 @@ protected:
 
     struct CrashState {
         URL::URL failed_url;
-        Optional<URL::URL> navigation_to_retry;
+        Optional<NavigationToRetry> navigation_to_retry;
         bool recovery_started { false };
     };
     Optional<CrashState> m_crash_state;
@@ -789,7 +798,7 @@ protected:
     };
     Optional<WebDriverNavigationObservation> m_webdriver_navigation_observation;
     u64 m_next_webdriver_navigation_id { 1 };
-    Optional<URL::URL> m_last_stopped_load_url;
+    Optional<NavigationToRetry> m_last_stopped_navigation;
 
     size_t m_crash_count = 0;
     RefPtr<Core::Timer> m_repeated_crash_timer;
