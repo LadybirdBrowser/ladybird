@@ -1383,6 +1383,11 @@ void Internals::reload_through_ui_process()
     window().associated_document().page().client().reload_through_ui_process_for_testing();
 }
 
+void Internals::traverse_history_through_ui_process(i32 delta)
+{
+    window().associated_document().page().client().traverse_history_by_delta_through_ui_process_for_testing(delta);
+}
+
 GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
 {
     auto& realm = window().principal_realm();

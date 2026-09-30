@@ -1,0 +1,2 @@
+typed page, fetched again by the Back button: none
+typed page, fetched again by history.back(): none

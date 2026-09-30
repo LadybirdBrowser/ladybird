@@ -53,6 +53,7 @@
 #include <LibWebCommon/HTML/PostedMessageDescriptor.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/UserAgentInitiated.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/PixelUnits.h>
 
@@ -201,6 +202,7 @@ public:
         Utf16String navigable_target_name,
         bool reload_pending,
         bool ever_populated,
+        UserAgentInitiated user_agent_initiated,
         GC::Ref<SourceSnapshotParams> source_snapshot_params,
         TargetSnapshotParams const& target_snapshot_params,
         UserNavigationInvolvement user_involvement,

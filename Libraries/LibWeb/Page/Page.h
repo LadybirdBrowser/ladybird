@@ -602,6 +602,7 @@ public:
     virtual void page_did_spoof_document_origin_for_testing(HTML::EnvironmentSettingsObject const&, URL::Origin const&) { }
     virtual void stop_loading_through_ui_process_for_testing() { }
     virtual void reload_through_ui_process_for_testing() { }
+    virtual void traverse_history_by_delta_through_ui_process_for_testing(i32) { }
     virtual void send_bad_ipc_message_for_testing([[maybe_unused]] StringView kind, [[maybe_unused]] URL::URL const& active_document_url) { }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;

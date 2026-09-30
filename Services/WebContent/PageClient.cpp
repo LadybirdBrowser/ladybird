@@ -1658,6 +1658,12 @@ void PageClient::reload_through_ui_process_for_testing()
         test_connection->async_did_request_reload_for_testing(m_id);
 }
 
+void PageClient::traverse_history_by_delta_through_ui_process_for_testing(i32 delta)
+{
+    if (auto* test_connection = client().test_connection())
+        test_connection->async_did_request_traverse_history_by_delta_for_testing(m_id, delta);
+}
+
 void PageClient::send_bad_ipc_message_for_testing(StringView kind, URL::URL const& active_document_url)
 {
     if (kind == "cookie-request-unknown-page-id"sv)

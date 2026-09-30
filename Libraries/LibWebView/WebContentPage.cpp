@@ -2498,6 +2498,13 @@ void WebContentPage::did_request_reload_for_testing()
         view().reload();
 }
 
+// The tab's Back and Forward buttons, which traverse the history with no source document.
+void WebContentPage::did_request_traverse_history_by_delta_for_testing(i32 delta)
+{
+    if (displays_tab())
+        view().traverse_the_history_by_delta(delta);
+}
+
 void WebContentPage::did_reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor active_entry)
 {
     if (displays_tab())

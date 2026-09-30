@@ -260,6 +260,9 @@ public:
     [[nodiscard]] bool user_activation() const { return m_user_activation; }
     void set_user_activation(bool user_activation) { m_user_activation = user_activation; }
 
+    [[nodiscard]] bool user_agent_initiated() const { return m_user_agent_initiated; }
+    void set_user_agent_initiated(bool user_agent_initiated) { m_user_agent_initiated = user_agent_initiated; }
+
     [[nodiscard]] bool render_blocking() const { return m_render_blocking; }
     void set_render_blocking(bool render_blocking) { m_render_blocking = render_blocking; }
 
@@ -488,6 +491,10 @@ private:
     // https://fetch.spec.whatwg.org/#request-user-activation
     // A request has an associated boolean user-activation. Unless stated otherwise, it is false.
     bool m_user_activation { false };
+
+    // NB: Not a Fetch concept. Fetch Metadata's "set site" sends Sec-Fetch-Site:none for a navigation whose URL
+    //     the user agent itself supplied, and populating a history entry sets this from the entry's document state.
+    bool m_user_agent_initiated { false };
 
     // https://fetch.spec.whatwg.org/#request-render-blocking
     // A request has an associated boolean render-blocking. Unless stated otherwise, it is false.

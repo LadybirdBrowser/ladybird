@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Fetch Metadata's "set site" sends Sec-Fetch-Site:none only for a top-level navigation whose URL the user agent
+    // itself supplied. internals.loadURL() navigates the way the UI process does for a typed address, so the page it
+    // loads gets none — while the iframe inside it, and the navigation that page starts itself, stay site-controlled.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = new URLSearchParams(location.search).get("run");
+
+        if (runId) {
+            async function recorded(path) {
+                const url = `${server.baseURL}/recorded-request-headers/echo/${path}`;
+                for (let attempt = 0; attempt < 600; ++attempt) {
+                    try {
+                        const response = await fetch(url);
+                        if (response.ok) return await response.json();
+                    } catch {}
+                    await timeout(25);
+                }
+                return null;
+            }
+
+            const typed = await recorded(`sec-fetch-site-typed-${runId}`);
+            println(`typed address: ${typed?.["Sec-Fetch-Site"]?.[0]} (${typed?.["Sec-Fetch-Mode"]?.[0]})`);
+
+            const frame = await recorded(`sec-fetch-site-iframe-${runId}`);
+            println(`iframe in that page: ${frame?.["Sec-Fetch-Site"]?.[0]} (${frame?.["Sec-Fetch-Dest"]?.[0]})`);
+
+            const chosen = await recorded(`sec-fetch-site-page-chosen-${runId}`);
+            println(`URL the page chose: ${chosen?.["Sec-Fetch-Site"]?.[0]} (${chosen?.["Sec-Fetch-Mode"]?.[0]})`);
+
+            done();
+            return;
+        }
+
+        const id = crypto.randomUUID();
+        const back = new URL(location.href);
+        back.search = `?run=${id}`;
+
+        const frameURL = await server.createEcho("GET", `/sec-fetch-site-iframe-${id}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html>frame",
+        });
+        // A URL this page navigates itself to is site-controlled, whatever got the page here.
+        const chosenURL = await server.createEcho("GET", `/sec-fetch-site-page-chosen-${id}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>location.href = ${JSON.stringify(back.href)};<\/script>`,
+        });
+        const typedURL = await server.createEcho("GET", `/sec-fetch-site-typed-${id}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><iframe src="${frameURL}"><\/iframe>`
+                + `<script>onload = () => location.href = ${JSON.stringify(chosenURL)};<\/script>`,
+        });
+
+        internals.loadURL(typedURL);
+    });
+</script>

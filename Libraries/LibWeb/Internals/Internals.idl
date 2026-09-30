@@ -177,6 +177,8 @@ interface Internals {
     // Stops loading and reloads as the browser's Stop and Reload buttons do.
     undefined stopLoadingThroughUIProcess();
     undefined reloadThroughUIProcess();
+    // Traverses the history by a delta as the browser's Back and Forward buttons do, with no source document.
+    undefined traverseHistoryThroughUIProcess(long delta);
     Promise<undefined> flushSessionHistoryTraversalQueue();
 
     boolean hasHTMLParserEndState(Document document);

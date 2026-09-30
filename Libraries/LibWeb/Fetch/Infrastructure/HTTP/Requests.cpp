@@ -258,6 +258,7 @@ GC::Ref<Request> Request::clone(JS::Realm& realm) const
     new_request->set_reload_navigation(m_reload_navigation);
     new_request->set_history_navigation(m_history_navigation);
     new_request->set_user_activation(m_user_activation);
+    new_request->set_user_agent_initiated(m_user_agent_initiated);
     new_request->set_render_blocking(m_render_blocking);
     new_request->set_url_list(m_url_list);
     new_request->set_redirect_count(m_redirect_count);

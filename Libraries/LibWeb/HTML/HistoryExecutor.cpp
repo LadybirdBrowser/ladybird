@@ -632,6 +632,9 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
             auto input_about_base_url = target_entry->document_state()->about_base_url();
             auto input_navigable_target_name = target_entry->document_state()->navigable_target_name();
             auto input_ever_populated = target_entry->document_state()->ever_populated();
+            // The entry records whether the user agent supplied its URL, so a traversal back to it sends the same
+            // Sec-Fetch-Site the navigation that created it did — as Blink and Gecko replay the entry's initiator.
+            auto input_user_agent_initiated = target_entry->document_state()->user_agent_initiated();
 
             auto request = NavigationPopulationRequest {
                 .navigable_id = navigable->id(),
@@ -649,12 +652,12 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
             //    targetSnapshotParams, userInvolvement, with allowPOST set to allowPOST and completionSteps set to
             //    queue a global task on the navigation and traversal task source given navigable's active window to
             //    run afterDocumentPopulated.
-            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [operation_id = job.operation_id, request = move(request), input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_reload_pending, input_ever_populated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, user_involvement = job.user_involvement] {
+            Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [operation_id = job.operation_id, request = move(request), input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_reload_pending, input_ever_populated, input_user_agent_initiated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, user_involvement = job.user_involvement] {
                 navigable->populate_session_history_entry_document(
                     move(input_url), move(input_document_resource), move(input_request_referrer),
                     input_request_referrer_policy, move(input_initiator_origin), move(input_origin),
                     input_history_policy_container, move(input_about_base_url), move(input_navigable_target_name),
-                    input_reload_pending, input_ever_populated,
+                    input_reload_pending, input_ever_populated, input_user_agent_initiated,
                     *potentially_target_specific_source_snapshot_params, target_snapshot_params,
                     user_involvement, {}, LocalNavigable::NullOrError {},
                     ContentSecurityPolicy::Directives::Directive::NavigationType::Other, allow_POST,
