@@ -203,6 +203,13 @@ CanonicalBrowsingContext& CanonicalBrowsingContext::top_level_browsing_context()
     return *this;
 }
 
+RefPtr<CanonicalBrowsingContext> CanonicalBrowsingContext::opener_browsing_context() const
+{
+    if (!m_opener_browsing_context || m_opener_browsing_context->has_been_discarded())
+        return nullptr;
+    return m_opener_browsing_context;
+}
+
 void CanonicalBrowsingContext::set_opener_browsing_context(RefPtr<CanonicalBrowsingContext> opener)
 {
     m_opener_browsing_context = opener;
