@@ -363,6 +363,29 @@ TEST_CASE(malformed_rows_are_dropped_when_the_index_is_opened)
     EXPECT(reloaded_index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total <= 40u);
 }
 
+TEST_CASE(clearing_every_entry_does_not_depend_on_row_contents)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
+    auto now = UnixDateTime::now();
+
+    TRY_OR_FAIL(state.index.create_entry(1, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+    TRY_OR_FAIL(state.index.create_entry(2, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET last_access_time = NULL WHERE cache_key = 1;"sv));
+
+    Vector<u64> removed_entries;
+    state.index.remove_entries_accessed_since(UnixDateTime::earliest(), [&](auto cache_key, auto) { removed_entries.append(cache_key); });
+
+    EXPECT_EQ(removed_entries.size(), 2u);
+    EXPECT(!state.index.find_entry(1, *request_headers).has_value());
+    EXPECT(!state.index.find_entry(2, *request_headers).has_value());
+
+    auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
+    EXPECT(!reloaded_index.find_entry(1, *request_headers).has_value());
+}
+
 TEST_CASE(stored_vary_wildcard_does_not_match)
 {
     auto state = create_cache_index();
