@@ -67,7 +67,13 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
     // FIXME: Add a header function to validate the Sec-WebSocket headers that curl currently doesn't validate
 
     auto const& url = info.url();
-    set_option(CURLOPT_URL, url.to_byte_string().characters());
+
+    // Prevent curl from sending URL credentials in the handshake.
+    auto url_without_credentials = url;
+    url_without_credentials.set_username(""sv);
+    url_without_credentials.set_password(""sv);
+    set_option(CURLOPT_URL, url_without_credentials.to_byte_string().characters());
+    set_option(CURLOPT_DISALLOW_USERNAME_IN_URL, 1L);
     set_option(CURLOPT_PORT, url.port_or_default());
     set_option(CURLOPT_PROTOCOLS_STR, "ws,wss");
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
