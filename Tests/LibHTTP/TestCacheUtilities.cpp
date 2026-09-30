@@ -189,6 +189,25 @@ TEST_CASE(not_modified_response_must_carry_the_stored_validators)
     EXPECT(HTTP::can_freshen_stored_response(*weakly_stored_headers, HTTP::HeaderList::create({ { "ETag", "W/\"old\"" } })));
 }
 
+TEST_CASE(connection_specific_fields_are_removed)
+{
+    auto headers = HTTP::HeaderList::create({
+        { "Connection", "cache-control, X-Hop" },
+        { "Cache-Control", "max-age=3600" },
+        { "X-Hop", "1" },
+        { "Location", "https://example.com/" },
+    });
+
+    auto result = HTTP::remove_connection_specific_fields(*headers);
+    EXPECT(!result->contains("Cache-Control"sv));
+    EXPECT(!result->contains("X-Hop"sv));
+    EXPECT(result->contains("Location"sv));
+
+    auto stored_headers = HTTP::HeaderList::create({ { "Cache-Control", "no-cache" } });
+    HTTP::update_header_fields(*stored_headers, headers);
+    EXPECT_EQ(stored_headers->get("Cache-Control"sv), Optional<ByteString> { "no-cache"sv });
+}
+
 TEST_CASE(vary_cookie_is_not_cacheable)
 {
     auto request_headers = HTTP::HeaderList::create({ { "Cookie", "account=A" } });

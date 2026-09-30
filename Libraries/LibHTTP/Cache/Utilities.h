@@ -60,6 +60,7 @@ bool is_cacheable(StringView method, HeaderList const&);
 bool has_preconditions(HeaderList const& request_headers);
 bool is_cacheable(u32 status_code, HeaderList const&);
 bool is_header_exempted_from_storage(StringView name);
+NonnullRefPtr<HeaderList> remove_connection_specific_fields(HeaderList const&);
 
 AK::Duration calculate_freshness_lifetime(u32 status_code, HeaderList const&, AK::Duration current_time_offset_for_testing = {});
 AK::Duration calculate_age(HeaderList const&, UnixDateTime request_time, UnixDateTime response_time, AK::Duration current_time_offset_for_testing = {});
