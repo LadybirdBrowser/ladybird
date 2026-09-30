@@ -73,6 +73,7 @@ static StyleNodeID identity_of_shadow_root(DOM::ShadowRoot& shadow_root, StyleEn
 {
     if (shadow_root.style_node_id() == no_style_node) {
         shadow_root.set_style_node_id(style_engine.allocate_style_node());
+        shadow_root.document().style_computer().register_style_node(shadow_root.style_node_id(), shadow_root);
         // A shadow root is a scope and a subtree at once. Naming the subtree is what lets a sheet
         // attached here be bounded by the tree it decides in, even when its rules dispatch on
         // nothing the engine can enumerate. It is named here rather than where a scope is numbered,
@@ -232,6 +233,17 @@ void record_element_connected(DOM::Element& element)
     record_element_arrival_delta(element, *style_engine, tree_scope_of(element.root()));
 }
 
+void record_text_connected(DOM::Text& text)
+{
+    auto* style_engine = style_engine_for(text);
+    if (!style_engine || text.style_node_id() != no_style_node)
+        return;
+    StyleNodeID identity;
+    style_engine->allocate_text_style_nodes({ &identity, 1 });
+    text.set_style_node_id(identity);
+    text.document().style_computer().register_style_node(identity, text);
+}
+
 void record_subtree_connecting(DOM::Node& root)
 {
     if (!root.parent() || !style_engine_for(*root.parent()))
@@ -243,6 +255,7 @@ void record_subtree_connecting(DOM::Node& root)
         TreeScopeID tree_scope;
     };
     Vector<Arrival, 64> arrivals;
+    Vector<GC::Ref<DOM::Text>, 64> text_arrivals;
     size_t element_count = 0;
     auto collect = [&](DOM::Node& node, TreeScopeID tree_scope) {
         if (auto* element = as_if<DOM::Element>(node); element && element->style_node_id() == no_style_node) {
@@ -250,9 +263,23 @@ void record_subtree_connecting(DOM::Node& root)
             ++element_count;
         } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node); shadow_root && shadow_root->style_node_id() == no_style_node) {
             arrivals.append({ *shadow_root, tree_scope });
+        } else if (auto* text = as_if<DOM::Text>(node); text && text->style_node_id() == no_style_node) {
+            text_arrivals.append(*text);
         }
     };
     for_each_shadow_including_inclusive_descendant_with_scope(root, tree_scope_of(root.root()), collect);
+
+    if (!text_arrivals.is_empty()) {
+        Vector<StyleNodeID, 64> identities;
+        identities.resize(text_arrivals.size());
+        style_engine.allocate_text_style_nodes(identities.span());
+        style_computer.ensure_style_node_slot(identities.last());
+        for (size_t i = 0; i < text_arrivals.size(); ++i) {
+            text_arrivals[i]->set_style_node_id(identities[i]);
+            style_computer.register_style_node(identities[i], text_arrivals[i]);
+        }
+    }
+
     if (arrivals.is_empty())
         return;
 
@@ -269,7 +296,9 @@ void record_subtree_connecting(DOM::Node& root)
             style_computer.register_style_node(identity, *element);
         } else {
             auto identity = identities[next_shadow_root_identity++];
-            as<DOM::ShadowRoot>(*arrival.node).set_style_node_id(identity);
+            auto& shadow_root = as<DOM::ShadowRoot>(*arrival.node);
+            shadow_root.set_style_node_id(identity);
+            style_computer.register_style_node(identity, shadow_root);
             style_engine.set_tree_scope_root(arrival.tree_scope, identity);
         }
     }
@@ -1046,21 +1075,30 @@ void record_shadow_root_disconnecting(DOM::ShadowRoot& shadow_root)
             .new_relations = detached_relations(),
         });
     }
+    shadow_root.document().style_computer().unregister_style_node(node);
     shadow_root.set_style_node_id(no_style_node);
 }
 
 void record_subtree_disconnecting(DOM::Node& root)
 {
+    auto* style_engine = style_engine_for(root);
     auto root_tree_scope = tree_scope_of(root.root());
     Vector<GC::Ref<DOM::ShadowRoot>> shadow_roots;
+    Vector<StyleNodeID, 64> departing_texts;
     auto disconnect_element = [&](DOM::Node& node, TreeScopeID tree_scope) {
         if (auto* element = as_if<DOM::Element>(node)) {
             record_element_disconnecting(*element, tree_scope);
         } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node)) {
             shadow_roots.append(*shadow_root);
+        } else if (auto* text = as_if<DOM::Text>(node); text && style_engine && text->style_node_id() != no_style_node) {
+            departing_texts.append(text->style_node_id());
+            text->document().style_computer().unregister_style_node(text->style_node_id());
+            text->set_style_node_id(no_style_node);
         }
     };
     for_each_shadow_including_inclusive_descendant_with_scope(root, root_tree_scope, disconnect_element);
+    if (!departing_texts.is_empty())
+        style_engine->retire_text_style_nodes(departing_texts.span());
 
     // Only once no element still names a shadow root as its parent can the root give up its own
     // identity.

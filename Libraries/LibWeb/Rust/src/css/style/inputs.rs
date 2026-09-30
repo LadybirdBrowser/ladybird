@@ -429,6 +429,11 @@ impl RetainedState {
         self.tree.set_shadow_root(host, shadow_root, &mut self.memory);
     }
 
+    /// Retire text identities as their nodes disconnect.
+    pub fn retire_text_style_nodes(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>) {
+        self.tree.retire_texts(nodes, &mut self.memory);
+    }
+
     // -- Stylesheet program ------------------------------------------------------------------
     //
     // Every CSSOM mutation maps to a precise typed delta. None of them produces a generic document
@@ -1740,6 +1745,13 @@ impl StyleEngineState {
         version.declaration_block = Some(DeclarationBlockID(block_version));
         self.replace_rule_version(rule, version, counters);
         self.settle_program();
+    }
+
+    /// Mint `out.len()` text identities in one call.
+    pub fn allocate_text_style_nodes(&mut self, out: &mut [u32]) {
+        for slot in out.iter_mut() {
+            *slot = self.retained.tree.allocate_text(&mut self.retained.memory).raw();
+        }
     }
 
     /// Mint `out.len()` element identities in one call. Identity allocation is batched because a

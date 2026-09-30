@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    p:empty { color: red; }
+    p:not(:empty) { color: green; }
+    span:first-child { color: blue; }
+    #host { color: rgb(1, 2, 3); }
+</style>
+<div id="container"><p id="target"></p><div id="other"></div></div>
+<div id="host"></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const target = document.getElementById("target");
+        const other = document.getElementById("other");
+
+        for (let i = 0; i < 64; ++i) {
+            const text = document.createTextNode(`text ${i}`);
+            target.appendChild(text);
+            other.appendChild(document.createTextNode("x"));
+            if (i % 2)
+                text.remove();
+            else
+                other.moveBefore(text, other.firstChild);
+        }
+        println(`Empty paragraph: ${getComputedStyle(target).color}`);
+
+        target.append("a", "b", document.createElement("span"), "c");
+        target.normalize();
+        println(`Text children after normalize: ${target.childNodes.length}`);
+        println(`Paragraph with text: ${getComputedStyle(target).color}`);
+        println(`Span after text: ${getComputedStyle(target.querySelector("span")).color}`);
+
+        other.textContent = "replaced";
+        target.replaceChildren();
+        println(`Emptied paragraph: ${getComputedStyle(target).color}`);
+        println(internals.dumpLayoutTree(container).replace(/\n$/, ""));
+        println(`Layout tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+
+        // A shadow root attached to a connected host that only ever holds text.
+        const host = document.getElementById("host");
+        const root = host.attachShadow({ mode: "open" });
+        println(`Host with an empty root: ${getComputedStyle(host).color}`);
+        root.append("shadow text");
+        println(`Host with a text-only root: ${getComputedStyle(host).color}`);
+        println(`Host width is positive: ${host.getBoundingClientRect().width > 0}`);
+        root.firstChild.remove();
+        println(`Host height after removing the text: ${host.getBoundingClientRect().height}`);
+    });
+</script>

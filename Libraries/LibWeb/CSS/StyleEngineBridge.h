@@ -62,6 +62,7 @@ public:
     // Identity 0 is never returned; it means "no node".
     StyleNodeID allocate_style_node();
     void allocate_style_nodes(Span<StyleNodeID> nodes);
+    void allocate_text_style_nodes(Span<StyleNodeID> nodes);
     void defer_element_initial_features(StyleNodeID style_node)
     {
         m_nodes_with_pending_initial_features.set(style_node);

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
+#include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Slottable.h>
@@ -44,6 +45,10 @@ public:
 
     Optional<Element::Directionality> directionality() const;
 
+    // The text node's StyleEngine identity, or 0 while it is disconnected.
+    [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
+    void set_style_node_id(CSS::StyleNodeID style_node_id) { m_style_node_id = style_node_id; }
+
 protected:
     Text(Document&, Utf16String);
     Text(Document&, NodeType, Utf16String);
@@ -59,6 +64,7 @@ private:
 
     Optional<size_t> m_max_length {};
     bool m_is_password_input { false };
+    CSS::StyleNodeID m_style_node_id;
 };
 
 template<>

@@ -512,6 +512,8 @@ pub struct StyleNodeTree {
     /// Allocated only once a shadow tree exists.
     shadow: Option<Box<ShadowRelations>>,
 
+    text: TextRows,
+
     capacity_bytes: u64,
 
     #[cfg(test)]
@@ -545,6 +547,7 @@ impl StyleNodeTree {
             pending_reuse: Vec::new(),
             free_element_indexes: Vec::new(),
             shadow: None,
+            text: TextRows::default(),
             capacity_bytes: 0,
             #[cfg(test)]
             depth_recompute_visits: 0,
@@ -568,10 +571,13 @@ impl StyleNodeTree {
 
     #[must_use]
     pub fn is_live(&self, node: StyleNodeID) -> bool {
-        self.live.contains(node.element_index().unwrap() as usize)
+        match node.text_index() {
+            Some(index) => self.text.live.contains(index as usize),
+            None => self.live.contains(node.element_slot()),
+        }
     }
 
-    /// Every live style-tree identity, including the synthetic roots of shadow trees.
+    /// Every live element-kind identity, including the synthetic roots of shadow trees.
     pub fn live_nodes(&self) -> impl Iterator<Item = StyleNodeID> + '_ {
         (1..self.parent.len()).filter_map(|index| {
             let index = u32::try_from(index).expect("style node index space exhausted");
@@ -654,9 +660,10 @@ impl StyleNodeTree {
 
     /// Called once the read epoch that could still name the retired identities has retired.
     pub fn release_retired_identities(&mut self, memory: &mut MemoryController) {
-        let before = self.reuse_capacity_bytes();
+        let before = self.reuse_capacity_bytes() + self.text.capacity_bytes();
         self.free_element_indexes.append(&mut self.pending_reuse);
-        let current = self.reuse_capacity_bytes();
+        self.text.free_indexes.append(&mut self.text.pending_reuse);
+        let current = self.reuse_capacity_bytes() + self.text.capacity_bytes();
         self.record_capacity_change(memory, before, current);
     }
 
@@ -664,6 +671,35 @@ impl StyleNodeTree {
     #[cfg(test)]
     pub fn retired_identities_pending_release(&self) -> usize {
         self.pending_reuse.len()
+    }
+
+    /// Allocate a text identity. Like an element's, it is reused only once the epoch that could
+    /// still observe its previous occupant has retired.
+    pub fn allocate_text(&mut self, memory: &mut MemoryController) -> StyleNodeID {
+        let before = self.text.capacity_bytes();
+        let index = self.text.free_indexes.pop().unwrap_or_else(|| {
+            self.text.allocated += 1;
+            self.text.allocated
+        });
+        self.text.live.set(index as usize, true);
+        let current = self.text.capacity_bytes();
+        self.record_capacity_change(memory, before, current);
+        StyleNodeID::text(index)
+    }
+
+    /// Retire text identities as their nodes disconnect. Nothing selects or styles a text node, so
+    /// it has no relations to stage, and its slot waits for [`Self::release_retired_identities`]
+    /// like an element's.
+    pub fn retire_texts(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>, memory: &mut MemoryController) {
+        let before = self.text.capacity_bytes();
+        for node in nodes {
+            let index = node.text_index().expect("retire_texts requires a text identity");
+            let (was_live, _) = self.text.live.set(index as usize, false);
+            assert!(was_live, "retiring a text identity that is not live");
+            self.text.pending_reuse.push(index);
+        }
+        let current = self.text.capacity_bytes();
+        self.record_capacity_change(memory, before, current);
     }
 
     // -- Relation maintenance ----------------------------------------------------------------
@@ -1187,7 +1223,10 @@ impl StyleNodeTree {
     }
 
     fn recompute_capacity_bytes(&self) -> u64 {
-        self.identity_capacity_bytes() + self.reuse_capacity_bytes() + self.shadow_capacity_bytes()
+        self.identity_capacity_bytes()
+            + self.reuse_capacity_bytes()
+            + self.shadow_capacity_bytes()
+            + self.text.capacity_bytes()
     }
 
     fn record_capacity_change(&mut self, memory: &mut MemoryController, previous: u64, current: u64) {
@@ -1221,6 +1260,24 @@ impl StyleNodeTree {
             "mutating relations of a retired identity"
         );
         index as usize
+    }
+}
+
+/// The text identities, which own no relations: text indexes are dense from 1, and a retired index
+/// waits in `pending_reuse` until its epoch retires, as an element's does.
+#[derive(Default)]
+struct TextRows {
+    live: BitColumn,
+    /// The highest text index handed out so far.
+    allocated: u32,
+    pending_reuse: Vec<u32>,
+    free_indexes: Vec<u32>,
+}
+
+impl TextRows {
+    fn capacity_bytes(&self) -> u64 {
+        self.live.capacity_bytes()
+            + ((self.pending_reuse.capacity() + self.free_indexes.capacity()) * size_of::<u32>()) as u64
     }
 }
 
@@ -1528,6 +1585,31 @@ mod tests {
         let fourth = fixture.element();
         assert_eq!(fourth, first);
         assert!(fixture.tree.is_live(fourth));
+    }
+
+    #[test]
+    fn text_identities_are_reused_only_after_the_epoch_retires() {
+        let mut fixture = TreeFixture::new();
+        let element = fixture.element();
+        let first = fixture.tree.allocate_text(&mut fixture.memory);
+        let second = fixture.tree.allocate_text(&mut fixture.memory);
+        assert_eq!(first, StyleNodeID::text(1));
+        assert_eq!(second, StyleNodeID::text(2));
+        assert!(fixture.tree.is_live(first) && fixture.tree.is_live(element));
+        assert_eq!(fixture.tree.connected_element_count(), 1);
+
+        fixture.tree.retire_texts([first], &mut fixture.memory);
+        assert!(!fixture.tree.is_live(first));
+        assert!(fixture.tree.is_live(element));
+
+        let third = fixture.tree.allocate_text(&mut fixture.memory);
+        assert_eq!(third, StyleNodeID::text(3));
+
+        fixture.tree.release_retired_identities(&mut fixture.memory);
+        let reused = fixture.tree.allocate_text(&mut fixture.memory);
+        assert_eq!(reused, first);
+        assert!(fixture.tree.is_live(reused));
+        assert_eq!(fixture.tree.live_nodes().collect::<Vec<_>>(), vec![element]);
     }
 
     #[test]

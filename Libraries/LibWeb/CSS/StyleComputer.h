@@ -365,13 +365,14 @@ public:
 
     [[nodiscard]] HashMap<SharedCompiledStyleSheetKey, RefPtr<SharedCompiledStyleSheet>>& shared_compiled_style_sheets() { return m_shared_compiled_style_sheets; }
 
-    // The reverse of an element's style node identity. StyleEngine plans in identities; turning a
-    // plan back into elements needs this, and it is maintained at exactly the two points the
+    // The reverse of a node's style node identity. StyleEngine plans in identities; turning a
+    // plan back into nodes needs this, and it is maintained at exactly the two points the
     // identity itself is.
-    void register_style_node(StyleNodeID style_node_id, DOM::Element&);
+    void register_style_node(StyleNodeID style_node_id, DOM::Node&);
     void ensure_style_node_slot(StyleNodeID);
     void unregister_style_node(StyleNodeID style_node_id);
     [[nodiscard]] GC::Ptr<DOM::Element> element_for_style_node(StyleNodeID style_node_id) const;
+    [[nodiscard]] GC::Ptr<DOM::Node> node_for_style_node(StyleNodeID style_node_id) const;
     void prepare_elements_for_style_computation();
     void for_each_style_node(Function<void(DOM::Element&)>) const;
 
@@ -516,7 +517,10 @@ private:
     mutable StyleEngine m_style_engine;
     mutable u64 m_computed_style_record_view_pin_count { 0 };
     mutable u32 m_style_record_view_epoch_depth { 0 };
-    Vector<GC::Ptr<DOM::Element>> m_style_nodes;
+    // Indexed by each kind's dense index; see style_node_is_text(). The element-kind table also
+    // holds shadow roots: a root gets no style, but it has a StyleNodeID of its own.
+    Vector<GC::Ptr<DOM::Node>> m_element_style_nodes;
+    Vector<GC::Ptr<DOM::Text>> m_text_style_nodes;
     TreeScopeID m_next_tree_scope;
     Vector<NonAuthorStyleSheet> m_non_author_style_sheets;
     HashMap<RefPtr<StyleSheetState const>, SheetID> m_constructed_sheet_ids;
