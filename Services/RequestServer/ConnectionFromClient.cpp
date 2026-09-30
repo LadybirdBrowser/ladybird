@@ -12,6 +12,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
+#include <LibHTTP/Port.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/WebSocket.h>
@@ -233,9 +234,24 @@ Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transp
 #endif
 }
 
+static bool is_supported_protocol_name(StringView protocol)
+{
+    return protocol.is_one_of("http"sv, "https"sv);
+}
+
+static bool is_fetchable_url(URL::URL const& url)
+{
+    if (!is_supported_protocol_name(url.scheme()))
+        return false;
+
+    // https://fetch.spec.whatwg.org/#block-bad-port
+    // 2. If url’s scheme is an HTTP(S) scheme and url’s port is a bad port, then return blocked.
+    return !url.port().has_value() || !HTTP::is_bad_port(*url.port());
+}
+
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
 {
-    return protocol == "http"sv || protocol == "https"sv;
+    return is_supported_protocol_name(protocol);
 }
 
 Messages::RequestServer::GetClientIdResponse ConnectionFromClient::get_client_id()
@@ -251,6 +267,12 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     Requests::RequestTransferLeaseKey lease_key { client_id(), request_id };
     if (m_active_requests.contains(request_id) || m_request_transfer_leases.contains(lease_key)) {
         did_misbehave("reused live request ID");
+        return;
+    }
+
+    // Validate again at the boundary that grants network access.
+    if (!is_fetchable_url(url)) {
+        async_request_finished(request_id, 0, {}, Requests::NetworkError::MalformedUrl);
         return;
     }
 
@@ -663,6 +685,9 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
 
 void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
+    if (!is_fetchable_url(url))
+        return;
+
     auto request = Request::connect(request_id, *this, m_curl_multi, m_resolver, move(url), cache_level);
     m_active_requests.set(request_id, move(request));
 }

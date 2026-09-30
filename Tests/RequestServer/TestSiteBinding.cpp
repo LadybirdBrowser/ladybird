@@ -168,28 +168,28 @@ TEST_CASE(bound_client_requests_only_for_its_sites)
     TestServer server;
     server.bind_to_site("http://localhost"sv, "http://localhost"sv);
 
-    // NB: Nothing listens on port 1, so a request that is let through fails to connect.
-    server.start_request(1, "http://localhost:1/"sv, key("http://localhost"sv, "http://localhost"sv));
+    // NB: Port 2 has no listener. Port 1 would fail the bad-port check before reaching the network.
+    server.start_request(1, "http://localhost:2/"sv, key("http://localhost"sv, "http://localhost"sv));
     EXPECT(server.wait_for_request_finished(1) == Requests::NetworkError::UnableToConnect);
 
     // A subresource request for a site the client is not bound to is refused.
-    server.start_request(2, "http://localhost:1/"sv, key("https://b.example"sv, "https://c.example"sv));
+    server.start_request(2, "http://localhost:2/"sv, key("https://b.example"sv, "https://c.example"sv));
     EXPECT(server.wait_for_request_finished(2) == Requests::NetworkError::Unknown);
 
     // A cross-site navigation request may be made for the site of its URL, as the process of the navigating document
     // makes it.
-    server.start_request(3, "http://127.0.0.1:1/"sv, key("http://127.0.0.1"sv, "http://127.0.0.1"sv, Navigation::CrossSiteTopLevel));
+    server.start_request(3, "http://127.0.0.1:2/"sv, key("http://127.0.0.1"sv, "http://127.0.0.1"sv, Navigation::CrossSiteTopLevel));
     EXPECT(server.wait_for_request_finished(3) == Requests::NetworkError::UnableToConnect);
 
     // ...but a key without the cross-site flag, which the site's own documents use for their subresources, is refused.
-    server.start_request(6, "http://127.0.0.1:1/"sv, key("http://127.0.0.1"sv, "http://127.0.0.1"sv, Navigation::TopLevel));
+    server.start_request(6, "http://127.0.0.1:2/"sv, key("http://127.0.0.1"sv, "http://127.0.0.1"sv, Navigation::TopLevel));
     EXPECT(server.wait_for_request_finished(6) == Requests::NetworkError::Unknown);
 
     // A child navigable's navigation request may be made under a bound top-level site, for the site of its URL.
-    server.start_request(4, "http://127.0.0.1:1/"sv, key("http://localhost"sv, "http://127.0.0.1"sv, Navigation::Subframe));
+    server.start_request(4, "http://127.0.0.1:2/"sv, key("http://localhost"sv, "http://127.0.0.1"sv, Navigation::Subframe));
     EXPECT(server.wait_for_request_finished(4) == Requests::NetworkError::UnableToConnect);
 
     // ...but not under a top-level site the client is not bound to.
-    server.start_request(5, "http://127.0.0.1:1/"sv, key("https://b.example"sv, "http://127.0.0.1"sv, Navigation::Subframe));
+    server.start_request(5, "http://127.0.0.1:2/"sv, key("https://b.example"sv, "http://127.0.0.1"sv, Navigation::Subframe));
     EXPECT(server.wait_for_request_finished(5) == Requests::NetworkError::Unknown);
 }
