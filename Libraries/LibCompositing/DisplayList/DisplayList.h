@@ -21,6 +21,7 @@
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
@@ -108,6 +109,22 @@ public:
         Compositing::KeyboardScrollState keyboard_scroll_state {};
     };
 
+    // Everything about a list that travels alongside its tape when it is sent to the Compositor.
+    struct Properties {
+        u64 id { 0 };
+        u64 compatible_visual_context_tree_structural_epoch { 0 };
+        Optional<Gfx::Color> surface_clear_color;
+        Optional<AsyncScrollingMetadata> async_scrolling_metadata;
+    };
+
+    // How a tape and its run table are laid out in a shared buffer: the tape first, the runs right after
+    // it. Nothing when the sizes overflow or the tape is not a whole number of aligned commands.
+    struct SharedBufferLayout {
+        u64 runs_offset { 0 };
+        u64 total_size { 0 };
+    };
+    static Optional<SharedBufferLayout> shared_buffer_layout(u64 tape_size, u64 run_count);
+
     static NonnullRefPtr<DisplayList> create(AccumulatedVisualContextTree const& visual_context_tree)
     {
         return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch()));
@@ -117,11 +134,23 @@ public:
     static NonnullRefPtr<DisplayList> adopt_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
     static NonnullRefPtr<DisplayList> create_from_command_bytes(AccumulatedVisualContextTree const&, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs);
 
+    // The producer's side of sending a list: a fresh shared buffer holding the tape and the run table,
+    // laid out per shared_buffer_layout. The buffer is handed to the receiver whole; the producer keeps
+    // nothing.
+    ErrorOr<Core::AnonymousBuffer> copy_to_shared_buffer() const;
+    // The receiver's side: borrows the tape from the buffer for the list's lifetime and copies the run
+    // table out, so the bounds every reader relies on cannot change underneath it. Fails when the sizes
+    // do not fit the buffer or the runs do not describe the tape.
+    static ErrorOr<NonnullRefPtr<DisplayList>> create_from_shared_buffer(Properties, Core::AnonymousBuffer, u64 tape_size, u64 run_count);
+
+    // Taken at send time: the async scrolling metadata is restamped on every send.
+    Properties properties() const;
+
     u64 compatible_visual_context_tree_structural_epoch() const { return m_compatible_visual_context_tree_structural_epoch; }
     u64 id() const { return m_id; }
 
-    ReadonlyBytes command_bytes() const { return m_rust_command_storage ? m_shared_command_bytes : m_command_bytes.span(); }
-    ReadonlySpan<DisplayListCommandRun> command_runs() const { return m_rust_command_storage ? m_shared_command_runs : m_command_runs.span(); }
+    ReadonlyBytes command_bytes() const { return borrows_command_bytes() ? m_borrowed_command_bytes : m_command_bytes.span(); }
+    ReadonlySpan<DisplayListCommandRun> command_runs() const { return m_rust_command_storage ? m_borrowed_command_runs : m_command_runs.span(); }
     ReadonlyBytes command_bytes_of_run(DisplayListCommandRun const& run) const { return command_bytes().slice(run.offset, run.size); }
     void set_surface_clear_color(Gfx::Color color) { m_surface_clear_color = color; }
     Optional<Gfx::Color> surface_clear_color() const { return m_surface_clear_color; }
@@ -161,17 +190,23 @@ private:
 
     explicit DisplayList(u64 compatible_visual_context_tree_structural_epoch);
     DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>);
+    DisplayList(Properties, Core::AnonymousBuffer shared_tape_buffer, ReadonlyBytes command_bytes, Vector<DisplayListCommandRun>&& command_runs);
+
+    bool borrows_command_bytes() const { return m_rust_command_storage || m_shared_tape_buffer.is_valid(); }
 
     // Immutable placement for this list and its compatible clip/effect topology.
     // Atomic publication allows compositor workers to replay the list concurrently.
     mutable Atomic<void const*> m_replay_effect_clip_plan { nullptr };
     u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
-    // Native construction and IPC decoding own their buffers here. Rust recordings instead
-    // share one immutable allocation with the cache; the spans borrow that retained owner.
+    // Native construction and IPC decoding own their buffers here. Rust recordings instead share one
+    // immutable allocation with the cache, and lists received through a shared buffer borrow the tape
+    // from that mapping; the spans borrow whichever retained owner applies. A list received through a
+    // shared buffer still owns its run table, copied out of the mapping.
     void const* m_rust_command_storage { nullptr };
-    ReadonlyBytes m_shared_command_bytes;
-    ReadonlySpan<DisplayListCommandRun> m_shared_command_runs;
+    Core::AnonymousBuffer m_shared_tape_buffer;
+    ReadonlyBytes m_borrowed_command_bytes;
+    ReadonlySpan<DisplayListCommandRun> m_borrowed_command_runs;
     ByteBuffer m_command_bytes;
     Vector<DisplayListCommandRun> m_command_runs;
     Optional<Gfx::Color> m_surface_clear_color;
@@ -196,6 +231,11 @@ template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayList::AsyncScrollingMetadata const&);
 template<>
 COMPOSITING_API ErrorOr<Compositing::DisplayList::AsyncScrollingMetadata> decode(Decoder&);
+
+template<>
+COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayList::Properties const&);
+template<>
+COMPOSITING_API ErrorOr<Compositing::DisplayList::Properties> decode(Decoder&);
 
 template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::DisplayList const&);

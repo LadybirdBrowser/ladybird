@@ -8,6 +8,8 @@
 #include <AK/Math.h>
 #include <Compositor/ConnectionFromWebContent.h>
 #include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
+#include <LibCore/ElapsedTimer.h>
+#include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <LibWebCommon/Page/InputEvent.h>
 
@@ -169,11 +171,30 @@ void ConnectionFromWebContent::destroy_context(Web::CompositorContextId context_
     m_compositor_state->destroy_context(context_id);
 }
 
-void ConnectionFromWebContent::update_display_list(Web::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot scroll_state_snapshot)
+static bool display_list_timing_enabled()
 {
+    static bool enabled = [] {
+        auto value = Core::Environment::get("LADYBIRD_DISPLAY_LIST_TIMING"sv);
+        return value.has_value() && !value->is_empty() && *value != "0"sv;
+    }();
+    return enabled;
+}
+
+void ConnectionFromWebContent::update_display_list(Web::CompositorContextId context_id, Core::AnonymousBuffer display_list_buffer, u64 tape_size, u64 run_count, Compositing::DisplayList::Properties display_list_properties, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot scroll_state_snapshot)
+{
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+    auto display_list = Compositing::DisplayList::create_from_shared_buffer(move(display_list_properties), move(display_list_buffer), tape_size, run_count);
+    if (display_list.is_error()) {
+        dbgln("Compositor: Rejecting display list from WebContent: {}", display_list.error());
+        did_misbehave("WebContent published a display list its shared buffer does not hold");
+        return;
+    }
+    auto adopt_time = timer.elapsed_time();
     if (!context_is_owned_by_this_connection(context_id))
         return;
-    m_compositor_state->update_display_list(context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
+    m_compositor_state->update_display_list(context_id, display_list.release_value(), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
+    if (display_list_timing_enabled())
+        dbgln("DISPLAY_LIST_RECEIVE bytes={} adopt={} µs install={} µs", tape_size, adopt_time.to_microseconds(), (timer.elapsed_time() - adopt_time).to_microseconds());
 }
 
 void ConnectionFromWebContent::update_display_list_resources(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction resource_transaction)

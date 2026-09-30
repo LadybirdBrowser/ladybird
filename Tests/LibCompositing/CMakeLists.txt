@@ -3,6 +3,7 @@ set(TEST_SOURCES
     TestAsyncScrollingStateScrollbarMetadata.cpp
     TestAsyncScrollingStateSnapMetadata.cpp
     TestDisplayListCommandRuns.cpp
+    TestDisplayListSharedBuffer.cpp
     TestForceDarkImageFilter.cpp
     TestPausedDebuggerOverlay.cpp
     TestScrollSnapSelection.cpp
