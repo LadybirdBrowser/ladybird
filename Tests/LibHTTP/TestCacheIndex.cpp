@@ -270,6 +270,31 @@ TEST_CASE(variants_per_cache_key_are_limited)
     EXPECT_EQ(remaining_count, HTTP::MAXIMUM_CACHE_ENTRY_VARIANT_COUNT);
 }
 
+TEST_CASE(most_recent_matching_variant_is_selected)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create({ { "Accept"sv, "text/html"sv }, { "X-Variant"sv, "a"sv } });
+    auto newer_response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "Vary"sv, "Accept"sv },
+        { "ETag"sv, "newer"sv },
+    });
+    auto older_response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "Vary"sv, "Accept, X-Variant"sv },
+        { "ETag"sv, "older"sv },
+    });
+    auto now = UnixDateTime::now();
+
+    TRY_OR_FAIL(state.index.create_entry(1, HTTP::create_vary_key(*request_headers, *older_response_headers).value(), "https://example.com"_string, request_headers, older_response_headers, 10, now - AK::Duration::from_seconds(10), now - AK::Duration::from_seconds(10)));
+    TRY_OR_FAIL(state.index.create_entry(1, HTTP::create_vary_key(*request_headers, *newer_response_headers).value(), "https://example.com"_string, request_headers, newer_response_headers, 10, now, now));
+
+    auto entry = state.index.find_entry(1, *request_headers);
+    VERIFY(entry.has_value());
+    EXPECT_EQ(entry->response_headers->get("ETag"sv), Optional<ByteString> { ByteString { "newer"sv } });
+}
+
 TEST_CASE(stored_vary_wildcard_does_not_match)
 {
     auto state = create_cache_index();
