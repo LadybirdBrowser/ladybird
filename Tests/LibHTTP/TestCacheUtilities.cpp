@@ -208,6 +208,18 @@ TEST_CASE(connection_specific_fields_are_removed)
     EXPECT_EQ(stored_headers->get("Cache-Control"sv), Optional<ByteString> { "no-cache"sv });
 }
 
+TEST_CASE(malformed_cache_control_is_not_cacheable)
+{
+    auto headers = HTTP::HeaderList::create({
+        { "Cache-Control", "max-age=3600, x-ext=\"unterminated" },
+        { "Cache-Control", "no-store" },
+    });
+    EXPECT(!HTTP::is_cacheable(200, *headers));
+
+    auto escaped_quote_headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=3600, x-ext=\"a\\\"b\"" } });
+    EXPECT(HTTP::is_cacheable(200, *escaped_quote_headers));
+}
+
 TEST_CASE(vary_cookie_is_not_cacheable)
 {
     auto request_headers = HTTP::HeaderList::create({ { "Cookie", "account=A" } });

@@ -321,6 +321,20 @@ static bool is_heuristically_cacheable_status(u32 status_code)
     }
 }
 
+static bool has_unterminated_quoted_string(StringView value)
+{
+    bool in_quoted_string = false;
+
+    for (size_t i = 0; i < value.length(); ++i) {
+        if (in_quoted_string && value[i] == '\\')
+            ++i;
+        else if (value[i] == '"')
+            in_quoted_string = !in_quoted_string;
+    }
+
+    return in_quoted_string;
+}
+
 // https://httpwg.org/specs/rfc9111.html#response.cacheability
 bool is_cacheable(u32 status_code, HeaderList const& headers)
 {
@@ -345,6 +359,10 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
         return false;
 
     auto cache_control = headers.get("Cache-Control"sv);
+
+    // AD-HOC: An unterminated quoted-string may hide directives that forbid storage.
+    if (cache_control.has_value() && has_unterminated_quoted_string(*cache_control))
+        return false;
 
     // * if the response status code is 206 or 304, or the must-understand cache directive (see Section 5.2.2.3) is
     //   present: the cache understands the response status code;
