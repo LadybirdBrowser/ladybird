@@ -27,9 +27,13 @@ struct SyntheticPseudoElement::CustomPropertyDataStorage {
     RefPtr<CSS::CustomPropertyData const> data;
 };
 
-SyntheticPseudoElement::SyntheticPseudoElement() = default;
-SyntheticPseudoElement::SyntheticPseudoElement(GC::Ref<Element> originating_element)
-    : m_originating_element(originating_element)
+SyntheticPseudoElement::SyntheticPseudoElement(CSS::PseudoElement type)
+    : m_type(type)
+{
+}
+SyntheticPseudoElement::SyntheticPseudoElement(CSS::PseudoElement type, GC::Ref<Element> originating_element)
+    : m_type(type)
+    , m_originating_element(originating_element)
 {
 }
 SyntheticPseudoElement::~SyntheticPseudoElement() = default;
@@ -43,16 +47,32 @@ void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
         m_counters_set->visit_edges(visitor);
 }
 
+// A pseudo-element has no StyleNodeID of its own: its box is the row bound to its generator's StyleNodeID and its type.
+// The generated content inside the box carries the same pair, so only this binding tells the box from its content.
+Layout::NodeWithStyle* SyntheticPseudoElement::unsafe_layout_node() const
+{
+    if (!m_originating_element)
+        return nullptr;
+    auto* arena = m_originating_element->document().layout_node_arena_if_created();
+    if (!arena)
+        return nullptr;
+    return static_cast<Layout::NodeWithStyle*>(Layout::RustFFI::layout_arena_bound_pseudo_element_shell(arena->handle(), m_originating_element->style_node_id().value(), Layout::Node::encode_generated_for(m_type)));
+}
+
 void SyntheticPseudoElement::set_layout_node(Layout::NodeWithStyle* value)
 {
-    if (m_layout_node && m_layout_node.ptr() != value) {
-        m_layout_node->pin_style_record_for_detachment();
-        Layout::RustFFI::layout_arena_set_node_flag(m_layout_node->arena_handle(), Layout::Node::slot_id(m_layout_node), Layout::RustFFI::NodeFlag::IsPseudoElementPrincipalBox, false);
+    auto* bound_row = unsafe_layout_node();
+    if (bound_row && bound_row != value) {
+        bound_row->pin_style_record_for_detachment();
+        Layout::RustFFI::layout_arena_set_node_flag(bound_row->arena_handle(), Layout::Node::slot_id(bound_row), Layout::RustFFI::NodeFlag::IsPseudoElementPrincipalBox, false);
+        Layout::RustFFI::layout_arena_unbind_row(bound_row->arena_handle(), Layout::Node::slot_id(bound_row));
     }
-    m_layout_node = value;
     // The box becomes the pseudo-element's box here, which is when it starts holding its scroll offset.
     if (value) {
         Layout::RustFFI::layout_arena_set_node_flag(value->arena_handle(), Layout::Node::slot_id(value), Layout::RustFFI::NodeFlag::IsPseudoElementPrincipalBox, true);
+        Layout::RustFFI::layout_arena_bind_row(value->arena_handle(), Layout::Node::slot_id(value));
+        // The box binds under the generator and type it was generated for, which must be this pseudo-element's.
+        VERIFY(unsafe_layout_node() == value);
         value->update_has_scroll_offset_flag();
     }
 }
@@ -77,8 +97,8 @@ void SyntheticPseudoElement::replace_style_record(CSS::StyleRecordID style_recor
     if (old_style_record_identity == style_record_identity)
         return;
     m_style_record_identity = style_record_identity;
-    if (m_layout_node)
-        m_layout_node->set_style_record_identity(style_record_identity);
+    if (auto* layout_node = unsafe_layout_node())
+        layout_node->set_style_record_identity(style_record_identity);
 }
 
 void SyntheticPseudoElement::set_computed_style(CSS::StyleRecordID style_record_identity)
@@ -92,11 +112,11 @@ void SyntheticPseudoElement::set_computed_style(CSS::StyleRecordID style_record_
 
 void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues const> style_to_preserve_for_detachment)
 {
-    if (m_layout_node) {
+    if (auto* layout_node = unsafe_layout_node()) {
         if (style_to_preserve_for_detachment)
-            m_layout_node->set_computed_values(style_to_preserve_for_detachment.release_nonnull());
+            layout_node->set_computed_values(style_to_preserve_for_detachment.release_nonnull());
         else
-            m_layout_node->pin_style_record_for_detachment();
+            layout_node->pin_style_record_for_detachment();
     }
     m_style_record_identity = 0;
 }
@@ -145,9 +165,12 @@ void SyntheticPseudoElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counter
     m_counters_set = move(counters_set);
 }
 
-SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode() = default;
-SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode(GC::Ref<Element> originating_element)
-    : SyntheticPseudoElement(originating_element)
+SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode(CSS::PseudoElement type)
+    : SyntheticPseudoElement(type)
+{
+}
+SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode(CSS::PseudoElement type, GC::Ref<Element> originating_element)
+    : SyntheticPseudoElement(type, originating_element)
 {
 }
 SyntheticPseudoElementTreeNode::~SyntheticPseudoElementTreeNode() = default;

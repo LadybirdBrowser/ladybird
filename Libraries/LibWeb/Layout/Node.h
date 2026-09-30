@@ -233,6 +233,11 @@ public:
     bool is_generated_for_after_pseudo_element() const { return generated_for() == encode_generated_for(CSS::PseudoElement::After); }
     bool is_generated_for_backdrop_pseudo_element() const { return generated_for() == encode_generated_for(CSS::PseudoElement::Backdrop); }
     void set_generated_for(CSS::PseudoElement type, DOM::Element&);
+    static constexpr u8 encode_generated_for(CSS::PseudoElement pseudo_element)
+    {
+        static_assert(static_cast<u8>(CSS::PseudoElement::UnknownWebKit) < 0xff);
+        return static_cast<u8>(pseudo_element) + 1;
+    }
 
     // The StyleNodeID of the element or text node this row is bound to, or of the element it is
     // generated for, or 0.
@@ -344,12 +349,6 @@ protected:
 
 private:
     friend class NodeWithStyle;
-
-    static constexpr u8 encode_generated_for(CSS::PseudoElement pseudo_element)
-    {
-        static_assert(static_cast<u8>(CSS::PseudoElement::UnknownWebKit) < 0xff);
-        return static_cast<u8>(pseudo_element) + 1;
-    }
 
     Node* linked_node(RustFFI::FfiNodeLink link) const
     {

@@ -8,9 +8,9 @@
 
 #include <AK/Badge.h>
 #include <AK/OwnPtr.h>
-#include <AK/WeakPtr.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/TreeNode.h>
@@ -47,12 +47,14 @@ class WEB_API SyntheticPseudoElement : public PseudoElement {
     GC_DECLARE_ALLOCATOR(SyntheticPseudoElement);
 
 public:
-    SyntheticPseudoElement();
-    explicit SyntheticPseudoElement(GC::Ref<Element> originating_element);
+    explicit SyntheticPseudoElement(CSS::PseudoElement type);
+    SyntheticPseudoElement(CSS::PseudoElement type, GC::Ref<Element> originating_element);
     virtual ~SyntheticPseudoElement() override;
 
-    Layout::NodeWithStyle* layout_node() const override { return m_layout_node.ptr(); }
-    Layout::NodeWithStyle* unsafe_layout_node() const override { return m_layout_node.ptr(); }
+    CSS::PseudoElement type() const { return m_type; }
+
+    Layout::NodeWithStyle* layout_node() const override { return unsafe_layout_node(); }
+    Layout::NodeWithStyle* unsafe_layout_node() const override;
     void set_layout_node(Layout::NodeWithStyle*);
 
     virtual Node& root() const override;
@@ -81,7 +83,7 @@ private:
 
     void replace_style_record(CSS::StyleRecordID);
 
-    WeakPtr<Layout::NodeWithStyle> m_layout_node;
+    CSS::PseudoElement m_type;
     GC::Ptr<Element> m_originating_element;
     // The authoritative StyleEngine record. C++ compatibility consumers borrow the record-owned
     // computed-values view rather than retaining one complete style per pseudo-element.
@@ -99,8 +101,8 @@ class SyntheticPseudoElementTreeNode
     GC_DECLARE_ALLOCATOR(SyntheticPseudoElementTreeNode);
 
 public:
-    SyntheticPseudoElementTreeNode();
-    explicit SyntheticPseudoElementTreeNode(GC::Ref<Element> originating_element);
+    explicit SyntheticPseudoElementTreeNode(CSS::PseudoElement type);
+    SyntheticPseudoElementTreeNode(CSS::PseudoElement type, GC::Ref<Element> originating_element);
     virtual ~SyntheticPseudoElementTreeNode() override;
 
 protected:

@@ -428,12 +428,26 @@ struct RowsSharingDomNode {
     rows: Vec<NodeSlotId>,
 }
 
-/// The node a layout row can be bound to: an element or text node, named by its identity, or the
-/// document, which has no identity of its own and is bound to a viewport row.
+/// The node a layout row can be bound to: an element or text node, named by its identity, a
+/// pseudo-element, which has no identity of its own and is named by its generator's identity and
+/// its kind, or the document, which is bound to a viewport row.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum BoundNode {
     Identity(StyleNodeID),
+    PseudoElement(StyleNodeID, u8),
     Document,
+}
+
+impl BoundNode {
+    /// The node a row carrying `style_node` can be bound to: the node itself, or the pseudo-element
+    /// the row was generated for.
+    fn of(style_node: StyleNodeID, generated_for: u8) -> Self {
+        if generated_for == 0 {
+            BoundNode::Identity(style_node)
+        } else {
+            BoundNode::PseudoElement(style_node, generated_for)
+        }
+    }
 }
 
 impl FreedSubtree {
@@ -520,6 +534,9 @@ pub(crate) struct LayoutNodeArena {
     /// identity does not make a row bound, since first-letter slices and rows awaiting a rebuild
     /// carry it too.
     bound_rows_by_style_node: RefCell<RowsByStyleNode>,
+    /// The principal box each pseudo-element is bound to, keyed by its generator's identity and its
+    /// kind. The generated content inside the box carries the same pair but is never bound.
+    bound_pseudo_element_rows: RefCell<HashMap<(StyleNodeID, u8), NodeSlotId>>,
     /// The viewport row the document is bound to. The document has no identity of its own.
     bound_viewport_row: Cell<NodeSlotId>,
     style_record_host: Cell<Option<FfiStyleRecordHostCallbacks>>,
@@ -622,6 +639,7 @@ impl LayoutNodeArena {
             next_rows_with_same_style_node: Vec::new(),
             first_rows_by_style_node: RefCell::new(RowsByStyleNode::default()),
             bound_rows_by_style_node: RefCell::new(RowsByStyleNode::default()),
+            bound_pseudo_element_rows: RefCell::new(HashMap::default()),
             bound_viewport_row: Cell::new(NodeSlotId::INVALID),
             style_record_host: Cell::new(None),
             shell_factory: Cell::new(None),
@@ -1048,8 +1066,10 @@ impl LayoutNodeArena {
         if previous == style_node {
             return;
         }
-        let was_bound = previous
-            .is_some_and(|previous| self.replace_bound_row(BoundNode::Identity(previous), id, NodeSlotId::INVALID));
+        let generated_for = self.data(id).generated_for.get();
+        let was_bound = previous.is_some_and(|previous| {
+            self.replace_bound_row(BoundNode::of(previous, generated_for), id, NodeSlotId::INVALID)
+        });
         let mut first_rows = self.first_rows_by_style_node.borrow_mut();
         if let Some(previous) = previous {
             let next = self.next_rows_with_same_style_node[index].replace(NodeSlotId::INVALID);
@@ -1074,7 +1094,7 @@ impl LayoutNodeArena {
             self.next_rows_with_same_style_node[index].set(*head);
             *head = id;
             if was_bound {
-                self.set_bound_row(BoundNode::Identity(style_node), id);
+                self.set_bound_row(BoundNode::of(style_node, generated_for), id);
             }
         }
     }
@@ -1088,10 +1108,20 @@ impl LayoutNodeArena {
         self.bound_viewport_row.get()
     }
 
+    /// The row the pseudo-element of kind `generated_for` on the element with `generator` is bound
+    /// to, if any.
+    pub(crate) fn bound_pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> NodeSlotId {
+        self.bound_pseudo_element_rows
+            .borrow()
+            .get(&(generator, generated_for))
+            .copied()
+            .unwrap_or(NodeSlotId::INVALID)
+    }
+
     /// The node a row can be bound to, if any.
     fn bound_node_of(&self, id: NodeSlotId) -> Option<BoundNode> {
         if let Some(style_node) = self.style_nodes[id.slot_index() as usize].get() {
-            return Some(BoundNode::Identity(style_node));
+            return Some(BoundNode::of(style_node, self.data(id).generated_for.get()));
         }
         if self.data(id).kind.get() == NodeKind::Viewport {
             return Some(BoundNode::Document);
@@ -1103,6 +1133,11 @@ impl LayoutNodeArena {
     fn set_bound_row(&self, node: BoundNode, id: NodeSlotId) {
         match node {
             BoundNode::Identity(style_node) => *self.bound_rows_by_style_node.borrow_mut().head_mut(style_node) = id,
+            BoundNode::PseudoElement(generator, generated_for) => {
+                self.bound_pseudo_element_rows
+                    .borrow_mut()
+                    .insert((generator, generated_for), id);
+            }
             BoundNode::Document => self.bound_viewport_row.set(id),
         }
     }
@@ -1119,6 +1154,18 @@ impl LayoutNodeArena {
                     return false;
                 };
                 *bound_row = replacement;
+            }
+            BoundNode::PseudoElement(generator, generated_for) => {
+                let mut bound_rows = self.bound_pseudo_element_rows.borrow_mut();
+                let key = (generator, generated_for);
+                if bound_rows.get(&key) != Some(&id) {
+                    return false;
+                }
+                if replacement.is_invalid() {
+                    bound_rows.remove(&key);
+                } else {
+                    bound_rows.insert(key, replacement);
+                }
             }
             BoundNode::Document => {
                 if self.bound_viewport_row.get() != id {
@@ -1171,6 +1218,20 @@ impl LayoutNodeArena {
                 self.set_node_style_node(row, style_node);
             }
         });
+    }
+
+    /// Moves the box of the pseudo-element of kind `generated_for` bound under `old_generator`, the
+    /// generated content inside it and the binding to `new_generator`.
+    pub(crate) fn move_bound_pseudo_element_rows_to_style_node(
+        &self,
+        old_generator: StyleNodeID,
+        generated_for: u8,
+        new_generator: StyleNodeID,
+    ) {
+        let bound_row = self.bound_pseudo_element_row(old_generator, generated_for);
+        if !bound_row.is_invalid() {
+            self.set_style_node_of_generated_subtree(bound_row, Some(new_generator));
+        }
     }
 
     /// Clears a retired identity from every row still carrying it, including rows of a removed
@@ -3824,6 +3885,28 @@ pub unsafe extern "C" fn layout_arena_bound_shell(arena: *mut c_void, style_node
     arena.data(row).shell.get()
 }
 
+/// The shell of the row the pseudo-element of kind `generated_for` on the element with
+/// `style_node` is bound to, or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_bound_pseudo_element_shell(
+    arena: *mut c_void,
+    style_node: u32,
+    generated_for: u8,
+) -> *mut c_void {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
+        return std::ptr::null_mut();
+    };
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
+    let row = arena.bound_pseudo_element_row(style_node, generated_for);
+    if row.is_invalid() {
+        return std::ptr::null_mut();
+    }
+    arena.data(row).shell.get()
+}
+
 /// The shell of the viewport row the document is bound to, or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_bound_viewport_shell(arena: *mut c_void) -> *mut c_void {
@@ -3914,15 +3997,25 @@ pub unsafe extern "C" fn layout_arena_move_bound_rows_to_style_node(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_style_node_of_generated_subtree(
+pub unsafe extern "C" fn layout_arena_move_bound_pseudo_element_rows_to_style_node(
     arena: *mut c_void,
-    root: NodeSlotId,
-    style_node: u32,
+    old_generator: u32,
+    generated_for: u8,
+    new_generator: u32,
 ) {
     assert!(!arena.is_null(), "layout node arena handle is null");
+    let (Some(old_generator), Some(new_generator)) = (
+        StyleNodeID::from_raw(old_generator),
+        StyleNodeID::from_raw(new_generator),
+    ) else {
+        return;
+    };
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }
-        .set_style_node_of_generated_subtree(root, StyleNodeID::from_raw(style_node));
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.move_bound_pseudo_element_rows_to_style_node(
+        old_generator,
+        generated_for,
+        new_generator,
+    );
 }
 
 #[unsafe(no_mangle)]
@@ -4323,6 +4416,40 @@ mod tests {
         for row in [old_row, slice_row] {
             arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
         }
+    }
+
+    #[test]
+    fn a_pseudo_element_is_bound_only_to_its_principal_box() {
+        use crate::css::style::tree::StyleNodeID;
+        let mut arena = LayoutNodeArena::new();
+        let generator = StyleNodeID::element(2);
+        let principal_box = arena.allocate(test_construction_facts(std::ptr::null_mut()));
+        let content = arena.allocate(test_construction_facts(std::ptr::null_mut()));
+        for row in [principal_box, content] {
+            arena.set_node_generated_for(row, 1, Some(generator));
+        }
+        arena.bind_row(principal_box);
+        assert_eq!(arena.bound_pseudo_element_row(generator, 1), principal_box);
+        assert!(arena.bound_pseudo_element_row(generator, 2).is_invalid());
+        assert!(arena.bound_row(generator).is_invalid());
+
+        // Content carrying the same pair leaves the binding alone.
+        arena.unbind_row(content);
+        assert_eq!(arena.bound_pseudo_element_row(generator, 1), principal_box);
+
+        // A changed generator carries the binding along; a retired one clears it.
+        let changed = StyleNodeID::element(3);
+        arena.set_style_node_of_generated_subtree(principal_box, Some(changed));
+        assert!(arena.bound_pseudo_element_row(generator, 1).is_invalid());
+        assert_eq!(arena.bound_pseudo_element_row(changed, 1), principal_box);
+        arena.forget_style_node(changed);
+        assert!(arena.bound_pseudo_element_row(changed, 1).is_invalid());
+
+        arena.set_node_generated_for(principal_box, 1, Some(generator));
+        arena.bind_row(principal_box);
+        arena.free_subtree(principal_box).destroy_shells_and_invoke_callbacks();
+        assert!(arena.bound_pseudo_element_row(generator, 1).is_invalid());
+        arena.free_subtree(content).destroy_shells_and_invoke_callbacks();
     }
 
     #[test]

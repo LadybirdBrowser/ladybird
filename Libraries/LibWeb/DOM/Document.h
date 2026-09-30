@@ -1522,7 +1522,6 @@ private:
 
     virtual void finalize() override final;
 
-    void tear_down_layout_tree_for_inactive_document();
     Layout::RustFFI::FfiLayoutTreeBuildOutcome build_layout_tree();
 
     // The row the document's layout tree is rooted at. The tree build records it in the arena, so

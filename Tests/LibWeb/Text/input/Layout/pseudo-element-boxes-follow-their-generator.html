@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #generator::before { content: "before"; }
+    #generator::after { content: "after"; display: block; }
+    #generator.hidden { display: none; }
+</style>
+<div id="container"><span id="generator">middle</span></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const generator = document.getElementById("generator");
+        const report = label => {
+            println(`${label}: width ${generator.getBoundingClientRect().width}, full rebuild matches ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        };
+
+        report("Initial");
+        generator.remove();
+        container.appendChild(generator);
+        report("After reinsertion");
+        container.moveBefore(generator, null);
+        report("After moveBefore");
+        generator.classList.add("hidden");
+        report("Hidden");
+        generator.classList.remove("hidden");
+        report("Shown again");
+        generator.attachShadow({ mode: "open" }).append("shadow");
+        report("With a shadow root");
+        println(internals.dumpLayoutTree(container).replace(/\n$/, ""));
+    });
+</script>
