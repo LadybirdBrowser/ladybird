@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/helper.sub.js"></script>
+  <link rel="help" href="https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-initialisation-steps">
+</head>
+<body>
+  <!-- "META: global=worker"
+      (https://web-platform-tests.org/writing-tests/testharness.html#tests-for-other-or-multiple-globals-any-js)
+      can't be used here because constructing the worker would require a trusted type.
+  -->
+  <script>
+    let test_setup_policy = trustedTypes.createPolicy("p", {
+      createScriptURL: x => x
+    });
+
+    fetch_tests_from_worker(new SharedWorker(test_setup_policy.createScriptURL(
+      "support/DOMWindowTimers-setTimeout-setInterval-worker.js")));
+  </script>
+</body>
+</html>

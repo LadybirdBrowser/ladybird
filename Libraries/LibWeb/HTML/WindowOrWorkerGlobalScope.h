@@ -28,7 +28,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
-using TimerHandler = Variant<GC::Ref<WebIDL::CallbackType>, Utf16String>;
+using TimerHandler = Variant<Utf16String, GC::Ref<WebIDL::CallbackType>, GC::Ref<TrustedTypes::TrustedScript>>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope
 class WEB_API WindowOrWorkerGlobalScopeMixin {
@@ -46,8 +46,8 @@ public:
     WebIDL::ExceptionOr<Utf16String> btoa(Utf16View data) const;
     WebIDL::ExceptionOr<Utf16String> atob(Utf16View data) const;
 
-    i32 set_timeout(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
-    i32 set_interval(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
+    WebIDL::ExceptionOr<i32> set_timeout(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
+    WebIDL::ExceptionOr<i32> set_interval(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
     void clear_timeout(i32);
     void clear_interval(i32);
     void clear_map_of_active_timers();
@@ -162,7 +162,7 @@ private:
         Yes,
         No,
     };
-    i32 run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
+    WebIDL::ExceptionOr<i32> run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
     void run_steps_after_a_timeout_impl(i32 timeout, TimerThrottlingClass, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
     bool document_is_hidden() const;
     bool timers_are_throttled() const;

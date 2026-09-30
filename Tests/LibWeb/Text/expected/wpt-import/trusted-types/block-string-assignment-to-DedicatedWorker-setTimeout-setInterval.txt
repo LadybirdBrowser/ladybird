@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	DedicatedWorkerGlobalScope.setTimeout assigned via policy (successful Script transformation).
+Pass	`DedicatedWorkerGlobalScope.setTimeout(string)` throws.
+Pass	`DedicatedWorkerGlobalScope.setTimeout(null)` throws.
+Pass	DedicatedWorkerGlobalScope.setInterval assigned via policy (successful Script transformation).
+Pass	`DedicatedWorkerGlobalScope.setInterval(string)` throws.
+Pass	`DedicatedWorkerGlobalScope.setInterval(null)` throws.
+Pass	`DedicatedWorkerGlobalScope.setTimeout(string)`, `DedicatedWorkerGlobalScope.setInterval(string)` via default policy (successful Script transformation).
+Pass	`DedicatedWorkerGlobalScope.setTimeout(null)`, `DedicatedWorkerGlobalScope.setInterval(null)` via default policy (successful Script transformation).
+Pass	DedicatedWorkerGlobalScope.setTimeout and DedicatedWorkerGlobalScope.setInterval pass the correct sink to the default policy

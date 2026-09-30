@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="support/helper.sub.js"></script>
+
+<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script';">
+<body>
+<script>
+  const testSetupPolicy = trustedTypes.createPolicy("p",
+    { createScriptURL: s => s }
+  );
+
+  fetch_tests_from_worker(new SharedWorker(
+    testSetupPolicy.createScriptURL(
+      "support/block-string-assignment-to-DOMWindowTimers-setTimeout-setInterval-worker.js"
+
+  )));
+</script>

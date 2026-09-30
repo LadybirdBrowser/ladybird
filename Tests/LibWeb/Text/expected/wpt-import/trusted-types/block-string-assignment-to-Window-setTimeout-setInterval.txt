@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Window.setTimeout assigned via policy (successful Script transformation).
+Pass	`Window.setTimeout(string)` throws.
+Pass	`Window.setTimeout(null)` throws.
+Pass	Window.setInterval assigned via policy (successful Script transformation).
+Pass	`Window.setInterval(string)` throws.
+Pass	`Window.setInterval(null)` throws.
+Pass	`Window.setTimeout(string)`, `Window.setInterval(string)` via default policy (successful Script transformation).
+Pass	`Window.setTimeout(null)`, `Window.setInterval(null)` via default policy (successful Script transformation).
+Pass	Window.setTimeout and Window.setInterval pass the correct sink to the default policy

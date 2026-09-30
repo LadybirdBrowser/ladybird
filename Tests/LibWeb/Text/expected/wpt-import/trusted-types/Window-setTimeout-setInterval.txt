@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Window.setTimeout assigned via policy (successful Script transformation).
+Pass	Window.setInterval assigned via policy (successful Script transformation).
+Pass	Window.setTimeout assigned via default policy (successful Script transformation).
+Pass	Window.setInterval assigned via default policy (successful Script transformation).
+Pass	Window.setTimeout assigned with a function handler shouldn't go through default policy.
+Pass	Window.setInterval assigned with a function handler shouldn't go through default policy.

@@ -75,6 +75,9 @@
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/ServiceWorker/CacheStorage.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedScript.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
 #include <LibWeb/UserTiming/PerformanceMark.h>
 #include <LibWeb/UserTiming/PerformanceMeasure.h>
@@ -630,13 +633,13 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-settimeout
-i32 WindowOrWorkerGlobalScopeMixin::set_timeout(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments)
+WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::set_timeout(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments)
 {
     return run_timer_initialization_steps(move(handler), timeout, move(arguments), Repeat::No);
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-setinterval
-i32 WindowOrWorkerGlobalScopeMixin::set_interval(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments)
+WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::set_interval(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments)
 {
     return run_timer_initialization_steps(move(handler), timeout, move(arguments), Repeat::Yes);
 }
@@ -666,14 +669,36 @@ void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-initialisation-steps
 // With no active script fix from https://github.com/whatwg/html/pull/9712
-i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id)
+WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id)
 {
-    // 1. Let thisArg be global if that is a WorkerGlobalScope object; otherwise let thisArg be the WindowProxy that corresponds to global.
+    // 1. If handler is not a Function and previousId was not given:
+    if (!handler.has<GC::Ref<WebIDL::CallbackType>>() && !previous_id.has_value()) {
+        // 1. Let globalName be "Window" if global is a Window object; "WorkerGlobalScope" otherwise.
+        // 2. Let methodName be "setInterval" if repeat is true; "setTimeout" otherwise.
+        // 3. Let sink be a concatenation of globalName, U+0020 SPACE, and methodName.
+        auto sink = [&] {
+            if (is<Window>(this_impl()))
+                return repeat == Repeat::Yes ? TrustedTypes::InjectionSink::Window_setInterval : TrustedTypes::InjectionSink::Window_setTimeout;
+            return repeat == Repeat::Yes ? TrustedTypes::InjectionSink::WorkerGlobalScope_setInterval : TrustedTypes::InjectionSink::WorkerGlobalScope_setTimeout;
+        }();
 
-    // 2. If previousId was given, let id be previousId; otherwise, let id be an implementation-defined integer that is greater than zero and does not already exist in global's map of setTimeout and setInterval IDs.
+        // 4. Set handler to the result of invoking the get trusted type compliant string algorithm with TrustedScript,
+        //    global, handler, sink, and "script".
+        handler = TRY(TrustedTypes::get_trusted_type_compliant_string(
+            TrustedTypes::TrustedTypeName::TrustedScript,
+            relevant_global_object(*this),
+            move(handler).downcast<Utf16String, GC::Ref<TrustedTypes::TrustedScript>>(),
+            sink,
+            TrustedTypes::Script.view()));
+    }
+    auto function_or_string = move(handler).downcast<GC::Ref<WebIDL::CallbackType>, Utf16String>();
+
+    // 2. Let thisArg be global if that is a WorkerGlobalScope object; otherwise let thisArg be the WindowProxy that corresponds to global.
+
+    // 3. If previousId was given, let id be previousId; otherwise, let id be an implementation-defined integer that is greater than zero and does not already exist in global's map of setTimeout and setInterval IDs.
     auto id = previous_id.has_value() ? previous_id.value() : m_timer_id_allocator.allocate();
 
-    // 3. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm,
+    // 4. If the surrounding agent's event loop's currently running task is a task that was created by this algorithm,
     //    then let nesting level be the task's timer nesting level. Otherwise, let nesting level be 0.
     // NB: Only a task created by this algorithm carries a nonzero timer nesting level — so reading the level of
     //     whatever task is running covers both cases. A microtask counts as its own task here — so a timer scheduled
@@ -682,11 +707,11 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     if (auto currently_running_task = relevant_agent(relevant_global_object(*this)).event_loop->currently_running_task())
         nesting_level = currently_running_task->timer_nesting_level();
 
-    // 4. If timeout is less than 0, then set timeout to 0.
+    // 5. If timeout is less than 0, then set timeout to 0.
     if (timeout < 0)
         timeout = 0;
 
-    // 5. If nesting level is greater than 5, and timeout is less than 4, then set timeout to 4.
+    // 6. If nesting level is greater than 5, and timeout is less than 4, then set timeout to 4.
     if (nesting_level > 5 && timeout < 4)
         timeout = 4;
 
@@ -699,18 +724,18 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     else if (timeout == 0)
         throttling_class = TimerThrottlingClass::Immediate;
 
-    // 6. Let realm be global's relevant realm.
+    // 7. Let realm be global's relevant realm.
     auto& realm = relevant_realm(*this);
 
-    // 7. Let initiating script be the active script.
+    // 8. Let initiating script be the active script.
     auto const* initiating_script = Web::Bindings::active_script();
 
     auto& vm = this_impl().vm();
 
-    // FIXME: 8. Let uniqueHandle be null.
+    // FIXME: 9. Let uniqueHandle be null.
 
-    // 9. Let task be a task that runs the following substeps:
-    auto task = GC::create_function(GC::Heap::the(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id, &vm, &realm]() {
+    // 10. Let task be a task that runs the following substeps:
+    auto task = GC::create_function(GC::Heap::the(), Function<void()>([this, handler = move(function_or_string), timeout, arguments = move(arguments), repeat, id, initiating_script, &vm, &realm]() {
         // FIXME: 1. Assert: uniqueHandle is a unique internal value, not null.
 
         // 2. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
@@ -733,22 +758,8 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
             },
             // 6. Otherwise:
             [&](Utf16String const& source) {
-                // 1. If previousId was not given:
-                if (!previous_id.has_value()) {
-                    // 1. Let globalName be "Window" if global is a Window object; "WorkerGlobalScope" otherwise.
-                    auto global_name = is<Window>(this_impl()) ? "Window"sv : "WorkerGlobalScope"sv;
-
-                    // 2. Let methodName be "setInterval" if repeat is true; "setTimeout" otherwise.
-                    auto method_name = repeat == Repeat::Yes ? "setInterval"sv : "setTimeout"sv;
-
-                    // 3. Let sink be a concatenation of globalName, U+0020 SPACE, and methodName.
-                    [[maybe_unused]] auto sink = Utf16String::formatted("{} {}", global_name, method_name);
-
-                    // FIXME: 4. Set handler to the result of invoking the Get Trusted Type compliant string algorithm with TrustedScript, global, handler, sink, and "script".
-                }
-
-                // 2. Assert: handler is a string.
-                // 3. Perform EnsureCSPDoesNotBlockStringCompilation(realm, « », handler, handler, timer, « », handler).
+                // 1. Assert: handler is a string.
+                // 2. Perform EnsureCSPDoesNotBlockStringCompilation(realm, « », handler, handler, timer, « », handler).
                 //    If this throws an exception, catch it, report it for global, and abort these steps.
                 auto handler_primitive_string = JS::PrimitiveString::create(vm, source);
                 if (auto result = ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, {}, source, source, JS::CompilationType::Timer, {}, handler_primitive_string); result.is_throw_completion()) {
@@ -756,16 +767,16 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                     return false;
                 }
 
-                // 4. Let settings object be global's relevant settings object.
+                // 3. Let settings object be global's relevant settings object.
                 auto& settings_object = relevant_settings_object(*this);
 
-                // 5. Let fetch options be the default classic script fetch options.
+                // 4. Let fetch options be the default classic script fetch options.
                 ScriptFetchOptions options {};
 
-                // 6. Let base URL be settings object's API base URL.
+                // 5. Let base URL be settings object's API base URL.
                 auto base_url = settings_object.api_base_url();
 
-                // 7. If initiating script is not null, then:
+                // 6. If initiating script is not null, then:
                 if (initiating_script) {
                     // FIXME: 1. Set fetch options to a script fetch options whose cryptographic nonce is initiating script's fetch options's cryptographic nonce,
                     //           integrity metadata is the empty string, parser metadata is "not-parser-inserted", credentials mode is initiating script's fetch
@@ -778,12 +789,12 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                     //            done by eval(). That is, module script fetches via import() will behave the same in both contexts.
                 }
 
-                // 8. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
+                // 7. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
                 // FIXME: Pass fetch options.
                 auto basename = base_url.basename();
                 auto script = ClassicScript::create(basename, source, settings_object, move(base_url));
 
-                // 9. Run the classic script script.
+                // 8. Run the classic script script.
                 (void)script->run();
                 return true;
             });
@@ -800,7 +811,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         switch (repeat) {
         // 9. If repeat is true, then perform the timer initialization steps again, given global, handler, timeout, arguments, true, and id.
         case Repeat::Yes:
-            run_timer_initialization_steps(handler, timeout, move(arguments), repeat, id);
+            MUST(run_timer_initialization_steps(handler, timeout, move(arguments), repeat, id));
             break;
 
         // 10. Otherwise, remove global's map of active timers[id].
@@ -810,12 +821,12 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         }
     }));
 
-    // 10. Increment nesting level by one.
+    // 11. Increment nesting level by one.
     nesting_level++;
 
-    // 11. Set task's timer nesting level to nesting level.
-    // 12. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
-    // NB: The task the event loop runs is the one completionStep queues — so that's what carries step 11's nesting
+    // 12. Set task's timer nesting level to nesting level.
+    // 13. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
+    // NB: The task the event loop runs is the one completionStep queues — so that's what carries step 12's nesting
     //     level. queue_global_task() creates its task internally; so, this queues one by hand to get at it — and a
     //     fresh one per firing, since a repeating timer's next firing can queue before the previous task has run.
     Function<void()> completion_step = [this, task = move(task), nesting_level]() mutable {
@@ -831,14 +842,14 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         relevant_agent(global).event_loop->task_queue().add(queued_task);
     };
 
-    // 13. Set uniqueHandle to the result of running steps after a timeout given global, "setTimeout/setInterval",
+    // 14. Set uniqueHandle to the result of running steps after a timeout given global, "setTimeout/setInterval",
     //     timeout, and completionStep.
     //     FIXME: run_steps_after_a_timeout() needs to be updated to return a unique internal value that can be used here.
     run_steps_after_a_timeout_impl(timeout, throttling_class, move(completion_step), id, repeat);
 
-    // FIXME: 14. Set global's map of setTimeout and setInterval IDs[id] to uniqueHandle.
+    // FIXME: 15. Set global's map of setTimeout and setInterval IDs[id] to uniqueHandle.
 
-    // 15. Return id.
+    // 16. Return id.
     return id;
 }
 
