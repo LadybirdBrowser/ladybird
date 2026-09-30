@@ -257,6 +257,9 @@ static ErrorOr<void> append_allowed_executables(StringBuilder& builder, Readonly
     }
     builder.append(")\n"sv);
 
+    // NB: Child processes inherit the sandbox, and dyld needs F_GETPATH to find the shared library cache during startup.
+    builder.append("(allow system-fcntl (fcntl-command F_GETPATH))\n"sv);
+
     return {};
 }
 

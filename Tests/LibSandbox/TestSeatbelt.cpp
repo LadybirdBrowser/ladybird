@@ -877,7 +877,7 @@ TEST_CASE(sandboxed_process_spawns_only_allowed_executables_and_cannot_fork)
         if (posix_spawn(&pid, executable.characters(), nullptr, nullptr, arguments, nullptr) != 0)
             return false;
         int status = 0;
-        return waitpid(pid, &status, 0) == pid;
+        return waitpid(pid, &status, 0) == pid && WIFEXITED(status) && WEXITSTATUS(status) == 0;
     }),
         Outcome::Allowed);
 
