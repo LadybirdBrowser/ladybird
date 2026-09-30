@@ -785,7 +785,7 @@ void Request::handle_fetch_complete(int result_code)
     }
 
     if (is_revalidation_request()) {
-        if (result_code == CURLE_OK && acquire_status_code() == 304) {
+        if (result_code == CURLE_OK && acquire_status_code() == 304 && HTTP::can_freshen_stored_response(m_cache_entry_reader->response_headers(), *m_response_headers)) {
             if (m_type == RequestType::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
                 m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "fresh"sv });
 
