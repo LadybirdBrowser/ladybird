@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	SharedWorkerGlobalScope.setTimeout assigned via policy (successful Script transformation).
+Pass	SharedWorkerGlobalScope.setInterval assigned via policy (successful Script transformation).
+Pass	SharedWorkerGlobalScope.setTimeout assigned via default policy (successful Script transformation).
+Pass	SharedWorkerGlobalScope.setInterval assigned via default policy (successful Script transformation).
+Pass	SharedWorkerGlobalScope.setTimeout assigned with a function handler shouldn't go through default policy.
+Pass	SharedWorkerGlobalScope.setInterval assigned with a function handler shouldn't go through default policy.
