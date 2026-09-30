@@ -791,16 +791,21 @@ DOM::Node const* Node::dom_node() const
 
 DOM::Node* Node::dom_node()
 {
-    if (is_anonymous())
-        return nullptr;
     // NB: The document outlives every live row of its arena.
     auto* document = m_arena->document();
     VERIFY(document);
+    return dom_node_identity().resolve(*document).ptr();
+}
+
+DOM::NodeIdentity Node::dom_node_identity() const
+{
+    if (is_anonymous())
+        return {};
     // The document has no StyleNodeID; its row is the viewport.
     if (m_kind == RustFFI::NodeKind::Viewport)
-        return document;
-    // A row kept after its node was removed has a StyleNodeID of 0 and resolves to null.
-    return document->style_computer().node_for_style_node(style_node_id()).ptr();
+        return DOM::NodeIdentity::of_document();
+    // A row kept after its node was removed has a StyleNodeID of 0 and names nothing.
+    return DOM::NodeIdentity::of_style_node(style_node_id());
 }
 
 GC::Ptr<DOM::Element const> Node::pseudo_element_generator() const
@@ -810,11 +815,16 @@ GC::Ptr<DOM::Element const> Node::pseudo_element_generator() const
 
 GC::Ptr<DOM::Element> Node::pseudo_element_generator()
 {
-    VERIFY(is_generated_for_pseudo_element());
-    // A row kept after its generator was removed has a StyleNodeID of 0 and resolves to null.
     auto* document = m_arena->document();
     VERIFY(document);
-    return document->style_computer().element_for_style_node(style_node_id());
+    return as_if<DOM::Element>(pseudo_element_generator_identity().resolve(*document).ptr());
+}
+
+DOM::NodeIdentity Node::pseudo_element_generator_identity() const
+{
+    VERIFY(is_generated_for_pseudo_element());
+    // A stale row's StyleNodeID is 0 once its generator disconnects, so it names nothing.
+    return DOM::NodeIdentity::of_style_node(style_node_id());
 }
 
 void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)

@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/DOM/NodeIdentity.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -189,9 +190,13 @@ public:
     bool insets_use_anchor_functions() const { return has_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions); }
     DOM::Node const* dom_node() const;
     DOM::Node* dom_node();
+    // The identity of the DOM node this row belongs to, which names nothing for an anonymous row
+    // and for a row whose node has left the tree.
+    DOM::NodeIdentity dom_node_identity() const;
 
     GC::Ptr<DOM::Element const> pseudo_element_generator() const;
     GC::Ptr<DOM::Element> pseudo_element_generator();
+    DOM::NodeIdentity pseudo_element_generator_identity() const;
 
     bool needs_layout_update() const { return has_flag(RustFFI::NodeFlag::NeedsLayoutUpdate); }
     bool retains_compositor_animated_content() const { return has_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform); }

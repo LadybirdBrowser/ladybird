@@ -326,6 +326,7 @@ set(SOURCES
     DOM/NamedNodeMap.cpp
     DOM/Node.cpp
     DOM/NodeFilter.cpp
+    DOM/NodeIdentity.cpp
     DOM/NodeIterator.cpp
     DOM/NodeList.cpp
     DOM/NodeOperations.cpp
