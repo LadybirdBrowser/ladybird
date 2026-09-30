@@ -30,12 +30,9 @@ use crate::abort_on_panic as abort_on_boundary_panic;
 use crate::css::custom_properties::CustomPropertyRegistry;
 use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::selector::CompiledSelector;
-use crate::css::selector::RustSelector;
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
 
-use super::HashSet;
-use super::PinnedAtoms;
 use super::batch_matcher::RuleMatch;
 use super::cascade::CascadeOperator;
 use super::compiler::ImplicitScopeRoot;
@@ -44,14 +41,13 @@ use super::compiler::ScopeChain;
 use super::index::FeatureValue;
 use super::index::LocalFeatureKey;
 use super::index::StyleAtomID;
-use super::matching::{SelectorQueryCache, SelectorQueryContext};
 use super::memory::DeviceClass;
 #[cfg(feature = "style-recording")]
 use super::memory::MEMORY_CATEGORIES;
 #[cfg(feature = "style-recording")]
 use super::memory::MEMORY_CATEGORY_COUNT;
+#[cfg(feature = "style-recording")]
 use super::memory::MemoryCategory;
-use super::memory::MemoryLease;
 #[cfg(feature = "style-recording")]
 use super::memory::TIER3_REFUSAL_CATEGORIES;
 use super::program::CascadeLayerID;
@@ -64,7 +60,6 @@ use super::program::RuleKind;
 use super::program::SheetID;
 use super::program::StyleSheetObjectID;
 use super::record_replay::EventKind;
-use super::selector::SelectorProgram;
 use super::transaction::ElementDeclarationKind;
 use super::transaction::InputKey;
 use super::transaction::InputValue;
@@ -441,23 +436,6 @@ pub struct FfiStyleRecordView {
     pub animation_overlay_identity: u64,
     pub dependency_flags: u8,
     pub present: bool,
-}
-
-struct SelectorQuery {
-    program: SelectorProgram,
-    cache: SelectorQueryCache,
-    _atoms: PinnedAtoms,
-    _memory: MemoryLease,
-}
-
-impl SelectorQuery {
-    #[must_use]
-    fn capacity_bytes(&self) -> u64 {
-        self.program
-            .capacity_bytes()
-            .saturating_add(self.cache.capacity_bytes())
-            .saturating_add(std::mem::size_of::<Self>() as u64)
-    }
 }
 
 impl FfiStyleRecordView {
@@ -1599,213 +1577,6 @@ impl BoundScopeChain {
             self.limits.extend(end.selectors.iter().cloned());
         }
     }
-}
-
-unsafe fn borrow_selectors<'a>(pointers: *const *const c_void, count: usize) -> Vec<&'a CompiledSelector> {
-    if count == 0 || pointers.is_null() {
-        return Vec::new();
-    }
-    unsafe { std::slice::from_raw_parts(pointers, count) }
-        .iter()
-        .filter(|pointer| !pointer.is_null())
-        .map(|pointer| unsafe { (*pointer.cast::<RustSelector>()).compiled() })
-        .collect()
-}
-
-/// Compiles one selector list for the DOM query APIs.
-///
-/// # Safety
-/// `engine` must be live, and `selectors` must point at `count` live selector handles.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_compile_selector_query(
-    engine: *mut c_void,
-    selectors: *const *const c_void,
-    count: usize,
-) -> *mut c_void {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let selectors = unsafe { borrow_selectors(selectors, count) };
-    let program = engine.compile_selector_query(&selectors);
-    let mut atoms = HashSet::default();
-    program.collect_atoms(&mut atoms);
-    let atoms = engine.atoms.pin(atoms);
-    engine.record_boundary_call(EventKind::SelectorQueryAtomMappings, |payload| {
-        write_recording_atom_mappings(engine, payload);
-    });
-    let bytes = program
-        .capacity_bytes()
-        .saturating_add(std::mem::size_of::<SelectorQuery>() as u64);
-    let mut memory = MemoryLease::new(MemoryCategory::SelectorQuery);
-    memory.resize_required_to(&mut engine.memory, bytes);
-    Box::into_raw(Box::new(SelectorQuery {
-        program,
-        cache: SelectorQueryCache::default(),
-        _atoms: atoms,
-        _memory: memory,
-    }))
-    .cast()
-}
-
-/// # Safety
-/// `query` must have been returned by `style_engine_compile_selector_query` and not yet destroyed.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_destroy_selector_query(query: *mut c_void) {
-    if !query.is_null() {
-        drop(unsafe { Box::from_raw(query.cast::<SelectorQuery>()) });
-    }
-}
-/// Matches one resident element against an ad-hoc selector list.
-///
-/// Returns 0 for no match, 1 for a match, and `u8::MAX` when resident facts do not cover the query.
-///
-/// # Safety
-/// `engine` and `query` must be live and belong to the same document.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_selector_query_matches(
-    engine: *mut c_void,
-    query: *const c_void,
-    node: u32,
-    scope_root: u32,
-    shadow_root: u32,
-) -> u8 {
-    unsafe { selector_query_matches_impl(engine, query, node, scope_root, shadow_root, true) }
-}
-
-/// Matches one resident element in a engine that has no document root.
-///
-/// # Safety
-/// `engine` and `query` must be live and belong to the same isolated engine.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_selector_query_matches_without_document_root(
-    engine: *mut c_void,
-    query: *const c_void,
-    node: u32,
-    scope_root: u32,
-    shadow_root: u32,
-) -> u8 {
-    unsafe { selector_query_matches_impl(engine, query, node, scope_root, shadow_root, false) }
-}
-
-/// Matches a selector query against one resident subtree in one operation.
-///
-/// Returns the required result capacity without writing when `capacity` is too small, and
-/// `usize::MAX` when resident facts do not cover the query.
-///
-/// # Safety
-/// `engine` and `query` must be live and belong to the same document. `matches` must point at
-/// `capacity` writable node identities when `capacity` is nonzero.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_selector_query_all(
-    engine: *mut c_void,
-    query: *mut c_void,
-    root: u32,
-    include_root: bool,
-    scope_root: u32,
-    shadow_root: u32,
-    has_document_root: bool,
-    matches: *mut u32,
-    capacity: usize,
-) -> usize {
-    let Some(root) = StyleNodeID::from_raw(root) else {
-        return usize::MAX;
-    };
-    if query.is_null() || (capacity != 0 && matches.is_null()) {
-        return usize::MAX;
-    }
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let query = unsafe { &mut *query.cast::<SelectorQuery>() };
-    let result = engine.selector_query_all(
-        &query.program,
-        &mut query.cache,
-        SelectorQueryContext {
-            root,
-            include_root,
-            scope_root: StyleNodeID::from_raw(scope_root),
-            shadow_root: StyleNodeID::from_raw(shadow_root),
-            has_document_root,
-        },
-    );
-    let query_bytes = query.capacity_bytes();
-    query._memory.resize_required_to(&mut engine.memory, query_bytes);
-    let Ok(result) = result else {
-        return usize::MAX;
-    };
-    if result.len() <= capacity {
-        for (index, node) in result.iter().enumerate() {
-            unsafe { matches.add(index).write(node.raw()) };
-        }
-    }
-    result.len()
-}
-
-/// # Safety
-/// `engine` and `query` must be live and belong to the same document. `matched` must be
-/// writable; it receives the first match in tree order — or zero, when nothing matches.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_selector_query_first(
-    engine: *mut c_void,
-    query: *mut c_void,
-    root: u32,
-    include_root: bool,
-    scope_root: u32,
-    shadow_root: u32,
-    has_document_root: bool,
-    matched: *mut u32,
-) -> bool {
-    let Some(root) = StyleNodeID::from_raw(root) else {
-        return false;
-    };
-    if query.is_null() || matched.is_null() {
-        return false;
-    }
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let query = unsafe { &mut *query.cast::<SelectorQuery>() };
-    let result = engine.selector_query_first(
-        &query.program,
-        SelectorQueryContext {
-            root,
-            include_root,
-            scope_root: StyleNodeID::from_raw(scope_root),
-            shadow_root: StyleNodeID::from_raw(shadow_root),
-            has_document_root,
-        },
-    );
-    let query_bytes = query.capacity_bytes();
-    query._memory.resize_required_to(&mut engine.memory, query_bytes);
-    let Ok(result) = result else {
-        return false;
-    };
-    unsafe { matched.write(result.map_or(0, |node| node.raw())) };
-    true
-}
-
-unsafe fn selector_query_matches_impl(
-    engine: *mut c_void,
-    query: *const c_void,
-    node: u32,
-    scope_root: u32,
-    shadow_root: u32,
-    has_document_root: bool,
-) -> u8 {
-    abort_on_panic(|| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return u8::MAX;
-        };
-        if query.is_null() {
-            return u8::MAX;
-        }
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        let query = unsafe { &*query.cast::<SelectorQuery>() };
-        match engine.selector_query_matches(
-            &query.program,
-            node,
-            StyleNodeID::from_raw(scope_root),
-            StyleNodeID::from_raw(shadow_root),
-            has_document_root,
-        ) {
-            Ok(matches) => u8::from(matches),
-            Err(_) => u8::MAX,
-        }
-    })
 }
 
 /// One concrete match, as the boundary carries it.
@@ -3931,8 +3702,8 @@ mod tests {
             let chunk_size = if split_batches { 1 } else { arrivals.len() };
             for chunk in arrivals.chunks(chunk_size) {
                 engine.apply_transaction_batch(chunk, (&[], &[]), &[], &[], &[], &[]);
-                // Selector queries may install the current rows before style is observed.
-                engine.prepare_selector_query();
+                // Applying the staged tree between batches must not lose a row's before side.
+                engine.apply_staged_tree_deltas();
             }
             let transaction = engine.take_transaction();
             for raw in &nodes[1..] {

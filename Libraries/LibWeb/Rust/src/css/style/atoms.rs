@@ -9,11 +9,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::hash_map::Entry;
 use std::hash::BuildHasher;
-use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::Ordering;
 
 use super::index::StyleAtomID;
 
@@ -165,72 +162,17 @@ pub(super) struct DocumentAtoms {
     cpp_memoized_raws: HashSet<usize>,
     qualified: HashMap<(u32, u32), StyleAtomID>,
     scope: AtomScope,
-    pins: Arc<AtomPins>,
     #[cfg(test)]
     available: BTreeSet<u32>,
     #[cfg(test)]
     next: u32,
     sweep_at: usize,
-    reported_pin_releases: AtomicU64,
-}
-
-pub(super) struct PinnedAtoms {
-    atoms: Box<[StyleAtomID]>,
-    pins: Arc<AtomPins>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct ReclaimedStyleAtom {
     pub raw: usize,
     pub atom: StyleAtomID,
-}
-
-/// Transient pins on atoms a host call is holding, and how many pin handles have been released
-/// since the last sweep.
-///
-/// Both are shared with every live `PinnedAtoms` handle, and the owner of this table is on the
-/// read side an evaluation step borrows, which has to be `Sync`. Pinning happens at a host
-/// boundary and never inside a walk, so the lock is never contended; it is here so the compiler
-/// can prove the read side shareable.
-#[derive(Default)]
-struct AtomPins {
-    counts: Mutex<HashMap<StyleAtomID, u64>>,
-    releases: AtomicU64,
-}
-
-impl AtomPins {
-    fn counts(&self) -> std::sync::MutexGuard<'_, HashMap<StyleAtomID, u64>> {
-        self.counts
-            .lock()
-            .expect("the atom pin table is never held across a panic")
-    }
-}
-
-pub(super) struct AtomSweepDecision {
-    pub should_sweep: bool,
-    pub skipped_pin_releases: u64,
-}
-
-pub(super) const PIN_RELEASES_PER_SWEEP: u64 = 256;
-
-impl Drop for PinnedAtoms {
-    fn drop(&mut self) {
-        if self.atoms.is_empty() {
-            return;
-        }
-        let mut pinned = self.pins.counts();
-        for atom in &self.atoms {
-            let Entry::Occupied(mut entry) = pinned.entry(*atom) else {
-                unreachable!("a pinned atom must have a live count");
-            };
-            let count = entry.get_mut();
-            *count = count.checked_sub(1).expect("pinned atom count underflow");
-            if *count == 0 {
-                entry.remove();
-            }
-        }
-        self.pins.releases.fetch_add(1, Ordering::Relaxed);
-    }
 }
 
 impl DocumentAtoms {
@@ -252,13 +194,11 @@ impl DocumentAtoms {
             cpp_memoized_raws: HashSet::new(),
             qualified: HashMap::new(),
             scope,
-            pins: Arc::new(AtomPins::default()),
             #[cfg(test)]
             available: BTreeSet::new(),
             #[cfg(test)]
             next: 0,
             sweep_at: 256,
-            reported_pin_releases: AtomicU64::new(0),
         }
     }
 
@@ -309,43 +249,15 @@ impl DocumentAtoms {
         StyleAtomID(self.next)
     }
 
-    pub(super) fn pin(&self, atoms: impl IntoIterator<Item = StyleAtomID>) -> PinnedAtoms {
-        let atoms = atoms.into_iter().filter(|atom| !atom.is_none()).collect::<Box<[_]>>();
-        let mut pinned = self.pins.counts();
-        for &atom in &atoms {
-            *pinned.entry(atom).or_default() += 1;
-        }
-        drop(pinned);
-        PinnedAtoms {
-            atoms,
-            pins: Arc::clone(&self.pins),
-        }
+    pub(super) fn should_sweep(&self) -> bool {
+        self.raw.len() + self.qualified.len() >= self.sweep_at
     }
 
-    pub(super) fn sweep_decision(&self) -> AtomSweepDecision {
-        let growth_requires_sweep = self.raw.len() + self.qualified.len() >= self.sweep_at;
-        let pin_releases = self.pins.releases.load(Ordering::Relaxed);
-        let pin_releases_require_sweep = pin_releases >= PIN_RELEASES_PER_SWEEP;
-        let skipped_pin_releases = if growth_requires_sweep || pin_releases_require_sweep {
-            0
-        } else {
-            pin_releases
-                .checked_sub(self.reported_pin_releases.load(Ordering::Relaxed))
-                .expect("reported atom pin releases exceed releases")
-        };
-        self.reported_pin_releases.store(pin_releases, Ordering::Relaxed);
-        AtomSweepDecision {
-            should_sweep: growth_requires_sweep || pin_releases_require_sweep,
-            skipped_pin_releases,
-        }
-    }
-
-    /// Add transient pins and the raw components of every live qualified name.
+    /// Add the raw components of every live qualified name.
     pub(super) fn mark_sweep_dependencies<S>(&self, live: &mut HashSet<StyleAtomID, S>)
     where
         S: BuildHasher,
     {
-        live.extend(self.pins.counts().keys().copied());
         for (&(namespace, name), &qualified) in &self.qualified {
             if live.contains(&qualified) {
                 if namespace != 0 {
@@ -383,8 +295,6 @@ impl DocumentAtoms {
     }
 
     pub(super) fn finish_sweep(&mut self, reclaimable: &[StyleAtomID]) -> Vec<ReclaimedStyleAtom> {
-        self.pins.releases.store(0, Ordering::Relaxed);
-        self.reported_pin_releases.store(0, Ordering::Relaxed);
         if reclaimable.is_empty() {
             self.schedule_next_sweep();
             return Vec::new();
@@ -557,29 +467,6 @@ mod tests {
         let mut live = HashSet::from([qualified]);
         assert!(prepare_sweep(&atoms, &mut live).is_empty());
         assert_eq!(live, HashSet::from([namespace, name, qualified]));
-    }
-
-    #[test]
-    fn pins_delay_reclamation_until_their_owner_is_destroyed() {
-        let mut atoms = DocumentAtoms::for_live_engine();
-        let atom = atoms.intern_cpp_raw(0x1000);
-        let pin = atoms.pin([atom]);
-        assert!(prepare_sweep(&atoms, &mut HashSet::new()).is_empty());
-        drop(pin);
-        let decision = atoms.sweep_decision();
-        assert!(!decision.should_sweep);
-        assert_eq!(decision.skipped_pin_releases, 1);
-        assert_eq!(atoms.sweep_decision().skipped_pin_releases, 0);
-        for _ in 1..PIN_RELEASES_PER_SWEEP {
-            drop(atoms.pin([atom]));
-        }
-        assert!(atoms.sweep_decision().should_sweep);
-        let reclaimable = prepare_sweep(&atoms, &mut HashSet::new());
-        assert_eq!(reclaimable, [atom]);
-        assert_eq!(
-            atoms.finish_sweep(&reclaimable),
-            [ReclaimedStyleAtom { raw: 0x1000, atom }]
-        );
     }
 
     #[test]

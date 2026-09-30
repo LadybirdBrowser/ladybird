@@ -52,9 +52,6 @@ use super::program::DeclaredProperty;
 use super::program::EntryID;
 use super::program::RuleID;
 use super::program::SelectorProgramID;
-use super::selector::AttributeCase;
-use super::selector::AttributeOperator;
-use super::selector::AttributeTest;
 use super::sorted_merge::SortedMergeEntry;
 use super::sorted_merge::merge_sorted_by;
 use super::transaction::ElementDeclarationKind;
@@ -74,55 +71,6 @@ impl StyleAtomID {
     #[must_use]
     pub fn is_none(self) -> bool {
         self == Self::NONE
-    }
-}
-
-fn attribute_value_equals(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
-    if !insensitive {
-        return value == literal;
-    }
-    value.len() == literal.len()
-        && value.iter().zip(literal).all(|(&left, &right)| {
-            left == right
-                || match (u8::try_from(left), u8::try_from(right)) {
-                    (Ok(left), Ok(right)) => left.eq_ignore_ascii_case(&right),
-                    _ => false,
-                }
-        })
-}
-
-fn attribute_value_starts_with(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
-    value.len() >= literal.len() && attribute_value_equals(&value[..literal.len()], literal, insensitive)
-}
-
-fn attribute_value_may_match(value: &[u16], literal: &[u16], operator: AttributeOperator, insensitive: bool) -> bool {
-    match operator {
-        AttributeOperator::Presence => true,
-        AttributeOperator::Exact => attribute_value_equals(value, literal, insensitive),
-        AttributeOperator::Includes => {
-            !literal.is_empty()
-                && value
-                    .split(|unit| matches!(unit, 0x20 | 0x09 | 0x0A | 0x0C | 0x0D))
-                    .any(|token| attribute_value_equals(token, literal, insensitive))
-        }
-        AttributeOperator::DashMatch => {
-            attribute_value_equals(value, literal, insensitive)
-                || (value.len() > literal.len()
-                    && value[literal.len()] == u16::from(b'-')
-                    && attribute_value_starts_with(value, literal, insensitive))
-        }
-        AttributeOperator::Prefix => !literal.is_empty() && attribute_value_starts_with(value, literal, insensitive),
-        AttributeOperator::Suffix => {
-            !literal.is_empty()
-                && value.len() >= literal.len()
-                && attribute_value_equals(&value[value.len() - literal.len()..], literal, insensitive)
-        }
-        AttributeOperator::Substring => {
-            !literal.is_empty()
-                && value.len() >= literal.len()
-                && (0..=value.len() - literal.len())
-                    .any(|start| attribute_value_equals(&value[start..start + literal.len()], literal, insensitive))
-        }
     }
 }
 
@@ -352,10 +300,6 @@ impl<T: Clone + Default> PagedOwnedColumn<T> {
 
     fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.values.iter_mut()
-    }
-
-    fn indexed_iter(&self) -> impl Iterator<Item = (usize, &T)> {
-        self.indices.iter().copied().zip(self.values.iter())
     }
 
     fn indexed_iter_mut(&mut self) -> impl Iterator<Item = (usize, &mut T)> {
@@ -1578,9 +1522,6 @@ pub enum FeatureKey {
     Id(StyleAtomID),
     Class(StyleAtomID),
     AttributeName(StyleAtomID),
-    /// The complete interned value of an attribute. This is query acceleration rather than a CSS
-    /// dispatch key: attribute value queries use it to reach only values that can match.
-    AttributeValue(StyleAtomID),
     Directionality(StyleAtomID),
     Root,
     State(StateFact),
@@ -1625,7 +1566,6 @@ impl FeatureKey {
             | Self::Id(_)
             | Self::Class(_)
             | Self::AttributeName(_)
-            | Self::AttributeValue(_)
             | Self::Directionality(_) => true,
             Self::State(fact) => fact.has_selector_posting(),
             _ => false,
@@ -1640,7 +1580,6 @@ impl FeatureKey {
             | Self::Id(atom)
             | Self::Class(atom)
             | Self::AttributeName(atom)
-            | Self::AttributeValue(atom)
             | Self::Directionality(atom)
             | Self::AnimationName(atom) => Some(atom),
             Self::Root
@@ -3650,8 +3589,6 @@ pub struct ElementFactStore {
     language_live_counts: PagedCopyColumn<u32>,
     attribute_name_live_counts: PagedCopyColumn<u32>,
     attribute_value_live_counts: PagedCopyColumn<u32>,
-    /// Changes whenever a newly published value can change an attribute-value query plan.
-    attribute_value_catalog_version: u64,
     custom_property_set_live_counts: Vec<u64>,
     /// Attribute-name forms and value text shared by the primary and each bounded fact batch.
     ///
@@ -4024,7 +3961,6 @@ impl Default for ElementFactStore {
             language_live_counts: PagedCopyColumn::default(),
             attribute_name_live_counts: PagedCopyColumn::default(),
             attribute_value_live_counts: PagedCopyColumn::default(),
-            attribute_value_catalog_version: 1,
             custom_property_set_live_counts: vec![0],
             element_declared_properties: ElementDeclarationRows::default(),
         };
@@ -4305,12 +4241,6 @@ impl ElementFactStore {
                         return None;
                     }
                 }
-                if !attribute.value.is_none() {
-                    let key = SelectorPostingKey::AttributeValue(attribute.value);
-                    if !self.rebuild_missing_posting(&mut rebuilt, key, node, memory) {
-                        return None;
-                    }
-                }
             }
             if let Some(metadata) = self.metadata_of(node) {
                 for &name in &metadata.animation_names {
@@ -4361,8 +4291,8 @@ impl ElementFactStore {
             return;
         }
 
-        // NB: Rebuilding needs to admit new postings. Avoid scanning every fact on each
-        //     selector query while admission is closed, and retry once it reopens.
+        // NB: Rebuilding needs to admit new postings. Avoid scanning every fact each time
+        //     staged facts are applied while admission is closed, and retry once it reopens.
         if !memory.is_tier3_admitting(MemoryCategory::FeaturePosting) {
             return;
         }
@@ -4576,12 +4506,6 @@ impl ElementFactStore {
                         || forms.folded_name == name
                         || forms.folded_local == name
                 })
-            }),
-            DispatchKey::AttributeValue(value) => row.is_some_and(|row| {
-                self.rows
-                    .attributes_of(row)
-                    .iter()
-                    .any(|attribute| attribute.value == value)
             }),
             DispatchKey::TagName(tag) => {
                 row.is_some_and(|row| self.rows.tag_of(row) == tag || self.rows.folded_tag_of(row) == tag)
@@ -4938,16 +4862,22 @@ impl ElementFactStore {
         // foldings of both, which is how `[aB]` reaches an attribute written either way. The extra
         // names are postings rather than facts, so they say only that at least one attribute of the
         // element answers to them.
-        let (old_value, changed) = self.edit_staged_row(node, |facts| {
+        let changed = self.edit_staged_row(node, |facts| {
             let found = facts.attributes.binary_search_by_key(&name, |entry| entry.0);
             match (present, found) {
-                (true, Ok(index)) => (Some(std::mem::replace(&mut facts.attributes[index].1, value)), false),
+                (true, Ok(index)) => {
+                    facts.attributes[index].1 = value;
+                    false
+                }
                 (true, Err(index)) => {
                     facts.attributes.insert(index, (name, value));
-                    (None, true)
+                    true
                 }
-                (false, Ok(index)) => (Some(facts.attributes.remove(index).1), true),
-                (false, Err(_)) => (None, false),
+                (false, Ok(index)) => {
+                    facts.attributes.remove(index);
+                    true
+                }
+                (false, Err(_)) => false,
             }
         });
         if changed && present {
@@ -4964,62 +4894,6 @@ impl ElementFactStore {
                 }
             }
         }
-        if !present || old_value != Some(value) {
-            if let Some(old_value) = old_value {
-                let old_value_is_still_present = self
-                    .staging
-                    .get(node)
-                    .is_some_and(|facts| facts.attributes.iter().any(|&(_, candidate)| candidate == old_value));
-                if !old_value.is_none() && !old_value_is_still_present {
-                    self.postings
-                        .remove(SelectorPostingKey::AttributeValue(old_value), node);
-                }
-            }
-            if present && !value.is_none() {
-                self.postings
-                    .insert(SelectorPostingKey::AttributeValue(value), node, memory);
-            }
-        }
-    }
-
-    pub(super) fn matching_attribute_values(&self, test: AttributeTest, literal: &[u16]) -> Vec<StyleAtomID> {
-        if test.operator == AttributeOperator::Exact
-            && test.case == AttributeCase::Sensitive
-            && !test.value_atom.is_none()
-        {
-            return vec![test.value_atom];
-        }
-
-        let insensitive = test.case != AttributeCase::Sensitive;
-        let mut values = Vec::new();
-        for (index, text) in self.attribute_catalogs.value_texts.indexed_iter() {
-            let Some(text) = text else {
-                continue;
-            };
-            if !attribute_value_may_match(text, literal, test.operator, insensitive) {
-                continue;
-            }
-            let value = StyleAtomID(u32::try_from(index).expect("attribute-value atom index exceeds u32"));
-            values.push(value);
-        }
-        values
-    }
-
-    pub(super) fn attribute_value_candidates(&self, values: &[StyleAtomID]) -> Option<Vec<StyleNodeID>> {
-        let mut candidates = Vec::new();
-        for &value in values {
-            match self.postings.lookup(SelectorPostingKey::AttributeValue(value)) {
-                Lookup::Known(posting) => posting.append_candidates_to(&mut candidates),
-                Lookup::KnownAbsent => {}
-                Lookup::Missing(_) => return None,
-            }
-        }
-        Some(candidates)
-    }
-
-    #[must_use]
-    pub(super) fn attribute_value_catalog_version(&self) -> u64 {
-        self.attribute_value_catalog_version
     }
 
     /// Whether any attribute the node still carries is indexed under `key`.
@@ -5168,10 +5042,6 @@ impl ElementFactStore {
         self.attribute_catalogs_mut()
             .value_texts
             .insert(index, Some(text.into()));
-        self.attribute_value_catalog_version = self
-            .attribute_value_catalog_version
-            .checked_add(1)
-            .expect("attribute-value catalog version overflow");
     }
 
     #[must_use]
@@ -5280,12 +5150,9 @@ impl ElementFactStore {
         {
             self.postings.remove(SelectorPostingKey::State(state), node);
         }
-        for &AttributeFact { name, value, .. } in self.rows.attributes_of(row) {
+        for &AttributeFact { name, .. } in self.rows.attributes_of(row) {
             for key in self.attribute_name_keys(name) {
                 self.postings.remove(SelectorPostingKey::AttributeName(key), node);
-            }
-            if !value.is_none() {
-                self.postings.remove(SelectorPostingKey::AttributeValue(value), node);
             }
         }
         Arc::get_mut(&mut self.rows)
@@ -5610,10 +5477,6 @@ impl ElementFactStore {
         self.memory.resize_required_to(memory, current);
         self.memory_dirty = false;
         self.rebuild_missing_postings(memory);
-    }
-
-    pub fn prepare_selector_query(&mut self, memory: &mut MemoryController) {
-        self.apply_staged(memory);
     }
 
     /// Snapshot the committed rows which staged local facts will replace at the barrier.
@@ -6249,7 +6112,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_queries_defer_posting_rebuilds_while_admission_is_closed() {
+    fn applying_staged_facts_defers_posting_rebuilds_while_admission_is_closed() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
@@ -6267,7 +6130,7 @@ mod tests {
         assert!(!memory.is_tier3_admitting(MemoryCategory::FeaturePosting));
 
         for _ in 0..3 {
-            facts.prepare_selector_query(&mut memory);
+            facts.apply_staged(&mut memory);
             assert!(facts.classes_of_node(node).is_empty());
             // NB: Even resolving an empty missing posting requires scanning the facts.
             assert!(matches!(facts.postings().lookup(key), Lookup::Missing(gap) if gap == key));
@@ -6275,7 +6138,7 @@ mod tests {
 
         memory.set_tier3_limit_for_test(u64::MAX);
         memory.begin_tier3_quota_period();
-        facts.prepare_selector_query(&mut memory);
+        facts.apply_staged(&mut memory);
         assert!(matches!(facts.postings().lookup(key), Lookup::KnownAbsent));
     }
 

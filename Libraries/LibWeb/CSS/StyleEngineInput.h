@@ -38,18 +38,6 @@ WEB_API void record_element_connected(DOM::Element&);
 WEB_API void publish_pending_element_features(StyleEngine&, StyleComputer&);
 WEB_API void publish_required_attribute_value_texts(StyleEngine&, StyleComputer&);
 
-WEB_API void configure_isolated_selector_query_engine(StyleEngine&, DOM::Document&);
-
-// Populate an isolated engine with the current facts of a DOM tree. The callback receives the temporary identity
-// assigned to each element; no identity or transaction in the document's resident engine is changed.
-// Returns the query root: the element itself, a fragment's synthetic root, or a document's document element.
-WEB_API StyleNodeID populate_isolated_selector_query_engine(StyleEngine&, DOM::ParentNode&, Function<void(GC::Ref<DOM::Element>, StyleNodeID)> const&);
-
-// Tell the document's engine whether this is an HTML document. Selectors compile against that fact,
-// so it is published before any rule compiles; a selector query compiled by an early script can run
-// before the first sheet attaches, and has to say it itself.
-WEB_API void record_document_kind(DOM::Document&);
-
 // Called while the subtree is still linked, so its old relations are still readable.
 WEB_API void record_subtree_disconnecting(DOM::Node&);
 
