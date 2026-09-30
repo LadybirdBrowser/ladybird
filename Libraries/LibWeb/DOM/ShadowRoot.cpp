@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
@@ -61,7 +62,9 @@ void ShadowRoot::adopted_from(Document& old_document)
 
     // Identities belong to one document's engine, so the root and its scope have to be minted
     // again in the new one. Its sheets are re-adopted through the CSSOM, which is what attaches
-    // them to the new identities.
+    // them to the new identities. Attaching a sheet names even a disconnected root, so the old
+    // document's node table may still hold it.
+    old_document.style_computer().unregister_style_node(style_node_id());
     set_style_node_id(0);
     m_style_engine_tree_scope = 0;
 }

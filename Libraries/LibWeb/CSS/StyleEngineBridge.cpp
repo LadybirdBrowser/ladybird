@@ -91,6 +91,13 @@ void StyleEngine::allocate_style_nodes(Span<StyleNodeID> nodes)
     StyleEngineFFI::style_engine_allocate_style_nodes(m_impl, reinterpret_cast<u32*>(nodes.data()), nodes.size());
 }
 
+void StyleEngine::allocate_text_style_nodes(Span<StyleNodeID> nodes)
+{
+    if (nodes.is_empty())
+        return;
+    StyleEngineFFI::style_engine_allocate_text_style_nodes(m_impl, reinterpret_cast<u32*>(nodes.data()), nodes.size());
+}
+
 HashTable<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
 {
     return move(m_nodes_with_pending_initial_features);

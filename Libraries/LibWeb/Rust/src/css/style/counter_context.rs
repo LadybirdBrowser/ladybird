@@ -207,6 +207,12 @@ impl StyleEngine {
         self.state.allocate_style_nodes(out, &mut self.counters);
     }
 
+    /// Mint `out.len()` text identities in one call.
+    #[inline]
+    pub fn allocate_text_style_nodes(&mut self, out: &mut [u32]) {
+        self.state.allocate_text_style_nodes(out);
+    }
+
     /// Stage a structural change. The normalized transaction installs the final relation rows at
     /// the next observation boundary.
     #[inline]

@@ -218,11 +218,16 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     });
                     unsafe { bridge::style_engine_destroy(engine) };
                 }
-                EventKind::AllocateStyleNodes => {
+                EventKind::AllocateStyleNodes | EventKind::AllocateTextStyleNodes => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let expected = event.payload.read_u32_vec()?;
                     let mut actual = vec![0; expected.len()];
-                    unsafe { bridge::style_engine_allocate_style_nodes(engine, actual.as_mut_ptr(), actual.len()) };
+                    let allocate = if event.kind == EventKind::AllocateStyleNodes {
+                        bridge::style_engine_allocate_style_nodes
+                    } else {
+                        bridge::style_engine_allocate_text_style_nodes
+                    };
+                    unsafe { allocate(engine, actual.as_mut_ptr(), actual.len()) };
                     if actual != expected {
                         return Err(
                             format!("style-node allocation diverged: expected {expected:?}, got {actual:?}").into(),

@@ -35,6 +35,10 @@ WEB_API void record_subtree_connecting(DOM::Node& root);
 // Called once a node has been linked into a connected tree. Allocates the element's style node
 // identity if it does not have one yet.
 WEB_API void record_element_connected(DOM::Element&);
+
+// Called once a text node has been linked into a connected tree that no subtree arrival covered.
+// Allocates the text node's style node identity if it does not have one yet.
+WEB_API void record_text_connected(DOM::Text&);
 WEB_API void publish_pending_element_features(StyleEngine&, StyleComputer&);
 WEB_API void publish_required_attribute_value_texts(StyleEngine&, StyleComputer&);
 

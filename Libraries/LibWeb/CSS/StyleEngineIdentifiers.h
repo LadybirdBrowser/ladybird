@@ -16,6 +16,21 @@ AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, StyleEngineRuleID, CastToBool, CastToUn
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, SheetID, CastToBool, CastToUnderlying, Comparison);
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u32, TreeScopeID, CastToBool, CastToUnderlying, Comparison, Increment);
 
+// A StyleNodeID's top bit says whether it names a text node, and the rest is a dense index among
+// the nodes of its kind. Element and text identities are allocated from separate index spaces so
+// that element-indexed columns never span text nodes.
+static constexpr u32 text_style_node_bit = 1u << 31;
+
+constexpr bool style_node_is_text(StyleNodeID style_node_id)
+{
+    return style_node_id.value() & text_style_node_bit;
+}
+
+constexpr u32 style_node_index(StyleNodeID style_node_id)
+{
+    return style_node_id.value() & ~text_style_node_bit;
+}
+
 static_assert(sizeof(StyleNodeID) == sizeof(u32));
 static_assert(alignof(StyleNodeID) == alignof(u32));
 static_assert(sizeof(StyleAtomID) == sizeof(u32));

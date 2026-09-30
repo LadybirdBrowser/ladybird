@@ -2975,6 +2975,9 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
 
         m_shadow_root->set_host(this);
         m_shadow_root->set_is_connected(is_connected());
+        // A root attached to a connected host takes its StyleNodeID now rather than when a child
+        // first needs it, so that a root that stays empty is named too.
+        CSS::record_shadow_root_connected(*m_shadow_root);
         if (auto count = m_shadow_root->associated_animation_count_in_subtree())
             change_associated_animation_count_in_subtree(count);
     }

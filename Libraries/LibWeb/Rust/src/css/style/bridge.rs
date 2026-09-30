@@ -1179,6 +1179,22 @@ pub unsafe extern "C" fn style_engine_allocate_style_nodes(engine: *mut c_void, 
     engine.record_boundary_call(EventKind::AllocateStyleNodes, |payload| payload.write_u32_slice(out));
 }
 
+/// # Safety
+/// `engine` must be live, and `out` must point at `count` writable `u32` values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_allocate_text_style_nodes(engine: *mut c_void, out: *mut u32, count: usize) {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let out = if count == 0 {
+        &mut []
+    } else {
+        unsafe { std::slice::from_raw_parts_mut(out, count) }
+    };
+    engine.allocate_text_style_nodes(out);
+    engine.record_boundary_call(EventKind::AllocateTextStyleNodes, |payload| {
+        payload.write_u32_slice(out);
+    });
+}
+
 /// Returns the live element descendants whose inheritance path begins at `root` in the flat tree.
 ///
 /// # Safety
