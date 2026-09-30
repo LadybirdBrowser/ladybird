@@ -2099,6 +2099,25 @@ void ViewImplementation::did_allocate_backing_stores(Badge<WebContentPage>, Vect
     install_backing_stores(move(bitmap_ids), move(backing_stores));
 }
 
+void ViewImplementation::did_add_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
+    VERIFY(bitmap_ids.size() == backing_stores.size());
+    for (size_t i = 0; i < backing_stores.size(); ++i) {
+        m_client_state.other_bitmaps.append({
+            .id = bitmap_ids[i],
+            .last_painted_size = {},
+            .shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i]))),
+        });
+    }
+}
+
+void ViewImplementation::did_retire_backing_stores(Badge<WebContentPage>, ReadonlySpan<i32> bitmap_ids)
+{
+    m_client_state.other_bitmaps.remove_all_matching([&](auto const& bitmap) {
+        return bitmap_ids.contains_slow(bitmap.id);
+    });
+}
+
 void ViewImplementation::install_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
     VERIFY(bitmap_ids.size() == backing_stores.size());

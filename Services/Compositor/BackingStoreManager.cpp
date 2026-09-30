@@ -141,6 +141,8 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
         return {};
 
     auto buffer_count = allocation.bitmap_ids.size();
+    m_backing_store_size = allocation.size;
+    m_initial_backing_store_count = buffer_count;
     m_backing_stores.ensure_capacity(buffer_count);
 
     if (!should_publish) {
@@ -200,22 +202,86 @@ Optional<BackingStoreManager::Publication> BackingStoreManager::allocate_backing
     Vector<Gfx::SharedImage> shared_images;
     shared_images.ensure_capacity(buffer_count);
     for (size_t i = 0; i < buffer_count; ++i) {
-        auto shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(allocation.size));
-        shared_images.append(shared_image_buffer->export_shared_image());
-        auto surface = create_shareable_bitmap_backing_store(allocation.size, *shared_image_buffer, skia_backend_context);
-        m_backing_stores.append({
-            .surface = move(surface),
-            .published_shared_image_buffer = move(shared_image_buffer),
-            .bitmap_id = allocation.bitmap_ids[i],
-            .state = initial_buffer_state(i),
-            .accumulated_damage = { {}, allocation.size },
-        });
+        m_backing_stores.append(create_published_shareable_backing_store(allocation.size, allocation.bitmap_ids[i], initial_buffer_state(i), skia_backend_context));
+        shared_images.append(m_backing_stores.last().published_shared_image_buffer->export_shared_image());
     }
 
     return Publication {
         .bitmap_ids = allocation.bitmap_ids,
         .shared_images = move(shared_images),
     };
+}
+
+BackingStoreManager::BackingStore BackingStoreManager::create_published_shareable_backing_store(Gfx::IntSize size, i32 bitmap_id, BufferState state, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    auto shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(size));
+    auto surface = create_shareable_bitmap_backing_store(size, *shared_image_buffer, skia_backend_context);
+    return {
+        .surface = move(surface),
+        .published_shared_image_buffer = move(shared_image_buffer),
+        .bitmap_id = bitmap_id,
+        .state = state,
+        .accumulated_damage = { {}, size },
+    };
+}
+
+// The window server lets go of a store some time after the client replaced it on screen, which at high refresh rates
+// can be later than the next frame is due. Rather than hold that frame back, give it a store of its own. While the
+// client has yet to take a frame, or to release a store, there is no telling what the window server holds, and the
+// frame waits as it always did.
+Optional<BackingStoreManager::Publication> BackingStoreManager::add_backing_store_if_window_server_still_reads_every_released_store(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    if (is_rendering() || !m_latest_rendered_store_index.has_value())
+        return {};
+    if (m_backing_stores.size() >= maximum_backing_store_count)
+        return {};
+
+    for (size_t i = 0; i < m_backing_stores.size(); ++i) {
+        auto const& store = m_backing_stores[i];
+        if (!store.published_shared_image_buffer)
+            return {};
+        bool client_displays_store = i == *m_latest_rendered_store_index;
+        if (client_displays_store && store.state != BufferState::Presented)
+            return {};
+        if (!client_displays_store && (store.state != BufferState::Available || store_can_be_rendered_into(store)))
+            return {};
+    }
+
+    auto bitmap_id = m_next_bitmap_id++;
+    m_backing_stores.append(create_published_shareable_backing_store(m_backing_store_size, bitmap_id, BufferState::Available, skia_backend_context));
+
+    Vector<Gfx::SharedImage> shared_images;
+    shared_images.append(m_backing_stores.last().published_shared_image_buffer->export_shared_image());
+    return Publication {
+        .bitmap_ids = { bitmap_id },
+        .shared_images = move(shared_images),
+    };
+}
+
+// A store added for a burst of frames is given back once a whole interval between two checks went by without it
+// being rendered into. The stores that stay are the ones first in line for the next frame.
+Vector<i32> BackingStoreManager::retire_idle_surplus_backing_stores()
+{
+    Vector<i32> retired_bitmap_ids;
+    if (is_rendering())
+        return retired_bitmap_ids;
+
+    for (size_t i = m_backing_stores.size(); i-- > 0 && has_surplus_backing_stores();) {
+        auto const& store = m_backing_stores[i];
+        if (m_latest_rendered_store_index == i)
+            continue;
+        if (store.state != BufferState::Available || store.was_rendered_into_since_last_retirement_check || published_surface_is_in_use(store))
+            continue;
+
+        retired_bitmap_ids.append(store.bitmap_id);
+        m_backing_stores.remove(i);
+        if (m_latest_rendered_store_index.has_value() && *m_latest_rendered_store_index > i)
+            m_latest_rendered_store_index = *m_latest_rendered_store_index - 1;
+    }
+
+    for (auto& store : m_backing_stores)
+        store.was_rendered_into_since_last_retirement_check = false;
+    return retired_bitmap_ids;
 }
 
 bool BackingStoreManager::is_valid() const
@@ -263,6 +329,7 @@ Optional<BackingStoreManager::RenderTarget> BackingStoreManager::acquire_render_
             continue;
 
         store.state = BufferState::Rendering;
+        store.was_rendered_into_since_last_retirement_check = true;
         m_rendering_store_index = i;
         auto damage_rect = store.accumulated_damage;
         store.accumulated_damage = {};

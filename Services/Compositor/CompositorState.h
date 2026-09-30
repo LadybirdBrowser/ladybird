@@ -40,6 +40,9 @@ public:
     virtual ~CompositorStateClient() = default;
 
     virtual void did_allocate_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
+    // The stores join the ones allocated last, and leave them again once retired.
+    virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
+    virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) = 0;
     virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) = 0;
     // The compositor performed the event's whole default action, so the UI hears nothing more about it.
     virtual void did_consume_input_event(Web::CompositorContextId, u64 event_id) = 0;
@@ -154,6 +157,7 @@ private:
 
 public:
     void present_pending_frames_for_testing() { present_pending_frames_on_vsync({}, MonotonicTime::now()); }
+    void retire_idle_surplus_backing_stores_for_testing(Web::CompositorContextId context_id) { retire_idle_surplus_backing_stores(context_id); }
     size_t pending_async_present_count_for_testing() const { return m_pending_async_presents.size(); }
 
     // What was not published yet, for a caller that needs the compositor's state as of now.
@@ -172,6 +176,9 @@ private:
     void schedule_backing_store_shrink(Web::CompositorContextId, ContextState&);
     void shrink_backing_stores_after_resize(Web::CompositorContextId);
     void resize_backing_stores_if_needed(Web::CompositorContextId, ContextState&);
+    void add_backing_store_for_pending_frame_if_needed(Web::CompositorContextId, ContextState&);
+    void schedule_surplus_backing_store_retirement(Web::CompositorContextId, ContextState&);
+    void retire_idle_surplus_backing_stores(Web::CompositorContextId);
     void present_current_frame(Web::CompositorContextId, ContextState&);
     void resolve_video_sinks(ContextState&);
     enum class VideoSinkUpdateResult : u8 {

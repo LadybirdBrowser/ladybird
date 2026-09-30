@@ -159,6 +159,10 @@ public:
     void finish_window_resize();
     Optional<BackingStoreManager::Publication> resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const&, BackingStoreManager::GpuSharing);
     void invalidate_backing_stores();
+    Optional<BackingStoreManager::Publication> add_backing_store_for_pending_frame_if_needed(RefPtr<Gfx::SkiaBackendContext> const&);
+    bool has_surplus_backing_stores() const { return m_backing_store_manager.has_surplus_backing_stores(); }
+    Vector<i32> retire_idle_surplus_backing_stores() { return m_backing_store_manager.retire_idle_surplus_backing_stores(); }
+    void schedule_surplus_backing_store_retirement(Function<void()>);
 
     bool set_display_metadata(Optional<u64> display_id, double refresh_rate);
     Optional<u64> display_id() const { return m_display_id; }
@@ -223,6 +227,7 @@ private:
     };
 
     void stop_backing_store_shrink_timer();
+    void stop_surplus_backing_store_retirement_timer();
     void end_keyboard_scroll_gesture();
     Compositing::ScrollStateSnapshot scroll_state_snapshot_at_keyboard_step_starts() const;
     void apply_keyboard_scroll_state(Compositing::KeyboardScrollState);
@@ -337,6 +342,7 @@ private:
     Optional<Compositing::PausedDebuggerOverlayAction> m_paused_debugger_overlay_hovered_action;
     Compositing::WindowResizingInProgress m_window_resize_in_progress { Compositing::WindowResizingInProgress::No };
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
+    RefPtr<Core::Timer> m_surplus_backing_store_retirement_timer;
     Function<void(Gfx::IntRect)> m_schedule_caret_repaint;
     RefPtr<Core::Timer> m_caret_blink_timer;
     Optional<i64> m_caret_blink_cycle_start_time_ns;

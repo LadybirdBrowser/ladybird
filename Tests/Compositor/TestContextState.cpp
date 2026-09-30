@@ -77,6 +77,24 @@ struct TestCompositorClient final : public Compositor::CompositorStateClient {
         allocated_shared_image_buffers = import_shared_images(shared_images);
     }
 
+    virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& shared_images) override
+    {
+        allocated_bitmap_ids.extend(bitmap_ids);
+        allocated_shared_image_buffers.extend(import_shared_images(shared_images));
+        added_bitmap_ids.extend(move(bitmap_ids));
+    }
+
+    virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) override
+    {
+        for (auto bitmap_id : bitmap_ids) {
+            auto index = allocated_bitmap_ids.find_first_index(bitmap_id);
+            VERIFY(index.has_value());
+            allocated_bitmap_ids.remove(*index);
+            allocated_shared_image_buffers.remove(*index);
+        }
+        retired_bitmap_ids.extend(move(bitmap_ids));
+    }
+
     virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) override
     {
         presented_frames.append({ content_rect, damage_rect, bitmap_id });
@@ -94,6 +112,8 @@ struct TestCompositorClient final : public Compositor::CompositorStateClient {
 
     Vector<i32> allocated_bitmap_ids;
     Vector<Gfx::SharedImageBuffer> allocated_shared_image_buffers;
+    Vector<i32> added_bitmap_ids;
+    Vector<i32> retired_bitmap_ids;
     Vector<PresentedFrame> presented_frames;
     Vector<u64> consumed_input_event_ids;
     Vector<u64> undispatched_input_event_ids;
@@ -407,6 +427,62 @@ TEST_CASE(a_released_backing_store_is_not_reused_while_its_surface_is_in_use)
     surfaces_as_seen_by_the_presenting_process[2].decrement_use_count();
     surfaces_as_seen_by_the_presenting_process[0].decrement_use_count();
     present_into(0);
+}
+
+TEST_CASE(a_backing_store_is_added_only_when_the_window_server_reads_every_released_one_and_starts_fully_damaged)
+{
+    Compositor::BackingStoreManager manager;
+    auto allocation = manager.resize_backing_stores_if_needed({ 4, 4 }, Compositing::WindowResizingInProgress::No, true);
+    VERIFY(allocation.has_value());
+    auto publication = manager.allocate_backing_stores(*allocation, {}, true, Compositor::BackingStoreManager::GpuSharing::Disallowed);
+    VERIFY(publication.has_value());
+
+    auto imported_backing_stores = import_shared_images(publication->shared_images);
+    Vector<Core::IOSurfaceHandle> surfaces_as_seen_by_the_presenting_process;
+    for (auto const& shared_image_buffer : imported_backing_stores)
+        surfaces_as_seen_by_the_presenting_process.append(handle_for_marking_in_use(shared_image_buffer));
+
+    auto present_into = [&](size_t store_index) {
+        auto render_target = manager.acquire_render_target({});
+        VERIFY(render_target.has_value());
+        EXPECT_EQ(render_target->bitmap_id, publication->bitmap_ids[store_index]);
+        manager.complete_rendering(publication->bitmap_ids[store_index], true);
+    };
+
+    // Nothing was presented yet, so there is no frame on screen for the window server to be holding stores behind.
+    EXPECT(!manager.add_backing_store_if_window_server_still_reads_every_released_store({}).has_value());
+
+    present_into(1);
+    VERIFY(manager.release_buffer(publication->bitmap_ids[0]));
+    present_into(0);
+    surfaces_as_seen_by_the_presenting_process[1].increment_use_count();
+    surfaces_as_seen_by_the_presenting_process[0].increment_use_count();
+
+    // The client has yet to release the store it showed before this one.
+    EXPECT(!manager.add_backing_store_if_window_server_still_reads_every_released_store({}).has_value());
+    VERIFY(manager.release_buffer(publication->bitmap_ids[1]));
+
+    // The third store can still be rendered into.
+    EXPECT(!manager.add_backing_store_if_window_server_still_reads_every_released_store({}).has_value());
+    present_into(2);
+    VERIFY(manager.release_buffer(publication->bitmap_ids[0]));
+    EXPECT(!manager.has_available_buffer());
+
+    auto added_publication = manager.add_backing_store_if_window_server_still_reads_every_released_store({});
+    VERIFY(added_publication.has_value());
+    EXPECT_EQ(added_publication->bitmap_ids.size(), 1u);
+    EXPECT_EQ(added_publication->shared_images.size(), 1u);
+    EXPECT(!publication->bitmap_ids.contains_slow(added_publication->bitmap_ids[0]));
+    EXPECT(manager.has_surplus_backing_stores());
+
+    auto render_target = manager.acquire_render_target({});
+    VERIFY(render_target.has_value());
+    EXPECT_EQ(render_target->bitmap_id, added_publication->bitmap_ids[0]);
+    EXPECT_EQ(render_target->damage_rect, (Gfx::IntRect { 0, 0, 4, 4 }));
+    manager.complete_rendering(added_publication->bitmap_ids[0], true);
+
+    surfaces_as_seen_by_the_presenting_process[0].decrement_use_count();
+    surfaces_as_seen_by_the_presenting_process[1].decrement_use_count();
 }
 
 TEST_CASE(a_backing_store_the_client_was_never_presented_is_rendered_into_while_its_send_right_is_in_flight)
@@ -1544,6 +1620,58 @@ struct PresentingContextFixture {
         VERIFY(index.has_value());
         return ::handle_for_marking_in_use(compositor_client.allocated_shared_image_buffers[*index]);
     }
+
+    struct SurfaceReadByWindowServer {
+        i32 bitmap_id { 0 };
+        Core::IOSurfaceHandle surface;
+    };
+
+    // The client puts the frame on screen and releases the one it showed before. The window server reads a frame
+    // from when it is shown until the test says it stopped, which is some time after the client replaced it.
+    TestCompositorClient::PresentedFrame present_to_client_displaying_frames(Gfx::IntRect rect)
+    {
+        auto frame = present_without_releasing(rect);
+        did_display(frame);
+        return frame;
+    }
+
+    void did_display(TestCompositorClient::PresentedFrame const& frame)
+    {
+        auto surface = handle_for_marking_in_use(frame.bitmap_id);
+        surface.increment_use_count();
+        surfaces_read_by_window_server.append({ frame.bitmap_id, move(surface) });
+        if (bitmap_id_displayed_by_client.has_value())
+            compositor_state->presented_bitmap_ready_to_paint(context_id, *bitmap_id_displayed_by_client);
+        bitmap_id_displayed_by_client = frame.bitmap_id;
+    }
+
+    void window_server_stops_reading(i32 bitmap_id)
+    {
+        auto index = surfaces_read_by_window_server.find_first_index_if([&](auto const& entry) { return entry.bitmap_id == bitmap_id; });
+        VERIFY(index.has_value());
+        surfaces_read_by_window_server[*index].surface.decrement_use_count();
+        surfaces_read_by_window_server.remove(*index);
+    }
+
+    void window_server_stops_reading_every_replaced_frame()
+    {
+        auto bitmap_ids_of_replaced_frames = Vector<i32> {};
+        for (auto const& entry : surfaces_read_by_window_server) {
+            if (entry.bitmap_id != bitmap_id_displayed_by_client)
+                bitmap_ids_of_replaced_frames.append(entry.bitmap_id);
+        }
+        for (auto bitmap_id : bitmap_ids_of_replaced_frames)
+            window_server_stops_reading(bitmap_id);
+    }
+
+    ~PresentingContextFixture()
+    {
+        for (auto& entry : surfaces_read_by_window_server)
+            entry.surface.decrement_use_count();
+    }
+
+    Vector<SurfaceReadByWindowServer> surfaces_read_by_window_server;
+    Optional<i32> bitmap_id_displayed_by_client;
 #endif
 };
 
@@ -1783,7 +1911,7 @@ TEST_CASE(resize_frames_coalesce_while_waiting_for_a_backing_store)
 }
 
 #ifdef AK_OS_MACOS
-TEST_CASE(a_released_buffer_the_window_server_still_reads_keeps_the_scheduled_frame_pending)
+TEST_CASE(a_buffer_the_window_server_still_reads_keeps_the_frame_pending_when_the_client_displays_none_of_them)
 {
     PresentingContextFixture fixture;
     fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
@@ -1814,6 +1942,8 @@ TEST_CASE(a_released_buffer_the_window_server_still_reads_keeps_the_scheduled_fr
         EXPECT_EQ(fixture.compositor_client.presented_frames.size(), 3u);
     }
 
+    EXPECT(fixture.compositor_client.added_bitmap_ids.is_empty());
+
     // No further release message arrives; the next tick alone notices the window server let go of the first buffer.
     surfaces_still_read_by_the_window_server[0].decrement_use_count();
     fixture.compositor_state->present_pending_frames_for_testing();
@@ -1824,6 +1954,190 @@ TEST_CASE(a_released_buffer_the_window_server_still_reads_keeps_the_scheduled_fr
 
     for (auto& surface : surfaces_still_read_by_the_window_server.span().slice(1))
         surface.decrement_use_count();
+}
+
+TEST_CASE(a_frame_gets_another_backing_store_when_the_window_server_still_reads_every_released_one)
+{
+    PresentingContextFixture fixture;
+    fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
+    auto initial_backing_store_count = fixture.compositor_client.allocated_bitmap_ids.size();
+
+    int frame_index = 0;
+    for (; frame_index < static_cast<int>(initial_backing_store_count); ++frame_index)
+        fixture.present_to_client_displaying_frames({ 0, frame_index, 16, 16 });
+    EXPECT(fixture.compositor_client.added_bitmap_ids.is_empty());
+
+    Gfx::IntRect viewport_rect_of_frame_without_a_released_store { 0, frame_index, 16, 16 };
+    auto frame = fixture.present_to_client_displaying_frames(viewport_rect_of_frame_without_a_released_store);
+    EXPECT_EQ(fixture.compositor_client.added_bitmap_ids.size(), 1u);
+    EXPECT_EQ(fixture.compositor_client.allocated_bitmap_ids.size(), initial_backing_store_count + 1);
+    EXPECT_EQ(frame.bitmap_id, fixture.compositor_client.added_bitmap_ids.last());
+    EXPECT_EQ(frame.content_rect, viewport_rect_of_frame_without_a_released_store);
+}
+
+TEST_CASE(no_backing_store_is_added_while_the_client_has_yet_to_release_the_frame_it_replaced)
+{
+    PresentingContextFixture fixture;
+    fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
+    EXPECT_EQ(fixture.compositor_client.allocated_bitmap_ids.size(), 3u);
+
+    fixture.present_to_client_displaying_frames({ 0, 0, 16, 16 });
+    fixture.present_to_client_displaying_frames({ 0, 1, 16, 16 });
+    auto frame_the_client_has_yet_to_display = fixture.present_without_releasing({ 0, 2, 16, 16 });
+
+    Gfx::IntRect pending_viewport_rect { 0, 3, 16, 16 };
+    fixture.compositor_state->present_frame(fixture.context_id, pending_viewport_rect);
+    fixture.compositor_state->present_pending_frames_for_testing();
+    EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 0u);
+    EXPECT(fixture.compositor_client.added_bitmap_ids.is_empty());
+
+    fixture.did_display(frame_the_client_has_yet_to_display);
+    fixture.compositor_state->present_pending_frames_for_testing();
+    EXPECT_EQ(fixture.compositor_client.added_bitmap_ids.size(), 1u);
+    VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() == 4; }));
+    EXPECT_EQ(fixture.compositor_client.presented_frames.last().content_rect, pending_viewport_rect);
+    EXPECT_EQ(fixture.compositor_client.presented_frames.last().bitmap_id, fixture.compositor_client.added_bitmap_ids.last());
+}
+
+TEST_CASE(backing_stores_stop_being_added_at_the_maximum_count)
+{
+    PresentingContextFixture fixture;
+    fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
+
+    static constexpr size_t maximum_backing_store_count = 8;
+    int frame_index = 0;
+    for (; frame_index < static_cast<int>(maximum_backing_store_count); ++frame_index)
+        fixture.present_to_client_displaying_frames({ 0, frame_index, 16, 16 });
+    EXPECT_EQ(fixture.compositor_client.allocated_bitmap_ids.size(), maximum_backing_store_count);
+
+    Gfx::IntRect pending_viewport_rect { 0, frame_index, 16, 16 };
+    fixture.compositor_state->present_frame(fixture.context_id, pending_viewport_rect);
+    fixture.compositor_state->present_pending_frames_for_testing();
+    EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 0u);
+    EXPECT_EQ(fixture.compositor_client.allocated_bitmap_ids.size(), maximum_backing_store_count);
+
+    auto bitmap_id_of_first_frame = fixture.compositor_client.presented_frames.first().bitmap_id;
+    fixture.window_server_stops_reading(bitmap_id_of_first_frame);
+    fixture.compositor_state->present_pending_frames_for_testing();
+    VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() == maximum_backing_store_count + 1; }));
+    EXPECT_EQ(fixture.compositor_client.presented_frames.last().content_rect, pending_viewport_rect);
+    EXPECT_EQ(fixture.compositor_client.presented_frames.last().bitmap_id, bitmap_id_of_first_frame);
+}
+
+TEST_CASE(added_backing_stores_are_retired_after_going_a_whole_check_interval_without_being_rendered_into)
+{
+    PresentingContextFixture fixture;
+    fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
+    auto initial_backing_store_count = fixture.compositor_client.allocated_bitmap_ids.size();
+
+    int frame_index = 0;
+    for (; frame_index < static_cast<int>(initial_backing_store_count) + 2; ++frame_index)
+        fixture.present_to_client_displaying_frames({ 0, frame_index, 16, 16 });
+    EXPECT_EQ(fixture.compositor_client.added_bitmap_ids.size(), 2u);
+    auto bitmap_id_displayed_by_client = *fixture.bitmap_id_displayed_by_client;
+    EXPECT_EQ(bitmap_id_displayed_by_client, fixture.compositor_client.added_bitmap_ids.last());
+
+    // Every store was rendered into since it was allocated, so the first check retires none of them.
+    fixture.window_server_stops_reading_every_replaced_frame();
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    EXPECT(fixture.compositor_client.retired_bitmap_ids.is_empty());
+
+    // The store on screen stays however idle it is, so the two that go are the last ones the client released.
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    EXPECT_EQ(fixture.compositor_client.retired_bitmap_ids.size(), 2u);
+    EXPECT(!fixture.compositor_client.retired_bitmap_ids.contains_slow(bitmap_id_displayed_by_client));
+    EXPECT(fixture.compositor_client.retired_bitmap_ids.contains_slow(fixture.compositor_client.added_bitmap_ids.first()));
+    EXPECT_EQ(fixture.compositor_client.allocated_bitmap_ids.size(), initial_backing_store_count);
+
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    EXPECT_EQ(fixture.compositor_client.retired_bitmap_ids.size(), 2u);
+
+    // The store on screen moved down as lower ones were removed; presenting goes on from the stores that are left.
+    auto frame = fixture.present_to_client_displaying_frames({ 0, frame_index, 16, 16 });
+    EXPECT(fixture.compositor_client.allocated_bitmap_ids.contains_slow(frame.bitmap_id));
+    EXPECT_NE(frame.bitmap_id, bitmap_id_displayed_by_client);
+    EXPECT_EQ(fixture.compositor_client.added_bitmap_ids.size(), 2u);
+}
+
+TEST_CASE(backing_stores_the_window_server_still_reads_are_not_retired)
+{
+    PresentingContextFixture fixture;
+    fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
+    auto initial_backing_store_count = fixture.compositor_client.allocated_bitmap_ids.size();
+
+    int frame_index = 0;
+    for (; frame_index < static_cast<int>(initial_backing_store_count) + 1; ++frame_index)
+        fixture.present_to_client_displaying_frames({ 0, frame_index, 16, 16 });
+    EXPECT_EQ(fixture.compositor_client.added_bitmap_ids.size(), 1u);
+
+    // The window server reads every released store throughout both checks.
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    EXPECT(fixture.compositor_client.retired_bitmap_ids.is_empty());
+
+    fixture.window_server_stops_reading_every_replaced_frame();
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    EXPECT_EQ(fixture.compositor_client.retired_bitmap_ids.size(), 1u);
+    EXPECT_EQ(fixture.compositor_client.allocated_bitmap_ids.size(), initial_backing_store_count);
+}
+
+TEST_CASE(backing_stores_are_not_retired_while_a_frame_is_being_rendered)
+{
+    PresentingContextFixture fixture;
+    fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
+    auto initial_backing_store_count = fixture.compositor_client.allocated_bitmap_ids.size();
+
+    int frame_index = 0;
+    for (; frame_index < static_cast<int>(initial_backing_store_count) + 1; ++frame_index)
+        fixture.present_to_client_displaying_frames({ 0, frame_index, 16, 16 });
+    fixture.window_server_stops_reading_every_replaced_frame();
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    EXPECT(fixture.compositor_client.retired_bitmap_ids.is_empty());
+
+    auto already_presented = fixture.compositor_client.presented_frames.size();
+    fixture.compositor_state->present_frame(fixture.context_id, { 0, frame_index, 16, 16 });
+    fixture.compositor_state->present_pending_frames_for_testing();
+    EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 1u);
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    EXPECT(fixture.compositor_client.retired_bitmap_ids.is_empty());
+
+    VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() > already_presented; }));
+    fixture.did_display(fixture.compositor_client.presented_frames.last());
+    fixture.window_server_stops_reading_every_replaced_frame();
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    EXPECT_EQ(fixture.compositor_client.retired_bitmap_ids.size(), 1u);
+}
+
+TEST_CASE(reallocating_backing_stores_leaves_none_to_retire)
+{
+    PresentingContextFixture fixture;
+    fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
+    auto initial_backing_store_count = fixture.compositor_client.allocated_bitmap_ids.size();
+
+    for (int frame_index = 0; frame_index < static_cast<int>(initial_backing_store_count) + 1; ++frame_index)
+        fixture.present_to_client_displaying_frames({ 0, frame_index, 16, 16 });
+    EXPECT_EQ(fixture.compositor_client.allocated_bitmap_ids.size(), initial_backing_store_count + 1);
+
+    fixture.compositor_state->viewport_size_updated(fixture.context_id, { 32, 32 }, Compositing::WindowResizingInProgress::No);
+    EXPECT_EQ(fixture.compositor_client.allocated_bitmap_ids.size(), initial_backing_store_count);
+
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    fixture.compositor_state->retire_idle_surplus_backing_stores_for_testing(fixture.context_id);
+    EXPECT(fixture.compositor_client.retired_bitmap_ids.is_empty());
 }
 #endif
 
