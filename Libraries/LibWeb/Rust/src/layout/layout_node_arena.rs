@@ -434,10 +434,6 @@ pub(crate) struct FreedSubtree {
     style_record_host: Option<FfiStyleRecordHostCallbacks>,
 }
 
-struct RowsSharingDomNode {
-    rows: Vec<NodeSlotId>,
-}
-
 /// The node a layout row can be bound to: an element or text node, named by its identity, a
 /// pseudo-element, which has no identity of its own and is named by its generator's identity and
 /// its kind, or the document, which is bound to a viewport row.
@@ -597,7 +593,10 @@ pub(crate) struct LayoutNodeArena {
     next_run_nonce: Cell<u64>,
     live_run_nonces: RefCell<Vec<u64>>,
     pub(super) run_record_stack: super::run_records::RunRecordStack,
-    rows_sharing_dom_node: RefCell<HashMap<*mut c_void, RowsSharingDomNode>>,
+    /// The rows built for one DOM node, chained into a ring through the rows themselves; a row that
+    /// is the only one built for its node links to nothing. The chain lives on the rows rather than
+    /// under a key so that it survives the node's identity being retired and re-issued.
+    next_rows_built_for_same_node: Vec<Cell<NodeSlotId>>,
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(super) layout_trace: super::trace::LayoutTrace,
     #[cfg(debug_assertions)]
@@ -690,7 +689,7 @@ impl LayoutNodeArena {
             next_run_nonce: Cell::new(1),
             live_run_nonces: RefCell::new(Vec::new()),
             run_record_stack: super::run_records::RunRecordStack::default(),
-            rows_sharing_dom_node: RefCell::new(HashMap::default()),
+            next_rows_built_for_same_node: Vec::new(),
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             layout_trace: super::trace::LayoutTrace::default(),
             #[cfg(debug_assertions)]
@@ -864,6 +863,7 @@ impl LayoutNodeArena {
             self.style_records_pinned_by_arena.push(Cell::new(false));
             self.style_nodes.push(Cell::new(None));
             self.next_rows_with_same_style_node.push(Cell::new(NodeSlotId::INVALID));
+            self.next_rows_built_for_same_node.push(Cell::new(NodeSlotId::INVALID));
             self.pre_order_labels.push(Cell::new(0));
             // Grown with the slot space up front: nearly every slot gets a run
             // record each layout pass, so register() never has to resize.
@@ -2070,54 +2070,64 @@ impl LayoutNodeArena {
 
     pub(crate) fn note_rows_share_dom_node(&self, bound_row: NodeSlotId, added_row: NodeSlotId) {
         self.assert_owner_thread();
-        let dom_node = self.node_dom_node(added_row);
         assert!(
-            !dom_node.is_null(),
+            self.node_is_dom_backed(added_row),
             "layout node arena shared rows of an anonymous node"
         );
-        assert_eq!(
-            dom_node,
-            self.node_dom_node(bound_row),
+        assert!(
+            self.bound_node_of(added_row) == self.bound_node_of(bound_row),
             "layout node arena shared rows of different DOM nodes"
         );
-        let mut rows_by_dom_node = self.rows_sharing_dom_node.borrow_mut();
-        let entry = rows_by_dom_node
-            .entry(dom_node)
-            .or_insert_with(|| RowsSharingDomNode { rows: Vec::new() });
-        for row in [bound_row, added_row] {
-            if !entry.rows.contains(&row) {
-                entry.rows.push(row);
+        let added_link = &self.next_rows_built_for_same_node[added_row.slot_index() as usize];
+        assert!(
+            added_link.get().is_invalid(),
+            "layout node arena shared a row that already shares a DOM node"
+        );
+        // The added row goes in behind the bound row's predecessor, at the end of the ring as seen from the bound row, so
+        // adding a row does not change which row takes the binding over when the bound row is freed.
+        let mut predecessor = bound_row;
+        loop {
+            let next = self.next_rows_built_for_same_node[predecessor.slot_index() as usize].get();
+            if next.is_invalid() || next == bound_row {
+                break;
             }
+            predecessor = next;
         }
+        added_link.set(bound_row);
+        self.next_rows_built_for_same_node[predecessor.slot_index() as usize].set(added_row);
     }
 
-    pub(crate) fn rows_sharing_dom_node_with(&self, id: NodeSlotId) -> Vec<NodeSlotId> {
-        let rows_by_dom_node = self.rows_sharing_dom_node.borrow();
-        if rows_by_dom_node.is_empty() {
-            return vec![id];
-        }
-        match rows_by_dom_node.get(&self.node_dom_node(id)) {
-            Some(entry) if entry.rows.contains(&id) => entry.rows.clone(),
-            _ => vec![id],
-        }
+    /// The rows built for the same DOM node as `id`, starting with `id`.
+    pub(crate) fn rows_sharing_dom_node_with(&self, id: NodeSlotId) -> impl Iterator<Item = NodeSlotId> + '_ {
+        let mut row = Some(id);
+        std::iter::from_fn(move || {
+            let current = row?;
+            let next = self.next_rows_built_for_same_node[current.slot_index() as usize].get();
+            row = (!next.is_invalid() && next != id).then_some(next);
+            Some(current)
+        })
     }
 
     fn forget_row_sharing_dom_node(&mut self, id: NodeSlotId) {
-        let rows_by_dom_node = self.rows_sharing_dom_node.get_mut();
-        if rows_by_dom_node.is_empty() {
+        let successor = self.next_rows_built_for_same_node[id.slot_index() as usize].replace(NodeSlotId::INVALID);
+        if successor.is_invalid() {
             return;
         }
-        let dom_node = self.dom_nodes[id.slot_index() as usize].get();
-        let Some(entry) = rows_by_dom_node.get_mut(&dom_node) else {
-            return;
-        };
-        entry.rows.retain(|row| *row != id);
-        if entry.rows.is_empty() {
-            rows_by_dom_node.remove(&dom_node);
-            return;
+        // Close the ring behind the row that is leaving.
+        let mut predecessor = successor;
+        loop {
+            let link = &self.next_rows_built_for_same_node[predecessor.slot_index() as usize];
+            if link.get() == id {
+                link.set(if predecessor == successor {
+                    NodeSlotId::INVALID
+                } else {
+                    successor
+                });
+                break;
+            }
+            predecessor = link.get();
         }
-        // The node stays bound to a row that still shares it.
-        let successor = entry.rows[0];
+        // The node stays bound to one of the rows that still share it.
         let Some(node) = self.bound_node_of(id) else {
             return;
         };
