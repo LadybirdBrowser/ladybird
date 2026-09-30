@@ -131,16 +131,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
 
     // AD-HOC: For about:srcdoc, the body bytes are always immediately available in the response source (the srcdoc
     //         string was inlined when the navigation params were created). Bypass the async body-reading pipeline
-    //         and set up a deferred parser directly. Combined with running the post-activation update synchronously
-    //         when a deferred parser is set, this guarantees the body element exists before the document becomes
-    //         observable to the parent — matching Chrome and Firefox behavior for srcdoc iframes.
-    //
-    // FIXME: This only fixes the transient `contentDocument.body === null` race for srcdoc. The same race exists in
-    //        Ladybird for any other same-origin async iframe load (notably blob: URLs and same-origin HTTP), where
-    //        Chrome and Firefox also keep `contentDocument` pointed at the initial about:blank until the new document
-    //        reaches readyState="interactive". A spec-aligned fix would split "what the parent sees via
-    //        contentDocument" from the navigable's active document, swapping the parent-visible pointer only at
-    //        parser readiness.
+    //         and set up a deferred parser directly, so the document is parsed as soon as scripts may run for it.
     else if (auto const* data = navigation_params.response->body()->source().get_pointer<ByteBuffer>();
         data && document->url() == URL::about_srcdoc()) {
         auto mime_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list());
