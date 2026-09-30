@@ -36,9 +36,16 @@ struct Resolver
     , public Weakable<Resolver> {
     static NonnullRefPtr<Resolver> default_resolver();
 
+    // Isolate private DNS cache history; discard it when the last private client leaves.
+    static NonnullRefPtr<Resolver> private_resolver();
+
+    static void reset_connections();
+
     DNS::Resolver dns;
 
 private:
+    static NonnullRefPtr<Resolver> create();
+
     explicit Resolver(Function<ErrorOr<Optional<DNS::Resolver::SocketResult>>()> create_socket);
 };
 
