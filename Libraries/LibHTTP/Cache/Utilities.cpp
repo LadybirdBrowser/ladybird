@@ -703,6 +703,32 @@ void store_header_and_trailer_fields(HeaderList& stored_headers, HeaderList cons
     }
 }
 
+// https://httpwg.org/specs/rfc9110.html#field.etag
+static bool is_weak_entity_tag(StringView entity_tag)
+{
+    // entity-tag = [ weak ] opaque-tag
+    // weak       = %s"W/"
+    return entity_tag.starts_with("W/"sv);
+}
+
+// https://httpwg.org/specs/rfc9110.html#entity.tag.comparison
+static bool entity_tags_match_strongly(StringView first, StringView second)
+{
+    // "Strong comparison": two entity tags are equivalent if both are not weak and their opaque-tags match
+    // character-by-character.
+    return !is_weak_entity_tag(first) && !is_weak_entity_tag(second) && first == second;
+}
+
+static bool entity_tags_match_weakly(StringView first, StringView second)
+{
+    // "Weak comparison": two entity tags are equivalent if their opaque-tags match character-by-character, regardless
+    // of either or both being tagged as "weak".
+    auto opaque_tag = [](StringView entity_tag) {
+        return is_weak_entity_tag(entity_tag) ? entity_tag.substring_view(2) : entity_tag;
+    };
+    return opaque_tag(first) == opaque_tag(second);
+}
+
 // https://httpwg.org/specs/rfc9111.html#freshening.responses
 bool can_freshen_stored_response(HeaderList const& stored_headers, HeaderList const& not_modified_headers)
 {
@@ -717,6 +743,35 @@ bool can_freshen_stored_response(HeaderList const& stored_headers, HeaderList co
     if (not_modified_headers.contains("Vary"sv) && vary_field_names(not_modified_headers) != vary_field_names(stored_headers))
         return false;
 
+    // Then, that initial set of stored responses is further filtered by the first match of:
+    auto entity_tag = not_modified_headers.get("ETag"sv);
+    auto stored_entity_tag = stored_headers.get("ETag"sv);
+
+    // * If the new response contains one or more "strong validators" (see Section 8.8.1 of [HTTP]), then each of those
+    //   strong validators identifies a selected representation for update. All the stored responses in the initial set
+    //   with one of those same strong validators are identified for update. If none of the initial set contains at
+    //   least one of the same strong validators, then the cache MUST NOT use the new response to update any stored
+    //   responses.
+    //
+    // NB: Last-Modified is implicitly weak, so only an entity tag is taken to be a strong validator here.
+    if (entity_tag.has_value() && !is_weak_entity_tag(*entity_tag))
+        return stored_entity_tag.has_value() && entity_tags_match_strongly(*stored_entity_tag, *entity_tag);
+
+    // * If the new response contains no strong validators but does contain one or more "weak validators", and those
+    //   validators correspond to one of the initial set's stored responses, then the most recent of those matching
+    //   stored responses is identified for update.
+    if (entity_tag.has_value())
+        return stored_entity_tag.has_value() && entity_tags_match_weakly(*stored_entity_tag, *entity_tag);
+
+    if (auto last_modified = not_modified_headers.get("Last-Modified"sv); last_modified.has_value())
+        return stored_headers.get("Last-Modified"sv) == last_modified;
+
+    // * If the new response does not include any form of validator (such as where a client generates an
+    //   If-Modified-Since request from a source other than the Last-Modified response header field), and there is only
+    //   one stored response in the initial set, and that stored response also lacks a validator, then that stored
+    //   response is identified for update.
+    //
+    // AD-HOC: Only this entry's validators made the request conditional, so a validator-less 304 refers to it.
     return true;
 }
 

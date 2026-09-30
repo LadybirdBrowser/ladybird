@@ -755,25 +755,8 @@ void Request::handle_fetch_complete(int result_code)
 
         MUST(free_curl_structs());
 
-        m_response_headers->clear();
-        m_reason_phrase.clear();
-        m_status_code.clear();
-        m_response_storage_state = ResponseStorageState::NotStarted;
         m_content_decoding_disabled = true;
-
-        if constexpr (REQUESTSERVER_WIRE_DEBUG) {
-            wire_stats().remove(this);
-            wire_stats().ensure(this).created_at = MonotonicTime::now();
-        }
-
-        // The first response may have changed the cookies, so the retried request looks them up again. Only the Cookie
-        // header that our own lookup appended is replaced; one the client supplied stays as it was.
-        if (exchange(m_appended_cookie_header, false)) {
-            VERIFY(m_request_headers->headers().last().name == "Cookie"sv);
-            size_t index = 0;
-            auto last_index = m_request_headers->headers().size() - 1;
-            m_request_headers->delete_all_matching([&](auto const&) { return index++ == last_index; });
-        }
+        reset_for_retry();
         transition_to_state(State::RetrieveCookie);
         return;
     }
@@ -785,7 +768,8 @@ void Request::handle_fetch_complete(int result_code)
     }
 
     if (is_revalidation_request()) {
-        if (result_code == CURLE_OK && acquire_status_code() == 304 && HTTP::can_freshen_stored_response(m_cache_entry_reader->response_headers(), *m_response_headers)) {
+        auto is_not_modified = result_code == CURLE_OK && acquire_status_code() == 304;
+        if (is_not_modified && HTTP::can_freshen_stored_response(m_cache_entry_reader->response_headers(), *m_response_headers)) {
             if (m_type == RequestType::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
                 m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "fresh"sv });
 
@@ -797,6 +781,15 @@ void Request::handle_fetch_complete(int result_code)
 
         if (revalidation_failed().is_error())
             return;
+
+        // The client did not request this unmatched 304. Retry without the cache's validators and replace the entry.
+        if (is_not_modified && m_type == RequestType::Fetch) {
+            MUST(free_curl_structs());
+            m_request_headers->delete_all_matching([](auto const& header) { return header.name.is_one_of_ignoring_ascii_case("If-None-Match"sv, "If-Modified-Since"sv); });
+            reset_for_retry();
+            transition_to_state(State::Init);
+            return;
+        }
 
         // Only forward the response to the client if the network request actually produced one. If the request failed
         // at the transport level (e.g. connection refused), there's no response; fall through so the request completes
@@ -810,6 +803,35 @@ void Request::handle_fetch_complete(int result_code)
 
     if (m_response_buffer.is_eof())
         transition_to_state(State::Complete);
+}
+
+void Request::reset_for_retry()
+{
+    m_response_headers->clear();
+    m_reason_phrase.clear();
+    m_status_code.clear();
+    m_response_storage_state = ResponseStorageState::NotStarted;
+
+    if constexpr (REQUESTSERVER_WIRE_DEBUG) {
+        wire_stats().remove(this);
+        wire_stats().ensure(this).created_at = MonotonicTime::now();
+    }
+
+    // The first response may have changed the cookies, so the retried request looks them up again. Only the Cookie
+    // header that our own lookup appended is replaced; one the client supplied stays as it was.
+    if (exchange(m_appended_cookie_header, false)) {
+        auto const& headers = m_request_headers->headers();
+        auto cookie_index = headers.size();
+        for (size_t i = headers.size(); i > 0; --i) {
+            if (headers[i - 1].name.equals_ignoring_ascii_case("Cookie"sv)) {
+                cookie_index = i - 1;
+                break;
+            }
+        }
+        VERIFY(cookie_index < headers.size());
+        size_t index = 0;
+        m_request_headers->delete_all_matching([&](auto const&) { return index++ == cookie_index; });
+    }
 }
 
 bool Request::should_retry_after_fetching_aia_intermediate(int curl_result_code) const
