@@ -227,6 +227,7 @@ impl<'a> PaintableCommit<'a> {
         };
         let mut content_size_change = None;
         let mut own_paint_unchanged = false;
+        let mut root_box_unchanged = false;
         let mut child_placements_unchanged = false;
         let mut inline_content_unchanged = false;
         let mut inline_item_order_unchanged = false;
@@ -235,7 +236,8 @@ impl<'a> PaintableCommit<'a> {
             old_link.map_or((0, used_values::FfiCssPixelSize::default()), |old_link| {
                 let previous = &old_link.fragment;
                 if reuses_committed_subtree || previous.identity == fragment.identity {
-                    own_paint_unchanged = true;
+                    root_box_unchanged = fragment.has_same_box_properties(previous);
+                    own_paint_unchanged = root_box_unchanged;
                     child_placements_unchanged = true;
                     inline_content_unchanged = true;
                     inline_item_order_unchanged = true;
@@ -286,8 +288,9 @@ impl<'a> PaintableCommit<'a> {
         let fragment_content_changed = committed_fragment_identity_changed
             || (enclosing_line_root_changes.fragment_changed && painted_geometry_lives_in_enclosing_line_root);
         // Keep fragment identity as the conservative signal for overflow and visual contexts.
-        // A reused run root can have a new identity while replaying identical output.
-        let fragment_content_unchanged = reuses_committed_subtree || (old_identity != 0 && !fragment_content_changed);
+        // A reused run root can have a new identity while its box and subtree are unchanged.
+        let fragment_content_unchanged =
+            (reuses_committed_subtree && root_box_unchanged) || (old_identity != 0 && !fragment_content_changed);
         let offset_unchanged = previous_offset == Some(link.committed_offset);
         let enclosing_inline_paint_changed = painted_geometry_lives_in_enclosing_line_root
             && (enclosing_line_root_changes.inline_content_changed

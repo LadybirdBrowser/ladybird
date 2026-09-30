@@ -1,0 +1,4 @@
+scrollHeight before the row shrinks: 150
+scrollHeight after the row shrinks: 20
+hit before the row grows: top-cell
+hit after the row grows: top-cell
