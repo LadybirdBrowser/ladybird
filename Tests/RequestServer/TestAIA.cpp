@@ -121,3 +121,20 @@ TEST_CASE(parse_certificates_handles_degenerate_pkcs7_without_crashing)
     static constexpr Array<u8, 13> degenerate_pkcs7 { 0x30, 0x0B, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02 };
     EXPECT(RequestServer::parse_certificates(degenerate_pkcs7).is_empty());
 }
+
+TEST_CASE(fetched_intermediates_stay_with_the_requests_that_fetched_them)
+{
+    auto first = make_ref_counted<RequestServer::AIACollector>(RequestServer::IsPrivate::No);
+    auto second = make_ref_counted<RequestServer::AIACollector>(RequestServer::IsPrivate::Yes);
+    auto unrelated = make_ref_counted<RequestServer::AIACollector>(RequestServer::IsPrivate::No);
+    Array<NonnullRefPtr<RequestServer::AIACollector>, 2> collectors { first, second };
+
+    auto der = MUST(decode_base64(pkcs7_two_certs_base64));
+    EXPECT(RequestServer::add_fetched_aia_intermediates(der.bytes(), collectors));
+    EXPECT_EQ(first->fetched_intermediates.size(), 2u);
+    EXPECT_EQ(second->fetched_intermediates.size(), 2u);
+    EXPECT(unrelated->fetched_intermediates.is_empty());
+
+    EXPECT(!RequestServer::add_fetched_aia_intermediates("this is not a certificate"sv.bytes(), collectors));
+    EXPECT_EQ(first->fetched_intermediates.size(), 2u);
+}

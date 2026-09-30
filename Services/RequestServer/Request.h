@@ -115,6 +115,7 @@ public:
     bool notify_stored_response_cookies_and_hsts_policy(Badge<ControlConnectionFromClient>, u64 store_request_id);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
     void retry_after_aia(Badge<ConnectionFromClient>);
+    AIACollector* aia_collector() const { return m_aia_collector.ptr(); }
 
 private:
     struct TransferredBodyFile {
