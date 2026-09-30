@@ -12,6 +12,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
+#include <LibHTTP/Method.h>
 #include <LibHTTP/Port.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibRequests/NetworkError.h>
@@ -267,6 +268,13 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     Requests::RequestTransferLeaseKey lease_key { client_id(), request_id };
     if (m_active_requests.contains(request_id) || m_request_transfer_leases.contains(lease_key)) {
         did_misbehave("reused live request ID");
+        return;
+    }
+
+    // https://fetch.spec.whatwg.org/#dom-request
+    // 25.2. If method is not a method or method is a forbidden method, then throw a TypeError.
+    if (!HTTP::is_method(method) || HTTP::is_forbidden_method(method)) {
+        did_misbehave("invalid or forbidden request method");
         return;
     }
 
