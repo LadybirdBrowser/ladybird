@@ -16,6 +16,19 @@ pub(crate) fn empty_line_is_anchored_to_its_forced_break(arena: &LayoutNodeArena
     arena.node_kind_if_live(item.caret_node) == Some(crate::layout::node_data::NodeKind::BreakNode)
 }
 
+/// The DOM node a row stands for, named the way the host names one: by its StyleNodeID, or by 0
+/// for a row that stands for no node of its own. An anonymous row stands for none, and so does
+/// the viewport row, whose node is the document, which has no StyleNodeID.
+pub(crate) fn row_dom_style_node(arena: &LayoutNodeArena, slot: NodeSlotId) -> u32 {
+    if !arena.node_is_dom_backed(slot) {
+        return 0;
+    }
+    if arena.node_kind_if_live(slot) == Some(crate::layout::node_data::NodeKind::Viewport) {
+        return 0;
+    }
+    arena.node_style_node(slot).map_or(0, |style_node| style_node.raw())
+}
+
 impl HitTestList {
     pub(crate) fn item_target_shell(&self, arena: &LayoutNodeArena, item_index: usize) -> *mut c_void {
         let item = &self.items[item_index];

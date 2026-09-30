@@ -3002,12 +3002,12 @@ pub unsafe extern "C" fn layout_arena_hit_test_resolve_caret(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_caret_line_for_position(
     arena: *mut c_void,
-    callbacks: crate::painting::host::FfiCaretPositionQueryCallbacks,
+    query: crate::painting::host::FfiCaretPositionQuery,
     offset: usize,
     affinity_is_downstream: bool,
 ) -> crate::painting::host::FfiCaretLineForPosition {
     with_hit_test_list_and_caret_lines(arena, Default::default(), |list, arena| {
-        match list.caret_line_for_position(arena, &callbacks, offset, affinity_is_downstream) {
+        match list.caret_line_for_position(arena, &query, offset, affinity_is_downstream) {
             Some(line_index) => crate::painting::host::FfiCaretLineForPosition {
                 has_line: true,
                 line_index,
