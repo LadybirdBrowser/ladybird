@@ -1625,11 +1625,12 @@ void Node::remove(bool suppress_observers)
     RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
     removal_style_record_pins.pin_style_records_before_removal(*this, was_tracked_by_style_engine);
     if (was_tracked_by_style_engine) {
-        report_removal_to_style_engine(*parent);
         // A suppressed-observer removal may be the first half of a compound mutation that immediately reinserts
         // this node. Keep the old parent on the conservative rebuild path so the later insertion can relocate it.
         auto layout_subtree_removal = suppress_observers ? LayoutSubtreeRemoval::RebuildParent : LayoutSubtreeRemoval::DetachInPlace;
+        // Layout goes first, while the removed nodes still have the StyleNodeIDs the style engine retires.
         update_layout_tree_for_removal(*parent, layout_subtree_removal, AncestorsMayHaveFirstLetter::Yes);
+        report_removal_to_style_engine(*parent);
     }
 
     // 7. Remove node from its parent’s children.
@@ -2898,8 +2899,8 @@ void Node::remove_all_children(bool suppress_observers)
         RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
         removal_style_record_pins.pin_style_records_before_removal(*child, was_tracked_by_style_engine);
         if (was_tracked_by_style_engine) {
-            child->report_removal_to_style_engine(*this);
             child->update_layout_tree_for_removal(*this, LayoutSubtreeRemoval::RebuildParent, ancestors_may_have_first_letter);
+            child->report_removal_to_style_engine(*this);
         }
 
         // 7. Remove node from its parent’s children.

@@ -221,7 +221,7 @@ void Node::prepare_for_detach_from_layout_tree()
     if (auto* node_with_style = as_if<NodeWithStyle>(*this))
         node_with_style->clear_image_observers();
     if (kind() == RustFFI::NodeKind::ImageBox)
-        static_cast<Box&>(*this).image_provider().layout_node_was_detached();
+        static_cast<Box&>(*this).notify_owned_image_provider_of_detach();
 }
 
 void Node::prepare_subtree_for_detach_from_layout_tree()
