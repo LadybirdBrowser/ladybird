@@ -43,6 +43,8 @@ public:
     void finalize_entry(URL::URL const&, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, Core::ImmutableBytes response_body);
     void update_javascript_bytecode_cache(URL::URL const&, StringView method, HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes javascript_bytecode_cache);
 
+    void invalidate(URL::URL const&);
+
 private:
     HashMap<u64, Vector<Entry>, IdentityHashTraits<u64>> m_pending_entries;
     HashMap<u64, Vector<Entry>, IdentityHashTraits<u64>> m_complete_entries;

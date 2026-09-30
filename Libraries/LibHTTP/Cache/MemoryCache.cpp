@@ -201,4 +201,21 @@ void MemoryCache::update_javascript_bytecode_cache(URL::URL const& url, StringVi
         update_entries(*cache_entries);
 }
 
+// https://httpwg.org/specs/rfc9111.html#invalidation
+void MemoryCache::invalidate(URL::URL const& url)
+{
+    // "Invalidate" means that the cache will either remove all stored responses whose target URI matches the given URI
+    // or mark them as "invalid" and in need of a mandatory validation before they can be sent in response to a
+    // subsequent request.
+    auto serialized_url = serialize_url_for_cache_storage(url);
+
+    for (auto method : { "GET"sv, "HEAD"sv }) {
+        auto cache_key = create_cache_key(serialized_url, method);
+
+        dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[33;1mInvalidated cache entries for\033[0m {} {}", method, url);
+        m_complete_entries.remove(cache_key);
+        m_pending_entries.remove(cache_key);
+    }
+}
+
 }
