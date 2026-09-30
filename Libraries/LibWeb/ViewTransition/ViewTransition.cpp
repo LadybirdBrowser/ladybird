@@ -46,7 +46,7 @@ GC_DEFINE_ALLOCATOR(CapturedElement);
 GC_DEFINE_ALLOCATOR(ViewTransition);
 
 NamedViewTransitionPseudoElement::NamedViewTransitionPseudoElement(CSS::PseudoElement type, Utf16FlyString view_transition_name)
-    : m_type(type)
+    : DOM::SyntheticPseudoElementTreeNode(type)
     , m_view_transition_name(view_transition_name)
 {
 }
@@ -69,7 +69,7 @@ ViewTransition::ViewTransition(GC::Ref<DOM::Document> document, GC::Ref<WebIDL::
     , m_ready_promise(ready_promise)
     , m_update_callback_done_promise(update_callback_done_promise)
     , m_finished_promise(finished_promise)
-    , m_transition_root_pseudo_element(GC::Heap::the().allocate<DOM::SyntheticPseudoElementTreeNode>())
+    , m_transition_root_pseudo_element(GC::Heap::the().allocate<DOM::SyntheticPseudoElementTreeNode>(CSS::PseudoElement::ViewTransition))
 
 {
 }
@@ -987,7 +987,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             // 1. Let new be the ::view-transition-new() with the view transition name transitionName.
             ReplacedNamedViewTransitionPseudoElement* new_;
             m_transition_root_pseudo_element->for_each_in_inclusive_subtree_of_type<ReplacedNamedViewTransitionPseudoElement>([&](auto& element) {
-                if (element.m_type == CSS::PseudoElement::ViewTransitionNew && element.m_view_transition_name == transition_name) {
+                if (element.type() == CSS::PseudoElement::ViewTransitionNew && element.m_view_transition_name == transition_name) {
                     new_ = &element;
                     return TraversalDecision::Break;
                 }

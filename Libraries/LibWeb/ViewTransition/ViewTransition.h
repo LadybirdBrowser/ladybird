@@ -34,8 +34,6 @@ class NamedViewTransitionPseudoElement
 
     NamedViewTransitionPseudoElement(CSS::PseudoElement, Utf16FlyString);
 
-    CSS::PseudoElement m_type;
-
     // Several of the view transition pseudo-elements are named view transition pseudo-elements, which are
     // functional tree-abiding view transition pseudo-elements associated with a view transition name.
     Utf16FlyString m_view_transition_name;
