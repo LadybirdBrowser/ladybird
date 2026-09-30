@@ -586,6 +586,10 @@ Request::~Request()
 
     MUST(free_curl_structs());
 
+    // Held readers would block subsequent requests for the same URL.
+    if (m_disk_cache.has_value())
+        m_disk_cache->close_entries_read_by(*this);
+
     if (m_cache_entry_writer.has_value()) {
         if (m_state == State::Complete && m_curl_result_code == CURLE_OK)
             (void)m_cache_entry_writer->flush(m_request_headers);

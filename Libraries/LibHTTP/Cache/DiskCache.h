@@ -72,6 +72,9 @@ public:
 
     void cache_entry_closed(Badge<CacheEntry>, CacheEntry const&);
 
+    // Leaves writers for the request to finish or discard.
+    void close_entries_read_by(CacheRequest const&);
+
     // The time when any request holding open a cache entry for this URL and method last made progress — or nothing, if
     // no such request reports any. A request waiting on that entry reads it to judge whether the holder has stalled.
     Optional<MonotonicTime> last_activity_time_of_open_entries(Utf16String const& partition, URL::URL const&, StringView method) const;
@@ -85,6 +88,7 @@ private:
     };
     bool check_if_cache_has_open_entry(CacheRequest&, u64 cache_key, URL::URL const&, CheckReaderEntries);
 
+    void close_entry(CacheEntry const&);
     void delete_entry(u64 cache_key, u64 vary_key);
 
     Mode m_mode;
