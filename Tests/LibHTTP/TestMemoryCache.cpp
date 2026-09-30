@@ -188,6 +188,24 @@ TEST_CASE(invalidation_removes_stored_and_pending_responses)
     EXPECT(!cache->open_entry(url, "HEAD"sv, *request_headers, HTTP::CacheMode::Default).has_value());
 }
 
+TEST_CASE(non_storable_response_retires_stored_response)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/data"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+    auto no_store_response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "no-store"sv } });
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 200, *response_headers, immutable_bytes("old"sv));
+    EXPECT(cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *no_store_response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 200, *no_store_response_headers, immutable_bytes("current"sv));
+
+    EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
+}
+
 TEST_CASE(responses_varying_on_cookie_are_not_reused)
 {
     auto cache = HTTP::MemoryCache::create();
