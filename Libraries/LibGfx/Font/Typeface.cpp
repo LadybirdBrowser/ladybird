@@ -62,9 +62,8 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file, u32 ttc_index)
 {
-    auto shared_mapped_file = make_ref_counted<Core::SharedMappedFile>(move(mapped_file));
-    auto bytes = shared_mapped_file->operator->().bytes();
-    return TypefaceSkia::load_from_buffer(bytes, ttc_index, make_ref_counted<FontDataBacking>(move(shared_mapped_file)));
+    auto bytes = mapped_file->bytes();
+    return TypefaceSkia::load_from_buffer(bytes, ttc_index, make_ref_counted<FontDataBacking>(move(mapped_file)));
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_anonymous_buffer(Core::AnonymousBuffer anonymous_buffer, u32 ttc_index)
@@ -195,7 +194,7 @@ void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const
             MUST(encoder.encode(resource->uri()));
             MUST(encoder.encode(ttc_index()));
         },
-        [&](NonnullRefPtr<Core::SharedMappedFile> const&) {
+        [&](NonnullOwnPtr<Core::MappedFile> const&) {
             VERIFY_NOT_REACHED();
         });
 }
