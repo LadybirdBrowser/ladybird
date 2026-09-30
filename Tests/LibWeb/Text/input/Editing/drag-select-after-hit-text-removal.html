@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px monospace; }
+</style>
+<p id="first">first paragraph of text</p>
+<p id="second">second paragraph of text</p>
+<script>
+    promiseTest(async () => {
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const text = first.firstChild;
+        const rect = first.getBoundingClientRect();
+        const y = rect.y + rect.height / 2;
+
+        // The text node under the pointer leaves as the drag begins.
+        first.addEventListener("mousedown", () => text.remove());
+        await animationFrame();
+        internals.mouseDown(rect.x + 20, y);
+        internals.mouseMove(rect.x + 120, second.getBoundingClientRect().y + 5);
+        internals.mouseUp(rect.x + 120, second.getBoundingClientRect().y + 5);
+
+        const selection = getSelection();
+        const describe = node => node === null ? "null" : node.nodeName + (node.parentNode ? " in " + (node.parentNode.id || node.parentNode.nodeName) : " (detached)");
+        println(`Text connected: ${text.isConnected}`);
+        println(`Anchor: ${describe(selection.anchorNode)}:${selection.anchorOffset}`);
+        println(`Focus: ${describe(selection.focusNode)}:${selection.focusOffset}`);
+        println(`Selected: "${selection.toString()}"`);
+    });
+</script>

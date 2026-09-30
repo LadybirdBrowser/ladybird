@@ -33,14 +33,28 @@ struct HitTestResult {
     Layout::Node* layout_node() const { return layout_node_for_committed_slot(*arena, hit_node); }
 };
 
-struct CaretPosition {
+// A boundary point that names its node instead of pointing at it. A node that left the tree since
+// the hit test resolves to nothing, where a pointer would have handed back a node the document no
+// longer contains.
+struct WEB_API BoundaryIdentity {
+    DOM::NodeIdentity node;
+    WebIDL::UnsignedLong offset { 0 };
+
+    Optional<DOM::BoundaryPoint> resolve(DOM::Document&) const;
+};
+
+struct WEB_API CaretPosition {
     Compositing::RustFFI::NodeSlotId paintable;
     NonnullRefPtr<Layout::NodeArena> arena;
-    DOM::BoundaryPoint boundary;
+    BoundaryIdentity boundary;
     TextAffinity affinity { TextAffinity::Downstream };
-    Optional<DOM::BoundaryPoint> secondary_boundary {};
+    Optional<BoundaryIdentity> secondary_boundary {};
     Optional<CSSPixelRect> debug_rect {};
 
+    GC::Ptr<DOM::Node> boundary_node() const;
+    Optional<DOM::BoundaryPoint> boundary_point() const;
+    // The layout node the boundary's node is bound to, found in the arena rather than asked of that node.
+    Layout::Node* boundary_layout_node() const;
     Layout::Node* layout_node() const { return layout_node_for_committed_slot(*arena, paintable); }
 };
 

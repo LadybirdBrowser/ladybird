@@ -8664,8 +8664,11 @@ GC::Ptr<CaretPosition> Document::caret_position_from_point(double x, double y, C
     //           the descendants of the viewport, return a caret position for the text entry widget.
 
     // 5. Otherwise, retarget shadow tree positions whose roots are not allowed by options.shadowRoots.
-    auto start_node = caret_position->boundary.node;
-    auto start_offset = caret_position->boundary.offset;
+    auto boundary = caret_position->boundary_point();
+    if (!boundary.has_value())
+        return nullptr;
+    auto start_node = boundary->node;
+    auto start_offset = boundary->offset;
     auto* shadow_root = as_if<ShadowRoot>(start_node->root());
     while (shadow_root && !shadow_root_is_allowed_for_caret_position(*shadow_root, options)) {
         auto* host = shadow_root->host();
