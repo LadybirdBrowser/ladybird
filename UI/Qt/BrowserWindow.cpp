@@ -224,7 +224,7 @@ static QIcon const& app_icon()
     return icon;
 }
 
-BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, RefPtr<WebView::WebContentClient> page_process, Optional<Web::PageId> page_index)
+BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable)
     : m_is_private(is_private)
     , m_session(WebView::Application::session_for_new_view(is_private))
     , m_tabs_container(new TabWidget(this))
@@ -295,7 +295,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     });
 
     if (parent_tab) {
-        new_child_tab(Web::HTML::ActivateTab::Yes, AK::move(page_process), AK::move(page_index));
+        create_new_tab(Web::HTML::ActivateTab::Yes, traversable);
     } else {
         for (size_t i = 0; i < initial_urls.size(); ++i)
             create_new_tab((i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, TabLocation::end());
@@ -510,17 +510,12 @@ void BrowserWindow::duplicate_tab(Tab& source_tab)
         duplicate.navigate(source_url);
 }
 
-Tab& BrowserWindow::new_child_tab(Web::HTML::ActivateTab activate_tab, RefPtr<WebView::WebContentClient> page_process, Optional<Web::PageId> page_index)
+Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Optional<WebView::CanonicalTraversable&> traversable)
 {
-    return create_new_tab(activate_tab, AK::move(page_process), page_index);
-}
-
-Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, RefPtr<WebView::WebContentClient> page_process, Optional<Web::PageId> page_index)
-{
-    if (!page_index.has_value())
+    if (!traversable.has_value())
         return create_new_tab(activate_tab, TabLocation::end());
 
-    auto* tab = new Tab(this, AK::move(page_process), page_index.value());
+    auto* tab = new Tab(this, traversable);
 
     // FIXME: Merge with other overload
     if (m_current_tab == nullptr) {
@@ -622,7 +617,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
         }
     });
 
-    tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, WebView::WebContentClient& page_process, Optional<Web::PageId> page_index) {
+    tab->view().on_new_web_view = [this, tab](auto activate_tab, Web::HTML::WebViewHints hints, WebView::CanonicalTraversable& traversable) {
         if (hints.popup) {
             auto cascaded_configuration = Application::the().configuration_for_new_window();
             WindowConfiguration configuration {
@@ -631,10 +626,10 @@ void BrowserWindow::initialize_tab(Tab* tab)
                 .width = hints.width,
                 .height = hints.height,
             };
-            auto& window = Application::the().new_window({}, configuration, IsPopupWindow::Yes, m_is_private, tab, page_process, AK::move(page_index));
+            auto& window = Application::the().new_window({}, configuration, IsPopupWindow::Yes, m_is_private, tab, traversable);
             return window.current_tab()->view().handle();
         }
-        auto& new_tab = new_child_tab(activate_tab, page_process, page_index);
+        auto& new_tab = create_new_tab(activate_tab, traversable);
         return new_tab.view().handle();
     };
 
@@ -726,7 +721,7 @@ void BrowserWindow::detach_tab_to_new_window(int index, QPoint global_position)
         .maximized = isMaximized(),
     };
 
-    auto& window = Application::the().new_window({}, configuration, IsPopupWindow::No, m_is_private, nullptr, nullptr, {}, ShowWindow::No);
+    auto& window = Application::the().new_window({}, configuration, IsPopupWindow::No, m_is_private, nullptr, {}, ShowWindow::No);
     move_tab_to_window(index, window, 0);
 
     if (configuration.maximized == true)

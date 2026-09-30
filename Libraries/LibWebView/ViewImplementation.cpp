@@ -104,7 +104,7 @@ ViewImplementation::~ViewImplementation()
         m_top_level_traversable->discard_representing_pages();
     }
     if (has_display_page())
-        page().client().unregister_view(page_id());
+        page().client().close_page_of_closed_tab(page_id());
 
     // A headless parent can own and destroy its child view without the child receiving a browsing-context-close
     // notification. Do not strand a WebDriver command which raced with that teardown.
@@ -122,7 +122,7 @@ CanonicalTraversable& ViewImplementation::traversable() const
     return *m_top_level_traversable;
 }
 
-void ViewImplementation::display_traversable(Badge<WebContentClient>, CanonicalTraversable& traversable)
+void ViewImplementation::display_traversable(CanonicalTraversable& traversable)
 {
     VERIFY(!m_top_level_traversable);
     m_top_level_traversable = &traversable;
@@ -132,6 +132,7 @@ void ViewImplementation::display_traversable(Badge<WebContentClient>, CanonicalT
         notify_session_history_changed();
     };
     notify_session_history_changed();
+    update_navigation_action_state();
 }
 
 WebContentPage& ViewImplementation::page() const
@@ -2218,19 +2219,17 @@ void ViewImplementation::handle_resize()
     }
 }
 
-void ViewImplementation::initialize_client(CreateNewClient create_new_client)
+void ViewImplementation::initialize_tab(Optional<CanonicalTraversable&> traversable)
 {
-    if (create_new_client == CreateNewClient::Yes) {
-        // A view's first process creates its traversable, in the page displaying the tab.
-        VERIFY(!m_top_level_traversable);
+    if (!traversable.has_value()) {
         // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
-        auto client_or_error = Application::the().launch_web_content_process(*this);
-        if (client_or_error.is_error())
-            warnln("Failed to launch WebContent: {}", client_or_error.error());
+        auto page = MUST(Application::the().open_page_for_new_tab(m_is_private, m_system_visibility_state));
+        traversable = page->traversable();
     }
-    // The launched process's initial page, or the page of the parent's process the view was given before it asked to
-    // be initialized, displays the tab.
+    display_traversable(*traversable);
+    // The launched process's initial page, or the page the opener's process opened for the tab, displays it.
     VERIFY(has_display_page());
+    VERIFY(page().client().is_private() == m_is_private);
 
     if (m_client_state.client_handle.is_empty()) {
         m_client_state.client_handle = generate_random_uuid();
@@ -2789,7 +2788,7 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
     traversable().discard_pending_host();
     traversable().discard_representing_pages();
     if (has_display_page())
-        page().client().unregister_view(page_id());
+        page().client().close_page_of_closed_tab(page_id());
 
     if (!window_handle.is_empty())
         Application::the().notify_webdriver_window_closed(window_handle);

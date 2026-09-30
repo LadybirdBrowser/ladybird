@@ -99,12 +99,11 @@ public:
     // Null outside test mode: the test endpoint is only connected when the UI process runs tests.
     WebContentTestClient* test_connection() { return m_test_connection; }
 
-    void assign_view(Badge<Application>, ViewImplementation&);
     void set_initial_top_level_history_entry(Badge<Application>, Web::HTML::SessionHistoryEntryDescriptor entry) { m_initial_top_level_history_entry = move(entry); }
-    void register_view(Web::PageId page_id, ViewImplementation&);
+    WebContentPage& open_initial_page_for_new_top_level_traversable(Web::HTML::VisibilityState system_visibility_state);
     WebContentPage& open_page_for_new_top_level_traversable(Web::PageId, CanonicalTraversable&);
     void discard_page_of_undisplayed_top_level_traversable(Web::PageId);
-    void unregister_view(Web::PageId page_id);
+    void close_page_of_closed_tab(Web::PageId page_id);
 
     void set_compositor_connection_id(Badge<Application>, i32);
     Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
@@ -132,8 +131,6 @@ public:
     virtual bool may_act_for_page(Web::PageId page_id) const override;
 
     Optional<u64> exclusive_performance_owner() const;
-
-    bool has_views() const;
 
     void did_lose_process();
     void did_save_crash_report(ByteString const& report_name);

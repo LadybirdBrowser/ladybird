@@ -278,10 +278,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     OwnPtr<WebView::HeadlessWebView> popup;
     bool popup_loaded = false;
     Web::PageId popup_page_id = 0;
-    restored_view->on_new_web_view = [&](auto, auto, WebView::WebContentClient& page_process, Optional<Web::PageId> page_id) {
-        VERIFY(page_id.has_value());
-        popup_page_id = *page_id;
-        popup = WebView::HeadlessWebView::create_child(*restored_view, page_process, *page_id);
+    restored_view->on_new_web_view = [&](auto, auto, WebView::CanonicalTraversable& traversable) {
+        popup_page_id = traversable.display_page()->id();
+        popup = WebView::HeadlessWebView::create_child(*restored_view, traversable);
         popup->on_load_finish = [&](auto const&) { popup_loaded = true; };
         return popup->handle();
     };
@@ -327,9 +326,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // Rejecting a popup must not authorize an ID that was never assigned to a page.
     Web::PageId rejected_page_id = 0;
-    restored_view->on_new_web_view = [&](auto, auto, auto&, Optional<Web::PageId> page_id) {
-        VERIFY(page_id.has_value());
-        rejected_page_id = *page_id;
+    restored_view->on_new_web_view = [&](auto, auto, WebView::CanonicalTraversable& traversable) {
+        rejected_page_id = traversable.display_page()->id();
         return String {};
     };
     auto rejected_popup = stub.did_request_new_web_view(restored_view->page_id(), Web::HTML::ActivateTab::No, {}, {}, {}, {}, {});

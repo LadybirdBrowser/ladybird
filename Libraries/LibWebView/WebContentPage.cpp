@@ -2311,19 +2311,17 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     traversable.active_browsing_context().set_popup_sandboxing_flag_set(popup_sandboxing_flag_set);
 
     auto new_page_id = Application::the().allocate_page_id();
-    auto& new_page = client().open_page_for_new_top_level_traversable(new_page_id, traversable);
+    client().open_page_for_new_top_level_traversable(new_page_id, traversable);
 
     String window_handle;
     if (view().on_new_web_view)
-        window_handle = view().on_new_web_view(activate_tab, hints, client(), new_page_id);
+        window_handle = view().on_new_web_view(activate_tab, hints, traversable);
 
     if (!traversable.view().has_value()) {
         client().discard_page_of_undisplayed_top_level_traversable(new_page_id);
         CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(traversable);
         return { {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
     }
-    new_page.view().update_navigation_action_state();
-
     traversable.represent_group_everywhere();
 
     auto environment_id = traversable.active_document().relevant_global_object().relevant_settings_object().id();
