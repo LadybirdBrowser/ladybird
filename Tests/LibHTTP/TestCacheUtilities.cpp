@@ -172,6 +172,23 @@ TEST_CASE(not_modified_response_must_not_change_vary)
     EXPECT_EQ(stored_headers->get("Cache-Control"sv), Optional<ByteString> { "max-age=60"sv });
 }
 
+TEST_CASE(not_modified_response_must_carry_the_stored_validators)
+{
+    auto stored_headers = HTTP::HeaderList::create({ { "ETag", "\"old\"" }, { "Last-Modified", "Tue, 15 Nov 1994 12:45:26 GMT" } });
+
+    EXPECT(HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "ETag", "\"old\"" } })));
+    EXPECT(!HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "ETag", "\"current\"" } })));
+    EXPECT(HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "ETag", "W/\"old\"" } })));
+    EXPECT(!HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "ETag", "W/\"current\"" } })));
+    EXPECT(HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "Last-Modified", "Tue, 15 Nov 1994 12:45:26 GMT" } })));
+    EXPECT(!HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "Last-Modified", "Wed, 16 Nov 1994 12:45:26 GMT" } })));
+    EXPECT(HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create()));
+
+    auto weakly_stored_headers = HTTP::HeaderList::create({ { "ETag", "W/\"old\"" } });
+    EXPECT(!HTTP::can_freshen_stored_response(*weakly_stored_headers, HTTP::HeaderList::create({ { "ETag", "\"old\"" } })));
+    EXPECT(HTTP::can_freshen_stored_response(*weakly_stored_headers, HTTP::HeaderList::create({ { "ETag", "W/\"old\"" } })));
+}
+
 TEST_CASE(vary_cookie_is_not_cacheable)
 {
     auto request_headers = HTTP::HeaderList::create({ { "Cookie", "account=A" } });
