@@ -84,7 +84,7 @@ static QWidget* initial_web_content_view_parent([[maybe_unused]] QWidget* window
 #endif
 }
 
-WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client, Web::PageId page_index, WebContentViewInitialState initial_state)
+WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTraversable&> traversable, WebContentViewInitialState initial_state)
     : WebContentViewBase(initial_web_content_view_parent(window))
     , WebView::ViewImplementation(initial_state.is_private)
 {
@@ -103,9 +103,6 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     setAttribute(Qt::WA_OpaquePaintEvent);
     setAttribute(Qt::WA_NoSystemBackground);
 #endif
-
-    if (parent_client)
-        parent_client->register_view(page_index, *this);
 
     setAttribute(Qt::WA_InputMethodEnabled, true);
 
@@ -161,7 +158,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
                 this);
     });
 
-    initialize_client((parent_client == nullptr) ? CreateNewClient::Yes : CreateNewClient::No);
+    initialize_tab(traversable);
 
     on_ready_to_paint = [this]() {
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET

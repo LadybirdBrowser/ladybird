@@ -471,9 +471,9 @@ Optional<String> Application::system_font_family() const
 }
 #endif
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, RefPtr<WebView::WebContentClient> page_process, Optional<Web::PageId> page_index, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<WebView::CanonicalTraversable&> traversable, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
 {
-    auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, move(page_process), move(page_index));
+    auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, traversable);
     set_active_window(*window);
     QObject::connect(window, &QObject::destroyed, m_application.ptr(), [this, window] {
         if (m_active_window == window)
@@ -790,7 +790,7 @@ void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescri
 {
     if (!m_active_window) {
         auto url = navigation.url;
-        const_cast<Application&>(*this).new_window({ move(url) }, {}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, nullptr, nullptr, {}, ShowWindow::Yes, move(navigation));
+        const_cast<Application&>(*this).new_window({ move(url) }, {}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, nullptr, {}, ShowWindow::Yes, move(navigation));
         return;
     }
 
@@ -801,7 +801,7 @@ void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescri
 void Application::open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private)
 {
     auto url = navigation.url;
-    new_window({ move(url) }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private, nullptr, nullptr, {}, ShowWindow::Yes, move(navigation));
+    new_window({ move(url) }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private, nullptr, {}, ShowWindow::Yes, move(navigation));
 }
 
 Optional<ByteString> Application::ask_user_for_download_path(ByteString const& file) const

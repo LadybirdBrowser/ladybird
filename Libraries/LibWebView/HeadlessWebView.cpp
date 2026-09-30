@@ -15,18 +15,15 @@ static constexpr auto child_close_timeout_ms = 1000;
 NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size, IsPrivate is_private)
 {
     auto view = adopt_own(*new HeadlessWebView(move(theme), window_size, is_private));
-    view->initialize_client(CreateNewClient::Yes);
+    view->initialize_tab();
 
     return view;
 }
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, WebContentClient& page_process, Web::PageId page_index)
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, CanonicalTraversable& traversable)
 {
-    // The child shares the WebContent client hosting its page, and with it that client's browsing session.
     auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size, parent.is_private()));
-
-    page_process.register_view(page_index, *view);
-    view->initialize_client(CreateNewClient::No);
+    view->initialize_tab(traversable);
 
     return view;
 }
@@ -36,10 +33,8 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     , m_theme(move(theme))
     , m_viewport_size(viewport_size)
 {
-    on_new_web_view = [this](auto, auto, WebContentClient& page_process, Optional<Web::PageId> page_index) {
-        auto web_view = page_index.has_value()
-            ? HeadlessWebView::create_child(*this, page_process, *page_index)
-            : HeadlessWebView::create(m_theme, m_viewport_size, this->is_private());
+    on_new_web_view = [this](auto, auto, CanonicalTraversable& traversable) {
+        auto web_view = HeadlessWebView::create_child(*this, traversable);
 
         return adopt_child_web_view(move(web_view)).handle();
     };

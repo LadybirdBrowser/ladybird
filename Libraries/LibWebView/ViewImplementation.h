@@ -108,7 +108,6 @@ public:
     u64 view_id() const { return m_view_id; }
 
     CanonicalTraversable& traversable() const;
-    void display_traversable(Badge<WebContentClient>, CanonicalTraversable&);
     bool has_display_page() const;
     virtual void prepare_page_for_tab(WebContentPage&);
     void did_change_display_page(Badge<CanonicalNavigable>, RefPtr<WebContentPage> previous_page);
@@ -414,7 +413,7 @@ public:
 
     Function<void()> on_ready_to_paint;
     Function<void(TabPerformanceStats const&)> on_performance_stats;
-    Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, WebContentClient& page_process, Optional<Web::PageId>)> on_new_web_view;
+    Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, CanonicalTraversable&)> on_new_web_view;
     Function<void()> on_activate_tab;
     Function<void()> on_close;
     Function<void(URL::URL const&)> on_link_hover;
@@ -595,11 +594,8 @@ protected:
     void set_page_background_color(Gfx::Color);
     Gfx::Color preferred_canvas_background_color() const;
 
-    enum class CreateNewClient {
-        No,
-        Yes,
-    };
-    virtual void initialize_client(CreateNewClient = CreateNewClient::Yes);
+    void initialize_tab(Optional<CanonicalTraversable&> = {});
+    void display_traversable(CanonicalTraversable&);
     void display_page_changed(RefPtr<WebContentPage> previous_page);
     void cancel_all_native_geolocation_requests();
     void send_geolocation_emulated_position(WebContentPage&);

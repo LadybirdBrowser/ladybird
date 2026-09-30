@@ -253,19 +253,17 @@ void WebContentClient::remember_compositor_context(Web::CompositorContextId cont
     m_compositor_contexts.set(context_id, page_id);
 }
 
-void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
+WebContentPage& WebContentClient::open_initial_page_for_new_top_level_traversable(Web::HTML::VisibilityState system_visibility_state)
 {
-    VERIFY(!has_views());
-    VERIFY(view.is_private() == m_is_private);
     auto initial_page_id = m_unassigned_initial_page_id.release_value();
 
-    // A view's first process creates its traversable, in the page that displays the tab.
+    // A tab's first process creates its traversable, in the page that displays the tab.
     VERIFY(m_initial_top_level_history_entry.has_value());
     auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(m_root_navigable_id, {}, m_initial_top_level_history_entry.release_value());
-    view.display_traversable({}, traversable);
+    traversable.set_system_visibility_state(system_visibility_state);
     auto& page = open_page_for_new_top_level_traversable(initial_page_id, traversable);
     page.async_set_browsing_context_group(traversable.active_browsing_context().group()->id());
-    view.update_navigation_action_state();
+    return page;
 }
 
 void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 compositor_connection_id)
@@ -273,22 +271,12 @@ void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 comp
     m_compositor_connection_id = compositor_connection_id;
 }
 
-void WebContentClient::register_view(Web::PageId page_id, ViewImplementation& view)
+WebContentPage& WebContentClient::open_page_for_new_top_level_traversable(Web::PageId page_id, CanonicalTraversable& traversable)
 {
-    // A process's initial page is assigned to the view that launched it, not registered.
-    VERIFY(page_id > 0 || !has_views());
-    VERIFY(view.is_private() == m_is_private);
     if (m_detached_page_close_timer)
         m_detached_page_close_timer->stop();
     Application::process_manager().cancel_forced_exit(pid());
 
-    auto* page = this->page(page_id);
-    VERIFY(page);
-    view.display_traversable({}, page->traversable());
-}
-
-WebContentPage& WebContentClient::open_page_for_new_top_level_traversable(Web::PageId page_id, CanonicalTraversable& traversable)
-{
     auto& page = open_page(page_id, traversable);
     traversable.active_document().set_host(page);
     return page;
@@ -301,7 +289,7 @@ void WebContentClient::discard_page_of_undisplayed_top_level_traversable(Web::Pa
         page.value()->close();
 }
 
-void WebContentClient::unregister_view(Web::PageId page_id)
+void WebContentClient::close_page_of_closed_tab(Web::PageId page_id)
 {
     forget_compositor_context(Web::compositor_context_id_for_page(page_id));
     if (auto* page = this->page(page_id))
@@ -418,15 +406,6 @@ bool WebContentClient::may_act_for_page(Web::PageId page_id) const
     // A page ID the connection was given is not a false claim once the page is gone: the connection can
     // have sent the message while it still had the page, and the handler drops it.
     return m_pages.contains(page_id) || m_unassigned_initial_page_id == page_id;
-}
-
-bool WebContentClient::has_views() const
-{
-    for (auto const& page : m_pages) {
-        if (page.value->is_open() && page.value->displays_tab())
-            return true;
-    }
-    return false;
 }
 
 Optional<CanonicalNavigable&> WebContentClient::hosted_navigable(Web::HTML::CrossProcessId navigable_id)
