@@ -519,3 +519,30 @@ TEST_CASE(request_waiting_on_a_cache_entry_a_slow_client_is_still_filling_keeps_
     expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "read-from-cache"sv);
     EXPECT_EQ(http_server.connection_count(), 1u);
 }
+
+TEST_CASE(not_modified_response_that_changes_vary_fails_revalidation)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1)
+            return ServerResponse::at_once("HTTP/1.1 304 Not Modified\r\nETag: \"v1\"\r\nVary: *\r\nConnection: close\r\n\r\n");
+        return ServerResponse::at_once(http_response("no-cache"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), ""sv);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+}
