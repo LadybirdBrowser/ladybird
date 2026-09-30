@@ -89,6 +89,7 @@ public:
     ErrorOr<int> execute();
 
     static Application& the() { return *s_the; }
+    static bool is_initialized() { return s_the != nullptr; }
 
     static Settings& settings() { return *the().m_settings; }
     static Profile const& profile() { return *the().m_profile; }
