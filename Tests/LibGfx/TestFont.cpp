@@ -610,14 +610,15 @@ TEST_CASE(font_collection_preserves_each_face_style)
 TEST_CASE(font_collection_retains_shared_backing_for_skia)
 {
     auto mapping = MUST(Core::MappedFile::map(TEST_INPUT("fonts/styles.ttc"sv)));
-    auto shared_mapping = make_ref_counted<Core::SharedMappedFile>(move(mapping));
-    auto backing = make_ref_counted<Gfx::Typeface::FontDataBacking>(shared_mapping);
+    auto backing = make_ref_counted<Gfx::Typeface::FontDataBacking>(move(mapping));
     sk_sp<SkTypeface const> skia_typeface;
     ByteBuffer expected_table;
     constexpr auto cmap_tag = SkSetFourByteTag('c', 'm', 'a', 'p');
     {
-        auto typeface = MUST(Gfx::TypefaceSkia::load_from_buffer(shared_mapping->operator->().bytes(), 1, backing));
-        EXPECT_EQ(typeface->buffer().data(), shared_mapping->operator->().bytes().data());
+        auto const& mapping = backing->storage.get<NonnullOwnPtr<Core::MappedFile>>();
+
+        auto typeface = MUST(Gfx::TypefaceSkia::load_from_buffer(mapping->bytes(), 1, backing));
+        EXPECT_EQ(typeface->buffer().data(), mapping->bytes().data());
         skia_typeface = sk_ref_sp(typeface->sk_typeface());
         expected_table = MUST(ByteBuffer::create_uninitialized(skia_typeface->getTableSize(cmap_tag)));
         EXPECT(!expected_table.is_empty());

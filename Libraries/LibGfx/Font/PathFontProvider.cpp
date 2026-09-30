@@ -90,14 +90,14 @@ void PathFontProvider::for_each_typeface_in_uri(StringView uri, HashTable<String
                 auto mapping = Core::MappedFile::map(filesystem_path);
                 if (mapping.is_error())
                     return IterationDecision::Continue;
-                backing = make_ref_counted<Typeface::FontDataBacking>(make_ref_counted<Core::SharedMappedFile>(mapping.release_value()));
+                backing = make_ref_counted<Typeface::FontDataBacking>(mapping.release_value());
             }
             auto font_count = number_of_fonts_in_ttc(resource.data());
             for (u32 ttc_index = 0; ttc_index < font_count; ++ttc_index) {
                 ErrorOr<NonnullRefPtr<Typeface>> font_or_error = [&]() -> ErrorOr<NonnullRefPtr<Typeface>> {
                     if (backing) {
-                        auto const& mapping = backing->storage.get<NonnullRefPtr<Core::SharedMappedFile>>();
-                        return TRY(TypefaceSkia::load_from_buffer(mapping->operator->().bytes(), ttc_index, backing));
+                        auto const& mapping = backing->storage.get<NonnullOwnPtr<Core::MappedFile>>();
+                        return TRY(TypefaceSkia::load_from_buffer(mapping->bytes(), ttc_index, backing));
                     }
                     return Typeface::try_load_from_resource(resource, ttc_index);
                 }();

@@ -11,7 +11,6 @@
 #include <AK/MemoryStream.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/RefCounted.h>
 #include <LibCore/Export.h>
 #include <LibCore/Forward.h>
 
@@ -40,20 +39,6 @@ private:
     size_t m_mapping_size { 0 };
     void* m_data { nullptr };
     size_t m_size { 0 };
-};
-
-class SharedMappedFile : public RefCounted<SharedMappedFile> {
-public:
-    explicit SharedMappedFile(NonnullOwnPtr<MappedFile> file)
-        : m_file(move(file))
-    {
-    }
-
-    MappedFile const& operator->() const { return *m_file; }
-    MappedFile& operator->() { return *m_file; }
-
-private:
-    NonnullOwnPtr<MappedFile> m_file;
 };
 
 }
