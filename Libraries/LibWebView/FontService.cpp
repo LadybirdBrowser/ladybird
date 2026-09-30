@@ -120,7 +120,7 @@ ErrorOr<void> FontService::build_catalog()
                                             .format = format,
                                         });
         };
-        Gfx::PathFontProvider::for_each_typeface_in_uri(uri, loaded_paths, move(collect_typeface), Gfx::PathFontProvider::FontDataSource::SharedMapping);
+        Gfx::PathFontProvider::for_each_typeface_in_uri(uri, loaded_paths, move(collect_typeface));
         if (callback_error.has_value())
             return callback_error.release_value();
     }

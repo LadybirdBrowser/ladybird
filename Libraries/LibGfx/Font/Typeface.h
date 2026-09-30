@@ -12,11 +12,11 @@
 #include <AK/Once.h>
 #include <AK/Optional.h>
 #include <AK/QuickSort.h>
-#include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <AK/String.h>
 #include <AK/Variant.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCore/Resource.h>
+#include <LibCore/MappedFile.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShapeFeature.h>
@@ -63,7 +63,7 @@ struct FontCacheKey {
 class Typeface : public AtomicRefCounted<Typeface> {
 public:
     struct FontDataBacking final : AtomicRefCounted<FontDataBacking> {
-        using Storage = Variant<Core::AnonymousBuffer, NonnullRefPtr<Core::Resource const>, NonnullOwnPtr<Core::MappedFile>>;
+        using Storage = Variant<Core::AnonymousBuffer, NonnullOwnPtr<Core::MappedFile>>;
 
         explicit FontDataBacking(Storage storage)
             : storage(move(storage))
@@ -73,7 +73,6 @@ public:
         Storage storage;
     };
 
-    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_mapped_file(NonnullOwnPtr<Core::MappedFile>, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_anonymous_buffer(Core::AnonymousBuffer, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
@@ -96,6 +95,8 @@ public:
 
     void set_system_font_identifier(SystemFontIdentifier identifier) { m_system_font_identifier = identifier; }
     Optional<SystemFontIdentifier> system_font_identifier() const { return m_system_font_identifier; }
+
+    void set_file_path(String file_path) { m_file_path = move(file_path); }
 
     hb_face_t* harfbuzz_typeface() const;
     ErrorOr<Vector<String>> local_font_names() const;
@@ -121,7 +122,7 @@ public:
 protected:
     enum class FontDataFormat : u8 {
         RawFontData,
-        ResourceFontData,
+        MappedFile,
         SystemFont,
         SystemUIFont,
         SystemFontId,
@@ -149,6 +150,7 @@ private:
 
     RefPtr<FontDataBacking> m_font_data;
     Optional<SystemFontIdentifier> m_system_font_identifier;
+    Optional<String> m_file_path;
 
     void clear_font_cache() const;
 
