@@ -2,17 +2,17 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 6.9 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 6.10 REQUIRED COMPONENTS Core Widgets)
 
 if (NOT APPLE)
-    find_package(Qt6 6.9 REQUIRED COMPONENTS Positioning)
+    find_package(Qt6 6.10 REQUIRED COMPONENTS Positioning)
 endif()
 
 if (APPLE OR (LINUX AND NOT ANDROID) OR HAS_DIRECTX)
     # The native presentation paths use platform GPU buffer handles directly instead of copying frames through CPU memory.
     # Wayland activation also uses Qt platform APIs.
     set(QT_NO_PRIVATE_MODULE_WARNING ON)
-    find_package(Qt6 6.9 REQUIRED COMPONENTS GuiPrivate)
+    find_package(Qt6 6.10 REQUIRED COMPONENTS GuiPrivate)
 endif()
 
 if (LINUX AND NOT ANDROID)
@@ -75,7 +75,7 @@ if (APPLE)
     target_link_libraries(ladybird PRIVATE Qt::GuiPrivate "-framework Cocoa" "-framework IOSurface" "-framework QuartzCore")
 endif()
 
-if (NOT APPLE AND USE_VULKAN_DMABUF_IMAGES AND Qt6_VERSION VERSION_GREATER_EQUAL 6.7.0)
+if (NOT APPLE AND USE_VULKAN_DMABUF_IMAGES)
     set(WEB_CONTENT_VIEW_LINUX_VERT_SHADER "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/WebContentViewLinux.vert")
     set(WEB_CONTENT_VIEW_LINUX_FRAG_SHADER "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/WebContentViewLinux.frag")
     set(WEB_CONTENT_VIEW_LINUX_VERT_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/WebContentViewLinuxVertShader.h")
