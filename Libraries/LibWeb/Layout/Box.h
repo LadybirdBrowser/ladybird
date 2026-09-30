@@ -40,6 +40,7 @@ public:
         return const_cast<ImageProvider&>(const_cast<Box const&>(*this).image_provider());
     }
     void set_owned_image_provider(NonnullOwnPtr<ImageProvider>);
+    void notify_owned_image_provider_of_detach();
 
     void set_replaced_box_can_have_children(bool value) { set_flag(RustFFI::NodeFlag::ReplacedBoxCanHaveChildren, value); }
 
