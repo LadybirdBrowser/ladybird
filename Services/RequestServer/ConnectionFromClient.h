@@ -106,6 +106,7 @@ private:
     static int on_socket_callback(void*, int sockfd, int what, void* user_data, void*);
     static int on_timeout_callback(void*, long timeout_ms, void* user_data);
     bool is_live_request_id(u64 request_id) const;
+    void cancel_owned_work();
     void check_active_requests();
     void complete_aia_fetch(void* easy_handle, int result_code);
     void fail_websocket(u64 websocket_id, Requests::WebSocket::Error);

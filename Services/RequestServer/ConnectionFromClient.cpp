@@ -146,16 +146,7 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 
 ConnectionFromClient::~ConnectionFromClient()
 {
-    m_active_requests.clear();
-    m_active_revalidation_requests.clear();
-    m_pending_websockets.clear();
-    m_websockets.clear();
-
-    for (auto& fetch : m_aia_fetches) {
-        curl_multi_remove_handle(m_curl_multi, fetch.key);
-        curl_easy_cleanup(fetch.key);
-    }
-    m_aia_fetches.clear();
+    cancel_owned_work();
 
     curl_multi_cleanup(m_curl_multi);
     m_curl_multi = nullptr;
@@ -184,6 +175,25 @@ void ConnectionFromClient::request_complete(Badge<Request>, Request const& reque
     });
 }
 
+// Transferred requests may still need our curl multi handle.
+void ConnectionFromClient::cancel_owned_work()
+{
+    m_active_requests.clear();
+    m_active_revalidation_requests.clear();
+    m_pending_websockets.clear();
+    m_websocket_cookie_requests.clear();
+    m_websockets.clear();
+
+    for (auto& fetch : m_aia_fetches) {
+        curl_multi_remove_handle(m_curl_multi, fetch.key);
+        curl_easy_cleanup(fetch.key);
+        if (fetch.value->resolve_list)
+            curl_slist_free_all(fetch.value->resolve_list);
+    }
+    m_aia_fetches.clear();
+    m_pending_aia_lookups.clear();
+}
+
 void ConnectionFromClient::die()
 {
     Vector<Requests::RequestTransferLeaseKey> transfer_leases_to_cancel;
@@ -196,6 +206,9 @@ void ConnectionFromClient::die()
         if (lease.has_value())
             m_active_requests.remove(lease->request_id);
     }
+
+    // Transferred requests can keep this object alive after the client disconnects.
+    cancel_owned_work();
 
     m_connections.remove(client_id());
 
