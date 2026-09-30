@@ -608,3 +608,34 @@ TEST_CASE(truncated_background_revalidation_response_is_not_stored)
     expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
     EXPECT_EQ(http_server.connection_count(), 3u);
 }
+
+TEST_CASE(trailer_fields_are_not_stored)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t) -> Optional<ServerResponse> {
+        return ServerResponse::at_once(
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/plain\r\n"
+            "Cache-Control: max-age=60\r\n"
+            "Transfer-Encoding: chunked\r\n"
+            "Trailer: Vary\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "5\r\nhello\r\n"
+            "0\r\nVary: *\r\n\r\n");
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "read-from-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 1u);
+}

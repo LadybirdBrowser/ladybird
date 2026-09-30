@@ -585,7 +585,7 @@ Request::~Request()
 
     if (m_cache_entry_writer.has_value()) {
         if (m_state == State::Complete && m_curl_result_code == CURLE_OK)
-            (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+            (void)m_cache_entry_writer->flush(m_request_headers);
         else
             m_cache_entry_writer->remove_incomplete_entry();
     }
@@ -1485,11 +1485,11 @@ void Request::handle_complete_state()
         Optional<HTTP::CacheEntryBodyFile> cached_body_file;
         if (m_cache_entry_writer.has_value()) {
             if (m_cache_entry_writer->body_size() >= static_cast<u64>(PAGE_SIZE)) {
-                auto body_file = m_cache_entry_writer->flush_and_take_body_file(m_request_headers, m_response_headers);
+                auto body_file = m_cache_entry_writer->flush_and_take_body_file(m_request_headers);
                 if (!body_file.is_error())
                     cached_body_file = body_file.release_value();
             } else {
-                (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+                (void)m_cache_entry_writer->flush(m_request_headers);
             }
             m_cache_entry_writer.clear();
         }
@@ -1502,7 +1502,7 @@ void Request::handle_complete_state()
 
     if (m_cache_entry_writer.has_value()) {
         if (m_curl_result_code == CURLE_OK)
-            (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+            (void)m_cache_entry_writer->flush(m_request_headers);
         else
             m_cache_entry_writer->remove_incomplete_entry();
         m_cache_entry_writer.clear();

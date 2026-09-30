@@ -145,6 +145,9 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
             return Error::from_string_literal("Response cannot be selected by any request");
 
         m_vary_key = *vary_key;
+
+        // Trailer fields were not considered when deciding cacheability.
+        m_response_headers = HeaderList::create(response_headers.headers());
         m_path = path_for_cache_entry(m_disk_cache.cache_directory(), m_cache_key, m_vary_key);
         m_temporary_path = LexicalPath::join(m_disk_cache.cache_directory().string(), ByteString::formatted("{}.tmp", m_path->basename()));
 
@@ -211,19 +214,19 @@ ErrorOr<void> CacheEntryWriter::write_data(ReadonlyBytes data)
     return {};
 }
 
-ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers)
+ErrorOr<void> CacheEntryWriter::flush(NonnullRefPtr<HeaderList> request_headers)
 {
-    return flush_impl(move(request_headers), move(response_headers), nullptr);
+    return flush_impl(move(request_headers), nullptr);
 }
 
-ErrorOr<CacheEntryBodyFile> CacheEntryWriter::flush_and_take_body_file(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers)
+ErrorOr<CacheEntryBodyFile> CacheEntryWriter::flush_and_take_body_file(NonnullRefPtr<HeaderList> request_headers)
 {
     CacheEntryBodyFile body_file;
-    TRY(flush_impl(move(request_headers), move(response_headers), &body_file));
+    TRY(flush_impl(move(request_headers), &body_file));
     return body_file;
 }
 
-ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, CacheEntryBodyFile* body_file)
+ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_headers, CacheEntryBodyFile* body_file)
 {
     ScopeGuard guard { [&]() { close_and_destroy_cache_entry(); } };
 
@@ -233,6 +236,7 @@ ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_hea
     }
     VERIFY(m_path.has_value());
     VERIFY(m_temporary_path.has_value());
+    VERIFY(m_response_headers);
 
     ArmedScopeGuard remove_temporary_file = [&]() {
         remove_incomplete_temporary_file();
@@ -269,7 +273,7 @@ ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_hea
     for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES)
         (void)FileSystem::remove(path_for_cache_entry_associated_data(m_disk_cache.cache_directory(), m_cache_key, m_vary_key, associated_data).string(), FileSystem::RecursionMode::Disallowed);
 
-    if (auto result = m_index.create_entry(m_cache_key, m_vary_key, m_url, move(request_headers), move(response_headers), m_cache_footer.data_size, m_request_time, m_response_time); result.is_error()) {
+    if (auto result = m_index.create_entry(m_cache_key, m_vary_key, m_url, move(request_headers), m_response_headers.release_nonnull(), m_cache_footer.data_size, m_request_time, m_response_time); result.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to flush cache entry for\033[0m {} ({} bytes): {}", m_url, m_cache_footer.data_size, result.error());
         remove();
 
