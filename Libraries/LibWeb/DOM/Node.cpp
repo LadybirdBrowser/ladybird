@@ -508,7 +508,8 @@ u64 Node::character_data_version() const
 void Node::bump_dom_tree_version()
 {
     // NB: Inserted or moved content can enter a selection without moving its boundary points.
-    document().set_needs_selection_style_update();
+    document().set_needs_highlight_style_update(CSS::PseudoElement::Selection);
+    document().set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
     if (auto* holder = tree_version_holder(*this))
         holder->m_dom_tree_version = ++s_last_tree_version;
 }

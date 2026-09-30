@@ -39,6 +39,10 @@ use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 
 pub(crate) const LONGHAND_COUNT: usize = (LAST_LONGHAND_PROPERTY_ID - FIRST_LONGHAND_PROPERTY_ID + 1) as usize;
 
+fn is_current_color_keyword(value: &StyleValueData) -> bool {
+    matches!(value, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::keyword::CURRENTCOLOR)
+}
+
 pub(crate) const LONGHAND_BITMAP_BYTES: usize = LONGHAND_COUNT.div_ceil(8);
 
 /// Mixes one slot's value content hash with the slot index, so that a sum over the slots is
@@ -1169,6 +1173,44 @@ impl ComputedLonghandTable {
             .iter()
             .find(|(property, _)| *property == property_id)
             .map(|(_, value)| value)
+    }
+
+    /// Whether the longhand was specified as the `currentcolor` keyword itself.
+    pub(crate) fn specified_value_is_current_color(&self, property_id: u16) -> bool {
+        self.specified_value(property_id)
+            .is_some_and(|value| is_current_color_keyword(value.data()))
+    }
+
+    /// Whether each layer of the specified `text-shadow` has the `currentcolor` keyword as its
+    /// color, or no color, in the order the computed layers have; empty for `none`.
+    pub(crate) fn text_shadow_layer_colors_are_current_color(&self) -> Vec<bool> {
+        let Some(StyleValueData::ValueList { values, .. }) = self
+            .specified_value(property_id::TEXT_SHADOW)
+            .map(RetainedStyleValueData::data)
+        else {
+            return Vec::new();
+        };
+        values
+            .as_slice()
+            .iter()
+            .map(|layer| match layer.optional_data() {
+                Some(StyleValueData::Shadow { color, .. }) => {
+                    color.optional_data().is_none_or(is_current_color_keyword)
+                }
+                _ => false,
+            })
+            .collect()
+    }
+
+    /// The longhand's value as specified: an unevaluated longhand's recorded specified value, else
+    /// the table slot's.
+    fn specified_value(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
+        if !self.is_evaluated(property_id)
+            && let Some(value) = self.inheritance_dependent_value(property_id)
+        {
+            return Some(value);
+        }
+        self.get(property_id)
     }
 
     pub(crate) fn is_important(&self, property_id: u16) -> bool {

@@ -7,7 +7,7 @@
 use crate::css::css_pixels::CssPixels;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
-use crate::layout::node_data::{NodeSlotId, SELECTION_PSEUDO_KIND};
+use crate::layout::node_data::{NodeSlotId, SEARCH_TEXT_PSEUDO_KIND, SELECTION_PSEUDO_KIND};
 use crate::painting::display_list::commands::OptionalColor;
 use crate::painting::fragment_ownership;
 use crate::painting::host::FfiSelectionStyleFacts;
@@ -15,10 +15,35 @@ use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_data::{FfiSelectionEntry, SELECTION_STATE_NONE};
 use crate::painting::paintable_rows::PaintableRowsMut;
 use crate::painting::record::damage::PaintDamage;
-use crate::painting::record::paint::text::{SelectionStyleAnswer, ShadowLayer};
+use crate::painting::record::paint::text::{HighlightShadowLayer, SelectionStyleAnswer, ShadowLayer};
 use crate::painting::text_fragment;
 use libgfx_rust::Color;
 use std::sync::Arc;
+
+/// A highlight pseudo-element whose overlay text paints.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum HighlightPseudoElement {
+    Selection,
+    SearchText,
+}
+
+impl HighlightPseudoElement {
+    pub(crate) const ALL: [Self; 2] = [Self::Selection, Self::SearchText];
+
+    /// The pseudo-element's kind, as the style engine numbers an element's pseudo-element records.
+    pub(crate) fn pseudo_kind(self) -> u8 {
+        match self {
+            Self::Selection => SELECTION_PSEUDO_KIND,
+            Self::SearchText => SEARCH_TEXT_PSEUDO_KIND,
+        }
+    }
+}
+
+/// The committed styles of each highlight pseudo-element, for an element's rows.
+pub(crate) type HighlightStyleAnswers = [Option<Arc<SelectionStyleAnswer>>; 2];
+
+/// The records an element holds for each highlight pseudo-element, zero for none.
+pub(crate) type HighlightStyleRecords = [u64; 2];
 
 #[derive(Debug)]
 pub(crate) struct SelectionRange {
@@ -81,18 +106,52 @@ pub(crate) fn apply(
     text_states
 }
 
+pub(crate) fn clear_search_text(layout_arena: &mut PaintableRowsMut<'_>) {
+    let previous = layout_arena.paint_state().borrow_mut().search_text.take();
+    if let Some(previous) = previous {
+        for node in previous.text_states.keys() {
+            invalidate_text_node(layout_arena, *node);
+        }
+    }
+}
+
+pub(crate) fn apply_search_text(
+    layout_arena: &mut PaintableRowsMut<'_>,
+    entries: &[FfiSelectionEntry],
+    start_offset: usize,
+    end_offset: usize,
+) {
+    clear_search_text(layout_arena);
+    let mut text_states = std::collections::HashMap::new();
+    for entry in entries.iter().filter(|entry| entry.is_text_node_entry) {
+        for &node in layout_arena.text_fragments(entry.layout_node).as_slice() {
+            text_states.insert(node, entry.state);
+            invalidate_text_node(layout_arena, node);
+        }
+    }
+    layout_arena.paint_state().borrow_mut().search_text = Some(Arc::new(SelectionRange {
+        start_offset,
+        end_offset,
+        text_states,
+    }));
+}
+
 /// https://drafts.csswg.org/css-pseudo-4/#highlight-styling
-/// What selected text under `element` paints with, read from `style_record`, the element's
-/// `::selection` record (zero for none), or `None` when that record styles nothing a selection
-/// paints.
-fn selection_pseudo_style_of_record(
+/// What text under `element` paints with inside a highlight pseudo-element, read from
+/// `style_record`, the element's record for that pseudo-element (zero for none), or `None` when
+/// that record styles nothing a highlight paints.
+fn highlight_pseudo_style_of_record(
     engine: &crate::css::style::StyleEngine,
     element: StyleNodeID,
     style_record: u64,
 ) -> Option<SelectionStyleAnswer> {
     use crate::css::computed_longhand_table::{HIGHLIGHT_COLOR_IS_CURRENT_COLOR, HIGHLIGHT_COLORS_AUTHORED};
+    use crate::css::property_metadata::property_id;
     let style = engine.published_record_view(style_record)?;
     let dependency_flags = engine.published_record_dependency_flags(style_record).unwrap_or(0);
+    let longhand_table = engine.published_record_longhand_table(style_record);
+    let specified_as_current_color =
+        |property_id: u16| longhand_table.is_some_and(|table| table.specified_value_is_current_color(property_id));
     // https://drafts.csswg.org/css-pseudo-4/#paired-defaults
     // Paired default highlight colors must only be used when neither 'color' nor 'background-color' yield a
     // cascaded value from the author origin (or inherit their value from the author origin).
@@ -102,6 +161,7 @@ fn selection_pseudo_style_of_record(
     };
     if facts.colors_authored {
         facts.background_color = Color(style.background().background_color);
+        facts.background_color_is_current_color = specified_as_current_color(property_id::BACKGROUND_COLOR);
         // https://drafts.csswg.org/css-pseudo-4/#highlight-text
         // currentColor on a highlight pseudo-element's 'color' property represents the color of the next active
         // highlight pseudo-element layer below, falling back finally to the colors that would otherwise have been
@@ -126,16 +186,23 @@ fn selection_pseudo_style_of_record(
         facts.wash_color = transform_selection_background_color(wash_color);
     }
 
-    let shadows: Vec<ShadowLayer> = style
+    let shadow_colors_are_current_color = longhand_table
+        .map(|table| table.text_shadow_layer_colors_are_current_color())
+        .unwrap_or_default();
+    let shadows: Vec<HighlightShadowLayer> = style
         .inherited_text()
         .text_shadow
         .as_slice()
         .iter()
-        .map(|shadow| ShadowLayer {
-            color: shadow.color,
-            offset_x: CssPixels::from_raw(shadow.offset_x),
-            offset_y: CssPixels::from_raw(shadow.offset_y),
-            blur_radius: CssPixels::from_raw(shadow.blur_radius),
+        .enumerate()
+        .map(|(index, shadow)| HighlightShadowLayer {
+            layer: ShadowLayer {
+                color: shadow.color,
+                offset_x: CssPixels::from_raw(shadow.offset_x),
+                offset_y: CssPixels::from_raw(shadow.offset_y),
+                blur_radius: CssPixels::from_raw(shadow.blur_radius),
+            },
+            color_is_current_color: shadow_colors_are_current_color.get(index).copied().unwrap_or(false),
         })
         .collect();
     facts.has_text_shadow = !shadows.is_empty();
@@ -149,6 +216,7 @@ fn selection_pseudo_style_of_record(
         facts.text_decoration_line_count = count as u32;
         facts.text_decoration_style = text_reset.text_decoration_style;
         facts.text_decoration_color = Color(text_reset.text_decoration_color);
+        facts.text_decoration_color_is_current_color = specified_as_current_color(property_id::TEXT_DECORATION_COLOR);
     }
 
     (facts.colors_authored || facts.has_text_shadow || facts.has_text_decoration)
@@ -188,19 +256,31 @@ fn transform_selection_background_color(color: Color) -> Color {
     result
 }
 
-/// Gives the rows that paint text under `element` what `style_record`, the `::selection` record
-/// the host holds for it (zero for none), says selected text paints with: the element's own rows,
-/// or, while it has no box, the rows of its text children, which then have no element row above
-/// them to find it on.
-pub(crate) fn sync_selection_pseudo_style(arena: &LayoutNodeArena, element: StyleNodeID, style_record: u64) {
-    let answer = arena
-        .with_style_store(|engine| selection_pseudo_style_of_record(engine, element, style_record))
-        .map(Arc::new);
+fn highlight_pseudo_styles_of_records(
+    arena: &LayoutNodeArena,
+    element: StyleNodeID,
+    style_records: HighlightStyleRecords,
+) -> HighlightStyleAnswers {
+    arena.with_style_store(|engine| {
+        style_records.map(|style_record| highlight_pseudo_style_of_record(engine, element, style_record).map(Arc::new))
+    })
+}
+
+/// Gives the rows that paint text under `element` what `style_records`, the highlight
+/// pseudo-element records the host holds for it, say highlighted text paints with: the element's
+/// own rows, or, while it has no box, the rows of its text children, which then have no element
+/// row above them to find it on.
+pub(crate) fn sync_highlight_pseudo_styles(
+    arena: &LayoutNodeArena,
+    element: StyleNodeID,
+    style_records: HighlightStyleRecords,
+) {
+    let answers = highlight_pseudo_styles_of_records(arena, element, style_records);
     let element_row = arena.bound_row(element);
-    let text_rows_answer = if element_row.is_invalid() {
-        answer.as_ref()
+    let text_rows_answers = if element_row.is_invalid() {
+        answers.clone()
     } else {
-        None
+        HighlightStyleAnswers::default()
     };
     arena.with_style_store(|engine| {
         for text in engine
@@ -210,42 +290,49 @@ pub(crate) fn sync_selection_pseudo_style(arena: &LayoutNodeArena, element: Styl
         {
             let row = arena.bound_row(text);
             if !row.is_invalid() {
-                set_selection_pseudo_style_of_rows(arena, arena.rows_sharing_dom_node_with(row), text_rows_answer);
+                set_highlight_pseudo_styles_of_rows(arena, arena.rows_sharing_dom_node_with(row), &text_rows_answers);
             }
         }
     });
     if !element_row.is_invalid() {
-        set_selection_pseudo_style_of_rows(arena, arena.rows_sharing_dom_node_with(element_row), answer.as_ref());
+        set_highlight_pseudo_styles_of_rows(arena, arena.rows_sharing_dom_node_with(element_row), &answers);
     }
 }
 
-/// Gives a row the tree build made what the published `::selection` record of `element` says
-/// selected text paints with: `element`'s own row, or a text row whose parent element has no box.
-pub(crate) fn note_built_row_selection_pseudo_style(arena: &LayoutNodeArena, row: NodeSlotId, element: StyleNodeID) {
-    let answer = arena
-        .with_style_store(|engine| {
-            let style_record = engine.pseudo_published_style_record(element, SELECTION_PSEUDO_KIND)?;
-            selection_pseudo_style_of_record(engine, element, style_record)
+/// Gives a row the tree build made what the published highlight pseudo-element records of
+/// `element` say highlighted text paints with: `element`'s own row, or a text row whose parent
+/// element has no box.
+pub(crate) fn note_built_row_highlight_pseudo_styles(arena: &LayoutNodeArena, row: NodeSlotId, element: StyleNodeID) {
+    let style_records = arena.with_style_store(|engine| {
+        HighlightPseudoElement::ALL.map(|highlight| {
+            engine
+                .pseudo_published_style_record(element, highlight.pseudo_kind())
+                .unwrap_or(0)
         })
-        .map(Arc::new);
-    set_selection_pseudo_style_of_rows(arena, arena.rows_sharing_dom_node_with(row), answer.as_ref());
+    });
+    let answers = highlight_pseudo_styles_of_records(arena, element, style_records);
+    set_highlight_pseudo_styles_of_rows(arena, arena.rows_sharing_dom_node_with(row), &answers);
 }
 
-fn set_selection_pseudo_style_of_rows(
+fn set_highlight_pseudo_styles_of_rows(
     arena: &LayoutNodeArena,
     rows: impl Iterator<Item = NodeSlotId>,
-    answer: Option<&Arc<SelectionStyleAnswer>>,
+    answers: &HighlightStyleAnswers,
 ) {
-    let styles = &mut arena.paint_state().borrow_mut().selection_pseudo_styles;
-    for row in rows {
-        match answer {
-            Some(answer) => {
-                Arc::make_mut(styles).insert(row, answer.clone());
+    let rows: Vec<NodeSlotId> = rows.collect();
+    let mut paint_state = arena.paint_state().borrow_mut();
+    for (highlight, answer) in HighlightPseudoElement::ALL.into_iter().zip(answers) {
+        let styles = paint_state.highlight_pseudo_styles_mut(highlight);
+        for &row in &rows {
+            match answer {
+                Some(answer) => {
+                    Arc::make_mut(styles).insert(row, answer.clone());
+                }
+                None if styles.contains_key(&row) => {
+                    Arc::make_mut(styles).remove(&row);
+                }
+                None => {}
             }
-            None if styles.contains_key(&row) => {
-                Arc::make_mut(styles).remove(&row);
-            }
-            None => {}
         }
     }
 }

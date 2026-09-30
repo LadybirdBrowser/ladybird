@@ -27,7 +27,7 @@ use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::paintable_rows::{CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK};
 use crate::painting::record::damage::FrameDamage;
 use crate::painting::replaced_paint_facts::ReplacedPaintFactsTable;
-use crate::painting::selection::SelectionRange;
+use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
 use crate::painting::stacking_context::entries::StackingContextEntries;
 use crate::painting::svg_paint_resources::SvgPaintResourceRows;
 use crate::painting::visual_context::VisualContextTree;
@@ -148,12 +148,21 @@ pub(crate) struct PublishedPaintState {
     pub(crate) has_non_viewport_wheel_scroll_target_candidate: bool,
     pub(crate) selection: Option<Arc<SelectionRange>>,
     pub(crate) selection_pseudo_styles: Arc<SelectionPseudoStyles>,
+    pub(crate) search_text: Option<Arc<SelectionRange>>,
+    pub(crate) search_text_pseudo_styles: Arc<SelectionPseudoStyles>,
     pub(crate) hit_test_list_generation: u64,
     /// How many items the document's hit-test list held, which the recording's list reserves.
     pub(crate) hit_test_item_capacity_hint: usize,
 }
 
 impl PublishedPaintState {
+    pub(crate) fn highlight_pseudo_styles(&self, highlight: HighlightPseudoElement) -> &SelectionPseudoStyles {
+        match highlight {
+            HighlightPseudoElement::Selection => &self.selection_pseudo_styles,
+            HighlightPseudoElement::SearchText => &self.search_text_pseudo_styles,
+        }
+    }
+
     fn new(paint_state: &PaintState, hit_test_item_capacity_hint: usize) -> Self {
         let visual_context = &paint_state.visual_context;
         Self {
@@ -164,6 +173,8 @@ impl PublishedPaintState {
                 .has_non_viewport_wheel_scroll_target_candidate,
             selection: paint_state.selection.clone(),
             selection_pseudo_styles: paint_state.selection_pseudo_styles.clone(),
+            search_text: paint_state.search_text.clone(),
+            search_text_pseudo_styles: paint_state.search_text_pseudo_styles.clone(),
             hit_test_list_generation: paint_state.hit_test_list_generation,
             hit_test_item_capacity_hint,
         }

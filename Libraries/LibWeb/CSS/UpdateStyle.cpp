@@ -1354,61 +1354,92 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
 
 namespace Web::DOM {
 
-bool Document::highlight_styles_are_observable(CSS::PseudoElement pseudo_element) const
+Document::HighlightStyleObservability& Document::highlight_style_observability(CSS::PseudoElement pseudo_element)
 {
     VERIFY(CSS::is_highlight_pseudo_element(pseudo_element));
-    if (pseudo_element == CSS::PseudoElement::Selection)
-        return m_selection_styles_are_observable;
-    return false;
+    return m_highlight_style_observability[pseudo_element == CSS::PseudoElement::Selection ? 0 : 1];
 }
 
-void Document::update_selection_style_observability()
+bool Document::highlight_styles_are_observable(CSS::PseudoElement pseudo_element) const
+{
+    return const_cast<Document&>(*this).highlight_style_observability(pseudo_element).observable;
+}
+
+void Document::set_needs_highlight_style_update(CSS::PseudoElement pseudo_element)
+{
+    highlight_style_observability(pseudo_element).needs_update = true;
+}
+
+static void record_highlight_style_inputs(Document& document, Node& root, Range const* range)
+{
+    auto record_element = [&](Node& node) {
+        if (auto* element = as_if<Element>(node); element && element->has_style()) {
+            document.style_computer().style_engine().record_derived_element_style_input_change(element->style_node_id(),
+                CSS::StyleEngine::PseudoInputsMayHaveChanged);
+        }
+    };
+
+    // NB: Ancestors supply inherited highlight styles, and text controls paint through
+    //     their internal shadow trees. Neither requires visiting unrelated subtrees.
+    for (auto* ancestor = root.flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent())
+        record_element(*ancestor);
+    root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        if (range && &node.root() == &range->start_container()->root() && !range->intersects_node(node))
+            return TraversalDecision::SkipChildrenAndContinue;
+        record_element(node);
+        return TraversalDecision::Continue;
+    });
+}
+
+struct HighlightStyleInput {
+    GC::Ref<Node> root;
+    GC::Ptr<Range> range;
+};
+
+static Vector<HighlightStyleInput, 2> selection_style_inputs(Document& document)
+{
+    Vector<HighlightStyleInput, 2> inputs;
+    if (auto selection = document.get_selection(); selection && !selection->is_collapsed()) {
+        auto range = selection->range();
+        inputs.append({ range->common_ancestor_container(), range });
+    }
+    if (auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(document.focused_area().ptr()); text_control && text_control->selection_start() != text_control->selection_end())
+        inputs.append({ *document.focused_area(), nullptr });
+    return inputs;
+}
+
+static Vector<HighlightStyleInput, 2> search_text_style_inputs(Document& document)
+{
+    Vector<HighlightStyleInput, 2> inputs;
+    if (auto active_match = document.find_in_page_active_match(); active_match && !active_match->collapsed())
+        inputs.append({ active_match->common_ancestor_container(), active_match });
+    return inputs;
+}
+
+void Document::update_highlight_style_observability(CSS::PseudoElement pseudo_element)
 {
     // NB: Editing commands temporarily select content to restore its formatting. Style reads
     //     during the action must not activate selection styles throughout the document for these
     //     intermediate ranges. Observe the final selection after the action, including in input
     //     event handlers. Explicit ::selection queries can still compute their style on demand.
-    if (m_running_editing_command_action)
+    if (pseudo_element == CSS::PseudoElement::Selection && m_running_editing_command_action)
         return;
 
-    auto selection = get_selection();
-    auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(focused_area().ptr());
-    bool observable = selection && !selection->is_collapsed();
-    bool text_control_selection_is_observable = text_control && text_control->selection_start() != text_control->selection_end();
-    observable |= text_control_selection_is_observable;
-    if (observable == m_selection_styles_are_observable && !m_needs_selection_style_update)
+    auto inputs = pseudo_element == CSS::PseudoElement::Selection ? selection_style_inputs(*this) : search_text_style_inputs(*this);
+    auto& state = highlight_style_observability(pseudo_element);
+    bool observable = !inputs.is_empty();
+    if (observable == state.observable && !state.needs_update)
         return;
-    m_needs_selection_style_update = false;
-    m_selection_styles_are_observable = observable;
-    style_computer().style_engine().set_pseudo_element_style_deferred(to_underlying(CSS::PseudoElement::Selection), !observable);
-    if (!observable)
-        return;
+    state = { .observable = observable, .needs_update = false };
+    style_computer().style_engine().set_pseudo_element_style_deferred(to_underlying(pseudo_element), !observable);
+    for (auto const& input : inputs)
+        record_highlight_style_inputs(*this, input.root, input.range.ptr());
+}
 
-    auto record_element = [&](Node& node) {
-        if (auto* element = as_if<Element>(node); element && element->has_style()) {
-            style_computer().style_engine().record_derived_element_style_input_change(element->style_node_id(),
-                CSS::StyleEngine::PseudoInputsMayHaveChanged);
-        }
-    };
-    auto record_subtree = [&](Node& root, Range const* range) {
-        // NB: Ancestors supply inherited highlight styles, and text controls paint through
-        //     their internal shadow trees. Neither requires visiting unrelated subtrees.
-        for (auto* ancestor = root.flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent())
-            record_element(*ancestor);
-        root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
-            if (range && &node.root() == &range->start_container()->root() && !range->intersects_node(node))
-                return TraversalDecision::SkipChildrenAndContinue;
-            record_element(node);
-            return TraversalDecision::Continue;
-        });
-    };
-    if (selection && !selection->is_collapsed()) {
-        auto range = selection->range();
-        auto root = range->common_ancestor_container();
-        record_subtree(root, range.ptr());
-    }
-    if (text_control_selection_is_observable)
-        record_subtree(*focused_area(), nullptr);
+void Document::update_highlight_style_observability()
+{
+    update_highlight_style_observability(CSS::PseudoElement::Selection);
+    update_highlight_style_observability(CSS::PseudoElement::SearchText);
 }
 
 void Document::drain_style_transaction_that_flew()
@@ -1420,7 +1451,7 @@ void Document::drain_style_transaction_that_flew()
 void Document::update_style()
 {
     drain_flown_style_transaction();
-    update_selection_style_observability();
+    update_highlight_style_observability();
     CSS::update_style(*this);
 }
 
@@ -1428,7 +1459,7 @@ bool Document::let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker)
 {
     if (blocker != Layout::RustFFI::FfiFlightBlocker::None || m_has_flown_style_transaction)
         return false;
-    update_selection_style_observability();
+    update_highlight_style_observability();
     m_has_flown_style_transaction = CSS::let_style_update_fly(*this, blocker);
     return m_has_flown_style_transaction;
 }
@@ -1447,7 +1478,7 @@ bool Document::update_style_for_element(AbstractElement const& abstract_element,
         Layout::RustFFI::document_host_end_forced_read(host);
     };
     drain_flown_style_transaction();
-    update_selection_style_observability();
+    update_highlight_style_observability();
     flush_throttled_animation_style_update_for_node(abstract_element.element());
     return CSS::update_style_for_element(*this, abstract_element, mode);
 }

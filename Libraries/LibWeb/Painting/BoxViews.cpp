@@ -724,10 +724,10 @@ DOM::NodeIdentity node_identity_of(Layout::RustFFI::FfiNodeIdentity identity)
     return DOM::NodeIdentity::of_style_node(CSS::StyleNodeID { identity.style_node });
 }
 
-void push_selection_pseudo_style(DOM::Element const& element)
+void push_highlight_pseudo_styles(DOM::Element const& element)
 {
     if (auto* arena = const_cast<DOM::Document&>(element.document()).layout_node_arena_if_created())
-        Layout::RustFFI::render_state_sync_selection_pseudo_style(arena->host(), element.style_node_id().value(), element.style_record_identity(CSS::PseudoElement::Selection).value());
+        Layout::RustFFI::render_state_sync_highlight_pseudo_styles(arena->host(), element.style_node_id().value(), element.style_record_identity(CSS::PseudoElement::Selection).value(), element.style_record_identity(CSS::PseudoElement::SearchText).value());
 }
 
 class BoxViewRepaintAccess {
