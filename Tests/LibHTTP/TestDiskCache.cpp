@@ -7,6 +7,7 @@
 #include <AK/ByteBuffer.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -154,6 +155,31 @@ TEST_CASE(request_with_its_own_preconditions_does_not_revalidate_stored_response
     auto reader = open_cache_entry(disk_cache, request, url, *request_headers);
     VERIFY(reader.has_value());
     EXPECT_EQ(reader->status_code(), 200u);
+}
+
+TEST_CASE(revalidation_that_outgrows_entry_size_limit_removes_entry)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    disk_cache.set_maximum_disk_cache_size(800);
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "no-cache"sv },
+        { "ETag"sv, "\"v1\""sv },
+    });
+    store_cache_entry(disk_cache, request, url, *request_headers, response_headers, "hello"sv);
+
+    auto reader = open_cache_entry(disk_cache, request, url, *request_headers);
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::MustRevalidate);
+
+    reader->revalidation_succeeded(HTTP::HeaderList::create({ { "ETag"sv, "\"v1\""sv }, { "X-Large"sv, ByteString::repeated('x', 200) } }));
+    if (auto body_file = reader->take_body_file(); !body_file.is_error())
+        MUST(Core::System::close(body_file.value().fd));
+
+    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers).has_value());
 }
 
 TEST_CASE(associated_data_round_trips_with_cache_entry)

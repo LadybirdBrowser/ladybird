@@ -295,6 +295,28 @@ TEST_CASE(most_recent_matching_variant_is_selected)
     EXPECT_EQ(entry->response_headers->get("ETag"sv), Optional<ByteString> { ByteString { "newer"sv } });
 }
 
+TEST_CASE(updated_response_headers_respect_entry_size_limit)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "ETag"sv, "v1"sv } });
+    auto now = UnixDateTime::now();
+
+    state.index.set_maximum_disk_cache_size(800);
+    TRY_OR_FAIL(state.index.create_entry(1, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+
+    auto small_response_headers = HTTP::HeaderList::create({ { "ETag"sv, "v1"sv }, { "X-Small"sv, "x"sv } });
+    TRY_OR_FAIL(state.index.update_response_headers(1, 0, small_response_headers));
+
+    auto large_response_headers = HTTP::HeaderList::create({ { "ETag"sv, "v1"sv }, { "X-Large"sv, ByteString::repeated('x', 200) } });
+    EXPECT(state.index.update_response_headers(1, 0, large_response_headers).is_error());
+
+    auto entry = state.index.find_entry(1, *request_headers);
+    VERIFY(entry.has_value());
+    EXPECT(!entry->response_headers->contains("X-Large"sv));
+}
+
 TEST_CASE(stored_vary_wildcard_does_not_match)
 {
     auto state = create_cache_index();

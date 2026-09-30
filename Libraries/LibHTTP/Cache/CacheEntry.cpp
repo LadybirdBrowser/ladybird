@@ -352,7 +352,13 @@ void CacheEntryReader::revalidation_succeeded(HeaderList const& response_headers
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mCache revalidation succeeded for\033[0m {}", m_url);
 
     update_header_fields(m_response_headers, response_headers);
-    m_index.update_response_headers(m_cache_key, m_vary_key, m_response_headers);
+
+    if (auto result = m_index.update_response_headers(m_cache_key, m_vary_key, m_response_headers); result.is_error()) {
+        dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to update cache entry for\033[0m {}: {}", m_url, result.error());
+        remove();
+    } else {
+        m_disk_cache.remove_entries_exceeding_cache_limit();
+    }
 
     if (m_revalidation_type != RevalidationType::MustRevalidate)
         close_and_destroy_cache_entry();

@@ -55,7 +55,7 @@ public:
     Optional<Entry const&> find_entry(u64 cache_key, HeaderList const& request_headers);
     bool has_entry(u64 cache_key, u64 vary_key);
 
-    void update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList>);
+    ErrorOr<void> update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList>);
     ErrorOr<void> update_associated_data_size(u64 cache_key, u64 vary_key, u64 associated_data_size);
     void update_last_access_time(u64 cache_key, u64 vary_key);
 
