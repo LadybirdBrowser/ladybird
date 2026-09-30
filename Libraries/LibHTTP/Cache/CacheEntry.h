@@ -101,18 +101,19 @@ public:
 
     ErrorOr<void> write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& request_headers, HeaderList const& response_headers);
     ErrorOr<void> write_data(ReadonlyBytes);
-    ErrorOr<void> flush(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers);
-    ErrorOr<CacheEntryBodyFile> flush_and_take_body_file(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers);
+    ErrorOr<void> flush(NonnullRefPtr<HeaderList> request_headers);
+    ErrorOr<CacheEntryBodyFile> flush_and_take_body_file(NonnullRefPtr<HeaderList> request_headers);
     void remove_incomplete_entry();
 
 private:
     CacheEntryWriter(DiskCache&, CacheIndex&, u64 cache_key, String url, CacheHeader, UnixDateTime request_time, AK::Duration current_time_offset_for_testing);
 
-    ErrorOr<void> flush_impl(NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, CacheEntryBodyFile*);
+    ErrorOr<void> flush_impl(NonnullRefPtr<HeaderList> request_headers, CacheEntryBodyFile*);
     void remove_incomplete_temporary_file();
 
     OwnPtr<Core::OutputBufferedFile> m_file;
     Optional<LexicalPath> m_temporary_path;
+    RefPtr<HeaderList> m_response_headers;
     u64 m_data_offset { 0 };
 
     UnixDateTime m_request_time;
