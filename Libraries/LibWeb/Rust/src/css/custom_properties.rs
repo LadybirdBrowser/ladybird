@@ -872,9 +872,7 @@ fn resolve_css_wide_keyword(
     lookup: CustomPropertyLookup,
 ) -> TokenResolution {
     let registration = registry.and_then(|registry| registry.registrations.get(name));
-    // Mirror StyleComputer::resolve_css_wide_keyword_for_custom_property(). Revert keywords
-    // remain unresolved there pending custom-property revert support; typed `revert` then reaches
-    // the invalid-value fallback below.
+    // Mirror StyleComputer::resolve_css_wide_keyword_for_custom_property().
     if keyword.eq_ignore_ascii_case("initial") {
         return registration
             .and_then(|registration| registration.initial_source.as_ref())
@@ -882,8 +880,13 @@ fn resolve_css_wide_keyword(
                 TokenResolution::Resolved(tokenize_owned(source))
             });
     }
+    // FIXME: Roll `revert` and `revert-layer` back to a declaration of the custom property from a lower cascade layer
+    //        or origin when there is one, instead of treating them as `unset`.
+    let is_unset = keyword.eq_ignore_ascii_case("unset")
+        || keyword.eq_ignore_ascii_case("revert")
+        || keyword.eq_ignore_ascii_case("revert-layer");
     if keyword.eq_ignore_ascii_case("inherit")
-        || keyword.eq_ignore_ascii_case("unset") && registration.is_none_or(|registration| registration.inherits)
+        || is_unset && registration.is_none_or(|registration| registration.inherits)
     {
         let inheritance_store = match lookup {
             CustomPropertyLookup::Normal => context.inheritance_store,
@@ -898,28 +901,11 @@ fn resolve_css_wide_keyword(
             CustomPropertyLookup::ExplicitInheritance,
         );
     }
-    if keyword.eq_ignore_ascii_case("unset") {
-        return registration
-            .and_then(|registration| registration.initial_source.as_ref())
-            .map_or(TokenResolution::Invalid, |source| {
-                TokenResolution::Resolved(tokenize_owned(source))
-            });
-    }
-    // NB: Typed registered `revert` uses the invalid-value fallback, while `revert-layer` remains
-    //     unresolved pending custom-property revert support.
-    if keyword.eq_ignore_ascii_case("revert")
-        && let (Some(registry), Some(registration)) = (registry, registration)
-        && !matches!(registration.syntax, SyntaxNode::Universal)
-    {
-        let inheritance_store = match lookup {
-            CustomPropertyLookup::Normal => context.inheritance_store,
-            CustomPropertyLookup::ExplicitInheritance => owner.inheritance_parent.as_deref(),
-        };
-        return registered_property_fallback(inheritance_store, registry, registration, name, recursion_depth);
-    }
-    TokenResolution::Resolved(tokenize_owned(crate::css::css_tokenizer::TokenizerInput::Utf16(
-        keyword,
-    )))
+    registration
+        .and_then(|registration| registration.initial_source.as_ref())
+        .map_or(TokenResolution::Invalid, |source| {
+            TokenResolution::Resolved(tokenize_owned(source))
+        })
 }
 
 fn normalize_function_tokens(

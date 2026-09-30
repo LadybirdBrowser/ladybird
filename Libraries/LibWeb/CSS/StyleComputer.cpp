@@ -6010,19 +6010,12 @@ static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_prope
         return StyleValue::create_guaranteed_invalid();
 
     // Unset is the same as inherit for inherited properties, and by default all unregistered custom properties inherit.
-    if (keyword_value->is_unset())
+    // FIXME: Roll revert and revert-layer back to a declaration of the custom property from a lower cascade layer or
+    //        origin when there is one, instead of treating them as unset.
+    if (keyword_value->is_unset() || keyword_value->is_revert() || keyword_value->is_revert_layer())
         return registration.has_value() && !registration->inherit
             ? initial_custom_property_value(registration, element.document())
             : inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution);
-
-    if (keyword_value->is_revert()) {
-        // FIXME: Implement reverting custom properties.
-        return keyword_value;
-    }
-    if (keyword_value->is_revert_layer()) {
-        // FIXME: Implement reverting custom properties.
-        return keyword_value;
-    }
 
     VERIFY_NOT_REACHED();
 }

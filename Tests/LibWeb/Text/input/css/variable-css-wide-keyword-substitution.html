@@ -4,6 +4,10 @@
     <div id="inherits-real" style="--inherited: var(--undefined, inherit); color: var(--inherited, red)">text</div>
     <div id="initial" style="--y: var(--undefined, initial); color: var(--y, green)">text</div>
     <div id="not-keyword" style="--z: var(--undefined, blue); color: var(--z, red)">text</div>
+    <div id="revert" style="--inherited: var(--undefined, revert); color: var(--inherited, red)">text</div>
+    <div id="revert-layer" style="--w: var(--undefined, revert-layer); color: var(--w, green)">text</div>
+    <div id="revert-reference" style="--r: var(--undefined, revert); --s: var(--r, green); color: var(--s, red)">text</div>
+    <a id="revert-link" href="#" style="--v: var(--undefined, revert); color: var(--v)">text</a>
 </div>
 <script src="../include.js"></script>
 <script>
@@ -29,5 +33,20 @@
 
         // A non-keyword substituted value is preserved.
         println("non-keyword substitution preserved: " + (read("not-keyword", "--z").trim() === "blue"));
+
+        // No cascade layer or origin below these declarations declares a custom property, so `revert` and
+        // `revert-layer` act as `unset`, which inherits for an unregistered custom property.
+        println("substituted revert inherits ancestor value: " + (read("revert", "--inherited").trim() === "green"));
+        println("substituted revert inherits ancestor value -> color green: " +
+            (read("revert", "color") === "rgb(0, 128, 0)"));
+        println("substituted revert-layer, no ancestor -> empty: " + (read("revert-layer", "--w") === ""));
+        println("substituted revert-layer, no ancestor -> outer var() falls back (green): " +
+            (read("revert-layer", "color") === "rgb(0, 128, 0)"));
+        println("reference to substituted revert, no ancestor -> falls back (green): " +
+            (read("revert-reference", "--s").trim() === "green"));
+
+        // The link color refers to a guaranteed-invalid custom property, so it inherits instead of reverting.
+        println("color referencing substituted revert -> inherited: " +
+            (read("revert-link", "color") === "rgb(0, 0, 0)"));
     });
 </script>

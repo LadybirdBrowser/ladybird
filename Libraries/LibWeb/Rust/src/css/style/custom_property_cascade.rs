@@ -38,8 +38,8 @@ struct EngineFinalizer {
 }
 
 /// The tail of resolving one component of unregistered custom properties, as the C++ finalizer
-/// does it for a name without a registration: `initial` is the guaranteed-invalid value, `inherit`
-/// and `unset` are what the parent resolved the name to, and the rest stands as substituted.
+/// does it for a name without a registration: `initial` is the guaranteed-invalid value, and
+/// `inherit`, `unset`, `revert` and `revert-layer` are what the parent resolved the name to.
 #[allow(clippy::arc_with_non_send_sync)]
 unsafe extern "C" fn finalize_engine_custom_property_component(
     context: *mut c_void,
@@ -59,7 +59,7 @@ unsafe extern "C" fn finalize_engine_custom_property_component(
         };
         let replacement: *const StyleValueData = match *keyword {
             keyword::INITIAL => Arc::into_raw(Arc::new(StyleValueData::GuaranteedInvalid)),
-            keyword::INHERIT | keyword::UNSET => {
+            keyword::INHERIT | keyword::UNSET | keyword::REVERT | keyword::REVERT_LAYER => {
                 let name_raw = unsafe { *names.add(member as usize) };
                 match parent.and_then(|parent| parent.get(name_raw)) {
                     Some(entry) => unsafe { retain_style_value(entry.value.pointer()) },
