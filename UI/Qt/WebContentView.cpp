@@ -822,10 +822,10 @@ Optional<WebContentView::Paintable> WebContentView::current_paintable() const
     Gfx::SharedImageBuffer const* shared_image_buffer = nullptr;
     Gfx::IntSize bitmap_size;
 
-    if (m_client_state.has_usable_bitmap) {
-        VERIFY(m_client_state.front_bitmap.shared_image_buffer);
-        shared_image_buffer = m_client_state.front_bitmap.shared_image_buffer.ptr();
-        bitmap_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
+    if (m_has_usable_bitmap) {
+        VERIFY(m_front_bitmap.shared_image_buffer);
+        shared_image_buffer = m_front_bitmap.shared_image_buffer.ptr();
+        bitmap_size = m_front_bitmap.last_painted_size.to_type<int>();
     } else if (m_backup_shared_image_buffer) {
         shared_image_buffer = m_backup_shared_image_buffer.ptr();
         bitmap_size = m_backup_bitmap_size.to_type<int>();

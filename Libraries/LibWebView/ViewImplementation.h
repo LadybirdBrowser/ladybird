@@ -121,7 +121,7 @@ public:
     void set_favicon(Badge<WebContentPage>, Optional<Gfx::Bitmap const&>);
     Optional<String> const& favicon_hash() const { return m_favicon_hash; }
 
-    String const& handle() const { return m_client_state.client_handle; }
+    String const& handle() const { return m_window_handle; }
 
     void server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect);
 
@@ -651,12 +651,10 @@ protected:
         OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
     };
 
-    struct ClientState {
-        String client_handle;
-        SharedBitmap front_bitmap;
-        Vector<SharedBitmap> other_bitmaps;
-        bool has_usable_bitmap { false };
-    } m_client_state;
+    String m_window_handle;
+    SharedBitmap m_front_bitmap;
+    Vector<SharedBitmap> m_other_bitmaps;
+    bool m_has_usable_bitmap { false };
 
     IsPrivate m_is_private { IsPrivate::No };
     NonnullRefPtr<BrowsingSession> m_session;
