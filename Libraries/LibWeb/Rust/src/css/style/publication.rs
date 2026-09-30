@@ -108,6 +108,10 @@ impl RootFontInputs {
 }
 
 impl RetainedState {
+    pub(super) fn pseudo_element_style_is_deferred(&self, kind: tree::PseudoElementKind) -> bool {
+        u32::from(kind.0) < u64::BITS && self.deferred_pseudo_elements & (1 << kind.0) != 0
+    }
+
     /// The record a highlight pseudo-element inherits from: the same pseudo-element's record on its
     /// nearest flat-tree ancestor holding one, as the engine has it assigned.
     pub(crate) fn retained_highlight_inheritance_parent_style_record(
@@ -5362,7 +5366,7 @@ pub(crate) struct RetriedEngineRecord {
     pub(crate) owes_an_animation_plan: bool,
     pub(crate) owes_a_transition_step: bool,
     pub(crate) composed_by_the_host: bool,
-    pub(crate) pseudo_records_present: u8,
+    pub(crate) pseudo_records_present: u16,
     pub(crate) pseudo_records: [u64; bridge::RETRY_PSEUDO_RECORD_SLOTS],
 }
 
@@ -5386,7 +5390,8 @@ pub(super) struct PseudoCohortKey {
     /// What the monospace font-size recascade gives the pseudo-element, as for an element's cohort.
     monospace_recascaded_font_size: i32,
     parent_record: u64,
-    /// For a ::selection, the record of its nearest ancestor's ::selection it inherits from.
+    /// For a highlight pseudo-element, the record of the same pseudo-element of its nearest
+    /// ancestor it inherits from.
     highlight_parent_record: u64,
     inherited_groups: u32,
     parent_display: u32,
@@ -5410,12 +5415,17 @@ pub(super) mod pseudo_kind {
     pub(in crate::css::style) const BEFORE: u8 = 2;
     pub(in crate::css::style) const FIRST_LETTER: u8 = 3;
     pub(in crate::css::style) const MARKER: u8 = 5;
-    pub(in crate::css::style) const SELECTION: u8 = 6;
-    pub(in crate::css::style) const SYNTHETIC_COUNT: usize = 8;
+    pub(in crate::css::style) const SEARCH_TEXT: u8 = 6;
+    pub(in crate::css::style) const SELECTION: u8 = 7;
+    pub(in crate::css::style) const SYNTHETIC_COUNT: usize = 9;
     /// The kinds an element in the host's shadow tree backs, as a mask.
     pub(in crate::css::style) const ELEMENT_REFERENCE_KINDS: u64 =
         ((1 << (super::bridge::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND + 1)) - 1)
             & !((1 << super::bridge::FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND) - 1);
+
+    pub(in crate::css::style) fn is_highlight(kind: u8) -> bool {
+        usize::from(kind) < SYNTHETIC_COUNT && crate::css::property_metadata::pseudo_element_is_highlight(kind)
+    }
 }
 
 /// The element facts a pseudo-element's computation reads: the C++ adjustments for what the

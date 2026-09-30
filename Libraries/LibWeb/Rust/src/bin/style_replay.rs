@@ -760,7 +760,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let expected = event.payload.read_u64()?;
                     let expected_absent = event.payload.read_bool()?;
                     let expected_uses_substitution = event.payload.read_bool()?;
-                    let expected_present = event.payload.read_u8()?;
+                    let expected_present = read_pseudo_records_present(&mut event.payload, format_version)?;
                     let actual = unsafe { bridge::style_engine_answer_record_demand(engine, node, demand) };
                     if actual.record.style_record != expected
                         || actual.is_absent != expected_absent
@@ -778,7 +778,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let node = event.payload.read_u32()?;
                     let old_is_list_item = event.payload.read_bool()?;
                     let expected = event.payload.read_u64()?;
-                    let expected_present = event.payload.read_u8()?;
+                    let expected_present = read_pseudo_records_present(&mut event.payload, format_version)?;
                     let actual = unsafe {
                         bridge::style_engine_settle_pseudo_records_after_host_record(engine, node, old_is_list_item)
                     };
@@ -2072,6 +2072,17 @@ fn read_engine(
         return engine_not_live(engine_id);
     };
     Ok(pointer)
+}
+
+fn read_pseudo_records_present(
+    payload: &mut PayloadReader,
+    format_version: u64,
+) -> Result<u16, Box<dyn std::error::Error>> {
+    Ok(if format_version >= 17 {
+        payload.read_u16()?
+    } else {
+        u16::from(payload.read_u8()?)
+    })
 }
 
 #[cold]

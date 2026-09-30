@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight selectors inheritance getComputedStyle</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-selectors">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<meta name="assert" content="This test checks that computed style is properly resolved for highlight pseudos even when 'display: contents' is involved.">
+<style>
+  .target::selection {
+    background-color: green;
+    color: lime;
+  }
+  .target::target-text {
+    background-color: green;
+    color: lime;
+  }
+  .target::search-text {
+    background-color: green;
+    color: lime;
+  }
+  .target::search-text:current {
+    background-color: red;
+    color: red;
+  }
+  .target::spelling-error {
+    background-color: green;
+    color: lime;
+  }
+  .target::grammar-error {
+    background-color: green;
+    color: lime;
+  }
+  .target::highlight(foo) {
+    background-color: green;
+    color: lime;
+  }
+</style>
+<div class="target"><span id="child1"></span></div>
+<div class="target" style="display: contents;"><span id="child2"></span></div>
+<script>
+  for (const pseudo of ["::selection", "::target-text", "::search-text", "::spelling-error", "::grammar-error", "::highlight(foo)"]) {
+    for (const child of [child1, child2]) {
+      test(() => {
+        let style = getComputedStyle(child, pseudo);
+        assert_equals(style.backgroundColor, "rgb(0, 128, 0)", "Background color is green.");
+        assert_equals(style.color, "rgb(0, 255, 0)", "Color is lime.");
+      }, `getComputedStyle() for ${pseudo} at #${child.id}`);
+    }
+  }
+</script>
