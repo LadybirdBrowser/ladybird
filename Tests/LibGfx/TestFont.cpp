@@ -58,8 +58,7 @@ private:
 
 static bool font_is_emoji(StringView path)
 {
-    auto file = MUST(Core::MappedFile::map(path));
-    auto typeface = MUST(Gfx::Typeface::try_load_from_externally_owned_memory(file->bytes()));
+    auto typeface = MUST(Gfx::Typeface::try_load_from_mapped_file(MUST(Core::MappedFile::map(path)), 0));
     // Construct the Font directly rather than via Typeface::font() — which would cache it on the
     // Typeface and form a Typeface<->Font reference cycle that leaks once both leave this scope.
     auto font = adopt_ref(*new Gfx::Font(typeface, 12, 12, {}, {}));
@@ -432,8 +431,7 @@ TEST_CASE(shaping_cache_preserves_positions_spacing_and_trailing_whitespace)
 // Only ThreadSanitizer can catch a memo race here, since every thread reaches the same verdict.
 TEST_CASE(emoji_classification_can_run_on_several_threads)
 {
-    auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/colrv1-noname.ttf"sv)));
-    auto typeface = MUST(Gfx::Typeface::try_load_from_externally_owned_memory(file->bytes()));
+    auto typeface = MUST(Gfx::Typeface::try_load_from_mapped_file(MUST(Core::MappedFile::map(TEST_INPUT("fonts/colrv1-noname.ttf"sv))), 0));
     IGNORE_USE_IN_ESCAPING_LAMBDA auto font = adopt_ref(*new Gfx::Font(typeface, 12, 12, {}, {}));
 
     IGNORE_USE_IN_ESCAPING_LAMBDA Array<bool, 8> verdicts {};

@@ -72,11 +72,6 @@ ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_temporary_memory(Readon
     return try_load_from_anonymous_buffer(move(anonymous_buffer), ttc_index);
 }
 
-ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_externally_owned_memory(ReadonlyBytes bytes, u32 ttc_index)
-{
-    return TypefaceSkia::load_from_buffer(bytes, ttc_index);
-}
-
 Typeface::Typeface() = default;
 
 Typeface::~Typeface()

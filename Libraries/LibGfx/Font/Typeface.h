@@ -76,7 +76,6 @@ public:
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_mapped_file(NonnullOwnPtr<Core::MappedFile>, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_anonymous_buffer(Core::AnonymousBuffer, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
-    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
 
     virtual ~Typeface();
 
