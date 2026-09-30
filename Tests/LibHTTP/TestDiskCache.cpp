@@ -265,6 +265,26 @@ TEST_CASE(synthetic_entry_accounts_for_existing_associated_data)
     EXPECT_EQ(disk_cache.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, "leftover bytecode"sv.length());
 }
 
+TEST_CASE(clearing_the_cache_removes_responses_still_being_written)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto lookup_request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    TRY_OR_FAIL(writer.write_data("hello"sv.bytes()));
+
+    disk_cache.remove_entries_accessed_since(UnixDateTime::earliest());
+
+    EXPECT(writer.flush(request_headers).is_error());
+    EXPECT(!open_cache_entry(disk_cache, request, url, *lookup_request_headers).has_value());
+}
+
 TEST_CASE(associated_data_round_trips_with_cache_entry)
 {
     auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();

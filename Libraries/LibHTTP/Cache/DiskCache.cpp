@@ -443,6 +443,14 @@ Requests::CacheSizes DiskCache::estimate_cache_size_accessed_since(UnixDateTime 
 
 void DiskCache::remove_entries_accessed_since(UnixDateTime since)
 {
+    // Entries being written have no index row yet.
+    for (auto const& [cache_key, open_entries] : m_open_cache_entries) {
+        for (auto const& [open_entry, _] : open_entries) {
+            if (is<CacheEntryWriter>(*open_entry))
+                open_entry->mark_for_deletion({});
+        }
+    }
+
     m_index.remove_entries_accessed_since(since, [&](auto cache_key, auto vary_key) {
         delete_entry(cache_key, vary_key);
     });
