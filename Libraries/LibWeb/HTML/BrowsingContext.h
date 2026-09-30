@@ -71,7 +71,7 @@ public:
 
     bool has_navigable_been_destroyed() const;
 
-    GC::Ptr<WindowProxy> opener_browsing_context_window_proxy() const { return m_opener_browsing_context_window_proxy; }
+    GC::Ptr<WindowProxy> opener_browsing_context_window_proxy() const;
     Optional<CrossProcessId> opener_navigable_id() const;
     GC::Ptr<Navigable> opener_navigable() const;
     void set_opener_browsing_context(GC::Ptr<BrowsingContext>);

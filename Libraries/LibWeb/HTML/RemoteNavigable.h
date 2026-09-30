@@ -97,8 +97,6 @@ private:
     GC::Ptr<WindowProxy> m_window_proxy;
     GC::Ptr<RemoteWindow> m_active_window;
 
-    mutable GC::Ptr<WindowProxy> m_active_browsing_context_opener_window_proxy;
-
     GC::Ptr<LocalNavigable> m_provisional_navigable;
 
     bool m_has_been_destroyed { false };

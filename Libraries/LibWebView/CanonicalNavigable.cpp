@@ -949,7 +949,6 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .browsing_context_group_id = browsing_context_group_id,
         .opener_policy = hosted_state.opener_policy,
         .active_browsing_context_is_auxiliary = browsing_context.is_auxiliary(),
-        .active_browsing_context_has_opener = opener_browsing_context != nullptr,
         .opener_navigable_id = opener_navigable_id,
         .active_document_is_completely_loaded = hosted_state.active_document_is_completely_loaded,
         .is_closing = hosted_state.is_closing,

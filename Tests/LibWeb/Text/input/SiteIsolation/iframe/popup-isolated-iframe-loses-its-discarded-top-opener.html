@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <script>
-    // A browsing context keeps its opener browsing context once that is discarded. When the iframe that opened a popup is
-    // removed, top.opener in the popup's isolated iframe is still that iframe's WindowProxy, and its window is closed.
+    // When the iframe that opened a popup is removed, the WindowProxy the popup's isolated iframe holds for it is closed,
+    // and top.opener is null.
     promiseTest(async () => {
         const httpServer = httpTestServer();
 
@@ -27,8 +27,7 @@
                         opener.postMessage("the popup's iframe has its opener", "*");
                         top.postMessage({ result: {
                             openerClosed: await until(() => opener.closed),
-                            topOpenerIsStillIt: top.opener === opener,
-                            topOpenerClosed: top.opener ? top.opener.closed : null,
+                            topOpenerIsNull: top.opener === null,
                         } }, "*");
                     })();
                 <\/script>`,
