@@ -252,14 +252,14 @@ public:
             m_connection->shutdown();
     }
 
-    void start_request(u64 request_id, URL::URL url)
+    void start_request(u64 request_id, URL::URL url, ByteString method = "GET")
     {
         // The disk cache only stores responses to requests that opt in while it runs in test mode.
         Vector<HTTP::Header> request_headers {
             { ByteString { HTTP::TEST_CACHE_ENABLED_HEADER }, "1"sv },
         };
 
-        auto message = make<Messages::RequestServer::StartRequest>(request_id, ByteString { "GET" }, move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, test_network_isolation_key(), HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0);
+        auto message = make<Messages::RequestServer::StartRequest>(request_id, move(method), move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, test_network_isolation_key(), HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0);
         auto response = MUST(static_cast<RequestServerEndpoint::Stub&>(*m_connection).handle(move(message)));
         VERIFY(!response);
     }
@@ -638,4 +638,31 @@ TEST_CASE(trailer_fields_are_not_stored)
     connection.start_request(2, url);
     expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "read-from-cache"sv);
     EXPECT_EQ(http_server.connection_count(), 1u);
+}
+
+TEST_CASE(unsafe_request_invalidates_stored_responses)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1)
+            return ServerResponse::at_once("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n");
+        return ServerResponse::at_once(http_response("max-age=60"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url, "POST");
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "not-cached"sv);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
 }
