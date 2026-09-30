@@ -51,6 +51,7 @@ protected:
     template<typename T>
     ReadonlySpan<T> inline_objects(DisplayListDataSpan span) const
     {
+        static_assert(alignof(T) <= alignof(DisplayListCommandHeader));
         auto bytes = inline_data(span);
         VERIFY(bytes.size() % sizeof(T) == 0);
         VERIFY(reinterpret_cast<FlatPtr>(bytes.data()) % alignof(T) == 0);
@@ -127,7 +128,7 @@ public:
     void set_async_scrolling_metadata(AsyncScrollingMetadata metadata) { m_async_scrolling_metadata = metadata; }
     Optional<AsyncScrollingMetadata> const& async_scrolling_metadata() const { return m_async_scrolling_metadata; }
 
-    static constexpr size_t command_alignment = 16;
+    static constexpr size_t command_alignment = 8;
 
     template<typename SpanType, typename Callback>
     static void for_each_command_header(SpanType command_bytes, Callback callback)

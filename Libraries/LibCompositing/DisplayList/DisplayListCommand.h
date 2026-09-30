@@ -137,7 +137,7 @@ decltype(auto) visit_display_list_command(
 }
 
 static_assert(IsTriviallyCopyable<DisplayListCommandHeader>);
-static_assert(sizeof(DisplayListCommandHeader) == 32);
+static_assert(sizeof(DisplayListCommandHeader) == 24);
 static_assert(IsTriviallyCopyable<DisplayListCommandRun>);
 static_assert(sizeof(DisplayListCommandRun) == 40);
 static_assert(IsTriviallyCopyable<DisplayListGlyph>);
@@ -175,7 +175,9 @@ inline bool operator==(DisplayListCommandRun const& a, DisplayListCommandRun con
         && a.has_compositor_metadata == b.has_compositor_metadata;
 }
 
-#define VERIFY_DISPLAY_LIST_COMMAND(command, player_method) static_assert(IsTriviallyCopyable<command>);
+#define VERIFY_DISPLAY_LIST_COMMAND(command, player_method) \
+    static_assert(IsTriviallyCopyable<command>);            \
+    static_assert(alignof(command) <= alignof(DisplayListCommandHeader));
 ENUMERATE_DISPLAY_LIST_COMMANDS(VERIFY_DISPLAY_LIST_COMMAND)
 #undef VERIFY_DISPLAY_LIST_COMMAND
 

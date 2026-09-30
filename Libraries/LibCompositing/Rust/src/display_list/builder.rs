@@ -10,7 +10,7 @@ use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{AffineTransform, CornerRadii, FloatRect, IntRect, WindingRule, enclosing_int_rect};
 use std::rc::Rc;
 
-pub const COMMAND_ALIGNMENT: usize = 16;
+pub const COMMAND_ALIGNMENT: usize = 8;
 pub const HEADER_SIZE: usize = std::mem::size_of::<DisplayListCommandHeader>();
 const PATH_DATA_ALIGNMENT: usize = std::mem::align_of::<u32>();
 
@@ -250,6 +250,7 @@ impl DisplayListBuilder {
         &mut self,
         inline_clips_applying_to_the_group_record: Vec<PendingInlineClip>,
     ) -> OpenGroup {
+        const { assert!(std::mem::align_of::<C>() <= COMMAND_ALIGNMENT) };
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
         let record_start = self.bytes.len();
         let fixed_payload_size = std::mem::size_of::<C>().next_multiple_of(COMMAND_ALIGNMENT);
@@ -385,6 +386,7 @@ impl DisplayListBuilder {
         inline_transform: Option<AffineTransform>,
         payload_size: usize,
     ) -> DisplayListCommandHeader {
+        const { assert!(std::mem::align_of::<C>() <= COMMAND_ALIGNMENT) };
         let inline_clip_count = u8::try_from(inline_clips.len()).expect("too many inline clips on one command");
         let mut bounding_rect = command.bounding_rect();
         if let (Some(transform), Some(rect)) = (inline_transform, bounding_rect) {
