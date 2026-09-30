@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<audio id="audio" src="../../../Assets/test-webm-audio.ogg"></audio>
+<video id="video" src="../../../Assets/solid-blue-160x120.webm"></video>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script>
+    // Playback that has ended has data for the current playback position, but none to obtain in the direction of
+    // playback, so readyState must be HAVE_CURRENT_DATA.
+    async function playToEnd(element) {
+        if (element.readyState < HTMLMediaElement.HAVE_METADATA)
+            await new Promise(resolve => element.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        element.currentTime = element.duration - 0.1;
+        await new Promise(resolve => element.addEventListener("seeked", resolve, { once: true }));
+        await element.play();
+        await new Promise(resolve => element.addEventListener("ended", resolve, { once: true }));
+        println(`${element.localName} ended: readyState=${readyStateName(element.readyState)}`);
+    }
+
+    asyncTest(async done => {
+        await playToEnd(document.getElementById("audio"));
+        await playToEnd(document.getElementById("video"));
+        done();
+    });
+</script>

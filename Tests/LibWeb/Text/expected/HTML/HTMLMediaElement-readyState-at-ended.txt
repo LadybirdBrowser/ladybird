@@ -1,0 +1,2 @@
+audio ended: readyState=HAVE_CURRENT_DATA
+video ended: readyState=HAVE_CURRENT_DATA
