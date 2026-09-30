@@ -197,7 +197,7 @@ TEST_CASE(associated_data_round_trips_with_explicit_vary_key)
         { "Cache-Control"sv, "max-age=60"sv },
         { "Vary"sv, "Origin"sv },
     });
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
 
     auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
     TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));

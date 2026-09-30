@@ -109,3 +109,14 @@ TEST_CASE(must_revalidate_takes_precedence_over_stale_while_revalidate)
     });
     EXPECT_EQ(HTTP::cache_lifetime_status(*request_headers, *response_headers, freshness_lifetime, current_age), HTTP::CacheLifetimeStatus::StaleWhileRevalidate);
 }
+
+TEST_CASE(vary_wildcard_never_produces_a_vary_key)
+{
+    auto request_headers = HTTP::HeaderList::create({ { "Accept", "text/html" } });
+
+    EXPECT(!HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "*" } })).has_value());
+    EXPECT(!HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "Accept, *" } })).has_value());
+    EXPECT(!HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "," }, { "Vary", "*" } })).has_value());
+
+    EXPECT_EQ(HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create()), Optional<u64> { 0 });
+}

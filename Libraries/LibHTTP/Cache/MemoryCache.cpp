@@ -95,6 +95,8 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
     auto vary_key = create_vary_key(request_headers, response_headers);
+    if (!vary_key.has_value())
+        return;
 
     auto request_headers_copy = HeaderList::create();
     store_header_and_trailer_fields(request_headers_copy, request_headers);
@@ -103,7 +105,7 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
     store_header_and_trailer_fields(response_headers_copy, response_headers);
 
     Entry cache_entry {
-        .vary_key = vary_key,
+        .vary_key = *vary_key,
         .status_code = status_code,
         .reason_phrase = move(reason_phrase),
         .request_headers = move(request_headers_copy),

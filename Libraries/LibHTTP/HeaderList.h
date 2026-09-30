@@ -82,7 +82,7 @@ public:
     void for_each_vary_header(Callback&& callback) const
     {
         for_each_header_value("Vary"sv, [&](StringView value) -> IterationDecision {
-            IterationDecision result;
+            auto result = IterationDecision::Continue;
 
             value.for_each_split_view(","sv, SplitBehavior::Nothing, [&](StringView header) -> IterationDecision {
                 result = callback(normalize_header_value(header));
