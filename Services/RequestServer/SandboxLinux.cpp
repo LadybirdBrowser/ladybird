@@ -5,7 +5,6 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <AK/LexicalPath.h>
 #include <AK/String.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
@@ -103,13 +102,8 @@ ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, 
     // nss-resolve checks this sysctl to decide whether to ask for AAAA records.
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/proc/sys/net/ipv6/conf/all/disable_ipv6"sv, Sandbox::LandlockPath::Access::ReadOnly));
 
-    for (auto const& certificate : certificates) {
-        auto certificate_path = LexicalPath::dirname(certificate);
-        if (certificate_path.is_empty())
-            certificate_path = ".";
-
-        TRY(Sandbox::add_landlock_path_if_exists(paths, certificate_path, Sandbox::LandlockPath::Access::ReadOnly));
-    }
+    for (auto const& certificate : certificates)
+        TRY(Sandbox::add_landlock_path_if_exists(paths, certificate, Sandbox::LandlockPath::Access::ReadOnly));
 
     if (g_resource_substitution_map) {
         TRY(g_resource_substitution_map->for_each_substitution([&](auto const& substitution) -> ErrorOr<void> {
