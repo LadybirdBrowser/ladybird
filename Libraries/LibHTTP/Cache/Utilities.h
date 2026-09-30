@@ -41,6 +41,7 @@ u64 create_cache_key(Utf16View const& partition, StringView url, StringView meth
 
 // For a cache that is itself one partition, such as a memory cache of one partition.
 u64 create_cache_key(StringView url, StringView method);
+Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers);
 Optional<u64> create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers);
 LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key);
 LexicalPath path_for_cache_entry_associated_data(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key, CacheEntryAssociatedData);
@@ -82,7 +83,7 @@ bool contains_cache_control_directive(StringView cache_control, StringView direc
 Optional<StringView> extract_cache_control_directive(StringView cache_control, StringView directive);
 Optional<AK::Duration> extract_cache_control_duration_directive(StringView cache_control, StringView directive, Optional<AK::Duration> valueless_fallback = {});
 
-ByteString normalize_request_vary_header_values(StringView header, HeaderList const& request_headers);
+Optional<Vector<ByteString>> normalize_request_vary_header_values(StringView header, HeaderList const& request_headers);
 
 AK::Duration compute_current_time_offset_for_testing(Optional<DiskCache&>, HeaderList const& request_headers);
 
