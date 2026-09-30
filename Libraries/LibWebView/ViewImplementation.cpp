@@ -94,8 +94,8 @@ ViewImplementation::~ViewImplementation()
         m_top_level_traversable->clear_ongoing_navigation();
     cancel_all_native_geolocation_requests();
 
-    if (!m_client_state.client_handle.is_empty())
-        Application::the().notify_webdriver_window_closed(m_client_state.client_handle);
+    if (!m_window_handle.is_empty())
+        Application::the().notify_webdriver_window_closed(m_window_handle);
 
     all_views().remove(m_view_id);
 
@@ -203,18 +203,18 @@ void ViewImplementation::set_favicon(Badge<WebContentPage>, Optional<Gfx::Bitmap
 void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect)
 {
     bool did_swap_bitmap = false;
-    auto previous_front_bitmap_id = m_client_state.front_bitmap.id;
-    auto bitmap_index = m_client_state.other_bitmaps.find_first_index_if([bitmap_id](auto const& bitmap) { return bitmap_id == bitmap.id; });
+    auto previous_front_bitmap_id = m_front_bitmap.id;
+    auto bitmap_index = m_other_bitmaps.find_first_index_if([bitmap_id](auto const& bitmap) { return bitmap_id == bitmap.id; });
     if (bitmap_index.has_value()) {
-        m_client_state.has_usable_bitmap = true;
-        m_client_state.other_bitmaps[*bitmap_index].last_painted_size = size.to_type<Web::DevicePixels>();
-        swap(m_client_state.other_bitmaps[*bitmap_index], m_client_state.front_bitmap);
+        m_has_usable_bitmap = true;
+        m_other_bitmaps[*bitmap_index].last_painted_size = size.to_type<Web::DevicePixels>();
+        swap(m_other_bitmaps[*bitmap_index], m_front_bitmap);
         m_backup_shared_image_buffer = nullptr;
         did_swap_bitmap = true;
     }
 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received presented bitmap {} for page {} size={}x{} did_swap={} front={}",
-        bitmap_id, page_id(), size.width(), size.height(), did_swap_bitmap, m_client_state.front_bitmap.id);
+        bitmap_id, page_id(), size.width(), size.height(), did_swap_bitmap, m_front_bitmap.id);
 
     auto bitmap_to_release = did_swap_bitmap ? previous_front_bitmap_id : bitmap_id;
     if (!defer_backing_store_release(bitmap_to_release))
@@ -718,7 +718,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         // navigable another page hosts scrolls there.
         if (&focused_navigable_host() == &page()
             && (key_event->type == Web::KeyEvent::Type::KeyUp
-                || (m_client_state.has_usable_bitmap && !preceding_input_may_change_target))) {
+                || (m_has_usable_bitmap && !preceding_input_may_change_target))) {
             auto handled = page().handle_key_event_in_compositor(*key_event);
             key_event->async_scroll_performed_default_action = handled && key_event->type == Web::KeyEvent::Type::KeyDown;
         }
@@ -2138,7 +2138,7 @@ void ViewImplementation::did_add_backing_stores(Badge<WebContentPage>, Vector<i3
 {
     VERIFY(bitmap_ids.size() == backing_stores.size());
     for (size_t i = 0; i < backing_stores.size(); ++i) {
-        m_client_state.other_bitmaps.append({
+        m_other_bitmaps.append({
             .id = bitmap_ids[i],
             .last_painted_size = {},
             .shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i]))),
@@ -2148,7 +2148,7 @@ void ViewImplementation::did_add_backing_stores(Badge<WebContentPage>, Vector<i3
 
 void ViewImplementation::did_retire_backing_stores(Badge<WebContentPage>, ReadonlySpan<i32> bitmap_ids)
 {
-    m_client_state.other_bitmaps.remove_all_matching([&](auto const& bitmap) {
+    m_other_bitmaps.remove_all_matching([&](auto const& bitmap) {
         return bitmap_ids.contains_slow(bitmap.id);
     });
 }
@@ -2158,19 +2158,19 @@ void ViewImplementation::install_backing_stores(Vector<i32> bitmap_ids, Vector<G
     VERIFY(bitmap_ids.size() == backing_stores.size());
     VERIFY(!bitmap_ids.is_empty());
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI installing {} backing stores for page {} had_usable_bitmap={}",
-        backing_stores.size(), page_id(), m_client_state.has_usable_bitmap);
-    if (m_client_state.has_usable_bitmap) {
+        backing_stores.size(), page_id(), m_has_usable_bitmap);
+    if (m_has_usable_bitmap) {
         // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
-        m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
-        m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
+        m_backup_shared_image_buffer = move(m_front_bitmap.shared_image_buffer);
+        m_backup_bitmap_size = m_front_bitmap.last_painted_size;
     }
-    m_client_state.has_usable_bitmap = false;
-    m_client_state.front_bitmap.id = bitmap_ids[0];
-    m_client_state.front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[0])));
-    m_client_state.other_bitmaps.clear();
-    m_client_state.other_bitmaps.ensure_capacity(backing_stores.size() - 1);
+    m_has_usable_bitmap = false;
+    m_front_bitmap.id = bitmap_ids[0];
+    m_front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[0])));
+    m_other_bitmaps.clear();
+    m_other_bitmaps.ensure_capacity(backing_stores.size() - 1);
     for (size_t i = 1; i < backing_stores.size(); ++i) {
-        m_client_state.other_bitmaps.append({
+        m_other_bitmaps.append({
             .id = bitmap_ids[i],
             .last_painted_size = {},
             .shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(backing_stores[i]))),
@@ -2231,9 +2231,9 @@ void ViewImplementation::initialize_tab(Optional<CanonicalTraversable&> traversa
     VERIFY(has_display_page());
     VERIFY(page().client().is_private() == m_is_private);
 
-    if (m_client_state.client_handle.is_empty()) {
-        m_client_state.client_handle = generate_random_uuid();
-        Application::the().notify_webdriver_window_created(m_client_state.client_handle);
+    if (m_window_handle.is_empty()) {
+        m_window_handle = generate_random_uuid();
+        Application::the().notify_webdriver_window_created(m_window_handle);
     }
     prepare_page_for_tab(page());
     display_page_changed({});
@@ -2558,7 +2558,7 @@ void ViewImplementation::run_webdriver_commands_waiting_for_a_document(Badge<Can
 
 void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
 {
-    page.async_set_window_handle(m_client_state.client_handle);
+    page.async_set_window_handle(m_window_handle);
     page.async_set_zoom_level(m_zoom_level);
     page.async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     page.async_set_maximum_frames_per_second(m_maximum_frames_per_second);
@@ -2600,9 +2600,9 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         reset_page_media_state();
 
         // Keep showing the outgoing page until the page paints its first frame.
-        if (m_client_state.has_usable_bitmap) {
-            m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
-            m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
+        if (m_has_usable_bitmap) {
+            m_backup_shared_image_buffer = move(m_front_bitmap.shared_image_buffer);
+            m_backup_bitmap_size = m_front_bitmap.last_painted_size;
         }
         if (previous_page->is_open())
             Application::the().update_compositor_context_visibility(previous_page->compositor_context_id(), Web::HTML::VisibilityState::Hidden);
@@ -2612,9 +2612,9 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         complete_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
         complete_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
     }
-    m_client_state.front_bitmap = {};
-    m_client_state.other_bitmaps.clear();
-    m_client_state.has_usable_bitmap = false;
+    m_front_bitmap = {};
+    m_other_bitmaps.clear();
+    m_has_usable_bitmap = false;
     if (auto backing_stores = page.take_presented_backing_stores(); backing_stores.has_value())
         install_backing_stores(move(backing_stores->bitmap_ids), move(backing_stores->backing_stores));
 
@@ -2780,7 +2780,7 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
 {
     reject_pending_selection_requests();
 
-    auto window_handle = move(m_client_state.client_handle);
+    auto window_handle = move(m_window_handle);
 
     // Headless views retain their closed children. Remove the view from routing immediately so a command racing
     // with the close cannot be sent to a page that no longer exists.
@@ -3520,9 +3520,9 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
     switch (type) {
     case ScreenshotType::Visible: {
         RefPtr<Gfx::Bitmap> visible_bitmap;
-        if (m_client_state.has_usable_bitmap) {
-            VERIFY(m_client_state.front_bitmap.shared_image_buffer);
-            visible_bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap_if_present();
+        if (m_has_usable_bitmap) {
+            VERIFY(m_front_bitmap.shared_image_buffer);
+            visible_bitmap = m_front_bitmap.shared_image_buffer->bitmap_if_present();
         } else if (m_backup_shared_image_buffer) {
             visible_bitmap = m_backup_shared_image_buffer->bitmap_if_present();
         }
