@@ -71,6 +71,7 @@ private:
         Database::StatementID remove_entry { 0 };
         Database::StatementID remove_entries_exceeding_cache_limit { 0 };
         Database::StatementID remove_entries_accessed_since { 0 };
+        Database::StatementID remove_all_entries { 0 };
         Database::StatementID select_entries { 0 };
         Database::StatementID update_response_headers { 0 };
         Database::StatementID update_associated_data_size { 0 };
