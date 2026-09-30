@@ -1773,6 +1773,12 @@ void Request::transfer_headers_to_client_if_needed()
     if (!m_status_code.has_value())
         m_status_code = acquire_status_code();
 
+    // https://httpwg.org/specs/rfc9111.html#invalidation
+    // A cache MUST invalidate the target URI (Section 7.1 of [HTTP]) when it receives a non-error status code in
+    // response to an unsafe request method (including methods whose safety is unknown).
+    if (m_disk_cache.has_value() && m_disk_cache_partition.has_value() && !m_method.is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv, "TRACE"sv) && *m_status_code >= 200 && *m_status_code < 400)
+        m_disk_cache->invalidate(*m_disk_cache_partition, m_url);
+
     if (m_cache_entry_writer.has_value()) {
         if (m_cache_entry_writer->write_status_and_reason(*m_status_code, m_reason_phrase, m_request_headers, m_response_headers).is_error()) {
             m_cache_status = CacheStatus::NotCached;

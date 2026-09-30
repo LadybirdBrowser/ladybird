@@ -51,6 +51,7 @@ public:
     void remove_entries_exceeding_cache_limit(Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
     void remove_variants_exceeding_limit(u64 cache_key, u64 vary_key_to_keep, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
     void remove_entries_accessed_since(UnixDateTime, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
+    void remove_entries_for_cache_key(u64 cache_key, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
 
     Optional<Entry const&> find_entry(u64 cache_key, HeaderList const& request_headers);
     bool has_entry(u64 cache_key, u64 vary_key);

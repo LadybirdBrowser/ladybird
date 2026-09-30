@@ -441,6 +441,28 @@ void DiskCache::remove_entries_accessed_since(UnixDateTime since)
     });
 }
 
+// https://httpwg.org/specs/rfc9111.html#invalidation
+void DiskCache::invalidate(Utf16String const& partition, URL::URL const& url)
+{
+    // "Invalidate" means that the cache will either remove all stored responses whose target URI matches the given URI
+    // or mark them as "invalid" and in need of a mandatory validation before they can be sent in response to a
+    // subsequent request.
+    auto serialized_url = serialize_url_for_cache_storage(url);
+
+    for (auto method : { "GET"sv, "HEAD"sv }) {
+        auto cache_key = create_cache_key(partition, serialized_url, method);
+
+        if (auto open_entries = m_open_cache_entries.get(cache_key); open_entries.has_value()) {
+            for (auto const& [open_entry, _] : *open_entries)
+                open_entry->mark_for_deletion({});
+        }
+
+        m_index.remove_entries_for_cache_key(cache_key, [&](auto cache_key, auto vary_key) {
+            delete_entry(cache_key, vary_key);
+        });
+    }
+}
+
 void DiskCache::cache_entry_closed(Badge<CacheEntry>, CacheEntry const& cache_entry)
 {
     auto cache_key = cache_entry.cache_key();
