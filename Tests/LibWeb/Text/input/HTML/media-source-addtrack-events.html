@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // Adding the tracks of an initialization segment to the SourceBuffer's track lists and the media element's fires
+    // addtrack at each of those lists.
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        function printAddTrackEvents(label, list) {
+            list.addEventListener("addtrack", event => {
+                println(`addtrack at ${label}: track ${Array.from(list).indexOf(event.track)}`);
+            });
+        }
+
+        async function appendAsset(sourceBuffer, name) {
+            const response = await fetch(`../../../Assets/${name}`);
+            if (!response.ok)
+                throw new Error(`HTTP ${response.status} for ${name}`);
+            sourceBuffer.appendBuffer(new Uint8Array(await response.arrayBuffer()));
+            await new Promise((resolve, reject) => {
+                sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                sourceBuffer.addEventListener("error", () => reject(new Error(`error event on SourceBuffer for ${name}`)), { once: true });
+            });
+        }
+
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const audioSourceBuffer = mediaSource.addSourceBuffer('audio/webm;codecs="opus"');
+                const videoSourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9"');
+
+                printAddTrackEvents("sourceBuffer.audioTracks", audioSourceBuffer.audioTracks);
+                printAddTrackEvents("video.audioTracks", video.audioTracks);
+                printAddTrackEvents("sourceBuffer.videoTracks", videoSourceBuffer.videoTracks);
+                printAddTrackEvents("video.videoTracks", video.videoTracks);
+
+                println("appending two audio tracks");
+                await appendAsset(audioSourceBuffer, "two-audio-tracks-of-different-lengths.webm");
+                println("appending two video tracks");
+                await appendAsset(videoSourceBuffer, "two-video-tracks.webm");
+                println(`audio tracks: ${video.audioTracks.length}, video tracks: ${video.videoTracks.length}`);
+                done();
+            } catch (e) {
+                fail("sourceopen handler", e);
+            }
+        }, { once: true });
+    });
+</script>
