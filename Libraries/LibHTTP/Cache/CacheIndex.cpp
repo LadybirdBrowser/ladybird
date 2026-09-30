@@ -196,6 +196,10 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
         WHERE last_access_time >= ?
         RETURNING cache_key, vary_key, MAX(data_size, 0) + MAX(associated_data_size, 0) + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers);
     )#"sv));
+    statements.remove_all_entries = TRY(database.prepare_statement(R"#(
+        DELETE FROM CacheIndex
+        RETURNING cache_key, vary_key;
+    )#"sv));
     statements.select_entries = TRY(database.prepare_statement("SELECT vary_key, url, request_headers, response_headers, data_size, associated_data_size, request_time, response_time, last_access_time FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ?, last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
     statements.update_associated_data_size = TRY(database.prepare_statement("UPDATE CacheIndex SET associated_data_size = ? WHERE cache_key = ? AND vary_key = ?;"sv));
@@ -404,6 +408,26 @@ void CacheIndex::remove_variants_exceeding_limit(u64 cache_key, u64 vary_key_to_
 
 void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
 {
+    // Removing every entry must not depend on what their rows contain.
+    if (since == UnixDateTime::earliest()) {
+        m_database->execute_statement(
+            m_statements.remove_all_entries,
+            [&](auto statement_id) -> ErrorOr<void> {
+                auto cache_key = m_database->result_i64_checked(statement_id, 0);
+                auto vary_key = m_database->result_i64_checked(statement_id, 1);
+                if (cache_key.is_error() || vary_key.is_error())
+                    return {};
+
+                if (on_entry_removed)
+                    on_entry_removed(decode_cache_key_from_database(cache_key.value()), decode_cache_key_from_database(vary_key.value()));
+                return {};
+            });
+
+        m_entries.clear();
+        m_total_estimated_size = 0;
+        return;
+    }
+
     m_database->execute_statement(
         m_statements.remove_entries_accessed_since,
         [&](auto statement_id) -> ErrorOr<void> {
