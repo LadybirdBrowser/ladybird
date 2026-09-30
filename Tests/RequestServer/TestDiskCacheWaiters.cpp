@@ -666,3 +666,39 @@ TEST_CASE(unsafe_request_invalidates_stored_responses)
     expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
     EXPECT_EQ(http_server.connection_count(), 3u);
 }
+
+// Vary on a revalidation validator must prevent unconditional reuse.
+TEST_CASE(response_varying_on_revalidation_validators_is_stored_with_them)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1) {
+            return ServerResponse::at_once(
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Length: 11\r\n"
+                "Cache-Control: max-age=60\r\n"
+                "Vary: If-None-Match\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                "conditional");
+        }
+        return ServerResponse::at_once(http_response("no-cache"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+}
