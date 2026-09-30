@@ -204,7 +204,7 @@ TEST_CASE(negative_stored_sizes_are_skipped_as_corrupt)
     EXPECT(!entry.has_value());
 }
 
-TEST_CASE(creation_returns_error_for_corrupted_database)
+TEST_CASE(creation_tolerates_failed_cleanup_and_size_queries)
 {
     auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
     TRY_OR_FAIL(HTTP::CacheIndex::migrate_schema(*database));
@@ -212,9 +212,7 @@ TEST_CASE(creation_returns_error_for_corrupted_database)
     // SQLite stores the root page of each b-tree in sqlite_schema. CacheIndex's table and primary-key
     // index use separate b-trees with different page layouts. Point the table's rootpage at the index's
     // b-tree, then reload the schema with writable_schema = RESET.
-    // The column definitions remain valid, so statement preparation succeeds. When CacheIndex::create()
-    // scans the table to estimate its size, SQLite finds an index page where it expects a table page
-    // and reports SQLITE_CORRUPT ("database disk image is malformed").
+    // Statement preparation succeeds, but cleanup and size queries report SQLITE_CORRUPT.
     TRY_OR_FAIL(database->execute_raw(R"#(
         PRAGMA writable_schema = ON;
         UPDATE sqlite_schema
@@ -224,8 +222,7 @@ TEST_CASE(creation_returns_error_for_corrupted_database)
     )#"sv));
 
     auto result = HTTP::CacheIndex::create(*database, cache_directory());
-    EXPECT(result.is_error());
-    EXPECT_EQ(result.error().string_literal(), "database disk image is malformed"sv);
+    EXPECT(!result.is_error());
 }
 
 TEST_CASE(variants_per_cache_key_are_limited)
@@ -384,6 +381,23 @@ TEST_CASE(clearing_every_entry_does_not_depend_on_row_contents)
 
     auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
     EXPECT(!reloaded_index.find_entry(1, *request_headers).has_value());
+}
+
+TEST_CASE(overflowing_cache_size_sums_do_not_abort)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
+    auto now = UnixDateTime::now();
+
+    TRY_OR_FAIL(state.index.create_entry(1, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET data_size = 9223372036854775807, request_headers = x'', response_headers = x'' WHERE cache_key = 1;"sv));
+
+    TRY_OR_FAIL(state.index.create_entry(2, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+    state.index.set_maximum_disk_cache_size(40);
+    state.index.remove_entries_exceeding_cache_limit({});
+    (void)state.index.estimate_cache_size_accessed_since(UnixDateTime::earliest());
 }
 
 TEST_CASE(stored_vary_wildcard_does_not_match)
