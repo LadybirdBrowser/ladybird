@@ -233,16 +233,16 @@ namespace {
 // A local HTTP server that answers every request with a response that sets a cookie.
 class SetCookieServer {
 public:
-    SetCookieServer()
+    explicit SetCookieServer(StringView response = "HTTP/1.1 200 OK\r\nSet-Cookie: session=fresh\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"sv)
     {
         m_server = MUST(Core::TCPServer::try_create());
         MUST(m_server->listen(IPv4Address { 127, 0, 0, 1 }, 0));
-        m_server->on_ready_to_accept = [this] {
+        m_server->on_ready_to_accept = [this, response] {
             auto socket = MUST(m_server->accept());
             MUST(socket->set_blocking(false));
             m_sockets.append(move(socket));
             auto& connection = *m_sockets.last();
-            connection.on_ready_to_read = [this, &connection] {
+            connection.on_ready_to_read = [this, &connection, response] {
                 auto buffer = MUST(ByteBuffer::create_uninitialized(4096));
                 auto request = MUST(connection.read_some(buffer));
                 if (request.is_empty())
@@ -250,8 +250,7 @@ public:
                 m_received_request = ByteString { request };
                 connection.on_ready_to_read = nullptr;
                 MUST(connection.set_blocking(true));
-                MUST(connection.write_until_depleted(
-                    "HTTP/1.1 200 OK\r\nSet-Cookie: session=fresh\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"sv.bytes()));
+                MUST(connection.write_until_depleted(response.bytes()));
             };
         };
     }
@@ -588,4 +587,23 @@ TEST_CASE(url_credentials_are_not_sent)
     EXPECT(http_server.received_request().starts_with("GET / HTTP/1.1\r\n"sv));
     EXPECT(!http_server.received_request().contains("Authorization"sv, CaseSensitivity::CaseInsensitive));
     EXPECT(!http_server.received_request().contains("user"sv));
+}
+
+TEST_CASE(interim_response_fields_are_not_part_of_the_response)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+    SetCookieServer http_server {
+        "HTTP/1.1 103 Early Hints\r\nSet-Cookie: interim=evil\r\nLink: </style.css>; rel=preload\r\n\r\n"
+        "HTTP/1.1 200 OK\r\nSet-Cookie: session=fresh\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"sv
+    };
+
+    connection.start_request(0, http_server.url());
+    auto cookie_request = control.take_cookie_request();
+    control.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch, cookie_request->cookie_request_id());
+
+    auto storage_request = control.wait_for_storage_request(server.event_loop);
+    EXPECT_EQ(storage_request->cookies().size(), 1u);
+    EXPECT_EQ(storage_request->cookies().first().name, "session"sv);
 }
