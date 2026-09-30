@@ -12,14 +12,12 @@
 #include <AK/Time.h>
 #include <LibGC/Heap.h>
 #include <LibRequests/Request.h>
-#include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Infrastructure/ClientContextSnapshot.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/LocalNavigable.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebDriver/BiDi/Network.h>
@@ -42,15 +40,20 @@ void initialize_network_request(Request& request, GC::Ptr<HTML::Navigable> navig
     if (!g_network_events_enabled || request.webdriver_bidi_network_request())
         return;
     auto state = GC::Heap::the().allocate<NetworkRequest>();
-    if (navigable) {
-        state->navigable = navigable;
-    } else if (auto client = request.client()) {
-        if (auto* window = HTML::window_from_global_object(client->global_object()))
-            state->navigable = window->associated_document().navigable();
-    }
+    if (navigable)
+        state->navigable_id = navigable->id();
+    else if (auto const& client = request.client_snapshot())
+        state->navigable_id = client->navigable_id;
     if (navigation.has_value())
         state->navigation = navigation->to_utf8();
     request.set_webdriver_bidi_network_request(state);
+}
+
+static GC::Ptr<HTML::LocalNavigable> navigable_of(NetworkRequest const& state)
+{
+    if (!state.navigable_id.has_value())
+        return {};
+    return HTML::local_navigable_with_id(*state.navigable_id);
 }
 
 // https://w3c.github.io/webdriver-bidi/#serialize-protocol-bytes
@@ -118,8 +121,10 @@ static JsonObject get_the_fetch_timings(FetchTimingInfo const& timings, Optional
 
 static JsonObject get_the_fetch_timings(Request const& request, FetchTimingInfo const& timings)
 {
-    auto client = request.client();
-    return get_the_fetch_timings(timings, client ? Optional<double>(client->time_origin()) : Optional<double> {}, client ? HighResolutionTime::get_time_origin_timestamp(client->global_object()) : 0);
+    auto const& client = request.client_snapshot();
+    if (!client)
+        return get_the_fetch_timings(timings, {}, 0);
+    return get_the_fetch_timings(timings, client->time_origin, client->time_origin - HighResolutionTime::estimated_monotonic_time_of_the_unix_epoch());
 }
 
 // https://w3c.github.io/webdriver-bidi/#get-the-request-data
@@ -242,11 +247,11 @@ static JsonObject get_the_response_data(Response const& response, FetchTimingInf
 }
 
 // https://w3c.github.io/webdriver-bidi/#process-a-network-event
-static JsonObject process_a_network_event(Request const& request, FetchTimingInfo const& timing_info)
+static JsonObject process_a_network_event(HTML::Navigable const& navigable, Request const& request, FetchTimingInfo const& timing_info)
 {
     auto state = request.webdriver_bidi_network_request();
     JsonObject params;
-    params.set("context"sv, navigable_id(*state->navigable));
+    params.set("context"sv, navigable_id(navigable));
     params.set("userContext"sv, "default"sv);
     params.set("isBlocked"sv, false);
     params.set("navigation"sv, state->navigation.has_value() ? JsonValue(*state->navigation) : JsonValue {});
@@ -268,14 +273,17 @@ void network_before_request_sent(FetchParams const& fetch_params)
     auto request = fetch_params.request();
     initialize_network_request(*request);
     auto state = request->webdriver_bidi_network_request();
-    if (!state || !state->navigable || state->before_request_sent.contains(request->redirect_count()))
+    if (!state || state->before_request_sent.contains(request->redirect_count()))
+        return;
+    auto navigable = navigable_of(*state);
+    if (!navigable)
         return;
     // 4. Let redirect count be request's redirect count.
     // 5. Add redirect count to before request sent map[request].
     state->before_request_sent.set(request->redirect_count());
     state->request_data.set(request->redirect_count(), get_the_request_data(*request, *fetch_params.timing_info()));
     if (is_event_enabled("network.beforeRequestSent"sv))
-        emit_event(*state->navigable, "network.beforeRequestSent"_string, process_a_network_event(*fetch_params.request(), *fetch_params.timing_info()));
+        emit_event(*navigable, "network.beforeRequestSent"_string, process_a_network_event(*navigable, *fetch_params.request(), *fetch_params.timing_info()));
 }
 
 // https://w3c.github.io/webdriver-bidi/#event-network-responseStarted
@@ -284,14 +292,17 @@ void network_response_started(FetchParams const& fetch_params, Response& respons
     network_before_request_sent(fetch_params);
     auto request = fetch_params.request();
     auto state = request->webdriver_bidi_network_request();
-    if (!state || !state->navigable || state->response_started.contains(request->redirect_count()) || response.is_network_error())
+    if (!state || state->response_started.contains(request->redirect_count()) || response.is_network_error())
+        return;
+    auto navigable = navigable_of(*state);
+    if (!navigable)
         return;
     state->response_started.set(request->redirect_count());
     // 5. Let sessions be the set of sessions for which an event is enabled given "network.responseStarted" and related navigables.
     if (is_event_enabled("network.responseStarted"sv)) {
-        auto params = process_a_network_event(*fetch_params.request(), *fetch_params.timing_info());
+        auto params = process_a_network_event(*navigable, *fetch_params.request(), *fetch_params.timing_info());
         params.set("response"sv, get_the_response_data(response, *fetch_params.timing_info()));
-        emit_event(*state->navigable, "network.responseStarted"_string, move(params));
+        emit_event(*navigable, "network.responseStarted"_string, move(params));
     }
 }
 
@@ -300,7 +311,10 @@ void network_response_completed(FetchParams const& fetch_params, Response const&
 {
     auto request = fetch_params.request();
     auto state = request->webdriver_bidi_network_request();
-    if (!state || !state->navigable || (state->completed.contains(request->redirect_count()) || state->transferred.contains(request->redirect_count())))
+    if (!state || (state->completed.contains(request->redirect_count()) || state->transferred.contains(request->redirect_count())))
+        return;
+    auto navigable = navigable_of(*state);
+    if (!navigable)
         return;
     state->completed.set(request->redirect_count());
     if (!fetch_params.timing_info()->end_time())
@@ -308,9 +322,9 @@ void network_response_completed(FetchParams const& fetch_params, Response const&
     // 5. Let sessions be the set of sessions for which an event is enabled given "network.responseCompleted" and related navigables.
     if (!is_event_enabled("network.responseCompleted"sv))
         return;
-    auto params = process_a_network_event(*fetch_params.request(), *fetch_params.timing_info());
+    auto params = process_a_network_event(*navigable, *fetch_params.request(), *fetch_params.timing_info());
     params.set("response"sv, get_the_response_data(response, *fetch_params.timing_info()));
-    emit_event(*state->navigable, "network.responseCompleted"_string, move(params));
+    emit_event(*navigable, "network.responseCompleted"_string, move(params));
 }
 
 // https://w3c.github.io/webdriver-bidi/#event-network-fetchError
@@ -320,15 +334,18 @@ void network_fetch_error(FetchParams const& fetch_params, StringView error_text)
     network_before_request_sent(fetch_params);
     auto request = fetch_params.request();
     auto state = request->webdriver_bidi_network_request();
-    if (!state || !state->navigable || (state->completed.contains(request->redirect_count()) || state->transferred.contains(request->redirect_count())))
+    if (!state || (state->completed.contains(request->redirect_count()) || state->transferred.contains(request->redirect_count())))
+        return;
+    auto navigable = navigable_of(*state);
+    if (!navigable)
         return;
     state->completed.set(request->redirect_count());
     if (!is_event_enabled("network.fetchError"sv))
         return;
-    auto params = process_a_network_event(*fetch_params.request(), *fetch_params.timing_info());
+    auto params = process_a_network_event(*navigable, *fetch_params.request(), *fetch_params.timing_info());
     // 4.2. Set the errorText field of params to an implementation-defined string describing the error which caused the request to be aborted.
     params.set("errorText"sv, String::from_utf8_with_replacement_character(error_text));
-    emit_event(*state->navigable, "network.fetchError"_string, move(params));
+    emit_event(*navigable, "network.fetchError"_string, move(params));
 }
 
 Optional<JsonObject> network_response_for_navigation(Request const& request, FetchTimingInfo const& timing_info,
@@ -337,14 +354,18 @@ Optional<JsonObject> network_response_for_navigation(Request const& request, Fet
     if (!g_network_events_enabled)
         return {};
     auto state = request.webdriver_bidi_network_request();
-    if (!state || !state->navigable || state->completed.contains(request.redirect_count()))
+    if (!state || state->completed.contains(request.redirect_count()))
+        return {};
+    auto navigable = navigable_of(*state);
+    if (!navigable)
         return {};
     state->transferred.set(request.redirect_count());
     JsonObject result;
-    result.set("parameters"sv, process_a_network_event(request, timing_info));
+    result.set("parameters"sv, process_a_network_event(*navigable, request, timing_info));
     result.set("response"sv, get_the_response_data(response, timing_info));
     result.set("postRedirectStartTime"sv, timing_info.post_redirect_start_time());
-    result.set("timeOrigin"sv, request.client() ? JsonValue(request.client()->time_origin()) : JsonValue {});
+    auto const& client = request.client_snapshot();
+    result.set("timeOrigin"sv, client ? JsonValue(client->time_origin) : JsonValue {});
     return result;
 }
 

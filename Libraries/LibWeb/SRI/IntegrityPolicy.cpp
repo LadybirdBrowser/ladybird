@@ -6,8 +6,6 @@
  */
 
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/SRI/IntegrityPolicy.h>
 #include <LibWeb/SRI/SRI.h>
 #include <LibWebCommon/Fetch/Infrastructure/URL.h>
@@ -44,10 +42,10 @@ ContentSecurityPolicy::Directives::Directive::Result should_request_be_blocked_b
         return ContentSecurityPolicy::Directives::Directive::Result::Allowed;
 
     // 8. Let global be request’s client’s global object.
-    auto& global = request->client()->global_object();
+    auto global_kind = request->client_snapshot()->global_kind;
 
     // 9. If global is not a Window nor a WorkerGlobalScope, return "Allowed".
-    if (!HTML::window_or_worker_global_scope_from_global_object(global))
+    if (global_kind != Fetch::Infrastructure::ClientContextSnapshot::GlobalKind::Window && global_kind != Fetch::Infrastructure::ClientContextSnapshot::GlobalKind::Worker)
         return ContentSecurityPolicy::Directives::Directive::Result::Allowed;
 
     // 10. Let block be a boolean, initially false.

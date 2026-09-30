@@ -31,6 +31,7 @@
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Fetching/Checks.h>
+#include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
@@ -277,7 +278,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         task_destination = GC::Ref { request.client()->global_object() };
 
         // 2. Set crossOriginIsolatedCapability to request’s client’s cross-origin isolated capability.
-        cross_origin_isolated_capability = request.client()->cross_origin_isolated_capability();
+        cross_origin_isolated_capability = request.client_snapshot()->cross_origin_isolated_capability;
     }
 
     // 6. If useParallelQueue is true, then set taskDestination to the result of starting a new parallel queue.
@@ -322,7 +323,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         // - request’s unsafe-request flag is not set or request’s header list is empty
         && (!request.unsafe_request() || request.header_list()->is_empty())) {
         // 1. Assert: request’s origin is same origin with request’s client’s origin.
-        VERIFY(request.origin().has<URL::Origin>() && request.origin().get<URL::Origin>().is_same_origin(request.client()->origin()));
+        VERIFY(request.origin().has<URL::Origin>() && request.origin().get<URL::Origin>().is_same_origin(request.client_snapshot()->origin));
 
         // 2. Let onPreloadedResponseAvailable be an algorithm that runs the following step given a response
         //    response: set fetchParams’s preloaded response candidate to response.
@@ -444,7 +445,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
                 [](Empty) -> u64 { return 0; },
                 [](ByteBuffer const& buffer) -> u64 { return buffer.size(); },
                 [](GC::Ref<Infrastructure::Body> body) -> u64 { return body->length().value_or(0); });
-            request.set_keepalive_quota_reservation(request.client()->keepalive_quota_accountant().reserve(body_length));
+            request.set_keepalive_quota_reservation(request.client_snapshot()->keepalive_quota_accountant->reserve(body_length));
         }
     }
 
@@ -502,6 +503,11 @@ void populate_request_from_client(Infrastructure::Request& request)
         else
             request.set_policy_container(HTML::PolicyContainer::create());
     }
+
+    // AD-HOC: Fetching reads the client through a snapshot of it, taken here, so that it needs neither the settings
+    //         object nor its global object.
+    if (request.client())
+        request.set_client_snapshot(snapshot_client_context(*request.client()));
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
@@ -879,19 +885,39 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     return GC::Ptr<PendingResponse> {};
 }
 
+using RequestEnvironment = Variant<Empty, NonnullRefPtr<Infrastructure::ReservedClientContextSnapshot const>, NonnullRefPtr<Infrastructure::ClientContextSnapshot const>>;
+
 // https://fetch.spec.whatwg.org/#request-determine-the-environment
-static GC::Ptr<HTML::Environment> determine_the_environment(GC::Ref<Infrastructure::Request> request)
+static RequestEnvironment determine_the_environment(Infrastructure::Request const& request)
 {
     // 1. If request’s reserved client is non-null, then return request’s reserved client.
-    if (request->reserved_client())
-        return request->reserved_client();
+    if (auto const& reserved_client = request.reserved_client_snapshot())
+        return NonnullRefPtr { *reserved_client };
 
     // 2. If request’s client is non-null, then return request’s client.
-    if (request->client())
-        return request->client();
+    if (auto const& client = request.client_snapshot())
+        return NonnullRefPtr { *client };
 
     // 3. Return null.
-    return {};
+    return Empty {};
+}
+
+// https://storage.spec.whatwg.org/#obtain-a-storage-key-for-non-storage-purposes
+static StorageAPI::StorageKey obtain_a_storage_key_for_non_storage_purposes(RequestEnvironment const& environment)
+{
+    // 1. Let origin be environment’s origin if environment is an environment settings object; otherwise environment’s
+    //    creation URL’s origin.
+    auto origin = environment.visit(
+        [](Empty) -> URL::Origin { VERIFY_NOT_REACHED(); },
+        [](NonnullRefPtr<Infrastructure::ReservedClientContextSnapshot const> const& environment) {
+            return environment->kind.visit(
+                [](Infrastructure::ReservedClientContext::SettingsObject const& settings_object) { return settings_object.origin; },
+                [&](Infrastructure::ReservedClientContext::Environment const&) { return environment->creation_url.origin(); });
+        },
+        [](NonnullRefPtr<Infrastructure::ClientContextSnapshot const> const& settings) { return settings->origin; });
+
+    // 2. Return a tuple consisting of origin.
+    return { move(origin) };
 }
 
 // https://fetch.spec.whatwg.org/#fetch-finale
@@ -921,8 +947,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     //       `Timing-Allow-Origin` header.
     // INTEROP: A navigation's reserved client describes its destination context. Use it so entry-point navigations
     //          collect timing headers even without an initiating client.
-    auto client = determine_the_environment(fetch_params.request());
-    if (!response.is_network_error() && client != nullptr && HTML::is_secure_context(*client)) {
+    auto request_environment = determine_the_environment(fetch_params.request());
+    auto is_secure_context = request_environment.visit(
+        [](Empty) { return false; },
+        [](auto const& environment) { return environment->is_secure_context == Infrastructure::ClientContext::IsSecureContext::Yes; });
+    if (!response.is_network_error() && is_secure_context) {
         if (auto server_timing_headers = response.unsafe_response()->header_list()->get_decode_and_split("Server-Timing"sv); server_timing_headers.has_value())
             timing_info->set_server_timing_headers(server_timing_headers.release_value());
     }
@@ -1301,26 +1330,27 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         bool is_top_level_self_fetch = false;
 
         // 5. If request’s client is non-null:
-        if (request->client() != nullptr) {
+        if (auto const& client = request->client_snapshot()) {
             // 1. Let global be request’s client’s global object.
-            auto const* global_window = HTML::window_from_global_object(request->client()->global_object());
+            // AD-HOC: The client's snapshot holds what the next step reads from global.
+            auto request_environment_creation_url = request_environment.visit(
+                [](Empty) -> URL::URL { VERIFY_NOT_REACHED(); },
+                [](auto const& environment) { return environment->creation_url; });
 
             // 2. If all of the following conditions are true:
             if (
                 // global is a Window object;
-                global_window != nullptr &&
                 // global’s navigable is not null;
-                global_window->navigable() != nullptr &&
                 // global’s navigable’s parent is null; and
-                global_window->navigable()->parent() == nullptr &&
+                client->is_window_of_a_top_level_navigable == Infrastructure::ClientContextSnapshot::IsWindowOfATopLevelNavigable::Yes &&
                 // requestEnvironment’s creation URL equals request’s current URL,
-                request_environment->creation_url == request->current_url())
+                request_environment_creation_url == request->current_url())
                 // then set isTopLevelSelfFetch to true.
                 is_top_level_self_fetch = true;
         }
 
         // 6. Let stringOrEnvironment be the result of these steps:
-        auto string_or_environment = [&]() -> Variant<GC::Ref<HTML::Environment>, FileAPI::TopLevelNavigation, FileAPI::TopLevelSelfFetch> {
+        auto string_or_environment = [&]() -> Variant<StorageAPI::StorageKey, FileAPI::TopLevelNavigation, FileAPI::TopLevelSelfFetch> {
             // 1. If request’s destination is "document", then return "top-level-navigation".
             if (request->destination() == Infrastructure::Request::Destination::Document)
                 return FileAPI::TopLevelNavigation();
@@ -1330,7 +1360,9 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
                 return FileAPI::TopLevelSelfFetch();
 
             // 3. Return requestEnvironment.
-            return GC::Ref(*request_environment);
+            // AD-HOC: requestEnvironment is given as its storage key for non-storage purposes, the only part of it that
+            //         obtaining a blob object reads.
+            return obtain_a_storage_key_for_non_storage_purposes(request_environment);
         }();
 
         // 7. Let blob be the result of obtaining a blob object given blobURLEntry and navigationOrEnvironment.
@@ -1500,7 +1532,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             return origin->is_opaque() || origin->scheme() == "file"sv || origin->scheme() == "resource"sv;
         };
 
-        bool browser_initiated_navigation = request->client() == nullptr && request->mode() == Infrastructure::Request::Mode::Navigate;
+        bool browser_initiated_navigation = !request->client_snapshot() && request->mode() == Infrastructure::Request::Mode::Navigate;
         if (!browser_initiated_navigation && !origin_is_allowed())
             return error;
 
@@ -1691,9 +1723,9 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
         // NOTE: The cross-origin resource policy check runs for responses coming from the network and responses coming
         //       from the service worker. This is different from the CORS check, as request’s client and the service
         //       worker can have different embedder policies.
-        // AD-HOC: request's client can be null, which the check does not allow for. Such a request is checked against a
-        //         new embedder policy.
-        auto client_embedder_policy = request->client() ? request->client()->policy_container()->embedder_policy : HTML::EmbedderPolicy {};
+        // NB: request's policy container is a clone of its client's, taken at fetch start, or a new one when it has no
+        //     client.
+        auto const& client_embedder_policy = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->embedder_policy;
         if ((request->response_tainting() == Infrastructure::Request::ResponseTainting::Opaque || response->type() == Infrastructure::Response::Type::Opaque)
             && cross_origin_resource_policy_check(request->origin().get<URL::Origin>(), client_embedder_policy, *internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked) {
             stop_discarded_response_body(*fetch_params.controller(), *internal_response);
@@ -2024,7 +2056,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             //     2. Increment inflightKeepaliveBytes by inflightRequest’s body’s length.
             // AD-HOC: The fetch group's keepalive quota accountant holds this sum, so a request whose fetch record was
             //         collected still counts.
-            auto inflight_keep_alive_bytes = http_request->client()->keepalive_quota_accountant().in_flight_byte_count();
+            auto inflight_keep_alive_bytes = http_request->client_snapshot()->keepalive_quota_accountant->in_flight_byte_count();
 
             // 5. If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
             if ((content_length.value() + inflight_keep_alive_bytes) > keepalive_maximum_size)
@@ -2071,8 +2103,9 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
         // AD-HOC: While a document loads bypassing the HTTP cache, so do the requests it makes without a cache mode of
         //         their own, as do its child navigables' navigations (see create navigation params by fetching).
-        if (http_request->cache_mode() == HTTP::CacheMode::Default && http_request->mode() != Infrastructure::Request::Mode::Navigate && http_request->client()) {
-            if (auto* window = HTML::window_from_global_object(http_request->client()->global_object()); window && window->associated_document().is_loading_bypassing_cache())
+        if (http_request->cache_mode() == HTTP::CacheMode::Default && http_request->mode() != Infrastructure::Request::Mode::Navigate) {
+            auto const& client_snapshot = http_request->client_snapshot();
+            if (client_snapshot && client_snapshot->is_loading_bypassing_cache == Infrastructure::ClientContext::IsLoadingBypassingCache::Yes)
                 http_request->set_cache_mode(HTTP::CacheMode::Reload);
         }
 
@@ -2445,11 +2478,8 @@ static URL::URL content_blocker_source_url_for_request(Infrastructure::Request& 
     if (request.destination().has_value() && request.destination().value() == Infrastructure::Request::Destination::Document)
         return request.current_url();
 
-    if (auto client = request.client()) {
-        if (auto document = client->responsible_document())
-            return document->fallback_base_url();
-        return client->api_base_url();
-    }
+    if (auto const& client = request.client_snapshot())
+        return client->content_blocker_source_url;
 
     return request.current_url();
 }
@@ -2502,9 +2532,9 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     load_request.set_source_url(content_blocker_source_url_for_request(*request));
     load_request.set_network_isolation_key(Infrastructure::determine_the_network_partition_key(*request));
 
-    if (auto environment = request->reserved_client())
-        load_request.set_top_level_creation_url(environment->top_level_creation_url);
-    else if (auto client = request->client())
+    if (auto const& reserved_client = request->reserved_client_snapshot())
+        load_request.set_top_level_creation_url(reserved_client->top_level_creation_url);
+    else if (auto const& client = request->client_snapshot())
         load_request.set_top_level_creation_url(client->top_level_creation_url);
 
     if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {
@@ -2777,6 +2807,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     preflight->set_method("OPTIONS"sv);
     preflight->set_url_list(request.url_list());
     preflight->set_client(request.client());
+    preflight->set_client_snapshot(request.client_snapshot());
     preflight->set_initiator(request.initiator());
     preflight->set_initiator_type(request.initiator_type());
     preflight->set_destination(request.destination());
