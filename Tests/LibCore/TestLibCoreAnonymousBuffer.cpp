@@ -131,6 +131,21 @@ TEST_CASE(snapshot_rejects_an_invalid_buffer)
     EXPECT(Core::AnonymousBuffer {}.snapshot().is_error());
 }
 
+TEST_CASE(validate_backing_size_accepts_a_fully_backed_buffer)
+{
+    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(2 * static_cast<size_t>(PAGE_SIZE)));
+    EXPECT(!buffer.validate_backing_size().is_error());
+
+    auto fd = MUST(Core::System::dup(buffer.fd()));
+    auto mirror = MUST(Core::AnonymousBuffer::create_from_anon_fd(fd, buffer.size()));
+    EXPECT(!mirror.validate_backing_size().is_error());
+}
+
+TEST_CASE(validate_backing_size_rejects_an_invalid_buffer)
+{
+    EXPECT(Core::AnonymousBuffer {}.validate_backing_size().is_error());
+}
+
 #if (defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)) && defined(F_ADD_SEALS) && defined(F_GET_SEALS) && defined(F_SEAL_GROW) && defined(F_SEAL_SHRINK)
 TEST_CASE(create_sealable_buffer)
 {
@@ -204,5 +219,32 @@ TEST_CASE(create_with_size_unsealed_by_default)
     auto buffer = MUST(Core::AnonymousBuffer::create_with_size(8192));
     // Without the seal, the fd can still be resized.
     EXPECT(ftruncate(buffer.fd(), 4096) == 0);
+}
+
+// These truncation tests are Linux-only: macOS refuses to resize a shared memory object once its
+// size is set, so a truncated backing file cannot be produced there.
+TEST_CASE(validate_backing_size_rejects_a_truncated_backing_file)
+{
+    auto const page_size = static_cast<size_t>(PAGE_SIZE);
+    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(2 * page_size));
+    EXPECT_EQ(ftruncate(buffer.fd(), static_cast<off_t>(page_size)), 0);
+    // The mapping is deliberately never touched from here on: its second page no longer has backing.
+    EXPECT(buffer.validate_backing_size().is_error());
+}
+
+TEST_CASE(validate_backing_size_rejects_a_claim_larger_than_the_backing_file)
+{
+    auto original = MUST(Core::AnonymousBuffer::create_with_size(64));
+    auto fd = MUST(Core::System::dup(original.fd()));
+    auto oversized = MUST(Core::AnonymousBuffer::create_from_anon_fd(fd, 128));
+    EXPECT(oversized.validate_backing_size().is_error());
+}
+
+TEST_CASE(a_sealed_buffer_cannot_be_truncated)
+{
+    auto const page_size = static_cast<size_t>(PAGE_SIZE);
+    auto buffer = MUST(Core::AnonymousBuffer::create_with_size(2 * page_size, Core::AnonymousBuffer::Sealability::Sealable));
+    EXPECT(ftruncate(buffer.fd(), static_cast<off_t>(page_size)) < 0);
+    EXPECT(!buffer.validate_backing_size().is_error());
 }
 #endif

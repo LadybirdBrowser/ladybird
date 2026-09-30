@@ -78,4 +78,14 @@ ErrorOr<AnonymousBuffer> AnonymousBuffer::snapshot(Sealability sealability) cons
     return copy;
 }
 
+ErrorOr<void> AnonymousBuffer::validate_backing_size() const
+{
+    if (!is_valid())
+        return Error::from_string_literal("Cannot validate the backing store of an invalid anonymous buffer");
+
+    // MapViewOfFile refuses a view that extends past the section, so the mapping AnonymousBufferImpl::create made
+    // already proved the section covers the size.
+    return {};
+}
+
 }
