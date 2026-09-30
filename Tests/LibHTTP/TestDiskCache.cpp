@@ -228,6 +228,43 @@ TEST_CASE(fields_received_after_the_header_section_are_not_stored)
     EXPECT(!reader->response_headers().contains("X-Trailer"sv));
 }
 
+TEST_CASE(unreadable_entry_is_removed_with_its_associated_data)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/script.js"sv);
+    auto request_headers = create_cacheable_request_headers();
+
+    EXPECT(TRY_OR_FAIL(disk_cache.create_synthetic_entry(test_partition(), url, "GET"sv)));
+
+    auto bytecode = TRY_OR_FAIL(ByteBuffer::copy("bytecode"sv.bytes()));
+    EXPECT(TRY_OR_FAIL(disk_cache.store_associated_data(test_partition(), url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, bytecode.bytes())));
+
+    // A synthetic entry has no body to read.
+    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers).has_value());
+
+    EXPECT(TRY_OR_FAIL(disk_cache.create_synthetic_entry(test_partition(), url, "GET"sv)));
+    auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(test_partition(), url, "GET"sv, *request_headers, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
+    EXPECT(!retrieved_bytecode.has_value());
+}
+
+TEST_CASE(synthetic_entry_accounts_for_existing_associated_data)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+
+    auto url = parse_url("https://example.com/script.js"sv);
+    auto cache_key = HTTP::create_cache_key(test_partition(), HTTP::serialize_url_for_cache_storage(url), "GET"sv);
+    auto path = HTTP::path_for_cache_entry_associated_data(disk_cache.cache_directory(), cache_key, 0, HTTP::CacheEntryAssociatedData::JavaScriptBytecode);
+    {
+        auto file = TRY_OR_FAIL(Core::File::open(path.string(), Core::File::OpenMode::Write));
+        TRY_OR_FAIL(file->write_until_depleted("leftover bytecode"sv.bytes()));
+    }
+
+    EXPECT(TRY_OR_FAIL(disk_cache.create_synthetic_entry(test_partition(), url, "GET"sv)));
+    EXPECT_EQ(disk_cache.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, "leftover bytecode"sv.length());
+}
+
 TEST_CASE(associated_data_round_trips_with_cache_entry)
 {
     auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();

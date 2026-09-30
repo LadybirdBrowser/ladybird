@@ -90,6 +90,7 @@ private:
 
     void close_entry(CacheEntry const&);
     void delete_entry(u64 cache_key, u64 vary_key);
+    void remove_entry_files(u64 cache_key, u64 vary_key);
 
     Mode m_mode;
     NonnullRefPtr<Database::Database> m_database;

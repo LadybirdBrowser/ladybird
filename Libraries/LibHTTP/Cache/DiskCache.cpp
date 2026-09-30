@@ -153,7 +153,10 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     auto cache_entry = CacheEntryReader::create(*this, m_index, cache_key, index_entry->vary_key, index_entry->response_headers, index_entry->data_size);
     if (cache_entry.is_error()) {
         dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[31;1mUnable to open cache entry for\033[0m {}: {}", url, cache_entry.error());
-        m_index.remove_entry(cache_key, index_entry->vary_key);
+
+        auto vary_key = index_entry->vary_key;
+        m_index.remove_entry(cache_key, vary_key);
+        remove_entry_files(cache_key, vary_key);
 
         return Optional<CacheEntryReader&> {};
     }
@@ -254,7 +257,11 @@ ErrorOr<bool> DiskCache::create_synthetic_entry(Utf16String const& partition, UR
     auto response_headers = HeaderList::create();
     auto now = UnixDateTime::now();
     TRY(m_index.create_entry(cache_key, synthetic_vary_key, serialized_url, request_headers, response_headers, 0, now, now));
-    return true;
+
+    // Include associated data already on disk in the size limit.
+    TRY(m_index.update_associated_data_size(cache_key, synthetic_vary_key, TRY(compute_associated_data_size(m_cache_directory, cache_key, synthetic_vary_key))));
+    remove_entries_exceeding_cache_limit();
+    return m_index.has_entry(cache_key, synthetic_vary_key);
 }
 
 ErrorOr<bool> DiskCache::store_associated_data(Utf16String const& partition, URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data, ReadonlyBytes data)
@@ -520,6 +527,11 @@ void DiskCache::delete_entry(u64 cache_key, u64 vary_key)
             open_entry->mark_for_deletion({});
     }
 
+    remove_entry_files(cache_key, vary_key);
+}
+
+void DiskCache::remove_entry_files(u64 cache_key, u64 vary_key)
+{
     auto cache_path = path_for_cache_entry(m_cache_directory, cache_key, vary_key);
     (void)FileSystem::remove(cache_path.string(), FileSystem::RecursionMode::Disallowed);
     for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES)
