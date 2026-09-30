@@ -106,7 +106,7 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
             return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, code);
 
         // c. Return ! CanonicalizeUnicodeLocaleId(code).
-        auto canonicalized_tag = canonicalize_unicode_locale_id(code);
+        auto canonicalized_tag = TRY(canonicalize_unicode_locale_id(vm, code));
         return PrimitiveString::create(vm, canonicalized_tag);
     }
 

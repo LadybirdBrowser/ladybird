@@ -69,10 +69,11 @@ LocaleData::LocaleData(icu::Locale locale)
 {
 }
 
-Utf16String LocaleData::canonicalize(StringView locale)
+Optional<Utf16String> LocaleData::canonicalize(StringView locale)
 {
     auto locale_data = LocaleData::for_locale(locale);
-    VERIFY(locale_data.has_value());
+    if (!locale_data.has_value())
+        return {};
 
     if (locale_data->m_canonical_locale_string.has_value())
         return *locale_data->m_canonical_locale_string;
@@ -107,10 +108,12 @@ Utf16String LocaleData::canonicalize(StringView locale)
     // NB: Canonicalize a copy so the cached locale retains its original form.
     auto canonical_locale = locale_data->locale();
     canonical_locale.canonicalize(status);
-    verify_icu_success(status);
+    if (icu_failure(status))
+        return {};
 
     auto result = canonical_locale.toLanguageTag<StringBuilder>(status);
-    verify_icu_success(status);
+    if (icu_failure(status))
+        return {};
 
     if (keywords_with_yes.is_empty()) {
         locale_data->m_canonical_locale_string = Utf16String::from_ascii_without_validation(result.string_view().bytes());

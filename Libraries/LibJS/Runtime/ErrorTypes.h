@@ -79,6 +79,7 @@
     M(IntlTemporalFormatRangeTypeMismatch, "Cannot format a date-time range with different date-time types")                        \
     M(IntlTemporalInvalidCalendar, "Cannot format {} with calendar '{}' in locale with calendar '{}'")                              \
     M(IntlTemporalZonedDateTime, "Cannot format Temporal.ZonedDateTime, use Temporal.ZonedDateTime.prototype.toLocaleString")       \
+    M(IntlUnsupportedLanguageTag, "{} is not a supported language tag")                                                             \
     M(InvalidAssignToConst, "Invalid assignment to const variable")                                                                 \
     M(InvalidCodePoint, "Invalid code point {}, must be an integer no less than 0 and no greater than 0x10FFFF")                    \
     M(InvalidEnumerationValue, "Invalid value '{}' for enumeration type '{}'")                                                      \

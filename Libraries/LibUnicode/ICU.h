@@ -44,7 +44,7 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     static Optional<LocaleData&> for_locale(StringView locale);
-    static Utf16String canonicalize(StringView locale);
+    static Optional<Utf16String> canonicalize(StringView locale);
 
     ALWAYS_INLINE icu::Locale& locale() { return m_locale; }
 

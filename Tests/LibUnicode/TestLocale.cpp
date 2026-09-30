@@ -553,7 +553,7 @@ TEST_CASE(locale_caches_and_canonicalization_can_run_on_several_threads)
     IGNORE_USE_IN_ESCAPING_LAMBDA Mutex mutex;
     IGNORE_USE_IN_ESCAPING_LAMBDA ConditionVariable condition { mutex };
     IGNORE_USE_IN_ESCAPING_LAMBDA size_t waiting = 0;
-    IGNORE_USE_IN_ESCAPING_LAMBDA Array<Utf16String, 8> results;
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<Optional<Utf16String>, 8> results;
     Vector<NonnullRefPtr<Threading::Thread>> threads;
     for (size_t index = 0; index < results.size(); ++index) {
         auto thread = Threading::Thread::construct("LocaleCache"sv, [&, index] {
