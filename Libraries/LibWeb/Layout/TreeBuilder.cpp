@@ -1233,9 +1233,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(layout_node_pointer);
             auto* dom_node = static_cast<Layout::Node*>(layout_node_pointer)->dom_node();
             return dom_node ? as_if<DOM::Element>(*dom_node) : nullptr; },
-        .element_pseudo_layout_node = [](void* element_pointer, RustFFI::FfiPseudoElement pseudo_element) -> Compositing::RustFFI::NodeSlotId {
-            VERIFY(element_pointer);
-            return Node::slot_id(static_cast<DOM::Element*>(element_pointer)->pseudo_element_unsafe_layout_node(css_pseudo_element(pseudo_element))); },
         .principal_node_entry_facts = [](void*, void* node_pointer, bool must_create_subtree) -> RustFFI::FfiPrincipalNodeEntryFacts {
             VERIFY(node_pointer);
             auto& node = *static_cast<DOM::Node*>(node_pointer);
@@ -1287,6 +1284,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             return {
                 .frame = &frame,
                 .old_layout_node = Node::slot_id(node.unsafe_layout_node()),
+                .style_node = Node::style_node_of(&node).value(),
             }; },
         .pop_principal_frame = [](void* builder_pointer, void* frame_pointer) {
             VERIFY(builder_pointer);

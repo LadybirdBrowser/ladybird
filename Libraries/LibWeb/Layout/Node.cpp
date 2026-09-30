@@ -82,7 +82,7 @@ static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Docu
         .is_editing_host = node && node->is_editing_host(),
         .is_body = node && node == GC::Ptr { document.body() },
         .dom_paint_facts = dom_paint_facts_of(node),
-        .style_node = style_node_of(node.ptr()).value(),
+        .style_node = Node::style_node_of(node.ptr()).value(),
     };
 }
 
@@ -239,13 +239,11 @@ Node* Node::topmost_layout_node_of_top_layer_placement()
     return direct_viewport_child_candidate;
 }
 
+// The flag is set on the box a pseudo-element is bound to and cleared when that binding moves, so
+// it answers without resolving the generator on the DOM side.
 bool Node::is_pseudo_element_principal_box() const
 {
-    auto pseudo_element = generated_for_pseudo_element();
-    if (!pseudo_element.has_value())
-        return false;
-    auto generator = pseudo_element_generator();
-    return generator && generator->pseudo_element_unsafe_layout_node(*pseudo_element) == this;
+    return has_flag(RustFFI::NodeFlag::IsPseudoElementPrincipalBox);
 }
 
 bool NodeWithStyle::establishes_an_absolute_positioning_containing_block() const
@@ -825,6 +823,7 @@ GC::Ptr<DOM::Element> Node::pseudo_element_generator()
 void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
 {
     static_assert(encode_generated_for(CSS::PseudoElement::After) == RustFFI::GENERATED_FOR_AFTER);
+    static_assert(encode_generated_for(CSS::PseudoElement::Backdrop) == RustFFI::GENERATED_FOR_BACKDROP);
     static_assert(encode_generated_for(CSS::PseudoElement::FirstLetter) == RustFFI::GENERATED_FOR_FIRST_LETTER);
     static_assert(encode_generated_for(CSS::PseudoElement::Marker) == RustFFI::GENERATED_FOR_MARKER);
     RustFFI::layout_arena_set_node_generated_for(arena_handle(), slot_id(this), encode_generated_for(type), element.style_node_id().value());
@@ -837,7 +836,7 @@ void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old
     auto* arena = dom_node.document().layout_node_arena_if_created();
     if (!arena)
         return;
-    auto new_style_node = style_node_of(&dom_node);
+    auto new_style_node = Node::style_node_of(&dom_node);
     // The node's rows, and those of its pseudo-elements, take its new identity along with their
     // bindings. Both are still keyed by the old identity here, so this precedes retiring it.
     if (old_style_node != 0 && new_style_node != 0) {
