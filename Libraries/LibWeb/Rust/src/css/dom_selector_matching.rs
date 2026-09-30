@@ -66,6 +66,17 @@ pub struct FfiDomAttribute {
     pub value: FfiUtf16View,
 }
 
+/// Which of an element's child indices a child-indexed pseudo-class counts with.
+#[repr(u8)]
+#[derive(Clone, Copy)]
+pub enum FfiChildIndex {
+    FromStart,
+    FromEnd,
+    /// Among the siblings with the element's local name and namespace.
+    OfTypeFromStart,
+    OfTypeFromEnd,
+}
+
 /// What the matcher asks of the DOM. Every node pointer is a live node for the duration of the query, and every node a
 /// callback returns is one too, or null for none.
 #[repr(C)]
@@ -90,6 +101,8 @@ pub struct FfiDomSelectorCallbacks {
     pub first_element_child: unsafe extern "C" fn(node: *const c_void) -> *const c_void,
     /// The first element child of the node's parent, whatever node that is, or the node itself when it has none.
     pub first_element_sibling: unsafe extern "C" fn(node: *const c_void) -> *const c_void,
+    /// The element's 1-based index among its inclusive element siblings, as `which` counts them.
+    pub child_index: unsafe extern "C" fn(element: *const c_void, which: FfiChildIndex) -> u32,
     /// The first element after `node` in tree order that is a descendant of `root` and, unless `local_name` is zero,
     /// has that local name. `node` is `root` itself to start. Both may be any node.
     pub next_element_in_subtree:
@@ -354,6 +367,9 @@ struct RememberedAnswers {
     relations: HashMap<(SelectorNodeID, DomNode), bool>,
     preceding_sibling_prefixes: HashMap<(SelectorNodeID, DomNode), PrecedingSiblingPrefix<DomNode>>,
     relative_queries: HashMap<(RelativeQueryID, DomNode), bool>,
+    /// How many siblings an `of S` selector matches from the start (or the end) of an element's siblings through the
+    /// element, by element, S and the end counted from.
+    sibling_counts_of: HashMap<(DomNode, SelectorNodeID, bool), u32>,
 }
 
 impl<'q> DomSubject<'q> {
@@ -486,6 +502,7 @@ impl<'q> SelectorSubject for DomSubject<'q> {
     type Incomplete = Infallible;
     type Counters = ();
     type PrefixSlot = (SelectorNodeID, DomNode);
+    const REMEMBERS_SIBLING_COUNTS_OF_SELECTORS: bool = true;
 
     #[inline]
     fn tree(&self) -> DomTree<'q> {
@@ -624,6 +641,38 @@ impl<'q> SelectorSubject for DomSubject<'q> {
     ) {
         if let Some(answers) = self.remembered_answers() {
             answers.preceding_sibling_prefixes.insert(slot, prefix);
+        }
+    }
+
+    #[inline]
+    fn sibling_index(&mut self, position: NthPosition, node: DomNode) -> Result<Option<i64>, Infallible> {
+        // A fixed position, such as `:last-child` or `:nth-child(3)`, is found by a scan of at most that many siblings
+        // from the near end. An index could cost a walk over the whole child list after it changes.
+        if position.step == 0 {
+            return Ok(None);
+        }
+        let which = match (position.of_type, position.from_end) {
+            (false, false) => FfiChildIndex::FromStart,
+            (false, true) => FfiChildIndex::FromEnd,
+            (true, false) => FfiChildIndex::OfTypeFromStart,
+            (true, true) => FfiChildIndex::OfTypeFromEnd,
+        };
+        Ok(Some(i64::from(unsafe { (self.dom.child_index)(node, which) })))
+    }
+
+    #[inline]
+    fn sibling_count_of(&self, selector: SelectorNodeID, from_end: bool, node: DomNode) -> Option<u32> {
+        self.answers
+            .as_ref()?
+            .sibling_counts_of
+            .get(&(node, selector, from_end))
+            .copied()
+    }
+
+    #[inline]
+    fn record_sibling_count_of(&mut self, selector: SelectorNodeID, from_end: bool, node: DomNode, count: u32) {
+        if let Some(answers) = self.remembered_answers() {
+            answers.sibling_counts_of.insert((node, selector, from_end), count);
         }
     }
 

@@ -1,0 +1,7 @@
+tr:nth-child(odd): 5000 PASS
+tr:nth-last-child(3n): 3333 PASS
+tr:nth-of-type(2n): 5000 PASS
+tr:nth-last-of-type(-n+5): 5 PASS
+tr:nth-child(even of .marked): 1667 PASS
+tr:nth-last-child(1 of .marked): 1 PASS
+matches() backwards: 2500

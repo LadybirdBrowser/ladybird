@@ -3909,6 +3909,8 @@ void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
     if (!child)
         return append_child_impl(move(node));
     TreeNode::insert_before(node, child);
+    if (node->is_element())
+        begin_child_index_generation();
     node->set_root_for_subtree(root());
     if (auto count = node->m_associated_animation_count_in_subtree)
         change_associated_animation_count_in_subtree(count);
@@ -3918,8 +3920,25 @@ void Node::remove_child_impl(GC::Ref<Node> node)
 {
     if (auto count = node->m_associated_animation_count_in_subtree)
         change_associated_animation_count_in_subtree(-static_cast<i32>(count));
+    if (auto* element = as_if<Element>(*node)) {
+        if (element->next_sibling())
+            begin_child_index_generation();
+        element->forget_child_indices();
+    }
     TreeNode::remove_child(node);
     node->set_root_for_subtree(node);
+}
+
+void Node::begin_child_index_generation()
+{
+    if (++m_child_index_generation != 0)
+        return;
+    // The generations have wrapped around, so no child may keep indices counted in the one that comes around again.
+    m_child_index_generation = 1;
+    for_each_child_of_type<Element>([](Element& child) {
+        child.forget_child_indices();
+        return IterationDecision::Continue;
+    });
 }
 
 void Node::change_associated_animation_count_in_subtree(i32 delta)

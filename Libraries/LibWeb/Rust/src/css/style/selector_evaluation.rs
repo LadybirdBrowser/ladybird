@@ -299,6 +299,9 @@ pub(crate) trait SelectorSubject {
     type Counters: CounterSink;
     /// Where a subject keeps one sibling sequence's preceding-sibling progress.
     type PrefixSlot: Copy;
+    /// Whether the subject remembers how many siblings an `of S` positional test counts, through
+    /// `sibling_count_of` and `record_sibling_count_of`.
+    const REMEMBERS_SIBLING_COUNTS_OF_SELECTORS: bool = false;
 
     fn tree(&self) -> Self::Tree;
 
@@ -409,6 +412,14 @@ pub(crate) trait SelectorSubject {
     fn sibling_index(&mut self, _position: NthPosition, _node: Self::Node) -> Result<Option<i64>, Self::Incomplete> {
         Ok(None)
     }
+
+    /// A remembered number of siblings matching the selector at `selector`, counted from the start of the node's
+    /// sibling sequence (or from its end) through the node.
+    fn sibling_count_of(&self, _selector: SelectorNodeID, _from_end: bool, _node: Self::Node) -> Option<u32> {
+        None
+    }
+
+    fn record_sibling_count_of(&mut self, _selector: SelectorNodeID, _from_end: bool, _node: Self::Node, _count: u32) {}
 
     /// A remembered answer of the relative query for `anchor`.
     fn relative_answer(
@@ -1247,6 +1258,18 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         {
             return Ok(matches_an_plus_b(position.step, position.offset, index));
         }
+        // What S matches depends on the bindings, so its counts can only be kept while they are the ones every
+        // count was made under.
+        if let Some(selector) = position.of_selector
+            && S::REMEMBERS_SIBLING_COUNTS_OF_SELECTORS
+            && self.subject.remembers_relations(&self.bindings)
+        {
+            if !self.matches_node(program, selector, node, counters)? {
+                return Ok(false);
+            }
+            let index = self.count_siblings_matching(program, selector, position.from_end, node, counters)?;
+            return Ok(matches_an_plus_b(position.step, position.offset, i64::from(index)));
+        }
 
         // https://drafts.csswg.org/selectors/#typedef-type-selector
         // An element's type is its qualified name, so two `p` elements in different namespaces are
@@ -1298,6 +1321,53 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
             current = tree.next_sibling(sibling);
         }
         Ok(matches_an_plus_b(position.step, position.offset, index))
+    }
+
+    /// How many siblings from the start of `node`'s sibling sequence (or from its end) through `node` match the
+    /// selector at `selector`. A count walks only to the nearest sibling whose count the subject remembers, and the
+    /// subject remembers the count of every sibling the walk passes, so counting every child of a parent walks its
+    /// children once.
+    fn count_siblings_matching(
+        &mut self,
+        program: &SelectorProgram<S::Atoms>,
+        selector: SelectorNodeID,
+        from_end: bool,
+        node: S::Node,
+        counters: &mut S::Counters,
+    ) -> Result<u32, S::Incomplete> {
+        let tree = self.subject.tree();
+        let toward_start = |sibling| match from_end {
+            true => tree.next_sibling(sibling),
+            false => tree.previous_sibling(sibling),
+        };
+        let away_from_start = |sibling| match from_end {
+            true => tree.previous_sibling(sibling),
+            false => tree.next_sibling(sibling),
+        };
+        let mut count = 0;
+        let mut sibling = node;
+        let mut next = loop {
+            if let Some(known) = self.subject.sibling_count_of(selector, from_end, sibling) {
+                if sibling == node {
+                    return Ok(known);
+                }
+                count = known;
+                break away_from_start(sibling);
+            }
+            match toward_start(sibling) {
+                Some(previous) => sibling = previous,
+                None => break Some(sibling),
+            }
+        };
+        while let Some(sibling) = next {
+            count += u32::from(self.matches_node(program, selector, sibling, counters)?);
+            self.subject.record_sibling_count_of(selector, from_end, sibling, count);
+            if sibling == node {
+                break;
+            }
+            next = away_from_start(sibling);
+        }
+        Ok(count)
     }
 
     /// Whether one sibling is counted by this positional test's sequence.

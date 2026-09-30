@@ -350,6 +350,10 @@ public:
 
     bool is_connected() const { return m_is_connected; }
     void set_is_connected(bool is_connected) { m_is_connected = is_connected; }
+
+    // The generation of this node's child list in which its element children's child indices hold. A new one begins
+    // whenever an element child moves relative to the element children after it.
+    u32 child_index_generation() const { return m_child_index_generation; }
     bool is_tracked_by_style_engine() const;
 
     // Mirrors the slottable's assigned slot; see SlottableMixin::set_assigned_slot().
@@ -643,6 +647,7 @@ protected:
     bool m_is_connected { false };
     bool m_has_assigned_slot { false };
     bool m_inside_blocking_wheel_event_handler { false };
+    u32 m_child_index_generation { 1 };
 
     void build_accessibility_tree(AccessibilityTreeNode& parent);
 
@@ -678,6 +683,7 @@ private:
     void insert_nodes_before(ReadonlySpan<GC::Ref<Node>>, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements);
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
+    void begin_child_index_generation();
     void set_root_for_subtree(Node&);
     void clear_committed_layout_box();
 

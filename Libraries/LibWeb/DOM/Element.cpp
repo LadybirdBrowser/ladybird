@@ -2844,6 +2844,68 @@ GC::Ptr<ShadowRoot> Element::open_shadow_root() const
     return shadow;
 }
 
+static bool has_same_type(Element const& element, Element const& other)
+{
+    return element.local_name() == other.local_name() && element.namespace_uri() == other.namespace_uri();
+}
+
+u32 Element::child_index(ChildIndexAmong among) const
+{
+    auto const* parent = this->parent();
+    if (!parent)
+        return 1;
+    auto generation = parent->child_index_generation();
+    auto of_type = among == ChildIndexAmong::SiblingsOfType;
+    auto is_counted = [&](Element const& sibling) { return !of_type || has_same_type(sibling, *this); };
+    auto remembered_index = [&](Element const& sibling) -> u32& {
+        if (sibling.m_parent_child_index_generation != generation) {
+            sibling.m_parent_child_index_generation = generation;
+            sibling.m_child_index = 0;
+            sibling.m_child_index_of_type = 0;
+        }
+        return of_type ? sibling.m_child_index_of_type : sibling.m_child_index;
+    };
+
+    // Walk back to the nearest counted sibling that remembers its index...
+    u32 index = 0;
+    Element const* sibling = nullptr;
+    for (auto const* candidate = this; candidate; candidate = candidate->previous_element_sibling()) {
+        if (!is_counted(*candidate))
+            continue;
+        if (auto known = remembered_index(*candidate)) {
+            if (candidate == this)
+                return known;
+            index = known;
+            sibling = candidate->next_element_sibling();
+            break;
+        }
+    }
+
+    // ...and number the counted siblings from there through this element.
+    for (sibling = sibling ? sibling : parent->first_child_of_type<Element>();; sibling = sibling->next_element_sibling()) {
+        if (!is_counted(*sibling))
+            continue;
+        remembered_index(*sibling) = ++index;
+        if (sibling == this)
+            return index;
+    }
+}
+
+u32 Element::child_index_from_end(ChildIndexAmong among) const
+{
+    auto const* parent = this->parent();
+    if (!parent)
+        return 1;
+    auto const* last = parent->last_child_of_type<Element>();
+    // NB: The walk back to the last sibling of this type is not remembered, so it costs the number of siblings of
+    //     other types that follow it on every call.
+    if (among == ChildIndexAmong::SiblingsOfType) {
+        while (!has_same_type(*last, *this))
+            last = last->previous_element_sibling();
+    }
+    return last->child_index(among) - child_index(among) + 1;
+}
+
 // https://dom.spec.whatwg.org/#dom-element-matches
 WebIDL::ExceptionOr<bool> Element::matches(Utf16View selectors) const
 {
