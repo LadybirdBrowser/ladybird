@@ -693,6 +693,23 @@ void store_header_and_trailer_fields(HeaderList& stored_headers, HeaderList cons
     }
 }
 
+// https://httpwg.org/specs/rfc9111.html#freshening.responses
+bool can_freshen_stored_response(HeaderList const& stored_headers, HeaderList const& not_modified_headers)
+{
+    // When a cache receives a 304 (Not Modified) response, it needs to identify stored responses that are suitable for
+    // updating with the new information provided, and then do so.
+    //
+    // The initial set of stored responses to update are those that could have been chosen for that request -- i.e.,
+    // those that meet the requirements in Section 4, except the last requirement to be fresh, able to be served stale,
+    // or just validated.
+    //
+    // NB: A changed Vary would prevent the validating request from selecting this entry.
+    if (not_modified_headers.contains("Vary"sv) && vary_field_names(not_modified_headers) != vary_field_names(stored_headers))
+        return false;
+
+    return true;
+}
+
 // https://httpwg.org/specs/rfc9111.html#update
 void update_header_fields(HeaderList& stored_headers, HeaderList const& updated_headers)
 {
@@ -707,6 +724,11 @@ void update_header_fields(HeaderList& stored_headers, HeaderList const& updated_
             return true;
 
         // * Header fields that the cache's stored response depends upon, as described below,
+        //
+        // NB: The stored response is indexed by the request fields its Vary header nominates.
+        if (name.equals_ignoring_ascii_case("Vary"sv))
+            return true;
+
         // * Header fields that are automatically processed and removed by the recipient, as described below, and
 
         // * The Content-Length header field.

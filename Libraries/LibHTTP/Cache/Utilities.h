@@ -80,6 +80,7 @@ struct RevalidationAttributes {
 };
 
 void store_header_and_trailer_fields(HeaderList&, HeaderList const&);
+bool can_freshen_stored_response(HeaderList const& stored_headers, HeaderList const& not_modified_headers);
 void update_header_fields(HeaderList&, HeaderList const&);
 
 bool contains_cache_control_directive(StringView cache_control, StringView directive);

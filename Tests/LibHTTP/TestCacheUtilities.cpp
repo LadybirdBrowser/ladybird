@@ -158,6 +158,20 @@ TEST_CASE(vary_nominating_too_many_fields_is_not_cacheable)
     EXPECT_EQ(HTTP::create_vary_key(*request_headers, *repeated_response_headers), HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "X-Fill" } })));
 }
 
+TEST_CASE(not_modified_response_must_not_change_vary)
+{
+    auto stored_headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=0" }, { "ETag", "\"v1\"" }, { "Vary", "Authorization, Accept" } });
+
+    EXPECT(HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "ETag", "\"v1\"" } })));
+    EXPECT(HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "ETag", "\"v1\"" }, { "Vary", "accept, authorization" } })));
+    EXPECT(!HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "ETag", "\"v1\"" }, { "Vary", "X-New" } })));
+    EXPECT(!HTTP::can_freshen_stored_response(*stored_headers, HTTP::HeaderList::create({ { "ETag", "\"v1\"" }, { "Vary", "*" } })));
+
+    HTTP::update_header_fields(*stored_headers, HTTP::HeaderList::create({ { "Cache-Control", "max-age=60" }, { "Vary", "accept, authorization" } }));
+    EXPECT_EQ(stored_headers->get("Vary"sv), Optional<ByteString> { "Authorization, Accept"sv });
+    EXPECT_EQ(stored_headers->get("Cache-Control"sv), Optional<ByteString> { "max-age=60"sv });
+}
+
 TEST_CASE(vary_cookie_is_not_cacheable)
 {
     auto request_headers = HTTP::HeaderList::create({ { "Cookie", "account=A" } });
