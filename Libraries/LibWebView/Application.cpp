@@ -648,6 +648,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .cache_path = profile().paths().cache,
         .http_disk_cache_mode = http_disk_cache_mode,
         .resource_substitution_map_path = resource_substitution_map_path.has_value() ? Optional<ByteString> { *resource_substitution_map_path } : OptionalNone {},
+        .proxy_configuration = HTTP::ProxyConfiguration::from_environment(),
     };
 
     m_web_content_options = {

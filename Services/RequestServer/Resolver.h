@@ -12,6 +12,7 @@
 #include <AK/Weakable.h>
 #include <LibCore/Forward.h>
 #include <LibDNS/Resolver.h>
+#include <LibHTTP/Proxy.h>
 
 namespace RequestServer {
 
@@ -51,5 +52,8 @@ private:
 
 ByteString const& default_certificate_path();
 void set_default_certificate_path(ByteString);
+
+HTTP::ProxyConfiguration const& proxy_configuration();
+void set_proxy_configuration(HTTP::ProxyConfiguration);
 
 }

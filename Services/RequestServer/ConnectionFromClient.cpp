@@ -610,6 +610,13 @@ void ConnectionFromClient::fetch_aia_intermediate(Badge<Request>, ByteString con
     auto fetch_url = parsed->serialize().to_byte_string();
     auto weak_self = make_weak_ptr<ConnectionFromClient>();
 
+    // Avoid leaking hostnames resolved by the proxy.
+    auto proxy = proxy_configuration().proxy_for(*parsed).copy();
+    if (proxy.has_value() && proxy->resolves_hostnames()) {
+        start_aia_fetch(url, fetch_url, move(proxy), {});
+        return;
+    }
+
     // Resolve through RequestServer's own resolver rather than letting curl do it, so the AIA fetch honors the
     // same DNS configuration (DoH included) as every other request this process makes.
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = DNSInfo::the().validate_dnssec_locally })
@@ -619,7 +626,7 @@ void ConnectionFromClient::fetch_aia_intermediate(Badge<Request>, ByteString con
                 self->abandon_aia_lookup(url);
             }
         })
-        .when_resolved([weak_self, url, fetch_url, host, port](auto const& dns_result) {
+        .when_resolved([weak_self, url, fetch_url, host, port, proxy = move(proxy)](auto const& dns_result) mutable {
             auto self = weak_self.strong_ref();
             if (!self)
                 return;
@@ -628,7 +635,7 @@ void ConnectionFromClient::fetch_aia_intermediate(Badge<Request>, ByteString con
                 self->abandon_aia_lookup(url);
                 return;
             }
-            self->start_aia_fetch(url, fetch_url, build_curl_resolve_list(*dns_result, host, port));
+            self->start_aia_fetch(url, fetch_url, move(proxy), build_curl_resolve_list(*dns_result, host, port));
         });
 }
 
@@ -644,7 +651,7 @@ void ConnectionFromClient::abandon_aia_lookup(ByteString const& url)
     }
 }
 
-void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString const& fetch_url, ByteString resolve_entry)
+void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString const& fetch_url, Optional<HTTP::Proxy> proxy, Optional<ByteString> resolve_entry)
 {
     auto waiting = m_pending_aia_lookups.take(url);
     if (!waiting.has_value() || waiting->is_empty())
@@ -677,10 +684,13 @@ void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString con
     set_option(CURLOPT_NOSIGNAL, 1L);
     set_option(CURLOPT_WRITEFUNCTION, aia_write_body);
     set_option(CURLOPT_WRITEDATA, fetch.ptr());
+    set_option(CURLOPT_PROXY, proxy.has_value() ? proxy->to_curl_url().characters() : "");
 
-    if (curl_slist* resolve_list = curl_slist_append(nullptr, resolve_entry.characters())) {
-        set_option(CURLOPT_RESOLVE, resolve_list);
-        fetch->resolve_list = resolve_list;
+    if (resolve_entry.has_value()) {
+        if (curl_slist* resolve_list = curl_slist_append(nullptr, resolve_entry->characters())) {
+            set_option(CURLOPT_RESOLVE, resolve_list);
+            fetch->resolve_list = resolve_list;
+        }
     }
 
     auto result = curl_multi_add_handle(m_curl_multi, easy_handle);
@@ -954,6 +964,14 @@ void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, Byt
         return;
     }
 
+    // Avoid leaking hostnames resolved by the proxy.
+    auto proxy = proxy_configuration().proxy_for(url).copy();
+    if (proxy.has_value() && proxy->resolves_hostnames()) {
+        if (m_pending_websockets.remove(websocket_id))
+            open_websocket(websocket_id, move(url), move(origin), move(protocols), move(extensions), move(additional_request_headers), move(proxy), nullptr);
+        return;
+    }
+
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = DNSInfo::the().validate_dnssec_locally })
         ->when_rejected([weak_self, websocket_id](auto const& error) {
             auto self = weak_self.strong_ref();
@@ -964,7 +982,7 @@ void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, Byt
                 return;
             self->fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
         })
-        .when_resolved([weak_self, websocket_id, host = move(host), url = move(url), origin = move(origin), protocols = move(protocols), extensions = move(extensions), additional_request_headers = move(additional_request_headers)](auto const& dns_result) mutable {
+        .when_resolved([weak_self, websocket_id, host = move(host), url = move(url), origin = move(origin), protocols = move(protocols), extensions = move(extensions), additional_request_headers = move(additional_request_headers), proxy = move(proxy)](auto const& dns_result) mutable {
             auto self = weak_self.strong_ref();
             if (!self)
                 return;
@@ -980,73 +998,78 @@ void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, Byt
             if (!self->m_pending_websockets.remove(websocket_id))
                 return;
 
-            WebSocket::ConnectionInfo connection_info(move(url));
-            connection_info.set_origin(move(origin));
-            connection_info.set_protocols(move(protocols));
-            connection_info.set_extensions(move(extensions));
-            connection_info.set_headers(HTTP::HeaderList::create(move(additional_request_headers)));
-            connection_info.set_dns_result(move(dns_result));
-
-            if (auto const& path = default_certificate_path(); !path.is_empty())
-                connection_info.set_root_certificates_path(path);
-
-            auto impl = WebSocketImplCurl::create(self->m_curl_multi);
-            auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));
-
-            connection->on_open = [self = weak_self, websocket_id]() {
-                if (auto strong_self = self.strong_ref())
-                    strong_self->async_websocket_connected(websocket_id);
-            };
-            connection->on_message = [self = weak_self, websocket_id](WebSocket::Message message) {
-                auto strong_self = self.strong_ref();
-                if (!strong_self)
-                    return;
-
-                auto const& data = message.data();
-
-                // NB: A single IPC message can't carry more than IPC::MAX_MESSAGE_PAYLOAD_SIZE, so a big message
-                // crosses in shared memory instead. Gecko/WebKit/Blink don't send one across inline either: Gecko sends
-                // it in chunks (SendOnMessageAvailableHelper()), WebKit's IPC moves the message body out of line
-                // (messageBodyIsOOL), and Blink reads it from a Mojo data pipe (ConsumePendingDataFrames()).
-                if (data.size() >= Requests::WEBSOCKET_SHARED_MEMORY_THRESHOLD) {
-                    auto buffer_or_error = Core::AnonymousBuffer::create_with_size(data.size());
-                    if (buffer_or_error.is_error()) {
-                        // NB: There's no falling back to an inline message here, since a message this big may not fit
-                        // in one. And a WebSocket can't skip a message — so, the connection closes instead.
-                        dbgln("WebSocket on_message: failed to allocate shared buffer for {} bytes: {}", data.size(), buffer_or_error.error());
-                        strong_self->async_websocket_errored(websocket_id, to_underlying(Requests::WebSocket::Error::ServerClosedSocket));
-                        if (auto* connection = strong_self->m_websockets.get(websocket_id).value_or({}))
-                            connection->close(to_underlying(WebSocket::CloseStatusCode::MessageTooBig), "Message too big");
-                        return;
-                    }
-                    auto buffer = buffer_or_error.release_value();
-                    __builtin_memcpy(buffer.data<void>(), data.data(), data.size());
-                    strong_self->async_websocket_received_shared(websocket_id, message.is_text(), move(buffer));
-                    return;
-                }
-                strong_self->async_websocket_received(websocket_id, message.is_text(), data);
-            };
-            connection->on_error = [self = weak_self, websocket_id](auto message) {
-                if (auto strong_self = self.strong_ref())
-                    strong_self->async_websocket_errored(websocket_id, (i32)message);
-            };
-            connection->on_close = [self = weak_self, websocket_id](u16 code, ByteString reason, bool was_clean) {
-                if (auto strong_self = self.strong_ref()) {
-                    strong_self->async_websocket_closed(websocket_id, code, move(reason), was_clean);
-                    Core::deferred_invoke([self, websocket_id] {
-                        if (auto strong_self = self.strong_ref())
-                            strong_self->m_websockets.remove(websocket_id);
-                    });
-                }
-            };
-            connection->on_ready_state_change = [self = weak_self, websocket_id](auto state) {
-                if (auto strong_self = self.strong_ref())
-                    strong_self->async_websocket_ready_state_changed(websocket_id, (u32)state);
-            };
-
-            connection->start();
-            self->m_websockets.set(websocket_id, move(connection));
+            self->open_websocket(websocket_id, move(url), move(origin), move(protocols), move(extensions), move(additional_request_headers), move(proxy), dns_result);
         });
+}
+
+void ConnectionFromClient::open_websocket(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers, Optional<HTTP::Proxy> proxy, RefPtr<DNS::LookupResult const> dns_result)
+{
+    auto weak_self = make_weak_ptr<ConnectionFromClient>();
+
+    WebSocket::ConnectionInfo connection_info(move(url));
+    connection_info.set_origin(move(origin));
+    connection_info.set_protocols(move(protocols));
+    connection_info.set_extensions(move(extensions));
+    connection_info.set_headers(HTTP::HeaderList::create(move(additional_request_headers)));
+    if (dns_result)
+        connection_info.set_dns_result(dns_result.release_nonnull());
+
+    if (auto const& path = default_certificate_path(); !path.is_empty())
+        connection_info.set_root_certificates_path(path);
+
+    auto impl = WebSocketImplCurl::create(m_curl_multi);
+    impl->set_proxy(move(proxy));
+    auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));
+
+    connection->on_open = [self = weak_self, websocket_id]() {
+        if (auto strong_self = self.strong_ref())
+            strong_self->async_websocket_connected(websocket_id);
+    };
+    connection->on_message = [self = weak_self, websocket_id](WebSocket::Message message) {
+        auto strong_self = self.strong_ref();
+        if (!strong_self)
+            return;
+
+        auto const& data = message.data();
+
+        // NB: Large messages can exceed IPC::MAX_MESSAGE_PAYLOAD_SIZE and need shared memory.
+        if (data.size() >= Requests::WEBSOCKET_SHARED_MEMORY_THRESHOLD) {
+            auto buffer_or_error = Core::AnonymousBuffer::create_with_size(data.size());
+            if (buffer_or_error.is_error()) {
+                // NB: Inline fallback may exceed the IPC limit, and WebSocket messages cannot be skipped.
+                dbgln("WebSocket on_message: failed to allocate shared buffer for {} bytes: {}", data.size(), buffer_or_error.error());
+                strong_self->async_websocket_errored(websocket_id, to_underlying(Requests::WebSocket::Error::ServerClosedSocket));
+                if (auto* connection = strong_self->m_websockets.get(websocket_id).value_or({}))
+                    connection->close(to_underlying(WebSocket::CloseStatusCode::MessageTooBig), "Message too big");
+                return;
+            }
+            auto buffer = buffer_or_error.release_value();
+            __builtin_memcpy(buffer.data<void>(), data.data(), data.size());
+            strong_self->async_websocket_received_shared(websocket_id, message.is_text(), move(buffer));
+            return;
+        }
+        strong_self->async_websocket_received(websocket_id, message.is_text(), data);
+    };
+    connection->on_error = [self = weak_self, websocket_id](auto message) {
+        if (auto strong_self = self.strong_ref())
+            strong_self->async_websocket_errored(websocket_id, (i32)message);
+    };
+    connection->on_close = [self = weak_self, websocket_id](u16 code, ByteString reason, bool was_clean) {
+        if (auto strong_self = self.strong_ref()) {
+            strong_self->async_websocket_closed(websocket_id, code, move(reason), was_clean);
+            Core::deferred_invoke([self, websocket_id] {
+                if (auto strong_self = self.strong_ref())
+                    strong_self->m_websockets.remove(websocket_id);
+            });
+        }
+    };
+    connection->on_ready_state_change = [self = weak_self, websocket_id](auto state) {
+        if (auto strong_self = self.strong_ref())
+            strong_self->async_websocket_ready_state_changed(websocket_id, (u32)state);
+    };
+
+    connection->start();
+    m_websockets.set(websocket_id, move(connection));
 }
 
 void ConnectionFromClient::websocket_send(u64 websocket_id, bool is_text, ByteBuffer data)

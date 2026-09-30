@@ -1216,6 +1216,14 @@ void Request::handle_dns_lookup_state()
         return;
     }
 
+    // Avoid leaking hostnames resolved by the proxy.
+    m_proxy = proxy_configuration().proxy_for(m_url).copy();
+    if (m_proxy.has_value() && m_proxy->resolves_hostnames()) {
+        m_dns_result = nullptr;
+        continue_after_dns_lookup();
+        return;
+    }
+
     auto host = m_url.serialized_host().to_byte_string();
     auto const& dns_info = DNSInfo::the();
 
@@ -1234,16 +1242,21 @@ void Request::handle_dns_lookup_state()
                 dbgln("Request::handle_dns_lookup_state: DNS lookup failed for '{}'", host);
                 self.m_network_error = Requests::NetworkError::UnableToResolveHost;
                 self.transition_to_state(State::Error);
-            } else if (first_is_one_of(self.m_type, RequestType::Fetch, RequestType::BackgroundRevalidation)) {
-                self.m_dns_result = move(dns_result);
-                self.transition_to_state(State::RetrieveCookie);
-            } else if (self.m_type == RequestType::Connect && self.m_connect_cache_level == CacheLevel::CreateConnection) {
-                self.m_dns_result = move(dns_result);
-                self.transition_to_state(State::Connect);
-            } else {
-                self.transition_to_state(State::Complete);
+                return;
             }
+            self.m_dns_result = move(dns_result);
+            self.continue_after_dns_lookup();
         }));
+}
+
+void Request::continue_after_dns_lookup()
+{
+    if (first_is_one_of(m_type, RequestType::Fetch, RequestType::BackgroundRevalidation))
+        transition_to_state(State::RetrieveCookie);
+    else if (m_type == RequestType::Connect && m_connect_cache_level == CacheLevel::CreateConnection)
+        transition_to_state(State::Connect);
+    else
+        transition_to_state(State::Complete);
 }
 
 void Request::handle_retrieve_cookie_state()
@@ -1290,15 +1303,17 @@ void Request::handle_connect_state()
     set_option(CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
     set_option(CURLOPT_CONNECT_ONLY, 1L);
+    set_option(CURLOPT_PROXY, m_proxy.has_value() ? m_proxy->to_curl_url().characters() : "");
 
     // Pre-populate the multi's hostcache so libcurl skips its threaded resolver entirely.
-    VERIFY(m_dns_result);
-    auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
-    if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
-        set_option(CURLOPT_RESOLVE, resolve_list);
-        m_curl_string_lists.append(resolve_list);
-    } else {
-        VERIFY_NOT_REACHED();
+    if (m_dns_result) {
+        auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
+        if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
+            set_option(CURLOPT_RESOLVE, resolve_list);
+            m_curl_string_lists.append(resolve_list);
+        } else {
+            VERIFY_NOT_REACHED();
+        }
     }
 
     mark_lifecycle_event(this, &WireStats::curl_added_at);
@@ -1438,18 +1453,21 @@ void Request::handle_fetch_state()
         set_option(CURLOPT_XFERINFODATA, this);
     }
 
-    VERIFY(m_dns_result);
-    auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
+    set_option(CURLOPT_PROXY, m_proxy.has_value() ? m_proxy->to_curl_url().characters() : "");
 
-    if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
-        set_option(CURLOPT_RESOLVE, resolve_list);
-        m_curl_string_lists.append(resolve_list);
-    } else {
-        VERIFY_NOT_REACHED();
+    if (m_dns_result) {
+        auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
+
+        if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
+            set_option(CURLOPT_RESOLVE, resolve_list);
+            m_curl_string_lists.append(resolve_list);
+        } else {
+            VERIFY_NOT_REACHED();
+        }
     }
 
     // CURLOPT_CONNECT_TO pins this handle without poisoning the shared CURLOPT_RESOLVE host cache.
-    if (m_address_selection_hint.has_value() && DNSInfo::the().uses_configured_dns_server()) {
+    if (m_dns_result && !m_proxy.has_value() && m_address_selection_hint.has_value() && DNSInfo::the().uses_configured_dns_server()) {
         auto connect_to = build_curl_connect_to_entry(*m_dns_result, m_url.serialized_host(), m_url.port_or_default(), *m_address_selection_hint);
 
         if (connect_to.has_value()) {

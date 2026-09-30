@@ -47,6 +47,8 @@ private:
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;
     virtual void set_use_system_dns() override;
 
+    virtual void set_proxy_configuration(HTTP::ProxyConfiguration) override;
+
     virtual void set_performance_monitor_enabled(bool) override;
 
     virtual void estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) override;
