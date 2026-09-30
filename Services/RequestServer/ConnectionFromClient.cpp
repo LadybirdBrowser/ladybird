@@ -37,6 +37,9 @@ namespace RequestServer {
 static IDAllocator s_client_ids;
 static size_t s_private_connection_count { 0 };
 
+static constexpr size_t max_websockets_per_client = 256;
+static constexpr size_t max_websockets = 1024;
+
 static constexpr i64 TICK_GAP_THRESHOLD_MS = 100;
 static Optional<MonotonicTime> s_last_tick_at;
 static StringView s_last_tick_label;
@@ -828,6 +831,19 @@ Messages::RequestServer::CreateSyntheticCacheEntryResponse ConnectionFromClient:
     return result.value();
 }
 
+size_t ConnectionFromClient::websocket_count() const
+{
+    return m_pending_websockets.size() + m_websockets.size();
+}
+
+size_t ConnectionFromClient::total_websocket_count() const
+{
+    size_t count = 0;
+    for (auto const& connection : m_connections)
+        count += connection.value->websocket_count();
+    return count;
+}
+
 void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
 {
     if (m_pending_websockets.contains(websocket_id) || m_websockets.contains(websocket_id)) {
@@ -849,6 +865,13 @@ void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Opt
     // 1. Let requestURL be a copy of url, with its scheme set to "http", if url’s scheme is "ws"; otherwise to "https".
     // The fetch of requestURL then blocks bad ports like any other.
     if (!url.scheme().is_one_of("ws"sv, "wss"sv) || !url.host().has_value() || (url.port().has_value() && HTTP::is_bad_port(*url.port()))) {
+        fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
+        return;
+    }
+
+    // Bound shared descriptor usage, including pending WebSockets.
+    if (websocket_count() >= max_websockets_per_client || total_websocket_count() >= max_websockets) {
+        dbgln("WebSocketConnect: Refusing WebSocket beyond the limit of {} per client and {} overall", max_websockets_per_client, max_websockets);
         fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
         return;
     }

@@ -532,6 +532,22 @@ TEST_CASE(live_websocket_id_cannot_be_reused)
     EXPECT(!connection.is_open());
 }
 
+TEST_CASE(websockets_per_client_are_limited)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+    auto url = URL::Parser::basic_parse("ws://localhost:8080/"sv).release_value();
+
+    // Pending WebSockets count towards the limit too.
+    for (u64 websocket_id = 0; websocket_id < 256; ++websocket_id)
+        connection.websocket_connect(websocket_id, url);
+
+    connection.websocket_connect(256, url);
+    EXPECT_EQ(connection.take_client_message<Messages::RequestClient::WebsocketClosed>()->websocket_id(), 256u);
+    EXPECT(connection.is_open());
+}
+
 TEST_CASE(duplicate_cookie_response_is_rejected)
 {
     TestServer server;
