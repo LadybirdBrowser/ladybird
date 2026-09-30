@@ -6,7 +6,6 @@
  */
 
 #include <AK/ByteString.h>
-#include <AK/HashTable.h>
 #include <AK/String.h>
 #include <AK/TypeCasts.h>
 #include <LibCore/Resource.h>
@@ -51,7 +50,7 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
 
     update_generic_fonts();
 
-    auto default_fixed_width_font_name = generic_font_name(GenericFont::UiMonospace, 400, 0);
+    auto default_fixed_width_font_name = generic_font_name(GenericFont::UiMonospace);
     m_default_fixed_width_font = Gfx::FontDatabase::the().get(default_fixed_width_font_name, 12.0, 400, Gfx::FontWidth::Normal, 0);
     VERIFY(m_default_fixed_width_font);
 
@@ -63,7 +62,7 @@ FontPlugin::~FontPlugin() = default;
 
 RefPtr<Gfx::Font> FontPlugin::default_font(float point_size, Optional<Gfx::FontVariationSettings> const& font_variation_settings, Optional<Gfx::ShapeFeatures> const& shape_features)
 {
-    auto font_name = generic_font_name(GenericFont::UiSansSerif, 400, 0);
+    auto font_name = generic_font_name(GenericFont::UiSansSerif);
     return Gfx::FontDatabase::the().get(font_name, point_size, 400, Gfx::FontWidth::Normal, 0, font_variation_settings, shape_features);
 }
 
@@ -88,7 +87,7 @@ void FontPlugin::set_system_font_family(FlyString system_font_family)
 void FontPlugin::update_generic_fonts()
 {
     // Store fallback font lists for each generic font category.
-    // The actual font selection happens in generic_font_name() based on the requested style.
+    // The actual font selection happens in generic_font_name() based on availability.
 
     m_generic_font_fallbacks.resize(to_underlying(GenericFont::__Count));
 
@@ -116,23 +115,23 @@ void FontPlugin::update_generic_fonts()
     fallback_set(GenericFont::UiSerif) = fallback_set(GenericFont::Serif);
 }
 
-FlyString FontPlugin::generic_font_name(GenericFont generic_font, int weight, int slope)
+FlyString FontPlugin::generic_font_name(GenericFont generic_font)
 {
     if (m_is_layout_test_mode)
         return "SerenitySans"_fly_string;
 
-    GenericFontKey key { generic_font, weight, slope };
-    return m_generic_font_cache.ensure(key, [&] {
-        return compute_generic_font_name(generic_font, weight, slope);
+    return m_generic_font_cache.ensure(generic_font, [&] {
+        return compute_generic_font_name(generic_font);
     });
 }
 
-FlyString FontPlugin::compute_generic_font_name(GenericFont generic_font, int weight, int slope)
+FlyString FontPlugin::compute_generic_font_name(GenericFont generic_font)
 {
     // https://drafts.csswg.org/css-fonts-4/#generic-font-families
     // User agents should provide reasonable default choices for the generic font families, that express the
     // characteristics of each family as well as possible, within the limits allowed by the underlying technology.
-    // NB: We prefer fonts that support the requested weight and slope, falling back to fonts with more style variety.
+    // NB: Choose a family in fallback order, independently of weight and slope. Font matching selects a face
+    //     within that family, so different styles do not switch to unrelated families.
 
     auto const& fallbacks = m_generic_font_fallbacks[to_underlying(generic_font)];
 
@@ -170,50 +169,22 @@ FlyString FontPlugin::compute_generic_font_name(GenericFont generic_font, int we
             return m_system_font_family.value();
     }
 
-    auto name = Gfx::FontDatabase::the().resolve_generic_family(generic_family_name, weight, slope);
+    auto name = Gfx::FontDatabase::the().resolve_generic_family(generic_family_name, 400, 0);
     if (name.has_value()) {
-        if (Gfx::FontDatabase::the().get(name.value(), 16, weight, Gfx::FontWidth::Normal, slope))
+        if (Gfx::FontDatabase::the().get(name.value(), 16, 400, Gfx::FontWidth::Normal, 0))
             return FlyString { name.release_value() };
     }
 
-    // Score each fallback family based on how well it can satisfy the requested style.
-    // Higher score = better match.
-    FlyString best_family;
-    int best_score = -1;
-
     for (auto const& family : fallbacks) {
-        int score = 0;
-        bool has_requested_weight = false;
-        bool has_requested_slope = false;
-        HashTable<u16> available_weights;
-
-        Gfx::FontDatabase::the().for_each_typeface_with_family_name(family, [&](Gfx::Typeface const& typeface) {
-            available_weights.set(typeface.weight());
-            if (typeface.weight() == static_cast<u16>(weight))
-                has_requested_weight = true;
-            if (typeface.slope() == static_cast<u8>(slope))
-                has_requested_slope = true;
+        bool is_available = false;
+        Gfx::FontDatabase::the().for_each_typeface_with_family_name(family, [&](Gfx::Typeface const&) {
+            is_available = true;
         });
-
-        // Strongly prefer families that have the exact requested weight.
-        if (has_requested_weight)
-            score += 1000;
-
-        // Prefer families that have the exact requested slope.
-        if (has_requested_slope)
-            score += 100;
-
-        // As a tiebreaker, prefer families with more weight variety.
-        // This helps select fonts that can handle both regular and bold text.
-        score += available_weights.size();
-
-        if (score > best_score) {
-            best_score = score;
-            best_family = family;
-        }
+        if (is_available)
+            return family;
     }
 
-    return best_family;
+    return fallbacks.first();
 }
 
 }
