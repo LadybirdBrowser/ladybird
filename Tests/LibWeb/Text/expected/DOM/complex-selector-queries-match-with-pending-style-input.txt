@@ -1,0 +1,34 @@
+li .toggle: [7 14] [] same
+ul > li: [6 10 13 17 19] [] same
+li:nth-child(2n+1) > span: [7 14 15] [] same
+li:nth-last-child(2) em: [18] [] same
+li:first-child *: [7 8 9] [] same
+li:last-child p: [21 22] [] same
+li:only-child: [] [] same
+div > p:only-child: [] [] same
+span:first-of-type: [7 11 14 25] [37 39 40] same
+span:last-of-type: [7 11 15 25] [37 39 40] same
+em:only-of-type: [16 18] [] same
+em:nth-of-type(2): [9] [] same
+em:nth-last-of-type(1): [9 16 18] [] same
+li + li: [10 13 17 19] [] same
+li ~ li.b: [10 13 19] [] same
+div .a .b: [] [] same
+#root li.a > span: [7 14 15] [] same
+.x > .y + .z: [24] [] same
+.y ~ .z > .toggle: [25] [] same
+[data-k] b: [12] [] same
+[data-k=v] ~ *: [13 17 19] [] same
+section b[data-k]: [28] [] same
+LI .TOGGLE: [] [] same
+svg circle: [31 32] [] same
+g > CIRCLE: [] [] same
+html:first-child body: [3] [] same
+li:first-child, em + em: [6 9] [] same
+ul li:nth-child(odd) em:last-child: [9 16] [] same
+li:nth-child(-n+2) span: [7 11] [] same
+#host span: [] [] same
+div > span:first-child: [25] [37] same
+.a span: [7 14 15] [37 39] same
+p > span:only-child: [] [39] same
+queries that settled pending input: 0

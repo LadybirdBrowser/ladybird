@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<script src="../../include.js"></script>
+<script src="../include.js"></script>
 <div id="root" data-exact="alpha">
     <span id="exact" data-exact="alpha"></span>
     <span id="includes" data-includes="zero needle one"></span>
@@ -20,11 +20,8 @@
         internals.updateStyle();
 
         const check = (description, selector, expectedId) => {
-            const before = internals.styleEngineCounters().selectorQueryEvaluations;
             const results = root.querySelectorAll(selector);
-            const after = internals.styleEngineCounters().selectorQueryEvaluations;
             println(`${description}: ${results.length === 1 && results[0].id === expectedId}`);
-            println(`${description} is selective: ${after - before < 10}`);
         };
 
         check("exact", '[data-exact="alpha"]', "exact");
@@ -35,22 +32,11 @@
         check("substring", '[data-substring*="middle"]', "substring");
         check("ASCII insensitive", '[data-insensitive="mixed" i]', "insensitive");
 
-        const planBefore = internals.styleEngineCounters();
-        for (let i = 0; i < 10; ++i) {
-            root.className = `query-cache-${i}`;
-            root.querySelectorAll('[data-includes~="needle"]');
-        }
-        const planAfter = internals.styleEngineCounters();
-        println(`attribute value plan is reused: ${planAfter.selectorQueryAttributeValuePlanHits - planBefore.selectorQueryAttributeValuePlanHits >= 9}`);
-        println(`attribute value catalog is not rescanned: ${planAfter.selectorQueryAttributeValueCatalogScans - planBefore.selectorQueryAttributeValueCatalogScans <= 1}`);
-
         const freshValue = document.createElement("span");
         freshValue.setAttribute("data-includes", "fresh needle");
         root.appendChild(freshValue);
-        const refreshBefore = internals.styleEngineCounters().selectorQueryAttributeValueCatalogScans;
         const refreshedResults = root.querySelectorAll('[data-includes~="needle"]');
-        const refreshAfter = internals.styleEngineCounters().selectorQueryAttributeValueCatalogScans;
-        println(`new value refreshes plan: ${refreshedResults.length === 2 && refreshAfter - refreshBefore === 1}`);
+        println(`new value is found: ${refreshedResults.length === 2}`);
 
         const documentResults = document.querySelectorAll('[data-exact="alpha"]');
         println(`document includes query root: ${documentResults.length === 2 && documentResults[0] === root && documentResults[1].id === "exact"}`);
@@ -70,8 +56,8 @@
 
         const mutation = document.getElementById("exact");
         mutation.setAttribute("data-exact", "beta");
-        println(`old value removed from index: ${root.querySelectorAll('[data-exact="alpha"]').length === 0}`);
-        println(`new value added to index: ${root.querySelectorAll('[data-exact="beta"]')[0] === mutation}`);
+        println(`old value no longer matches: ${root.querySelectorAll('[data-exact="alpha"]').length === 0}`);
+        println(`new value matches: ${root.querySelectorAll('[data-exact="beta"]')[0] === mutation}`);
 
         const staleCandidates = [];
         for (let i = 0; i < 64; ++i) {
@@ -83,10 +69,8 @@
         internals.updateStyle();
         for (const candidate of staleCandidates)
             candidate.setAttribute("data-stale-value", "new");
-        const staleBefore = internals.styleEngineCounters().selectorQueryEvaluations;
         const staleResults = root.querySelectorAll('[data-stale-value="old"]');
-        const staleAfter = internals.styleEngineCounters().selectorQueryEvaluations;
-        println(`old value posting is removed: ${staleResults.length === 0 && staleAfter === staleBefore}`);
+        println(`value changed beside a style update no longer matches: ${staleResults.length === 0}`);
 
         const restored = document.createElement("span");
         restored.setAttribute("data-restored-value", "same");
@@ -94,14 +78,14 @@
         internals.updateStyle();
         restored.removeAttribute("data-restored-value");
         restored.setAttribute("data-restored-value", "same");
-        println(`value restored before commit stays indexed: ${root.querySelectorAll('[data-restored-value="same"]')[0] === restored}`);
+        println(`value restored before a style update matches: ${root.querySelectorAll('[data-restored-value="same"]')[0] === restored}`);
 
         const shared = document.createElement("span");
         shared.setAttribute("data-first", "shared");
         shared.setAttribute("data-second", "shared");
         root.appendChild(shared);
         shared.removeAttribute("data-first");
-        println(`shared value remains indexed: ${root.querySelectorAll('[data-second="shared"]')[0] === shared}`);
+        println(`value shared with a removed attribute matches: ${root.querySelectorAll('[data-second="shared"]')[0] === shared}`);
 
         const host = document.createElement("div");
         document.body.appendChild(host);

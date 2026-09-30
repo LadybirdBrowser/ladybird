@@ -1,0 +1,6 @@
+::slotted(div): 0 0 null false false false null null
+slot::slotted(div): 0 0 null false false false null null
+#host::part(p): 0 0 null false false false null null
+::part(p): 0 0 null false false false null null
+div::before: 0 0 null false false false null null
+div, div::before: 2 1 host true false true slotted part

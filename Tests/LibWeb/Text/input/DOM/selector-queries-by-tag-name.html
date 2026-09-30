@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="root"><span id="html-span"><b id="bold"></b></span><p id="paragraph"></p></div>
+<script>
+    test(() => {
+        const foreign = document.createElementNS("http://example.com/ns", "SPAN");
+        foreign.id = "foreign-span";
+        root.append(foreign);
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.id = "svg";
+        svg.innerHTML = `<foreignObject id="foreign-object"></foreignObject>`;
+        root.append(svg);
+
+        // A query that only names elements of one local name visits only those, in whichever case they match.
+        for (const selector of ["span", "SPAN", "Span", "span, SPAN", "span, p", "p, #bold", "span > b", "foreignObject", "foreignobject", "svg foreignObject", "*|span", "b, B"]) {
+            const ids = Array.from(root.querySelectorAll(selector), element => element.id);
+            println(`${selector}: ${ids.join(" ")} (first: ${root.querySelector(selector)?.id ?? null})`);
+        }
+    });
+</script>

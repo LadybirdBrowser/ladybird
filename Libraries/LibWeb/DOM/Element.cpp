@@ -5227,6 +5227,14 @@ size_t Element::attribute_list_size() const
     return m_attributes ? m_attributes->size() : 0;
 }
 
+ReadonlySpan<Element::Attribute> Element::attribute_list() const
+{
+    synchronize_all_attributes();
+    if (!m_attributes)
+        return {};
+    return m_attributes->span();
+}
+
 CSS::ComputedStyleRecordView Element::computed_style(Optional<CSS::PseudoElement> pseudo_element_type) const
 {
     return document().style_computer().computed_style_record_view(style_record_identity(pseudo_element_type));
@@ -6315,7 +6323,7 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
     } else if (local_name == HTML::AttributeNames::class_) {
         // Elements without a StyleEngine identity have no feature state to update. Avoid moving
         // their class list out just for record_element_class_list_changed() to reject the update.
-        Optional<Vector<Utf16FlyString>> old_style_engine_classes;
+        Optional<Vector<Utf16FlyString, 1>> old_style_engine_classes;
         if (style_node_id().value() != 0)
             old_style_engine_classes = move(m_classes);
 

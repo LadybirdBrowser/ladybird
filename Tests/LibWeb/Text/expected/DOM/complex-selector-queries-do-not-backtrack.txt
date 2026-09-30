@@ -1,0 +1,7 @@
+deep (with pending style input): matches false, closest null, found null
+deep (without pending style input): matches false, closest null, found null
+siblings (with pending style input): matches false, closest null, found null
+siblings (without pending style input): matches false, closest null, found null
+mixed (with pending style input): matches false, closest null, found null
+mixed (without pending style input): matches false, closest null, found null
+deep without p: true

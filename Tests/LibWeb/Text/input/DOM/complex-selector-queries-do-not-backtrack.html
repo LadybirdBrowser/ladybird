@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="deep"></div>
+<div id="siblings"></div>
+<style>
+    p div div div div div div div div span { color: red; }
+</style>
+<script>
+    test(() => {
+        // Sixty nested elements with a span at the bottom, and sixty siblings before a span. Each selector matches
+        // every compound but its first, so a matcher that tries every combination of ancestors or earlier siblings
+        // for its compounds would try billions of them.
+        let parent = deep;
+        for (let i = 0; i < 60; i++)
+            parent = parent.appendChild(document.createElement("div"));
+        const deepSpan = parent.appendChild(document.createElement("span"));
+        for (let i = 0; i < 60; i++)
+            siblings.appendChild(document.createElement("div"));
+        const lastSpan = siblings.appendChild(document.createElement("span"));
+        internals.updateStyle();
+
+        const deepSelector = "p " + "div ".repeat(8) + "span";
+        const siblingSelector = "p ~ " + "div ~ ".repeat(8) + "span";
+        const mixedSelector = "p " + "div ~ div ".repeat(4) + "span";
+        for (const [name, element, selector] of [["deep", deepSpan, deepSelector], ["siblings", lastSpan, siblingSelector], ["mixed", deepSpan, mixedSelector]]) {
+            // Query once with pending style input and once without.
+            for (const pending of [true, false]) {
+                if (pending)
+                    document.body.classList.toggle("recorded");
+                else
+                    internals.updateStyle();
+                println(`${name} (${pending ? "with" : "without"} pending style input): matches ${element.matches(selector)}, closest ${element.closest(selector)}, found ${document.querySelector(selector)}`);
+            }
+        }
+        println(`deep without p: ${deepSpan.matches(deepSelector.slice(2))}`);
+    });
+</script>
