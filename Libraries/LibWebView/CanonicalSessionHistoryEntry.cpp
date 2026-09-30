@@ -50,6 +50,7 @@ Web::HTML::SessionHistoryDocumentStateDescriptor CanonicalDocumentState::descrip
         .resource = resource,
         .reload_pending = reload_pending,
         .ever_populated = ever_populated,
+        .user_agent_initiated = user_agent_initiated,
         .navigable_target_name = navigable_target_name,
         .nested_histories = move(nested_history_descriptors),
     };
@@ -77,6 +78,7 @@ static NonnullRefPtr<CanonicalDocumentState> document_state_from_descriptor(Web:
     document_state->resource = descriptor.resource;
     document_state->reload_pending = descriptor.reload_pending;
     document_state->ever_populated = descriptor.ever_populated;
+    document_state->user_agent_initiated = descriptor.user_agent_initiated;
     document_state->navigable_target_name = descriptor.navigable_target_name;
     document_state->nested_histories.clear();
     for (auto const& nested_history : descriptor.nested_histories) {

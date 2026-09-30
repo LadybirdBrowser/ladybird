@@ -65,7 +65,7 @@ static i64 count_entry_rows(Database::Database& database, i64 tab_id)
     return select_i64(database, MUST(String::formatted("SELECT COUNT(*) FROM SessionEntries INNER JOIN SessionHistories ON SessionEntries.history_id = SessionHistories.id WHERE SessionHistories.tab_id = {};", tab_id)));
 }
 
-TEST_CASE(fresh_database_migrates_to_baseline)
+TEST_CASE(fresh_database_migrates_to_the_latest_schema)
 {
     auto database = TRY_OR_FAIL(Database::Database::create_memory_backed({ .foreign_keys = Database::Database::ForeignKeys::Yes }));
     EXPECT_EQ(TRY_OR_FAIL(WebView::SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
@@ -73,7 +73,7 @@ TEST_CASE(fresh_database_migrates_to_baseline)
     for (auto table : { "Sessions"sv, "SessionTabs"sv, "SessionUsedSteps"sv, "SessionHistories"sv, "SessionNestedHistories"sv, "SessionEntries"sv })
         EXPECT(TRY_OR_FAIL(database->table_exists(table)));
 
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 1u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 2u });
 }
 
 TEST_CASE(deleting_a_session_cascades_through_its_tabs)
@@ -151,6 +151,25 @@ TEST_CASE(pushes_coalesce_and_clean_tabs_redirty_conservatively)
     store->update_tab_state({ .tab_id = tab, .history = make_snapshot({ "https://a.example/"sv, "https://b.example/"sv }), .url = parse_url("https://b.example/"sv) });
     store->flush_dirty_state();
     EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM Probe;"_string), 2);
+}
+
+TEST_CASE(a_changed_user_agent_initiated_flag_alone_flushes)
+{
+    auto database = create_session_database();
+    auto store = TRY_OR_FAIL(SessionStore::create(*database));
+
+    auto tab = TRY_OR_FAIL(store->tab_opened({ .window_id = {}, .initial_url = parse_url("about:blank"sv), .insertion_index = {}, .is_active = SessionStore::IsActive::No }));
+
+    auto snapshot = make_snapshot({ "https://a.example/"sv });
+    store->update_tab_state({ .tab_id = tab, .history = snapshot, .url = parse_url("https://a.example/"sv) });
+    store->flush_dirty_state();
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionEntries WHERE user_agent_initiated = 1;"_string), 0);
+
+    // The flag is the only difference from the flushed snapshot, and it still has to reach the rows.
+    snapshot.entries[0].document_state.user_agent_initiated = Web::HTML::UserAgentInitiated::Yes;
+    store->update_tab_state({ .tab_id = tab, .history = snapshot, .url = parse_url("https://a.example/"sv) });
+    store->flush_dirty_state();
+    EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM SessionEntries WHERE user_agent_initiated = 1;"_string), 1);
 }
 
 TEST_CASE(unstorable_snapshot_flushes_url_only)

@@ -29,6 +29,9 @@ NavigationPopulationRequest create_navigation_population_request(NavigationStart
         .resource = move(start_request.document_resource),
         .reload_pending = false,
         .ever_populated = false,
+        // A navigation with no source document is one the user agent supplied the URL for — and only that one is
+        // "browser UI" (steps 5 and 6 of navigate).
+        .user_agent_initiated = start_request.user_involvement == UserNavigationInvolvement::BrowserUI ? UserAgentInitiated::Yes : UserAgentInitiated::No,
         .navigable_target_name = move(start_request.navigable_target_name),
         .nested_histories = {},
     };
