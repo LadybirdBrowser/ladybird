@@ -130,6 +130,19 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
     if (property_key.is_symbol())
         return false;
 
+    // OPTIMIZATION: A stored property on an ordinary prototype masks a named property independently of whether
+    //               the name is supported. Check without invoking internal methods so that a collection's built-in
+    //               properties do not need its named-property cache. Stop before exotic objects, preserving the
+    //               order of their observable operations in the algorithm below.
+    if (!m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute && property_key.is_string()) {
+        for (auto const* prototype = this->prototype(); prototype; prototype = prototype->prototype()) {
+            if (!prototype->eligible_for_own_property_enumeration_fast_path() || prototype->is_ecmascript_function_object())
+                break;
+            if (prototype->storage_has(property_key))
+                return false;
+        }
+    }
+
     // 1. If P is not a supported property name of O, then return false.
     auto property_name = property_key_to_utf16_fly_string(property_key);
     if (!is_supported_property_name(property_name))

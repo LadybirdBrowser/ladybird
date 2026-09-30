@@ -1,0 +1,131 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function makeCollection() {
+            const root = document.createElement("div");
+            root.innerHTML = '<span id="supported"></span><span id="length"></span>';
+            return { root, collection: root.children, element: root.firstElementChild };
+        }
+
+        {
+            const { root, collection, element } = makeCollection();
+            println(
+                `built-in length masks a supported name: ${Object.getOwnPropertyDescriptor(collection, "length") === undefined}`
+            );
+            println(
+                `built-in mask avoids cache rebuilding: ${internals.htmlCollectionCacheGeneration(collection) === 0}`
+            );
+            println(`initial length: ${collection.length}`);
+            println(`unmasked supported name: ${collection.supported === element}`);
+            println(`unsupported name: ${Object.getOwnPropertyDescriptor(collection, "missing") === undefined}`);
+            root.append(document.createElement("span"));
+            println(`length after insertion: ${collection.length}`);
+            element.id = "renamed";
+            println(
+                `named properties after ID change: ${collection.supported === undefined && collection.renamed === element}`
+            );
+            element.remove();
+            println(`length after removal: ${collection.length}`);
+        }
+
+        {
+            const { collection, element } = makeCollection();
+            const prototype = { supported: "mask", missing: "mask" };
+            Object.setPrototypeOf(collection, prototype);
+            println(
+                `ordinary mask of supported name: ${Object.getOwnPropertyDescriptor(collection, "supported") === undefined}`
+            );
+            println(
+                `ordinary mask of unsupported name: ${Object.getOwnPropertyDescriptor(collection, "missing") === undefined}`
+            );
+            println(
+                `ordinary masks avoid cache rebuilding: ${internals.htmlCollectionCacheGeneration(collection) === 0}`
+            );
+            delete prototype.supported;
+            println(`name exposed after deleting mask: ${collection.supported === element}`);
+            prototype.supported = "new mask";
+            println(
+                `name hidden after adding mask: ${Object.getOwnPropertyDescriptor(collection, "supported") === undefined}`
+            );
+            Object.setPrototypeOf(collection, null);
+            println(`name exposed after replacing prototype: ${collection.supported === element}`);
+        }
+
+        {
+            const { collection } = makeCollection();
+            const traps = [];
+            const proxy = new Proxy(Object.create(null), {
+                getOwnPropertyDescriptor(target, key) {
+                    traps.push(`descriptor:${key}`);
+                    return Reflect.getOwnPropertyDescriptor(target, key);
+                },
+                getPrototypeOf(target) {
+                    traps.push("prototype");
+                    return Reflect.getPrototypeOf(target);
+                },
+            });
+            const prototype = Object.create(proxy);
+            prototype.supported = "mask";
+            prototype.missing = "mask";
+            Object.setPrototypeOf(collection, prototype);
+            traps.length = 0;
+            println(
+                `ordinary mask below proxy: ${Object.getOwnPropertyDescriptor(collection, "supported") === undefined}`
+            );
+            println(
+                `unsupported ordinary mask below proxy: ${Object.getOwnPropertyDescriptor(collection, "missing") === undefined}`
+            );
+            println(`masked names avoid proxy traps: ${traps.length === 0}`);
+            println(
+                `masked names avoid cache rebuilding: ${internals.htmlCollectionCacheGeneration(collection) === 0}`
+            );
+            Object.getOwnPropertyDescriptor(collection, "unlisted");
+            println(`unsupported unmasked name avoids proxy traps: ${traps.length === 0}`);
+        }
+
+        {
+            const { collection } = makeCollection();
+            const traps = [];
+            const prototype = { supported: "mask", missing: "mask" };
+            const proxy = new Proxy(Object.create(prototype), {
+                getOwnPropertyDescriptor(target, key) {
+                    traps.push(`descriptor:${key}`);
+                    return Reflect.getOwnPropertyDescriptor(target, key);
+                },
+                getPrototypeOf(target) {
+                    traps.push("prototype");
+                    return Reflect.getPrototypeOf(target);
+                },
+            });
+            Object.setPrototypeOf(collection, proxy);
+            println(
+                `proxy before ordinary mask: ${Object.getOwnPropertyDescriptor(collection, "supported") === undefined}`
+            );
+            println(`supported name proxy traps: ${traps.join(",")}`);
+            traps.length = 0;
+            Object.getOwnPropertyDescriptor(collection, "missing");
+            println(`unsupported name avoids preceding proxy traps: ${traps.length === 0}`);
+        }
+
+        {
+            const { collection } = makeCollection();
+            const prototype = new String("exotic");
+            prototype.supported = "mask";
+            Object.setPrototypeOf(collection, prototype);
+            println(`exotic prototype mask: ${Object.getOwnPropertyDescriptor(collection, "supported") === undefined}`);
+            println(
+                `exotic prototype keeps normal visibility checks: ${internals.htmlCollectionCacheGeneration(collection) === 1}`
+            );
+        }
+
+        {
+            const element = document.createElement("div");
+            element.dataset.supported = "named value";
+            Object.setPrototypeOf(element.dataset, { supported: "mask" });
+            println(
+                `LegacyOverrideBuiltIns keeps named property: ${Object.getOwnPropertyDescriptor(element.dataset, "supported").value === "named value"}`
+            );
+        }
+    });
+</script>
