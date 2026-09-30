@@ -1,0 +1,4 @@
+enabling the second audio track
+change at video.audioTracks
+selecting the second video track
+change at video.videoTracks

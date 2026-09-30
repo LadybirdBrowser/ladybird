@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // A SourceBuffer's tracks are in both the SourceBuffer's track lists and the media element's, so enabling or
+    // selecting one fires change at both of the lists it is in.
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        async function appendAsset(mediaSource, mimeType, name) {
+            const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+            const response = await fetch(`../../../Assets/${name}`);
+            if (!response.ok)
+                throw new Error(`HTTP ${response.status} for ${name}`);
+            sourceBuffer.appendBuffer(new Uint8Array(await response.arrayBuffer()));
+            await new Promise((resolve, reject) => {
+                sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                sourceBuffer.addEventListener("error", () => reject(new Error(`error event on SourceBuffer for ${name}`)), { once: true });
+            });
+            return sourceBuffer;
+        }
+
+        function printChangeEvents(label, list) {
+            list.addEventListener("change", () => println(`change at ${label}`));
+        }
+
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const audioSourceBuffer = await appendAsset(mediaSource, 'audio/webm;codecs="opus"', "two-audio-tracks-of-different-lengths.webm");
+                const videoSourceBuffer = await appendAsset(mediaSource, 'video/webm;codecs="vp9"', "two-video-tracks.webm");
+
+                printChangeEvents("sourceBuffer.audioTracks", audioSourceBuffer.audioTracks);
+                printChangeEvents("video.audioTracks", video.audioTracks);
+                printChangeEvents("sourceBuffer.videoTracks", videoSourceBuffer.videoTracks);
+                printChangeEvents("video.videoTracks", video.videoTracks);
+
+                // The media element's list is the last one each track is added to, so its change event fires last.
+                println("enabling the second audio track");
+                video.audioTracks[1].enabled = true;
+                await new Promise(resolve => video.audioTracks.addEventListener("change", resolve, { once: true }));
+
+                println("selecting the second video track");
+                video.videoTracks[1].selected = true;
+                await new Promise(resolve => video.videoTracks.addEventListener("change", resolve, { once: true }));
+
+                done();
+            } catch (e) {
+                fail("sourceopen handler", e);
+            }
+        }, { once: true });
+    });
+</script>
