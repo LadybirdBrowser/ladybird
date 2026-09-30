@@ -182,6 +182,28 @@ TEST_CASE(revalidation_that_outgrows_entry_size_limit_removes_entry)
     EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers).has_value());
 }
 
+TEST_CASE(writing_beyond_entry_size_limit_abandons_entry)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    disk_cache.set_maximum_disk_cache_size(800);
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = create_cacheable_response_headers();
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    auto chunk = ByteString::repeated('x', 60);
+    TRY_OR_FAIL(writer.write_data(chunk.bytes()));
+    EXPECT(writer.write_data(chunk.bytes()).is_error());
+
+    auto& replacement_writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    replacement_writer.remove_incomplete_entry();
+
+    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers).has_value());
+}
+
 TEST_CASE(associated_data_round_trips_with_cache_entry)
 {
     auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();

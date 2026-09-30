@@ -62,6 +62,7 @@ public:
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);
 
     void set_maximum_disk_cache_size(u64 maximum_disk_cache_size);
+    u64 maximum_disk_cache_entry_size() const { return static_cast<u64>(m_limits.maximum_disk_cache_entry_size); }
 
 private:
     struct Statements {
