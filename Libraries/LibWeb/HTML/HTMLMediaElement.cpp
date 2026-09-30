@@ -2761,6 +2761,8 @@ void HTMLMediaElement::on_playback_manager_state_change()
         upon_current_playback_position_possibly_changed();
         reached_end_of_media_playback();
     }
+
+    upon_has_ended_playback_possibly_changed();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#internal-play-steps
