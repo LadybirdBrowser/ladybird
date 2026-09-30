@@ -799,6 +799,14 @@ void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Opt
         return;
     }
 
+    // https://websockets.spec.whatwg.org/#concept-websocket-establish
+    // 1. Let requestURL be a copy of url, with its scheme set to "http", if url’s scheme is "ws"; otherwise to "https".
+    // The fetch of requestURL then blocks bad ports like any other.
+    if (!url.scheme().is_one_of("ws"sv, "wss"sv) || !url.host().has_value() || (url.port().has_value() && HTTP::is_bad_port(*url.port()))) {
+        fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
+        return;
+    }
+
     if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key)) {
         dbgln("RequestServer: Client {} is not bound to the network isolation key of its WebSocket for {}", client_id(), url);
         fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
