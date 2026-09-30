@@ -1386,6 +1386,8 @@ void Request::handle_fetch_state()
         m_curl_string_lists.append(curl_headers);
     }
 
+    // Exclude proxy CONNECT responses from origin headers.
+    set_option(CURLOPT_SUPPRESS_CONNECT_HEADERS, 1L);
     set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
     set_option(CURLOPT_HEADERDATA, this);
 
@@ -1500,9 +1502,13 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
     auto total_size = size * nmemb;
     auto header_line = StringView { static_cast<char const*>(buffer), total_size };
 
-    // We need to extract the HTTP reason phrase since it can be a custom value. Fetching infrastructure needs this
-    // value for setting the status message.
-    if (!request.m_reason_phrase.has_value() && header_line.starts_with("HTTP/"sv)) {
+    // libcurl reports interim responses too; retain only the final header block.
+    if (header_line.starts_with("HTTP/"sv)) {
+        request.m_response_headers->clear();
+        request.m_reason_phrase.clear();
+
+        // We need to extract the HTTP reason phrase since it can be a custom value. Fetching infrastructure needs this
+        // value for setting the status message.
         auto space_index = header_line.find(' ');
         if (space_index.has_value())
             space_index = header_line.find(' ', *space_index + 1);
@@ -1513,9 +1519,10 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
                 VERIFY(decoder.has_value());
 
                 request.m_reason_phrase = MUST(decoder->to_utf8(reason_phrase, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement));
-                return total_size;
             }
         }
+
+        return total_size;
     }
 
     if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
