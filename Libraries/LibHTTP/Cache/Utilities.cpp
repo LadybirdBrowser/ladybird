@@ -120,6 +120,7 @@ Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers
     Vector<ByteString> field_names;
     auto has_vary_wildcard = false;
     auto has_too_many_fields = false;
+    auto has_unmatchable_field = false;
 
     response_headers.for_each_vary_header([&](StringView header) {
         // A stored response with a Vary header field value containing a member "*" always fails to match.
@@ -130,6 +131,12 @@ Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers
 
         if (header.is_empty())
             return IterationDecision::Continue;
+
+        // AD-HOC: RequestServer adds cookies after cache lookup, so we cannot match Vary: Cookie.
+        if (header.equals_ignoring_ascii_case("Cookie"sv)) {
+            has_unmatchable_field = true;
+            return IterationDecision::Break;
+        }
 
         auto field_name = ByteString { header }.to_lowercase();
         if (field_names.contains_slow(field_name))
@@ -145,7 +152,7 @@ Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers
     });
 
     // AD-HOC: Bound the cost of matching variants against nominated fields.
-    if (has_vary_wildcard || has_too_many_fields)
+    if (has_vary_wildcard || has_too_many_fields || has_unmatchable_field)
         return {};
 
     quick_sort(field_names);

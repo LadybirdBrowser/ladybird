@@ -135,6 +135,22 @@ TEST_CASE(permanent_redirects_without_explicit_freshness_are_reused)
     }
 }
 
+TEST_CASE(responses_varying_on_cookie_are_not_reused)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/account"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "Vary"sv, "Cookie"sv },
+    });
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 200, *response_headers, immutable_bytes("private"sv));
+
+    EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
+}
+
 TEST_CASE(no_store_permanent_redirects_are_not_reused)
 {
     auto cache = HTTP::MemoryCache::create();
