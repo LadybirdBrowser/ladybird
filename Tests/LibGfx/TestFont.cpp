@@ -579,3 +579,52 @@ TEST_CASE(glyph_page_caches_keep_the_typefaces_in_use_once_full)
     (void)thread->join();
     EXPECT(pages_populated_in_turns <= 8);
 }
+
+TEST_CASE(font_collection_preserves_each_face_style)
+{
+    auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/styles.ttc"sv)));
+    for (u32 index = 0; index < 3; ++index) {
+        auto result = Gfx::TypefaceSkia::load_from_buffer(file->bytes(), index);
+        EXPECT(!result.is_error());
+        if (result.is_error())
+            continue;
+        auto typeface = result.release_value();
+        auto expected_weight = index == 1 ? 700u : 400u;
+        auto expected_slope = index == 2 ? 1u : 0u;
+        EXPECT_EQ(typeface->weight(), expected_weight);
+        EXPECT_EQ(typeface->slope(), expected_slope);
+        EXPECT_EQ(typeface->collection_index(), index);
+        Gfx::FontVariationSettings variations;
+        variations.set_weight(expected_weight);
+        variations.set_width(100);
+        variations.set_optical_sizing(16);
+        auto font = typeface->font(12, variations);
+        EXPECT_EQ(font->weight(), expected_weight);
+        EXPECT_EQ(font->slope(), expected_slope);
+        EXPECT_NE(font->glyph_id_for_code_point('a'), 0u);
+    }
+    EXPECT(Gfx::TypefaceSkia::load_from_buffer(file->bytes(), 3).is_error());
+}
+
+TEST_CASE(font_collection_retains_shared_backing_for_skia)
+{
+    auto mapping = MUST(Core::MappedFile::map(TEST_INPUT("fonts/styles.ttc"sv)));
+    auto shared_mapping = make_ref_counted<Core::SharedMappedFile>(move(mapping));
+    auto backing = make_ref_counted<Gfx::Typeface::FontDataBacking>(shared_mapping);
+    sk_sp<SkTypeface const> skia_typeface;
+    ByteBuffer expected_table;
+    constexpr auto cmap_tag = SkSetFourByteTag('c', 'm', 'a', 'p');
+    {
+        auto typeface = MUST(Gfx::TypefaceSkia::load_from_buffer(shared_mapping->operator->().bytes(), 1, backing));
+        EXPECT_EQ(typeface->buffer().data(), shared_mapping->operator->().bytes().data());
+        skia_typeface = sk_ref_sp(typeface->sk_typeface());
+        expected_table = MUST(ByteBuffer::create_uninitialized(skia_typeface->getTableSize(cmap_tag)));
+        EXPECT(!expected_table.is_empty());
+        EXPECT_EQ(skia_typeface->getTableData(cmap_tag, 0, expected_table.size(), expected_table.data()), expected_table.size());
+    }
+    // Skia still uses the original mapping after the Ladybird typeface has gone away.
+    EXPECT(backing->ref_count() > 1);
+    auto actual_table = MUST(ByteBuffer::create_uninitialized(expected_table.size()));
+    EXPECT_EQ(skia_typeface->getTableData(cmap_tag, 0, actual_table.size(), actual_table.data()), actual_table.size());
+    EXPECT_EQ(actual_table, expected_table);
+}

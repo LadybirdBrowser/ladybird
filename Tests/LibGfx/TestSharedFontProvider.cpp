@@ -366,3 +366,20 @@ TEST_CASE(path_provider_deduplicates_canonical_paths)
     EXPECT_EQ(face_count, original_face_count);
 }
 #endif
+
+TEST_CASE(file_collection_faces_share_the_same_mapping)
+{
+    HashTable<String> loaded_paths;
+    Vector<NonnullRefPtr<Gfx::Typeface>> faces;
+    auto uri = MUST(String::formatted("file://{}/Tests/LibGfx/test-inputs/fonts", LADYBIRD_SOURCE_DIR));
+    Gfx::PathFontProvider::for_each_typeface_in_uri(uri, loaded_paths, [&](String const&, u32 index, Gfx::FontFileFormat, NonnullRefPtr<Gfx::Typeface> typeface) {
+        if (typeface->family() != "Collection Test"sv)
+            return;
+        EXPECT_EQ(index, faces.size());
+        EXPECT_EQ(typeface->weight(), index == 1 ? 700u : 400u);
+        EXPECT_EQ(typeface->slope(), index == 2 ? 1u : 0u);
+        if (!faces.is_empty())
+            EXPECT_EQ(typeface->font_data().data(), faces.first()->font_data().data());
+        faces.append(move(typeface)); }, Gfx::PathFontProvider::FontDataSource::SharedMapping);
+    EXPECT_EQ(faces.size(), 3u);
+}

@@ -9,7 +9,10 @@
 #include <AK/ByteString.h>
 #include <AK/Diagnostics.h>
 #include <AK/LsanSuppressions.h>
+#include <AK/Math.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/NumericLimits.h>
+#include <AK/ScopeGuard.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibIPC/Decoder.h>
@@ -21,6 +24,8 @@
 #include <core/SkStream.h>
 #include <core/SkString.h>
 #include <core/SkTypeface.h>
+#include <harfbuzz/hb-ot.h>
+#include <harfbuzz/hb.h>
 #if defined(AK_OS_ANDROID)
 #    include <ports/SkFontMgr_android.h>
 #elif defined(AK_OS_WINDOWS)
@@ -83,6 +88,7 @@ struct TypefaceSkia::Impl {
     // Skia reads a CoreText UI font as upright and regular because its descriptor carries no numeric style traits,
     // so a system UI typeface answers style queries from the style it was matched for instead.
     Optional<SystemUIFontStyle> system_ui_font_style;
+    Optional<u16> data_font_weight;
 #ifdef AK_OS_MACOS
     CGFontRef cg_font { nullptr };
 #endif
@@ -188,6 +194,21 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<Sk
         ttc_index });
 }
 
+static u16 font_weight_from_data(ReadonlyBytes buffer, u32 ttc_index, Vector<FontVariationAxis> const& axes = {})
+{
+    auto* blob = hb_blob_create(reinterpret_cast<char const*>(buffer.data()), buffer.size(), HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+    ScopeGuard destroy_blob = [&] { hb_blob_destroy(blob); };
+    auto* face = hb_face_create(blob, ttc_index);
+    ScopeGuard destroy_face = [&] { hb_face_destroy(face); };
+    auto* font = hb_font_create(face);
+    ScopeGuard destroy_font = [&] { hb_font_destroy(font); };
+    Vector<hb_variation_t> variations;
+    for (auto const& axis : axes)
+        variations.append({ axis.tag.to_u32(), axis.value });
+    hb_font_set_variations(font, variations.data(), variations.size());
+    return round_to<u16>(clamp(hb_style_get_value(font, HB_STYLE_TAG_WEIGHT), 0.0f, 1000.0f));
+}
+
 ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index, RefPtr<FontDataBacking> backing)
 {
     // NB: Skia can retain the typeface in text blobs and glyph caches after our Typeface is destroyed.
@@ -200,20 +221,109 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
         data = SkData::MakeWithCopy(buffer.data(), buffer.size());
     }
 
-    // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
-    // TrueType Collection files bundle multiple fonts (often different weights of the same
-    // family). We use SkFontArguments to specify which font to load from the collection.
-    SkFontArguments font_args;
-    font_args.setCollectionIndex(static_cast<int>(ttc_index));
+    sk_sp<SkTypeface> skia_typeface;
+    Optional<u16> data_font_weight;
+#ifdef AK_OS_MACOS
+    // NB: Skia's CoreText stream loader only supports collection index zero. Ask CoreText for the collection's
+    //     descriptors directly, then wrap the selected face in Skia, as we do for system UI fonts.
+    if (ttc_index != 0 && !FontDatabase::the().force_freetype_rasterization() && (!FontDatabase::the().has_system_font_provider() || FontDatabase::the().system_font_provider_name() != "FontConfig"sv)) {
+        if (buffer.size() > static_cast<size_t>(NumericLimits<CFIndex>::max()))
+            return Error::from_string_literal("Font data is too large for CoreText");
+        if (buffer.size() > NumericLimits<unsigned>::max())
+            return Error::from_string_literal("Font data is too large for HarfBuzz");
+        auto* blob = hb_blob_create(reinterpret_cast<char const*>(buffer.data()), buffer.size(), HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+        ScopeGuard destroy_blob = [&] { hb_blob_destroy(blob); };
+        if (ttc_index >= hb_face_count(blob))
+            return Error::from_string_literal("Font collection index is out of range");
+        auto* face = hb_face_create(blob, ttc_index);
+        ScopeGuard destroy_face = [&] { hb_face_destroy(face); };
+        unsigned entry_count = 0;
+        auto const* entries = hb_ot_name_list_names(face, &entry_count);
+        auto language = HB_LANGUAGE_INVALID;
+        for (unsigned index = 0; index < entry_count; ++index) {
+            if (entries[index].name_id != HB_OT_NAME_ID_POSTSCRIPT_NAME)
+                continue;
+            if (language == HB_LANGUAGE_INVALID)
+                language = entries[index].language;
+            if (entries[index].language == hb_language_from_string("en", -1)) {
+                language = entries[index].language;
+                break;
+            }
+        }
+        unsigned name_length = hb_ot_name_get_utf8(face, HB_OT_NAME_ID_POSTSCRIPT_NAME, language, nullptr, nullptr);
+        if (name_length == 0 || name_length == NumericLimits<unsigned>::max())
+            return Error::from_string_literal("Font collection face has no PostScript name");
+        auto name = TRY(ByteBuffer::create_uninitialized(static_cast<size_t>(name_length) + 1));
+        unsigned capacity = name_length + 1;
+        hb_ot_name_get_utf8(face, HB_OT_NAME_ID_POSTSCRIPT_NAME, language, &capacity, reinterpret_cast<char*>(name.data()));
+        auto postscript_name = CFStringCreateWithBytes(kCFAllocatorDefault, name.data(), capacity, kCFStringEncodingUTF8, false);
+        if (!postscript_name)
+            return Error::from_string_literal("Invalid font PostScript name");
+        ScopeGuard release_name = [&] { CFRelease(postscript_name); };
+        // NB: CoreText must share the same bytes as Skia, retaining their backing for as long as it uses them.
+        CFAllocatorContext allocator_context {};
+        allocator_context.info = data.get();
+        allocator_context.retain = [](void const* info) -> void const* {
+            static_cast<SkData const*>(info)->ref();
+            return info;
+        };
+        allocator_context.release = [](void const* info) { static_cast<SkData const*>(info)->unref(); };
+        allocator_context.deallocate = [](void*, void*) { };
+        auto allocator = CFAllocatorCreate(kCFAllocatorDefault, &allocator_context);
+        if (!allocator)
+            return Error::from_string_literal("Failed to create CoreText font data allocator");
+        ScopeGuard release_allocator = [&] { CFRelease(allocator); };
+        auto cf_data = CFDataCreateWithBytesNoCopy(kCFAllocatorDefault, static_cast<u8 const*>(data->data()), static_cast<CFIndex>(data->size()), allocator);
+        if (!cf_data)
+            return Error::from_string_literal("Failed to create CoreText font data");
+        ScopeGuard release_data = [&] { CFRelease(cf_data); };
+        auto descriptors = CTFontManagerCreateFontDescriptorsFromData(cf_data);
+        if (!descriptors)
+            return Error::from_string_literal("Failed to read CoreText font descriptors");
+        ScopeGuard release_descriptors = [&] { CFRelease(descriptors); };
+        // NB: CoreText also lists named variation instances. Match the actual TTC face's PostScript name rather
+        //     than interpreting a descriptor array position as a collection index.
+        CTFontDescriptorRef descriptor = nullptr;
+        for (CFIndex index = 0; index < CFArrayGetCount(descriptors); ++index) {
+            auto candidate = static_cast<CTFontDescriptorRef>(CFArrayGetValueAtIndex(descriptors, index));
+            auto candidate_name = CTFontDescriptorCopyAttribute(candidate, kCTFontNameAttribute);
+            if (!candidate_name)
+                continue;
+            ScopeGuard release_candidate_name = [&] { CFRelease(candidate_name); };
+            if (CFEqual(candidate_name, postscript_name)) {
+                descriptor = candidate;
+                break;
+            }
+        }
+        if (!descriptor)
+            return Error::from_string_literal("CoreText did not describe the requested collection face");
+        auto ct_font = CTFontCreateWithFontDescriptor(descriptor, 0, nullptr);
+        if (!ct_font)
+            return Error::from_string_literal("Failed to create CoreText font");
+        ScopeGuard release_font = [&] { CFRelease(ct_font); };
+        skia_typeface = SkMakeTypefaceFromCTFont(ct_font);
+        // NB: SkMakeTypefaceFromCTFont applies native system-font weight conversion even for data-created fonts.
+        //     Use the supplied face's weight, as we would when loading it through Skia's stream loader.
+        data_font_weight = font_weight_from_data(buffer, ttc_index);
+    } else
+#endif
+    {
+        // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
+        // TrueType Collection files bundle multiple fonts (often different weights of the same
+        // family). We use SkFontArguments to specify which font to load from the collection.
+        SkFontArguments font_args;
+        font_args.setCollectionIndex(static_cast<int>(ttc_index));
 
-    auto stream = std::make_unique<SkMemoryStream>(data);
-    auto skia_typeface = font_manager().makeFromStream(std::move(stream), font_args);
+        auto stream = std::make_unique<SkMemoryStream>(data);
+        skia_typeface = font_manager().makeFromStream(std::move(stream), font_args);
+    }
 
     if (!skia_typeface) {
         return Error::from_string_literal("Failed to load typeface from buffer");
     }
 
     auto typeface = adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
+    typeface->impl().data_font_weight = data_font_weight;
     if (backing)
         typeface->set_font_data(backing.release_nonnull());
     return typeface;
@@ -389,12 +499,14 @@ RefPtr<TypefaceSkia const> TypefaceSkia::clone_with_variations(Vector<FontVariat
     if (!skia_typeface)
         return {};
 
-    if (has_font_data_backing()) {
+    if (has_font_data_backing() || impl().data_font_weight.has_value()) {
         auto typeface = adopt_ref(*new TypefaceSkia {
             make<TypefaceSkia::Impl>(skia_typeface, std::unique_ptr<SkStreamAsset> {}, impl().system_ui_font_style),
             m_buffer,
             m_ttc_index });
         typeface->copy_font_data_from(*this);
+        if (impl().data_font_weight.has_value())
+            typeface->impl().data_font_weight = font_weight_from_data(m_buffer, m_ttc_index, axes);
         return typeface;
     }
 
@@ -555,6 +667,8 @@ u16 TypefaceSkia::weight() const
 {
     if (auto const& style = impl().system_ui_font_style; style.has_value())
         return style->weight;
+    if (impl().data_font_weight.has_value())
+        return impl().data_font_weight.value();
     return impl().skia_typeface->fontStyle().weight();
 }
 

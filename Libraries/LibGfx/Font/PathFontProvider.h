@@ -29,7 +29,11 @@ public:
     void set_name_but_fixme_should_create_custom_system_font_provider(String name) { m_name = move(name); }
 
     void load_all_fonts_from_uri(StringView);
-    static void for_each_typeface_in_uri(StringView, HashTable<String>& loaded_paths, Function<void(String const& path, u32 ttc_index, FontFileFormat, NonnullRefPtr<Typeface>)>);
+    enum class FontDataSource {
+        Resource,
+        SharedMapping,
+    };
+    static void for_each_typeface_in_uri(StringView, HashTable<String>& loaded_paths, Function<void(String const& path, u32 ttc_index, FontFileFormat, NonnullRefPtr<Typeface>)>, FontDataSource = FontDataSource::Resource);
 
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {}) override;
     virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) override;
