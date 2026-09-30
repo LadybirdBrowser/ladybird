@@ -22,18 +22,14 @@ size_t IndexedContainerNavigator::lower_bound(Vector<IndexEntry> const& entries,
     return lo;
 }
 
-HashMap<u64, BufferedRangesScan> IndexedContainerNavigator::buffered_time_ranges_by_track(Vector<MediaStream::ByteRange> const& byte_ranges) const
+Vector<BufferedRangesScan> IndexedContainerNavigator::buffered_time_ranges_by_track(Vector<MediaStream::ByteRange> const& byte_ranges) const
 {
-    HashMap<u64, BufferedRangesScan> result;
-    if (byte_ranges.is_empty())
-        return result;
-
+    Vector<BufferedRangesScan> scans;
     for (auto const& track_index : m_track_indices) {
         auto const& entries = track_index.entries;
         auto entry_count = entries.size();
 
         BufferedRangesScan scan;
-
         for (size_t i = 0; i < byte_ranges.size(); i++) {
             auto const& byte_range = byte_ranges[i];
 
@@ -51,10 +47,10 @@ HashMap<u64, BufferedRangesScan> IndexedContainerNavigator::buffered_time_ranges
                 scan.last_byte_range_has_samples = true;
         }
 
-        result.set(track_index.track_identifier, move(scan));
+        scans.append(move(scan));
     }
 
-    return result;
+    return scans;
 }
 
 }

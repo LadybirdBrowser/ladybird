@@ -50,7 +50,7 @@ void PlayingStateHandler::update_unticked_end_of_stream_timer()
             continue;
         if (is_terminal(track_data.sink_status))
             continue;
-        auto verified_end_time = manager().verified_end_time_for_track(track_data.track);
+        auto verified_end_time = manager().verified_end_time_for_source(track_data.demuxer);
         if (!verified_end_time.has_value() || *verified_end_time <= latest_verified_end_time)
             continue;
         latest_verified_end_time = *verified_end_time;
@@ -59,7 +59,7 @@ void PlayingStateHandler::update_unticked_end_of_stream_timer()
         for (auto const& track_data : manager().m_audio_track_datas) {
             if (!track_data.enabled)
                 continue;
-            auto verified_end_time = manager().verified_end_time_for_track(track_data.track);
+            auto verified_end_time = manager().verified_end_time_for_source(track_data.demuxer);
             if (!verified_end_time.has_value() || *verified_end_time <= latest_verified_end_time)
                 continue;
             latest_verified_end_time = *verified_end_time;

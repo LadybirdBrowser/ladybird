@@ -27,7 +27,7 @@ public:
     {
     }
 
-    virtual HashMap<u64, BufferedRangesScan> buffered_time_ranges_by_track(Vector<MediaStream::ByteRange> const& byte_ranges) const override;
+    virtual Vector<BufferedRangesScan> buffered_time_ranges_by_track(Vector<MediaStream::ByteRange> const& byte_ranges) const override;
 
 private:
     static size_t lower_bound(Vector<IndexEntry> const& entries, size_t target);

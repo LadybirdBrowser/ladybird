@@ -56,20 +56,16 @@ void MatroskaDemuxer::start_buffered_scan_thread(Reader&& scan_reader)
     auto scan_cursor = m_stream->create_cursor();
     scan_cursor->set_is_blocking(false);
 
-    Vector<Track> tracks;
-    tracks.extend(MUST(get_tracks_for_type(TrackType::Video)));
-    tracks.extend(MUST(get_tracks_for_type(TrackType::Audio)));
-
     DemuxerScanState initial_state;
     initial_state.duration = m_reader.duration().value_or(AK::Duration::zero());
     m_buffered_scan_thread = DemuxerScanThread<BufferedScanPayload>::start(m_stream, move(initial_state),
-        BufferedScanPayload { move(scan_reader), move(scan_cursor), move(tracks) },
+        BufferedScanPayload { move(scan_reader), move(scan_cursor) },
         [](MediaStream& stream, BufferedScanPayload& payload) {
             auto byte_ranges = stream.available_byte_ranges();
-            HashMap<u64, BufferedRangesScan> scans_by_track_number;
+            Vector<BufferedRangesScan> scans;
             if (!byte_ranges.is_empty())
-                scans_by_track_number = payload.reader.buffered_time_ranges_by_track_number(payload.scan_cursor, byte_ranges);
-            return DemuxerScanState::create_from_track_scans(payload.tracks, move(scans_by_track_number), payload.reader.duration().value_or(AK::Duration::zero()), stream.closing_bytes_are_available());
+                scans = payload.reader.buffered_time_ranges_by_track(payload.scan_cursor, byte_ranges);
+            return DemuxerScanState::create_from_track_scans(move(scans), payload.reader.duration().value_or(AK::Duration::zero()), stream.closing_bytes_are_available());
         });
 }
 

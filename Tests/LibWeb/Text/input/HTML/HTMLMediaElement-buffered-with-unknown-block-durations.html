@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<video id="video" src="../../../Assets/vp8-vorbis-without-block-durations.webm"></video>
+<script src="../include.js"></script>
+<script>
+    // The Vorbis track has no DefaultDuration and its blocks have no BlockDuration, so the duration of each of its
+    // blocks is unknown. The track must still count as buffered wherever its blocks are.
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        if (video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA)
+            await new Promise(resolve => video.addEventListener("canplaythrough", resolve, { once: true }));
+
+        const ranges = [];
+        for (let i = 0; i < video.buffered.length; i++)
+            ranges.push(`[${video.buffered.start(i)}, ${video.buffered.end(i)}]`);
+        println(`buffered: ${ranges.join(", ")}`);
+        println(`duration: ${video.duration}`);
+        done();
+    });
+</script>

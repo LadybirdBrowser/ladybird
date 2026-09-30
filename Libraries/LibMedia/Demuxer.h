@@ -18,6 +18,7 @@
 #include "CodecID.h"
 #include "CodedFrame.h"
 #include "DecoderError.h"
+#include "DemuxerScanState.h"
 #include "SeekMode.h"
 #include "TimeRanges.h"
 #include "Track.h"
@@ -35,44 +36,6 @@ AK_ENUM_BITWISE_OPERATORS(DemuxerSeekOptions);
 enum class DemuxerSeekResult : u8 {
     MovedPosition,
     KeptCurrentPosition,
-};
-
-struct DemuxerTrackScanState {
-    Track track;
-    TimeRanges buffered_ranges;
-    bool reached_end_of_stream { false };
-
-    bool operator==(DemuxerTrackScanState const&) const = default;
-};
-
-struct DemuxerScanState {
-    Vector<DemuxerTrackScanState> tracks;
-    AK::Duration duration;
-
-    static DemuxerScanState create_from_track_scans(Vector<Track> const& tracks, HashMap<u64, BufferedRangesScan> scans_by_track_identifier, AK::Duration minimum_duration, bool closing_bytes_are_available)
-    {
-        DemuxerScanState state;
-        state.duration = minimum_duration;
-        for (auto const& track : tracks) {
-            auto scan = scans_by_track_identifier.take(track.identifier());
-            if (!scan.has_value())
-                continue;
-            state.duration = max(state.duration, scan->time_ranges.highest_end_time());
-            state.tracks.empend(track, move(scan->time_ranges), scan->last_byte_range_has_samples && closing_bytes_are_available);
-        }
-        return state;
-    }
-
-    DemuxerTrackScanState const* state_for_track(Track const& track) const LIFETIME_BOUND
-    {
-        for (auto const& track_state : tracks) {
-            if (track_state.track == track)
-                return &track_state;
-        }
-        return nullptr;
-    }
-
-    bool operator==(DemuxerScanState const&) const = default;
 };
 
 class Demuxer : public AtomicRefCounted<Demuxer> {

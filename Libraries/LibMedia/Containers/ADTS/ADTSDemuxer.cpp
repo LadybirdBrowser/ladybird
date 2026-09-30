@@ -127,9 +127,6 @@ void ADTSDemuxer::start_buffered_scan_thread()
     auto scan_cursor = m_stream->create_cursor();
     scan_cursor->set_is_blocking(false);
 
-    Vector<Track> tracks;
-    tracks.append(m_track);
-
     DemuxerScanState initial_state;
     initial_state.duration = m_reader.duration();
 
@@ -137,14 +134,13 @@ void ADTSDemuxer::start_buffered_scan_thread()
         BufferedScanPayload {
             .timeline = make<FrameScanTimeline>(make<FrameScanSource>(), m_reader.first_frame_position(), m_reader.duration(), DurationSource::Estimated, OptionalNone {}),
             .scan_cursor = move(scan_cursor),
-            .tracks = move(tracks),
         },
         [](MediaStream& stream, BufferedScanPayload& payload) {
             auto byte_ranges = stream.available_byte_ranges();
-            HashMap<u64, BufferedRangesScan> scans_by_track_identifier;
+            BufferedRangesScan scan;
             if (!byte_ranges.is_empty())
-                scans_by_track_identifier.set(payload.tracks[0].identifier(), payload.timeline->buffered_time_ranges(payload.scan_cursor, byte_ranges, stream.expected_size()));
-            return DemuxerScanState::create_from_track_scans(payload.tracks, move(scans_by_track_identifier), payload.timeline->duration(), stream.closing_bytes_are_available());
+                scan = payload.timeline->buffered_time_ranges(payload.scan_cursor, byte_ranges, stream.expected_size());
+            return DemuxerScanState::create_from_track_scans({ move(scan) }, payload.timeline->duration(), stream.closing_bytes_are_available());
         });
 }
 

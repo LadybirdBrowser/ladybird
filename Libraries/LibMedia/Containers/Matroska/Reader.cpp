@@ -1232,7 +1232,7 @@ Optional<Vector<TrackCuePoint> const&> Reader::cue_points_for_track(u64 track_nu
     return m_cues.get(track_number);
 }
 
-HashMap<u64, BufferedRangesScan> Reader::buffered_time_ranges_by_track_number(NonnullRefPtr<MediaStreamCursor> const& cursor, Vector<MediaStream::ByteRange> const& byte_ranges) const
+Vector<BufferedRangesScan> Reader::buffered_time_ranges_by_track(NonnullRefPtr<MediaStreamCursor> const& cursor, Vector<MediaStream::ByteRange> const& byte_ranges) const
 {
     auto create_iterator = [&](size_t position) -> Optional<SampleIterator> {
         auto iterator = create_sample_iterator_at_byte_position(cursor, position);
@@ -1330,9 +1330,8 @@ HashMap<u64, BufferedRangesScan> Reader::buffered_time_ranges_by_track_number(No
     m_buffered_ranges.remove(cached_range_index, m_buffered_ranges.size() - cached_range_index);
 
     // All previously known buffered ranges are now matched up or discarded. Iterate the blocks to update each
-    // track's interval end times and append the intervals to their tracks' ranges.
+    // track's interval end times.
     VERIFY(m_buffered_ranges.size() == byte_ranges.size());
-    HashMap<u64, BufferedRangesScan> scans_by_track_number;
 
     for (size_t i = 0; i < byte_ranges.size(); i++) {
         auto& cached_range = m_buffered_ranges[i];
@@ -1348,8 +1347,8 @@ HashMap<u64, BufferedRangesScan> Reader::buffered_time_ranges_by_track_number(No
                 if (block_or_error.is_error())
                     break;
                 auto block = block_or_error.release_value();
-                if (block.timestamp().has_value() && block.duration().has_value()) {
-                    auto block_end = block.timestamp().value() + block.duration().value();
+                if (block.timestamp().has_value()) {
+                    auto block_end = block.timestamp().value() + block.duration().value_or(AK::Duration::zero());
                     auto& interval = cached_range.track_intervals.ensure(block.track_number(), [&] {
                         return TimeRanges::Range { block.timestamp().value(), block_end };
                     });
@@ -1357,16 +1356,23 @@ HashMap<u64, BufferedRangesScan> Reader::buffered_time_ranges_by_track_number(No
                 }
             }
         }
-
-        for (auto const& [track_number, interval] : cached_range.track_intervals)
-            scans_by_track_number.ensure(track_number).time_ranges.add_range(max(AK::Duration::zero(), interval.start), interval.end);
     }
 
-    if (!m_buffered_ranges.is_empty()) {
-        for (auto const& [track_number, interval] : m_buffered_ranges.last().track_intervals)
-            scans_by_track_number.ensure(track_number).last_byte_range_has_samples = true;
+    // Produce a scan for each video and audio track in the file, even those without any samples.
+    Vector<BufferedRangesScan> scans;
+    for (auto const& [track_number, track] : m_tracks) {
+        if (track->track_type() != TrackEntry::TrackType::Video && track->track_type() != TrackEntry::TrackType::Audio)
+            continue;
+
+        BufferedRangesScan scan;
+        for (auto const& cached_range : m_buffered_ranges) {
+            if (auto interval = cached_range.track_intervals.get(track_number); interval.has_value())
+                scan.time_ranges.add_range(max(AK::Duration::zero(), interval.value().start), interval.value().end);
+        }
+        scan.last_byte_range_has_samples = !m_buffered_ranges.is_empty() && m_buffered_ranges.last().track_intervals.contains(track_number);
+        scans.append(move(scan));
     }
-    return scans_by_track_number;
+    return scans;
 }
 
 }

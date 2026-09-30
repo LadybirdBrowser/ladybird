@@ -39,7 +39,8 @@ public:
         (void)track_identifier;
         return Empty {};
     }
-    virtual HashMap<u64, BufferedRangesScan> buffered_time_ranges_by_track(Vector<MediaStream::ByteRange> const& byte_ranges) const = 0;
+    // Returns a scan for each audio and video track in the container.
+    virtual Vector<BufferedRangesScan> buffered_time_ranges_by_track(Vector<MediaStream::ByteRange> const& byte_ranges) const = 0;
 };
 
 // Adapts a navigator over a single-track container to the per-track interface. Such containers
@@ -51,11 +52,9 @@ public:
         return seek_to_timestamp(timestamp);
     }
 
-    virtual HashMap<u64, BufferedRangesScan> buffered_time_ranges_by_track(Vector<MediaStream::ByteRange> const& byte_ranges) const final
+    virtual Vector<BufferedRangesScan> buffered_time_ranges_by_track(Vector<MediaStream::ByteRange> const& byte_ranges) const final
     {
-        HashMap<u64, BufferedRangesScan> result;
-        result.set(0, buffered_time_ranges(byte_ranges));
-        return result;
+        return { buffered_time_ranges(byte_ranges) };
     }
 
 protected:

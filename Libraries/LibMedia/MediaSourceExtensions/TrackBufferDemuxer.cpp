@@ -689,11 +689,9 @@ void TrackBufferDemuxer::queue_scan_state_change_dispatch_while_locked()
             self->m_scan_state_change_dispatch_pending = false;
             reached_end_of_stream = self->m_reached_end_of_stream;
         }
-        Vector<Media::DemuxerTrackScanState> tracks;
         auto ranges = self->track_buffer_ranges();
         auto highest_end_time = ranges.highest_end_time();
-        tracks.empend(self->m_track, move(ranges), reached_end_of_stream);
-        self->m_scan_state = { move(tracks), highest_end_time };
+        self->m_scan_state = { { move(ranges) }, reached_end_of_stream, highest_end_time };
         if (self->m_scan_state_change_handler)
             self->m_scan_state_change_handler();
     });

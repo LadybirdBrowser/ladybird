@@ -1,0 +1,2 @@
+buffered: [0, 2.024]
+duration: 2.024

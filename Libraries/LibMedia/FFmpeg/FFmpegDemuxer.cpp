@@ -432,6 +432,9 @@ void FFmpegDemuxer::start_buffered_scan_thread(AVFormatContext& context)
     if (navigator == nullptr) {
         Vector<IndexedContainerNavigator::TrackIndex> track_indices;
         for (u32 i = 0; i < context.nb_streams; i++) {
+            auto track_type = m_stream_info[i].track.type();
+            if (track_type != TrackType::Audio && track_type != TrackType::Video)
+                continue;
             auto* stream = context.streams[i];
             auto entry_count = avformat_index_get_entries_count(stream);
             if (entry_count <= 0)
@@ -466,17 +469,13 @@ void FFmpegDemuxer::start_buffered_scan_thread(AVFormatContext& context)
     if (navigator == nullptr)
         return;
 
-    Vector<Track> tracks;
-    for (auto const& stream_info : m_stream_info)
-        tracks.append(stream_info.track);
-
     DemuxerScanState initial_state;
     initial_state.duration = m_total_duration;
     m_buffered_scan_thread = DemuxerScanThread<BufferedScanPayload>::start(m_stream, move(initial_state),
-        BufferedScanPayload { navigator.release_nonnull(), move(tracks), m_total_duration },
+        BufferedScanPayload { navigator.release_nonnull(), m_total_duration },
         [](MediaStream& stream, BufferedScanPayload& payload) {
             auto scans = payload.navigator->buffered_time_ranges_by_track(stream.available_byte_ranges());
-            return DemuxerScanState::create_from_track_scans(payload.tracks, move(scans), payload.initial_duration, stream.closing_bytes_are_available());
+            return DemuxerScanState::create_from_track_scans(move(scans), payload.initial_duration, stream.closing_bytes_are_available());
         });
 }
 

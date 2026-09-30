@@ -50,7 +50,6 @@ private:
     struct BufferedScanPayload {
         NonnullOwnPtr<FrameScanTimeline> timeline;
         NonnullRefPtr<MediaStreamCursor> scan_cursor;
-        Vector<Track> tracks;
     };
 
     struct TrackStatus {

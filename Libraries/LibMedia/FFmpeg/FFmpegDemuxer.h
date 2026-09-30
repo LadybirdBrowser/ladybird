@@ -87,7 +87,6 @@ private:
 
     struct BufferedScanPayload {
         NonnullOwnPtr<ContainerNavigator> navigator;
-        Vector<Track> tracks;
         AK::Duration initial_duration;
     };
 
