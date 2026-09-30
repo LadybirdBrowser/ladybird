@@ -7,6 +7,7 @@
 #include <LibCrypto/OpenSSL.h>
 #include <RequestServer/AIA.h>
 
+#include <AK/AnyOf.h>
 #include <AK/ByteString.h>
 #include <AK/HashMap.h>
 #include <AK/Time.h>
@@ -144,22 +145,48 @@ Vector<X509*> parse_certificates(ReadonlyBytes body)
     return certificates;
 }
 
-bool add_fetched_aia_intermediate(IsPrivate is_private, ReadonlyBytes body)
+static void add_certificate(Vector<Crypto::OpenSSL_X509>& certificates, X509* certificate)
 {
-    auto& cache = intermediate_cache(is_private);
+    X509_up_ref(certificate);
+    auto owned = Crypto::OpenSSL_X509::wrap(certificate);
+    if (owned.is_error()) {
+        X509_free(certificate);
+        return;
+    }
+    certificates.append(owned.release_value());
+}
+
+bool add_fetched_aia_intermediates(ReadonlyBytes body, ReadonlySpan<NonnullRefPtr<AIACollector>> collectors)
+{
     auto certificates = parse_certificates(body);
     for (auto* certificate : certificates) {
-        auto owned = Crypto::OpenSSL_X509::wrap(certificate);
-        if (owned.is_error()) {
-            X509_free(certificate);
+        for (auto const& collector : collectors)
+            add_certificate(collector->fetched_intermediates, certificate);
+        X509_free(certificate);
+    }
+    return !certificates.is_empty();
+}
+
+static bool contains_certificate(Vector<Crypto::OpenSSL_X509> const& certificates, X509 const* certificate)
+{
+    return any_of(certificates, [&](auto const& candidate) { return X509_cmp(candidate.ptr(), certificate) == 0; });
+}
+
+static void promote_fetched_intermediates(X509_STORE_CTX* context, AIACollector& collector)
+{
+    auto* chain = X509_STORE_CTX_get0_chain(context);
+    auto& cache = intermediate_cache(collector.is_private);
+
+    for (int i = 0; chain && i < sk_X509_num(chain); ++i) {
+        auto* certificate = sk_X509_value(chain, i);
+        if (!contains_certificate(collector.fetched_intermediates, certificate) || contains_certificate(cache, certificate))
             continue;
-        }
+
         // take_first() drops the oldest wrapper, whose destructor frees the certificate.
         if (cache.size() >= max_cached_intermediates)
             (void)cache.take_first();
-        cache.append(owned.release_value());
+        add_certificate(cache, certificate);
     }
-    return !certificates.is_empty();
 }
 
 // Installed via SSL_CTX_set_cert_verify_callback. On failure, we record the failing cert's caIssuers URLs for the
@@ -175,6 +202,10 @@ static int verify_callback(X509_STORE_CTX* context, void* collector_data)
     if (untrusted) {
         for (auto& candidate : intermediate_cache(is_private))
             sk_X509_push(untrusted, candidate.ptr());
+        if (collector) {
+            for (auto& candidate : collector->fetched_intermediates)
+                sk_X509_push(untrusted, candidate.ptr());
+        }
         X509_STORE_CTX_set0_untrusted(context, untrusted);
     }
 
@@ -184,6 +215,9 @@ static int verify_callback(X509_STORE_CTX* context, void* collector_data)
         X509_STORE_CTX_set0_untrusted(context, server_untrusted);
         sk_X509_free(untrusted);
     }
+
+    if (result > 0 && collector && !collector->fetched_intermediates.is_empty())
+        promote_fetched_intermediates(context, *collector);
 
     // AIA can only repair a chain missing an intermediate issuer. For any other verification failure, fetching
     // caIssuers is useless — so we leave the collector's pending URLs untouched.
