@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<audio id="audio"></audio>
+<script src="../include.js"></script>
+<script>
+    function rangesToString(ranges) {
+        let result = [];
+        for (let i = 0; i < ranges.length; i++)
+            result.push(`${ranges.start(i).toFixed(3)}-${ranges.end(i).toFixed(3)}`);
+        return `[${result.join(", ")}]`;
+    }
+
+    // The asset's first audio track holds 2 seconds of audio, and its second holds 1 second. Only the first track of
+    // a SourceBuffer is enabled, but the SourceBuffer's data ends where either of its tracks' data ends.
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        const audio = document.getElementById("audio");
+        const mediaSource = new MediaSource();
+        audio.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const sourceBuffer = mediaSource.addSourceBuffer('audio/webm;codecs="opus"');
+                const response = await fetch("../../../Assets/two-audio-tracks-of-different-lengths.webm");
+                if (!response.ok) {
+                    fail("fetch media", `HTTP ${response.status}`);
+                    return;
+                }
+                const data = new Uint8Array(await response.arrayBuffer());
+
+                sourceBuffer.appendBuffer(data);
+                await new Promise((resolve, reject) => {
+                    sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                    sourceBuffer.addEventListener("error", () => reject(new Error("error event on SourceBuffer")), { once: true });
+                });
+                println(`audio tracks enabled: ${Array.from(audio.audioTracks).map(track => track.enabled).join(", ")}`);
+                println(`SourceBuffer buffered: ${rangesToString(sourceBuffer.buffered)}`);
+
+                audio.currentTime = 0.7;
+                await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+
+                // play() itself fires waiting if the seek left readyState below HAVE_FUTURE_DATA, so only start
+                // listening once playback is underway.
+                await audio.play();
+                await new Promise(resolve => audio.addEventListener("waiting", resolve, { once: true }));
+                println(`waiting at: ${audio.currentTime.toFixed(3)}`);
+                println(`element buffered: ${rangesToString(audio.buffered)}`);
+
+                mediaSource.endOfStream();
+                println(`element buffered after endOfStream(): ${rangesToString(audio.buffered)}`);
+
+                audio.currentTime = 2;
+                await new Promise((resolve, reject) => {
+                    audio.addEventListener("waiting", () => {
+                        println('seek into the gap after the buffered end is waiting for data');
+                        resolve();
+                    }, { once: true });
+                    audio.addEventListener("seeked", () => {
+                        println('seek into the gap after the buffered end succeeded');
+                        resolve();
+                    }, { once: true });
+                });
+                done();
+            } catch (e) {
+                fail("sourceopen handler", e);
+            }
+        }, { once: true });
+    });
+</script>

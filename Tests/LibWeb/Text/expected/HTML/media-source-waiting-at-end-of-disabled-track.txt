@@ -1,0 +1,6 @@
+audio tracks enabled: true, false
+SourceBuffer buffered: [0.000-1.002]
+waiting at: 1.990
+element buffered: [0.000-2.002]
+element buffered after endOfStream(): [0.000-2.002]
+seek into the gap after the buffered end succeeded
