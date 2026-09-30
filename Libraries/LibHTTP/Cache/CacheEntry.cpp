@@ -116,8 +116,11 @@ CacheEntryWriter::CacheEntryWriter(DiskCache& disk_cache, CacheIndex& index, u64
 {
 }
 
-ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& request_headers, HeaderList const& response_headers)
+ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optional<String> reason_phrase, HeaderList const& request_headers, HeaderList const& received_response_headers)
 {
+    auto response_headers_without_connection_specific_fields = remove_connection_specific_fields(received_response_headers);
+    auto const& response_headers = *response_headers_without_connection_specific_fields;
+
     if (m_marked_for_deletion) {
         remove_incomplete_temporary_file();
         close_and_destroy_cache_entry();

@@ -98,8 +98,11 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     VERIFY_NOT_REACHED();
 }
 
-void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_time, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers, Optional<Core::ImmutableBytes> javascript_bytecode_cache, Optional<u64> javascript_bytecode_cache_vary_key)
+void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_time, u32 status_code, ByteString reason_phrase, HeaderList const& received_response_headers, Optional<Core::ImmutableBytes> javascript_bytecode_cache, Optional<u64> javascript_bytecode_cache_vary_key)
 {
+    auto response_headers_without_connection_specific_fields = remove_connection_specific_fields(received_response_headers);
+    auto const& response_headers = *response_headers_without_connection_specific_fields;
+
     if (!is_cacheable(method, request_headers))
         return;
 
@@ -147,8 +150,11 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
 
 // FIXME: It would be nicer if create_entry just returned the cache and vary keys. But the call sites of create_entry and
 //        finalize_entry are pretty far apart, so passing that information along is rather awkward in Fetch.
-void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, Core::ImmutableBytes response_body)
+void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& received_response_headers, Core::ImmutableBytes response_body)
 {
+    auto response_headers_without_connection_specific_fields = remove_connection_specific_fields(received_response_headers);
+    auto const& response_headers = *response_headers_without_connection_specific_fields;
+
     if (!is_cacheable(method, request_headers))
         return;
     if (!is_cacheable(status_code, response_headers))
