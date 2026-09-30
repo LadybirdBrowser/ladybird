@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
@@ -156,14 +156,8 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         ? ContentSecurityPolicy::Directives::Directive::NavigationType::FormSubmission
         : ContentSecurityPolicy::Directives::Directive::NavigationType::Other;
 
-    // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
-    auto source_snapshot_params = snapshot_source_snapshot_params(source_document);
-
-    // 3. Let initiatorOriginSnapshot be a new opaque origin.
-    auto initiator_origin_snapshot = URL::Origin::create_opaque();
-
-    // 4. Let initiatorBaseURLSnapshot be about:blank.
-    auto initiator_base_url_snapshot = URL::about_blank();
+    // Steps 2 to 4, 6.3, 6.4, and 7.
+    auto snapshots = snapshot_navigation_source(source_document);
 
     // 5. If sourceDocument is null:
     if (!source_document) {
@@ -175,7 +169,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
             auto origin = active_document_origin();
             if (!origin.has_value())
                 return {};
-            initiator_origin_snapshot = origin.release_value();
+            snapshots.initiator_origin_snapshot = origin.release_value();
         }
     }
     // 6. Otherwise:
@@ -185,7 +179,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 
         // 2. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given
         //    sourceSnapshotParams:
-        if (!source_document->navigable()->allowed_by_sandboxing_to_navigate(*this, source_snapshot_params)) {
+        if (!source_document->navigable()->allowed_by_sandboxing_to_navigate(*this, snapshots.source_snapshot_params)) {
             // 1. If exceptionsEnabled is true, then throw a "SecurityError" DOMException.
             if (params.exceptions_enabled)
                 return WebIDL::SecurityError::create("Source document's node navigable is not allowed to navigate"_utf16);
@@ -193,12 +187,6 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
             // 2. Return.
             return {};
         }
-
-        // 3. Set initiatorOriginSnapshot to sourceDocument's origin.
-        initiator_origin_snapshot = source_document->origin();
-
-        // 4. Set initiatorBaseURLSnapshot to sourceDocument's document base URL.
-        initiator_base_url_snapshot = source_document->base_url();
     }
 
     // AD-HOC: Nothing the browser process can see names this URL's blob URL entry until the navigation commits, so
@@ -207,10 +195,6 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         if (auto const* blob = blob_url_entry->object.get_pointer<URL::BlobURLEntry::Blob>())
             source_document->page().client().page_did_retain_blob_url_token(id(), blob->token);
     }
-
-    // 7. Let navigationId be the result of generating a random UUID.
-    auto uuid = Crypto::generate_random_uuid();
-    auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
 
     // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these
     //    steps. Otherwise, queue a global task on the navigation and traversal task source given navigable's active
@@ -225,14 +209,14 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         .form_data_entry_list = move(params.form_data_entry_list),
         .referrer_policy = params.referrer_policy,
         .user_involvement = params.user_involvement,
-        .navigation_id = move(navigation_id),
+        .navigation_id = move(snapshots.navigation_id),
         .source_element = params.source_element,
         .initial_insertion = params.initial_insertion,
         .api_method_tracker = params.api_method_tracker,
         .csp_navigation_type = csp_navigation_type,
-        .source_snapshot_params = source_snapshot_params,
-        .initiator_origin_snapshot = move(initiator_origin_snapshot),
-        .initiator_base_url_snapshot = move(initiator_base_url_snapshot),
+        .source_snapshot_params = snapshots.source_snapshot_params,
+        .initiator_origin_snapshot = move(snapshots.initiator_origin_snapshot),
+        .initiator_base_url_snapshot = move(snapshots.initiator_base_url_snapshot),
     });
 }
 

@@ -170,8 +170,8 @@ private:
     virtual void did_leave_tooltip_area() override;
     virtual void did_hover_link(URL::URL url) override;
     virtual void did_unhover_link() override;
-    virtual void did_click_link(URL::URL url, ByteString target, unsigned modifiers) override;
-    virtual void did_middle_click_link(URL::URL url, ByteString, unsigned) override;
+    virtual void did_click_link(Web::HTML::PreparedNavigationDescriptor navigation, ByteString target, unsigned modifiers) override;
+    virtual void did_middle_click_link(Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned) override;
     virtual void did_request_external_url(URL::URL url, URL::Origin initiator_origin, bool has_transient_activation) override;
     virtual void did_inspect_storage(u64 request_id, String storage_items) override;
     virtual void did_inspect_grid_layouts(String grid_layouts) override;
@@ -293,9 +293,9 @@ private:
     virtual void did_finish_loading(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id) override;
     virtual void did_change_title(Utf16String title) override;
     virtual void did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target) override;
-    virtual void did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned) override;
-    virtual void did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap) override;
-    virtual void did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu) override;
+    virtual void did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned) override;
+    virtual void did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap) override;
+    virtual void did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation) override;
     virtual void did_get_highlighted_source(String html) override;
     virtual void did_get_debugger_environments(u64 request_id, Optional<String> error, Vector<DebuggerEnvironment> environments) override;
     virtual void did_evaluate_javascript_in_debugger_frame(u64 request_id, Optional<String> error, DebuggerEvaluationResult result) override;

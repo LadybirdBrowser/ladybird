@@ -463,7 +463,7 @@ Optional<String> Application::system_font_family() const
 }
 #endif
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, RefPtr<WebView::WebContentClient> page_process, Optional<Web::PageId> page_index, ShowWindow show_window)
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, RefPtr<WebView::WebContentClient> page_process, Optional<Web::PageId> page_index, ShowWindow show_window, Optional<Web::HTML::PreparedNavigationDescriptor> initial_navigation)
 {
     auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, move(page_process), move(page_index));
     set_active_window(*window);
@@ -491,8 +491,12 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
 
     size_t initial_url_index = 0;
     window->for_each_tab([&](Tab& tab) {
-        if (initial_url_index < initial_urls.size())
-            tab.navigate(initial_urls[initial_url_index++]);
+        if (initial_url_index >= initial_urls.size())
+            return;
+        if (initial_url_index++ == 0 && initial_navigation.has_value())
+            tab.view().load(initial_navigation.release_value());
+        else
+            tab.navigate(initial_urls[initial_url_index - 1]);
     });
 
     if (should_focus_location_editor && show_window == ShowWindow::Yes) {
@@ -772,6 +776,24 @@ void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
 void Application::open_url_in_new_window(URL::URL const& url, WebView::IsPrivate is_private)
 {
     new_window({ url }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
+}
+
+void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) const
+{
+    if (!m_active_window) {
+        auto url = navigation.url;
+        const_cast<Application&>(*this).new_window({ move(url) }, {}, BrowserWindow::IsPopupWindow::No, WebView::IsPrivate::No, nullptr, nullptr, {}, ShowWindow::Yes, move(navigation));
+        return;
+    }
+
+    auto& tab = active_window().create_new_tab(activate_tab, BrowserWindow::TabLocation::after_current_tab());
+    tab.view().load(move(navigation));
+}
+
+void Application::open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, WebView::IsPrivate is_private)
+{
+    auto url = navigation.url;
+    new_window({ move(url) }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private, nullptr, nullptr, {}, ShowWindow::Yes, move(navigation));
 }
 
 Optional<ByteString> Application::ask_user_for_download_path(ByteString const& file) const

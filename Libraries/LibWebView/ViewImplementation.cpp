@@ -295,6 +295,23 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
     dump_session_history("load"sv);
 }
 
+// A navigation a page asked the browser's UI to start for it — a link opened with a middle-click, e.g. — whose
+// source is still that page.
+void ViewImplementation::load(Web::HTML::PreparedNavigationDescriptor navigation)
+{
+    if (on_before_browser_initiated_navigation)
+        on_before_browser_initiated_navigation();
+
+    prepare_for_navigation_after_crash(navigation.url);
+    m_last_stopped_load_url.clear();
+    if (navigation.url.scheme() != "javascript"sv)
+        set_url(navigation.url);
+    traversable().begin_navigation(move(navigation));
+    if (traversable().has_uncommitted_navigation())
+        set_loading_state(true);
+    dump_session_history("load"sv);
+}
+
 void ViewImplementation::load_from_user_input(URL::URL const& url)
 {
     if (!is_url_handled_internally(url)) {
@@ -357,6 +374,36 @@ void ViewImplementation::open_url_in_new_tab(URL::URL const& url, Web::HTML::Act
     }
 
     Application::the().open_url_in_new_tab(url, activate_tab);
+}
+
+void ViewImplementation::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab)
+{
+    if (!is_url_handled_internally(navigation.url)) {
+        handle_external_url_from_user_input(navigation.url);
+        return;
+    }
+
+    if (auto* view = create_view_for_new_tab_or_window(is_private())) {
+        view->load(move(navigation));
+        return;
+    }
+
+    Application::the().open_navigation_in_new_tab(move(navigation), activate_tab);
+}
+
+void ViewImplementation::open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor navigation, IsPrivate is_private)
+{
+    if (!is_url_handled_internally(navigation.url)) {
+        handle_external_url_from_user_input(navigation.url);
+        return;
+    }
+
+    if (auto* view = create_view_for_new_tab_or_window(is_private)) {
+        view->load(move(navigation));
+        return;
+    }
+
+    Application::the().open_navigation_in_new_window(move(navigation), is_private);
 }
 
 void ViewImplementation::open_url_in_new_window(URL::URL const& url, IsPrivate is_private)
@@ -3623,17 +3670,33 @@ void ViewImplementation::initialize_context_menus()
         take_and_save_screenshot(ScreenshotType::Full);
     });
 
+    // A URL from the context menu is the page's — a link's or an image's — so it's navigated to from the page, unless
+    // the user selected it as text. Blink also starts a selected URL with no initiator (IDC_CONTENT_CONTEXT_GOTOURL).
     m_open_in_new_tab_action = Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this]() {
-        open_url_in_new_tab(m_context_menu_url, Web::HTML::ActivateTab::No);
+        if (m_context_menu_navigation.has_value())
+            open_navigation_in_new_tab(*m_context_menu_navigation, Web::HTML::ActivateTab::No);
+        else
+            open_url_in_new_tab(m_context_menu_url, Web::HTML::ActivateTab::No);
     });
     if (m_is_private == IsPrivate::No) {
         m_open_in_new_window_action = Action::create("Open in New Window"sv, ActionID::OpenInNewWindow, [this]() {
-            open_url_in_new_window(m_context_menu_url, IsPrivate::No);
+            if (m_context_menu_navigation.has_value())
+                open_navigation_in_new_window(*m_context_menu_navigation, IsPrivate::No);
+            else
+                open_url_in_new_window(m_context_menu_url, IsPrivate::No);
         });
     }
     if (application.supports_private_browsing_windows()) {
         m_open_in_new_private_window_action = Action::create("Open in New Private Window"sv, ActionID::OpenInNewPrivateWindow, [this]() {
-            open_url_in_new_window(m_context_menu_url, IsPrivate::Yes);
+            if (!m_context_menu_navigation.has_value()) {
+                open_url_in_new_window(m_context_menu_url, IsPrivate::Yes);
+                return;
+            }
+            // A private window still gets the page as the navigation's initiator, but never the page's URL as its
+            // referrer — as in Gecko/Blink (Gecko URILoadingHelper, Blink IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD).
+            auto navigation = *m_context_menu_navigation;
+            navigation.referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::NoReferrer;
+            open_navigation_in_new_window(move(navigation), IsPrivate::Yes);
         });
     }
     m_download_linked_file_action = Action::create("Download Linked File"sv, ActionID::DownloadLinkedFile, [this]() {
@@ -3647,7 +3710,7 @@ void ViewImplementation::initialize_context_menus()
     });
 
     m_open_image_action = Action::create("Open Image"sv, ActionID::OpenImage, [this]() {
-        load(m_context_menu_url);
+        load(*m_context_menu_navigation);
     });
     m_save_image_action = Action::create("Save Image As..."sv, ActionID::SaveImage, [this]() {
         download_context_menu_url(PromptForPath::Yes);
@@ -3668,10 +3731,10 @@ void ViewImplementation::initialize_context_menus()
     });
 
     m_open_audio_action = Action::create("Open Audio"sv, ActionID::OpenAudio, [this]() {
-        load(m_context_menu_url);
+        load(*m_context_menu_navigation);
     });
     m_open_video_action = Action::create("Open Video"sv, ActionID::OpenVideo, [this]() {
-        load(m_context_menu_url);
+        load(*m_context_menu_navigation);
     });
     m_media_play_action = Action::create("Play"sv, ActionID::PlayMedia, [this]() {
         send_to_media_context_menu_page([](auto& page) { page.async_toggle_media_play_state(); });
@@ -3972,6 +4035,7 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, Gf
 
             if (selected_text_url.has_value() && weak_this->m_selected_text_link_context_menu->on_activation) {
                 weak_this->m_context_menu_url = selected_text_url.release_value();
+                weak_this->m_context_menu_navigation.clear();
                 weak_this->m_open_in_new_tab_action->set_text("Open in New Tab"sv);
                 weak_this->m_selected_text_link_context_menu->on_activation(weak_this->to_widget_position(content_position));
                 return;
@@ -3992,15 +4056,16 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, Gf
     });
 }
 
-void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, URL::URL url)
+void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     auto request_id = ++m_context_menu_request_id;
     auto weak_this = make_weak_ptr();
-    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, url = move(url)](auto const& lookup) mutable {
+    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, navigation = move(navigation)](auto const& lookup) mutable {
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
 
-        weak_this->m_context_menu_url = move(url);
+        weak_this->m_context_menu_url = navigation.url;
+        weak_this->m_context_menu_navigation = move(navigation);
         weak_this->update_look_up_selected_text_action(lookup, content_position);
 
         weak_this->m_open_in_new_tab_action->set_text("Open in New Tab"sv);
@@ -4036,15 +4101,16 @@ void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path
     Application::the().file_downloader().download_file(is_private(), m_context_menu_url, download_path.release_value());
 }
 
-void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap)
+void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<Gfx::ShareableBitmap> bitmap)
 {
     auto request_id = ++m_context_menu_request_id;
     auto weak_this = make_weak_ptr();
-    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, url = move(url), bitmap = move(bitmap)](auto const& lookup) mutable {
+    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, navigation = move(navigation), bitmap = move(bitmap)](auto const& lookup) mutable {
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
 
-        weak_this->m_context_menu_url = move(url);
+        weak_this->m_context_menu_url = navigation.url;
+        weak_this->m_context_menu_navigation = move(navigation);
         weak_this->m_image_context_menu_bitmap = move(bitmap);
         weak_this->update_look_up_selected_text_action(lookup, content_position);
 
@@ -4065,16 +4131,17 @@ void ViewImplementation::send_to_media_context_menu_page(Function<void(WebConten
         send(target);
 }
 
-void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu)
+void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     m_media_context_menu_page = requesting_page;
     auto request_id = ++m_context_menu_request_id;
     auto weak_this = make_weak_ptr();
-    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, menu = move(menu)](auto const& lookup) mutable {
+    request_context_menu_dictionary_lookup([weak_this, request_id, content_position, menu = move(menu), navigation = move(navigation)](auto const& lookup) mutable {
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
 
         weak_this->m_context_menu_url = move(menu.media_url);
+        weak_this->m_context_menu_navigation = move(navigation);
         weak_this->update_look_up_selected_text_action(lookup, content_position);
 
         weak_this->m_open_in_new_tab_action->set_text(menu.is_video ? "Open Video in New Tab"sv : "Open Audio in new Tab"sv);
