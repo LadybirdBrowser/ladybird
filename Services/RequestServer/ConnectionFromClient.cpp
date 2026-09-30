@@ -689,8 +689,16 @@ void ConnectionFromClient::complete_aia_fetch(void* easy_handle, int result_code
         curl_slist_free_all((*fetch)->resolve_list);
 
     bool added = false;
-    if (result_code == CURLE_OK && response_code == 200)
-        added = add_fetched_aia_intermediate(m_is_private, (*fetch)->body.bytes());
+    if (result_code == CURLE_OK && response_code == 200) {
+        Vector<NonnullRefPtr<AIACollector>> collectors;
+        for (auto request_id : (*fetch)->request_ids) {
+            if (auto request = m_active_requests.get(request_id); request.has_value()) {
+                if (auto* collector = (*request)->aia_collector())
+                    collectors.append(*collector);
+            }
+        }
+        added = add_fetched_aia_intermediates((*fetch)->body.bytes(), collectors);
+    }
 
     if (!added) {
         dbgln_if(REQUESTSERVER_DEBUG, "AIA: intermediate fetch from {} failed (curl={}, status={})", (*fetch)->url, result_code, response_code);
