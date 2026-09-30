@@ -69,27 +69,32 @@ Vector<ByteString> ca_issuers_urls(X509* certificate)
     return urls;
 }
 
-// Process-wide cache of intermediate certs fetched via AIA. Each entry owns one reference to the X509. Bounded by
-// max_cached_intermediates with FIFO eviction.
-static Vector<Crypto::OpenSSL_X509>& intermediate_cache()
+// Separate normal and private caches to prevent browsing-history leaks. Each entry owns one X509 reference.
+static Vector<Crypto::OpenSSL_X509>& intermediate_cache(IsPrivate is_private)
 {
-    static Vector<Crypto::OpenSSL_X509> cache;
-    return cache;
+    static Vector<Crypto::OpenSSL_X509> caches[2];
+    return caches[to_underlying(is_private)];
 }
 
-// Process-wide record of caIssuers URLs whose fetch failed, mapped to when they failed — so we don't repeatedly retry a
-// dead URL. Entries older than failed_url_retry_interval are ignored (and dropped when next encountered).
-static HashMap<ByteString, MonotonicTime>& failed_urls()
+// Cache failed caIssuers fetches to avoid repeated retries, separately for normal and private clients.
+static HashMap<ByteString, MonotonicTime>& failed_urls(IsPrivate is_private)
 {
-    static HashMap<ByteString, MonotonicTime> urls;
-    return urls;
+    static HashMap<ByteString, MonotonicTime> urls[2];
+    return urls[to_underlying(is_private)];
 }
 
-void mark_aia_url_failed(ByteString url)
+void mark_aia_url_failed(IsPrivate is_private, ByteString url)
 {
-    if (failed_urls().size() >= max_failed_urls)
-        failed_urls().clear();
-    failed_urls().set(move(url), MonotonicTime::now_coarse());
+    auto& urls = failed_urls(is_private);
+    if (urls.size() >= max_failed_urls)
+        urls.clear();
+    urls.set(move(url), MonotonicTime::now_coarse());
+}
+
+void clear_aia_state(IsPrivate is_private)
+{
+    intermediate_cache(is_private).clear();
+    failed_urls(is_private).clear();
 }
 
 // Parse a fetched AIA response body into one or more certs. Real-world CAs serve a bare DER-encoded cert, a PKCS#7/
@@ -139,8 +144,9 @@ Vector<X509*> parse_certificates(ReadonlyBytes body)
     return certificates;
 }
 
-bool add_fetched_aia_intermediate(ReadonlyBytes body)
+bool add_fetched_aia_intermediate(IsPrivate is_private, ReadonlyBytes body)
 {
+    auto& cache = intermediate_cache(is_private);
     auto certificates = parse_certificates(body);
     for (auto* certificate : certificates) {
         auto owned = Crypto::OpenSSL_X509::wrap(certificate);
@@ -149,9 +155,9 @@ bool add_fetched_aia_intermediate(ReadonlyBytes body)
             continue;
         }
         // take_first() drops the oldest wrapper, whose destructor frees the certificate.
-        if (intermediate_cache().size() >= max_cached_intermediates)
-            (void)intermediate_cache().take_first();
-        intermediate_cache().append(owned.release_value());
+        if (cache.size() >= max_cached_intermediates)
+            (void)cache.take_first();
+        cache.append(owned.release_value());
     }
     return !certificates.is_empty();
 }
@@ -161,12 +167,13 @@ bool add_fetched_aia_intermediate(ReadonlyBytes body)
 static int verify_callback(X509_STORE_CTX* context, void* collector_data)
 {
     auto* collector = static_cast<AIACollector*>(collector_data);
+    auto is_private = collector ? collector->is_private : IsPrivate::No;
 
     // Add the fetched intermediates alongside the certs the server sent, as untrusted path-building material.
     auto* server_untrusted = X509_STORE_CTX_get0_untrusted(context);
     auto* untrusted = server_untrusted ? sk_X509_dup(server_untrusted) : sk_X509_new_null();
     if (untrusted) {
-        for (auto& candidate : intermediate_cache())
+        for (auto& candidate : intermediate_cache(is_private))
             sk_X509_push(untrusted, candidate.ptr());
         X509_STORE_CTX_set0_untrusted(context, untrusted);
     }
@@ -188,10 +195,10 @@ static int verify_callback(X509_STORE_CTX* context, void* collector_data)
             for (auto& url : ca_issuers_urls(current)) {
                 if (collector->attempted_urls.contains(url))
                     continue;
-                if (auto failed_at = failed_urls().get(url); failed_at.has_value()) {
+                if (auto failed_at = failed_urls(is_private).get(url); failed_at.has_value()) {
                     if (MonotonicTime::now_coarse() - *failed_at < failed_url_retry_interval)
                         continue;
-                    failed_urls().remove(url);
+                    failed_urls(is_private).remove(url);
                 }
                 if (!collector->pending_urls.contains_slow(url))
                     collector->pending_urls.append(move(url));
