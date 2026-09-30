@@ -577,3 +577,34 @@ TEST_CASE(not_modified_response_with_another_validator_fails_revalidation)
     expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
     EXPECT_EQ(http_server.connection_count(), 4u);
 }
+
+TEST_CASE(truncated_background_revalidation_response_is_not_stored)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1)
+            return ServerResponse::at_once(ByteString::formatted("{}short", http_response_head("max-age=0, stale-while-revalidate=600"sv, 10)));
+        return ServerResponse::at_once(http_response("max-age=0, stale-while-revalidate=600"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "read-from-cache"sv);
+
+    // Allow background revalidation to finish.
+    (void)connection.wait_for_request_to_finish(0, AK::Duration::from_milliseconds(500));
+    EXPECT_EQ(http_server.connection_count(), 2u);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+}

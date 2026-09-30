@@ -584,7 +584,7 @@ Request::~Request()
     MUST(free_curl_structs());
 
     if (m_cache_entry_writer.has_value()) {
-        if (m_state == State::Complete)
+        if (m_state == State::Complete && m_curl_result_code == CURLE_OK)
             (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
         else
             m_cache_entry_writer->remove_incomplete_entry();
@@ -1501,7 +1501,10 @@ void Request::handle_complete_state()
     }
 
     if (m_cache_entry_writer.has_value()) {
-        (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+        if (m_curl_result_code == CURLE_OK)
+            (void)m_cache_entry_writer->flush(m_request_headers, m_response_headers);
+        else
+            m_cache_entry_writer->remove_incomplete_entry();
         m_cache_entry_writer.clear();
     }
 
