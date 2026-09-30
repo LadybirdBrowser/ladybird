@@ -28,7 +28,7 @@ namespace Media::MediaSourceExtensions {
 class ByteStreamParser;
 struct DemuxedCodedFrame;
 class TrackBuffer;
-class TrackBufferDemuxer;
+class SourceBufferDemuxer;
 
 // https://w3c.github.io/media-source/#dom-appendmode
 enum class AppendMode : u8 {
@@ -43,15 +43,11 @@ enum class AppendState : u8 {
     ParsingMediaSegment,
 };
 
-struct InitializationSegmentTrack {
-    Media::Track track;
-    NonnullRefPtr<TrackBufferDemuxer> demuxer;
-};
-
 struct InitializationSegmentData {
-    Vector<InitializationSegmentTrack> audio_tracks;
-    Vector<InitializationSegmentTrack> video_tracks;
-    Vector<InitializationSegmentTrack> text_tracks;
+    NonnullRefPtr<SourceBufferDemuxer> demuxer;
+    Vector<Media::Track> audio_tracks;
+    Vector<Media::Track> video_tracks;
+    Vector<Media::Track> text_tracks;
 };
 
 // Every mutation of the processor is a command, so that ordering between them is the queue's
@@ -211,6 +207,7 @@ private:
     OwnPtr<ByteStreamParser> m_parser;
     NonnullRefPtr<Media::ReadonlyBytesCursor> m_cursor;
     HashMap<u64, NonnullOwnPtr<TrackBuffer>> m_track_buffers;
+    RefPtr<SourceBufferDemuxer> m_demuxer;
 
     DurationChangeCallback m_duration_change_callback;
     InitializationSegmentCallback m_first_initialization_segment_callback;

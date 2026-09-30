@@ -35,9 +35,9 @@ set(TEST_SOURCES
     TestPipelineNodes.cpp
     TestPlaybackStream.cpp
     TestRemoteVideoNode.cpp
+    TestSourceBufferDemuxer.cpp
     TestSpscAudioFrameRing.cpp
     TestTimeRanges.cpp
-    TestTrackBufferDemuxer.cpp
     TestVideoEdgeQueue.cpp
     TestVideoFramePool.cpp
     TestVorbisDecode.cpp

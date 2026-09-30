@@ -6,7 +6,7 @@
 
 #include <AK/Debug.h>
 #include <LibMedia/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
-#include <LibMedia/MediaSourceExtensions/TrackBufferDemuxer.h>
+#include <LibMedia/MediaSourceExtensions/SourceBufferDemuxer.h>
 #include <LibMedia/MediaSourceExtensions/WebMByteStreamParser.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/PlaybackSession.h>
@@ -121,15 +121,11 @@ void PlaybackSession::finish_source_buffer_track_addition(u64 source_buffer_id, 
     auto* source_buffer = find_source_buffer(source_buffer_id);
     if (!source_buffer)
         return;
-    VERIFY(source_buffer->pending_track_additions > 0);
-    source_buffer->pending_track_additions--;
-    if (outcome == TrackAdditionOutcome::Failed)
-        source_buffer->track_addition_failed = true;
-    if (source_buffer->pending_track_additions > 0)
-        return;
+    VERIFY(source_buffer->is_adding_tracks);
+    source_buffer->is_adding_tracks = false;
 
     auto held_messages = move(source_buffer->held_messages);
-    if (exchange(source_buffer->track_addition_failed, false)) {
+    if (outcome == TrackAdditionOutcome::Failed) {
         // The segment's tracks cannot be played, so the append that delivered it fails, and nothing it produced is
         // reported. The renderer's append error algorithm resets the parser.
         auto failed_append_generation = source_buffer->first_initialization_segment_append_generation;
@@ -142,7 +138,7 @@ void PlaybackSession::finish_source_buffer_track_addition(u64 source_buffer_id, 
 
 void PlaybackSession::send_or_hold(SourceBuffer& source_buffer, Optional<u64> append_generation, Function<void()> send)
 {
-    if (source_buffer.pending_track_additions == 0) {
+    if (!source_buffer.is_adding_tracks) {
         send();
         return;
     }
@@ -174,22 +170,11 @@ void PlaybackSession::create_source_buffer(u64 source_buffer_id)
             return;
         source_buffer->first_initialization_segment_append_generation = source_buffer->append_generation;
 
-        Vector<Media::Track> audio_tracks;
-        Vector<Media::Track> video_tracks;
-        Vector<Media::Track> text_tracks;
-        for (auto const& track_data : segment.audio_tracks) {
-            audio_tracks.append(track_data.track);
-            source_buffer->pending_track_additions++;
-            add_source_buffer_demuxer(source_buffer_id, track_data.demuxer);
+        if (!segment.audio_tracks.is_empty() || !segment.video_tracks.is_empty()) {
+            source_buffer->is_adding_tracks = true;
+            add_source_buffer_demuxer(source_buffer_id, segment.demuxer);
         }
-        for (auto const& track_data : segment.video_tracks) {
-            video_tracks.append(track_data.track);
-            source_buffer->pending_track_additions++;
-            add_source_buffer_demuxer(source_buffer_id, track_data.demuxer);
-        }
-        for (auto const& track_data : segment.text_tracks)
-            text_tracks.append(track_data.track);
-        send_or_hold(*source_buffer, source_buffer->append_generation, [this, source_buffer_id, audio_tracks = move(audio_tracks), video_tracks = move(video_tracks), text_tracks = move(text_tracks)] mutable {
+        send_or_hold(*source_buffer, source_buffer->append_generation, [this, source_buffer_id, audio_tracks = move(segment.audio_tracks), video_tracks = move(segment.video_tracks), text_tracks = move(segment.text_tracks)] mutable {
             m_connection.async_source_buffer_first_initialization_segment_received(m_id, source_buffer_id, move(audio_tracks), move(video_tracks), move(text_tracks));
         });
     });

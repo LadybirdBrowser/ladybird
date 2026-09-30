@@ -10,13 +10,12 @@ namespace Media::MediaSourceExtensions {
 
 class ByteStreamParser;
 class ISOBMFFByteStreamParser;
+class SourceBufferDemuxer;
 class SourceBufferProcessor;
 class TrackBuffer;
-class TrackBufferDemuxer;
 class WebMByteStreamParser;
 struct DemuxedCodedFrame;
 struct InitializationSegmentData;
-struct InitializationSegmentTrack;
 struct ParseMediaSegmentResult;
 
 }

@@ -12,9 +12,9 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/MediaSourceExtensions/ByteStreamParser.h>
+#include <LibMedia/MediaSourceExtensions/SourceBufferDemuxer.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/MediaSourceExtensions/TrackBuffer.h>
-#include <LibMedia/MediaSourceExtensions/TrackBufferDemuxer.h>
 #include <LibMedia/ReadonlyBytesCursor.h>
 
 namespace Media::MediaSourceExtensions {
@@ -150,7 +150,7 @@ size_t SourceBufferProcessor::total_buffered_bytes() const
 {
     size_t total = 0;
     for (auto const& [track_id, track_buffer] : m_track_buffers)
-        total += track_buffer->demuxer().total_bytes();
+        total += track_buffer->demuxer().total_bytes(track_buffer->track());
     return total;
 }
 
@@ -158,7 +158,7 @@ size_t SourceBufferProcessor::capacity_in_bytes() const
 {
     size_t total = 0;
     for (auto const& [track_id, track_buffer] : m_track_buffers) {
-        switch (track_buffer->demuxer().track().type()) {
+        switch (track_buffer->track().type()) {
         case Media::TrackType::Audio:
             total += AUDIO_TRACK_BYTE_CAPACITY;
             break;
@@ -416,7 +416,7 @@ bool SourceBufferProcessor::initialization_segment_received()
             for (auto const& track : *tracks) {
                 track_count++;
                 auto track_buffer = m_track_buffers.get(track.identifier());
-                if (!track_buffer.has_value() || track_buffer.value()->demuxer().track().type() != track.type()) {
+                if (!track_buffer.has_value() || track_buffer.value()->track().type() != track.type()) {
                     m_append_error_callback();
                     return false;
                 }
@@ -454,8 +454,16 @@ bool SourceBufferProcessor::initialization_segment_received()
             }
         }
 
+        // AD-HOC: The coded frames of all of this SourceBuffer's track buffers are stored by one demuxer, since the
+        //         buffered ranges that limit playback of each track are shared by all of them.
+        Vector<Media::Track> all_tracks;
+        all_tracks.extend(m_parser->audio_tracks());
+        all_tracks.extend(m_parser->video_tracks());
+        all_tracks.extend(m_parser->text_tracks());
+        auto demuxer = make_ref_counted<SourceBufferDemuxer>(all_tracks);
+        m_demuxer = demuxer;
+
         auto build_tracks = [&](Vector<Media::Track> const& tracks) {
-            Vector<InitializationSegmentTrack> result;
             // 2. For each audio track in the initialization segment, run following steps:
             // 3. For each video track in the initialization segment, run following steps:
             // 4. For each text track in the initialization segment, run following steps:
@@ -464,17 +472,14 @@ bool SourceBufferProcessor::initialization_segment_received()
 
                 // 7. Create a new track buffer to store coded frames for this track.
                 // 8. Add the track description for this track to the track buffer.
-                auto demuxer = make_ref_counted<TrackBufferDemuxer>(track);
-                auto track_buffer = make<TrackBuffer>(demuxer);
-                m_track_buffers.set(track.identifier(), move(track_buffer));
-
-                // AD-HOC: Pass off the track information to the callback so that it can initialize the DOM objects.
-                result.append({ .track = track, .demuxer = demuxer });
+                m_track_buffers.set(track.identifier(), make<TrackBuffer>(demuxer, track));
             }
-            return result;
+            // AD-HOC: Pass off the track information to the callback so that it can initialize the DOM objects.
+            return tracks;
         };
 
         m_first_initialization_segment_callback({
+            .demuxer = demuxer,
             .audio_tracks = build_tracks(m_parser->audio_tracks()),
             .video_tracks = build_tracks(m_parser->video_tracks()),
             .text_tracks = build_tracks(m_parser->text_tracks()),
@@ -539,6 +544,7 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
             continue;
         auto& track_buffer = *maybe_track_buffer.release_value();
         auto& demuxer = track_buffer.demuxer();
+        auto const& track = track_buffer.track();
 
         auto last_decode_timestamp = track_buffer.last_decode_timestamp();
         auto last_frame_duration = track_buffer.last_frame_duration();
@@ -589,14 +595,14 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
 
         // AD-HOC: If we're appending audio, splice audio as the spec notes that we can, such that we don't lose any
         //         samples at the leading and trailing edges of the append window.
-        auto is_audio = demuxer.track().type() == Media::TrackType::Audio;
+        auto is_audio = track.type() == Media::TrackType::Audio;
 
         // 8. If presentation timestamp is less than appendWindowStart, then set the need random access point flag to
         //    true, drop the coded frame, and jump to the top of the loop.
         if (presentation_timestamp < m_append_window_start) {
             if (!is_audio || frame_end_timestamp <= m_append_window_start) {
                 track_buffer.set_need_random_access_point_flag(true);
-                demuxer.carry_codec_configuration_of_dropped_frame(frame);
+                demuxer.carry_codec_configuration_of_dropped_frame(track, frame);
                 continue;
             }
             auto discarded_duration = m_append_window_start - presentation_timestamp;
@@ -611,7 +617,7 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         if (frame_end_timestamp > m_append_window_end) {
             if (!is_audio || presentation_timestamp >= m_append_window_end) {
                 track_buffer.set_need_random_access_point_flag(true);
-                demuxer.carry_codec_configuration_of_dropped_frame(frame);
+                demuxer.carry_codec_configuration_of_dropped_frame(track, frame);
                 continue;
             }
             auto discarded_duration = frame_end_timestamp - m_append_window_end;
@@ -625,7 +631,7 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
             // 1. If the coded frame is not a random access point, then drop the coded frame and jump to
             //    the top of the loop.
             if (!frame.is_keyframe()) {
-                demuxer.carry_codec_configuration_of_dropped_frame(frame);
+                demuxer.carry_codec_configuration_of_dropped_frame(track, frame);
                 continue;
             }
             // 2. Set the need random access point flag on track buffer to false.
@@ -645,13 +651,13 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         if (!highest_end_timestamp.has_value()) {
             //    Remove all coded frames from track buffer that have a presentation timestamp greater than
             //    or equal to presentation timestamp and less than frame end timestamp.
-            demuxer.remove_coded_frames_and_dependants_in_range(presentation_timestamp, frame_end_timestamp);
+            demuxer.remove_coded_frames_and_dependants_in_range(track, presentation_timestamp, frame_end_timestamp);
         }
         // -> If highest end timestamp for track buffer is set and less than or equal to presentation timestamp:
         else if (highest_end_timestamp.value() <= presentation_timestamp) {
             //    Remove all coded frames from track buffer that have a presentation timestamp greater than
             //    or equal to highest end timestamp and less than frame end timestamp.
-            demuxer.remove_coded_frames_and_dependants_in_range(highest_end_timestamp.value(), frame_end_timestamp);
+            demuxer.remove_coded_frames_and_dependants_in_range(track, highest_end_timestamp.value(), frame_end_timestamp);
         }
 
         // 15. Remove all possible decoding dependencies on the coded frames removed in the previous two
@@ -669,7 +675,7 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         frame.set_presentation_timestamp(presentation_timestamp);
         frame.set_decode_timestamp(decode_timestamp);
         frame.set_duration(frame_duration);
-        demuxer.add_coded_frame(move(frame));
+        demuxer.add_coded_frame(track, move(frame));
 
         // 17. Set last decode timestamp for track buffer to decode timestamp.
         track_buffer.set_last_decode_timestamp(decode_timestamp);
@@ -714,7 +720,7 @@ void SourceBufferProcessor::run_coded_frame_removal(AK::Duration start, AK::Dura
 
         // 3. Remove all media data, from this track buffer, that contain starting timestamps greater than or
         //    equal to start and less than the remove end timestamp.
-        auto removed_frame_presentation_timestamp = track_buffer->demuxer().remove_coded_frames_and_dependants_in_range_returning_presentation_timestamp_at(start, end, track_buffer->last_decode_timestamp());
+        auto removed_frame_presentation_timestamp = track_buffer->demuxer().remove_coded_frames_and_dependants_in_range_returning_presentation_timestamp_at(track_buffer->track(), start, end, track_buffer->last_decode_timestamp());
 
         //     1. For each removed frame, if the frame has a decode timestamp equal to the last decode timestamp
         //        for the frame's track, run the following steps:
@@ -745,7 +751,7 @@ void SourceBufferProcessor::run_coded_frame_removal(AK::Duration start, AK::Dura
         // 4. Remove all possible decoding dependencies on the coded frames removed in the previous step by
         //    removing all coded frames from this track buffer between those frames removed in the previous step
         //    and the next random access point after those removed frames.
-        // NB: This is taken care of by the TrackBufferDemuxer above.
+        // NB: This is taken care of by the SourceBufferDemuxer above.
 
         // 5. If this object is in activeSourceBuffers, the current playback position is greater than or equal to
         //    start and less than the remove end timestamp, and HTMLMediaElement's readyState is greater than
@@ -804,7 +810,7 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
         TrackBuffer* oldest_track_buffer = nullptr;
         AK::Duration oldest_timestamp;
         for (auto& [track_id, track_buffer] : m_track_buffers) {
-            auto candidate = track_buffer->demuxer().earliest_evictable_frame_timestamp(current_time);
+            auto candidate = track_buffer->demuxer().earliest_evictable_frame_timestamp(track_buffer->track(), current_time);
             if (!candidate.has_value())
                 continue;
             if (!oldest_track_buffer || candidate.value() < oldest_timestamp) {
@@ -814,14 +820,14 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
         }
         if (!oldest_track_buffer)
             break;
-        bytes_evicted += oldest_track_buffer->demuxer().take_earliest_frame_and_dependants();
+        bytes_evicted += oldest_track_buffer->demuxer().take_earliest_frame_and_dependants(oldest_track_buffer->track());
     }
 
     while (bytes_evicted < bytes_to_evict) {
         TrackBuffer* latest_track_buffer = nullptr;
         AK::Duration latest_timestamp;
         for (auto& [track_id, track_buffer] : m_track_buffers) {
-            auto candidate = track_buffer->demuxer().latest_evictable_frame_timestamp(current_time);
+            auto candidate = track_buffer->demuxer().latest_evictable_frame_timestamp(track_buffer->track(), current_time);
             if (!candidate.has_value())
                 continue;
             if (!latest_track_buffer || candidate.value() > latest_timestamp) {
@@ -832,7 +838,7 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
         if (!latest_track_buffer)
             break;
         auto last_decode_timestamp = latest_track_buffer->last_decode_timestamp();
-        auto removed_frame = latest_track_buffer->demuxer().take_latest_frame();
+        auto removed_frame = latest_track_buffer->demuxer().take_latest_frame(latest_track_buffer->track());
         bytes_evicted += removed_frame.byte_size;
 
         // https://w3c.github.io/media-source/#dfn-coded-frame-removal
@@ -901,19 +907,19 @@ void SourceBufferProcessor::set_need_random_access_point_flag_on_all_track_buffe
 
 void SourceBufferProcessor::set_reached_end_of_stream(bool reached)
 {
-    for (auto& [track_id, track_buffer] : m_track_buffers) {
-        if (reached)
-            track_buffer->demuxer().set_reached_end_of_stream();
-        else
-            track_buffer->demuxer().clear_reached_end_of_stream();
-    }
+    if (!m_demuxer)
+        return;
+    if (reached)
+        m_demuxer->set_reached_end_of_stream();
+    else
+        m_demuxer->clear_reached_end_of_stream();
 }
 
 AK::Duration SourceBufferProcessor::highest_presentation_timestamp() const
 {
     AK::Duration highest_presentation_timestamp;
     for (auto const& [track_id, track_buffer] : m_track_buffers)
-        highest_presentation_timestamp = max(highest_presentation_timestamp, track_buffer->demuxer().highest_presentation_timestamp());
+        highest_presentation_timestamp = max(highest_presentation_timestamp, track_buffer->demuxer().highest_presentation_timestamp(track_buffer->track()));
     return highest_presentation_timestamp;
 }
 
@@ -921,7 +927,7 @@ AK::Duration SourceBufferProcessor::highest_end_time() const
 {
     AK::Duration highest_end_time;
     for (auto const& [track_id, track_buffer] : m_track_buffers) {
-        auto end_time = track_buffer->demuxer().track_buffer_ranges().highest_end_time();
+        auto end_time = track_buffer->demuxer().track_buffer_ranges(track_buffer->track()).highest_end_time();
         highest_end_time = max(highest_end_time, end_time);
     }
     return highest_end_time;
@@ -930,31 +936,10 @@ AK::Duration SourceBufferProcessor::highest_end_time() const
 // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
 Media::TimeRanges SourceBufferProcessor::buffered_ranges() const
 {
-    // 2. Let highest end time be the largest track buffer ranges end time across all the track buffers
-    //    managed by this SourceBuffer object.
-    auto highest_end_time = this->highest_end_time();
-
-    // 3. Let intersection ranges equal a TimeRanges object containing a single range from 0 to highest end time.
-    Media::TimeRanges intersection;
-    if (highest_end_time > AK::Duration::zero())
-        intersection.add_range(AK::Duration::zero(), highest_end_time);
-
-    // 4. For each audio and video track buffer managed by this SourceBuffer, run the following steps:
-    for (auto const& [track_id, track_buffer] : m_track_buffers) {
-        // 1. Let track ranges equal the track buffer ranges for the current track buffer.
-        auto track_ranges = track_buffer->demuxer().track_buffer_ranges();
-
-        // 2. If readyState is "ended", then set the end time on the last range in track ranges to
-        //    highest end time.
-        // FIXME: Check readyState from the parent MediaSource.
-
-        // 3. Let new intersection ranges equal the intersection between the intersection ranges and
-        //    the track ranges.
-        // 4. Replace the ranges in intersection ranges with the new intersection ranges.
-        intersection = intersection.intersection(track_ranges);
-    }
-
-    return intersection;
+    // NB: The demuxer runs steps 2-4, since the same ranges limit what it lets the tracks be played through.
+    if (!m_demuxer)
+        return {};
+    return m_demuxer->buffered_ranges();
 }
 
 }
