@@ -49,6 +49,7 @@ set(SOURCES
     DecoderError.cpp
     DecoderRegistry.cpp
     DemuxerRegistry.cpp
+    DemuxerScanState.cpp
     IncrementallyPopulatedStream.cpp
     MediaSourceExtensions/ISOBMFFByteStreamParser.cpp
     MediaSourceExtensions/SourceBufferProcessor.cpp

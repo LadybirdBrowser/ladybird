@@ -52,7 +52,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         if (video_producer_result.is_error())
             continue;
         supported_video_tracks.append(track);
-        supported_video_track_datas.empend(VideoTrackData(track, video_producer_result.release_value()));
+        supported_video_track_datas.empend(VideoTrackData(track, demuxer, video_producer_result.release_value()));
     }
     supported_video_tracks.shrink_to_fit();
     supported_video_track_datas.shrink_to_fit();
@@ -70,7 +70,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
             continue;
         auto audio_producer = audio_producer_result.release_value();
         supported_audio_tracks.append(track);
-        supported_audio_track_datas.empend(AudioTrackData(track, move(audio_producer)));
+        supported_audio_track_datas.empend(AudioTrackData(track, demuxer, move(audio_producer)));
     }
     supported_audio_tracks.shrink_to_fit();
     supported_audio_track_datas.shrink_to_fit();
@@ -296,17 +296,15 @@ void PlaybackManager::on_video_sink_state_changed(Track const& track, PipelineSt
     update_pipeline_state();
 }
 
-Optional<AK::Duration> PlaybackManager::verified_end_time_for_track(Track const& track) const
+Optional<AK::Duration> PlaybackManager::verified_end_time_for_source(Demuxer const& demuxer)
 {
-    for (auto const& demuxer : m_demuxers) {
-        auto const* track_state = demuxer->scan_state().state_for_track(track);
-        if (track_state == nullptr)
-            continue;
-        if (!track_state->reached_end_of_stream || track_state->buffered_ranges.is_empty())
-            return {};
-        return track_state->buffered_ranges.highest_end_time();
-    }
-    return {};
+    auto const& scan_state = demuxer.scan_state();
+    if (!scan_state.reached_end_of_stream)
+        return {};
+    auto ranges = scan_state.buffered_ranges();
+    if (ranges.is_empty())
+        return {};
+    return ranges.highest_end_time();
 }
 
 PipelineStatus PlaybackManager::combined_pipeline_status() const
@@ -331,7 +329,7 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
             if (!track_data.enabled)
                 continue;
             auto track_status = PipelineStatus::HaveData;
-            auto verified_end_time = verified_end_time_for_track(track_data.track);
+            auto verified_end_time = verified_end_time_for_source(track_data.demuxer);
             if (verified_end_time.has_value() && current_time() >= *verified_end_time)
                 track_status = PipelineStatus::EndOfStream;
             status = select_combined_pipeline_status(status, track_status);
@@ -343,7 +341,7 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
             continue;
         auto track_status = track_data.sink_status;
         if (!track_data.ticking && track_status != PipelineStatus::Error) {
-            auto verified_end_time = verified_end_time_for_track(track_data.track);
+            auto verified_end_time = verified_end_time_for_source(track_data.demuxer);
             if (verified_end_time.has_value() && current_time() >= *verified_end_time)
                 track_status = PipelineStatus::EndOfStream;
         }
@@ -742,46 +740,24 @@ AvailableData PlaybackManager::available_data()
 
 TimeRanges PlaybackManager::buffered_time_ranges() const
 {
-    TimeRanges intersection { { AK::Duration::zero(), m_duration } };
-    bool any_track_contributed_ranges = false;
-
+    Vector<DemuxerScanState const*> active_sources;
     for (auto const& demuxer : m_demuxers) {
-        for (auto const& track_state : demuxer->scan_state().tracks) {
-            if (!is_enabled_supported_track(track_state.track))
-                continue;
-            auto track_ranges = track_state.buffered_ranges;
-            // The estimated duration may lie beyond a track's scanned ranges, but it should be
-            // reported as buffered once no further data will arrive to extend that track.
-            if (track_state.reached_end_of_stream && !track_ranges.is_empty())
-                track_ranges.add_range(track_ranges[track_ranges.size() - 1].start, m_duration);
-            intersection = intersection.intersection(track_ranges);
-            any_track_contributed_ranges = true;
-        }
+        if (source_has_enabled_track(demuxer))
+            active_sources.append(&demuxer->scan_state());
     }
-
-    if (!any_track_contributed_ranges)
-        return {};
-
-    return intersection;
+    return DemuxerScanState::buffered_ranges_of_sources(active_sources);
 }
 
-bool PlaybackManager::is_enabled_supported_track(Track const& track) const
+bool PlaybackManager::source_has_enabled_track(Demuxer const& demuxer) const
 {
-    if (track.type() == TrackType::Video) {
-        for (auto const& track_data : m_video_track_datas) {
-            if (track_data.track == track)
-                return track_data.video_sink != nullptr;
-        }
-        return false;
+    for (auto const& track_data : m_video_track_datas) {
+        if (track_data.demuxer.ptr() == &demuxer && track_data.video_sink != nullptr)
+            return true;
     }
-
-    if (track.type() == TrackType::Audio) {
-        for (auto const& track_data : m_audio_track_datas) {
-            if (track_data.track == track)
-                return track_data.enabled;
-        }
+    for (auto const& track_data : m_audio_track_datas) {
+        if (track_data.demuxer.ptr() == &demuxer && track_data.enabled)
+            return true;
     }
-
     return false;
 }
 

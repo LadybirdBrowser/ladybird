@@ -52,7 +52,6 @@ private:
     struct BufferedScanPayload {
         Reader reader;
         NonnullRefPtr<MediaStreamCursor> scan_cursor;
-        Vector<Track> tracks;
     };
 
     void start_buffered_scan_thread(Reader&& scan_reader);

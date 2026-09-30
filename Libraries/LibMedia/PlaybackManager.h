@@ -145,6 +145,7 @@ public:
 private:
     struct VideoTrackData {
         Track track;
+        NonnullRefPtr<Demuxer> demuxer;
         NonnullRefPtr<DecodedVideoProducer> producer;
         Optional<VideoSinkHandle> handle { OptionalNone() };
         RefPtr<VideoSink> video_sink { nullptr };
@@ -161,6 +162,7 @@ private:
 
     struct AudioTrackData {
         Track track;
+        NonnullRefPtr<Demuxer> demuxer;
         NonnullRefPtr<DecodedAudioProducer> producer;
         bool enabled { false };
         bool read_blocked { false };
@@ -184,8 +186,8 @@ private:
     void on_audio_sink_state_changed(PipelineStatus);
     void on_video_sink_state_changed(Track const&, PipelineStatus);
     void update_duration_from_scan_states();
-    bool is_enabled_supported_track(Track const&) const;
-    Optional<AK::Duration> verified_end_time_for_track(Track const&) const;
+    bool source_has_enabled_track(Demuxer const&) const;
+    static Optional<AK::Duration> verified_end_time_for_source(Demuxer const&);
     void update_pipeline_state();
     void reset_pipeline_state();
     PipelineStatus combined_pipeline_status() const;
