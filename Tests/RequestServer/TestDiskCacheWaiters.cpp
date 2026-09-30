@@ -264,6 +264,13 @@ public:
         VERIFY(!response);
     }
 
+    void stop_request(u64 request_id)
+    {
+        auto message = make<Messages::RequestServer::StopRequest>(request_id);
+        auto response = MUST(static_cast<RequestServerEndpoint::Stub&>(*m_connection).handle(move(message)));
+        VERIFY(response);
+    }
+
     // Pumps the event loop until the request finishes or the budget runs out — reading every response as it comes.
     Optional<FinishedRequest> wait_for_request_to_finish(u64 request_id, AK::Duration budget)
     {
@@ -700,5 +707,34 @@ TEST_CASE(response_varying_on_revalidation_validators_is_stored_with_them)
 
     connection.start_request(3, url);
     expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+    EXPECT_EQ(http_server.connection_count(), 3u);
+}
+
+TEST_CASE(stopped_revalidation_releases_its_cache_entry)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(10));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 1)
+            return {};
+        return ServerResponse::at_once(http_response("no-cache"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    connection.start_request(1, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(1, AK::Duration::from_seconds(10)), "written-to-cache"sv);
+
+    connection.start_request(2, url);
+    EXPECT(!connection.wait_for_request_to_finish(2, AK::Duration::from_milliseconds(250)).has_value());
+    EXPECT_EQ(http_server.connection_count(), 2u);
+    connection.stop_request(2);
+
+    connection.start_request(3, url);
+    expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(5)), "written-to-cache"sv);
     EXPECT_EQ(http_server.connection_count(), 3u);
 }
