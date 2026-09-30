@@ -12,6 +12,6 @@ namespace HTTP {
 
 // Increment this version when a breaking change is made to the cache entry file format.
 // Index-only schema changes are handled by the CacheIndex schema migrations instead.
-static constexpr inline u32 CACHE_VERSION = 7u;
+static constexpr inline u32 CACHE_VERSION = 8u;
 
 }

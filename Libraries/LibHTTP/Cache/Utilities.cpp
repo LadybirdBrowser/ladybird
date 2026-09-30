@@ -115,10 +115,9 @@ u64 create_cache_key(StringView url, StringView method)
 }
 
 // https://httpwg.org/specs/rfc9111.html#caching.negotiated.responses
-Optional<u64> create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers)
+Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers)
 {
-    auto hasher = Crypto::Hash::SHA1::create();
-    auto has_vary_header = false;
+    Vector<ByteString> field_names;
     auto has_vary_wildcard = false;
 
     response_headers.for_each_vary_header([&](StringView header) {
@@ -127,17 +126,56 @@ Optional<u64> create_vary_key(HeaderList const& request_headers, HeaderList cons
             has_vary_wildcard = true;
             return IterationDecision::Break;
         }
-        has_vary_header = true;
 
-        auto value = normalize_request_vary_header_values(header, request_headers);
-        hasher->update(value);
+        auto field_name = ByteString { header }.to_lowercase();
+        if (!field_names.contains_slow(field_name))
+            field_names.append(move(field_name));
 
         return IterationDecision::Continue;
     });
 
     if (has_vary_wildcard)
         return {};
-    return has_vary_header ? serialize_hash(*hasher) : 0;
+
+    quick_sort(field_names);
+    return field_names;
+}
+
+Optional<u64> create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers)
+{
+    auto field_names = vary_field_names(response_headers);
+    if (!field_names.has_value())
+        return {};
+    if (field_names->is_empty())
+        return 0;
+
+    auto hasher = Crypto::Hash::SHA1::create();
+
+    // Length prefixes prevent distinct field sets from hashing the same byte sequence.
+    auto update_with_length = [&](StringView bytes) {
+        u64 length = bytes.length();
+        hasher->update(ReadonlyBytes { &length, sizeof(length) });
+        hasher->update(bytes);
+    };
+
+    for (auto const& field_name : *field_names) {
+        update_with_length(field_name);
+
+        // If (after any normalization that might take place) a header field is absent from a request, it can only
+        // match another request if it is also absent there.
+        //
+        // NB: Offset present-field counts to distinguish absent and empty fields.
+        auto values = normalize_request_vary_header_values(field_name, request_headers);
+        u64 value_count = values.has_value() ? values->size() + 1 : 0;
+        hasher->update(ReadonlyBytes { &value_count, sizeof(value_count) });
+
+        if (values.has_value()) {
+            for (auto const& value : *values)
+                update_with_length(value);
+        }
+    }
+
+    return serialize_hash(*hasher);
 }
 
 LexicalPath path_for_cache_entry(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key)
@@ -749,8 +787,63 @@ Optional<AK::Duration> extract_cache_control_duration_directive(StringView cache
     return {};
 }
 
+// Split on commas outside quoted-strings.
+static Vector<StringView> split_list_based_field_value(StringView value)
+{
+    Vector<StringView> members;
+    size_t member_start = 0;
+    bool in_quoted_string = false;
+
+    for (size_t i = 0; i < value.length(); ++i) {
+        auto character = value[i];
+
+        if (in_quoted_string) {
+            if (character == '\\')
+                ++i;
+            else if (character == '"')
+                in_quoted_string = false;
+        } else if (character == '"') {
+            in_quoted_string = true;
+        } else if (character == ',') {
+            members.append(value.substring_view(member_start, i - member_start));
+            member_start = i + 1;
+        }
+    }
+
+    members.append(value.substring_view(member_start));
+    return members;
+}
+
+// Quoted-string contents may be case-sensitive.
+static ByteString to_lowercase_outside_quoted_strings(StringView member)
+{
+    StringBuilder builder { member.length() };
+    bool in_quoted_string = false;
+
+    for (size_t i = 0; i < member.length(); ++i) {
+        auto character = member[i];
+
+        if (in_quoted_string) {
+            if (character == '\\' && i + 1 < member.length()) {
+                builder.append(character);
+                character = member[++i];
+            } else if (character == '"') {
+                in_quoted_string = false;
+            }
+        } else if (character == '"') {
+            in_quoted_string = true;
+        } else {
+            character = to_ascii_lowercase(character);
+        }
+
+        builder.append(character);
+    }
+
+    return builder.to_byte_string();
+}
+
 // https://httpwg.org/specs/rfc9111.html#caching.negotiated.responses
-ByteString normalize_request_vary_header_values(StringView header, HeaderList const& request_headers)
+Optional<Vector<ByteString>> normalize_request_vary_header_values(StringView header, HeaderList const& request_headers)
 {
     // The header fields from two requests are defined to match if and only if those in the first request can be
     // transformed to those in the second request by applying any of the following:
@@ -759,40 +852,27 @@ ByteString normalize_request_vary_header_values(StringView header, HeaderList co
     // * normalizing both header field values in a way that is known to have identical semantics, according to the
     //   header field's specification (e.g., reordering field values when order is not significant;
     //   case-normalization, where values are defined to be case-insensitive)
-    StringBuilder builder;
+    if (!request_headers.contains(header))
+        return {};
 
     // FIXME: Find a definitive list of headers that are allowed to be normalized. The Cookie header, for example,
     //        cannot be normalized as order and case matters. So we err on the side of caution here.
-    if (header.is_one_of_ignoring_ascii_case("Accept"sv, "Accept-Encoding"sv, "Accept-Language"sv)) {
-        Vector<ByteString> values;
+    if (!header.is_one_of_ignoring_ascii_case("Accept"sv, "Accept-Encoding"sv, "Accept-Language"sv))
+        return Vector { request_headers.get(header).release_value() };
 
-        request_headers.for_each_header_value(header, [&](ByteString value) {
-            value = value.to_lowercase();
+    Vector<ByteString> values;
 
-            if (!value.contains(',')) {
-                values.append(move(value));
-                return IterationDecision::Continue;
-            }
-
-            value.view().for_each_split_view(","sv, SplitBehavior::Nothing, [&](StringView field) {
-                values.append(normalize_header_value(field));
-            });
-            return IterationDecision::Continue;
-        });
-
-        if (!values.is_empty()) {
-            quick_sort(values);
-            builder.join('\n', values);
+    request_headers.for_each_header_value(header, [&](StringView value) {
+        for (auto member : split_list_based_field_value(value)) {
+            member = member.trim(HTTP_WHITESPACE);
+            if (!member.is_empty())
+                values.append(to_lowercase_outside_quoted_strings(member));
         }
-    } else {
-        request_headers.for_each_header_value(header, [&](StringView value) {
-            builder.append(value);
-            builder.append('\n');
-            return IterationDecision::Continue;
-        });
-    }
+        return IterationDecision::Continue;
+    });
 
-    return builder.to_byte_string();
+    quick_sort(values);
+    return values;
 }
 
 AK::Duration compute_current_time_offset_for_testing(Optional<DiskCache&> disk_cache, HeaderList const& request_headers)
