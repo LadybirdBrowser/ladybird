@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 89 tests
 
-85 Pass
-4 Fail
+86 Pass
+3 Fail
 Pass	Literal result
 Pass	Literal result, typed return
 Pass	Literal result, typed return, calc
@@ -88,7 +88,7 @@ Fail	Local with the revert-rule keyword
 Pass	initial keyword left unresolved on result descriptor
 Pass	inherit keyword left unresolved on result descriptor
 Pass	unset keyword left unresolved on result descriptor
-Fail	revert keyword left unresolved on result descriptor
+Pass	revert keyword left unresolved on result descriptor
 Fail	revert-layer keyword left unresolved on result descriptor
 Fail	revert-rule keyword left unresolved on result descriptor
 Pass	Keyword can be returned from function into local variable

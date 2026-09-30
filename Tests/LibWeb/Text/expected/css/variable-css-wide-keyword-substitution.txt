@@ -5,3 +5,9 @@ substituted inherit inherits ancestor value -> color green: true
 substituted initial -> empty: true
 substituted initial -> outer var() falls back (green): true
 non-keyword substitution preserved: true
+substituted revert inherits ancestor value: true
+substituted revert inherits ancestor value -> color green: true
+substituted revert-layer, no ancestor -> empty: true
+substituted revert-layer, no ancestor -> outer var() falls back (green): true
+reference to substituted revert, no ancestor -> falls back (green): true
+color referencing substituted revert -> inherited: true
