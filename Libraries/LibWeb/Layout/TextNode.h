@@ -25,8 +25,14 @@ public:
     TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode = AttachToDOMNode::Yes);
     virtual ~TextNode() override;
 
-    DOM::Text const& dom_node() const { return static_cast<DOM::Text const&>(*Node::dom_node()); }
-    virtual DOM::Text const* dom_text() const { return &dom_node(); }
+    DOM::Text const& dom_node() const
+    {
+        auto const* text = TextNode::dom_text();
+        VERIFY(text);
+        return *text;
+    }
+    // Null for generated text, and for a text node kept after its DOM node was removed.
+    virtual DOM::Text const* dom_text() const { return static_cast<DOM::Text const*>(Node::dom_node()); }
 
     virtual Utf16String const& text() const { return dom_node().data(); }
 

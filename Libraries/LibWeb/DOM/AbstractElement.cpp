@@ -154,8 +154,10 @@ Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_meth
         auto* generated_node = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena_handle, slot));
         if (generated_node && generated_node->is_generated_for_pseudo_element()) {
             auto pseudo_element = generated_node->generated_for_pseudo_element();
-            if (pseudo_element.has_value() && CSS::is_tree_abiding_pseudo_element(*pseudo_element))
-                return AbstractElement { *generated_node->pseudo_element_generator(), pseudo_element };
+            // A row kept after its generator was removed resolves to no generator, and is skipped.
+            auto generator = generated_node->pseudo_element_generator();
+            if (generator && pseudo_element.has_value() && CSS::is_tree_abiding_pseudo_element(*pseudo_element))
+                return AbstractElement { *generator, pseudo_element };
         }
     }
 }

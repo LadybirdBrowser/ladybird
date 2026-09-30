@@ -2306,7 +2306,7 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         // (an editing host gains a minimum block size, an empty editable text node gains
         // a zero-width fragment), so the affected node also needs a relayout.
         if (auto* layout_node = node.unsafe_layout_node()) {
-            if (layout_node->refresh_dom_paint_facts())
+            if (layout_node->refresh_dom_paint_facts(node))
                 node.set_needs_repaint();
             auto is_editing_host = node.is_editing_host();
             if (layout_node->is_editing_host() != is_editing_host) {
@@ -2715,7 +2715,7 @@ bool Node::update_inside_blocking_wheel_event_handler_state()
     bool const flipped = was_inside_blocking_wheel_event_handler != m_inside_blocking_wheel_event_handler;
     if (flipped) {
         if (auto* layout_node = unsafe_layout_node())
-            layout_node->refresh_dom_paint_facts();
+            layout_node->refresh_dom_paint_facts(*this);
     }
     return flipped;
 }

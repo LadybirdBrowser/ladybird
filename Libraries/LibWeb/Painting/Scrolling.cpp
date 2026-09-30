@@ -33,8 +33,11 @@ CSSPixelPoint scroll_offset(Layout::Node const& node)
         return navigable->viewport_scroll_offset();
     }
 
-    if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value())
-        return node.pseudo_element_generator()->scroll_offset(*pseudo_element);
+    // A row kept after its node was removed resolves to no node until the parent is rebuilt.
+    if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
+        auto generator = node.pseudo_element_generator();
+        return generator ? generator->scroll_offset(*pseudo_element) : CSSPixelPoint {};
+    }
 
     if (auto const* element = as_if<DOM::Element>(node.dom_node()))
         return element->scroll_offset({});
@@ -162,7 +165,10 @@ ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset)
     }
 
     if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
-        node.pseudo_element_generator()->set_scroll_offset(*pseudo_element, offset);
+        auto generator = node.pseudo_element_generator();
+        if (!generator)
+            return ScrollHandled::No;
+        generator->set_scroll_offset(*pseudo_element, offset);
     } else if (auto* element = as_if<DOM::Element>(node.dom_node())) {
         element->set_scroll_offset({}, offset);
     } else {
@@ -207,8 +213,11 @@ static Optional<Compositing::CompositorScrollNodeKind> scroll_node_kind_for(Layo
 {
     if (node.is_viewport())
         return Compositing::CompositorScrollNodeKind::Viewport;
-    if (node.generated_for_pseudo_element().has_value())
+    if (node.generated_for_pseudo_element().has_value()) {
+        if (!node.pseudo_element_generator())
+            return {};
         return Compositing::CompositorScrollNodeKind::PseudoElement;
+    }
     if (node.dom_node() && is<DOM::Element>(*node.dom_node()))
         return Compositing::CompositorScrollNodeKind::Element;
     return {};

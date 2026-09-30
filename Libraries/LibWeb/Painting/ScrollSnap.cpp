@@ -31,8 +31,11 @@ static_assert(to_underlying(CSS::ScrollSnapStrictness::Mandatory) == to_underlyi
 //     re-snap right after layout runs ahead of, so it is resolved from the area's layout node here.
 static UniqueNodeID element_id_of_snap_area(Layout::Node const& snap_area)
 {
-    if (snap_area.is_generated_for_pseudo_element())
-        return snap_area.pseudo_element_generator()->unique_id();
+    if (snap_area.is_generated_for_pseudo_element()) {
+        if (auto generator = snap_area.pseudo_element_generator())
+            return generator->unique_id();
+        return {};
+    }
     if (auto const* element = as_if<DOM::Element>(snap_area.dom_node()))
         return element->unique_id();
     return {};

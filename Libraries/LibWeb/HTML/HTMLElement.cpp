@@ -901,7 +901,7 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
 {
     auto repaint_if_inertness_reaches_painted_output = [](DOM::Node& node) {
         auto* layout_node = node.unsafe_layout_node();
-        if (layout_node && layout_node->refresh_dom_paint_facts())
+        if (layout_node && layout_node->refresh_dom_paint_facts(node))
             node.set_needs_repaint();
     };
     auto update_inertness = [&](HTMLElement& element) {
