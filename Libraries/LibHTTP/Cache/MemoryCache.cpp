@@ -102,8 +102,6 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
 {
     if (!is_cacheable(method, request_headers))
         return;
-    if (!is_cacheable(status_code, response_headers))
-        return;
 
     // This 304 answers the client's preconditions, not the cache's validators.
     if (status_code == 304)
@@ -111,9 +109,18 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
 
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
+
     auto vary_key = create_vary_key(request_headers, response_headers);
-    if (!vary_key.has_value())
+    if (!vary_key.has_value() || !is_cacheable(status_code, response_headers)) {
+        // A non-storable replacement must still retire the old response.
+        if (auto cache_entries = m_complete_entries.get(cache_key); cache_entries.has_value()) {
+            cache_entries->remove_all_matching([&](auto const& entry) { return entry_matches_request(request_headers, entry); });
+            if (cache_entries->is_empty())
+                m_complete_entries.remove(cache_key);
+        }
+
         return;
+    }
 
     auto request_headers_copy = HeaderList::create();
     store_header_and_trailer_fields(request_headers_copy, request_headers);
