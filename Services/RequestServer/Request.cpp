@@ -36,6 +36,7 @@ static long s_connect_timeout_seconds = 90L;
 
 static constexpr size_t max_response_header_count = 1000;
 static AK::Duration s_wait_for_cache_timeout = AK::Duration::from_seconds(10);
+static AK::Duration s_maximum_wait_for_cache = AK::Duration::from_seconds(30);
 static AK::Duration s_revalidation_stall_timeout = AK::Duration::from_seconds(30);
 
 // Let Fetch authorize credentials; otherwise curl sends URL credentials itself.
@@ -572,6 +573,11 @@ void Request::set_wait_for_cache_timeout(AK::Duration timeout)
     s_wait_for_cache_timeout = timeout;
 }
 
+void Request::set_maximum_wait_for_cache(AK::Duration maximum_wait)
+{
+    s_maximum_wait_for_cache = maximum_wait;
+}
+
 void Request::set_revalidation_stall_timeout(AK::Duration timeout)
 {
     s_revalidation_stall_timeout = timeout;
@@ -1014,6 +1020,9 @@ void Request::handle_wait_for_cache_state()
     if (m_wait_for_cache_timer)
         return;
 
+    if (!m_started_waiting_for_cache_at.has_value())
+        m_started_waiting_for_cache_at = MonotonicTime::now();
+
     m_wait_for_cache_timer = Core::Timer::create_single_shot(static_cast<int>(s_wait_for_cache_timeout.to_milliseconds()), [this] {
         wait_for_cache_timed_out();
     });
@@ -1025,19 +1034,19 @@ void Request::wait_for_cache_timed_out()
     if (m_state != State::WaitForCache)
         return;
 
-    // A request that's still filling or revalidating the entry — however slowly — releases it when it's done. So,
-    // only a holder that's shown no sign of life for a whole wait limit counts as stalled. Otherwise, keep waiting —
-    // and look again once the holder has had a full limit's worth of time to go quiet.
-    if (auto last_activity_time = m_disk_cache->last_activity_time_of_open_entries(*m_disk_cache_partition, m_url, m_method); last_activity_time.has_value()) {
+    // Progress resets the stall timeout, but must not extend the total wait indefinitely.
+    auto time_waited = MonotonicTime::now() - *m_started_waiting_for_cache_at;
+
+    if (auto last_activity_time = m_disk_cache->last_activity_time_of_open_entries(*m_disk_cache_partition, m_url, m_method); last_activity_time.has_value() && time_waited < s_maximum_wait_for_cache) {
         auto idle_time = MonotonicTime::now() - *last_activity_time;
         if (idle_time < s_wait_for_cache_timeout) {
-            auto time_until_stalled = s_wait_for_cache_timeout - idle_time;
+            auto time_until_stalled = min(s_wait_for_cache_timeout - idle_time, s_maximum_wait_for_cache - time_waited);
             m_wait_for_cache_timer->start(max(static_cast<int>(time_until_stalled.to_milliseconds()), 1));
             return;
         }
     }
 
-    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Request {} gave up waiting for the cache entry of {}: the request holding it has made no progress for {}ms; continuing without the disk cache", m_request_id, m_url, s_wait_for_cache_timeout.to_milliseconds());
+    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Request {} gave up waiting for the cache entry of {} after {}ms; continuing without the disk cache", m_request_id, m_url, time_waited.to_milliseconds());
 
     // A background revalidation exists only to refresh the entry it could not open, so there's nothing left for it
     // to do.
