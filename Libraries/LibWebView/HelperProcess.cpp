@@ -580,6 +580,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
 
     auto const& browsing_data_settings = Application::settings().browsing_data_settings();
     client->async_set_disk_cache_settings(browsing_data_settings.disk_cache_settings);
+    client->async_set_proxy_configuration(request_server_options.proxy_configuration);
 
     Application::settings().dns_settings().visit(
         [](SystemDNS) {},

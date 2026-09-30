@@ -23,6 +23,18 @@ void set_default_certificate_path(ByteString default_certificate_path)
     g_default_certificate_path = move(default_certificate_path);
 }
 
+static HTTP::ProxyConfiguration g_proxy_configuration;
+
+HTTP::ProxyConfiguration const& proxy_configuration()
+{
+    return g_proxy_configuration;
+}
+
+void set_proxy_configuration(HTTP::ProxyConfiguration proxy_configuration)
+{
+    g_proxy_configuration = move(proxy_configuration);
+}
+
 DNSInfo& DNSInfo::the()
 {
     static DNSInfo g_dns_info;

@@ -8,6 +8,7 @@
 
 #include <AK/MemoryStream.h>
 #include <LibCore/Forward.h>
+#include <LibHTTP/Proxy.h>
 #include <LibWebSocket/Impl/WebSocketImpl.h>
 
 typedef void CURL;
@@ -21,6 +22,8 @@ public:
     virtual ~WebSocketImplCurl() override;
 
     static NonnullRefPtr<WebSocketImplCurl> create(CURLM*);
+
+    void set_proxy(Optional<HTTP::Proxy> proxy) { m_proxy = move(proxy); }
 
     virtual void connect(WebSocket::ConnectionInfo const&) override;
     virtual bool can_read_line() override;
@@ -41,6 +44,7 @@ private:
     bool flush_pending_write_buffer();
 
     CURLM* m_multi_handle { nullptr };
+    Optional<HTTP::Proxy> m_proxy;
     CURL* m_easy_handle { nullptr };
     RefPtr<Core::Notifier> m_read_notifier;
     RefPtr<Core::Notifier> m_write_notifier;

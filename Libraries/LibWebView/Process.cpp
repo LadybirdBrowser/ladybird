@@ -92,14 +92,6 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
         "TSAN_"sv,
         "UBSAN_"sv,
     };
-    // libcurl reads the proxy configuration from these, in either case.
-    static constexpr Array proxy_names {
-        "all_proxy"sv,
-        "ftp_proxy"sv,
-        "http_proxy"sv,
-        "https_proxy"sv,
-        "no_proxy"sv,
-    };
     // OpenSSL reads these to find the system's certificates. OPENSSL_CONF is not here on purpose: a configuration file
     // can load providers and engines into the process.
     static constexpr Array certificate_names {
@@ -126,7 +118,6 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
         auto entry = Core::Environment::Entry::from_chars(*variable);
         auto is_allowed = allowed_names.contains_slow(entry.name) || any_of(allowed_prefixes, [&](auto prefix) { return entry.name.starts_with(prefix); });
         if (type == ProcessType::RequestServer) {
-            is_allowed |= any_of(proxy_names, [&](auto name) { return entry.name.equals_ignoring_ascii_case(name); });
             is_allowed |= certificate_names.contains_slow(entry.name);
         }
         if (type == ProcessType::WebContent || type == ProcessType::MediaServer)

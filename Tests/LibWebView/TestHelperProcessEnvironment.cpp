@@ -25,11 +25,10 @@ TEST_CASE(helper_environment_keeps_only_allowed_variables)
     EXPECT(environment.contains_slow("HOME=/Users/test"sv));
     EXPECT(!environment.contains_slow("GITHUB_TOKEN=secret"sv));
 
-    // Only RequestServer talks to the network, so only it learns about proxies.
     EXPECT(!environment.contains_slow("https_proxy=http://proxy:3128"sv));
     auto request_server_environment = WebView::Process::helper_process_environment(WebView::ProcessType::RequestServer);
-    EXPECT(request_server_environment.contains_slow("https_proxy=http://proxy:3128"sv));
-    EXPECT(request_server_environment.contains_slow("NO_PROXY=localhost"sv));
+    EXPECT(!request_server_environment.contains_slow("https_proxy=http://proxy:3128"sv));
+    EXPECT(!request_server_environment.contains_slow("NO_PROXY=localhost"sv));
     EXPECT(request_server_environment.contains_slow("LADYBIRD_TEST_SWITCH=1"sv));
     EXPECT(!request_server_environment.contains_slow("GITHUB_TOKEN=secret"sv));
 }

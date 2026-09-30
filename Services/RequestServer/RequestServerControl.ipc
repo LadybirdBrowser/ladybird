@@ -1,5 +1,6 @@
 #include <AK/Utf16String.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
+#include <LibHTTP/Proxy.h>
 #include <LibIPC/TransportHandle.h>
 #include <RequestServer/IsPrivate.h>
 #include <RequestServer/RequestType.h>
@@ -22,6 +23,8 @@ endpoint RequestServerControl
     // use_tls: enable DNS over TLS
     set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) =|
     set_use_system_dns() =|
+
+    set_proxy_configuration(HTTP::ProxyConfiguration proxy_configuration) =|
 
     set_performance_monitor_enabled(bool enabled) =|
 
