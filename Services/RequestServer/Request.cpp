@@ -1300,7 +1300,7 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_SSL_CTX_FUNCTION, configure_ssl_context);
 #ifndef AK_OS_MACOS
     if (!m_aia_collector)
-        m_aia_collector = make_ref_counted<AIACollector>();
+        m_aia_collector = make_ref_counted<AIACollector>(m_client->is_private());
     set_option(CURLOPT_SSL_CTX_DATA, m_aia_collector.ptr());
 #endif
 

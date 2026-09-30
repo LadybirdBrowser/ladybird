@@ -35,6 +35,7 @@
 namespace RequestServer {
 
 static IDAllocator s_client_ids;
+static size_t s_private_connection_count { 0 };
 
 static constexpr i64 TICK_GAP_THRESHOLD_MS = 100;
 static Optional<MonotonicTime> s_last_tick_at;
@@ -101,6 +102,8 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 {
     if (m_is_private == IsPrivate::No)
         m_alt_svc_cache_path = move(alt_svc_cache_path);
+    else
+        ++s_private_connection_count;
 
     m_connections.set(client_id(), *this);
 
@@ -153,6 +156,9 @@ ConnectionFromClient::~ConnectionFromClient()
 
     curl_multi_cleanup(m_curl_multi);
     m_curl_multi = nullptr;
+
+    if (m_is_private == IsPrivate::Yes && --s_private_connection_count == 0)
+        clear_aia_state(IsPrivate::Yes);
 
     if (auto connection = ControlConnectionFromClient::the(); connection.has_value())
         connection->async_client_disconnected(client_id());
@@ -684,11 +690,11 @@ void ConnectionFromClient::complete_aia_fetch(void* easy_handle, int result_code
 
     bool added = false;
     if (result_code == CURLE_OK && response_code == 200)
-        added = add_fetched_aia_intermediate((*fetch)->body.bytes());
+        added = add_fetched_aia_intermediate(m_is_private, (*fetch)->body.bytes());
 
     if (!added) {
         dbgln_if(REQUESTSERVER_DEBUG, "AIA: intermediate fetch from {} failed (curl={}, status={})", (*fetch)->url, result_code, response_code);
-        mark_aia_url_failed((*fetch)->url);
+        mark_aia_url_failed(m_is_private, (*fetch)->url);
     }
 
     for (auto request_id : (*fetch)->request_ids) {
