@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p id="before">needle before the host</p>
+<div id="host"></div>
+<p id="after">needle after the host</p>
+<div id="hostWithoutSlot"><span>left out of the shadow tree</span></div>
+<div id="hostWithSlot"><span slot="missing">assigned to no slot</span></div>
+<script>
+    test(() => {
+        host.attachShadow({ mode: "open" }).innerHTML = "<span>needle inside the shadow tree</span>";
+        hostWithoutSlot.attachShadow({ mode: "open" }).innerHTML = "<span>shadow content</span>";
+        hostWithSlot.attachShadow({ mode: "open" }).innerHTML = "<slot></slot>";
+        const shadowText = host.shadowRoot.firstChild.firstChild;
+        const describeSelection = () => {
+            const selection = getSelection();
+            if (selection.rangeCount === 0)
+                return "(none)";
+            const container = selection.anchorNode.parentNode;
+            const location = container.getRootNode() === host.shadowRoot ? "shadow tree" : container.id;
+            return `"${selection.toString()}" in ${location}`;
+        };
+        const results = [];
+
+        results.push(`window.find("needle"): ${window.find("needle")}, selection ${describeSelection()}`);
+        results.push(`window.find("needle"): ${window.find("needle")}, selection ${describeSelection()}`);
+        results.push(`window.find("needle"): ${window.find("needle")}, selection ${describeSelection()}`);
+        results.push(`window.find("needle"): ${window.find("needle")}, selection ${describeSelection()}`);
+
+        getSelection().setBaseAndExtent(shadowText, 0, shadowText, 6);
+        results.push(`window.find("needle") from the shadow tree: ${window.find("needle")}, selection ${describeSelection()}`);
+
+        const textLeftOut = hostWithoutSlot.firstChild.firstChild;
+        getSelection().setBaseAndExtent(textLeftOut, 0, textLeftOut, 4);
+        results.push(`window.find("needle") from a child left out of the shadow tree: ${window.find("needle")}, selection ${describeSelection()}`);
+
+        const textAssignedToNoSlot = hostWithSlot.firstChild.firstChild;
+        getSelection().setBaseAndExtent(textAssignedToNoSlot, 0, textAssignedToNoSlot, 8);
+        results.push(`window.find("needle") from a child assigned to no slot: ${window.find("needle")}, selection ${describeSelection()}`);
+
+        results.forEach(println);
+    });
+</script>

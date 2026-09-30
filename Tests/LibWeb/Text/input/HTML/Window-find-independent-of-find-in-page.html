@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p>needle other needle</p>
+<script>
+    test(() => {
+        internals.findInPage("needle");
+        const firstResult = window.find("needle");
+        const secondResult = window.find("needle");
+
+        getSelection().removeAllRanges();
+        internals.findInPage("needle");
+        const otherResult = window.find("other");
+        internals.findInPageNextMatch();
+        const selectedText = getSelection().toString();
+
+        println(`window.find("needle"): ${firstResult}`);
+        println(`window.find("needle"): ${secondResult}`);
+        println(`window.find("other"): ${otherResult}`);
+        println(`Selection after the next find-in-page match: "${selectedText}"`);
+    });
+</script>
