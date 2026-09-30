@@ -34,7 +34,7 @@ public:
     static Optional<ControlConnectionFromClient&> the();
 
 private:
-    ControlConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RequestServer::ConnectionFromClient::ConnectionMap&, RequestServer::ConnectionFromClient::RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
+    ControlConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RequestServer::ConnectionFromClient::ConnectionMap&, RequestServer::ConnectionFromClient::RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>);
 
     virtual Messages::RequestServerControl::InitTransportResponse init_transport(int peer_pid) override;
 
@@ -67,7 +67,6 @@ private:
     RequestServer::ConnectionFromClient::ConnectionMap& m_connections;
     RequestServer::ConnectionFromClient::RequestTransferLeaseMap& m_request_transfer_leases;
     Optional<HTTP::DiskCache&> m_disk_cache;
-    ByteString m_alt_svc_cache_path;
 
     NonnullRefPtr<Resolver> m_resolver;
 

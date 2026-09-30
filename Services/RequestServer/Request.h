@@ -32,6 +32,7 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/RequestTransferLease.h>
 #include <LibURL/URL.h>
+#include <RequestServer/AlternativeServices.h>
 #include <RequestServer/CacheLevel.h>
 #include <RequestServer/Forward.h>
 #include <RequestServer/RequestPipe.h>
@@ -60,7 +61,6 @@ public:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
-        Optional<ByteString> alt_svc_cache_path,
         Optional<Requests::RequestTransferLeaseKey>,
         Optional<u32> address_selection_hint,
         bool notify_on_cache_miss);
@@ -84,8 +84,7 @@ public:
         ByteString method,
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
-        HTTP::Cookie::IncludeCredentials include_credentials,
-        Optional<ByteString> alt_svc_cache_path);
+        HTTP::Cookie::IncludeCredentials include_credentials);
 
     virtual ~Request() override;
 
@@ -191,7 +190,6 @@ private:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
-        Optional<ByteString> alt_svc_cache_path,
         Optional<Requests::RequestTransferLeaseKey> = {});
 
     Request(
@@ -212,6 +210,11 @@ private:
     void handle_serve_substitution_state();
     void handle_dns_lookup_state();
     void continue_after_dns_lookup();
+    StringView connect_host() const;
+    void reset_for_retry();
+    void update_alternative_services();
+    bool should_retry_without_alternative_service(int curl_result_code) const;
+    u16 connect_port() const;
     void handle_retrieve_cookie_state();
     void handle_connect_state();
     void handle_fetch_state();
@@ -240,7 +243,6 @@ private:
     bool defer_until_response_cookies_and_hsts_policy_are_stored(Function<void()> continuation);
     void request_response_storage(ControlConnectionFromClient&);
     void handle_fetch_complete(int result_code);
-    void reset_for_retry();
     void send_headers_to_client(Optional<IPC::File> javascript_bytecode = {}, u64 javascript_bytecode_size = 0, Optional<u64> javascript_bytecode_cache_vary_key = {});
     ErrorOr<void> write_queued_bytes_without_blocking();
 
@@ -320,7 +322,8 @@ private:
 
     HTTP::Cookie::IncludeCredentials m_include_credentials { HTTP::Cookie::IncludeCredentials::Yes };
 
-    Optional<ByteString> m_alt_svc_cache_path;
+    Optional<AlternativeService> m_alternative_service;
+    bool m_alternative_services_disabled { false };
 
     Optional<u32> m_status_code;
     Optional<String> m_reason_phrase;

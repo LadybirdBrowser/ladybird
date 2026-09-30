@@ -461,12 +461,11 @@ NonnullOwnPtr<Request> Request::fetch(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    Optional<ByteString> alt_svc_cache_path,
     Optional<Requests::RequestTransferLeaseKey> transfer_lease,
     Optional<u32> address_selection_hint,
     bool notify_on_cache_miss)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, move(network_isolation_key), cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), move(transfer_lease) });
+    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, move(network_isolation_key), cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(transfer_lease) });
     request->m_address_selection_hint = address_selection_hint;
     request->m_notify_on_cache_miss = notify_on_cache_miss;
     request->process();
@@ -499,13 +498,12 @@ NonnullOwnPtr<Request> Request::revalidate(
     ByteString method,
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
-    HTTP::Cookie::IncludeCredentials include_credentials,
-    Optional<ByteString> alt_svc_cache_path)
+    HTTP::Cookie::IncludeCredentials include_credentials)
 {
     // Revalidation headers must not leak into the initiating request.
     request_headers = HTTP::HeaderList::create(request_headers->headers());
 
-    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, move(network_isolation_key), HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path) });
+    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, move(network_isolation_key), HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials });
     request->process();
 
     return request;
@@ -525,7 +523,6 @@ Request::Request(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    Optional<ByteString> alt_svc_cache_path,
     Optional<Requests::RequestTransferLeaseKey> transfer_lease)
     : m_request_id(request_id)
     , m_type(type)
@@ -541,7 +538,6 @@ Request::Request(
     , m_request_headers(move(request_headers))
     , m_request_body(move(request_body))
     , m_include_credentials(include_credentials)
-    , m_alt_svc_cache_path(move(alt_svc_cache_path))
     , m_response_headers(HTTP::HeaderList::create())
     , m_transfer_lease(move(transfer_lease))
 {
@@ -748,6 +744,24 @@ void Request::handle_fetch_complete(int result_code)
         log_chunk_stats(this);
     }
 
+    if (result_code == CURLE_OK)
+        update_alternative_services();
+
+    // https://www.rfc-editor.org/rfc/rfc7838#section-2.4
+    // Furthermore, if the connection to the alternative service fails or is unresponsive, the client MAY fall back to
+    // using the origin or another alternative service.
+    if (should_retry_without_alternative_service(result_code)) {
+        AlternativeServiceCache::the().mark_broken(m_client->is_private(), m_url, *m_alternative_service, UnixDateTime::now());
+        m_alternative_services_disabled = true;
+        m_alternative_service.clear();
+        m_dns_result = nullptr;
+
+        MUST(free_curl_structs());
+        reset_for_retry();
+        transition_to_state(State::DNSLookup);
+        return;
+    }
+
     // Fetch requires unsupported content codings to be treated as identity:
     // https://fetch.spec.whatwg.org/#handle-content-codings
     //
@@ -831,9 +845,7 @@ void Request::reset_for_retry()
         wire_stats().ensure(this).created_at = MonotonicTime::now();
     }
 
-    // The first response may have changed the cookies, so the retried request looks them up again. Only the Cookie
-    // header that our own lookup appended is replaced; one the client supplied stays as it was. Client Cookie fields
-    // precede ours; revalidation validators may follow.
+    // Refresh cookies on retry, replacing only our own Cookie field. Client fields precede it; validators may follow.
     if (exchange(m_appended_cookie_header, false)) {
         auto const& headers = m_request_headers->headers();
         auto cookie_index = headers.size();
@@ -847,6 +859,41 @@ void Request::reset_for_retry()
         size_t index = 0;
         m_request_headers->delete_all_matching([&](auto const&) { return index++ == cookie_index; });
     }
+}
+
+void Request::update_alternative_services()
+{
+    if (m_proxy.has_value() || m_url.scheme() != "https"sv || !m_url.host().has_value())
+        return;
+
+    auto alt_svc = m_response_headers->get("Alt-Svc"sv);
+    if (!alt_svc.has_value())
+        return;
+
+    AK::Duration age;
+    if (auto value = m_response_headers->get("Age"sv); value.has_value()) {
+        if (auto seconds = value->to_number<u32>(); seconds.has_value())
+            age = AK::Duration::from_seconds(*seconds);
+    }
+
+    AlternativeServiceCache::the().update(m_client->is_private(), m_url, *alt_svc, UnixDateTime::now(), age);
+}
+
+bool Request::should_retry_without_alternative_service(int curl_result_code) const
+{
+    if (!m_alternative_service.has_value() || curl_result_code == CURLE_OK)
+        return false;
+    if (m_sent_response_headers_to_client || m_bytes_transferred_to_client > 0 || !m_response_headers->is_empty())
+        return false;
+
+    // Retrying before the handshake completes cannot repeat server-side effects.
+    if (!m_method.is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv)) {
+        curl_off_t handshake_time = 0;
+        if (curl_easy_getinfo(m_curl_easy_handle, CURLINFO_APPCONNECT_TIME_T, &handshake_time) != CURLE_OK || handshake_time != 0)
+            return false;
+    }
+
+    return true;
 }
 
 bool Request::should_retry_after_fetching_aia_intermediate(int curl_result_code) const
@@ -1224,7 +1271,18 @@ void Request::handle_dns_lookup_state()
         return;
     }
 
-    auto host = m_url.serialized_host().to_byte_string();
+    // https://www.rfc-editor.org/rfc/rfc7838#section-2.4
+    // A client configured to use a proxy for a given request SHOULD NOT directly connect to an alternative service for
+    // this request, but instead route it through that proxy.
+    m_alternative_service.clear();
+    if (!m_proxy.has_value() && !m_alternative_services_disabled && m_type != RequestType::Connect && m_url.scheme() == "https"sv) {
+        m_alternative_service = AlternativeServiceCache::the().find(m_client->is_private(), m_url, UnixDateTime::now());
+        if (m_alternative_service.has_value() && !can_pin_host_in_curl_resolve_list(connect_host()))
+            m_alternative_service.clear();
+    }
+
+    // Use our resolver so alternatives receive the same DNSSEC validation as the origin.
+    auto host = connect_host().to_byte_string();
     auto const& dns_info = DNSInfo::the();
 
     mark_lifecycle_event(this, &WireStats::dns_started_at);
@@ -1247,6 +1305,20 @@ void Request::handle_dns_lookup_state()
             self.m_dns_result = move(dns_result);
             self.continue_after_dns_lookup();
         }));
+}
+
+StringView Request::connect_host() const
+{
+    if (m_alternative_service.has_value() && !m_alternative_service->host.is_empty())
+        return m_alternative_service->host;
+    return m_url.serialized_host();
+}
+
+u16 Request::connect_port() const
+{
+    if (m_alternative_service.has_value())
+        return m_alternative_service->port;
+    return m_url.port_or_default();
 }
 
 void Request::continue_after_dns_lookup()
@@ -1373,8 +1445,12 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
 
-    if (m_alt_svc_cache_path.has_value())
-        set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path->characters());
+    // https://www.rfc-editor.org/rfc/rfc7838#section-2.4
+    // If the connection to the alternative service does not negotiate the expected protocol (for example, ALPN fails to
+    // negotiate h2, or an Upgrade request to h2c is not accepted), the connection to the alternative service MUST be
+    // considered to have failed.
+    if (m_alternative_service.has_value())
+        set_option(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3ONLY);
 
     // Nobody waits on a background revalidation, so nothing else would ever notice one whose connection silently died.
     // While it lives, it holds its cache entry open and every request for the same URL waits on it, so give up on it
@@ -1456,7 +1532,7 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_PROXY, m_proxy.has_value() ? m_proxy->to_curl_url().characters() : "");
 
     if (m_dns_result) {
-        auto formatted_address = build_curl_resolve_list(*m_dns_result, m_url.serialized_host(), m_url.port_or_default());
+        auto formatted_address = build_curl_resolve_list(*m_dns_result, connect_host(), connect_port());
 
         if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
             set_option(CURLOPT_RESOLVE, resolve_list);
@@ -1466,8 +1542,21 @@ void Request::handle_fetch_state()
         }
     }
 
+    // libcurl authenticates the alternative as the origin.
+    if (m_alternative_service.has_value() && (connect_host() != m_url.serialized_host() || connect_port() != m_url.port_or_default())) {
+        auto host = connect_host().contains(':') ? ByteString::formatted("[{}]", connect_host()) : connect_host().to_byte_string();
+        auto connect_to = ByteString::formatted("{}:{}:{}:{}", m_url.serialized_host(), m_url.port_or_default(), host, connect_port());
+
+        if (curl_slist* connect_to_list = curl_slist_append(nullptr, connect_to.characters())) {
+            set_option(CURLOPT_CONNECT_TO, connect_to_list);
+            m_curl_string_lists.append(connect_to_list);
+        } else {
+            VERIFY_NOT_REACHED();
+        }
+    }
+
     // CURLOPT_CONNECT_TO pins this handle without poisoning the shared CURLOPT_RESOLVE host cache.
-    if (m_dns_result && !m_proxy.has_value() && m_address_selection_hint.has_value() && DNSInfo::the().uses_configured_dns_server()) {
+    if (m_dns_result && !m_proxy.has_value() && !m_alternative_service.has_value() && m_address_selection_hint.has_value() && DNSInfo::the().uses_configured_dns_server()) {
         auto connect_to = build_curl_connect_to_entry(*m_dns_result, m_url.serialized_host(), m_url.port_or_default(), *m_address_selection_hint);
 
         if (connect_to.has_value()) {

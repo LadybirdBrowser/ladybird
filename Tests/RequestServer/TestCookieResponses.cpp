@@ -55,7 +55,7 @@ public:
         m_remote_transport = MUST(pair.remote_handle.create_transport());
         m_connection = RequestServer::ControlConnectionFromClient::construct(
             move(pair.local), server.connections, server.request_transfer_leases,
-            Optional<HTTP::DiskCache&> {}, ByteString {});
+            Optional<HTTP::DiskCache&> {});
 #ifdef AK_OS_WINDOWS
         auto pid = Core::System::getpid();
         m_connection->transport().set_peer_pid(pid);
@@ -153,7 +153,7 @@ public:
         m_remote_transport = MUST(pair.remote_handle.create_transport());
         m_connection = RequestServer::ConnectionFromClient::construct(
             move(pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Unrestricted,
-            server.connections, server.request_transfer_leases, disk_cache, ByteString {});
+            server.connections, server.request_transfer_leases, disk_cache);
 #ifdef AK_OS_WINDOWS
         auto pid = Core::System::getpid();
         m_connection->transport().set_peer_pid(pid);

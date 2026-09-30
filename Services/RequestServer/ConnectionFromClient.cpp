@@ -25,6 +25,7 @@
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
 #include <RequestServer/AIA.h>
+#include <RequestServer/AlternativeServices.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/ControlConnectionFromClient.h>
@@ -93,7 +94,7 @@ static auto time_curl_call(StringView label, F&& f)
 static constexpr i64 BURST_WINDOW_MS = 100;
 static constexpr u64 BURST_REPORT_THRESHOLD = 5;
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, SiteBinding site_binding, ConnectionMap& connections, RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache, ByteString alt_svc_cache_path)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, SiteBinding site_binding, ConnectionMap& connections, RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
     , m_is_private(is_private)
     , m_site_binding(site_binding)
@@ -103,9 +104,7 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     , m_curl_multi(curl_multi_init())
     , m_resolver(is_private == IsPrivate::Yes ? Resolver::private_resolver() : Resolver::default_resolver())
 {
-    if (m_is_private == IsPrivate::No)
-        m_alt_svc_cache_path = move(alt_svc_cache_path);
-    else
+    if (m_is_private == IsPrivate::Yes)
         ++s_private_connection_count;
 
     m_connections.set(client_id(), *this);
@@ -151,8 +150,10 @@ ConnectionFromClient::~ConnectionFromClient()
     curl_multi_cleanup(m_curl_multi);
     m_curl_multi = nullptr;
 
-    if (m_is_private == IsPrivate::Yes && --s_private_connection_count == 0)
+    if (m_is_private == IsPrivate::Yes && --s_private_connection_count == 0) {
         clear_aia_state(IsPrivate::Yes);
+        AlternativeServiceCache::the().clear(IsPrivate::Yes);
+    }
 
     if (auto connection = ControlConnectionFromClient::the(); connection.has_value())
         connection->async_client_disconnected(client_id());
@@ -357,7 +358,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     auto transfer_lease = create_transfer_lease
         ? Optional<Requests::RequestTransferLeaseKey> { lease_key }
         : Optional<Requests::RequestTransferLeaseKey> {};
-    auto request = Request::fetch(request_id, m_disk_cache, move(network_isolation_key), cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, transfer_lease, address_selection_hint, notify_on_cache_miss);
+    auto request = Request::fetch(request_id, m_disk_cache, move(network_isolation_key), cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, transfer_lease, address_selection_hint, notify_on_cache_miss);
     request->set_performance_origin(originating_process_id, originating_page_id);
     m_active_requests.set(request_id, move(request));
 
@@ -451,7 +452,7 @@ void ConnectionFromClient::start_revalidation_request(Badge<Request>, HTTP::Netw
 
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_revalidation_request({}, {})", request_id, url);
 
-    auto request = Request::revalidate(request_id, m_disk_cache, move(network_isolation_key), *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, m_alt_svc_cache_path);
+    auto request = Request::revalidate(request_id, m_disk_cache, move(network_isolation_key), *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials);
     m_active_revalidation_requests.set(request_id, move(request));
 }
 
