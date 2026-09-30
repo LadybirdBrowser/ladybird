@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<script>
+    // An isolated iframe navigates the popup it opened to an http: URL that is not potentially trustworthy. The popup
+    // is a top-level traversable, whose navigations are exempt from mixed content blocking whichever frame starts them.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const popupUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-popup-insecure-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>opener.postMessage("popup loaded", "*");<\/script>`,
+            })
+        );
+        popupUrl.hostname = uniqueLocalhostHostname("oop-popup-insecure-popup");
+
+        // A name within .test reaches the echo server without being potentially trustworthy.
+        const insecureUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-popup-insecure-second-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>opener.postMessage("popup navigated", "*");<\/script>`,
+            })
+        );
+        insecureUrl.hostname = uniqueTestHostname("oop-popup-insecure-second");
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-popup-insecure-opener-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("mousedown", () => {
+                        window.popup = window.open(${JSON.stringify(popupUrl.href)}, "opened-by-an-isolated-iframe");
+                    });
+                    addEventListener("message", event => {
+                        if (event.data === "popup loaded") {
+                            window.popup.location = ${JSON.stringify(insecureUrl.href)};
+                        } else if (event.data === "popup navigated") {
+                            window.popup.close();
+                            parent.postMessage("popup navigated", "*");
+                        }
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("oop-popup-insecure-opener");
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = iframeUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const navigated = nextMessage();
+        const rect = iframe.getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        println(await navigated);
+    });
+</script>
