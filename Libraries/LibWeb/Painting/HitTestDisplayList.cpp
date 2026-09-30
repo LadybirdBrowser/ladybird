@@ -271,27 +271,43 @@ DOM::Node const* HitTestDisplayList::item_dom_node(size_t item_index) const
     return dom_node_for_shell(Layout::RustFFI::layout_arena_hit_test_item_target_shell(m_arena->handle(), item_index));
 }
 
-static DOM::Node const* dom_node_for_dispatch_shell(void* shell, bool allow_pseudo_fallback)
+DOM::NodeIdentity HitTestDisplayList::item_identity(size_t item_index) const
 {
-    if (auto const* node = dom_node_for_shell(shell))
-        return node;
+    auto const* layout_node = static_cast<Layout::Node const*>(Layout::RustFFI::layout_arena_hit_test_item_target_shell(m_arena->handle(), item_index));
+    return layout_node ? layout_node->dom_node_identity() : DOM::NodeIdentity {};
+}
+
+static DOM::NodeIdentity identity_for_dispatch_shell(void* shell, bool allow_pseudo_fallback)
+{
     auto const* layout_node = static_cast<Layout::Node const*>(shell);
-    if (allow_pseudo_fallback && layout_node && layout_node->is_generated_for_pseudo_element())
-        return layout_node->pseudo_element_generator().ptr();
-    return nullptr;
+    if (!layout_node)
+        return {};
+    if (auto identity = layout_node->dom_node_identity(); !identity.is_none())
+        return identity;
+    if (allow_pseudo_fallback && layout_node->is_generated_for_pseudo_element())
+        return layout_node->pseudo_element_generator_identity();
+    return {};
+}
+
+DOM::NodeIdentity HitTestDisplayList::event_dispatch_identity_for_item(size_t item_index) const
+{
+    bool allow_pseudo_fallback = false;
+    auto* shell = Layout::RustFFI::layout_arena_hit_test_item_dispatch_shell(m_arena->handle(), item_index, &allow_pseudo_fallback);
+    return identity_for_dispatch_shell(shell, allow_pseudo_fallback);
 }
 
 DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(size_t item_index) const
 {
-    bool allow_pseudo_fallback = false;
-    auto* shell = Layout::RustFFI::layout_arena_hit_test_item_dispatch_shell(m_arena->handle(), item_index, &allow_pseudo_fallback);
-    return dom_node_for_dispatch_shell(shell, allow_pseudo_fallback);
+    auto* document = m_arena->document();
+    if (!document)
+        return nullptr;
+    return event_dispatch_identity_for_item(item_index).resolve(*document).ptr();
 }
 
 bool HitTestDisplayList::item_is_direct_caret_target(size_t item_index) const
 {
-    auto const* dom_node = item_dom_node(item_index);
-    return dom_node && dom_node == event_dispatch_dom_node_for_item(item_index);
+    auto identity = item_identity(item_index);
+    return !identity.is_none() && identity == event_dispatch_identity_for_item(item_index);
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
@@ -340,15 +356,19 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item item, CSSPixelPo
     GC::Ptr<DOM::Node> node = root_element;
     if (!node && paintable_layout_node)
         node = image_map_area_for_point(*paintable_layout_node, local_point);
-    if (!node)
-        node = const_cast<DOM::Node*>(dom_node_for_dispatch_shell(resolved.dispatch_shell, resolved.allow_pseudo_fallback));
-    if (!node)
-        node = const_cast<DOM::Node*>(dom_node_for_dispatch_shell(resolved.fallback_dispatch_shell, false));
+    auto identity = DOM::NodeIdentity::of(node.ptr());
+    // NB: Style runs before layout, so a laid-out document's style engine tracks its tree and every connected element
+    //     in it has a StyleNodeID.
+    VERIFY(!node || identity);
+    if (identity.is_none())
+        identity = identity_for_dispatch_shell(resolved.dispatch_shell, resolved.allow_pseudo_fallback);
+    if (identity.is_none())
+        identity = identity_for_dispatch_shell(resolved.fallback_dispatch_shell, false);
 
     // NB: Empty-line items are not reachable through regular hit testing; the descriptor still resolves them for
     // callers that already hold such an item.
     auto result = HitTestResult {
-        .node = node,
+        .node = identity,
         .hit_node = hit_node,
         .arena = *m_arena,
         .chrome_widget = chrome_widget_for_item(item),

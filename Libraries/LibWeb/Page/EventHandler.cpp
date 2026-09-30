@@ -209,6 +209,14 @@ Layout::Node* EventHandler::Target::layout_node() const
     return Painting::layout_node_for_committed_slot(*arena, hit_node);
 }
 
+GC::Ptr<DOM::Node> EventHandler::Target::dom_node() const
+{
+    auto* document = arena->document();
+    if (!document)
+        return nullptr;
+    return node.resolve(*document);
+}
+
 void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
     if (m_mouse_selection_target)
@@ -2501,7 +2509,7 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
             .hit_node = result->hit_node,
             .arena = result->arena,
             .chrome_widget = result->chrome_widget,
-            .node = result->dom_node(),
+            .node = result->node,
             .index_in_node = result->index_in_node,
             .is_text_fragment = result->is_text_fragment,
         };
