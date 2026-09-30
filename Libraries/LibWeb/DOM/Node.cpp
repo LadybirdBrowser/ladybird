@@ -2288,6 +2288,9 @@ void Node::set_document(Document& document)
     if (m_document.ptr() == &document)
         return;
 
+    // A layout node belongs to its document's layout node arena, so the node let go of any before it moves.
+    VERIFY(!m_has_layout_box && !m_has_committed_box);
+
     auto& old_document = *m_document;
     m_document = &document;
 
@@ -3739,12 +3742,6 @@ size_t Node::length() const
 
     // 3. Return the number of node’s children.
     return child_count();
-}
-
-bool Node::is_rendered() const
-{
-    auto const* layout_node = unsafe_layout_node();
-    return layout_node && Painting::has_committed_box(*layout_node);
 }
 
 Layout::Node const* Node::layout_node() const

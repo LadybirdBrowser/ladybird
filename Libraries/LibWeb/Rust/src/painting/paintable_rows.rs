@@ -724,6 +724,14 @@ impl LayoutNodeArena {
         absolute_rect_memo[index] = None;
         visual_context_records[index] = None;
         stacking_context_entries[index] = None;
+        drop((
+            side_data,
+            row_paint_states,
+            absolute_rect_memo,
+            visual_context_records,
+            stacking_context_entries,
+        ));
+        self.notify_committed_box_changed(layout_node);
     }
 
     fn reset_paintable_row(&mut self, row_is_still_linked: bool, reset: PaintableRowReset) {
@@ -762,6 +770,7 @@ impl LayoutNodeArena {
         store.row_paint_states.borrow()[index].clear();
         store.visual_context_records.borrow_mut()[index] = None;
         store.stacking_context_entries.borrow_mut()[index] = None;
+        self.notify_committed_box_changed(id);
     }
 
     pub(crate) fn paintable_visual_context_record(

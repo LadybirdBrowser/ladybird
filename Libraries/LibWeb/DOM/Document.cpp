@@ -671,6 +671,7 @@ Layout::NodeArena& Document::layout_node_arena()
             },
         };
         Layout::RustFFI::layout_arena_set_style_record_host_callbacks(m_layout_node_arena->handle(), style_record_host_callbacks);
+        m_layout_node_arena->start_reporting_box_presence({});
         Layout::RustFFI::layout_arena_set_shell_factory(m_layout_node_arena->handle(), this, [](void* context, Compositing::RustFFI::NodeSlotId slot, Layout::RustFFI::NodeKind kind) {
             auto& document = *static_cast<Document*>(context);
             switch (kind) {
@@ -741,6 +742,8 @@ Layout::RustFFI::FfiLayoutTreeBuildStats Document::layout_tree_build_stats() con
 void Document::finalize()
 {
     stop_compositor_animation_timers();
+    if (m_layout_node_arena)
+        m_layout_node_arena->stop_reporting_box_presence({});
     tear_down_layout_tree();
     if (m_layout_node_arena) {
         Layout::RustFFI::layout_arena_clear_chrome_state_callback(m_layout_node_arena->handle());

@@ -387,6 +387,16 @@ enum AncestorInvalidation {
 
 type ShellFactory = (*mut c_void, unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind));
 
+/// How the host learns what boxes a DOM node has. The identity is 0 for the document, which has
+/// none of its own. The callback must not reenter the arena: it runs while the arena is changing
+/// the bindings it would read.
+type BoxPresenceHost = (*mut c_void, unsafe extern "C" fn(*mut c_void, u32, u8));
+
+/// A row is bound to the node.
+pub const BOX_PRESENCE_HAS_LAYOUT_BOX: u8 = 1 << 0;
+/// The bound row has a committed box.
+pub const BOX_PRESENCE_HAS_COMMITTED_BOX: u8 = 1 << 1;
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStyleRecordHostCallbacks {
@@ -541,6 +551,7 @@ pub(crate) struct LayoutNodeArena {
     bound_viewport_row: Cell<NodeSlotId>,
     style_record_host: Cell<Option<FfiStyleRecordHostCallbacks>>,
     shell_factory: Cell<Option<ShellFactory>>,
+    box_presence_host: Cell<Option<BoxPresenceHost>>,
     layout_host: Cell<Option<FfiLayoutHostCallbacks>>,
     /// Depth of synchronous layout passes, including their commits, on the stack.
     active_layout_pass_depth: Cell<u32>,
@@ -643,6 +654,7 @@ impl LayoutNodeArena {
             bound_viewport_row: Cell::new(NodeSlotId::INVALID),
             style_record_host: Cell::new(None),
             shell_factory: Cell::new(None),
+            box_presence_host: Cell::new(None),
             layout_host: Cell::new(None),
             active_layout_pass_depth: Cell::new(0),
             fragment_cache_epoch_changed_during_layout_pass: Cell::new(false),
@@ -1129,16 +1141,22 @@ impl LayoutNodeArena {
         None
     }
 
-    /// Makes `id` the row `node` is bound to.
+    /// Makes `id` the row `node` is bound to. Every change to a binding goes through here or
+    /// `replace_bound_row`, which tell the host when the bound row changes.
     fn set_bound_row(&self, node: BoundNode, id: NodeSlotId) {
-        match node {
-            BoundNode::Identity(style_node) => *self.bound_rows_by_style_node.borrow_mut().head_mut(style_node) = id,
-            BoundNode::PseudoElement(generator, generated_for) => {
-                self.bound_pseudo_element_rows
-                    .borrow_mut()
-                    .insert((generator, generated_for), id);
+        let previous = match node {
+            BoundNode::Identity(style_node) => {
+                std::mem::replace(self.bound_rows_by_style_node.borrow_mut().head_mut(style_node), id)
             }
-            BoundNode::Document => self.bound_viewport_row.set(id),
+            BoundNode::PseudoElement(generator, generated_for) => self
+                .bound_pseudo_element_rows
+                .borrow_mut()
+                .insert((generator, generated_for), id)
+                .unwrap_or(NodeSlotId::INVALID),
+            BoundNode::Document => self.bound_viewport_row.replace(id),
+        };
+        if previous != id {
+            self.notify_box_presence(node);
         }
     }
 
@@ -1173,6 +1191,9 @@ impl LayoutNodeArena {
                 }
                 self.bound_viewport_row.set(replacement);
             }
+        }
+        if replacement != id {
+            self.notify_box_presence(node);
         }
         true
     }
@@ -1855,6 +1876,46 @@ impl LayoutNodeArena {
 
     pub(crate) fn set_shell_factory(&self, factory: Option<ShellFactory>) {
         self.shell_factory.set(factory);
+    }
+
+    pub(crate) fn set_box_presence_host(&self, host: Option<BoxPresenceHost>) {
+        self.box_presence_host.set(host);
+    }
+
+    /// What boxes the node bound to `row` has. An invalid row means the node has none.
+    fn box_presence_bits(&self, row: NodeSlotId) -> u8 {
+        if row.is_invalid() {
+            return 0;
+        }
+        let mut bits = BOX_PRESENCE_HAS_LAYOUT_BOX;
+        if self.paintable_rows().paintable_row_is_populated(row) {
+            bits |= BOX_PRESENCE_HAS_COMMITTED_BOX;
+        }
+        bits
+    }
+
+    /// Tells the host what boxes `node` has now. No row list may be borrowed here. A
+    /// pseudo-element's boxes stay unmirrored, since nothing on the DOM side reads them as a bit.
+    fn notify_box_presence(&self, node: BoundNode) {
+        let Some((context, callback)) = self.box_presence_host.get() else {
+            return;
+        };
+        let (style_node, row) = match node {
+            BoundNode::Identity(style_node) => (style_node.raw(), self.bound_row(style_node)),
+            BoundNode::Document => (0, self.bound_viewport_row()),
+            BoundNode::PseudoElement(..) => return,
+        };
+        // SAFETY: Registration and unregistration keep the host context live, and the host does
+        // not reenter the arena.
+        unsafe { callback(context, style_node, self.box_presence_bits(row)) };
+    }
+
+    /// Tells the host what boxes the node `row` can be bound to has now, after `row` gained or lost
+    /// its committed box.
+    pub(crate) fn notify_committed_box_changed(&self, row: NodeSlotId) {
+        if let Some(node) = self.bound_node_of(row) {
+            self.notify_box_presence(node);
+        }
     }
 
     fn materialize_shell(&self, id: NodeSlotId) -> *mut c_void {
@@ -4112,6 +4173,31 @@ pub unsafe extern "C" fn layout_arena_set_shell_factory(
     unsafe { &*arena.cast::<LayoutNodeArena>() }.set_shell_factory(Some((context, factory)));
 }
 
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread. The host must stay registered only while
+/// its context is live, and must not reenter the arena from the callback.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_box_presence_host(
+    arena: *mut c_void,
+    context: *mut c_void,
+    callback: unsafe extern "C" fn(*mut c_void, u32, u8),
+) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_box_presence_host(Some((context, callback)));
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_clear_box_presence_host(arena: *mut c_void) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_box_presence_host(None);
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_clear_shell_factory(arena: *mut c_void) {
     assert!(!arena.is_null(), "layout node arena handle is null");
@@ -4368,6 +4454,45 @@ mod tests {
             arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
         }
         arena.forget_style_node(reconnected);
+    }
+
+    #[test]
+    fn the_box_presence_host_hears_each_change_to_a_nodes_boxes() {
+        use super::{BOX_PRESENCE_HAS_COMMITTED_BOX, BOX_PRESENCE_HAS_LAYOUT_BOX};
+        use crate::css::style::tree::StyleNodeID;
+        unsafe extern "C" fn record(context: *mut c_void, style_node: u32, bits: u8) {
+            // SAFETY: The test registers a live Vec as the context, and reads it only after unregistering.
+            unsafe { &mut *context.cast::<Vec<(u32, u8)>>() }.push((style_node, bits));
+        }
+        let mut reports: Vec<(u32, u8)> = Vec::new();
+        let mut arena = LayoutNodeArena::new();
+        arena.set_box_presence_host(Some((std::ptr::from_mut(&mut reports).cast::<c_void>(), record)));
+        let mut dom_node_storage = 0u8;
+        let element = StyleNodeID::element(3);
+        let row = arena.allocate(FfiNodeConstructionFacts {
+            style_node: element.raw(),
+            ..test_construction_facts(std::ptr::from_mut(&mut dom_node_storage).cast::<c_void>())
+        });
+        arena.bind_row(row);
+        arena.populate_paintable_row(row);
+        let reset = arena
+            .prepare_paintable_row_cleared_reset(row)
+            .expect("a populated row has a reset");
+        arena.paintable_row_cleared(reset);
+        arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
+        arena.set_box_presence_host(None);
+
+        let both = BOX_PRESENCE_HAS_LAYOUT_BOX | BOX_PRESENCE_HAS_COMMITTED_BOX;
+        let element = element.raw();
+        assert_eq!(
+            reports,
+            [
+                (element, BOX_PRESENCE_HAS_LAYOUT_BOX),
+                (element, both),
+                (element, BOX_PRESENCE_HAS_LAYOUT_BOX),
+                (element, 0),
+            ]
+        );
     }
 
     #[test]

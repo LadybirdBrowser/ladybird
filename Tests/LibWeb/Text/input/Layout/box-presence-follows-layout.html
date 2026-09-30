@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .hidden { display: none; }
+</style>
+<dialog id="dialog">dialog</dialog>
+<div id="animated">animated</div>
+<div id="adopted">adopted</div>
+<script>
+    promiseTest(async () => {
+        // A modal dialog that is removed before it was ever laid out leaves the top layer without a box.
+        const dialog = document.getElementById("dialog");
+        dialog.showModal();
+        dialog.remove();
+        await animationFrame();
+        println(`Dialog open after removal: ${dialog.open}`);
+
+        // An animation on an element without a box, then with one again.
+        const animated = document.getElementById("animated");
+        animated.classList.add("hidden");
+        const effect = new KeyframeEffect(animated, [{ opacity: 0 }, { opacity: 1 }], { duration: 100000 });
+        const animation = new Animation(effect, document.timeline);
+        animation.play();
+        animation.currentTime = 50000;
+        println(`Hidden animated opacity: ${getComputedStyle(animated).opacity}`);
+        animated.classList.remove("hidden");
+        await animationFrame();
+        println(`Shown animated opacity: ${getComputedStyle(animated).opacity}, height ${animated.getBoundingClientRect().height}`);
+        animation.cancel();
+
+        // A rendered node adopted into another document leaves its layout behind.
+        const adopted = document.getElementById("adopted");
+        println(`Adopted height before: ${adopted.getBoundingClientRect().height}`);
+        const other = document.implementation.createHTMLDocument("");
+        other.body.appendChild(other.adoptNode(adopted));
+        println(`Adopted height after: ${adopted.getBoundingClientRect().height}`);
+        document.body.appendChild(document.adoptNode(adopted));
+        println(`Adopted height back home: ${adopted.getBoundingClientRect().height}`);
+    });
+</script>

@@ -849,6 +849,11 @@ void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old
     // removed subtree that outlive the disconnection.
     if (old_style_node != 0)
         RustFFI::layout_arena_forget_style_node(arena->handle(), old_style_node.value());
+    // The arena tells a node about a change to its layout node through its StyleNodeID, so a node whose StyleNodeID
+    // changes is one it cannot name. Its box presence is committed again here instead. A node that had no StyleNodeID
+    // had no layout node either, and a fresh StyleNodeID has none bound yet, so it has nothing to commit.
+    if (old_style_node != 0)
+        arena->commit_box_presence(dom_node);
 }
 
 CSS::StyleNodeID Node::style_node_id() const

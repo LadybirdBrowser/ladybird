@@ -5,9 +5,12 @@
  */
 
 #include <AK/Assertions.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::Layout {
@@ -66,6 +69,30 @@ void NodeArena::visit_dom_nodes(GC::Cell::Visitor& visitor) const
 bool destroy_layout_subtree(Node& node)
 {
     return RustFFI::layout_arena_detach_and_free_subtree(node.arena_handle(), Node::slot_id(&node));
+}
+
+void NodeArena::start_reporting_box_presence(Badge<DOM::Document>)
+{
+    RustFFI::layout_arena_set_box_presence_host(m_handle, this, [](void* context, u32 style_node, u8 bits) {
+        auto& document = *static_cast<NodeArena*>(context)->m_document;
+        // The document has no StyleNodeID; it is named by 0.
+        GC::Ptr<DOM::Node> node = &document;
+        if (style_node != 0)
+            node = document.style_computer().node_for_style_node(CSS::StyleNodeID { style_node });
+        if (node)
+            node->set_box_presence({}, bits & RustFFI::BOX_PRESENCE_HAS_LAYOUT_BOX, bits & RustFFI::BOX_PRESENCE_HAS_COMMITTED_BOX);
+    });
+}
+
+void NodeArena::stop_reporting_box_presence(Badge<DOM::Document>)
+{
+    RustFFI::layout_arena_clear_box_presence_host(m_handle);
+}
+
+void NodeArena::commit_box_presence(DOM::Node& node)
+{
+    auto const* layout_node = node.unsafe_layout_node();
+    node.set_box_presence({}, layout_node, layout_node && Painting::has_committed_box(*layout_node));
 }
 
 void NodeArena::sync_enrolled_content_for_layout()
