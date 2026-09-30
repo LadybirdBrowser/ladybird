@@ -190,7 +190,7 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
         RETURNING cache_key, vary_key, MAX(data_size, 0) + MAX(associated_data_size, 0) + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers);
     )#"sv));
     statements.select_entries = TRY(database.prepare_statement("SELECT vary_key, url, request_headers, response_headers, data_size, associated_data_size, request_time, response_time, last_access_time FROM CacheIndex WHERE cache_key = ?;"sv));
-    statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ? WHERE cache_key = ? AND vary_key = ?;"sv));
+    statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ?, last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
     statements.update_associated_data_size = TRY(database.prepare_statement("UPDATE CacheIndex SET associated_data_size = ? WHERE cache_key = ? AND vary_key = ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
 
@@ -390,21 +390,33 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
         since);
 }
 
-void CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers)
+ErrorOr<void> CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers)
 {
     auto entry = get_entry(cache_key, vary_key);
     if (!entry.has_value())
-        return;
+        return {};
 
     auto serialized_response_headers = serialize_headers(response_headers);
     auto serialized_response_headers_size = static_cast<u64>(serialized_response_headers.length());
 
-    m_database->execute_statement(m_statements.update_response_headers, {}, serialized_response_headers, encode_cache_key_for_database(cache_key), encode_cache_key_for_database(vary_key));
+    Checked<u64> checked_entry_size = entry->data_size;
+    checked_entry_size += entry->associated_data_size;
+    checked_entry_size += entry->serialized_request_headers_size;
+    checked_entry_size += serialized_response_headers_size;
+
+    if (checked_entry_size.has_overflow() || checked_entry_size.value() > static_cast<u64>(m_limits.maximum_disk_cache_entry_size))
+        return Error::from_string_literal("Cache entry size exceeds allowed maximum");
+
+    auto now = UnixDateTime::now();
+
+    m_database->execute_statement(m_statements.update_response_headers, {}, serialized_response_headers, now, encode_cache_key_for_database(cache_key), encode_cache_key_for_database(vary_key));
 
     adjust_total_estimated_size(-static_cast<i64>(entry->serialized_response_headers_size));
     adjust_total_estimated_size(static_cast<i64>(serialized_response_headers_size));
     entry->response_headers = move(response_headers);
     entry->serialized_response_headers_size = serialized_response_headers_size;
+    entry->last_access_time = now;
+    return {};
 }
 
 ErrorOr<void> CacheIndex::update_associated_data_size(u64 cache_key, u64 vary_key, u64 associated_data_size)
