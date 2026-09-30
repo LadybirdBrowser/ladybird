@@ -1,4 +1,6 @@
 enabling the second audio track
+change at sourceBuffer.audioTracks
 change at video.audioTracks
 selecting the second video track
+change at sourceBuffer.videoTracks
 change at video.videoTracks

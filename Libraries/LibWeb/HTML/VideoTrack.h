@@ -22,7 +22,8 @@ public:
 
     virtual ~VideoTrack() override;
 
-    void set_video_track_list(Badge<VideoTrackList>, GC::Ptr<VideoTrackList> video_track_list) { m_video_track_list = video_track_list; }
+    void add_video_track_list(Badge<VideoTrackList>, VideoTrackList&);
+    void remove_video_track_list(Badge<VideoTrackList>, VideoTrackList&);
 
     bool selected() const { return m_selected; }
     void set_selected(bool selected);
@@ -35,7 +36,8 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-selected
     bool m_selected { false };
 
-    GC::Ptr<VideoTrackList> m_video_track_list;
+    // A track is in its media element's list, and in its SourceBuffer's list if it has one.
+    Vector<GC::Ref<VideoTrackList>, 2> m_video_track_lists;
 };
 
 }

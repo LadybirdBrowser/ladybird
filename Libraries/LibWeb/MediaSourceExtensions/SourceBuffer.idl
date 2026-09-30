@@ -11,9 +11,9 @@ interface SourceBuffer : EventTarget {
     readonly  attribute boolean updating;
     [NeedsCallerRealm] readonly attribute TimeRanges buffered;
     attribute double timestampOffset;
-    [FIXME] readonly  attribute AudioTrackList audioTracks;
-    [FIXME] readonly  attribute VideoTrackList videoTracks;
-    [FIXME] readonly  attribute TextTrackList textTracks;
+    readonly  attribute AudioTrackList audioTracks;
+    readonly  attribute VideoTrackList videoTracks;
+    readonly  attribute TextTrackList textTracks;
     attribute double appendWindowStart;
     attribute unrestricted double appendWindowEnd;
 

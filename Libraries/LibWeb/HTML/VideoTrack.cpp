@@ -40,7 +40,17 @@ VideoTrack::~VideoTrack() = default;
 void VideoTrack::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_video_track_list);
+    visitor.visit(m_video_track_lists);
+}
+
+void VideoTrack::add_video_track_list(Badge<VideoTrackList>, VideoTrackList& video_track_list)
+{
+    m_video_track_lists.append(video_track_list);
+}
+
+void VideoTrack::remove_video_track_list(Badge<VideoTrackList>, VideoTrackList& video_track_list)
+{
+    m_video_track_lists.remove_first_matching([&](auto const& list) { return list.ptr() == &video_track_list; });
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-selected
@@ -53,11 +63,11 @@ void VideoTrack::set_selected(bool selected)
     // If the track is in a VideoTrackList, then all the other VideoTrack objects in that list must be unselected. (If the track is
     // no longer in a VideoTrackList object, then the track being selected or unselected has no effect beyond changing the value of
     // the attribute on the VideoTrack object.)
-    if (m_video_track_list) {
-        auto previously_unselected_track_is_selected = !m_selected && selected;
-        auto selected_track_was_unselected_without_another_selection = m_selected && !selected;
+    auto previously_unselected_track_is_selected = !m_selected && selected;
+    auto selected_track_was_unselected_without_another_selection = m_selected && !selected;
 
-        for (auto video_track : m_video_track_list->video_tracks()) {
+    for (auto video_track_list : m_video_track_lists) {
+        for (auto video_track : video_track_list->video_tracks()) {
             if (video_track.ptr() != this)
                 video_track->m_selected = false;
         }
@@ -67,7 +77,7 @@ void VideoTrack::set_selected(bool selected)
         // task given the media element to fire an event named change at the VideoTrackList object. This task must be queued before
         // the task that fires the resize event, if any.
         if (previously_unselected_track_is_selected || selected_track_was_unselected_without_another_selection) {
-            media_element().queue_a_media_element_task([this, video_track_list = m_video_track_list](HTMLMediaElement&) {
+            media_element().queue_a_media_element_task([this, video_track_list](HTMLMediaElement&) {
                 video_track_list->dispatch_event(create_event_for_element(media_element(), HTML::EventNames::change));
             });
         }
