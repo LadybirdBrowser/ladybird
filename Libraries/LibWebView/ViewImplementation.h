@@ -378,6 +378,8 @@ public:
     Gfx::Color page_background_color() const { return m_page_background_color; }
 
     void did_allocate_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
+    void did_add_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
+    void did_retire_backing_stores(Badge<WebContentPage>, ReadonlySpan<i32> bitmap_ids);
     void install_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
 
     enum class ScreenshotType {

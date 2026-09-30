@@ -885,6 +885,7 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
                 context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*viewport_rect));
         }
 
+        add_backing_store_for_pending_frame_if_needed(context_id, context);
         auto pending_present_frame = context.take_pending_present_frame_if_unblocked();
         if (!pending_present_frame.has_value()) {
             has_active_animation_on_display = (context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame()) && display_id_for_context(context) == display_id;
@@ -1111,6 +1112,41 @@ void CompositorState::shrink_backing_stores_after_resize(Web::CompositorContextI
 
     context->finish_window_resize();
     resize_backing_stores_if_needed(context_id, *context);
+}
+
+void CompositorState::add_backing_store_for_pending_frame_if_needed(Web::CompositorContextId context_id, ContextState& context)
+{
+    auto publication = context.add_backing_store_for_pending_frame_if_needed(m_skia_backend_context);
+    if (!publication.has_value())
+        return;
+
+    VERIFY(m_client);
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} gained backing store {}, as the window server still reads every released one", context_id, publication->bitmap_ids);
+    m_client->did_add_backing_stores(context_id, move(publication->bitmap_ids), move(publication->shared_images));
+    schedule_surplus_backing_store_retirement(context_id, context);
+}
+
+void CompositorState::schedule_surplus_backing_store_retirement(Web::CompositorContextId context_id, ContextState& context)
+{
+    context.schedule_surplus_backing_store_retirement([this, context_id] {
+        retire_idle_surplus_backing_stores(context_id);
+    });
+}
+
+void CompositorState::retire_idle_surplus_backing_stores(Web::CompositorContextId context_id)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return;
+
+    auto retired_bitmap_ids = context->retire_idle_surplus_backing_stores();
+    if (!retired_bitmap_ids.is_empty() && context->presents_to_client()) {
+        VERIFY(m_client);
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Context {} retired idle backing stores {}", context_id, retired_bitmap_ids);
+        m_client->did_retire_backing_stores(context_id, move(retired_bitmap_ids));
+    }
+    if (context->has_surplus_backing_stores())
+        schedule_surplus_backing_store_retirement(context_id, *context);
 }
 
 void CompositorState::present_current_frame(Web::CompositorContextId context_id, ContextState& context)

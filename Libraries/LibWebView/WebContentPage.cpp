@@ -539,6 +539,37 @@ void WebContentPage::did_present_backing_stores(Vector<i32> bitmap_ids, Vector<G
     view().did_allocate_backing_stores({}, move(bitmap_ids), move(backing_stores));
 }
 
+void WebContentPage::did_add_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received {} additional backing stores for page {}", backing_stores.size(), m_id);
+    if (displays_tab()) {
+        view().did_add_backing_stores({}, move(bitmap_ids), move(backing_stores));
+        return;
+    }
+    if (!m_presented_backing_stores.has_value())
+        return;
+    m_presented_backing_stores->bitmap_ids.extend(move(bitmap_ids));
+    m_presented_backing_stores->backing_stores.extend(move(backing_stores));
+}
+
+void WebContentPage::did_retire_backing_stores(ReadonlySpan<i32> bitmap_ids)
+{
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI retiring backing stores {} for page {}", bitmap_ids, m_id);
+    if (displays_tab()) {
+        view().did_retire_backing_stores({}, bitmap_ids);
+        return;
+    }
+    if (!m_presented_backing_stores.has_value())
+        return;
+    // The first store is the one the view installs as its front buffer, which the compositor never retires.
+    for (size_t i = m_presented_backing_stores->bitmap_ids.size(); i-- > 1;) {
+        if (!bitmap_ids.contains_slow(m_presented_backing_stores->bitmap_ids[i]))
+            continue;
+        m_presented_backing_stores->bitmap_ids.remove(i);
+        m_presented_backing_stores->backing_stores.remove(i);
+    }
+}
+
 Optional<WebContentPage::PresentedBackingStores> WebContentPage::take_presented_backing_stores()
 {
     auto backing_stores = move(m_presented_backing_stores);

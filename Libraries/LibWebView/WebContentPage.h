@@ -124,6 +124,8 @@ public:
     void did_not_dispatch_input_event_through_compositor(u64 event_id);
     void did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
     void did_present_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
+    void did_add_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
+    void did_retire_backing_stores(ReadonlySpan<i32> bitmap_ids);
     // The backing stores the compositor presented while the page did not display the tab, for the view to install
     // once it does.
     struct PresentedBackingStores {

@@ -5,6 +5,8 @@
 endpoint CompositorControlClient
 {
     did_allocate_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
+    did_add_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) =|
+    did_retire_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids) =|
     did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) =|
     did_consume_input_event(Web::CompositorContextId context_id, u64 event_id) =|
     did_not_dispatch_input_event(Web::CompositorContextId context_id, u64 event_id) =|

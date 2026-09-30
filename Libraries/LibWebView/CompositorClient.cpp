@@ -71,6 +71,18 @@ static WebContentPage* page_for_compositor_context_id(Web::CompositorContextId c
     return web_content_client->page(*page_id);
 }
 
+void CompositorClient::did_add_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
+    if (auto* page = page_for_compositor_context_id(context_id))
+        page->did_add_backing_stores(move(bitmap_ids), move(backing_stores));
+}
+
+void CompositorClient::did_retire_backing_stores(Web::CompositorContextId context_id, Vector<i32> bitmap_ids)
+{
+    if (auto* page = page_for_compositor_context_id(context_id))
+        page->did_retire_backing_stores(bitmap_ids);
+}
+
 void CompositorClient::did_consume_input_event(Web::CompositorContextId context_id, u64 event_id)
 {
     if (auto* page = page_for_compositor_context_id(context_id))

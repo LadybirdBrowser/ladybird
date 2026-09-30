@@ -60,6 +60,10 @@ public:
     bool release_buffer(i32 bitmap_id);
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const;
 
+    Optional<Publication> add_backing_store_if_window_server_still_reads_every_released_store(RefPtr<Gfx::SkiaBackendContext> const&);
+    bool has_surplus_backing_stores() const { return m_backing_stores.size() > m_initial_backing_store_count; }
+    Vector<i32> retire_idle_surplus_backing_stores();
+
 private:
     enum class BufferState : u8 {
         Available,
@@ -74,8 +78,12 @@ private:
         BufferState state { BufferState::Available };
         Gfx::IntRect accumulated_damage;
         bool was_presented_to_client { false };
+        bool was_rendered_into_since_last_retirement_check { false };
     };
 
+    static constexpr size_t maximum_backing_store_count = 8;
+
+    static BackingStore create_published_shareable_backing_store(Gfx::IntSize, i32 bitmap_id, BufferState, RefPtr<Gfx::SkiaBackendContext> const&);
     static bool published_surface_is_in_use(BackingStore const&);
     static bool store_can_be_rendered_into(BackingStore const&);
 
@@ -83,6 +91,9 @@ private:
 
     // Used to track if backing stores need reallocation
     Gfx::IntSize m_allocated_size;
+
+    Gfx::IntSize m_backing_store_size;
+    size_t m_initial_backing_store_count { 0 };
     Vector<BackingStore> m_backing_stores;
     Optional<size_t> m_rendering_store_index;
     Optional<size_t> m_latest_rendered_store_index;

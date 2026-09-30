@@ -123,6 +123,7 @@ ContextState::~ContextState()
 {
     discard_sampled_visual_context_tree();
     stop_backing_store_shrink_timer();
+    stop_surplus_backing_store_retirement_timer();
     if (m_caret_blink_timer) {
         m_caret_blink_timer->on_timeout = {};
         m_caret_blink_timer->stop();
@@ -1155,6 +1156,14 @@ void ContextState::schedule_backing_store_shrink(Function<void()> on_timeout)
     m_backing_store_shrink_timer->restart();
 }
 
+void ContextState::schedule_surplus_backing_store_retirement(Function<void()> on_timeout)
+{
+    if (!m_surplus_backing_store_retirement_timer)
+        m_surplus_backing_store_retirement_timer = Core::Timer::create_single_shot(3000, move(on_timeout));
+    if (!m_surplus_backing_store_retirement_timer->is_active())
+        m_surplus_backing_store_retirement_timer->start();
+}
+
 void ContextState::finish_window_resize()
 {
     m_window_resize_in_progress = Compositing::WindowResizingInProgress::No;
@@ -1180,6 +1189,13 @@ Optional<BackingStoreManager::Publication> ContextState::resize_backing_stores_i
     m_latest_rendered_surface = nullptr;
     m_last_rasterized_frame.clear();
     return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, presents_to_client(), gpu_sharing);
+}
+
+Optional<BackingStoreManager::Publication> ContextState::add_backing_store_for_pending_frame_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context)
+{
+    if (!presents_to_client() || !m_pending_present_frame.has_value() || !can_render_frame())
+        return {};
+    return m_backing_store_manager.add_backing_store_if_window_server_still_reads_every_released_store(skia_backend_context);
 }
 
 bool ContextState::update_composited_raster_transform(Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& transform)
@@ -1487,6 +1503,14 @@ void ContextState::stop_backing_store_shrink_timer()
         return;
     m_backing_store_shrink_timer->on_timeout = {};
     m_backing_store_shrink_timer->stop();
+}
+
+void ContextState::stop_surplus_backing_store_retirement_timer()
+{
+    if (!m_surplus_backing_store_retirement_timer)
+        return;
+    m_surplus_backing_store_retirement_timer->on_timeout = {};
+    m_surplus_backing_store_retirement_timer->stop();
 }
 
 Compositing::AccumulatedVisualContextTree const& ContextState::current_visual_context_tree() const
