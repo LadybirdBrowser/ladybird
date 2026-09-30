@@ -109,6 +109,8 @@ private:
     void check_active_requests();
     void complete_aia_fetch(void* easy_handle, int result_code);
     void fail_websocket(u64 websocket_id, Requests::WebSocket::Error);
+    size_t websocket_count() const;
+    size_t total_websocket_count() const;
     void connect_websocket(u64 websocket_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> request_headers);
 
     IsPrivate m_is_private { IsPrivate::No };
