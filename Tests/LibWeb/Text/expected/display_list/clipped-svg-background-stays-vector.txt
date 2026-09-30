@@ -1,0 +1,9 @@
+clipped sprite: 0 raster tiles, 1 vector images
+fractionally translated ancestor: 1 raster tiles, 1 vector images
+untransformed sprite restored: 0 raster tiles, 1 vector images
+fractionally scaled sprite: 1 raster tiles, 1 vector images
+sprite tile boundary: 1 raster tiles, 1 vector images
+clipped on the other repeating axis: 1 raster tiles, 1 vector images
+small repeated image: 1 raster tiles, 1 vector images
+blended sprite remains isolated: 1 raster tiles, 1 vector images
+many clipped tiles remain bounded: 1 raster tiles, 1 vector images

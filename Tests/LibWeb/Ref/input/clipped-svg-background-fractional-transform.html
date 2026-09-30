@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clipped-svg-background-fractional-transform-ref.html">
+<style>
+    body { margin: 0; }
+    .sprite {
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        transform-origin: 0 0;
+        background-position: -1px -1px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect x='11' y='11' width='10' height='10' fill='green'/%3E%3C/svg%3E");
+        image-rendering: pixelated;
+    }
+    #scaled { transform: scale(1.5); }
+    #ancestor {
+        position: absolute;
+        top: 80px;
+        transform: scale(1.5);
+        transform-origin: 0 0;
+    }
+    #translated {
+        top: 160px;
+        background-position: -2px -2px;
+        transform: translate(0.5px, 0.5px) scale(1.5);
+    }
+    #nonuniform {
+        top: 240px;
+        transform: scale(1.5, 2);
+    }
+</style>
+<div id="scaled" class="sprite"></div>
+<div id="ancestor"><div class="sprite"></div></div>
+<div id="translated" class="sprite"></div>
+<div id="nonuniform" class="sprite"></div>

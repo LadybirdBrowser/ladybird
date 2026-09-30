@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clipped-svg-background-nonuniform-transform-ref.html">
+<style>
+    body { margin: 0; }
+    div {
+        width: 40px;
+        height: 40px;
+        transform-origin: 0 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='100' viewBox='0 0 200 100'%3E%3Crect width='200' height='100' fill='green'/%3E%3C/svg%3E");
+    }
+    #wide { transform: scale(2, 1); }
+    #tall {
+        margin-top: 40px;
+        transform: scale(1, 2);
+    }
+    #small {
+        margin-top: 40px;
+        transform: scale(0.5, 0.75);
+    }
+</style>
+<div id="wide"></div>
+<div id="tall"></div>
+<div id="small"></div>

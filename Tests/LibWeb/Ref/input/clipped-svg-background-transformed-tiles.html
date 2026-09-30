@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clipped-svg-background-transformed-tiles-ref.html">
+<style>
+    body { margin: 40px; }
+    div {
+        width: 120px;
+        height: 20px;
+        margin-bottom: 80px;
+        transform-origin: 0 0;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='200' viewBox='0 0 20 200'%3E%3Crect width='20' height='200' fill='green'/%3E%3C/svg%3E");
+        background-size: 20px 200px;
+    }
+    #rotated { transform: rotate(25deg); }
+    #skewed { transform: skew(25deg); }
+</style>
+<div id="rotated"></div>
+<div id="skewed"></div>

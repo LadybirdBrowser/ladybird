@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clipped-svg-background-subpixel-tiles-ref.html">
+<style>
+    body { margin: 0; }
+    div {
+        width: 20px;
+        height: 20px;
+        margin-bottom: 10px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200' preserveAspectRatio='none'%3E%3Crect width='200' height='200' fill='green' fill-opacity='0.5'/%3E%3C/svg%3E");
+    }
+    #half-width { background-size: 0.5px 200px; }
+    #tiny-width { background-size: 0.1px 200px; }
+    #half-height { background-size: 200px 0.5px; }
+    #tiny-height { background-size: 200px 0.1px; }
+</style>
+<div id="half-width"></div>
+<div id="tiny-width"></div>
+<div id="half-height"></div>
+<div id="tiny-height"></div>
