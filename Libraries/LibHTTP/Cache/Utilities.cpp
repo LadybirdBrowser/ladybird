@@ -114,14 +114,19 @@ u64 create_cache_key(StringView url, StringView method)
     return serialize_hash(*hasher);
 }
 
-u64 create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers)
+// https://httpwg.org/specs/rfc9111.html#caching.negotiated.responses
+Optional<u64> create_vary_key(HeaderList const& request_headers, HeaderList const& response_headers)
 {
     auto hasher = Crypto::Hash::SHA1::create();
     auto has_vary_header = false;
+    auto has_vary_wildcard = false;
 
     response_headers.for_each_vary_header([&](StringView header) {
-        // If we start caching `Vary: *` responses, this needs to be updated.
-        VERIFY(header != "*"sv);
+        // A stored response with a Vary header field value containing a member "*" always fails to match.
+        if (header == "*"sv) {
+            has_vary_wildcard = true;
+            return IterationDecision::Break;
+        }
         has_vary_header = true;
 
         auto value = normalize_request_vary_header_values(header, request_headers);
@@ -130,6 +135,8 @@ u64 create_vary_key(HeaderList const& request_headers, HeaderList const& respons
         return IterationDecision::Continue;
     });
 
+    if (has_vary_wildcard)
+        return {};
     return has_vary_header ? serialize_hash(*hasher) : 0;
 }
 

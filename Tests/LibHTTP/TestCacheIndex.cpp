@@ -48,7 +48,7 @@ TEST_CASE(create_entry_replaces_loaded_entry)
     });
 
     auto cache_key = 1u;
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers_v1);
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers_v1).value();
     auto now = UnixDateTime::now();
 
     TRY_OR_FAIL(state.index.create_entry(cache_key, vary_key, "https://example.com"_string, request_headers, response_headers_v1, 10, now, now));
@@ -72,7 +72,7 @@ TEST_CASE(remove_entries_exceeding_cache_limit_is_noop_when_under_limit)
 
     auto request_headers = HTTP::HeaderList::create();
     auto response_headers = HTTP::HeaderList::create();
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
     auto now = UnixDateTime::now();
 
     state.index.set_maximum_disk_cache_size(80);
@@ -95,7 +95,7 @@ TEST_CASE(remove_entries_exceeding_cache_limit_tolerates_replaced_unloaded_entri
 
     auto request_headers = HTTP::HeaderList::create();
     auto response_headers = HTTP::HeaderList::create();
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
     auto now = UnixDateTime::now();
 
     state.index.set_maximum_disk_cache_size(80);
@@ -121,7 +121,7 @@ TEST_CASE(associated_data_counts_toward_cache_size)
 
     auto request_headers = HTTP::HeaderList::create();
     auto response_headers = HTTP::HeaderList::create();
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
     auto now = UnixDateTime::now();
 
     state.index.set_maximum_disk_cache_size(80);
@@ -158,7 +158,7 @@ TEST_CASE(full_range_cache_keys_round_trip)
 
     auto request_headers = HTTP::HeaderList::create();
     auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
     auto now = UnixDateTime::now();
 
     for (u64 cache_key : { static_cast<u64>(NumericLimits<i64>::max()) + 1, NumericLimits<u64>::max() }) {
@@ -177,7 +177,7 @@ TEST_CASE(negative_stored_sizes_are_skipped_as_corrupt)
 
     auto request_headers = HTTP::HeaderList::create();
     auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
-    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers);
+    auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
     auto now = UnixDateTime::now();
 
     TRY_OR_FAIL(state.index.create_entry(1, vary_key, "https://example.com"_string, request_headers, response_headers, 10, now, now));
@@ -210,4 +210,21 @@ TEST_CASE(creation_returns_error_for_corrupted_database)
     auto result = HTTP::CacheIndex::create(*database, cache_directory());
     EXPECT(result.is_error());
     EXPECT_EQ(result.error().string_literal(), "database disk image is malformed"sv);
+}
+
+TEST_CASE(stored_vary_wildcard_does_not_match)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "Vary"sv, "*"sv },
+    });
+    auto now = UnixDateTime::now();
+
+    TRY_OR_FAIL(state.index.create_entry(1, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+
+    auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
+    EXPECT(!reloaded_index.find_entry(1, *request_headers).has_value());
 }

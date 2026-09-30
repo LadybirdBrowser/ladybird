@@ -136,7 +136,11 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         if (!is_cacheable(status_code, response_headers))
             return Error::from_string_literal("Response is not cacheable");
 
-        m_vary_key = create_vary_key(request_headers, response_headers);
+        auto vary_key = create_vary_key(request_headers, response_headers);
+        if (!vary_key.has_value())
+            return Error::from_string_literal("Response cannot be selected by any request");
+
+        m_vary_key = *vary_key;
         m_path = path_for_cache_entry(m_disk_cache.cache_directory(), m_cache_key, m_vary_key);
         m_temporary_path = LexicalPath::join(m_disk_cache.cache_directory().string(), ByteString::formatted("{}.tmp", m_path->basename()));
 
