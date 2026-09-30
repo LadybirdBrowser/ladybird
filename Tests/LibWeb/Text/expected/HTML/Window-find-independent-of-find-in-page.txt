@@ -1,4 +1,11 @@
+Selection while finding in page: (none)
+window.find("needle"): true
+window.find("needle"): true
 window.find("needle"): true
 window.find("needle"): false
 window.find("other"): true
-Selection after the next find-in-page match: "needle"
+Selection after the next find-in-page match: (none)
+Selection after finding in page stops: "needle" [13, 19]
+Next match from the selected match: "needle" [26, 32]
+Next match from a caret after the first match: "needle" [13, 19]
+Next match from a selection inside the first match: "needle" [13, 19]

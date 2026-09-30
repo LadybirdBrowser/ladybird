@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p id="before">needle before the host</p>
+<div id="host"></div>
+<p id="after">needle after the host</p>
+<script>
+    test(() => {
+        host.attachShadow({ mode: "open" }).innerHTML = "<span>needle inside the shadow tree</span>";
+        const describeSelection = () => {
+            const selection = getSelection();
+            if (selection.rangeCount === 0)
+                return "(none)";
+            const container = selection.anchorNode.parentNode;
+            const location = container.getRootNode() === host.shadowRoot ? "shadow tree" : container.id;
+            return `"${selection.toString()}" in ${location}`;
+        };
+        const results = [];
+
+        internals.findInPage("needle");
+        internals.findInPageNextMatch();
+        internals.findInPageEnd();
+        results.push(`Next match from the first match: selection ${describeSelection()}`);
+        internals.findInPageNextMatch();
+        internals.findInPageEnd();
+        results.push(`Next match from the shadow tree: selection ${describeSelection()}`);
+        internals.findInPageNextMatch();
+        internals.findInPageEnd();
+        results.push(`Next match wraps around: selection ${describeSelection()}`);
+
+        results.forEach(println);
+    });
+</script>

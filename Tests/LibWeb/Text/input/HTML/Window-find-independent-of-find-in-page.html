@@ -1,21 +1,54 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<p>needle other needle</p>
+<p>needle other needle final needle</p>
 <script>
     test(() => {
+        const text = document.querySelector("p").firstChild;
+        const selectionSummary = () => {
+            const selection = getSelection();
+            if (selection.rangeCount === 0)
+                return "(none)";
+            const range = selection.getRangeAt(0);
+            return `"${selection.toString()}" [${range.startOffset}, ${range.endOffset}]`;
+        };
+        const stopAndSummarize = () => {
+            internals.findInPageEnd();
+            return selectionSummary();
+        };
+
         internals.findInPage("needle");
+        const selectionWhileFinding = selectionSummary();
         const firstResult = window.find("needle");
         const secondResult = window.find("needle");
+        const thirdResult = window.find("needle");
+        const fourthResult = window.find("needle");
 
         getSelection().removeAllRanges();
         internals.findInPage("needle");
         const otherResult = window.find("other");
         internals.findInPageNextMatch();
-        const selectedText = getSelection().toString();
+        const selectionAfterNextMatch = selectionSummary();
+        const selectionAfterStop = stopAndSummarize();
 
+        internals.findInPageNextMatch();
+        const nextFromLastMatch = stopAndSummarize();
+        getSelection().collapse(text, 6);
+        internals.findInPageNextMatch();
+        const nextFromCaret = stopAndSummarize();
+        getSelection().setBaseAndExtent(text, 2, text, 4);
+        internals.findInPageNextMatch();
+        const nextFromInsideMatch = stopAndSummarize();
+
+        println(`Selection while finding in page: ${selectionWhileFinding}`);
         println(`window.find("needle"): ${firstResult}`);
         println(`window.find("needle"): ${secondResult}`);
+        println(`window.find("needle"): ${thirdResult}`);
+        println(`window.find("needle"): ${fourthResult}`);
         println(`window.find("other"): ${otherResult}`);
-        println(`Selection after the next find-in-page match: "${selectedText}"`);
+        println(`Selection after the next find-in-page match: ${selectionAfterNextMatch}`);
+        println(`Selection after finding in page stops: ${selectionAfterStop}`);
+        println(`Next match from the selected match: ${nextFromLastMatch}`);
+        println(`Next match from a caret after the first match: ${nextFromCaret}`);
+        println(`Next match from a selection inside the first match: ${nextFromInsideMatch}`);
     });
 </script>

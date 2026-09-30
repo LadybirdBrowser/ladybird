@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="reordering-host"><span slot="a" id="first">needle A</span><span slot="b" id="second">needle B</span></div>
+<div id="trailing-host"><span id="slotted">needle slotted</span></div>
+<script>
+    test(() => {
+        document.getElementById("reordering-host").attachShadow({ mode: "open" }).innerHTML = '<slot name="b"></slot><slot name="a"></slot>';
+        document.getElementById("trailing-host").attachShadow({ mode: "open" }).innerHTML = '<slot></slot><span id="unslotted">needle unslotted</span>';
+        const selectedElementId = () => getSelection().anchorNode?.parentElement?.id ?? "(none)";
+
+        const fromActiveMatch = [];
+        for (let nextMatchCount = 0; nextMatchCount < 5; ++nextMatchCount) {
+            internals.findInPage("");
+            internals.findInPage("needle");
+            for (let i = 0; i < nextMatchCount; ++i)
+                internals.findInPageNextMatch();
+            internals.findInPageEnd();
+            fromActiveMatch.push(selectedElementId());
+            getSelection().removeAllRanges();
+        }
+        println(`Next matches from the active match: ${fromActiveMatch.join(", ")}`);
+
+        const fromSelection = [];
+        internals.findInPage("");
+        internals.findInPage("needle");
+        for (let i = 0; i < 5; ++i) {
+            internals.findInPageEnd();
+            fromSelection.push(selectedElementId());
+            internals.findInPageNextMatch();
+        }
+        internals.findInPageEnd();
+        println(`Next matches from the selected match: ${fromSelection.join(", ")}`);
+    });
+</script>
