@@ -538,6 +538,7 @@ class MutationRecord;
 class NamedNodeMap;
 class Node;
 class NodeFilter;
+class NodeIdentity;
 class NodeIterator;
 class NodeList;
 class ParentNode;
