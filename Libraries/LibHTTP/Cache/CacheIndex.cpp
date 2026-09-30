@@ -390,6 +390,20 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
         since);
 }
 
+void CacheIndex::remove_entries_for_cache_key(u64 cache_key, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
+{
+    Vector<u64> vary_keys;
+    for (auto const& entry : entries_for_cache_key(cache_key))
+        vary_keys.append(entry.vary_key);
+
+    for (auto vary_key : vary_keys) {
+        remove_entry(cache_key, vary_key);
+
+        if (on_entry_removed)
+            on_entry_removed(cache_key, vary_key);
+    }
+}
+
 ErrorOr<void> CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, NonnullRefPtr<HeaderList> response_headers)
 {
     auto entry = get_entry(cache_key, vary_key);
