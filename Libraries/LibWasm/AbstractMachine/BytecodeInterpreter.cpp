@@ -7898,7 +7898,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     struct Value {
         ValueID id;
         IP definition_index;
-        Vector<IP> uses;
         IP last_use = 0;
         bool was_created_as_a_result_of_polymorphic_stack = false;
     };
@@ -7914,11 +7913,9 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     ValueID next_value_id = 0;
     HashMap<IP, ValueID> instr_to_output_value;
     HashMap<IP, Vector<ValueID>> instr_to_input_values;
-    HashMap<IP, Vector<ValueID>> instr_to_dependent_values;
 
     instr_to_output_value.ensure_capacity(result.dispatches.size());
     instr_to_input_values.ensure_capacity(result.dispatches.size());
-    instr_to_dependent_values.ensure_capacity(result.dispatches.size());
 
     Vector<ValueID> forced_stack_values;
 
@@ -7926,17 +7923,11 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
     Vector<ValueID> rank;        // rank[id] -> rank of the tree rooted at id
     Vector<ValueID> final_roots; // final_roots[id] -> the final root parent of id
 
+    // OPTIMIZATION: Append alias entries so the tables grow geometrically as values are introduced.
     auto ensure_id_space = [&](ValueID id) {
-        if (id >= parent.size()) {
-            size_t old_size = parent.size();
-            parent.resize_with_default_value(id.value() + 1, {});
-            rank.resize_with_default_value(id.value() + 1, {});
-            final_roots.resize_with_default_value(id.value() + 1, {});
-            for (size_t i = old_size; i <= id; ++i) {
-                parent[i] = i;
-                rank[i] = 0;
-                final_roots[i] = i;
-            }
+        while (parent.size() <= id.value()) {
+            parent.append(parent.size());
+            rank.append(0);
         }
     };
 
@@ -7967,9 +7958,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     HashTable<ValueID> stack_forced_roots;
 
-    Vector<Vector<ValueID>> live_at_instr;
-    live_at_instr.resize(result.dispatches.size());
-
     // Track call record constraints
     HashMap<ValueID, u8> value_to_callrec_slot;
 
@@ -7989,7 +7977,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         auto opcode = dispatch.instruction->opcode();
         size_t inputs = 0;
         size_t outputs = 0;
-        Vector<ValueID> dependent_ids;
 
         bool variadic_or_unknown = false;
         bool requires_aliased_destination = true;
@@ -8038,17 +8025,14 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
                     }
 
                     input_ids.append(input_value);
-                    dependent_ids.append(input_value);
-                    value.uses.append(i);
                     value.last_use = max(value.last_use, i);
                     forced_stack_values.append(input_value);
                 }
                 instr_to_input_values.set(i, input_ids);
-                instr_to_dependent_values.set(i, dependent_ids);
 
                 for (size_t j = 0; j < outputs; ++j) {
                     auto id = next_value_id++;
-                    values.set(id, Value { id, i, {}, i });
+                    values.set(id, Value { id, i, i });
                     value_stack.append(id);
                     instr_to_output_value.set(i, id);
                     ensure_id_space(id);
@@ -8108,9 +8092,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         for (; j < inputs && !value_stack.is_empty(); ++j) {
             auto input_value = value_stack.take_last();
             input_ids.append(input_value);
-            dependent_ids.append(input_value);
             auto& value = values.get(input_value).value();
-            value.uses.append(i);
             value.last_use = max(value.last_use, i);
         }
 
@@ -8119,11 +8101,8 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         if (variadic_or_unknown) {
             for (auto val : value_stack) {
                 auto& value = values.get(val).value();
-                value.uses.append(i);
                 value.last_use = max(value.last_use, i);
-                dependent_ids.append(val);
                 forced_stack_values.append(val);
-                live_at_instr[i].append(val);
             }
             value_stack.clear_with_capacity();
         }
@@ -8133,15 +8112,13 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
             for (; j < inputs && !value_stack.is_empty(); ++j) {
                 auto input_value = value_stack.take_last();
                 input_ids.append(input_value);
-                dependent_ids.append(input_value);
                 auto& value = values.get(input_value).value();
-                value.uses.append(i);
                 value.last_use = max(value.last_use, i);
             }
 
             for (; j < inputs; ++j) {
                 auto val_id = next_value_id++;
-                values.set(val_id, Value { val_id, i, {}, i, true });
+                values.set(val_id, Value { val_id, i, i, true });
                 input_ids.append(val_id);
                 forced_stack_values.append(val_id);
                 ensure_id_space(val_id);
@@ -8153,18 +8130,15 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         for (size_t j = 0; j < inputs; ++j) {
             auto input_value = value_stack.take_last();
             input_ids.append(input_value);
-            dependent_ids.append(input_value);
             auto& value = values.get(input_value).value();
-            value.uses.append(i);
             value.last_use = max(value.last_use, i);
         }
         instr_to_input_values.set(i, input_ids);
-        instr_to_dependent_values.set(i, dependent_ids);
 
         ValueID output_id = NumericLimits<size_t>::max();
         for (size_t j = 0; j < outputs; ++j) {
             auto id = next_value_id++;
-            values.set(id, Value { id, i, {}, i });
+            values.set(id, Value { id, i, i });
             value_stack.append(id);
             instr_to_output_value.set(i, id);
             output_id = id;
@@ -8225,7 +8199,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     // Greedily select non-conflicting calls in priority order
     Vector<CallInfo*> valid_calls;
-    HashTable<size_t> selected_indices;
     size_t max_call_record_size = 0;
 
     for (auto const& score : scored_calls) {
@@ -8248,7 +8221,6 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
         if (!conflicts) {
             valid_calls.append(&call_info);
-            selected_indices.set(score.index);
             max_call_record_size = max(max_call_record_size, call_info.param_count);
         }
     }
@@ -8278,6 +8250,7 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
 
     result.max_call_rec_size = max_call_record_size;
 
+    final_roots.resize(parent.size());
     for (size_t i = 0; i < final_roots.size(); ++i)
         final_roots[i] = find_root(i);
 

@@ -5,6 +5,7 @@
  */
 
 #include <AK/Hex.h>
+#include <AK/LEB128.h>
 #include <AK/MemoryStream.h>
 #include <LibCore/File.h>
 #include <LibTest/TestCase.h>
@@ -31,6 +32,42 @@ TEST_CASE(function_import_requires_function_type)
 
     Wasm::AbstractMachine machine;
     EXPECT(machine.validate(*module, {}, Wasm::CompileToNative::No).is_error());
+}
+
+TEST_CASE(interpreter_preserves_large_alias_chain)
+{
+    constexpr i32 chain_length = 4096;
+    auto bytes = MUST(decode_hex("0061736d0100000001060160017f017f030201000707010372756e0000"sv));
+    auto body = MUST(decode_hex("002000"sv));
+    for (i32 i = 0; i < chain_length; ++i) {
+        body.append(0x41); // i32.const 1
+        body.append(1);
+        body.append(0x6a); // i32.add
+    }
+    body.append(0x0b);
+
+    ByteBuffer code;
+    code.append(1);
+    LEB128<u32>::append_to(code, static_cast<u32>(body.size()));
+    code.append(body.bytes());
+    bytes.append(10);
+    LEB128<u32>::append_to(bytes, static_cast<u32>(code.size()));
+    bytes.append(code.bytes());
+
+    FixedMemoryStream stream { bytes.bytes() };
+    auto module = MUST(Wasm::Module::parse(stream));
+    Wasm::AbstractMachine machine;
+    MUST(machine.validate(*module, {}, Wasm::CompileToNative::No));
+    auto instance = MUST(machine.instantiate(*module, {}));
+    auto run = instance->exports()[0].value().get<Wasm::FunctionAddress>();
+    EXPECT(!module->has_attempted_cranelift_compilation());
+
+    for (auto input : { 41, -chain_length }) {
+        auto result = machine.invoke(run, { Wasm::Value(static_cast<i32>(input)) });
+        EXPECT(!result.is_trap());
+        EXPECT_EQ(result.values().size(), 1u);
+        EXPECT_EQ(result.values()[0].to<i32>(), input + chain_length);
+    }
 }
 
 TEST_CASE(compiled_to_interpreter_call_restores_label_stack)
