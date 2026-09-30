@@ -1,0 +1,8 @@
+inline input copies: 16, true
+concurrent compilation copies: 16, true
+instantiation copy: 42
+streaming compilation: 42
+removed realm: true, 42
+compilation error: rejected, true
+compilation error: rejected, true
+synchronous compilation: 42
