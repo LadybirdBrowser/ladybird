@@ -243,6 +243,14 @@ public:
     WebIDL::ExceptionOr<bool> toggle_attribute(Utf16FlyString const& name, Optional<bool> force);
     size_t attribute_list_size() const;
 
+    struct Attribute {
+        QualifiedName name;
+        Utf16String value;
+    };
+
+    // The element's attributes in order, borrowed until they next change.
+    ReadonlySpan<Attribute> attribute_list() const;
+
     GC::Ptr<NamedNodeMap const> attributes() const;
     GC::Ptr<NamedNodeMap> attributes();
 
@@ -311,7 +319,7 @@ public:
 
     bool has_class(Utf16View, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
-    Vector<Utf16FlyString> const& class_names() const { return m_classes; }
+    ReadonlySpan<Utf16FlyString> class_names() const { return m_classes; }
 
     // The element's StyleEngine identity, or 0 while it has none. Disconnected and never-styled
     // elements keep 0, which is what makes them free.
@@ -869,10 +877,6 @@ protected:
     struct RareData;
 
 private:
-    struct Attribute {
-        QualifiedName name;
-        Utf16String value;
-    };
     using AttributeList = Vector<Attribute, 1>;
 
     AttributeList& ensure_attribute_list();
@@ -921,7 +925,11 @@ private:
     Optional<Directionality> contained_text_auto_directionality(bool can_exclude_root) const;
     Directionality parent_directionality() const;
 
+    // Selector matching reads the name, the ID and the classes of one element after another, so they sit together,
+    // and the class of an element with one is stored in place.
     QualifiedName m_qualified_name;
+    Optional<Utf16FlyString> m_id;
+    Vector<Utf16FlyString, 1> m_classes;
 
     OwnPtr<AttributeList> m_attributes;
     GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
@@ -942,10 +950,7 @@ private:
     SyntheticPseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;
     void clear_synthetic_pseudo_element_layout_nodes();
 
-    Vector<Utf16FlyString> m_classes;
     CSS::StyleNodeID m_style_node_id;
-
-    Optional<Utf16FlyString> m_id;
 
     friend class Attr;
     friend class NamedNodeMap;

@@ -117,10 +117,14 @@ pub(crate) trait SelectorTree: Copy {
     fn previous_sibling(self, node: Self::Node) -> Option<Self::Node>;
     fn next_sibling(self, node: Self::Node) -> Option<Self::Node>;
     fn first_child(self, parent: Self::Node) -> Option<Self::Node>;
+    /// The first of a node's inclusive siblings, which is the node itself when it has none.
+    fn first_sibling(self, node: Self::Node) -> Self::Node;
 
-    /// The children of `parent`, in tree order.
-    fn children(self, parent: Self::Node) -> impl Iterator<Item = Self::Node> {
-        std::iter::successors(self.first_child(parent), move |&child| self.next_sibling(child))
+    /// A node's inclusive siblings, in tree order.
+    fn inclusive_siblings(self, node: Self::Node) -> impl Iterator<Item = Self::Node> {
+        std::iter::successors(Some(self.first_sibling(node)), move |&sibling| {
+            self.next_sibling(sibling)
+        })
     }
 
     /// The parent in the tree as it stands now. Scope, slot and relational walks read it even where
@@ -132,6 +136,21 @@ pub(crate) trait SelectorTree: Copy {
     fn shadow_root_of(self, host: Self::Node) -> Option<Self::Node>;
     fn host_of(self, shadow_root: Self::Node) -> Option<Self::Node>;
 
+    /// The element after `node` in tree order that is a descendant of `root`, where `node` is `root` itself to start.
+    fn next_in_subtree(self, node: Self::Node, root: Self::Node) -> Option<Self::Node> {
+        if let Some(child) = self.first_child(node) {
+            return Some(child);
+        }
+        let mut current = node;
+        while current != root {
+            if let Some(sibling) = self.next_sibling(current) {
+                return Some(sibling);
+            }
+            current = self.parent(current)?;
+        }
+        None
+    }
+
     /// Visit the candidate witnesses of a relative selector along `axis` from `anchor`, in tree
     /// order, until `visit` returns false.
     fn for_each_on_axis(
@@ -139,8 +158,53 @@ pub(crate) trait SelectorTree: Copy {
         axis: RelativeAxis,
         below_the_axis: bool,
         anchor: Self::Node,
-        visit: impl FnMut(Self::Node) -> bool,
-    );
+        mut visit: impl FnMut(Self::Node) -> bool,
+    ) {
+        // Visit the subtree of `root`, `root` itself included when `inclusive`, until `visit` returns false.
+        fn visit_subtree<T: SelectorTree>(
+            tree: T,
+            root: T::Node,
+            inclusive: bool,
+            visit: &mut impl FnMut(T::Node) -> bool,
+        ) -> bool {
+            if inclusive && !visit(root) {
+                return false;
+            }
+            let mut descendant = tree.next_in_subtree(root, root);
+            while let Some(candidate) = descendant {
+                if !visit(candidate) {
+                    return false;
+                }
+                descendant = tree.next_in_subtree(candidate, root);
+            }
+            true
+        }
+
+        let (first, every_sibling, subtree) = match axis {
+            RelativeAxis::Descendant => {
+                visit_subtree(self, anchor, false, &mut visit);
+                return;
+            }
+            RelativeAxis::Child => (self.first_child(anchor), true, false),
+            RelativeAxis::NextSibling => (self.next_sibling(anchor), false, false),
+            RelativeAxis::FollowingSibling => (self.next_sibling(anchor), true, false),
+            // The witness lies under the sibling rather than being it, so the sibling's whole subtree is the
+            // candidate range.
+            RelativeAxis::NextSiblingSubtree => (self.next_sibling(anchor), false, true),
+            RelativeAxis::FollowingSiblingSubtree => (self.next_sibling(anchor), true, true),
+        };
+        let mut sibling = first;
+        while let Some(candidate) = sibling {
+            let proceed = match subtree {
+                true => visit_subtree(self, candidate, !below_the_axis, &mut visit),
+                false => visit(candidate),
+            };
+            if !proceed || !every_sibling {
+                return;
+            }
+            sibling = self.next_sibling(candidate);
+        }
+    }
 
     /// The slot an element is assigned to.
     fn assigned_slot_of(self, _node: Self::Node) -> Option<Self::Node> {
@@ -318,13 +382,13 @@ pub(crate) trait SelectorSubject {
     ) {
     }
 
-    /// The remembered progress of the preceding-sibling relation at `relation` through `parent`'s
-    /// children, or none when the subject remembers none.
+    /// The remembered progress of the preceding-sibling relation at `relation` through `node`'s
+    /// inclusive siblings, or none when the subject remembers none.
     fn preceding_sibling_prefix(
         &mut self,
         program: &SelectorProgram<Self::Atoms>,
         relation: SelectorNodeID,
-        parent: Self::Node,
+        node: Self::Node,
     ) -> Option<RememberedPrefix<Self::PrefixSlot, Self::Node>>;
 
     fn record_preceding_sibling_prefix(
@@ -656,11 +720,8 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         counters: &mut S::Counters,
     ) -> Answer<S> {
         let tree = self.subject.tree();
-        let Some(parent) = tree.parent(node) else {
-            return Ok(false);
-        };
         let remembered = match self.subject.remembers_relations(&self.bindings) {
-            true => self.subject.preceding_sibling_prefix(program, relation, parent),
+            true => self.subject.preceding_sibling_prefix(program, relation, node),
             false => None,
         };
         let Some(RememberedPrefix {
@@ -668,7 +729,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
             prefix: cached_prefix,
         }) = remembered
         else {
-            for current in tree.children(parent) {
+            for current in tree.inclusive_siblings(node) {
                 if current == node {
                     return Ok(false);
                 }
@@ -688,7 +749,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
             return Ok(prefix.answer);
         }
         let mut prefix = cached_prefix.unwrap_or_else(|| PrecedingSiblingPrefix {
-            next: tree.first_child(parent),
+            next: Some(tree.first_sibling(node)),
             answer: false,
         });
         let mut retried_from_start = false;
@@ -712,7 +773,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
                     return Ok(false);
                 }
                 prefix = PrecedingSiblingPrefix {
-                    next: tree.first_child(parent),
+                    next: Some(tree.first_sibling(node)),
                     answer: false,
                 };
                 incomplete = None;
@@ -1136,7 +1197,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
     }
 
     fn matches_feature(&mut self, program: &SelectorProgram<S::Atoms>, test: FeatureTest, node: S::Node) -> Answer<S> {
-        if test == FeatureTest::AnyElement {
+        if matches!(test, FeatureTest::AnyElement) {
             return Ok(true);
         }
         let row = self.subject.row(node)?;
@@ -1196,20 +1257,16 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         };
 
         // https://drafts.csswg.org/selectors/#child-index
-        // A positional test counts the subject among its inclusive siblings, and the root of a tree
-        // has none - which makes it the one and only element of its sequence rather than absent from
-        // one. `:first-child`, `:last-child` and `:only-child` all name it.
-        let tree = self.subject.tree();
-        let Some(parent) = tree.parent(node) else {
-            if !self.counts_in_sequence(program, position, subject_type, node, counters)? {
-                return Ok(false);
-            }
-            return Ok(matches_an_plus_b(position.step, position.offset, 1));
-        };
+        // A positional test counts the subject among its inclusive siblings. The root of a tree has none, which makes
+        // it the one and only element of its sequence rather than absent from one: `:first-child`, `:last-child` and
+        // `:only-child` all name it. The children of a document or a fragment have no parent element, but they are
+        // siblings all the same.
+        //
         // The subject has to be one of the counted siblings, or it has no position in the sequence.
         if !self.counts_in_sequence(program, position, subject_type, node, counters)? {
             return Ok(false);
         }
+        let tree = self.subject.tree();
 
         // Count towards the near end only. The whole sequence is never needed, and a sequence of
         // thousands of siblings is what a long list or a table is, so materializing one per test
@@ -1218,7 +1275,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         let bounded = position.step == 0;
         let mut current = match position.from_end {
             true => tree.next_sibling(node),
-            false => tree.first_child(parent),
+            false => Some(tree.first_sibling(node)),
         };
         while let Some(sibling) = current {
             if !position.from_end && sibling == node {

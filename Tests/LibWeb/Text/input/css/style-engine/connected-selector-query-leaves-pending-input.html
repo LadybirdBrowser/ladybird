@@ -12,31 +12,31 @@
         const target = document.createElement("span");
         root.appendChild(target);
 
-        const settles = operation => {
+        const leavesInputPending = operation => {
             const before = internals.styleEngineCounters();
             const result = operation();
             const after = internals.styleEngineCounters();
-            return result && after.rawMutationRecords > before.rawMutationRecords;
+            return result && after.rawMutationRecords === before.rawMutationRecords;
         };
 
         target.className = "query-first";
         println(`querySelector observes mutation: ${document.querySelector("#root > .query-first") === target}`);
-        println(`querySelector settles resident input: ${settles(() => {
+        println(`querySelector leaves style input pending: ${leavesInputPending(() => {
             target.className = "query-first-next";
             return document.querySelector("#root > .query-first-next") === target;
         })}`);
 
-        println(`querySelectorAll settles resident input: ${settles(() => {
+        println(`querySelectorAll leaves style input pending: ${leavesInputPending(() => {
             target.className = "query-all";
             return root.querySelectorAll(":scope > .query-all")[0] === target;
         })}`);
 
-        println(`matches settles resident input: ${settles(() => {
+        println(`matches leaves style input pending: ${leavesInputPending(() => {
             target.className = "matches";
             return target.matches("#root > .matches");
         })}`);
 
-        println(`closest settles resident input: ${settles(() => {
+        println(`closest leaves style input pending: ${leavesInputPending(() => {
             root.className = "closest";
             return target.closest("body > .closest") === root;
         })}`);

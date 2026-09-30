@@ -975,13 +975,16 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
         // An exact case-sensitive test is an identity question, and the DOM publishes each attribute
         // value under the same text key, so both sides can answer it by comparing two integers -
         // and the dispatch can reject a rule whose value the element does not hold without
-        // evaluating anything. Other value tests read the literal for their exact comparison.
+        // evaluating anything. Other value tests read the literal for their exact comparison, and so
+        // does every test against storage that keeps no value atoms.
         let value_atom = match (operator, case) {
             (AttributeOperator::Presence, _) => StyleAtomID::NONE,
-            (AttributeOperator::Exact, AttributeCase::Sensitive) => match attribute.value_identity.optional_raw() {
-                Some(identity) => (self.intern)(identity, None),
-                None => self.intern_text(&attribute.value),
-            },
+            (AttributeOperator::Exact, AttributeCase::Sensitive) if A::KEYS_ATTRIBUTE_VALUES => {
+                match attribute.value_identity.optional_raw() {
+                    Some(identity) => (self.intern)(identity, None),
+                    None => self.intern_text(&attribute.value),
+                }
+            }
             _ => StyleAtomID::NONE,
         };
 

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><div id="slotted"></div></div>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `<slot></slot><div id="part" part="p"></div>`;
+        const slot = shadowRoot.querySelector("slot");
+        const part = shadowRoot.getElementById("part");
+
+        // A selector query matches elements, and a pseudo-element is not one, even where it names an element.
+        for (const selector of ["::slotted(div)", "slot::slotted(div)", "#host::part(p)", "::part(p)", "div::before", "div, div::before"]) {
+            const results = [
+                document.querySelectorAll(selector).length,
+                shadowRoot.querySelectorAll(selector).length,
+                String(document.querySelector(selector)?.id ?? null),
+                slotted.matches(selector),
+                slot.matches(selector),
+                part.matches(selector),
+                String(slotted.closest(selector)?.id ?? null),
+                String(part.closest(selector)?.id ?? null),
+            ];
+            println(`${selector}: ${results.join(" ")}`);
+        }
+    });
+</script>

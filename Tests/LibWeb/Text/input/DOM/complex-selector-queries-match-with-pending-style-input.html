@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="root" class="x">
+    <ul class="list">
+        <li class="a"><span class="toggle">1</span><em>e</em><em>f</em></li>
+        <li class="b" data-k="v"><span>2</span><b>b</b></li>
+        <li class="a b"><span class="toggle">3</span><span>4</span><em>g</em></li>
+        <li class="c"><em>h</em></li>
+        <li class="b"><div class="y"><p class="a">p</p><p class="b">q</p></div></li>
+    </ul>
+    <div class="y"></div><div class="z"><span class="toggle">5</span></div>
+    <section><article><b data-k>x</b></article></section>
+    <svg><g><circle class="toggle"/><CIRCLE/></g></svg>
+    <div id="host"></div>
+</div>
+<script>
+    test(() => {
+        const selectors = [
+            "li .toggle",
+            "ul > li",
+            "li:nth-child(2n+1) > span",
+            "li:nth-last-child(2) em",
+            "li:first-child *",
+            "li:last-child p",
+            "li:only-child",
+            "div > p:only-child",
+            "span:first-of-type",
+            "span:last-of-type",
+            "em:only-of-type",
+            "em:nth-of-type(2)",
+            "em:nth-last-of-type(1)",
+            "li + li",
+            "li ~ li.b",
+            "div .a .b",
+            "#root li.a > span",
+            ".x > .y + .z",
+            ".y ~ .z > .toggle",
+            "[data-k] b",
+            "[data-k=v] ~ *",
+            "section b[data-k]",
+            "LI .TOGGLE",
+            "svg circle",
+            "g > CIRCLE",
+            "html:first-child body",
+            "li:first-child, em + em",
+            "ul li:nth-child(odd) em:last-child",
+            "li:nth-child(-n+2) span",
+            "#host span",
+            "div > span:first-child",
+            ".a span",
+            "p > span:only-child",
+        ];
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<div class="a"><span class="toggle"></span><p><span></span></p></div><span></span>`;
+        const everything = Array.from(document.querySelectorAll("*")).concat(Array.from(shadow.querySelectorAll("*")));
+        const describe = elements => Array.from(elements, element => everything.indexOf(element)).join(" ");
+        let tick = 0;
+        let settledWithPendingInput = 0;
+        function withPendingInput(callback) {
+            ++tick;
+            for (const element of everything)
+                element.dataset.tick = tick;
+            const before = internals.styleEngineCounters().rawMutationRecords;
+            const result = callback();
+            if (internals.styleEngineCounters().rawMutationRecords !== before)
+                ++settledWithPendingInput;
+            return result;
+        }
+        function settled(callback) {
+            internals.updateStyle();
+            return callback();
+        }
+        for (const selector of selectors) {
+            const results = [];
+            for (const mode of [withPendingInput, settled]) {
+                const all = mode(() => describe(document.querySelectorAll(selector)));
+                const first = mode(() => describe([document.querySelector(selector)].filter(Boolean)));
+                const scoped = mode(() => describe(root.querySelectorAll(selector)));
+                const inShadow = mode(() => describe(shadow.querySelectorAll(selector)));
+                const matching = mode(() => describe(everything.filter(element => element.matches(selector))));
+                const closest = mode(() => everything.map(element => everything.indexOf(element.closest(selector))).join(" "));
+                results.push([all, first, scoped, inShadow, matching, closest]);
+            }
+            const [pending, settledResults] = results;
+            const same = pending.every((value, index) => value === settledResults[index]);
+            println(`${selector}: [${pending[0]}] [${pending[3]}] ${same ? "same" : `DIFFERS: with pending input ${JSON.stringify(pending)}, without ${JSON.stringify(settledResults)}`}`);
+        }
+        println(`queries that settled pending input: ${settledWithPendingInput}`);
+    });
+</script>

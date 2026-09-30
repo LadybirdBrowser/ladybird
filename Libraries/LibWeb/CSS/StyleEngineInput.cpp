@@ -1932,7 +1932,7 @@ void record_element_id_changed(DOM::Element& element, Optional<Utf16FlyString> c
     record_feature(element, StyleEngineFFI::FfiFeatureKind::Id, 0, kind_of(old_value), atom_of(old_value), kind_of(new_value), atom_of(new_value));
 }
 
-void record_element_class_list_changed(DOM::Element& element, Vector<Utf16FlyString> const& old_classes, Vector<Utf16FlyString> const& new_classes)
+void record_element_class_list_changed(DOM::Element& element, ReadonlySpan<Utf16FlyString> old_classes, ReadonlySpan<Utf16FlyString> new_classes)
 {
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() == no_style_node)
@@ -1946,7 +1946,7 @@ void record_element_class_list_changed(DOM::Element& element, Vector<Utf16FlyStr
     auto folded = [&](Utf16FlyString const& name) {
         return element.document().in_quirks_mode() ? name.to_ascii_lowercase() : name;
     };
-    auto contains_folded = [&](Vector<Utf16FlyString> const& names, Utf16FlyString const& folded_name) {
+    auto contains_folded = [&](ReadonlySpan<Utf16FlyString> names, Utf16FlyString const& folded_name) {
         return any_of(names, [&](auto const& name) { return folded(name) == folded_name; });
     };
 

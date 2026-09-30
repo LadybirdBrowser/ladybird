@@ -3,9 +3,8 @@
 <div id="connected"><span class="item"></span></div>
 <script>
     test(() => {
-        // Selector queries against disconnected trees match in an engine built for the tree, shared by every query
-        // against it and kept until the tree itself changes. Each step below changes one thing and checks that the
-        // next query sees it.
+        // Selector queries against disconnected trees read the tree as it stands. Each step below changes one thing
+        // and checks that the next query sees it.
         const root = document.createElement("div");
         root.innerHTML = `
             <section data-kind="a"><p id="first"></p><p id="second" class="x">text</p><p id="third"></p></section>

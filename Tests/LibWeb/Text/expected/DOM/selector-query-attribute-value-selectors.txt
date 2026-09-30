@@ -1,0 +1,17 @@
+exact: true
+includes: true
+dash match: true
+prefix: true
+suffix: true
+substring: true
+ASCII insensitive: true
+new value is found: true
+document includes query root: true
+selector-list results use tree order: true
+moved results use tree order: true
+old value no longer matches: true
+new value matches: true
+value changed beside a style update no longer matches: true
+value restored before a style update matches: true
+value shared with a removed attribute matches: true
+shadow-root query stays scoped: true

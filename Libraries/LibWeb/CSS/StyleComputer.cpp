@@ -2258,8 +2258,8 @@ static JsonObject serialize_devtools_style_sheet_identifier(StyleSheetIdentifier
 }
 
 // What DevTools shows for one rule the engine says decides for this element. Which of the rule's
-// selectors matched is asked through the ad-hoc engine query path because the engine reports the
-// rule rather than the entry, and a panel can afford to ask a question a style pass cannot.
+// selectors matched is asked with a selector query, because the engine reports the rule rather than
+// the entry, and a panel can afford to match each selector again.
 static JsonObject serialize_devtools_applied_rule(DOM::Document& document, CSSRule const& rule, DOM::AbstractElement const& element)
 {
     auto const& declaration = declaration_of_rule(rule);
@@ -2281,7 +2281,7 @@ static JsonObject serialize_devtools_applied_rule(DOM::Document& document, CSSRu
         specificities.must_append(selector->specificity());
         SelectorList selector_query_list;
         selector_query_list.append(selector);
-        auto selector_query = DOM::SelectorQuery::create(document, move(selector_query_list));
+        auto selector_query = DOM::SelectorQuery::create(move(selector_query_list));
         if (selector_query->matches(element.element(), document))
             matched_selector_indexes.must_append(index);
     }

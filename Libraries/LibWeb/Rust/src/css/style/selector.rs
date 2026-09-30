@@ -720,19 +720,26 @@ impl SelectorPrefixPredicate {
 ///
 /// A program is evaluated against a subject whose storage is keyed by the same atoms, so the space is part of the
 /// program's type: a program compiled for one kind of storage cannot be run against another.
-pub trait AtomSpace: Default + PartialEq + Eq + Hash {}
+pub trait AtomSpace: Default + PartialEq + Eq + Hash {
+    /// Whether the subject's storage keys attribute values by atoms, so that an exact value test can compare two.
+    const KEYS_ATTRIBUTE_VALUES: bool;
+}
 
 /// The style engine's atoms, which a document's style storage is keyed by.
 #[derive(Default, PartialEq, Eq, Hash)]
 pub struct EngineAtoms;
 
-impl AtomSpace for EngineAtoms {}
+impl AtomSpace for EngineAtoms {
+    const KEYS_ATTRIBUTE_VALUES: bool = true;
+}
 
 /// A selector query's own names, interned when the query is compiled and compared with the DOM's names by identity.
 #[derive(Default, PartialEq, Eq, Hash)]
 pub struct QueryAtoms;
 
-impl AtomSpace for QueryAtoms {}
+impl AtomSpace for QueryAtoms {
+    const KEYS_ATTRIBUTE_VALUES: bool = false;
+}
 
 /// A compiled selector program: one rule's selector list.
 #[derive(Default, PartialEq, Eq, Hash)]
@@ -2106,7 +2113,7 @@ impl<A: AtomSpace> SelectorProgram<A> {
     ///
     /// Routing uses this for origin compounds. Tree position, relative queries, shadow-tree
     /// crossings, and scope bindings stay on the conservative path.
-    pub(super) fn selector_node_reads_only_local_facts(&self, id: SelectorNodeID) -> bool {
+    pub(crate) fn selector_node_reads_only_local_facts(&self, id: SelectorNodeID) -> bool {
         match self.node(id) {
             SelectorOp::Feature(_)
             | SelectorOp::State(_)
@@ -5947,10 +5954,7 @@ impl<'a> EngineSubject<'a> {
 
     #[inline]
     fn children_of(&self, parent: StyleNodeID) -> SiblingChildren<'a> {
-        match self.transaction_fact_view {
-            Some((view, side)) => view.children_of(self.tree, side, parent),
-            None => SiblingChildren::Live(self.tree.children(parent)),
-        }
+        self.tree().children(parent)
     }
     /// Return a sibling position from private scratch, building that sequence on its first ask.
     ///
@@ -6132,6 +6136,16 @@ pub struct EngineTree<'a> {
     transaction_fact_view: Option<(&'a TransactionFactView, TransactionFactSide)>,
 }
 
+impl<'a> EngineTree<'a> {
+    #[inline]
+    fn children(self, parent: StyleNodeID) -> SiblingChildren<'a> {
+        match self.transaction_fact_view {
+            Some((view, side)) => view.children_of(self.tree, side, parent),
+            None => SiblingChildren::Live(self.tree.children(parent)),
+        }
+    }
+}
+
 impl SelectorTree for EngineTree<'_> {
     type Node = StyleNodeID;
 
@@ -6168,11 +6182,20 @@ impl SelectorTree for EngineTree<'_> {
     }
 
     #[inline]
-    fn children(self, parent: StyleNodeID) -> impl Iterator<Item = StyleNodeID> {
-        match self.transaction_fact_view {
-            Some((view, side)) => view.children_of(self.tree, side, parent),
-            None => SiblingChildren::Live(self.tree.children(parent)),
-        }
+    fn first_sibling(self, node: StyleNodeID) -> StyleNodeID {
+        self.parent(node)
+            .and_then(|parent| self.first_child(parent))
+            .unwrap_or(node)
+    }
+
+    #[inline]
+    fn inclusive_siblings(self, node: StyleNodeID) -> impl Iterator<Item = StyleNodeID> {
+        let parent = self.parent(node);
+        parent
+            .map(|parent| self.children(parent))
+            .into_iter()
+            .flatten()
+            .chain(parent.is_none().then_some(node))
     }
 
     #[inline]
@@ -6392,8 +6415,10 @@ impl<'a> SelectorSubject for EngineSubject<'a> {
         &mut self,
         _program: &SelectorProgram,
         relation: SelectorNodeID,
-        parent: StyleNodeID,
+        node: StyleNodeID,
     ) -> Option<RememberedPrefix<PrecedingSiblingParentID, StyleNodeID>> {
+        // Only a sibling sequence with a parent has somewhere to keep its progress.
+        let parent = self.tree().parent(node)?;
         let program_id = self.transitive_relation_program?;
         let (workspace, side) = self.match_workspace.as_mut()?;
         let (slot, prefix) = workspace.relations_by_evaluation_side[*side as usize]

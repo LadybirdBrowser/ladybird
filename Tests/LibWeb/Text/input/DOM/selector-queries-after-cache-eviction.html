@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="root"><p class="a" id="first"></p><p class="b" id="second"></p></div>
+<script>
+    test(() => {
+        // More distinct selectors than the document keeps compiled queries for, interleaved with a working set that
+        // is asked again after the others have pushed queries out.
+        const workingSet = [".a", "p + .b", ":not(.a)", "#root > p:last-child"];
+        const answers = () => workingSet.map(selector => Array.from(root.querySelectorAll(selector), element => element.id).join(" "));
+        const before = answers();
+        let matched = 0;
+        for (let i = 0; i < 1500; ++i) {
+            matched += root.querySelectorAll(`.a${i}, #missing-${i}`).length;
+            if (i % 100 === 0)
+                answers();
+        }
+        const after = answers();
+        println(`other selectors matched: ${matched}`);
+        for (let i = 0; i < workingSet.length; ++i)
+            println(`${workingSet[i]}: ${after[i]}${after[i] === before[i] ? "" : ` (was ${before[i]})`}`);
+
+        // A selector that does not parse still throws after it has been pushed out.
+        for (let round = 0; round < 2; ++round) {
+            try {
+                root.querySelector("p[");
+                println("p[: no exception");
+            } catch (e) {
+                println(`p[: ${e.name}`);
+            }
+            for (let i = 0; i < 600; ++i)
+                root.matches(`.round${round}-${i}`);
+        }
+    });
+</script>

@@ -1,0 +1,7 @@
+other selectors matched: 0
+.a: first
+p + .b: second
+:not(.a): second
+#root > p:last-child: second
+p[: SyntaxError
+p[: SyntaxError

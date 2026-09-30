@@ -170,7 +170,7 @@ WEB_API void record_stylesheet_rule_conditions(StyleSheetState&);
 WEB_API void record_stylesheet_rule_conditions(StyleSheetState&, DOM::Document&);
 
 WEB_API void record_element_id_changed(DOM::Element&, Optional<Utf16FlyString> const& old_value, Optional<Utf16FlyString> const& new_value);
-WEB_API void record_element_class_list_changed(DOM::Element&, Vector<Utf16FlyString> const& old_classes, Vector<Utf16FlyString> const& new_classes);
+WEB_API void record_element_class_list_changed(DOM::Element&, ReadonlySpan<Utf16FlyString> old_classes, ReadonlySpan<Utf16FlyString> new_classes);
 WEB_API void record_element_attribute_changed(DOM::Element&, Utf16FlyString const& name, Optional<Utf16FlyString> const& namespace_uri, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value);
 
 // Called when a declaration block the element itself sources has changed: its inline style, its

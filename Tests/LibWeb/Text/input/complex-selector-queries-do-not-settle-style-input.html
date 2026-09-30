@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    li.completed label { color: green; }
+</style>
+<ul id="list"></ul>
+<script>
+    test(() => {
+        const count = 10;
+        const completed = new Array(count).fill(false);
+        function render() {
+            let html = "";
+            for (let i = 0; i < count; i++)
+                html += `<li${completed[i] ? ' class="completed"' : ""} data-id="${i}"><div class="view"><input class="toggle" type="checkbox"><label>Item ${i}</label></div></li>`;
+            list.innerHTML = html;
+        }
+
+        render();
+        internals.updateStyle();
+        const before = internals.styleEngineCounters().rawMutationRecords;
+
+        // Each query finds an item of the list the previous round replaced, and each round
+        // replaces the whole list again before anything reads its style.
+        let found = [];
+        for (let i = 1; i <= count; i++) {
+            const toggle = document.querySelector(`li:nth-child(${i}) .toggle`);
+            found.push(toggle.closest("li").dataset.id);
+            completed[i - 1] = toggle.matches("li > .view > .toggle:first-child") && !completed[i - 1];
+            render();
+        }
+
+        const after = internals.styleEngineCounters().rawMutationRecords;
+        println(`found: ${found.join(",")}`);
+        println(`style inputs submitted by queries: ${after - before}`);
+        println(`last label color: ${getComputedStyle(list.lastElementChild.querySelector("label")).color}`);
+    });
+</script>

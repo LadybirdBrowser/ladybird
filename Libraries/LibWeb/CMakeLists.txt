@@ -1218,6 +1218,7 @@ import_rust_crate(
         StyleEngineBridgeGenerated.h
         StyleEngineBridgeGenerated.inc
         StyleEngineStateFactsGenerated.inc
+        SelectorStateFactsGenerated.inc
         Layout/TreeBuilderRustFFI.h
         Layout/LayoutRustFFI.h
 )
