@@ -40,7 +40,6 @@ public:
     u64 intrinsic_inline_measurement_count() const;
 
     void sync_enrolled_content_for_layout();
-    void visit_dom_nodes(GC::Cell::Visitor&) const;
 
     DOM::Document* document() const { return m_document.ptr(); }
     void set_document(Badge<DOM::Document>, DOM::Document* document) { m_document = document; }

@@ -554,7 +554,7 @@ mod tests {
     #[test]
     fn dom_side_pending_work_keeps_a_rooted_document_from_being_laid_out() {
         let mut arena = LayoutNodeArena::new();
-        let viewport = arena.allocate_unbound(std::ptr::null_mut());
+        let viewport = arena.allocate_unbound();
         arena.set_layout_root(viewport);
         arena.reset_layout_update_flags_in_subtree(viewport);
         let facts = facts_for();

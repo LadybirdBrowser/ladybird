@@ -59,13 +59,6 @@ u64 NodeArena::intrinsic_inline_measurement_count() const
     return RustFFI::layout_arena_intrinsic_inline_measurement_count(m_handle);
 }
 
-void NodeArena::visit_dom_nodes(GC::Cell::Visitor& visitor) const
-{
-    RustFFI::layout_arena_visit_dom_nodes(m_handle, &visitor, [](void* visitor_pointer, void* dom_node_pointer) {
-        static_cast<GC::Cell::Visitor*>(visitor_pointer)->visit(static_cast<DOM::Node*>(dom_node_pointer));
-    });
-}
-
 bool destroy_layout_subtree(Node& node)
 {
     return RustFFI::layout_arena_detach_and_free_subtree(node.arena_handle(), Node::slot_id(&node));
