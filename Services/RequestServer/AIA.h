@@ -13,6 +13,7 @@
 #include <AK/Span.h>
 #include <AK/Vector.h>
 #include <LibTLS/OpenSSLForward.h>
+#include <RequestServer/IsPrivate.h>
 
 namespace RequestServer {
 
@@ -20,6 +21,12 @@ namespace RequestServer {
 // counted, so a connection outliving its originating request can't leave the verify callback with a dangling pointer.
 class AIACollector : public RefCounted<AIACollector> {
 public:
+    explicit AIACollector(IsPrivate is_private)
+        : is_private(is_private)
+    {
+    }
+
+    IsPrivate const is_private;           // Which of the process-wide caches this request may use and add to.
     Vector<ByteString> pending_urls;      // caIssuers URLs collected during verification, awaiting fetch.
     HashTable<ByteString> attempted_urls; // URLs already fetched for this request, so they're not re-collected.
 };
@@ -30,10 +37,12 @@ void apply_aia_verification(SSL_CTX* ssl_context, AIACollector& collector);
 
 // Parse a fetched AIA response body and, if it yields a certificate, add it to the process-wide intermediate cache
 // that's consulted during verification. Returns true if a certificate was added.
-bool add_fetched_aia_intermediate(ReadonlyBytes body);
+bool add_fetched_aia_intermediate(IsPrivate, ReadonlyBytes body);
 
 // Record that fetching the given caIssuers URL failed — so it's not retried.
-void mark_aia_url_failed(ByteString url);
+void mark_aia_url_failed(IsPrivate, ByteString url);
+
+void clear_aia_state(IsPrivate);
 
 // The following two parsing primitives are exposed for unit testing.
 Vector<ByteString> ca_issuers_urls(X509* certificate);
