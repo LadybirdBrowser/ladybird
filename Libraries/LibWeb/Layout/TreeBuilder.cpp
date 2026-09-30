@@ -81,7 +81,10 @@ void LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(DOM::E
 
 void LayoutTreeBuilderAccess::detach_layout_node(DOM::Node& node)
 {
-    node.detach_layout_node({});
+    if (auto* layout_node = node.unsafe_layout_node()) {
+        layout_node->prepare_for_detach_from_layout_tree();
+        RustFFI::layout_arena_unbind_row(layout_node->arena_handle(), Node::slot_id(layout_node));
+    }
 }
 
 void LayoutTreeBuilderAccess::register_svg_resource_reference(SVG::SVGElement& resource, DOM::Element& referencing_element)

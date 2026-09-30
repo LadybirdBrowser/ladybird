@@ -58,7 +58,7 @@ static u8 dom_paint_facts_of(GC::Ptr<DOM::Node const> node)
 }
 
 // The StyleNodeID a row bound to this DOM node records: an element's or a text node's.
-static CSS::StyleNodeID style_node_of(DOM::Node const* node)
+CSS::StyleNodeID Node::style_node_of(DOM::Node const* node)
 {
     if (auto const* element = as_if<DOM::Element>(node))
         return element->style_node_id();
@@ -101,10 +101,14 @@ Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind k
 
     if (!node)
         return;
-    if (auto const* row_already_bound_to_dom_node = node->unsafe_layout_node())
-        RustFFI::layout_arena_note_rows_share_dom_node(m_arena->handle(), row_already_bound_to_dom_node->m_slot, m_slot, attach_to_dom_node == AttachToDOMNode::Yes);
-    if (attach_to_dom_node == AttachToDOMNode::Yes)
-        node->set_layout_node({}, *this);
+    auto* row_already_bound_to_dom_node = node->unsafe_layout_node();
+    if (row_already_bound_to_dom_node)
+        RustFFI::layout_arena_note_rows_share_dom_node(m_arena->handle(), row_already_bound_to_dom_node->m_slot, m_slot);
+    if (attach_to_dom_node == AttachToDOMNode::Yes) {
+        if (row_already_bound_to_dom_node)
+            row_already_bound_to_dom_node->pin_style_record_for_detachment();
+        RustFFI::layout_arena_bind_row(m_arena->handle(), m_slot);
+    }
 }
 
 Node::Node(DOM::Document& document, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
@@ -125,12 +129,6 @@ void Node::delete_arena_owned_shell(Node& node)
 {
     node.m_arena_is_destroying_shell = true;
     delete &node;
-}
-
-void Node::rebind_dom_node_to_surviving_shell(DOM::Node& dom_node, Node& shell)
-{
-    VERIFY(RustFFI::layout_arena_node_dom_node(shell.m_arena->handle(), shell.m_slot) == &dom_node);
-    dom_node.rebind_layout_node({}, shell);
 }
 
 Compositing::RustFFI::NodeSlotId Node::slot_id(Node const* node)
@@ -839,15 +837,15 @@ void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old
     auto* arena = dom_node.document().layout_node_arena_if_created();
     if (!arena)
         return;
+    auto new_style_node = style_node_of(&dom_node);
+    // The node's rows take its new identity along with their binding.
+    RustFFI::layout_arena_move_bound_rows_to_style_node(arena->handle(), old_style_node.value(), new_style_node.value());
     // A retired identity may be reused, so it leaves every row carrying it, including rows of a
     // removed subtree that outlive the disconnection.
     if (old_style_node != 0)
         RustFFI::layout_arena_forget_style_node(arena->handle(), old_style_node.value());
-    auto new_style_node = style_node_of(&dom_node);
     if (new_style_node == 0)
         return;
-    if (auto* layout_node = dom_node.unsafe_layout_node())
-        RustFFI::layout_arena_set_style_node_of_rows_sharing_dom_node_with(arena->handle(), layout_node->m_slot, new_style_node.value());
     auto* element = as_if<DOM::Element>(dom_node);
     if (!element)
         return;

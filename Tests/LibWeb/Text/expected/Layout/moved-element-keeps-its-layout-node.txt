@@ -1,0 +1,10 @@
+Initial: 10,0 40x20, 1 rect(s)
+After moveBefore: 10,50 40x20, 1 rect(s)
+Removed: 0 rect(s)
+After reinsertion: 10,0 40x20, 1 rect(s)
+After remove and insert in one task: 10,50 40x20, 1 rect(s)
+BlockContainer <div#second.slot> at [0,50] [0+0+0 200 0+0+600] [0+0+0 50 0+0+0] children: not-inline
+  BlockContainer <div#mover> at [10,50] [10+0+0 40 0+0+150] [0+0+0 20 0+0+0] children: inline
+    frag 0 from TextNode start: 0, length: 4, rect: [10,50 32.140625x16] baseline: 12.796875
+        "text"
+    TextNode <#text> (not painted)
