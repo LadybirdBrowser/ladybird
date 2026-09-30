@@ -103,10 +103,10 @@ public:
     ErrorOr<void> transfer_to_client(ConnectionFromClient&, u64 request_id, Optional<Requests::RequestTransferLeaseKey>);
     void release_transfer_lease() { m_transfer_lease.clear(); }
 
-    // The disk cache defers a request while another request holds its cache entry open. These bound how long that other
-    // request may go without making progress before the deferred one goes to the network without the cache — and how
-    // long a background revalidation may go without receiving any data before it's abandoned. Tests shorten both.
+    // Bound cache-holder inactivity, background-revalidation inactivity and total cache wait. Tests shorten these
+    // limits.
     static void set_wait_for_cache_timeout(AK::Duration);
+    static void set_maximum_wait_for_cache(AK::Duration);
     static void set_revalidation_stall_timeout(AK::Duration);
 
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
@@ -330,6 +330,7 @@ private:
     AllocatingMemoryStream m_response_buffer;
     RefPtr<Core::Notifier> m_client_writer_notifier;
     RefPtr<Core::Timer> m_wait_for_cache_timer;
+    Optional<MonotonicTime> m_started_waiting_for_cache_at;
     Optional<RequestPipe> m_client_request_pipe;
     Optional<TransferredBodyFile> m_transferred_body_file;
     size_t m_bytes_transferred_to_client { 0 };

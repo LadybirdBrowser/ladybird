@@ -738,3 +738,31 @@ TEST_CASE(stopped_revalidation_releases_its_cache_entry)
     expect_finished_without_error(connection.wait_for_request_to_finish(3, AK::Duration::from_seconds(5)), "written-to-cache"sv);
     EXPECT_EQ(http_server.connection_count(), 3u);
 }
+
+TEST_CASE(request_waiting_on_a_trickling_cache_entry_writer_gives_up_after_the_maximum_wait)
+{
+    RequestServer::Request::set_wait_for_cache_timeout(AK::Duration::from_seconds(1));
+    RequestServer::Request::set_maximum_wait_for_cache(AK::Duration::from_seconds(2));
+    RequestServer::Request::set_revalidation_stall_timeout(AK::Duration::from_seconds(60));
+
+    TestServer server;
+    auto disk_cache = create_test_disk_cache();
+    TestConnection connection { server, disk_cache };
+
+    StallingServer http_server { [](size_t connection_index) -> Optional<ServerResponse> {
+        if (connection_index == 0)
+            return trickled_http_response("max-age=60"sv, ByteString::repeated('x', 80), 80, AK::Duration::from_milliseconds(100));
+        return ServerResponse::at_once(http_response("max-age=60"sv, "hello"sv));
+    } };
+
+    auto url = http_server.url_for_path("/resource"sv);
+    auto started_at = MonotonicTime::now();
+    connection.start_request(1, url);
+    connection.start_request(2, url);
+
+    expect_finished_without_error(connection.wait_for_request_to_finish(2, AK::Duration::from_seconds(10)), "not-cached"sv);
+    EXPECT(MonotonicTime::now() - started_at < AK::Duration::from_seconds(5));
+    EXPECT_EQ(http_server.connection_count(), 2u);
+
+    RequestServer::Request::set_maximum_wait_for_cache(AK::Duration::from_seconds(30));
+}
