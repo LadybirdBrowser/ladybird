@@ -830,6 +830,11 @@ Messages::RequestServer::CreateSyntheticCacheEntryResponse ConnectionFromClient:
 
 void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
 {
+    if (m_pending_websockets.contains(websocket_id) || m_websockets.contains(websocket_id)) {
+        did_misbehave("reused live WebSocket ID");
+        return;
+    }
+
     // The origin, protocols and extensions all become header values in the handshake.
     auto is_header_value = [](auto const& value) { return HTTP::is_header_value(value); };
     if (!are_valid_headers(additional_request_headers)
