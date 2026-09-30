@@ -84,7 +84,7 @@ ErrorOr<void> FontService::build_catalog()
     directories.extend(m_additional_font_directories);
     for (auto const& directory : directories) {
         auto uri = TRY(String::formatted("file://{}", directory));
-        Gfx::PathFontProvider::for_each_typeface_in_uri(uri, loaded_paths, [&](String const& path, u32 ttc_index, Gfx::FontFileFormat format, NonnullRefPtr<Gfx::Typeface> typeface) {
+        auto collect_typeface = [&](String const& path, u32 ttc_index, Gfx::FontFileFormat format, NonnullRefPtr<Gfx::Typeface> typeface) {
             if (callback_error.has_value())
                 return;
             auto face_id = next_face_id++;
@@ -119,7 +119,8 @@ ErrorOr<void> FontService::build_catalog()
                                             .ttc_index = ttc_index,
                                             .format = format,
                                         });
-        });
+        };
+        Gfx::PathFontProvider::for_each_typeface_in_uri(uri, loaded_paths, move(collect_typeface), Gfx::PathFontProvider::FontDataSource::SharedMapping);
         if (callback_error.has_value())
             return callback_error.release_value();
     }
