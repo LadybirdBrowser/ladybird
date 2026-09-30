@@ -28,6 +28,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWeb/Fetch/Infrastructure/KeepaliveQuotaAccountant.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
@@ -188,7 +189,12 @@ public:
 
     [[nodiscard]] BodyType const& body() const { return m_body; }
     [[nodiscard]] BodyType& body() { return m_body; }
-    void set_body(BodyType body) { m_body = move(body); }
+    void set_body(BodyType body)
+    {
+        if (body.has<Empty>())
+            m_keepalive_quota_reservation.clear();
+        m_body = move(body);
+    }
 
     [[nodiscard]] GC::Ptr<HTML::EnvironmentSettingsObject const> client() const { return m_client; }
     [[nodiscard]] GC::Ptr<HTML::EnvironmentSettingsObject> client() { return m_client; }
@@ -302,7 +308,14 @@ public:
     void set_prevent_no_cache_cache_control_header_modification(bool prevent_no_cache_cache_control_header_modification) { m_prevent_no_cache_cache_control_header_modification = prevent_no_cache_cache_control_header_modification; }
 
     [[nodiscard]] bool done() const { return m_done; }
-    void set_done(bool done) { m_done = done; }
+    void set_done(bool done)
+    {
+        m_done = done;
+        if (done)
+            m_keepalive_quota_reservation.clear();
+    }
+
+    void set_keepalive_quota_reservation(KeepaliveQuotaAccountant::Reservation reservation) { m_keepalive_quota_reservation = move(reservation); }
 
     [[nodiscard]] bool timing_allow_failed() const { return m_timing_allow_failed; }
     void set_timing_allow_failed(bool timing_allow_failed) { m_timing_allow_failed = timing_allow_failed; }
@@ -555,6 +568,9 @@ private:
     // https://fetch.spec.whatwg.org/#done-flag
     // A request has an associated done flag. Unless stated otherwise, it is unset.
     bool m_done { false };
+
+    // Counts this request's body against its client's keepalive quota until its done flag is set or its body is null.
+    Optional<KeepaliveQuotaAccountant::Reservation> m_keepalive_quota_reservation;
 
     // https://fetch.spec.whatwg.org/#timing-allow-failed
     // A request has an associated timing allow failed flag. Unless stated otherwise, it is unset.

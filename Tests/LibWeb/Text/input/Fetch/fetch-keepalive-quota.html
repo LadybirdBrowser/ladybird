@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const createHeldEcho = name =>
+            server.createEcho("POST", `/fetch-keepalive-quota-${name}-${token}`, {
+                status: 200,
+                headers: { "Access-Control-Allow-Origin": "*" },
+                wait_for_unblock: token,
+            });
+        const firstHeldURL = await createHeldEcho("first-held");
+        const secondHeldURL = await createHeldEcho("second-held");
+        const url = await server.createEcho("POST", `/fetch-keepalive-quota-${token}`, {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+        });
+
+        const sendKeepalive = async (url, byteCount) => {
+            try {
+                const response = await fetch(url, { method: "POST", keepalive: true, body: "*".repeat(byteCount) });
+                await response.text();
+                return "sent";
+            } catch {
+                return "rejected";
+            }
+        };
+        const nextTask = () => new Promise(resolve => setTimeout(resolve, 0));
+
+        const held = [sendKeepalive(firstHeldURL, 20000), sendKeepalive(secondHeldURL, 20000)];
+        println(`1000 bytes beside 40000 in flight: ${await sendKeepalive(url, 1000)}`);
+        println(`30000 bytes beside 40000 in flight: ${await sendKeepalive(url, 30000)}`);
+
+        internals.gc();
+        println(`30000 bytes beside 40000 in flight after garbage collection: ${await sendKeepalive(url, 30000)}`);
+
+        await fetch(`${server.baseURL}/unblock/${token}`);
+        println(`40000 bytes once unblocked: ${(await Promise.all(held)).join(", ")}`);
+        await nextTask();
+        println(`30000 bytes after that: ${await sendKeepalive(url, 30000)}`);
+
+        const redirectToken = crypto.randomUUID();
+        const redirectedURL = await server.createEcho("GET", `/fetch-keepalive-quota-redirected-${redirectToken}`, {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            wait_for_unblock: redirectToken,
+        });
+        const redirectingURL = await server.createEcho("POST", `/fetch-keepalive-quota-redirecting-${redirectToken}`, {
+            status: 303,
+            headers: { "Access-Control-Allow-Origin": "*", "Location": redirectedURL },
+        });
+        const redirected = sendKeepalive(redirectingURL, 30000);
+        const recordedRedirectedRequestURL = `${server.baseURL}/recorded-request-headers${new URL(redirectedURL).pathname}`;
+        const redirectedRequestArrived = () =>
+            fetch(recordedRedirectedRequestURL, { cache: "no-store" }).then(
+                response => response.ok,
+                () => false
+            );
+        const arrivalDeadline = performance.now() + 10000;
+        while (!(await redirectedRequestArrived())) {
+            if (performance.now() > arrivalDeadline) {
+                println("the redirected request never arrived");
+                return;
+            }
+            await nextTask();
+        }
+        println(`20000 bytes beside 30000 redirected to a GET in flight: ${await sendKeepalive(url, 20000)}`);
+
+        await fetch(`${server.baseURL}/unblock/${redirectToken}`);
+        println(`30000 bytes redirected to a GET once unblocked: ${await redirected}`);
+    });
+</script>

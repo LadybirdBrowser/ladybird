@@ -16,6 +16,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
+#include <LibWeb/Fetch/Infrastructure/KeepaliveQuotaAccountant.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/ModuleMap.h>
@@ -134,6 +135,7 @@ public:
 
     // https://fetch.spec.whatwg.org/#concept-fetch-group
     auto& fetch_group() { return m_fetch_group; }
+    Fetch::Infrastructure::KeepaliveQuotaAccountant& keepalive_quota_accountant() { return m_keepalive_quota_accountant; }
 
     SerializedEnvironmentSettingsObject serialize();
 
@@ -187,6 +189,7 @@ private:
     // https://fetch.spec.whatwg.org/#concept-fetch-record
     // A fetch group holds an ordered list of fetch records
     Fetch::Infrastructure::FetchRecord::List m_fetch_group;
+    NonnullRefPtr<Fetch::Infrastructure::KeepaliveQuotaAccountant> m_keepalive_quota_accountant;
 
     // https://storage.spec.whatwg.org/#api
     // Each environment settings object has an associated StorageManager object.
