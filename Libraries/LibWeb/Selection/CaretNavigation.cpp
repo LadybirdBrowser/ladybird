@@ -593,8 +593,9 @@ Optional<CaretLocation> CaretNavigator::move_by_page(CaretLocation const& locati
     for (u32 iteration = 0; iteration < 1024; ++iteration) {
         auto position = m_document->caret_position_on_adjacent_line(current.node, current.offset, current.affinity, line_direction, inline_coordinate, *editing_host);
         Optional<CaretLocation> next;
-        if (position.has_value()) {
-            next = CaretLocation { position->boundary.node, position->boundary.offset, position->affinity };
+        auto boundary = position.has_value() ? position->boundary_point() : Optional<DOM::BoundaryPoint> {};
+        if (boundary.has_value()) {
+            next = CaretLocation { boundary->node, boundary->offset, position->affinity };
         } else {
             // PreviousLinePosition and NextLinePosition in Chromium expose the editing-host boundary as a final stop
             // on the first or last visual line. Preserve that stop when it still fits within this page movement.
@@ -676,7 +677,10 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
         auto position = m_document->caret_position_at_line_edge(location.node, location.offset, location.affinity, edge);
         if (!position.has_value())
             return {};
-        return CaretLocation { position->boundary.node, position->boundary.offset, position->affinity };
+        auto boundary = position->boundary_point();
+        if (!boundary.has_value())
+            return {};
+        return CaretLocation { boundary->node, boundary->offset, position->affinity };
     }
 
     VERIFY(granularity == SelectionGranularity::Line);
@@ -710,7 +714,10 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
             return {};
     }
 
-    CaretLocation destination { position->boundary.node, position->boundary.offset, position->affinity };
+    auto boundary = position->boundary_point();
+    if (!boundary.has_value())
+        return {};
+    CaretLocation destination { boundary->node, boundary->offset, position->affinity };
     // Point-to-caret resolution naturally returns the parent boundary before an atomic inline. For a collapsed caret,
     // prefer the visually equivalent preceding text edge so horizontal movement does not revisit the same position.
     if (alteration == SelectionAlteration::Move && !is<DOM::Text>(*destination.node)) {

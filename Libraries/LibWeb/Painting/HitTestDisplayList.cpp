@@ -397,7 +397,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item item, C
         return CaretPosition {
             .paintable = item.paintable(),
             .arena = *m_arena,
-            .boundary = { *dom_node, static_cast<WebIDL::UnsignedLong>(resolved.offset) },
+            .boundary = { DOM::NodeIdentity::of(*dom_node), static_cast<WebIDL::UnsignedLong>(resolved.offset) },
             .affinity = resolved.affinity_is_upstream ? TextAffinity::Upstream : TextAffinity::Downstream,
             .debug_rect = debug_rect,
         };
@@ -410,16 +410,17 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item item, C
     auto* parent = dom_node->parent();
     if (!parent)
         return {};
+    auto parent_identity = DOM::NodeIdentity::of(*parent);
     if (resolved.boundary == Layout::RustFFI::FfiCaretBoundaryKind::IndexOfNodeInParent) {
         return CaretPosition {
             .paintable = item.paintable(),
             .arena = *m_arena,
-            .boundary = { *parent, static_cast<WebIDL::UnsignedLong>(dom_node->index()) },
+            .boundary = { parent_identity, static_cast<WebIDL::UnsignedLong>(dom_node->index()) },
             .debug_rect = debug_rect,
         };
     }
-    auto before_boundary = DOM::BoundaryPoint { *parent, static_cast<WebIDL::UnsignedLong>(dom_node->index()) };
-    auto after_boundary = DOM::BoundaryPoint { *parent, static_cast<WebIDL::UnsignedLong>(dom_node->index() + 1) };
+    auto before_boundary = BoundaryIdentity { parent_identity, static_cast<WebIDL::UnsignedLong>(dom_node->index()) };
+    auto after_boundary = BoundaryIdentity { parent_identity, static_cast<WebIDL::UnsignedLong>(dom_node->index() + 1) };
     auto is_before = resolved.boundary == Layout::RustFFI::FfiCaretBoundaryKind::BeforeNode;
     return CaretPosition {
         .paintable = item.paintable(),
@@ -439,7 +440,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_hit_container(Ite
     return CaretPosition {
         .paintable = item.paintable(),
         .arena = *m_arena,
-        .boundary = { const_cast<DOM::Node&>(*dom_node), 0 },
+        .boundary = { DOM::NodeIdentity::of(*dom_node), 0 },
         .debug_rect = item.caret_rect(),
     };
 }
@@ -573,7 +574,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
         caret_position->debug_rect = viewport_rect_for_context(caret_line(*closest_line.index).context.spatial, *caret_position->debug_rect, document, device_pixels_per_css_pixel);
 
     if (!constraint_scope && topmost_hit_item.has_value()) {
-        if (auto const* topmost_hit_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item->index); topmost_hit_dom_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_position->boundary.node)) {
+        auto caret_boundary_node = caret_position->boundary_node();
+        if (auto const* topmost_hit_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item->index); topmost_hit_dom_node && caret_boundary_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_boundary_node)) {
             if (topmost_hit_facts->can_produce_caret_position() && item_is_direct_caret_target(topmost_hit_item->index)) {
                 auto caret_position_for_topmost_hit_item = caret_position_for_item(*topmost_hit_facts, topmost_hit_item->local_point);
                 if (caret_position_for_topmost_hit_item.has_value() && caret_position_for_topmost_hit_item->debug_rect.has_value())

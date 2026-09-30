@@ -1,0 +1,4 @@
+Text connected: false
+Anchor: #text in second:2
+Focus: #text in second:13
+Selected: "cond paragr"
