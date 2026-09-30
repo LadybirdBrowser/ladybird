@@ -58,13 +58,13 @@ struct TestServer {
         auto control_pair = MUST(IPC::Transport::create_paired());
         control_remote_transport = MUST(control_pair.remote_handle.create_transport());
         control_connection = RequestServer::ControlConnectionFromClient::construct(
-            move(control_pair.local), connections, request_transfer_leases, Optional<HTTP::DiskCache&> {}, ByteString {});
+            move(control_pair.local), connections, request_transfer_leases, Optional<HTTP::DiskCache&> {});
 
         auto pair = MUST(IPC::Transport::create_paired());
         remote_transport = MUST(pair.remote_handle.create_transport());
         connection = RequestServer::ConnectionFromClient::construct(
             move(pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Bound,
-            connections, request_transfer_leases, *disk_cache, ByteString {});
+            connections, request_transfer_leases, *disk_cache);
 
 #ifdef AK_OS_WINDOWS
         auto pid = Core::System::getpid();

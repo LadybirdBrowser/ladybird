@@ -27,11 +27,11 @@ TEST_CASE(non_windows_transport_initialization_preserves_other_clients)
 
     auto attacker_pair = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto attacker_remote = TRY_OR_FAIL(attacker_pair.remote_handle.create_transport());
-    auto attacker = RequestServer::ConnectionFromClient::construct(move(attacker_pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Unrestricted, connections, request_transfer_leases, Optional<HTTP::DiskCache&> {}, ByteString {});
+    auto attacker = RequestServer::ConnectionFromClient::construct(move(attacker_pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Unrestricted, connections, request_transfer_leases, Optional<HTTP::DiskCache&> {});
 
     auto other_pair = TRY_OR_FAIL(IPC::Transport::create_paired());
     auto other_remote = TRY_OR_FAIL(other_pair.remote_handle.create_transport());
-    auto other = RequestServer::ConnectionFromClient::construct(move(other_pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Unrestricted, connections, request_transfer_leases, Optional<HTTP::DiskCache&> {}, ByteString {});
+    auto other = RequestServer::ConnectionFromClient::construct(move(other_pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Unrestricted, connections, request_transfer_leases, Optional<HTTP::DiskCache&> {});
     EXPECT_EQ(connections.size(), 2u);
 
     auto message = make<Messages::RequestServer::InitTransport>(42);
