@@ -1821,7 +1821,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
             if (index < paths.size()) {
                 auto path = paths[index].to_byte_string();
 
-                Web::FileRequest file_request(path, [connection, self, paths = move(paths), index, selected_files = move(selected_files), path](ErrorOr<i32> file_descriptor_or_error) mutable {
+                Web::FileRequest file_request(path, {}, [connection, self, paths = move(paths), index, selected_files = move(selected_files), path](ErrorOr<i32> file_descriptor_or_error) mutable {
                     auto contents_or_error = [&]() -> ErrorOr<ByteBuffer> {
                         auto opened_file = TRY(Core::File::adopt_fd(TRY(file_descriptor_or_error), Core::File::OpenMode::Read));
                         return opened_file->read_until_eof();
@@ -1838,7 +1838,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
                     self(move(paths), index + 1, move(selected_files));
                 });
 
-                connection->current_browsing_context().page().client().request_file(move(file_request));
+                connection->m_page_client->request_file_for_webdriver(move(file_request));
                 return;
             }
 

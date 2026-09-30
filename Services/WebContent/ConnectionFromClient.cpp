@@ -2920,9 +2920,20 @@ void ConnectionFromClient::request_file(Web::PageId page_id, Web::FileRequest fi
     i32 const id = last_id++;
 
     auto path = file_request.path();
+    auto environment_id = file_request.environment_id();
     m_requested_files.set(id, move(file_request));
 
-    async_did_request_file(page_id, path, id);
+    async_did_request_file(page_id, environment_id, path, id);
+}
+
+void ConnectionFromClient::request_file_for_webdriver(Web::PageId page_id, Web::FileRequest file_request)
+{
+    i32 const id = last_id++;
+
+    auto path = file_request.path();
+    m_requested_files.set(id, move(file_request));
+
+    async_did_request_file_for_webdriver(page_id, path, id);
 }
 
 void ConnectionFromClient::blob_url_entry_removed(Utf16String url)

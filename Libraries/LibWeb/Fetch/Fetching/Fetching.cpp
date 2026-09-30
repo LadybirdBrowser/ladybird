@@ -2292,6 +2292,8 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     load_request.set_is_navigation_request(request->is_navigation_request());
     load_request.set_priority(request->priority());
     load_request.set_source_url(content_blocker_source_url_for_request(*request));
+    if (auto client = request->client())
+        load_request.set_client_id(client->id);
 
     if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {
         (*body)->source().visit(

@@ -67,6 +67,7 @@ public:
     virtual void die() override;
 
     void request_file(Web::PageId page_id, Web::FileRequest);
+    void request_file_for_webdriver(Web::PageId page_id, Web::FileRequest);
 
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }

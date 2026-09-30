@@ -87,6 +87,7 @@ public:
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId) const;
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
     bool hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const&) const;
+    bool may_read_file(Optional<Web::HTML::EnvironmentId> const& environment_id, ByteString const& path) const;
     void spoof_document_origin_for_testing(Web::HTML::EnvironmentId const& environment_id, URL::Origin);
     // The process and page hosting the document of a navigable that a page represents. A page represents every
     // navigable of its tab whose document it does not host, so those are the ones it can ask to navigate or post to.
@@ -141,6 +142,7 @@ private:
     Optional<CanonicalDocument&> document_with_hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
     StorageJar* storage_jar(Web::StorageAPI::StorageEndpointType) const;
     Optional<String> canonical_storage_key(Web::HTML::EnvironmentId const&) const;
+    void reply_with_file(ByteString const& path, i32 request_id);
     struct ViewPosition {
         ViewImplementation& view;
         Gfx::IntPoint position;
@@ -223,7 +225,8 @@ private:
     virtual void did_request_minimize_window() override;
     virtual void did_request_fullscreen_window() override;
     virtual void did_request_exit_fullscreen() override;
-    virtual void did_request_file(ByteString path, i32 request_id) override;
+    virtual void did_request_file(Optional<Web::HTML::EnvironmentId> environment_id, ByteString path, i32 request_id) override;
+    virtual void did_request_file_for_webdriver(ByteString path, i32 request_id) override;
     virtual void did_request_color_picker(Color current_color) override;
     virtual void did_request_geolocation_position(u64 request_id) override;
     virtual void did_cancel_geolocation_position_request(u64 request_id) override;

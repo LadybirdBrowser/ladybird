@@ -64,6 +64,7 @@ public:
     void did_handle_webdriver_mouse_event(u64 request_id);
     void webdriver_command_complete(u64 command_id, Web::WebDriver::Response);
     void set_webdriver_session_config(Web::WebDriver::UserPromptHandler, Web::WebDriver::PageLoadStrategy, bool strict_file_interactability, JsonValue const& timeouts);
+    void request_file_for_webdriver(Web::FileRequest);
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;

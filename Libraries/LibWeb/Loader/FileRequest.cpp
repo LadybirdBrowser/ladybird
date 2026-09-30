@@ -8,9 +8,10 @@
 
 namespace Web {
 
-FileRequest::FileRequest(ByteString path, Function<void(ErrorOr<i32>)> on_file_request_finish_callback)
+FileRequest::FileRequest(ByteString path, Optional<HTML::EnvironmentId> environment_id, Function<void(ErrorOr<i32>)> on_file_request_finish_callback)
     : on_file_request_finish(move(on_file_request_finish_callback))
     , m_path(move(path))
+    , m_environment_id(move(environment_id))
 {
 }
 
