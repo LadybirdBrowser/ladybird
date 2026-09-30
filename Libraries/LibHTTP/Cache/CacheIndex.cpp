@@ -297,7 +297,7 @@ ErrorOr<void> CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, 
         encode_cache_key_for_database(cache_key),
         encode_cache_key_for_database(vary_key));
 
-    auto& entries = m_entries.ensure(cache_key);
+    auto& entries = entries_for_cache_key(cache_key);
     auto existing_entry_index = entries.find_first_index_if([&](auto const& existing_entry) {
         return existing_entry.vary_key == vary_key;
     });
@@ -348,6 +348,28 @@ void CacheIndex::remove_entries_exceeding_cache_limit(Function<void(u64 cache_ke
             return {};
         },
         m_limits.maximum_disk_cache_size);
+}
+
+void CacheIndex::remove_variants_exceeding_limit(u64 cache_key, u64 vary_key_to_keep, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
+{
+    auto& entries = entries_for_cache_key(cache_key);
+
+    while (entries.size() > MAXIMUM_CACHE_ENTRY_VARIANT_COUNT) {
+        Optional<Entry const&> least_recently_accessed_entry;
+
+        for (auto const& entry : entries) {
+            if (entry.vary_key == vary_key_to_keep)
+                continue;
+            if (!least_recently_accessed_entry.has_value() || entry.last_access_time < least_recently_accessed_entry->last_access_time)
+                least_recently_accessed_entry = entry;
+        }
+
+        auto vary_key = least_recently_accessed_entry->vary_key;
+        remove_entry(cache_key, vary_key);
+
+        if (on_entry_removed)
+            on_entry_removed(cache_key, vary_key);
+    }
 }
 
 void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
@@ -416,7 +438,16 @@ void CacheIndex::update_last_access_time(u64 cache_key, u64 vary_key)
 
 Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderList const& request_headers)
 {
-    auto& entries = m_entries.ensure(cache_key, [&]() {
+    auto& entries = entries_for_cache_key(cache_key);
+
+    return find_value(entries, [&](auto const& entry) {
+        return create_vary_key(request_headers, entry.response_headers) == entry.vary_key;
+    });
+}
+
+Vector<CacheIndex::Entry>& CacheIndex::entries_for_cache_key(u64 cache_key)
+{
+    return m_entries.ensure(cache_key, [&]() {
         Vector<Entry> entries;
 
         m_database->execute_statement(
@@ -443,10 +474,6 @@ Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderL
             encode_cache_key_for_database(cache_key));
 
         return entries;
-    });
-
-    return find_value(entries, [&](auto const& entry) {
-        return create_vary_key(request_headers, entry.response_headers) == entry.vary_key;
     });
 }
 

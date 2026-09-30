@@ -263,6 +263,7 @@ ErrorOr<void> CacheEntryWriter::flush_impl(NonnullRefPtr<HeaderList> request_hea
         return result.release_error();
     }
 
+    m_disk_cache.remove_variants_exceeding_limit({}, m_cache_key, m_vary_key);
     m_disk_cache.remove_entries_exceeding_cache_limit();
 
     dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[34;1mFinished caching\033[0m {} ({} bytes)", m_url, m_cache_footer.data_size);

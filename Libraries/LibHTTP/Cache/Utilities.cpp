@@ -119,6 +119,7 @@ Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers
 {
     Vector<ByteString> field_names;
     auto has_vary_wildcard = false;
+    auto has_too_many_fields = false;
 
     response_headers.for_each_vary_header([&](StringView header) {
         // A stored response with a Vary header field value containing a member "*" always fails to match.
@@ -127,14 +128,24 @@ Optional<Vector<ByteString>> vary_field_names(HeaderList const& response_headers
             return IterationDecision::Break;
         }
 
-        auto field_name = ByteString { header }.to_lowercase();
-        if (!field_names.contains_slow(field_name))
-            field_names.append(move(field_name));
+        if (header.is_empty())
+            return IterationDecision::Continue;
 
+        auto field_name = ByteString { header }.to_lowercase();
+        if (field_names.contains_slow(field_name))
+            return IterationDecision::Continue;
+
+        if (field_names.size() == MAXIMUM_VARY_FIELD_COUNT) {
+            has_too_many_fields = true;
+            return IterationDecision::Break;
+        }
+
+        field_names.append(move(field_name));
         return IterationDecision::Continue;
     });
 
-    if (has_vary_wildcard)
+    // AD-HOC: Bound the cost of matching variants against nominated fields.
+    if (has_vary_wildcard || has_too_many_fields)
         return {};
 
     quick_sort(field_names);
@@ -311,17 +322,9 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
     //        outside the message syntax". Rather than guessing which cached response might be a fit for a new request,
     //        we will issue an unconditional request for now.
     //        https://httpwg.org/specs/rfc9110.html#field.vary
-    bool contains_vary_wildcard = false;
-
-    headers.for_each_vary_header([&](StringView header) {
-        if (header == "*"sv) {
-            contains_vary_wildcard = true;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-
-    if (contains_vary_wildcard)
+    //
+    // NB: This also rejects responses that nominate more request fields than we are willing to match on.
+    if (!vary_field_names(headers).has_value())
         return false;
 
     auto cache_control = headers.get("Cache-Control"sv);
