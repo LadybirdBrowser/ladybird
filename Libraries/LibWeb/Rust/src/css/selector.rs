@@ -452,14 +452,14 @@ impl RustSelector {
     }
 }
 
-struct SelectorSubtags<'a> {
-    value: &'a [u16],
+struct SelectorSubtags<'a, T> {
+    value: &'a [T],
     position: usize,
     finished: bool,
 }
 
-impl<'a> SelectorSubtags<'a> {
-    fn new(value: &'a [u16]) -> Self {
+impl<'a, T> SelectorSubtags<'a, T> {
+    fn new(value: &'a [T]) -> Self {
         Self {
             value,
             position: 0,
@@ -468,7 +468,7 @@ impl<'a> SelectorSubtags<'a> {
     }
 }
 
-impl Iterator for SelectorSubtags<'_> {
+impl<T: Copy + Into<u16>> Iterator for SelectorSubtags<'_, T> {
     type Item = std::ops::Range<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -476,7 +476,7 @@ impl Iterator for SelectorSubtags<'_> {
             return None;
         }
         let start = self.position;
-        while self.position < self.value.len() && self.value[self.position] != u16::from(b'-') {
+        while self.position < self.value.len() && self.value[self.position].into() != u16::from(b'-') {
             self.position += 1;
         }
         let end = self.position;
@@ -489,10 +489,10 @@ impl Iterator for SelectorSubtags<'_> {
     }
 }
 
-fn language_subtags_match(
+fn language_subtags_match<T: Copy + Into<u16>>(
     language_range: &[u16],
     range_subtag: &std::ops::Range<usize>,
-    language_tag: &[u16],
+    language_tag: &[T],
     tag_subtag: &std::ops::Range<usize>,
 ) -> bool {
     if range_subtag.len() == 1 && language_range[range_subtag.start] == u16::from(b'*') {
@@ -501,7 +501,7 @@ fn language_subtags_match(
     range_subtag.len() == tag_subtag.len()
         && (0..range_subtag.len()).all(|offset| {
             ascii_lowercase(language_range[range_subtag.start + offset])
-                == ascii_lowercase(language_tag[tag_subtag.start + offset])
+                == ascii_lowercase(language_tag[tag_subtag.start + offset].into())
         })
 }
 
@@ -514,10 +514,10 @@ fn is_ascii_alphanumeric(code_unit: u16) -> bool {
 /// Whether an extended language range matches a language tag.
 ///
 /// Both sides are plain code units so that every consumer of the algorithm shares one
-/// implementation, whatever it holds the tag as.
+/// implementation, whatever it holds the tag as. The tag's units are ASCII or UTF-16.
 ///
 /// https://www.rfc-editor.org/rfc/rfc4647#section-3.3.2
-pub fn language_range_matches_tag(language_range: &[u16], language_tag: &[u16]) -> bool {
+pub fn language_range_matches_tag<T: Copy + Into<u16>>(language_range: &[u16], language_tag: &[T]) -> bool {
     // 1. Split both the extended language range and the language tag being compared into a list
     //    of subtags by dividing on the hyphen (%x2D) character.
     let mut range_subtags = SelectorSubtags::new(language_range);
@@ -561,7 +561,7 @@ pub fn language_range_matches_tag(language_range: &[u16], language_tag: &[u16]) 
 
             // D. Else, if the language tag's subtag is a "singleton" (a single letter or digit,
             //    which includes the private-use subtag 'x') the match fails.
-            if current_tag_subtag.len() == 1 && is_ascii_alphanumeric(language_tag[current_tag_subtag.start]) {
+            if current_tag_subtag.len() == 1 && is_ascii_alphanumeric(language_tag[current_tag_subtag.start].into()) {
                 return false;
             }
 
