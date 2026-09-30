@@ -10,6 +10,8 @@
 //! program produced from them. Recording this representation also keeps parsing and C++ selector
 //! ownership outside the timed Rust-core workload.
 
+use std::marker::PhantomData;
+
 use super::AttributeCase;
 use super::AttributeOperator;
 use super::AttributeTest;
@@ -103,6 +105,7 @@ pub fn read(payload: &mut PayloadReader) -> Result<SelectorProgram, Error> {
         relation_target_blooms: Box::default(),
         can_leave_scope: payload.read_bool()?,
         subject_can_leave_scope: payload.read_bool()?,
+        atoms: PhantomData,
     };
     program.cache_dispatch_metadata();
     Ok(program)
@@ -642,6 +645,7 @@ mod tests {
             relation_target_blooms: Box::default(),
             can_leave_scope: true,
             subject_can_leave_scope: false,
+            atoms: std::marker::PhantomData,
         };
         program.cache_dispatch_metadata();
 
