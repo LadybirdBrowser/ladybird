@@ -97,7 +97,7 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     , m_request_transfer_leases(request_transfer_leases)
     , m_disk_cache(disk_cache)
     , m_curl_multi(curl_multi_init())
-    , m_resolver(Resolver::default_resolver())
+    , m_resolver(is_private == IsPrivate::Yes ? Resolver::private_resolver() : Resolver::default_resolver())
 {
     if (m_is_private == IsPrivate::No)
         m_alt_svc_cache_path = move(alt_svc_cache_path);

@@ -38,14 +38,40 @@ static DNS::Resolver& system_resolver()
     return *resolver;
 }
 
+static WeakPtr<Resolver> g_default_resolver;
+static WeakPtr<Resolver> g_private_resolver;
+
 NonnullRefPtr<Resolver> Resolver::default_resolver()
 {
-    static WeakPtr<Resolver> g_resolver {};
-
-    if (auto resolver = g_resolver.strong_ref())
+    if (auto resolver = g_default_resolver.strong_ref())
         return *resolver;
 
-    auto resolver = adopt_ref(*new Resolver([] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+    auto resolver = create();
+    g_default_resolver = resolver;
+    return resolver;
+}
+
+NonnullRefPtr<Resolver> Resolver::private_resolver()
+{
+    if (auto resolver = g_private_resolver.strong_ref())
+        return *resolver;
+
+    auto resolver = create();
+    g_private_resolver = resolver;
+    return resolver;
+}
+
+void Resolver::reset_connections()
+{
+    for (auto* weak_resolver : { &g_default_resolver, &g_private_resolver }) {
+        if (auto resolver = weak_resolver->strong_ref())
+            resolver->dns.reset_connection();
+    }
+}
+
+NonnullRefPtr<Resolver> Resolver::create()
+{
+    return adopt_ref(*new Resolver([] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
         auto& dns_info = DNSInfo::the();
 
         if (!dns_info.server_address.has_value()) {
@@ -80,9 +106,6 @@ NonnullRefPtr<Resolver> Resolver::default_resolver()
             },
         };
     }));
-
-    g_resolver = resolver;
-    return resolver;
 }
 
 Resolver::Resolver(Function<ErrorOr<Optional<DNS::Resolver::SocketResult>>()> create_socket)
