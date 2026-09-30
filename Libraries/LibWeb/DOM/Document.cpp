@@ -915,8 +915,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_dialog_pointerdown_target);
     visitor.visit(m_console_client);
     visitor.visit(m_previously_repainted_cursor_position);
-    if (m_hit_test_display_list)
-        m_hit_test_display_list->visit_edges(visitor);
     visitor.visit(m_editing_host_manager);
     visitor.visit(m_editing_history);
     visitor.visit(m_local_storage_holder);

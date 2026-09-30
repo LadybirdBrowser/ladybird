@@ -27,18 +27,13 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
     auto* arena_handle = arena.handle();
     auto list = adopt_ref(*new HitTestDisplayList(visual_context_tree_structural_epoch, arena, chrome_widget_registry, Layout::RustFFI::layout_arena_hit_test_list_generation(arena_handle)));
     struct VisitContext {
-        HitTestDisplayList& list;
         Layout::NodeArena& arena;
         ChromeWidgetRegistry& chrome_widget_registry;
     };
-    VisitContext visit_context { *list, arena, chrome_widget_registry };
-    Layout::RustFFI::layout_arena_hit_test_visit_caret_roots_and_chrome_widgets(arena_handle, &visit_context,
-        [](void* sink, Compositing::RustFFI::NodeSlotId paintable, u8 chrome_widget_kind, void* caret_node_shell) {
+    VisitContext visit_context { arena, chrome_widget_registry };
+    Layout::RustFFI::layout_arena_hit_test_visit_chrome_widgets(arena_handle, &visit_context,
+        [](void* sink, Compositing::RustFFI::NodeSlotId paintable, u8 chrome_widget_kind) {
             auto& context = *static_cast<VisitContext*>(sink);
-            if (caret_node_shell) {
-                if (auto* caret_node = static_cast<Layout::Node*>(caret_node_shell)->dom_node())
-                    context.list.m_caret_node_roots.append(caret_node);
-            }
             switch (static_cast<ChromeWidgetKind>(chrome_widget_kind)) {
             case ChromeWidgetKind::None:
                 break;
@@ -62,11 +57,6 @@ HitTestDisplayList::HitTestDisplayList(u64 visual_context_tree_structural_epoch,
     , m_chrome_widget_registry(chrome_widget_registry)
     , m_rust_generation(rust_generation)
 {
-}
-
-void HitTestDisplayList::visit_edges(GC::Cell::Visitor& visitor)
-{
-    visitor.visit(m_caret_node_roots);
 }
 
 bool HitTestDisplayList::is_current() const

@@ -44,8 +44,6 @@ class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
     static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(u64 visual_context_tree_structural_epoch, Layout::NodeArena&, ChromeWidgetRegistry&);
 
-    void visit_edges(GC::Cell::Visitor&);
-
     u64 visual_context_tree_structural_epoch() const { return m_visual_context_tree_structural_epoch; }
     [[nodiscard]] bool is_current() const;
     [[nodiscard]] Optional<HitTestResult> hit_test(CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel, ChromeMetrics const&) const;
@@ -130,7 +128,6 @@ private:
     NonnullRefPtr<Layout::NodeArena> m_arena;
     NonnullRefPtr<ChromeWidgetRegistry> m_chrome_widget_registry;
     u64 m_rust_generation { 0 };
-    Vector<GC::Ptr<DOM::Node>> m_caret_node_roots;
 };
 
 }
