@@ -1,0 +1,5 @@
+mousedown on generator
+mouseup on FIELDSET
+Generator connected: false
+Hit test lands in: inside
+Done

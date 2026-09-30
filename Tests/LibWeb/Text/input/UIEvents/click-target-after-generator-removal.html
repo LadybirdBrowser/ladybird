@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #generator::before { content: "before"; display: inline-block; width: 100px; height: 20px; }
+    button { width: 200px; height: 30px; }
+</style>
+<div id="container"><span id="generator"></span></div>
+<fieldset disabled><button><span id="inside">inside</span></button></fieldset>
+<script>
+    promiseTest(async () => {
+        const container = document.getElementById("container");
+        const generator = document.getElementById("generator");
+        const log = event => println(`${event.type} on ${event.target.id || event.target.nodeName}`);
+        for (const type of ["mousedown", "mouseup", "click"])
+            document.addEventListener(type, log);
+
+        // The mousedown on the generator's ::before removes the generator, so the mouseup lands on what is there after
+        // the next layout.
+        generator.addEventListener("mousedown", () => generator.remove());
+        await animationFrame();
+        internals.click(10, 10);
+        println(`Generator connected: ${generator.isConnected}`);
+
+        // Nothing inside a disabled button inside a disabled fieldset is a target, so the click below logs nothing
+        // although it hits the span.
+        const inside = document.getElementById("inside");
+        const rect = inside.getBoundingClientRect();
+        const hit = internals.hitTest(rect.x + 2, rect.y + 2).node;
+        println(`Hit test lands in: ${(hit.nodeType === Node.TEXT_NODE ? hit.parentNode : hit).id}`);
+        internals.click(rect.x + 2, rect.y + 2);
+        println("Done");
+    });
+</script>

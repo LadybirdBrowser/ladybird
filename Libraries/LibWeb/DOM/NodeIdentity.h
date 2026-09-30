@@ -35,6 +35,8 @@ public:
     [[nodiscard]] CSS::StyleNodeID style_node() const { return m_kind == Kind::StyleNode ? m_style_node : CSS::StyleNodeID {}; }
 
     [[nodiscard]] GC::Ptr<Node> resolve(Document&) const;
+    // The layout node the arena has bound to this identity's node, if any. No DOM node is asked for its layout node.
+    [[nodiscard]] Layout::Node* bound_layout_node(Layout::NodeArena&) const;
 
 private:
     enum class Kind : u8 {

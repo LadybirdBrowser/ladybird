@@ -49,6 +49,7 @@
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/NodeIdentity.h>
 #include <LibWeb/DOM/NodeIterator.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
@@ -3764,12 +3765,7 @@ Layout::Node const* Node::unsafe_layout_node() const
     auto* arena = m_document->layout_node_arena_if_created();
     if (!arena)
         return nullptr;
-    if (is_document())
-        return static_cast<Layout::Node const*>(Layout::RustFFI::layout_arena_bound_viewport_shell(arena->handle()));
-    auto style_node = Layout::Node::style_node_of(this);
-    if (style_node == 0)
-        return nullptr;
-    return static_cast<Layout::Node const*>(Layout::RustFFI::layout_arena_bound_shell(arena->handle(), style_node.value()));
+    return NodeIdentity::of(*this).bound_layout_node(*arena);
 }
 
 void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
