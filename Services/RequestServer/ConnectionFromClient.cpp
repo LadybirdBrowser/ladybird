@@ -16,6 +16,7 @@
 #include <LibHTTP/Header.h>
 #include <LibHTTP/Method.h>
 #include <LibHTTP/Port.h>
+#include <LibIPC/Limits.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/WebSocket.h>
@@ -994,6 +995,14 @@ void ConnectionFromClient::websocket_send_shared(u64 websocket_id, bool is_text,
     auto* connection = m_websockets.get(websocket_id).value_or({});
     if (!connection || connection->ready_state() != WebSocket::ReadyState::Open)
         return;
+
+    // Bound client-controlled allocations for copying and framing the message.
+    if (data.size() > IPC::MAX_MESSAGE_PAYLOAD_SIZE) {
+        dbgln("websocket_send_shared: refusing to send a {} byte message", data.size());
+        connection->close(to_underlying(WebSocket::CloseStatusCode::MessageTooBig), "Message too big");
+        return;
+    }
+
     auto byte_buffer_or_error = ByteBuffer::copy(data.bytes());
     if (byte_buffer_or_error.is_error()) {
         dbgln("websocket_send_shared: failed to copy {} bytes from shared buffer: {}", data.size(), byte_buffer_or_error.error());
