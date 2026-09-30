@@ -643,7 +643,8 @@ bool Request::notify_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u
 
 bool Request::defer_until_response_cookies_and_hsts_policy_are_stored(Function<void()> continuation)
 {
-    if (m_type != RequestType::Fetch)
+    // Background responses still affect cookies and HSTS.
+    if (!first_is_one_of(m_type, RequestType::Fetch, RequestType::BackgroundRevalidation))
         return false;
 
     switch (m_response_storage_state) {

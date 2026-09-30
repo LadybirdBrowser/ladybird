@@ -6,10 +6,13 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
+#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
 #include <LibCore/Timer.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/DiskCache.h>
+#include <LibHTTP/Cache/Utilities.h>
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
@@ -101,6 +104,23 @@ public:
         return storage_request.release_nonnull();
     }
 
+    NonnullOwnPtr<Messages::RequestServerControlClient::RetrieveHttpCookie> wait_for_cookie_request(Core::EventLoop& event_loop)
+    {
+        auto wake_timer = Core::Timer::create_repeating(10, [] { });
+        wake_timer->start();
+
+        OwnPtr<Messages::RequestServerControlClient::RetrieveHttpCookie> cookie_request;
+        event_loop.spin_until([&] {
+            (void)m_remote_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
+                auto message = MUST(RequestServerControlClientEndpoint::decode_message(raw_message.bytes.bytes(), raw_message.attachments));
+                if (!cookie_request && message->message_id() == Messages::RequestServerControlClient::RetrieveHttpCookie::static_message_id())
+                    cookie_request = message.template release_nonnull<Messages::RequestServerControlClient::RetrieveHttpCookie>();
+            });
+            return cookie_request != nullptr;
+        });
+        return cookie_request.release_nonnull();
+    }
+
     NonnullOwnPtr<Messages::RequestServerControlClient::RetrieveHttpCookie> take_cookie_request()
     {
         m_remote_transport->wait_until_readable();
@@ -125,7 +145,7 @@ private:
 // A data connection, as handed out by the control connection to each helper process.
 class TestConnection {
 public:
-    explicit TestConnection(TestServer& server)
+    explicit TestConnection(TestServer& server, Optional<HTTP::DiskCache&> disk_cache = {})
     {
         initialize_libcurl();
 
@@ -133,7 +153,7 @@ public:
         m_remote_transport = MUST(pair.remote_handle.create_transport());
         m_connection = RequestServer::ConnectionFromClient::construct(
             move(pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Unrestricted,
-            server.connections, server.request_transfer_leases, Optional<HTTP::DiskCache&> {}, ByteString {});
+            server.connections, server.request_transfer_leases, disk_cache, ByteString {});
 #ifdef AK_OS_WINDOWS
         auto pid = Core::System::getpid();
         m_connection->transport().set_peer_pid(pid);
@@ -158,10 +178,10 @@ public:
         VERIFY(response);
     }
 
-    void start_request(u64 request_id, Optional<URL::URL> target_url = {}, ByteString method = "GET"sv, Vector<HTTP::Header> headers = {})
+    void start_request(u64 request_id, Optional<URL::URL> target_url = {}, ByteString method = "GET"sv, Vector<HTTP::Header> headers = {}, Optional<HTTP::NetworkIsolationKey> network_isolation_key = {})
     {
         auto url = target_url.value_or(URL::Parser::basic_parse("http://localhost"sv).release_value());
-        auto message = make<Messages::RequestServer::StartRequest>(request_id, move(method), move(url), move(headers), ByteBuffer {}, HTTP::CacheMode::Default, Optional<HTTP::NetworkIsolationKey> {}, HTTP::Cookie::IncludeCredentials::Yes, true, Optional<u32> {}, false, 0, 0);
+        auto message = make<Messages::RequestServer::StartRequest>(request_id, move(method), move(url), move(headers), ByteBuffer {}, HTTP::CacheMode::Default, move(network_isolation_key), HTTP::Cookie::IncludeCredentials::Yes, true, Optional<u32> {}, false, 0, 0);
         auto response = dispatch(move(message));
         VERIFY(!response);
     }
@@ -287,6 +307,51 @@ public:
 
 private:
     ByteString m_received_request;
+    RefPtr<Core::TCPServer> m_server;
+    Vector<NonnullOwnPtr<Core::TCPSocket>> m_sockets;
+};
+
+}
+
+namespace {
+
+// Serves a stale response, then revalidates with a 304 that deletes a cookie.
+class RevalidatingServer {
+public:
+    RevalidatingServer()
+    {
+        m_server = MUST(Core::TCPServer::try_create());
+        MUST(m_server->listen(IPv4Address { 127, 0, 0, 1 }, 0));
+        m_server->on_ready_to_accept = [this] {
+            auto socket = MUST(m_server->accept());
+            MUST(socket->set_blocking(false));
+            auto is_first_connection = m_sockets.is_empty();
+            m_sockets.append(move(socket));
+            auto& connection = *m_sockets.last();
+            connection.on_ready_to_read = [&connection, is_first_connection] {
+                auto buffer = MUST(ByteBuffer::create_uninitialized(4096));
+                if (MUST(connection.read_some(buffer)).is_empty())
+                    return;
+                connection.on_ready_to_read = nullptr;
+                MUST(connection.set_blocking(true));
+                if (is_first_connection) {
+                    MUST(connection.write_until_depleted(
+                        "HTTP/1.1 200 OK\r\nCache-Control: max-age=0, stale-while-revalidate=600\r\nETag: \"v1\"\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"sv.bytes()));
+                } else {
+                    MUST(connection.write_until_depleted(
+                        "HTTP/1.1 304 Not Modified\r\nETag: \"v1\"\r\nSet-Cookie: session=; Max-Age=0\r\nConnection: close\r\n\r\n"sv.bytes()));
+                }
+                connection.close();
+            };
+        };
+    }
+
+    URL::URL url() const
+    {
+        return URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/", *m_server->local_port())).release_value();
+    }
+
+private:
     RefPtr<Core::TCPServer> m_server;
     Vector<NonnullOwnPtr<Core::TCPSocket>> m_sockets;
 };
@@ -794,4 +859,41 @@ TEST_CASE(responses_with_too_many_header_fields_fail)
         auto request_finished = connection.take_client_message<Messages::RequestClient::RequestFinished>(server.event_loop);
         EXPECT_EQ(request_finished->network_error().has_value(), should_fail);
     }
+}
+
+TEST_CASE(background_revalidation_stores_response_cookies)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    // Isolate the cache from tests running concurrently.
+    auto cache_root = LexicalPath::join(Core::StandardPaths::tempfile_directory(), ByteString::formatted("Ladybird-TestCookieResponses-{}", Core::System::getpid()));
+    ScopeGuard remove_cache_root = [&] { (void)FileSystem::remove(cache_root.string(), FileSystem::RecursionMode::Allowed); };
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, cache_root)).release_value();
+    TestConnection connection { server, disk_cache };
+    RevalidatingServer http_server;
+
+    Vector<HTTP::Header> request_headers { { ByteString { HTTP::TEST_CACHE_ENABLED_HEADER }, "1"sv } };
+    // Only requests made for a site reach the cache.
+    HTTP::NetworkIsolationKey network_isolation_key { .top_level_site = "http://localhost"_utf16, .frame_site = "http://localhost"_utf16 };
+
+    connection.start_request(0, http_server.url(), "GET"sv, request_headers, network_isolation_key);
+    auto cookie_request = control.wait_for_cookie_request(server.event_loop);
+    control.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch, cookie_request->cookie_request_id());
+
+    // The entry is released once the response has been delivered; a request for it then starts the background
+    // revalidation.
+    EXPECT(!connection.take_client_message<Messages::RequestClient::RequestFinished>(server.event_loop)->network_error().has_value());
+    connection.start_request(1, http_server.url(), "GET"sv, request_headers, network_isolation_key);
+
+    auto revalidation_cookie_request = control.wait_for_cookie_request(server.event_loop);
+    EXPECT_EQ(revalidation_cookie_request->request_type(), RequestServer::RequestType::BackgroundRevalidation);
+    control.retrieve_http_cookie(connection.client_id(), revalidation_cookie_request->request_id(), RequestServer::RequestType::BackgroundRevalidation, revalidation_cookie_request->cookie_request_id());
+
+    auto storage_request = control.wait_for_storage_request(server.event_loop);
+    EXPECT_EQ(storage_request->client_id(), connection.client_id());
+    EXPECT_EQ(storage_request->request_id(), revalidation_cookie_request->request_id());
+    EXPECT_EQ(storage_request->cookies().size(), 1u);
+
+    control.stored_response_cookies_and_hsts_policy(connection.client_id(), storage_request->request_id(), storage_request->store_request_id());
+    EXPECT(control.is_open());
 }
