@@ -26,6 +26,7 @@ EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::Execu
     this->id = serialized_settings.id;
     this->creation_url = serialized_settings.creation_url;
     this->top_level_creation_url = serialized_settings.top_level_creation_url;
+    this->top_level_origin = serialized_settings.top_level_origin;
 }
 
 // Out of line to ensure this class has a key function
