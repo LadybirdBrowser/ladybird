@@ -1,0 +1,25 @@
+built-in length masks a supported name: true
+built-in mask avoids cache rebuilding: true
+initial length: 2
+unmasked supported name: true
+unsupported name: true
+length after insertion: 3
+named properties after ID change: true
+length after removal: 2
+ordinary mask of supported name: true
+ordinary mask of unsupported name: true
+ordinary masks avoid cache rebuilding: true
+name exposed after deleting mask: true
+name hidden after adding mask: true
+name exposed after replacing prototype: true
+ordinary mask below proxy: true
+unsupported ordinary mask below proxy: true
+masked names avoid proxy traps: true
+masked names avoid cache rebuilding: true
+unsupported unmasked name avoids proxy traps: true
+proxy before ordinary mask: true
+supported name proxy traps: descriptor:supported,prototype
+unsupported name avoids preceding proxy traps: true
+exotic prototype mask: true
+exotic prototype keeps normal visibility checks: true
+LegacyOverrideBuiltIns keeps named property: true
