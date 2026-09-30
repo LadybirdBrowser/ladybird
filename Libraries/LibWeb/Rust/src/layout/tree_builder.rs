@@ -120,7 +120,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub principal_text_layout_facts: unsafe extern "C" fn(*mut c_void) -> FfiTextLayoutFacts,
     pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub set_principal_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, NodeSlotId),
-    pub reuse_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub principal_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub attach_principal_style_resources: unsafe extern "C" fn(*mut c_void),
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
@@ -1351,6 +1350,16 @@ impl PrincipalBoxConstruction {
     }
 }
 
+/// Hands the frame the box the node entered the update with, for a node that keeps it. Nothing
+/// between the entry and here rebinds the node, so the entry row is still the node's box.
+fn keep_principal_layout_node(host: &DomTreeBuilderHost<'_>, frame: *mut c_void, old_layout_node: LayoutNode) {
+    if old_layout_node.is_invalid() {
+        return;
+    }
+    // SAFETY: The builder and frame remain live, and the entry row is a live box.
+    unsafe { (host.callbacks.set_principal_layout_node)(host.callbacks.builder, frame, old_layout_node) };
+}
+
 fn construct_principal_layout_node(
     update: &mut PrincipalNodeUpdate<'_, '_, '_, '_>,
     entry_facts: FfiPrincipalNodeEntryFacts,
@@ -1360,6 +1369,7 @@ fn construct_principal_layout_node(
     let mut created_box = None;
     let frame = update.frame;
     let dom_node = update.dom_node;
+    let old_layout_node = update.old_layout_node;
     let must_create_subtree = update.must_create_subtree;
     let context = &mut *update.context;
     if entry_facts.is_element {
@@ -1440,8 +1450,7 @@ fn construct_principal_layout_node(
                 context.layout_svg_pattern = false;
             }
         } else {
-            // SAFETY: The frame and DOM node remain live throughout the call.
-            unsafe { (host.callbacks.reuse_principal_layout)(frame, dom_node) };
+            keep_principal_layout_node(host, frame, old_layout_node);
         }
     } else if should_create_layout_node {
         if entry_facts.is_document {
@@ -1478,8 +1487,7 @@ fn construct_principal_layout_node(
             }
         }
     } else {
-        // SAFETY: The frame and DOM node remain live throughout the call.
-        unsafe { (host.callbacks.reuse_principal_layout)(frame, dom_node) };
+        keep_principal_layout_node(host, frame, old_layout_node);
     }
 
     // SAFETY: The frame remains live throughout the call.

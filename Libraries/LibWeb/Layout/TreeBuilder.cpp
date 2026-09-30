@@ -1418,11 +1418,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             frame.layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(builder.m_document->layout_node_arena().handle(), slot));
             VERIFY(frame.layout_node); },
-        .reuse_principal_layout = [](void* frame_pointer, void* node_pointer) {
-            VERIFY(frame_pointer);
-            VERIFY(node_pointer);
-            // NB: Called during layout tree construction.
-            static_cast<PrincipalNodeFrame*>(frame_pointer)->layout_node = static_cast<DOM::Node*>(node_pointer)->unsafe_layout_node(); },
         .principal_layout_node = [](void* frame_pointer) -> Compositing::RustFFI::NodeSlotId {
             VERIFY(frame_pointer);
             return Node::slot_id(static_cast<PrincipalNodeFrame*>(frame_pointer)->layout_node); },
