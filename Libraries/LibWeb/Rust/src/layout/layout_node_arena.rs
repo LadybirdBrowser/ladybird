@@ -1038,7 +1038,6 @@ impl LayoutNodeArena {
         self.set_node_style_node(id, generator);
     }
 
-    #[cfg(test)]
     pub(crate) fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
         if !self.slot_is_live(id) {
             return None;
@@ -3772,6 +3771,15 @@ pub unsafe extern "C" fn layout_arena_set_node_generated_for(
         generated_for,
         StyleNodeID::from_raw(generator_style_node),
     );
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_style_node(arena: *mut c_void, id: NodeSlotId) -> u32 {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .node_style_node(id)
+        .map_or(0, StyleNodeID::raw)
 }
 
 #[unsafe(no_mangle)]

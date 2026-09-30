@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; height: 2000px; }
+    #scroller { width: 100px; height: 100px; overflow: scroll; }
+    #scroller > div { height: 300px; }
+    .box::before { content: "before"; }
+</style>
+<div id="container">
+    <div id="scroller"><div class="box">scrolled text</div></div>
+    <p id="survivor">survivor text</p>
+    <ul><li class="box">list item</li></ul>
+</div>
+<script>
+    promiseTest(async () => {
+        const container = document.getElementById("container");
+        const survivor = document.getElementById("survivor");
+        await animationFrame();
+
+        // The removed subtree's layout nodes stay in the tree, without StyleNodeIDs, until the parent is rebuilt.
+        // Each read below updates layout first, which tears them down and rebuilds the parent.
+        container.replaceChildren(survivor);
+        await internals.wheel(50, 50, 0, 100);
+        println(`Scroll offset after wheel: ${document.scrollingElement.scrollTop}`);
+
+        container.innerHTML = "<div class=box>inner text</div><span>more</span>";
+        const hit = internals.hitTest(20, 10);
+        println(`Hit test lands on: ${hit.node.nodeName}`);
+
+        container.replaceChildren(survivor);
+        println(`Survivor has client rects: ${survivor.getClientRects().length > 0}`);
+
+        container.innerHTML = "find me";
+        println(`Find in page: ${window.find("find me")}`);
+
+        container.replaceChildren(survivor);
+        println(internals.dumpLayoutTree(container).replace(/\n$/, ""));
+    });
+</script>
