@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/LexicalPath.h>
 #include <AK/String.h>
 #include <LibCore/Directory.h>
 #include <LibCore/System.h>
@@ -36,13 +35,8 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, Vector<ByteString> cons
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/private/etc/ssl"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/Library/Preferences/com.apple.networkd.plist"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
 
-    for (auto const& certificate : certificates) {
-        auto certificate_path = LexicalPath::dirname(certificate);
-        if (certificate_path.is_empty())
-            certificate_path = ".";
-
-        TRY(Sandbox::add_seatbelt_path_if_exists(paths, certificate_path, Sandbox::SeatbeltPath::Access::ReadOnly));
-    }
+    for (auto const& certificate : certificates)
+        TRY(Sandbox::add_seatbelt_path_if_exists(paths, certificate, Sandbox::SeatbeltPath::Access::ReadOnly));
 
     if (g_resource_substitution_map) {
         TRY(g_resource_substitution_map->for_each_substitution([&](auto const& substitution) -> ErrorOr<void> {
