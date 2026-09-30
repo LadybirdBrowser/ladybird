@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A module worker started by a dedicated worker fetches its static imports over HTTP.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const script = body => ({ status: 200, headers: { "Content-Type": "text/javascript" }, body });
+
+        const importedUrl = await httpServer.createEcho("GET", `/nested-module-import-imported-${runId}.mjs`, script("export const value = 42;"));
+        const nestedUrl = await httpServer.createEcho(
+            "GET",
+            `/nested-module-import-nested-${runId}.mjs`,
+            script(`import { value } from ${JSON.stringify(importedUrl)}; postMessage("nested worker imported " + value);`)
+        );
+        const outerUrl = await httpServer.createEcho(
+            "GET",
+            `/nested-module-import-outer-${runId}.js`,
+            script(`const nested = new Worker(${JSON.stringify(nestedUrl)}, { type: "module" });
+                nested.onmessage = event => postMessage(event.data);
+                nested.onerror = () => postMessage("nested worker failed");`)
+        );
+        const pageUrl = await httpServer.createEcho("GET", `/nested-module-import-page-${runId}.html`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                const outer = new Worker(${JSON.stringify(outerUrl)});
+                outer.onmessage = event => parent.postMessage(event.data, "*");
+                outer.onerror = () => parent.postMessage("outer worker failed", "*");
+            <\/script>`,
+        });
+
+        const message = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = pageUrl;
+        document.body.appendChild(iframe);
+        println(await message);
+    });
+</script>
