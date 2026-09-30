@@ -465,6 +465,26 @@ void DiskCache::invalidate(Utf16String const& partition, URL::URL const& url)
 
 void DiskCache::cache_entry_closed(Badge<CacheEntry>, CacheEntry const& cache_entry)
 {
+    close_entry(cache_entry);
+}
+
+void DiskCache::close_entries_read_by(CacheRequest const& request)
+{
+    Vector<CacheEntry const*> entries_to_close;
+
+    for (auto const& [cache_key, open_entries] : m_open_cache_entries) {
+        for (auto const& open_entry : open_entries) {
+            if (open_entry.request.ptr() == &request && is<CacheEntryReader>(*open_entry.entry))
+                entries_to_close.append(open_entry.entry.ptr());
+        }
+    }
+
+    for (auto const* cache_entry : entries_to_close)
+        close_entry(*cache_entry);
+}
+
+void DiskCache::close_entry(CacheEntry const& cache_entry)
+{
     auto cache_key = cache_entry.cache_key();
 
     auto open_entries = m_open_cache_entries.get(cache_key);
