@@ -24,6 +24,9 @@ constexpr inline auto TEST_CACHE_REQUEST_TIME_OFFSET = "X-Ladybird-Request-Time-
 
 constexpr inline u64 DEFAULT_MAXIMUM_DISK_CACHE_SIZE = 5 * GiB;
 
+constexpr inline size_t MAXIMUM_VARY_FIELD_COUNT = 32;
+constexpr inline size_t MAXIMUM_CACHE_ENTRY_VARIANT_COUNT = 16;
+
 enum class CacheEntryAssociatedData {
     JavaScriptBytecode,
     WebAssemblyCompiledCode,

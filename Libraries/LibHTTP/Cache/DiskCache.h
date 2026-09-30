@@ -60,6 +60,7 @@ public:
     ErrorOr<bool> create_synthetic_entry(Utf16String const& partition, URL::URL const&, StringView method);
 
     void remove_entries_exceeding_cache_limit();
+    void remove_variants_exceeding_limit(Badge<CacheEntryWriter>, u64 cache_key, u64 vary_key_to_keep);
     void set_maximum_disk_cache_size(u64 maximum_disk_cache_size);
 
     Requests::CacheSizes estimate_cache_size_accessed_since(UnixDateTime since);

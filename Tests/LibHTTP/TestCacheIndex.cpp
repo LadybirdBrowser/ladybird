@@ -228,6 +228,48 @@ TEST_CASE(creation_returns_error_for_corrupted_database)
     EXPECT_EQ(result.error().string_literal(), "database disk image is malformed"sv);
 }
 
+TEST_CASE(variants_per_cache_key_are_limited)
+{
+    auto state = create_cache_index();
+
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "Vary"sv, "X-Variant"sv },
+    });
+    auto now = UnixDateTime::now();
+
+    auto request_headers_for_variant = [](size_t variant) {
+        return HTTP::HeaderList::create({ { "X-Variant"sv, ByteString::number(variant) } });
+    };
+
+    auto variant_count = HTTP::MAXIMUM_CACHE_ENTRY_VARIANT_COUNT + 4;
+    for (size_t variant = 0; variant < variant_count; ++variant) {
+        auto request_headers = request_headers_for_variant(variant);
+        auto vary_key = HTTP::create_vary_key(*request_headers, *response_headers).value();
+        TRY_OR_FAIL(state.index.create_entry(1, vary_key, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+    }
+
+    // Variants persisted by an earlier index count too.
+    auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
+
+    auto newest_request_headers = request_headers_for_variant(variant_count);
+    auto newest_vary_key = HTTP::create_vary_key(*newest_request_headers, *response_headers).value();
+    TRY_OR_FAIL(reloaded_index.create_entry(1, newest_vary_key, "https://example.com"_string, newest_request_headers, response_headers, 10, now, now));
+
+    size_t removed_count = 0;
+    reloaded_index.remove_variants_exceeding_limit(1, newest_vary_key, [&](auto, auto) { ++removed_count; });
+
+    EXPECT_EQ(removed_count, variant_count + 1 - HTTP::MAXIMUM_CACHE_ENTRY_VARIANT_COUNT);
+    EXPECT(reloaded_index.find_entry(1, *newest_request_headers).has_value());
+
+    size_t remaining_count = 0;
+    for (size_t variant = 0; variant <= variant_count; ++variant) {
+        if (reloaded_index.find_entry(1, *request_headers_for_variant(variant)).has_value())
+            ++remaining_count;
+    }
+    EXPECT_EQ(remaining_count, HTTP::MAXIMUM_CACHE_ENTRY_VARIANT_COUNT);
+}
+
 TEST_CASE(stored_vary_wildcard_does_not_match)
 {
     auto state = create_cache_index();
