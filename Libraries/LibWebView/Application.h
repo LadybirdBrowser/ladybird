@@ -35,6 +35,7 @@
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/PreparedNavigationDescriptor.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
@@ -228,6 +229,8 @@ public:
     virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const;
     virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL>) const;
     virtual void open_url_in_new_window(URL::URL const&, IsPrivate) { }
+    virtual void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab) const;
+    virtual void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, IsPrivate) { }
 
     virtual void resolve_external_url_handler(URL::URL const&, ExternalURLHandlerCallback callback) const { callback(nullptr); }
 

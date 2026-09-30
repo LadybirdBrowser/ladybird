@@ -1,0 +1,3 @@
+middle-click: Sec-Fetch-Site same-origin, Sec-Fetch-User ?1, Referer this page
+ctrl-click: Sec-Fetch-Site same-origin, Sec-Fetch-User ?1, Referer this page
+ctrl-click-noreferrer: Sec-Fetch-Site same-origin, Sec-Fetch-User ?1, Referer undefined

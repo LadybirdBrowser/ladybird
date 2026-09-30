@@ -48,6 +48,7 @@
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
+#include <LibWebCommon/HTML/PreparedNavigationDescriptor.h>
 #include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebCommon/Page/DragEvent.h>
@@ -137,6 +138,9 @@ public:
     void load_from_user_input(StringView, Optional<URL::URL> fallback_url);
     void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab);
     void open_url_in_new_window(URL::URL const&, IsPrivate);
+    void load(Web::HTML::PreparedNavigationDescriptor);
+    void open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor, Web::HTML::ActivateTab);
+    void open_navigation_in_new_window(Web::HTML::PreparedNavigationDescriptor, IsPrivate);
     void set_next_history_visit_transition(HistoryVisitTransition transition) { m_history_visit_transition_for_next_load = transition; }
     void load_html(StringView);
     void load_navigation_error_page(StringView);
@@ -508,9 +512,9 @@ public:
     Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
 
     void did_request_page_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target);
-    void did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, URL::URL url);
-    void did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap);
-    void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu);
+    void did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor);
+    void did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<Gfx::ShareableBitmap> bitmap);
+    void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor);
     void send_to_media_context_menu_page(Function<void(WebContentPage&)> const&);
 
     void did_request_color_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Color current_color);
@@ -710,6 +714,7 @@ protected:
     RefPtr<Action> m_download_linked_file_as_action;
     RefPtr<Action> m_copy_url_action;
     URL::URL m_context_menu_url;
+    Optional<Web::HTML::PreparedNavigationDescriptor> m_context_menu_navigation;
 
     RefPtr<Action> m_open_image_action;
     RefPtr<Action> m_save_image_action;

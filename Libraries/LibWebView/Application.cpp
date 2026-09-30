@@ -955,6 +955,12 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
         view->load(url);
 }
 
+void Application::open_navigation_in_new_tab(Web::HTML::PreparedNavigationDescriptor navigation, Web::HTML::ActivateTab activate_tab) const
+{
+    if (auto view = open_blank_new_tab(activate_tab); view.has_value())
+        view->load(move(navigation));
+}
+
 void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
 {
     for (auto const& url : urls)

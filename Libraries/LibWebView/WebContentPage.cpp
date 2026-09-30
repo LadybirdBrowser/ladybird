@@ -819,20 +819,40 @@ void WebContentPage::did_unhover_link()
         view().on_link_unhover();
 }
 
-void WebContentPage::did_click_link(URL::URL url, ByteString target, unsigned modifiers)
+static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, WebContentClient* hosting_client = nullptr);
+
+// A navigation a page asked the browser's UI to start for it, with the initiator origin the UI process takes from the
+// fetch client — as it does for a navigation the page starts itself, so a process names only a source it hosts.
+static Optional<Web::HTML::PreparedNavigationDescriptor> navigation_from_page(WebContentClient& requesting_client, Web::HTML::PreparedNavigationDescriptor navigation)
 {
+    // A page's own click or context menu names a document the page's process hosts, so only that process vouches for it.
+    auto initiator_origin = initiator_origin_snapshot(navigation.initiator_origin_snapshot, navigation.source_snapshot_params, &requesting_client);
+    if (!initiator_origin.has_value())
+        return {};
+    navigation.initiator_origin_snapshot = initiator_origin.release_value();
+    return navigation;
+}
+
+void WebContentPage::did_click_link(Web::HTML::PreparedNavigationDescriptor navigation, ByteString target, unsigned modifiers)
+{
+    auto verified_navigation = navigation_from_page(client(), move(navigation));
+    if (!verified_navigation.has_value())
+        return;
     auto open_in_background = modifiers == Web::UIEvents::Mod_PlatformCtrl;
     auto open_in_foreground = modifiers == (Web::UIEvents::Mod_PlatformCtrl | Web::UIEvents::Mod_Shift);
     if (open_in_background || open_in_foreground || target == "_blank"sv) {
-        view().open_url_in_new_tab(url, open_in_background ? Web::HTML::ActivateTab::No : Web::HTML::ActivateTab::Yes);
+        view().open_navigation_in_new_tab(verified_navigation.release_value(), open_in_background ? Web::HTML::ActivateTab::No : Web::HTML::ActivateTab::Yes);
     } else {
-        view().load(url);
+        view().load(verified_navigation.release_value());
     }
 }
 
-void WebContentPage::did_middle_click_link(URL::URL url, ByteString, unsigned)
+void WebContentPage::did_middle_click_link(Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned)
 {
-    view().open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
+    auto verified_navigation = navigation_from_page(client(), move(navigation));
+    if (!verified_navigation.has_value())
+        return;
+    view().open_navigation_in_new_tab(verified_navigation.release_value(), Web::HTML::ActivateTab::No);
 }
 
 void WebContentPage::did_request_external_url(URL::URL url, URL::Origin initiator_origin, bool has_transient_activation)
@@ -1596,7 +1616,10 @@ void WebContentPage::did_request_set_system_visibility_state(Web::HTML::Visibili
 // NB: initiatorOriginSnapshot is sourceDocument's origin. The process names sourceDocument's relevant settings object as
 //     the fetch client, an environment that a process hosts, and the UI process takes the origin from it. Without a
 //     sourceDocument, the process gives a new opaque origin, which no document may hold yet.
-static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params)
+// The origin of the environment a navigation names as its fetch client, from the process hosting that environment. A
+// navigation a page starts in another process's navigable continues in that process (step 8 of navigate), so the
+// process asking isn't necessarily the one hosting the client; a caller that knows the host names it.
+static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, WebContentClient* hosting_client)
 {
     if (!source_snapshot_params.fetch_client.has_value()) {
         if (!given_origin.is_opaque() || CanonicalTraversable::is_origin_held_by_a_document(given_origin))
@@ -1604,13 +1627,17 @@ static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_
         return given_origin;
     }
     Optional<URL::Origin> origin;
-    WebContentClient::for_each_client([&](WebContentClient& client) {
+    auto take_origin_from = [&](WebContentClient& client) {
         auto source_settings = client.hosted_environment(source_snapshot_params.fetch_client->id);
         if (!source_settings.has_value())
             return IterationDecision::Continue;
         origin = source_settings->origin();
         return IterationDecision::Break;
-    });
+    };
+    if (hosting_client)
+        take_origin_from(*hosting_client);
+    else
+        WebContentClient::for_each_client(take_origin_from);
     return origin;
 }
 
@@ -2121,22 +2148,31 @@ void WebContentPage::did_request_context_menu(Web::HTML::CrossProcessId local_ro
         target->view.did_request_page_context_menu({}, target->position, for_input_events_target);
 }
 
-void WebContentPage::did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned)
+void WebContentPage::did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned)
 {
+    auto verified_navigation = navigation_from_page(client(), move(navigation));
+    if (!verified_navigation.has_value())
+        return;
     if (auto target = view_position(local_root_id, content_position); target.has_value())
-        target->view.did_request_link_context_menu({}, target->position, move(url));
+        target->view.did_request_link_context_menu({}, target->position, verified_navigation.release_value());
 }
 
-void WebContentPage::did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap)
+void WebContentPage::did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap)
 {
+    auto verified_navigation = navigation_from_page(client(), move(navigation));
+    if (!verified_navigation.has_value())
+        return;
     if (auto target = view_position(local_root_id, content_position); target.has_value())
-        target->view.did_request_image_context_menu({}, target->position, move(url), move(bitmap));
+        target->view.did_request_image_context_menu({}, target->position, verified_navigation.release_value(), move(bitmap));
 }
 
-void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu)
+void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation)
 {
+    auto verified_navigation = navigation_from_page(client(), move(navigation));
+    if (!verified_navigation.has_value())
+        return;
     if (auto target = view_position(local_root_id, content_position); target.has_value())
-        target->view.did_request_media_context_menu({}, *this, target->position, move(menu));
+        target->view.did_request_media_context_menu({}, *this, target->position, move(menu), verified_navigation.release_value());
 }
 
 void WebContentPage::did_get_highlighted_source(String html)
