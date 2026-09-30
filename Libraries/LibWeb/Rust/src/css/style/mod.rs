@@ -144,6 +144,7 @@ pub mod record_replay {
 }
 pub mod relative_selector;
 pub mod selector;
+pub mod selector_evaluation;
 mod shareable;
 mod shared_vector;
 mod sheet_occurrences;
