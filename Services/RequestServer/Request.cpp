@@ -501,6 +501,9 @@ NonnullOwnPtr<Request> Request::revalidate(
     HTTP::Cookie::IncludeCredentials include_credentials,
     Optional<ByteString> alt_svc_cache_path)
 {
+    // Revalidation headers must not leak into the initiating request.
+    request_headers = HTTP::HeaderList::create(request_headers->headers());
+
     auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, move(network_isolation_key), HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path) });
     request->process();
 
@@ -818,7 +821,8 @@ void Request::reset_for_retry()
     }
 
     // The first response may have changed the cookies, so the retried request looks them up again. Only the Cookie
-    // header that our own lookup appended is replaced; one the client supplied stays as it was.
+    // header that our own lookup appended is replaced; one the client supplied stays as it was. Client Cookie fields
+    // precede ours; revalidation validators may follow.
     if (exchange(m_appended_cookie_header, false)) {
         auto const& headers = m_request_headers->headers();
         auto cookie_index = headers.size();
@@ -1376,6 +1380,17 @@ void Request::handle_fetch_state()
         set_option(CURLOPT_NOBODY, 1L);
     }
 
+    // Persist revalidation validators so Vary can match them.
+    if (is_revalidation_request) {
+        auto revalidation_attributes = HTTP::RevalidationAttributes::create(m_cache_entry_reader->response_headers());
+        VERIFY(revalidation_attributes.etag.has_value() || revalidation_attributes.last_modified.has_value());
+
+        if (revalidation_attributes.etag.has_value())
+            m_request_headers->set({ "If-None-Match"sv, *revalidation_attributes.etag });
+        if (revalidation_attributes.last_modified.has_value())
+            m_request_headers->set({ "If-Modified-Since"sv, *revalidation_attributes.last_modified });
+    }
+
     for (auto const& header : *m_request_headers) {
         if (header.value.is_empty()) {
             // curl will discard the header unless we pass the header name followed by a semicolon (i.e. we need to pass
@@ -1386,21 +1401,6 @@ void Request::handle_fetch_state()
             curl_headers = curl_slist_append(curl_headers, header_string.characters());
         } else {
             auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
-            curl_headers = curl_slist_append(curl_headers, header_string.characters());
-        }
-    }
-
-    if (is_revalidation_request) {
-        auto revalidation_attributes = HTTP::RevalidationAttributes::create(m_cache_entry_reader->response_headers());
-        VERIFY(revalidation_attributes.etag.has_value() || revalidation_attributes.last_modified.has_value());
-
-        if (revalidation_attributes.etag.has_value()) {
-            auto header_string = ByteString::formatted("If-None-Match: {}", *revalidation_attributes.etag);
-            curl_headers = curl_slist_append(curl_headers, header_string.characters());
-        }
-
-        if (revalidation_attributes.last_modified.has_value()) {
-            auto header_string = ByteString::formatted("If-Modified-Since: {}", *revalidation_attributes.last_modified);
             curl_headers = curl_slist_append(curl_headers, header_string.characters());
         }
     }
