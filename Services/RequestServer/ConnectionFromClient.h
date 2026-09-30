@@ -91,7 +91,6 @@ private:
     virtual void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) override;
     virtual void release_request_transfer_lease(int source_client_id, u64 source_request_id) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(u64 request_id) override;
-    virtual Messages::RequestServer::SetCertificateResponse set_certificate(u64 request_id, ByteString, ByteString) override;
     virtual void ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) override;
 
     virtual Messages::RequestServer::StoreCacheAssociatedDataResponse store_cache_associated_data(Optional<HTTP::NetworkIsolationKey>, URL::URL, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, Core::AnonymousBuffer) override;
@@ -103,7 +102,6 @@ private:
     virtual void websocket_send(u64 websocket_id, bool, ByteBuffer) override;
     virtual void websocket_send_shared(u64 websocket_id, bool, Core::AnonymousBuffer) override;
     virtual void websocket_close(u64 websocket_id, u16, ByteString) override;
-    virtual Messages::RequestServer::WebsocketSetCertificateResponse websocket_set_certificate(u64, ByteString, ByteString) override;
 
     static int on_socket_callback(void*, int sockfd, int what, void* user_data, void*);
     static int on_timeout_callback(void*, long timeout_ms, void* user_data);

@@ -93,15 +93,6 @@ void WebSocket::did_close(Badge<RequestClient>, u16 code, ByteString reason, boo
         on_close(code, move(reason), was_clean);
 }
 
-void WebSocket::did_request_certificates(Badge<RequestClient>)
-{
-    if (on_certificate_requested) {
-        auto result = on_certificate_requested();
-        if (!m_client || !m_client->websocket_set_certificate(m_websocket_id, result.certificate, result.key))
-            dbgln("WebSocket: set_certificate failed");
-    }
-}
-
 void WebSocket::detach_from_client(Badge<RequestClient>)
 {
     m_client = nullptr;
