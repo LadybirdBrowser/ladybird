@@ -125,8 +125,7 @@ pub(crate) fn first_wheel_scrollable_box_in_containing_block_chain(
 ) -> NodeSlotId {
     let mut node = start;
     while let Some(data) = arena.node_data_if_live(node) {
-        let backed_by_element_or_viewport =
-            data.kind.get() == NodeKind::Viewport || arena.node_dom_node_is_element(node);
+        let backed_by_element_or_viewport = data.kind.get() == NodeKind::Viewport || arena.node_is_element_backed(node);
         if backed_by_element_or_viewport && arena.paintable_row_is_populated(node) {
             let axes = wheel_scrollable_axes(arena, node, viewport_wheel_overflow);
             if axes.horizontal || axes.vertical {
