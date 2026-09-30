@@ -53,9 +53,7 @@ ErrorOr<AnonymousBuffer> AnonymousBuffer::snapshot(Sealability sealability) cons
     is_size_sealed = (seals & REQUIRED_SEALS) == REQUIRED_SEALS;
 #endif
 
-    auto file_status = TRY(Core::System::fstat(fd()));
-    if (file_status.st_size < 0 || static_cast<u64>(file_status.st_size) < size())
-        return Error::from_string_literal("Anonymous buffer is smaller than its claimed size");
+    TRY(validate_backing_size());
 
     auto copy = TRY(create_with_size(size(), sealability));
     if (size() == 0)
@@ -97,6 +95,17 @@ ErrorOr<AnonymousBuffer> AnonymousBuffer::snapshot(Sealability sealability) cons
 #endif
 
     return copy;
+}
+
+ErrorOr<void> AnonymousBuffer::validate_backing_size() const
+{
+    if (!is_valid())
+        return Error::from_string_literal("Cannot validate the backing store of an invalid anonymous buffer");
+
+    auto file_status = TRY(Core::System::fstat(fd()));
+    if (file_status.st_size < 0 || static_cast<u64>(file_status.st_size) < size())
+        return Error::from_string_literal("Anonymous buffer is smaller than its claimed size");
+    return {};
 }
 
 ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(int fd, size_t size)
