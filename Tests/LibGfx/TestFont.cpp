@@ -582,7 +582,7 @@ TEST_CASE(font_collection_preserves_each_face_style)
 {
     auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/styles.ttc"sv)));
     for (u32 index = 0; index < 3; ++index) {
-        auto result = Gfx::TypefaceSkia::load_from_buffer(file->bytes(), index);
+        auto result = Gfx::TypefaceSkia::try_load_from_temporary_memory(file->bytes(), index);
         EXPECT(!result.is_error());
         if (result.is_error())
             continue;
@@ -601,7 +601,7 @@ TEST_CASE(font_collection_preserves_each_face_style)
         EXPECT_EQ(font->slope(), expected_slope);
         EXPECT_NE(font->glyph_id_for_code_point('a'), 0u);
     }
-    EXPECT(Gfx::TypefaceSkia::load_from_buffer(file->bytes(), 3).is_error());
+    EXPECT(Gfx::TypefaceSkia::try_load_from_temporary_memory(file->bytes(), 3).is_error());
 }
 
 TEST_CASE(font_collection_retains_shared_backing_for_skia)

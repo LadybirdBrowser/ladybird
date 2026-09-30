@@ -255,7 +255,7 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
 
     // The platform does not always load a matched typeface's data back (CoreText rejects the hvgl-only data it hands
     // out for PingFang), so such fonts are referred to by family and style for the client to re-match itself.
-    if (Gfx::TypefaceSkia::load_from_buffer(typeface->font_data(), ttc_index).is_error()) {
+    if (Gfx::TypefaceSkia::try_load_from_temporary_memory(typeface->font_data(), ttc_index).is_error()) {
         m_memory_font_sources.set(face_id, Gfx::SystemFontReference {
                                                .family = typeface->family().to_string(),
                                                .weight = typeface->weight(),

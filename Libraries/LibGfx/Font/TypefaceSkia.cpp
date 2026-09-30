@@ -209,17 +209,13 @@ static u16 font_weight_from_data(ReadonlyBytes buffer, u32 ttc_index, Vector<Fon
     return round_to<u16>(clamp(hb_style_get_value(font, HB_STYLE_TAG_WEIGHT), 0.0f, 1000.0f));
 }
 
-ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index, RefPtr<FontDataBacking> backing)
+ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index, NonnullRefPtr<FontDataBacking> backing)
 {
     // NB: Skia can retain the typeface in text blobs and glyph caches after our Typeface is destroyed.
-    //     Keep the backing alive through SkData, or copy bytes whose ownership is external.
-    sk_sp<SkData> data;
-    if (backing) {
-        backing->ref();
-        data = SkData::MakeWithProc(buffer.data(), buffer.size(), [](void const*, void* context) { static_cast<FontDataBacking*>(context)->unref(); }, backing.ptr());
-    } else {
-        data = SkData::MakeWithCopy(buffer.data(), buffer.size());
-    }
+    //     Keep the backing alive through SkData.
+    backing->ref();
+
+    sk_sp<SkData> data = SkData::MakeWithProc(buffer.data(), buffer.size(), [](void const*, void* context) { static_cast<FontDataBacking*>(context)->unref(); }, backing.ptr());
 
     sk_sp<SkTypeface> skia_typeface;
     Optional<u16> data_font_weight;
@@ -324,8 +320,7 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
 
     auto typeface = adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
     typeface->impl().data_font_weight = data_font_weight;
-    if (backing)
-        typeface->set_font_data(backing.release_nonnull());
+    typeface->set_font_data(move(backing));
     return typeface;
 }
 
