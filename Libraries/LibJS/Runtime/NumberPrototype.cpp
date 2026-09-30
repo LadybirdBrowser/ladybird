@@ -30,15 +30,6 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(NumberPrototype);
 
-static constexpr AK::Array<u8, 37> max_precision_for_radix = {
-    // clang-format off
-    0,  0,  52, 32, 26, 22, 20, 18, 17, 16,
-    15, 15, 14, 14, 13, 13, 13, 12, 12, 12,
-    12, 11, 11, 11, 11, 11, 11, 10, 10, 10,
-    10, 10, 10, 10, 10, 10, 10,
-    // clang-format on
-};
-
 static constexpr AK::Array<char, 36> digits = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -721,9 +712,61 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_string)
         number *= -1;
 
     double int_part = floor(number);
-    double decimal_part = number - int_part;
+    auto radix = static_cast<u32>(radix_mv);
+    Vector<u8> fractional_digits;
 
-    int radix = (int)radix_mv;
+    if (number != int_part) {
+        auto decomposition = decompose_double(number);
+        VERIFY(decomposition.exponent < 0);
+
+        // NB: At powers of two above the smallest normal value, the preceding double is half as far away as the next.
+        //     Scale by four in that case, or by two otherwise, so both rounding boundaries are integers.
+        bool asymmetric_boundaries = decomposition.significand == (1ull << 52) && decomposition.exponent > -1074;
+        u32 scale = asymmetric_boundaries ? 2 : 1;
+        Crypto::UnsignedBigInteger one { 1 };
+        auto denominator = MUST(one.shift_left(-decomposition.exponent + scale));
+        auto remainder = MUST(Crypto::UnsignedBigInteger { decomposition.significand }.shift_left(scale)).remainder(denominator);
+        auto lower_boundary = one;
+        Crypto::UnsignedBigInteger upper_boundary { asymmetric_boundaries ? 2 : 1 };
+        Crypto::UnsignedBigInteger radix_integer { radix };
+        bool inclusive_boundaries = (decomposition.significand & 1) == 0;
+        bool significand_is_odd = static_cast<u64>(int_part) & 1;
+
+        // NB: Generate digits until truncating or rounding up produces a value that rounds back to the input double.
+        //     Exact arithmetic preserves the rounding boundaries even for subnormal inputs and non-binary radices.
+        for (;;) {
+            auto division = remainder.multiplied_by(radix_integer).divided_by(denominator);
+            auto digit = division.quotient.to_u64();
+            VERIFY(digit < radix);
+            fractional_digits.append(static_cast<u8>(digit));
+            // NB: For odd radices, the parity depends on all digits, including the integer part.
+            significand_is_odd = ((radix & 1) && significand_is_odd) != ((digit & 1) != 0);
+            remainder = move(division.remainder);
+            lower_boundary = lower_boundary.multiplied_by(radix_integer);
+            upper_boundary = upper_boundary.multiplied_by(radix_integer);
+
+            bool can_round_down = remainder < lower_boundary || (inclusive_boundaries && remainder == lower_boundary);
+            auto upper_candidate = remainder.plus(upper_boundary);
+            bool can_round_up = upper_candidate > denominator || (inclusive_boundaries && upper_candidate == denominator);
+            if (!can_round_down && !can_round_up)
+                continue;
+
+            auto twice_remainder = MUST(remainder.shift_left(1));
+            bool round_up = can_round_up && (!can_round_down || twice_remainder > denominator || (twice_remainder == denominator && significand_is_odd));
+            if (round_up) {
+                while (!fractional_digits.is_empty() && fractional_digits.last() == radix - 1)
+                    fractional_digits.take_last();
+                if (fractional_digits.is_empty())
+                    ++int_part;
+                else
+                    ++fractional_digits.last();
+            }
+            while (!fractional_digits.is_empty() && fractional_digits.last() == 0)
+                fractional_digits.take_last();
+            break;
+        }
+    }
+
     Vector<char> backwards_characters;
 
     if (int_part == 0) {
@@ -745,25 +788,10 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_string)
         builder.append_code_unit(backwards_characters[i]);
     }
 
-    // decimal part
-    if (decimal_part != 0.0) {
+    if (!fractional_digits.is_empty()) {
         builder.append_ascii('.');
-
-        u8 precision = max_precision_for_radix[radix];
-
-        for (u8 i = 0; i < precision; ++i) {
-            decimal_part *= radix;
-            u64 integral = floor(decimal_part);
-            builder.append_code_unit(digits[integral]);
-            decimal_part -= integral;
-        }
-
-        for (;;) {
-            auto view = builder.view();
-            if (view.code_unit_at(view.length_in_code_units() - 1) != '0')
-                break;
-            builder.trim(1);
-        }
+        for (auto digit : fractional_digits)
+            builder.append_code_unit(digits[digit]);
     }
 
     return PrimitiveString::create(vm, builder.to_string());

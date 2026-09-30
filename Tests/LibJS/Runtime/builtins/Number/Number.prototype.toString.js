@@ -70,6 +70,43 @@ describe("correct behavior", () => {
         expect((0.5).toString(2)).toBe("0.1");
     });
 
+    test("fractional radix conversion preserves significant digits", () => {
+        const cases = [
+            [0.07, 16, "0.11eb851eb851ec"],
+            [0.62, 16, "0.9eb851eb851eb8"],
+            [0.1, 16, "0.1999999999999a"],
+            [0.01, 16, "0.028f5c28f5c28f6"],
+            [90.12, 16, "5a.1eb851eb852"],
+            [2 ** -60, 16, "0.000000000000001"],
+            [Number.MIN_VALUE, 2, "0." + "0".repeat(1073) + "1"],
+            [Number.MIN_VALUE, 16, "0." + "0".repeat(268) + "4"],
+            [2 ** -1022, 2, "0." + "0".repeat(1021) + "1"],
+            [0.1, 3, "0.0022002200220022002200220022002201"],
+        ];
+        for (const [number, radix, expected] of cases) {
+            expect(number.toString(radix)).toBe(expected);
+            expect((-number).toString(radix)).toBe("-" + expected);
+        }
+    });
+
+    test("fractional radix conversion rounds at binary exponent boundaries", () => {
+        const cases = [
+            [0.5 - 2 ** -54, 3, "0.1111111111111111111111111111111111"],
+            [0.5, 3, "0.1111111111111111111111111111111112"],
+            [0.5 + 2 ** -53, 3, "0.111111111111111111111111111111112"],
+            [0.1, 7, "0.04620462046204620463"],
+            [2 ** -1022 - Number.MIN_VALUE, 16, "0." + "0".repeat(255) + "3ffffffffffffc"],
+            [2 ** -1022 + Number.MIN_VALUE, 16, "0." + "0".repeat(255) + "40000000000004"],
+            [2 ** 52 - 0.5, 16, "fffffffffffff.8"],
+            [0.9999999999999999, 36, "0.zzzzzzzzzzl"],
+            [1.0000000000000002, 36, "1.0000000001"],
+        ];
+        for (const [number, radix, expected] of cases) {
+            expect(number.toString(radix)).toBe(expected);
+            expect((-number).toString(radix)).toBe("-" + expected);
+        }
+    });
+
     test("decimal radix gets converted to int", () => {
         expect((30).toString(10.1)).toBe("30");
         expect((30).toString(10.9)).toBe("30");
