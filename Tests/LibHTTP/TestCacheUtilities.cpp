@@ -130,6 +130,34 @@ TEST_CASE(vary_key_does_not_depend_on_order_or_case_of_nominated_fields)
     EXPECT_EQ(HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "X-Variant" }, { "Vary", "Accept, X-Variant, accept" } })), vary_key);
 }
 
+TEST_CASE(vary_nominating_too_many_fields_is_not_cacheable)
+{
+    auto request_headers = HTTP::HeaderList::create();
+
+    auto create_vary = [](size_t field_count) {
+        StringBuilder builder;
+        for (size_t i = 0; i < field_count; ++i)
+            builder.appendff("{}X-Field-{}", i == 0 ? "" : ", ", i);
+        return HTTP::HeaderList::create({ { "Cache-Control", "max-age=60" }, { "Vary", builder.to_byte_string() } });
+    };
+
+    auto allowed_response_headers = create_vary(HTTP::MAXIMUM_VARY_FIELD_COUNT);
+    EXPECT(HTTP::is_cacheable(200, *allowed_response_headers));
+    EXPECT(HTTP::create_vary_key(*request_headers, *allowed_response_headers).has_value());
+
+    auto excessive_response_headers = create_vary(HTTP::MAXIMUM_VARY_FIELD_COUNT + 1);
+    EXPECT(!HTTP::is_cacheable(200, *excessive_response_headers));
+    EXPECT(!HTTP::create_vary_key(*request_headers, *excessive_response_headers).has_value());
+
+    StringBuilder repeated_vary;
+    for (size_t i = 0; i < 1000; ++i)
+        repeated_vary.append("X-Fill, "sv);
+
+    auto repeated_response_headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=60" }, { "Vary", repeated_vary.to_byte_string() } });
+    EXPECT(HTTP::is_cacheable(200, *repeated_response_headers));
+    EXPECT_EQ(HTTP::create_vary_key(*request_headers, *repeated_response_headers), HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "X-Fill" } })));
+}
+
 TEST_CASE(vary_key_frames_each_nominated_field)
 {
     auto response_headers = HTTP::HeaderList::create({ { "Vary", "Accept, Accept-Language, Authorization" } });

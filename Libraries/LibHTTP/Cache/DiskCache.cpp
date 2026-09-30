@@ -408,6 +408,13 @@ void DiskCache::remove_entries_exceeding_cache_limit()
     });
 }
 
+void DiskCache::remove_variants_exceeding_limit(Badge<CacheEntryWriter>, u64 cache_key, u64 vary_key_to_keep)
+{
+    m_index.remove_variants_exceeding_limit(cache_key, vary_key_to_keep, [&](auto cache_key, auto vary_key) {
+        delete_entry(cache_key, vary_key);
+    });
+}
+
 void DiskCache::set_maximum_disk_cache_size(u64 maximum_disk_cache_size)
 {
     m_index.set_maximum_disk_cache_size(maximum_disk_cache_size);

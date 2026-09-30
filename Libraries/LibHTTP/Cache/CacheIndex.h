@@ -49,6 +49,7 @@ public:
     ErrorOr<void> create_entry(u64 cache_key, u64 vary_key, String url, NonnullRefPtr<HeaderList> request_headers, NonnullRefPtr<HeaderList> response_headers, u64 data_size, UnixDateTime request_time, UnixDateTime response_time);
     void remove_entry(u64 cache_key, u64 vary_key);
     void remove_entries_exceeding_cache_limit(Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
+    void remove_variants_exceeding_limit(u64 cache_key, u64 vary_key_to_keep, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
     void remove_entries_accessed_since(UnixDateTime, Function<void(u64 cache_key, u64 vary_key)> on_entry_removed);
 
     Optional<Entry const&> find_entry(u64 cache_key, HeaderList const& request_headers);
@@ -84,6 +85,7 @@ private:
 
     CacheIndex(Database::Database&, Statements, Limits, i64 total_estimated_size);
 
+    Vector<Entry>& entries_for_cache_key(u64 cache_key);
     Optional<Entry&> get_entry(u64 cache_key, u64 vary_key);
     void delete_entry(u64 cache_key, u64 vary_key);
     void adjust_total_estimated_size(i64 delta);
