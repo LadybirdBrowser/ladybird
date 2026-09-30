@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Noncopyable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
@@ -127,51 +128,33 @@ struct HitTestDisplayList::QueryContext {
     }
 };
 
+// A caret boundary resolved to the node identities a hit test item is compared against. The query
+// asks five questions of every candidate item, and each one is answered by the node a child of the
+// boundary's node names, so they are all resolved here, once, before the query runs.
+// The query points into the descent this context owns, so the context stays where it was built.
 struct CaretPositionQueryContext {
-    GC::Ref<DOM::Node const> node;
-    size_t offset { 0 };
+    AK_MAKE_NONCOPYABLE(CaretPositionQueryContext);
+    AK_MAKE_NONMOVABLE(CaretPositionQueryContext);
 
-    Layout::RustFFI::FfiCaretPositionQueryCallbacks callbacks()
+public:
+    Vector<u32, 8> boundary_descent;
+    Layout::RustFFI::FfiCaretPositionQuery query {};
+
+    CaretPositionQueryContext(DOM::Node const& node, size_t offset)
     {
-        return {
-            .context = this,
-            .shell_is_query_node = [](void* context_pointer, void* shell) -> bool {
-                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
-                return dom_node_for_shell(shell) == context.node.ptr();
-            },
-            .query_boundary_descends_to_shell = [](void* context_pointer, void* shell) -> bool {
-                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
-                auto const* shell_dom_node = dom_node_for_shell(shell);
-                if (!shell_dom_node)
-                    return false;
-                auto* node_after_boundary = context.node->child_at_index(context.offset);
-                while (node_after_boundary && node_after_boundary != shell_dom_node)
-                    node_after_boundary = node_after_boundary->first_child();
-                return node_after_boundary == shell_dom_node;
-            },
-            .query_boundary_follows_shell_end = [](void* context_pointer, void* shell, size_t end_offset_with_whitespace) -> bool {
-                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
-                auto const* shell_dom_node = dom_node_for_shell(shell);
-                return shell_dom_node
-                    && context.offset > 0
-                    && context.node->child_at_index(context.offset - 1) == shell_dom_node
-                    && end_offset_with_whitespace == shell_dom_node->length();
-            },
-            .query_is_adjacent_to_shell = [](void* context_pointer, void* shell) -> bool {
-                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
-                auto const* shell_dom_node = dom_node_for_shell(shell);
-                return shell_dom_node
-                    && shell_dom_node->parent() == context.node.ptr()
-                    && (context.offset == shell_dom_node->index() || context.offset == shell_dom_node->index() + 1);
-            },
-            .query_boundary_precedes_shell = [](void* context_pointer, void* shell) -> bool {
-                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
-                auto const* shell_dom_node = dom_node_for_shell(shell);
-                return shell_dom_node
-                    && shell_dom_node->parent() == context.node.ptr()
-                    && context.offset == shell_dom_node->index();
-            },
-        };
+        auto style_node_of = [](DOM::Node const* node) { return Layout::Node::style_node_of(node).value(); };
+        query.node = style_node_of(&node);
+        auto const* child_at_offset = node.child_at_index(offset);
+        query.child_at_offset = style_node_of(child_at_offset);
+        if (offset > 0) {
+            auto const* child_before_offset = node.child_at_index(offset - 1);
+            query.child_before_offset = style_node_of(child_before_offset);
+            query.child_before_offset_length = child_before_offset ? child_before_offset->length() : 0;
+        }
+        for (auto const* descendant = child_at_offset; descendant; descendant = descendant->first_child())
+            boundary_descent.append(style_node_of(descendant));
+        query.boundary_descent = boundary_descent.data();
+        query.boundary_descent_len = boundary_descent.size();
     }
 };
 
@@ -440,7 +423,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(DOM::Nod
     if (!is_current())
         return {};
     CaretPositionQueryContext context { node, offset };
-    auto line = Layout::RustFFI::layout_arena_hit_test_caret_line_for_position(m_arena->handle(), context.callbacks(), offset, affinity == TextAffinity::Downstream);
+    auto line = Layout::RustFFI::layout_arena_hit_test_caret_line_for_position(m_arena->handle(), context.query, offset, affinity == TextAffinity::Downstream);
     if (!line.has_line)
         return {};
     auto type = edge == CaretLineEdge::Start ? CaretPositionType::Before : CaretPositionType::After;
@@ -452,7 +435,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(DOM:
     if (!is_current())
         return {};
     CaretPositionQueryContext position_context { node, offset };
-    auto current_line = Layout::RustFFI::layout_arena_hit_test_caret_line_for_position(m_arena->handle(), position_context.callbacks(), offset, affinity == TextAffinity::Downstream);
+    auto current_line = Layout::RustFFI::layout_arena_hit_test_caret_line_for_position(m_arena->handle(), position_context.query, offset, affinity == TextAffinity::Downstream);
     if (!current_line.has_line)
         return {};
 
@@ -471,7 +454,7 @@ Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(DOM::Node co
     if (!is_current())
         return {};
     CaretPositionQueryContext context { node, offset };
-    auto line = Layout::RustFFI::layout_arena_hit_test_caret_line_for_position(m_arena->handle(), context.callbacks(), offset, affinity == TextAffinity::Downstream);
+    auto line = Layout::RustFFI::layout_arena_hit_test_caret_line_for_position(m_arena->handle(), context.query, offset, affinity == TextAffinity::Downstream);
     if (!line.has_line)
         return {};
     return CSSPixels::from_raw(Layout::RustFFI::layout_arena_hit_test_line_block_coordinate(m_arena->handle(), line.line_index));

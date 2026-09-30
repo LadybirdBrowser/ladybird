@@ -6,7 +6,7 @@
 
 use super::*;
 use crate::layout::LayoutNodeArena;
-use crate::painting::host::{FfiCaretPositionQueryCallbacks, FfiHitTestQueryCallbacks};
+use crate::painting::host::{FfiCaretPositionQuery, FfiHitTestQueryCallbacks};
 use crate::painting::text_fragment::CaretMatch;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -142,7 +142,7 @@ impl HitTestList {
     pub(crate) fn caret_line_for_position(
         &self,
         arena: &LayoutNodeArena,
-        callbacks: &FfiCaretPositionQueryCallbacks,
+        query: &FfiCaretPositionQuery,
         offset: usize,
         affinity_is_downstream: bool,
     ) -> Option<usize> {
@@ -153,7 +153,7 @@ impl HitTestList {
                 for caret_item_index in line.first_caret_item_index..=line.last_caret_item_index {
                     let item_index = self.caret_item_indices[caret_item_index];
                     let position_match =
-                        self.item_position_match(arena, callbacks, item_index, offset, affinity_is_downstream);
+                        self.item_position_match(arena, query, item_index, offset, affinity_is_downstream);
                     match position_match {
                         CaretMatch::None => continue,
                         CaretMatch::SoftWrapFallback if !allow_soft_wrap_fallback => continue,
@@ -168,7 +168,7 @@ impl HitTestList {
     fn item_position_match(
         &self,
         arena: &LayoutNodeArena,
-        callbacks: &FfiCaretPositionQueryCallbacks,
+        query: &FfiCaretPositionQuery,
         item_index: usize,
         offset: usize,
         affinity_is_downstream: bool,
@@ -176,42 +176,39 @@ impl HitTestList {
         let item = &self.items[item_index];
         match item.kind {
             HitTestItemKind::TextFragment => resolve::with_item_fragment(arena, item, |fragment| {
-                let shell = arena.shell_if_live(fragment.layout_node);
-                if shell.is_null() {
-                    return CaretMatch::None;
-                }
-                if callbacks.shell_is_query_node(shell) {
+                let node = resolve::row_dom_style_node(arena, fragment.layout_node);
+                if query.is_query_node(node) {
                     return crate::painting::text_fragment::caret_match(fragment, offset, affinity_is_downstream);
                 }
-                if fragment.dom_start_offset_in_node == 0 && callbacks.query_boundary_descends_to_shell(shell) {
+                if fragment.dom_start_offset_in_node == 0 && query.boundary_descends_to(node) {
                     return CaretMatch::Direct;
                 }
-                if callbacks.query_boundary_follows_shell_end(shell, fragment.dom_end_offset_with_trailing_whitespace) {
+                if query.boundary_follows_end(node, fragment.dom_end_offset_with_trailing_whitespace) {
                     return CaretMatch::Direct;
                 }
                 CaretMatch::None
             })
             .unwrap_or(CaretMatch::None),
             HitTestItemKind::EmptyLine => {
-                let shell = arena.shell_if_live(item.caret_node);
+                let node = resolve::row_dom_style_node(arena, item.caret_node);
                 let matches = if super::resolve::empty_line_is_anchored_to_its_forced_break(arena, item) {
-                    !shell.is_null() && callbacks.query_boundary_precedes_shell(shell)
+                    query.boundary_precedes(node)
                 } else {
-                    !shell.is_null() && item.caret_offset == offset && callbacks.shell_is_query_node(shell)
+                    item.caret_offset == offset && query.is_query_node(node)
                 };
                 if matches { CaretMatch::Direct } else { CaretMatch::None }
             }
             HitTestItemKind::EmptyEditable => {
-                let shell = arena.shell_if_live(item.paintable);
-                if !shell.is_null() && offset == 0 && callbacks.shell_is_query_node(shell) {
+                let node = resolve::row_dom_style_node(arena, item.paintable);
+                if offset == 0 && query.is_query_node(node) {
                     CaretMatch::Direct
                 } else {
                     CaretMatch::None
                 }
             }
             HitTestItemKind::Box => {
-                let shell = arena.shell_if_live(item.paintable);
-                if !shell.is_null() && callbacks.query_is_adjacent_to_shell(shell) {
+                let node = resolve::row_dom_style_node(arena, item.paintable);
+                if query.is_adjacent_to(node) {
                     CaretMatch::Direct
                 } else {
                     CaretMatch::None
