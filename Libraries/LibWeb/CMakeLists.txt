@@ -354,6 +354,7 @@ set(SOURCES
     Fetch/Engine/WholeBodyTransport.cpp
     Fetch/Fetching/BodyStreamPullSource.cpp
     Fetch/Fetching/Checks.cpp
+    Fetch/Fetching/ClientContextSnapshots.cpp
     Fetch/Fetching/FetchedDataReceiver.cpp
     Fetch/Fetching/NetworkBodyPump.cpp
     Fetch/Fetching/Fetching.cpp
