@@ -11,6 +11,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/Function.h>
+#include <AK/HashTable.h>
 #include <AK/MemoryStream.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
@@ -320,6 +321,8 @@ private:
     Optional<String> m_reason_phrase;
 
     NonnullRefPtr<HTTP::HeaderList> m_response_headers;
+    // Cache the first spelling of each header name to avoid repeated HeaderList searches.
+    HashTable<ByteString, CaseInsensitiveASCIIStringTraits> m_received_response_header_names;
     bool m_sent_response_headers_to_client { false };
 
     AllocatingMemoryStream m_response_buffer;
