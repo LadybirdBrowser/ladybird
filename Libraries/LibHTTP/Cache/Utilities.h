@@ -57,6 +57,7 @@ struct CacheEntryData {
 Optional<CacheEntryData> cache_entry_data_for_file(LexicalPath const&);
 
 bool is_cacheable(StringView method, HeaderList const&);
+bool has_preconditions(HeaderList const& request_headers);
 bool is_cacheable(u32 status_code, HeaderList const&);
 bool is_header_exempted_from_storage(StringView name);
 

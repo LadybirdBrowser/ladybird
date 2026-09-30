@@ -154,6 +154,22 @@ TEST_CASE(newer_response_replaces_entry_with_same_vary_key)
     EXPECT_EQ(entry->response_body.bytes(), "new"sv.bytes());
 }
 
+TEST_CASE(not_modified_responses_are_not_stored)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = HTTP::HeaderList::create({ { "If-None-Match"sv, "\"v1\""sv } });
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "ETag"sv, "\"v1\""sv },
+    });
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 304, "Not Modified"sv, *response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 304, *response_headers, immutable_bytes({}));
+
+    EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
+}
+
 TEST_CASE(responses_varying_on_cookie_are_not_reused)
 {
     auto cache = HTTP::MemoryCache::create();
