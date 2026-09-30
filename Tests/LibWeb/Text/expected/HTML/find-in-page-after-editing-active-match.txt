@@ -1,0 +1,7 @@
+Selection after editing the active match: ""
+Selection after inserting text at the start of the active match: "needle"
+Selection after inserting text at the end of the active match: "needle"
+Selection after removing part of the active match: ""
+Selection after inserting a node into the active match: ""
+Next match after deleting the active match: offset 8
+Next match after changing the case of the active match: offset 0

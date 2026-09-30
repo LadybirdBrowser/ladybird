@@ -384,6 +384,7 @@ public:
     FindInPageResult find_in_page_next_match();
     FindInPageResult find_in_page_previous_match();
     void find_in_page_end();
+    void clear_find_in_page_active_match();
 
     bool listen_for_dom_mutations() const { return m_listen_for_dom_mutations; }
     void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
@@ -419,7 +420,8 @@ private:
         Backward,
     };
     FindInPageResult perform_find_in_page_query(FindInPageQuery const&, Optional<SearchDirection> = {});
-    void update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches);
+    void update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> matches);
+    GC::Ptr<DOM::Range> find_in_page_active_match();
     void set_find_in_page_active_match(GC::Ptr<DOM::Range>);
 
     void on_pending_dialog_closed();

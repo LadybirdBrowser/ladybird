@@ -1677,39 +1677,49 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
 
     Vector<GC::Root<DOM::Range>> all_matches;
 
-    auto active_range = [](auto& document) -> GC::Ptr<DOM::Range> {
-        auto selection = document.get_selection();
-        if (!selection || selection->is_collapsed())
-            return {};
+    auto active_match = find_in_page_active_match();
+    auto search_start_range = [&]() -> GC::Ptr<DOM::Range> {
+        auto active_document = local_traversable()->active_document();
+        if (auto selection = active_document ? active_document->get_selection() : nullptr; selection && selection->range())
+            return selection->range();
+        return active_match;
+    }();
+    auto search_starts_from_active_match = search_start_range && search_start_range == active_match;
+    clear_selection();
 
-        return selection->range();
-    };
-
-    auto find_current_match_index = [this](DOM::Range& range, auto const& matches) -> Optional<size_t> {
+    auto find_current_match_index = [this](DOM::BoundaryPoint const& boundary_point, auto const& matches) -> Optional<size_t> {
         // Always return the first match if there is no active query.
         if (!m_last_find_in_page_query.has_value())
             return 0;
 
-        for (size_t i = 0; i < matches.size(); ++i) {
-            auto boundary_comparison_or_error = matches[i]->compare_boundary_points(DOM::Range::HowToCompareBoundaryPoints::START_TO_START, range);
-            if (!boundary_comparison_or_error.is_error() && boundary_comparison_or_error.value() >= 0)
-                return i;
-        }
-
-        return {};
+        return matches.find_first_index_if([&](auto const& match) {
+            auto position = DOM::position_of_boundary_point_relative_to_other_boundary_point_in_flat_tree(match->start(), boundary_point);
+            return position.has_value() && *position != DOM::RelativeBoundaryPointPosition::Before;
+        });
     };
 
     auto should_update_match_index = false;
+    auto active_match_is_still_a_match = false;
     for (auto const& document : documents_in_active_window()) {
         auto matches = document->find_matching_text(query.string, query.case_sensitivity);
-        if (GC::Ptr { document.ptr() } == local_traversable()->active_document()) {
-            if (auto range = active_range(*document)) {
-                auto new_match_index = find_current_match_index(*range, matches);
+        if (search_start_range) {
+            if (&search_start_range->start_container()->document() == document.ptr()) {
+                auto boundary_point = direction == SearchDirection::Forward && !search_starts_from_active_match
+                    ? search_start_range->end()
+                    : search_start_range->start();
+                auto new_match_index = find_current_match_index(boundary_point, matches);
+                if (search_starts_from_active_match && new_match_index.has_value()) {
+                    auto const& match = *matches[*new_match_index];
+                    active_match_is_still_a_match = match.start_container() == active_match->start_container()
+                        && match.start_offset() == active_match->start_offset()
+                        && match.end_container() == active_match->end_container()
+                        && match.end_offset() == active_match->end_offset();
+                }
                 should_update_match_index = true;
                 m_find_in_page_match_index = new_match_index.value_or(0) + all_matches.size();
-            } else {
-                m_find_in_page_match_index = all_matches.size();
             }
+        } else if (GC::Ptr { document.ptr() } == local_traversable()->active_document()) {
+            m_find_in_page_match_index = all_matches.size();
         }
 
         all_matches.extend(move(matches));
@@ -1724,10 +1734,12 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
 
     if (direction.has_value() && should_update_match_index) {
         if (direction == SearchDirection::Forward) {
-            if (m_find_in_page_match_index >= all_matches.size() - 1) {
-                m_find_in_page_match_index = 0;
-            } else {
-                m_find_in_page_match_index++;
+            if (active_match_is_still_a_match) {
+                if (m_find_in_page_match_index >= all_matches.size() - 1) {
+                    m_find_in_page_match_index = 0;
+                } else {
+                    m_find_in_page_match_index++;
+                }
             }
         } else {
             if (m_find_in_page_match_index == 0) {
@@ -1738,7 +1750,7 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
         }
     }
 
-    update_find_in_page_selection(all_matches);
+    update_find_in_page_active_match(all_matches);
 
     return Page::FindInPageResult {
         .current_match_index = m_find_in_page_match_index,
@@ -1754,7 +1766,6 @@ Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
     if (query.string.is_empty()) {
         m_last_find_in_page_query = {};
         set_find_in_page_active_match(nullptr);
-        clear_selection();
         return {};
     }
 
@@ -1784,33 +1795,42 @@ Page::FindInPageResult Page::find_in_page_previous_match()
     return result;
 }
 
-void Page::find_in_page_end()
+void Page::clear_find_in_page_active_match()
 {
     set_find_in_page_active_match(nullptr);
 }
 
-void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
+void Page::find_in_page_end()
+{
+    auto active_match = find_in_page_active_match();
+    set_find_in_page_active_match(nullptr);
+    if (!active_match || active_match->collapsed())
+        return;
+
+    auto selection = active_match->start_container()->document().get_selection();
+    if (!selection || selection->range())
+        return;
+    auto start = active_match->start();
+    auto end = active_match->end();
+    MUST(selection->set_base_and_extent(start.node, start.offset, end.node, end.offset));
+}
+
+void Page::update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> matches)
 {
     if (matches.is_empty()) {
         set_find_in_page_active_match(nullptr);
-        clear_selection();
         return;
     }
 
-    clear_selection();
+    if (m_find_in_page_match_index >= matches.size())
+        m_find_in_page_match_index = 0;
 
     auto current_range = matches[m_find_in_page_match_index];
     set_find_in_page_active_match(current_range.ptr());
+
     auto common_ancestor_container = current_range->common_ancestor_container();
-    auto& document = common_ancestor_container->document();
-    if (!document.window())
+    if (!common_ancestor_container->document().window())
         return;
-
-    auto selection = document.get_selection();
-    if (!selection)
-        return;
-
-    selection->add_range(*current_range);
 
     if (auto element = common_ancestor_container->parent_element()) {
         DOM::Element::ScrollIntoViewOptions scroll_options;
@@ -1819,6 +1839,18 @@ void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
         scroll_options.behavior = DOM::Element::ScrollBehavior::Instant;
         element->scroll_into_view(scroll_options, nullptr);
     }
+}
+
+GC::Ptr<DOM::Range> Page::find_in_page_active_match()
+{
+    if (!m_find_in_page_active_match_document)
+        return {};
+    if (!m_find_in_page_active_match_document->is_fully_active()) {
+        set_find_in_page_active_match(nullptr);
+        return {};
+    }
+    m_find_in_page_active_match_document->collapse_find_in_page_active_match_if_its_text_changed();
+    return m_find_in_page_active_match_document->find_in_page_active_match();
 }
 
 void Page::set_find_in_page_active_match(GC::Ptr<DOM::Range> active_match)
