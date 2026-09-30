@@ -89,6 +89,7 @@ interface Internals {
 
     undefined findInPage(DOMString query);
     undefined findInPageNextMatch();
+    undefined findInPageEnd();
 
     undefined setClipboardFile(DOMString name, DOMString mimeType, DOMString data);
 

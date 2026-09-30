@@ -233,6 +233,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     find_in_page(Web::PageId page_id, Utf16String query, AK::CaseSensitivity case_sensitivity) =|
     find_in_page_next_match(Web::PageId page_id) =|
     find_in_page_previous_match(Web::PageId page_id) =|
+    find_in_page_end(Web::PageId page_id) =|
 
     set_content_blockers(Core::AnonymousBuffer patterns) =|
     set_autoplay_settings(Web::PageId page_id, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist) =|

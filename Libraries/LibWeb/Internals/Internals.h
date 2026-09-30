@@ -113,6 +113,7 @@ public:
 
     void find_in_page(Utf16String const& query);
     void find_in_page_next_match();
+    void find_in_page_end();
 
     WebIDL::ExceptionOr<void> set_clipboard_file(Utf16String const& name, Utf16String const& mime_type, Utf16String const& data);
 

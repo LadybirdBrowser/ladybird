@@ -1784,6 +1784,11 @@ Page::FindInPageResult Page::find_in_page_previous_match()
     return result;
 }
 
+void Page::find_in_page_end()
+{
+    set_find_in_page_active_match(nullptr);
+}
+
 void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
 {
     if (matches.is_empty()) {

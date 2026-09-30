@@ -293,6 +293,7 @@ private:
     virtual void find_in_page(Web::PageId page_id, Utf16String query, CaseSensitivity) override;
     virtual void find_in_page_next_match(Web::PageId page_id) override;
     virtual void find_in_page_previous_match(Web::PageId page_id) override;
+    virtual void find_in_page_end(Web::PageId page_id) override;
 
     virtual void paste(Web::PageId page_id, Utf16String text) override;
     virtual void paste_from_clipboard(Web::PageId page_id) override;

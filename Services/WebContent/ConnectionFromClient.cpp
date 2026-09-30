@@ -2615,6 +2615,15 @@ void ConnectionFromClient::find_in_page_previous_match(Web::PageId page_id)
     async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 
+void ConnectionFromClient::find_in_page_end(Web::PageId page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    page->page().find_in_page_end();
+}
+
 void ConnectionFromClient::paste(Web::PageId page_id, Utf16String text)
 {
     if (auto page = this->page(page_id); page.has_value()) {

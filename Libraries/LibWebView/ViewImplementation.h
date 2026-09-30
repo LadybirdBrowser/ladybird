@@ -238,6 +238,7 @@ public:
     void find_in_page(Utf16String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
     void find_in_page_next_match();
     void find_in_page_previous_match();
+    void find_in_page_end();
 
     void get_source();
 

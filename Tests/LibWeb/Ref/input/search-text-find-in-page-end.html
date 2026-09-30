@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-find-in-page-end-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+</style>
+<p>Find the needle in this haystack</p>
+<script>
+internals.findInPage("needle");
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        internals.findInPageEnd();
+        requestAnimationFrame(() => {
+            internals.signalTestIsDone("PASS");
+        });
+    });
+});
+</script>
+</html>
