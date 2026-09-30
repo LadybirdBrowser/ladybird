@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #sprite {
+        position: relative;
+        overflow: hidden;
+        width: 40px;
+        height: 40px;
+    }
+    #sprite svg {
+        position: absolute;
+        left: -100px;
+        top: -100px;
+    }
+    #repeated {
+        display: grid;
+        grid-template-columns: repeat(3, 20px);
+        width: 60px;
+        height: 40px;
+    }
+</style>
+<div id="sprite">
+    <svg width="20000" height="676">
+        <defs>
+            <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3"/>
+            </filter>
+            <mask id="mask" maskUnits="userSpaceOnUse" x="0" y="0" width="20000" height="676">
+                <rect width="20000" height="676" fill="white" filter="url(#blur)"/>
+            </mask>
+        </defs>
+        <g mask="url(#mask)">
+            <rect x="96" y="96" width="48" height="48" fill="green" filter="url(#blur)"/>
+        </g>
+    </svg>
+</div>
+<div id="repeated">
+    <svg width="20" height="20"><rect width="20" height="20" fill="green"/><rect x="5" y="5" width="10" height="10" fill="white"/></svg>
+    <svg width="20" height="20"><rect width="20" height="20" fill="green"/><rect x="5" y="5" width="10" height="10" fill="white"/></svg>
+    <svg width="20" height="20"><rect width="20" height="20" fill="green"/><rect x="5" y="5" width="10" height="10" fill="white"/></svg>
+    <svg width="20" height="20"><rect width="20" height="20" fill="green"/><rect x="5" y="5" width="10" height="10" fill="white"/></svg>
+    <svg width="20" height="20"><rect width="20" height="20" fill="green"/><rect x="5" y="5" width="10" height="10" fill="white"/></svg>
+    <svg width="20" height="20"><rect width="20" height="20" fill="green"/><rect x="5" y="5" width="10" height="10" fill="white"/></svg>
+</div>

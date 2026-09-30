@@ -25,6 +25,7 @@ use crate::painting::record::paint::background_resolution::{
 };
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
 use crate::painting::record::paint::table_backgrounds;
+use crate::painting::visual_context::SpatialData;
 use libgfx_rust::{CompositingAndBlendingOperator, FloatRect, FloatSize, IntRect, IntSize, MaskKind, ScalingMode};
 
 const MAX_DIRECT_GRADIENT_TILES: f64 = 1000.0;
@@ -684,23 +685,37 @@ fn paint_image_layer<O: Observer>(
                     1.0,
                 ),
             );
+            let tile_size = IntSize {
+                width: dest_rect.width,
+                height: dest_rect.height,
+            };
+            let tree = recorder.paint_state.visual_context.tree.as_ref().unwrap();
+            let mut spatial = recorder.recorder.accumulated_visual_context().spatial;
+            let mut is_untransformed = recorder.recorder.ambient_inline_transform().is_none();
+            while is_untransformed && spatial != VISUAL_VIEWPORT_NODE_INDEX {
+                let node = &tree.spatial_nodes[spatial.0 as usize];
+                is_untransformed = !matches!(node.data, SpatialData::Transform(_) | SpatialData::Perspective(_));
+                spatial = node.parent;
+            }
+            // OPTIMIZATION: Paint a single untransformed SVG tile directly to keep filters clipped to the background.
+            //               Rasterize other tiles to preserve placement, subpixel opacity and seamless boundaries.
+            if inline_operator == CompositingAndBlendingOperator::Normal && tile_count == 1.0 && is_untransformed {
+                recorder
+                    .recorder
+                    .paint_nested_display_list(display_list_id, dest_rect.to_float(), tile_size);
+                return;
+            }
             let group = recorder.recorder.begin_repeated_tile();
             recorder.recorder.paint_nested_display_list(
                 display_list_id,
                 FloatRect::new(0.0, 0.0, dest_rect.width as f32, dest_rect.height as f32),
-                IntSize {
-                    width: dest_rect.width,
-                    height: dest_rect.height,
-                },
+                tile_size,
             );
             recorder.recorder.finish_repeated_tile(
                 group,
                 dest_rect.to_float(),
                 clip_rect,
-                IntSize {
-                    width: dest_rect.width,
-                    height: dest_rect.height,
-                },
+                tile_size,
                 FloatSize {
                     width: dest_rect.width as f32,
                     height: dest_rect.height as f32,

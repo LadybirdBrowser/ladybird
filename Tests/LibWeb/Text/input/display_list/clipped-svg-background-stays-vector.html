@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #target {
+        width: 20px;
+        height: 20px;
+        background-position: -100px -100px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    promiseTest(async () => {
+        const target = document.getElementById("target");
+        const source = "data:image/svg+xml," + encodeURIComponent(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="20000" height="676" viewBox="0 0 20000 676">
+                <rect width="20000" height="676" fill="green"/>
+            </svg>`
+        );
+        target.style.backgroundImage = `url("${source}")`;
+        const image = new Image();
+        image.src = source;
+        await image.decode();
+
+        function check(label) {
+            const lines = internals.dumpDisplayList().split("\n");
+            const tiles = lines.filter(line => line.trimStart().startsWith("DrawRepeatedTile@"));
+            const images = lines.filter(line => line.trimStart().startsWith("PaintNestedDisplayList@"));
+            println(`${label}: ${tiles.length} raster tiles, ${images.length} vector images`);
+        }
+
+        check("clipped sprite");
+        document.body.style.transform = "translate(0.5px, 0.5px)";
+        check("fractionally translated ancestor");
+        document.body.style.transform = "none";
+        check("untransformed sprite restored");
+        target.style.transform = "scale(1.5)";
+        check("fractionally scaled sprite");
+        target.style.transform = "none";
+        target.style.backgroundPosition = "-19990px -100px";
+        check("sprite tile boundary");
+        target.style.backgroundPosition = "0 0";
+        target.style.width = "120px";
+        target.style.backgroundSize = "20px 20000px";
+        check("clipped on the other repeating axis");
+        target.style.height = "80px";
+        target.style.backgroundSize = "20px 20px";
+        check("small repeated image");
+        target.style.width = "20px";
+        target.style.height = "20px";
+        target.style.backgroundSize = "20000px 676px";
+        target.style.backgroundBlendMode = "multiply";
+        check("blended sprite remains isolated");
+        target.style.backgroundBlendMode = "normal";
+        target.style.backgroundSize = "1px 20000px";
+        target.style.width = "1001px";
+        check("many clipped tiles remain bounded");
+    });
+</script>
