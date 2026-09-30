@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p>outer text</p>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<!DOCTYPE html><p>inner text</p>";
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const iframeWindow = iframe.contentWindow;
+        const innerResult = iframeWindow.find("inner");
+        const iframeSelection = iframeWindow.getSelection().toString();
+        const outerResult = iframeWindow.find("outer");
+        const topLevelSelection = getSelection().toString();
+        iframe.remove();
+
+        println(`iframe window.find("inner"): ${innerResult}`);
+        println(`iframe selection: "${iframeSelection}"`);
+        println(`iframe window.find("outer"): ${outerResult}`);
+        println(`top-level selection: "${topLevelSelection}"`);
+    });
+</script>

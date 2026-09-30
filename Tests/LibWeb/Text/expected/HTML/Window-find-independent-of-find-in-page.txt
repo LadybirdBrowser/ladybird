@@ -1,0 +1,4 @@
+window.find("needle"): true
+window.find("needle"): false
+window.find("other"): true
+Selection after the next find-in-page match: "needle"

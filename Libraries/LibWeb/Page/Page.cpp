@@ -1714,16 +1714,12 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
     if (direction.has_value() && should_update_match_index) {
         if (direction == SearchDirection::Forward) {
             if (m_find_in_page_match_index >= all_matches.size() - 1) {
-                if (query.wrap_around == WrapAround::No)
-                    return {};
                 m_find_in_page_match_index = 0;
             } else {
                 m_find_in_page_match_index++;
             }
         } else {
             if (m_find_in_page_match_index == 0) {
-                if (query.wrap_around == WrapAround::No)
-                    return {};
                 m_find_in_page_match_index = all_matches.size() - 1;
             } else {
                 m_find_in_page_match_index--;
@@ -1731,7 +1727,7 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
         }
     }
 
-    update_find_in_page_selection(all_matches, query.clear_selection_on_no_match);
+    update_find_in_page_selection(all_matches);
 
     return Page::FindInPageResult {
         .current_match_index = m_find_in_page_match_index,
@@ -1776,11 +1772,10 @@ Page::FindInPageResult Page::find_in_page_previous_match()
     return result;
 }
 
-void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches, ClearSelectionOnNoMatch clear_selection_on_no_match)
+void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
 {
     if (matches.is_empty()) {
-        if (clear_selection_on_no_match == ClearSelectionOnNoMatch::Yes)
-            clear_selection();
+        clear_selection();
         return;
     }
 

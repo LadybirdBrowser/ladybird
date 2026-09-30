@@ -1,0 +1,10 @@
+window.find("needle"): true, selection "needle" in second
+window.find("needle"): true, selection "needle" in first
+window.find("needle"): true, selection "needle" in slotted
+window.find("needle"): true, selection "needle" in unslotted
+window.find("needle"): true, selection "needle" in empty-host-content
+window.find("needle"): true, selection "needle" in unassigned-host-content
+window.find("needle"): true, selection "needle" in after
+window.find("needle"): false, selection "needle" in after
+window.find("needle") from the start of an empty host: true, selection "needle" in empty-host-content
+window.find("needle") from the end of a host's children: true, selection "needle" in after

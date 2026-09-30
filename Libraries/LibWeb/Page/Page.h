@@ -369,19 +369,9 @@ public:
 
     void clear_selection();
 
-    enum class WrapAround {
-        Yes,
-        No,
-    };
-    enum class ClearSelectionOnNoMatch {
-        Yes,
-        No,
-    };
     struct FindInPageQuery {
         Utf16String string {};
         CaseSensitivity case_sensitivity { CaseSensitivity::CaseInsensitive };
-        WrapAround wrap_around { WrapAround::Yes };
-        ClearSelectionOnNoMatch clear_selection_on_no_match { ClearSelectionOnNoMatch::Yes };
     };
     struct FindInPageResult {
         size_t current_match_index { 0 };
@@ -390,7 +380,6 @@ public:
     FindInPageResult find_in_page(FindInPageQuery const&);
     FindInPageResult find_in_page_next_match();
     FindInPageResult find_in_page_previous_match();
-    Optional<FindInPageQuery> last_find_in_page_query() const { return m_last_find_in_page_query; }
 
     bool listen_for_dom_mutations() const { return m_listen_for_dom_mutations; }
     void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
@@ -426,7 +415,7 @@ private:
         Backward,
     };
     FindInPageResult perform_find_in_page_query(FindInPageQuery const&, Optional<SearchDirection> = {});
-    void update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches, ClearSelectionOnNoMatch);
+    void update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches);
 
     void on_pending_dialog_closed();
 
