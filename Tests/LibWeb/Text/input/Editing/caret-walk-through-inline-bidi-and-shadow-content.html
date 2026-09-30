@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .host { display: block; }
+    #bidi { direction: rtl; unicode-bidi: bidi-override; }
+    #wrap { width: 6ch; }
+</style>
+<div id="plain" contenteditable="true">alpha <b>beta</b><i>gamma</i> delta<br>second line</div>
+<div id="wrap" contenteditable="true">one two three four five six</div>
+<div id="bidi" contenteditable="true">abc <span>def</span> ghi</div>
+<div id="host" class="host" contenteditable="true"><span slot="s">slotted one</span><span slot="s">slotted two</span></div>
+<div id="empty" contenteditable="true"></div>
+<div id="nested" contenteditable="true"><div><div><span>deep</span></div></div><p>para</p></div>
+<div id="breaks" contenteditable="true">one<br><br>three<br></div>
+<div id="atomic" contenteditable="true">before<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="20" height="20"><span style="display:inline-block;width:20px">x</span>after</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = "<div>before <slot name='s'></slot> after</div>";
+
+        const keys = ["Right", "Left", "Down", "Up", "Home", "End"];
+        const lines = [];
+
+        // Names a node by its child indices from the editor, or from the shadow root it is in, so that two nodes of
+        // the same name at the same offset tell apart.
+        function describe(node, editor) {
+            if (node === null)
+                return "null";
+            const path = [];
+            let current = node;
+            while (current !== editor && current.parentNode !== null) {
+                path.unshift(Array.prototype.indexOf.call(current.parentNode.childNodes, current));
+                current = current.parentNode;
+                if (current instanceof ShadowRoot) {
+                    path.unshift("shadow");
+                    break;
+                }
+            }
+            if (current !== editor && !(current instanceof ShadowRoot))
+                path.unshift("outside");
+            return `${node.nodeName}[${path.join("/")}]`;
+        }
+
+        function walk(id) {
+            const editor = document.getElementById(id);
+            editor.focus();
+            const selection = getSelection();
+            const first = editor.firstChild ?? editor;
+            selection.setBaseAndExtent(first, 0, first, 0);
+            for (const key of keys) {
+                for (let i = 0; i < 6; ++i) {
+                    internals.sendKey(editor, key);
+                    lines.push(`${id} ${key} ${describe(selection.anchorNode, editor)}:${selection.anchorOffset}`);
+                }
+            }
+        }
+
+        // The same walk from a boundary named by the element and a child index, so the caret sits
+        // beside a child rather than inside a text node.
+        function walkFromElementBoundary(id) {
+            const editor = document.getElementById(id);
+            editor.focus();
+            const selection = getSelection();
+            for (let offset = 0; offset <= editor.childNodes.length; ++offset) {
+                selection.setBaseAndExtent(editor, offset, editor, offset);
+                for (const key of keys) {
+                    internals.sendKey(editor, key);
+                    lines.push(`${id}@${offset} ${key} ${describe(selection.anchorNode, editor)}:${selection.anchorOffset}`);
+                }
+            }
+        }
+
+        for (const id of ["plain", "wrap", "bidi", "host", "empty", "nested", "atomic", "breaks"])
+            walk(id);
+        for (const id of ["plain", "atomic", "nested", "host", "breaks"])
+            walkFromElementBoundary(id);
+
+        // Point queries land on the same machinery from the other direction.
+        const plain = document.getElementById("plain");
+        const rect = plain.getBoundingClientRect();
+        for (let x = 0; x < 60; x += 10) {
+            const position = document.caretPositionFromPoint(rect.x + x, rect.y + 4);
+            lines.push(`point ${x} ${position === null ? "null" : describe(position.offsetNode, plain) + ":" + position.offset}`);
+        }
+
+        for (const line of lines)
+            println(line);
+    });
+</script>
