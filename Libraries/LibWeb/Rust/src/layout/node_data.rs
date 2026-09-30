@@ -21,6 +21,9 @@ pub const GENERATED_FOR_LAST_SYNTHETIC: u8 = 9;
 /// `CSS::PseudoElement::Selection`, as the style engine numbers an element's pseudo-element
 /// records. It generates no box, so no row names it.
 pub const SELECTION_PSEUDO_KIND: u8 = 7;
+/// `CSS::PseudoElement::SearchText`, as the style engine numbers an element's pseudo-element
+/// records. It generates no box either.
+pub const SEARCH_TEXT_PSEUDO_KIND: u8 = 6;
 
 /// The pseudo-element a row generated for `generated_for` stands for, as the style engine numbers
 /// an element's pseudo-element records. `Layout::Node::encode_generated_for` is its inverse.

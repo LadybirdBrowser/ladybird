@@ -5,6 +5,9 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::record::paint::text::SelectionStyleAnswer;
+use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub(crate) struct PendingRecording {
@@ -29,17 +32,30 @@ pub struct PaintState {
     pub(crate) hit_test_list_generation: u64,
     pub(crate) last_recording: Option<Arc<crate::painting::record::RecordingOutput>>,
     /// The selection, shared with the frames published while it holds.
-    pub(crate) selection: Option<Arc<crate::painting::selection::SelectionRange>>,
+    pub(crate) selection: Option<Arc<SelectionRange>>,
     /// The `::selection` styles, shared with the frames published while they hold, so a write
     /// copies the table only while a frame still holds it.
     pub(crate) selection_pseudo_styles: Arc<SelectionPseudoStyles>,
+    /// The active find-in-page match, shared with the frames published while it holds.
+    pub(crate) search_text: Option<Arc<SelectionRange>>,
+    /// The `::search-text` styles, shared as the `::selection` styles are.
+    pub(crate) search_text_pseudo_styles: Arc<SelectionPseudoStyles>,
 }
 
-/// Each row's committed `::selection` style.
-pub(crate) type SelectionPseudoStyles =
-    std::collections::HashMap<NodeSlotId, Arc<crate::painting::record::paint::text::SelectionStyleAnswer>>;
+/// Each row's committed style for one highlight pseudo-element.
+pub(crate) type SelectionPseudoStyles = HashMap<NodeSlotId, Arc<SelectionStyleAnswer>>;
 
 impl PaintState {
+    pub(crate) fn highlight_pseudo_styles_mut(
+        &mut self,
+        highlight: HighlightPseudoElement,
+    ) -> &mut Arc<SelectionPseudoStyles> {
+        match highlight {
+            HighlightPseudoElement::Selection => &mut self.selection_pseudo_styles,
+            HighlightPseudoElement::SearchText => &mut self.search_text_pseudo_styles,
+        }
+    }
+
     pub(crate) fn update_root_background_source(
         &mut self,
         arena: &crate::layout::LayoutNodeArena,

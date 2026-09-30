@@ -245,16 +245,20 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
     // https://drafts.csswg.org/css-pseudo-4/#highlight-text
     // Any text decorations introduced by each highlight pseudo-element are stacked in the same order as their
     // backgrounds over the text's original decorations and are all drawn, each decoration in its own color.
-    if let Some(selection_text_decoration) = &span.selection_text_decoration {
+    for text_decoration in span
+        .highlights
+        .iter()
+        .filter_map(|overlay| overlay.text_decoration.as_ref())
+    {
         let glyph_height = first_available_font(arena, text_parent).map_or(CssPixels::from_raw(0), |font| {
             CssPixels::nearest_value_for_f32(font.facts().pixel_size)
         });
         let thickness = resolve_text_decoration_thickness(arena, text_parent, text_parent, glyph_height);
         push_set(
             text_parent,
-            &selection_text_decoration.lines[..selection_text_decoration.line_count as usize],
-            selection_text_decoration.style,
-            selection_text_decoration.color,
+            &text_decoration.lines[..text_decoration.line_count as usize],
+            text_decoration.style,
+            text_decoration.color,
             thickness,
         );
     }

@@ -1651,9 +1651,11 @@ impl LayoutNodeArena {
             Arc::make_mut(self.layer_image_paint_facts.get_mut()).remove(&id);
         }
         self.svg_paint_resources.forget_slot(id);
-        let selection_pseudo_styles = &mut self.paint_state.get_mut().selection_pseudo_styles;
-        if selection_pseudo_styles.contains_key(&id) {
-            Arc::make_mut(selection_pseudo_styles).remove(&id);
+        for highlight in crate::painting::selection::HighlightPseudoElement::ALL {
+            let styles = self.paint_state.get_mut().highlight_pseudo_styles_mut(highlight);
+            if styles.contains_key(&id) {
+                Arc::make_mut(styles).remove(&id);
+            }
         }
         let data = self.data_mut(index);
         debug_assert!(

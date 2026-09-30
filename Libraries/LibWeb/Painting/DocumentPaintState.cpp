@@ -169,45 +169,32 @@ void DocumentPaintState::reset_selection_states(DOM::Document& document)
     Layout::RustFFI::render_state_clear_selection(m_layout_node_arena->host(), viewport_row_slot(document));
 }
 
-void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM::Range& range)
+static void append_highlight_entry(Vector<Layout::RustFFI::FfiSelectionEntry>& entries, DOM::Node& container, SelectionState state)
 {
-    Vector<Layout::RustFFI::FfiSelectionEntry> entries;
-    auto set_selection_state = [&](DOM::Node& container, SelectionState state) {
-        if (is<DOM::Text>(container)) {
-            if (auto* layout_node = container.unsafe_layout_node()) {
-                entries.append({
-                    .is_text_node_entry = true,
-                    .layout_node = Layout::Node::slot_id(layout_node),
-                    .state = to_underlying(state),
-                });
-            }
-            return;
-        }
+    if (is<DOM::Text>(container)) {
         if (auto* layout_node = container.unsafe_layout_node()) {
-            if (has_committed_box(*layout_node)) {
-                entries.append({
-                    .is_text_node_entry = false,
-                    .layout_node = Layout::Node::slot_id(layout_node),
-                    .state = to_underlying(state),
-                });
-            }
+            entries.append({
+                .is_text_node_entry = true,
+                .layout_node = Layout::Node::slot_id(layout_node),
+                .state = to_underlying(state),
+            });
         }
-    };
-    auto apply_entries = [&] {
-        Layout::RustFFI::render_state_apply_selection(m_layout_node_arena->host(), viewport_row_slot(document), entries.data(), entries.size(), range.start_offset(), range.end_offset());
-    };
+        return;
+    }
+    if (auto* layout_node = container.unsafe_layout_node()) {
+        if (has_committed_box(*layout_node)) {
+            entries.append({
+                .is_text_node_entry = false,
+                .layout_node = Layout::Node::slot_id(layout_node),
+                .state = to_underlying(state),
+            });
+        }
+    }
+}
 
-    // https://drafts.csswg.org/css-ui/#valdef-user-select-none
-    // "The content of the element must be excluded from selection by [...] the selection methods of the Selection API
-    // and the like." We honor this by leaving such nodes at SelectionState::None — even when they fall inside the
-    // range. So, the selection highlight skips them.
-    auto is_excluded_from_selection = [](DOM::Node const& node) {
-        if (node.is_inert())
-            return true;
-        auto const* layout = node.unsafe_layout_node();
-        return layout && layout->user_select_used_value() == CSS::UserSelect::None;
-    };
-
+template<typename IsExcluded, typename Callback>
+static void for_each_node_in_highlight_range(DOM::Range& range, IsExcluded is_excluded, Callback callback)
+{
     auto start_container = range.start_container();
     auto end_container = range.end_container();
 
@@ -216,24 +203,22 @@ void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM
         // 1. If the selection starts and ends at the same offset, return.
         if (range.start_offset() == range.end_offset()) {
             // NOTE: A zero-length selection should not be visible.
-            apply_entries();
             return;
         }
 
         // 2. If it's a text node, mark it as StartAndEnd and return.
-        if (is<DOM::Text>(*start_container) && !is_excluded_from_selection(*start_container)) {
-            set_selection_state(*start_container, SelectionState::StartAndEnd);
-            apply_entries();
+        if (is<DOM::Text>(*start_container) && !is_excluded(*start_container)) {
+            callback(*start_container, SelectionState::StartAndEnd);
             return;
         }
     }
 
     // 3. Mark the selection start node as Start (if text) or Full (if anything else).
-    if (!is_excluded_from_selection(*start_container) && start_container->unsafe_layout_node()) {
+    if (!is_excluded(*start_container) && start_container->unsafe_layout_node()) {
         if (is<DOM::Text>(*start_container))
-            set_selection_state(*start_container, SelectionState::Start);
+            callback(*start_container, SelectionState::Start);
         else
-            set_selection_state(*start_container, SelectionState::Full);
+            callback(*start_container, SelectionState::Full);
     }
 
     // 4. Mark the nodes between the start and end of the selection as Full.
@@ -250,17 +235,52 @@ void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM
     DOM::Node* stop_at = end_container->child_at_index(range.end_offset());
     // Only stop at the end container if it has no children that may need to be included.
     for (auto* node = start_at; node && (node != stop_at && !(node == end_container.ptr() && !end_container->has_children())); node = node->next_in_pre_order(end_container.ptr())) {
-        if (is_excluded_from_selection(*node))
+        if (is_excluded(*node))
             continue;
-        set_selection_state(*node, SelectionState::Full);
+        callback(*node, SelectionState::Full);
     }
 
     // 5. Mark the selection end node as End if it is a text node.
-    if (!is_excluded_from_selection(*end_container) && is<DOM::Text>(*end_container) && end_container->unsafe_layout_node()) {
-        set_selection_state(*end_container, SelectionState::End);
+    if (!is_excluded(*end_container) && is<DOM::Text>(*end_container) && end_container->unsafe_layout_node()) {
+        callback(*end_container, SelectionState::End);
     }
+}
 
-    apply_entries();
+void DocumentPaintState::recompute_selection_states(DOM::Document& document, DOM::Range& range)
+{
+    // https://drafts.csswg.org/css-ui/#valdef-user-select-none
+    // "The content of the element must be excluded from selection by [...] the selection methods of the Selection API
+    // and the like." We honor this by leaving such nodes at SelectionState::None — even when they fall inside the
+    // range. So, the selection highlight skips them.
+    auto is_excluded_from_selection = [](DOM::Node const& node) {
+        if (node.is_inert())
+            return true;
+        auto const* layout = node.unsafe_layout_node();
+        return layout && layout->user_select_used_value() == CSS::UserSelect::None;
+    };
+
+    Vector<Layout::RustFFI::FfiSelectionEntry> entries;
+    for_each_node_in_highlight_range(range, is_excluded_from_selection, [&](DOM::Node& node, SelectionState state) {
+        append_highlight_entry(entries, node, state);
+    });
+    Layout::RustFFI::render_state_apply_selection(m_layout_node_arena->host(), viewport_row_slot(document), entries.data(), entries.size(), range.start_offset(), range.end_offset());
+}
+
+void DocumentPaintState::reset_search_text_states()
+{
+    Layout::RustFFI::render_state_clear_search_text(m_layout_node_arena->host());
+}
+
+void DocumentPaintState::recompute_search_text_states(DOM::Document& document, DOM::Range& range)
+{
+    auto is_excluded_from_search_text = [](DOM::Node const&) { return false; };
+
+    Vector<Layout::RustFFI::FfiSelectionEntry> entries;
+    for_each_node_in_highlight_range(range, is_excluded_from_search_text, [&](DOM::Node& node, SelectionState state) {
+        if (is<DOM::Text>(node))
+            append_highlight_entry(entries, node, state);
+    });
+    Layout::RustFFI::render_state_apply_search_text(m_layout_node_arena->host(), viewport_row_slot(document), entries.data(), entries.size(), range.start_offset(), range.end_offset());
 }
 
 }

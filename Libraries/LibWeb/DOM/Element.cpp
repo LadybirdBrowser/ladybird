@@ -1974,7 +1974,7 @@ void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS
         return;
 
     if (invalidation.repaint_highlights) {
-        Painting::push_selection_pseudo_style(*this);
+        Painting::push_highlight_pseudo_styles(*this);
         // NB: A display:contents element has no box of its own. Invalidate the nearest
         //     painted ancestor's subtree so cached text commands take the new highlight.
         for (Node const* node = this; node; node = node->parent_or_shadow_host()) {

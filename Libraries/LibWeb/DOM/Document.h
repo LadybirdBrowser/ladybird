@@ -319,7 +319,11 @@ public:
 
     GC::Ptr<Selection::Selection> get_selection() const;
     bool highlight_styles_are_observable(CSS::PseudoElement) const;
-    void set_needs_selection_style_update() { m_needs_selection_style_update = true; }
+    void set_needs_highlight_style_update(CSS::PseudoElement);
+
+    GC::Ptr<Range> find_in_page_active_match() const { return m_find_in_page_active_match; }
+    void set_find_in_page_active_match(GC::Ptr<Range>);
+    void collapse_find_in_page_active_match_if_its_text_changed();
 
     WebIDL::ExceptionOr<Utf16String> cookie();
     WebIDL::ExceptionOr<void> set_cookie(Utf16View);
@@ -1910,9 +1914,19 @@ private:
 
     // https://w3c.github.io/selection-api/#dfn-selection
     GC::Ptr<Selection::Selection> m_selection;
-    bool m_selection_styles_are_observable { false };
-    bool m_needs_selection_style_update { true };
-    void update_selection_style_observability();
+
+    // https://html.spec.whatwg.org/multipage/interaction.html#fip-active-match
+    GC::Ptr<Range> m_find_in_page_active_match;
+    Utf16String m_find_in_page_active_match_text;
+
+    struct HighlightStyleObservability {
+        bool observable { false };
+        bool needs_update { true };
+    };
+    Array<HighlightStyleObservability, 2> m_highlight_style_observability;
+    HighlightStyleObservability& highlight_style_observability(CSS::PseudoElement);
+    void update_highlight_style_observability(CSS::PseudoElement);
+    void update_highlight_style_observability();
 
     // NOTE: This is a cache to make finding the first <base href> or <base target> element O(1).
     GC::Ptr<HTML::HTMLBaseElement> m_first_base_element_with_href_in_tree_order;

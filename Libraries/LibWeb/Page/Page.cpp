@@ -1742,6 +1742,7 @@ Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
 
     if (query.string.is_empty()) {
         m_last_find_in_page_query = {};
+        set_find_in_page_active_match(nullptr);
         clear_selection();
         return {};
     }
@@ -1775,6 +1776,7 @@ Page::FindInPageResult Page::find_in_page_previous_match()
 void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
 {
     if (matches.is_empty()) {
+        set_find_in_page_active_match(nullptr);
         clear_selection();
         return;
     }
@@ -1782,6 +1784,7 @@ void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
     clear_selection();
 
     auto current_range = matches[m_find_in_page_match_index];
+    set_find_in_page_active_match(current_range.ptr());
     auto common_ancestor_container = current_range->common_ancestor_container();
     auto& document = common_ancestor_container->document();
     if (!document.window())
@@ -1800,6 +1803,16 @@ void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
         scroll_options.behavior = DOM::Element::ScrollBehavior::Instant;
         element->scroll_into_view(scroll_options, nullptr);
     }
+}
+
+void Page::set_find_in_page_active_match(GC::Ptr<DOM::Range> active_match)
+{
+    GC::Ptr<DOM::Document> document = active_match ? &active_match->start_container()->document() : nullptr;
+    if (auto previous_document = m_find_in_page_active_match_document.ptr(); previous_document && previous_document != document)
+        previous_document->set_find_in_page_active_match(nullptr);
+    m_find_in_page_active_match_document = document;
+    if (document)
+        document->set_find_in_page_active_match(active_match);
 }
 
 void Page::enqueue_fullscreen_enter(GC::Ref<DOM::Element> element, GC::Ref<DOM::Document> pending_doc, DOM::RequestFullscreenError error, GC::Ptr<WebIDL::Promise> promise, Fullscreen::RequestType request_type)

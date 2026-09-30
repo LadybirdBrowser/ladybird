@@ -19,7 +19,7 @@ use crate::css::style::tree::StyleNodeID;
 use crate::layout::layout_node_arena::{LayoutNodeArena, OwedImageResources, StaleWalkFacts};
 use crate::layout::node_data::{
     GENERATED_FOR_AFTER, GENERATED_FOR_BACKDROP, GENERATED_FOR_BEFORE, GENERATED_FOR_FIRST_LETTER,
-    GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId, SELECTION_PSEUDO_KIND, pseudo_kind_of,
+    GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId, pseudo_kind_of,
 };
 use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_length_for_code_point};
 use crate::layout::tree_mutation::{HostCalls, OwedHostWork, UnplacedLayoutNode};
@@ -3845,13 +3845,13 @@ impl TreeBuilderHost<'_> {
 
     /// What giving a row its style tells the rest of the document: which scroll containers
     /// snapping may happen in, with the root element's box standing in for the viewport, and what
-    /// an element's `::selection` style paints selected text with. None of it needs the row's
-    /// layout node.
+    /// an element's highlight pseudo-element styles paint highlighted text with. None of it needs
+    /// the row's layout node.
     fn note_style_of_built_row(&self, slot: NodeSlotId, element: Option<StyleNodeID>) {
         if let Some(element) = element
-            && self.holds_selection_style(element)
+            && self.holds_highlight_style(element)
         {
-            crate::painting::selection::note_built_row_selection_pseudo_style(self.arena(), slot, element);
+            crate::painting::selection::note_built_row_highlight_pseudo_styles(self.arena(), slot, element);
         }
         if self.arena().node_flags(slot) & NodeFlag::IsDocumentElement as u32 != 0 {
             let viewport = self.arena().bound_viewport_row();
@@ -3866,8 +3866,8 @@ impl TreeBuilderHost<'_> {
     /// A text row is stamped with whether an empty text produces a line box fragment, which text
     /// controls and editing hosts rely on: the fragment keeps the line box alive with real font
     /// metrics, giving the caret an anchor to paint at and the control its baseline. The document
-    /// restamps it when editability changes. Under an element with a `::selection` style and no
-    /// box of its own, the row takes that style's paint facts itself.
+    /// restamps it when editability changes. Under an element with a highlight pseudo-element style
+    /// and no box of its own, the row takes that style's paint facts itself.
     fn stamp_text_row_facts(&self, slot: NodeSlotId, text: StyleNodeID) {
         use crate::css::style::bridge::element_construction_fact::{IS_EDITING_HOST, IS_HTML_INPUT_ELEMENT};
         let is_in_user_agent_shadow_tree =
@@ -3895,21 +3895,25 @@ impl TreeBuilderHost<'_> {
             produces_line_box_fragment_when_empty,
         );
         if let Some(parent) = parent_element
-            && self.holds_selection_style(parent)
+            && self.holds_highlight_style(parent)
             && self.arena().bound_row(parent).is_invalid()
         {
-            crate::painting::selection::note_built_row_selection_pseudo_style(self.arena(), slot, parent);
+            crate::painting::selection::note_built_row_highlight_pseudo_styles(self.arena(), slot, parent);
         }
     }
 
-    /// Whether the element published a `::selection` record. An element whose own rules style no
-    /// `::selection` still holds one inherited from an ancestor's, which the published
-    /// pseudo-element mask does not show.
-    fn holds_selection_style(&self, element: StyleNodeID) -> bool {
+    /// Whether the element published a record for a highlight pseudo-element. An element whose own
+    /// rules style no `::selection` still holds one inherited from an ancestor's, which the
+    /// published pseudo-element mask does not show.
+    fn holds_highlight_style(&self, element: StyleNodeID) -> bool {
         self.arena().with_style_store(|engine| {
-            engine
-                .pseudo_published_style_record(element, SELECTION_PSEUDO_KIND)
-                .is_some()
+            crate::painting::selection::HighlightPseudoElement::ALL
+                .iter()
+                .any(|highlight| {
+                    engine
+                        .pseudo_published_style_record(element, highlight.pseudo_kind())
+                        .is_some()
+                })
         })
     }
 

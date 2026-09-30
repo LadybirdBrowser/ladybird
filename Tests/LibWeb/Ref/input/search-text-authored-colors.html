@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-authored-colors-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+div::search-text {
+    background-color: lime;
+    color: blue;
+}
+</style>
+<div><p>Find the needle in this haystack</p></div>
+<script>
+internals.findInPage("needle");
+</script>

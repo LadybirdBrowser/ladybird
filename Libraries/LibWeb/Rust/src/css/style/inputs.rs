@@ -925,6 +925,19 @@ impl RetainedState {
             .style_record_dependency_flags(style_record.raw())
     }
 
+    /// The computed longhand table of the published style record `raw_style_record` names, which
+    /// keeps what the record's values were specified as. `None` for zero, which names no record.
+    #[must_use]
+    pub(crate) fn published_record_longhand_table(
+        &self,
+        raw_style_record: u64,
+    ) -> Option<&crate::css::computed_longhand_table::ComputedLonghandTable> {
+        let style_record = computed::FinalStyleRecordID::from_raw(raw_style_record)?;
+        let view = self.computed_group_sets.style_record_view(style_record.raw())?;
+        // SAFETY: The record is live, and shares its table for as long as it is.
+        unsafe { view.longhand_table.as_ref() }
+    }
+
     pub(super) fn published_style_record_view(
         &self,
         style_record: Option<computed::FinalStyleRecordID>,

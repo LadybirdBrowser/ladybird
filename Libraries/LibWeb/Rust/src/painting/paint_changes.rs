@@ -18,6 +18,7 @@ use super::paint_read::GeometryRead;
 use super::paintable_data::{FfiSelectionEntry, PaintableFlag};
 use super::record::damage::PaintDamage;
 use super::replaced_paint_facts::{ImagePaintFacts, ReplacedPaintFacts, VideoPaintFacts};
+use super::selection::HighlightStyleRecords;
 use super::visual_context::dirty::VisualContextBoxDirtyKind;
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::tree::StyleNodeID;
@@ -42,9 +43,21 @@ pub(crate) enum PaintChange {
     },
     /// Nothing is selected.
     ClearSelection { viewport: NodeSlotId },
-    /// The element's style changed: the rows that paint text under it take what `style_record`, the `::selection`
-    /// record the host holds for it (zero for none), says selected text paints with.
-    SyncSelectionPseudoStyle { element: StyleNodeID, style_record: u64 },
+    /// The active find-in-page match covers `entries`, between the offsets in its start and end text.
+    ApplySearchText {
+        viewport: NodeSlotId,
+        entries: Box<[FfiSelectionEntry]>,
+        start_offset: usize,
+        end_offset: usize,
+    },
+    /// No find-in-page match is active.
+    ClearSearchText,
+    /// The element's style changed: the rows that paint text under it take what `style_records`, the `::selection`
+    /// and `::search-text` records the host holds for it (zero for none), say highlighted text paints with.
+    SyncHighlightPseudoStyles {
+        element: StyleNodeID,
+        style_records: HighlightStyleRecords,
+    },
     /// Whether the scrollbar of the row in `direction` is drawn enlarged, as it is while the user hovers or drags it.
     SetScrollbarEnlarged {
         node: NodeSlotId,
@@ -136,8 +149,24 @@ impl PaintChange {
                     super::selection::clear(&mut arena.paintable_rows_mut(), viewport);
                 }
             }
-            Self::SyncSelectionPseudoStyle { element, style_record } => {
-                super::selection::sync_selection_pseudo_style(arena, element, style_record);
+            Self::ApplySearchText {
+                viewport,
+                entries,
+                start_offset,
+                end_offset,
+            } => {
+                if arena.paintable_row_is_populated(viewport) {
+                    super::selection::apply_search_text(
+                        &mut arena.paintable_rows_mut(),
+                        &entries,
+                        start_offset,
+                        end_offset,
+                    );
+                }
+            }
+            Self::ClearSearchText => super::selection::clear_search_text(&mut arena.paintable_rows_mut()),
+            Self::SyncHighlightPseudoStyles { element, style_records } => {
+                super::selection::sync_highlight_pseudo_styles(arena, element, style_records);
             }
             Self::SetScrollbarEnlarged {
                 node,
@@ -300,18 +329,61 @@ pub unsafe extern "C" fn render_state_clear_selection(host: *const DocumentHost,
 
 /// # Safety
 ///
+/// `host` must be a live document host, on the document's thread, and `entries` must point at `entry_count` readable
+/// entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_apply_search_text(
+    host: *const DocumentHost,
+    viewport: NodeSlotId,
+    entries: *const FfiSelectionEntry,
+    entry_count: usize,
+    start_offset: usize,
+    end_offset: usize,
+) {
+    let entries = if entry_count == 0 {
+        Box::default()
+    } else {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { std::slice::from_raw_parts(entries, entry_count) }.into()
+    };
+    let change = PaintChange::ApplySearchText {
+        viewport,
+        entries,
+        start_offset,
+        end_offset,
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, change) };
+}
+
+/// # Safety
+///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_sync_selection_pseudo_style(
+pub unsafe extern "C" fn render_state_clear_search_text(host: *const DocumentHost) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, PaintChange::ClearSearchText) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_sync_highlight_pseudo_styles(
     host: *const DocumentHost,
     element: u32,
-    style_record: u64,
+    selection_style_record: u64,
+    search_text_style_record: u64,
 ) {
     let Some(element) = StyleNodeID::from_raw(element) else {
         return;
     };
+    let change = PaintChange::SyncHighlightPseudoStyles {
+        element,
+        style_records: [selection_style_record, search_text_style_record],
+    };
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, PaintChange::SyncSelectionPseudoStyle { element, style_record }) };
+    unsafe { queue(host, change) };
 }
 
 /// # Safety

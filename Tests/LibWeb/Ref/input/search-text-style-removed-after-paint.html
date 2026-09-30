@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-style-removed-after-paint-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+.styled::search-text {
+    background-color: lime;
+    color: blue;
+}
+</style>
+<p id="target" class="styled">Find the needle in this haystack</p>
+<script>
+internals.findInPage("needle");
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        document.getElementById("target").className = "";
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                internals.signalTestIsDone("PASS");
+            });
+        });
+    });
+});
+</script>
+</html>
