@@ -149,6 +149,7 @@ public:
 
     int client_id() const { return m_connection->client_id(); }
     bool is_open() const { return m_connection->is_open(); }
+    void shutdown() { m_connection->shutdown(); }
 
     void stop_request(u64 request_id)
     {
@@ -639,6 +640,86 @@ TEST_CASE(url_credentials_are_not_sent)
     EXPECT(http_server.received_request().starts_with("GET / HTTP/1.1\r\n"sv));
     EXPECT(!http_server.received_request().contains("Authorization"sv, CaseSensitivity::CaseInsensitive));
     EXPECT(!http_server.received_request().contains("user"sv));
+}
+
+namespace {
+
+class SilentServer {
+public:
+    SilentServer()
+    {
+        m_server = MUST(Core::TCPServer::try_create());
+        MUST(m_server->listen(IPv4Address { 127, 0, 0, 1 }, 0));
+        m_server->on_ready_to_accept = [this] {
+            auto socket = MUST(m_server->accept());
+            MUST(socket->set_blocking(false));
+            m_sockets.append(move(socket));
+            auto& connection = *m_sockets.last();
+            connection.on_ready_to_read = [this, &connection] {
+                auto buffer = MUST(ByteBuffer::create_uninitialized(4096));
+                auto result = connection.read_some(buffer);
+                if (result.is_error() || result.value().is_empty()) {
+                    connection.on_ready_to_read = nullptr;
+                    ++m_closed_connections;
+                    return;
+                }
+                ++m_received_requests;
+            };
+        };
+    }
+
+    URL::URL url() const
+    {
+        return URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/", *m_server->local_port())).release_value();
+    }
+
+    size_t received_requests() const { return m_received_requests; }
+    size_t closed_connections() const { return m_closed_connections; }
+
+private:
+    RefPtr<Core::TCPServer> m_server;
+    Vector<NonnullOwnPtr<Core::TCPSocket>> m_sockets;
+    size_t m_received_requests { 0 };
+    size_t m_closed_connections { 0 };
+};
+
+}
+
+// Transferred requests retain the original connection object, but must not retain its other work.
+TEST_CASE(disconnected_client_requests_stop_while_a_transferred_request_lives_on)
+{
+    TestServer server;
+    {
+        TestControlConnection control { server };
+        TestConnection source_connection { server };
+        TestConnection target_connection { server };
+        SilentServer transferred_server;
+        SilentServer websocket_server;
+
+        source_connection.start_request(0, transferred_server.url());
+        auto cookie_request = control.take_cookie_request();
+        control.retrieve_http_cookie(source_connection.client_id(), 0, RequestServer::RequestType::Fetch, cookie_request->cookie_request_id());
+
+        auto websocket_url = websocket_server.url();
+        websocket_url.set_scheme("ws"_string);
+        source_connection.websocket_connect(0, websocket_url);
+        cookie_request = control.take_cookie_request();
+        control.retrieve_http_cookie(source_connection.client_id(), 0, RequestServer::RequestType::WebSocket, cookie_request->cookie_request_id());
+
+        auto wake_timer = Core::Timer::create_repeating(10, [] { });
+        wake_timer->start();
+        server.event_loop.spin_until([&] { return transferred_server.received_requests() == 1 && websocket_server.received_requests() == 1; });
+
+        target_connection.adopt_request(source_connection.client_id(), 0, 0);
+        source_connection.shutdown();
+
+        server.event_loop.spin_until([&] { return websocket_server.closed_connections() == 1; });
+        EXPECT_EQ(transferred_server.closed_connections(), 0u);
+        EXPECT(target_connection.is_open());
+    }
+
+    // Finish shutdown before destroying the maps used by the connections.
+    server.event_loop.pump(Core::EventLoop::WaitMode::PollForEvents);
 }
 
 TEST_CASE(interim_response_fields_are_not_part_of_the_response)
