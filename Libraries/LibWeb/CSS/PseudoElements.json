@@ -119,6 +119,20 @@
     ],
     "implementation": "element-reference"
   },
+  "search-text": {
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-search-text",
+    "is-highlight": true,
+    "property-whitelist": [
+      "color",
+      "background-color",
+      "#text-decoration-properties",
+      "FIXME: stroke-color",
+      "FIXME: fill-color",
+      "stroke-width",
+      "#custom-properties"
+    ],
+    "implementation": "synthetic"
+  },
   "selection": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-selection",
     "is-highlight": true,

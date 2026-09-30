@@ -1354,6 +1354,14 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
 
 namespace Web::DOM {
 
+bool Document::highlight_styles_are_observable(CSS::PseudoElement pseudo_element) const
+{
+    VERIFY(CSS::is_highlight_pseudo_element(pseudo_element));
+    if (pseudo_element == CSS::PseudoElement::Selection)
+        return m_selection_styles_are_observable;
+    return false;
+}
+
 void Document::update_selection_style_observability()
 {
     // NB: Editing commands temporarily select content to restore its formatting. Style reads

@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: ::search-text selector parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-selectors">
+<link rel="author" name="Delan Azabani" href="mailto:dazabani@igalia.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+  for (const pseudo of [
+    "::search-text",
+    "::search-text:current",
+    "::search-text:not(:current)",
+  ]) {
+    test_valid_selector(`${pseudo}`);
+    test_valid_selector(`.a${pseudo}`);
+    test_valid_selector(`div ${pseudo}`);
+    test_valid_selector(`::part(my-part)${pseudo}`);
+
+    test_invalid_selector(`::before${pseudo}`);
+    test_invalid_selector(`${pseudo}.a`);
+    test_invalid_selector(`${pseudo} div`);
+    test_invalid_selector(`${pseudo}::after`);
+    test_invalid_selector(`${pseudo}:hover`);
+    test_invalid_selector(`${pseudo}:current(*)`);
+    test_invalid_selector(`${pseudo}:past`);
+    test_invalid_selector(`${pseudo}:future`);
+    test_invalid_selector(`:not(${pseudo})`);
+  }
+</script>

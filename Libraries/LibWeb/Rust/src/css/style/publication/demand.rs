@@ -465,10 +465,10 @@ impl StyleEngineState {
             .style_record_view(element.raw())
             .and_then(|view| unsafe { view.longhand_table.as_ref() })
             .is_some_and(|table| table.display_is_list_item());
-        // A ::selection without rules of its own inherits its ancestor's.
+        // A highlight pseudo-element without rules of its own inherits its ancestor's.
         let generated = kinds_with_rules & (1 << kind) != 0
             || (kind == pseudo_kind::MARKER && element_is_list_item)
-            || (kind == pseudo_kind::SELECTION
+            || (pseudo_kind::is_highlight(kind)
                 && self
                     .retained
                     .retained_highlight_inheritance_parent_style_record(node, kind)

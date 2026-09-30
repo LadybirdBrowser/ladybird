@@ -801,10 +801,11 @@ impl RetainedState {
             }
             None => None,
         };
-        // A ::selection inherits its applicable properties from the nearest ancestor's ::selection.
-        let highlight = (target.pseudo_kind() == pseudo_kind::SELECTION).then(|| {
+        // A highlight pseudo-element inherits its applicable properties from the same
+        // pseudo-element of the nearest ancestor.
+        let highlight = pseudo_kind::is_highlight(target.pseudo_kind()).then(|| {
             let snapshot = self
-                .retained_highlight_inheritance_parent_style_record(target.node(), pseudo_kind::SELECTION)
+                .retained_highlight_inheritance_parent_style_record(target.node(), target.pseudo_kind())
                 .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
                 .and_then(|view| {
                     let table = unsafe { view.longhand_table.as_ref() }?;
@@ -815,7 +816,7 @@ impl RetainedState {
                     ))
                 });
             crate::css::style_compute::HighlightInheritance {
-                pseudo_kind: pseudo_kind::SELECTION,
+                pseudo_kind: target.pseudo_kind(),
                 snapshot,
             }
         });

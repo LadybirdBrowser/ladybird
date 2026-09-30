@@ -318,7 +318,7 @@ public:
     WebIDL::ExceptionOr<void> populate_with_html_head_and_body();
 
     GC::Ptr<Selection::Selection> get_selection() const;
-    bool selection_styles_are_observable() const { return m_selection_styles_are_observable; }
+    bool highlight_styles_are_observable(CSS::PseudoElement) const;
     void set_needs_selection_style_update() { m_needs_selection_style_update = true; }
 
     WebIDL::ExceptionOr<Utf16String> cookie();

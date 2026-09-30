@@ -1515,7 +1515,7 @@ impl StyleEngineState {
                                 && !has_direct_action
                                 && !patch.has_non_selector_inputs
                                 && patch.always_emit_nodes.binary_search(&node).is_err()
-                                && let Some(deferred) = self.retained.deferred_pseudo_element
+                                && self.retained.deferred_pseudo_elements != 0
                                 && let Lookup::Known(previous) = self.retained.retained_match_answers.lookup(node)
                                 && let Some(previous) = self.retained.match_answers.answer(*previous)
                                 && let Some(current) = published_match_answers
@@ -1526,7 +1526,9 @@ impl StyleEngineState {
                                 let is_observable = |entry: &&RetainedRuleMatch| {
                                     self.retained.programs.get(entry.program).entries()[entry.entry as usize]
                                         .pseudo_element
-                                        .is_none_or(|target| target.kind != deferred)
+                                        .is_none_or(|target| {
+                                            !self.retained.pseudo_element_style_is_deferred(target.kind)
+                                        })
                                 };
                                 let previous = previous.iter().filter(is_observable);
                                 let current = current.iter().filter(is_observable);

@@ -29,12 +29,11 @@ impl PseudoSettlement {
     }
 
     /// Whether the settlement settles `kind`: a style update every kind that generates a box with
-    /// the element but the one the host defers, a read the one it asks for, deferred or not.
-    fn selects(self, kind: u8, deferred: Option<tree::PseudoElementKind>) -> bool {
+    /// the element but the ones the host defers, a read the one it asks for, deferred or not.
+    fn selects(self, kind: u8, deferred: u64) -> bool {
         match self {
             Self::Generated => {
-                !matches!(kind, pseudo_kind::FIRST_LINE | pseudo_kind::VIEW_TRANSITION)
-                    && deferred != Some(tree::PseudoElementKind(u16::from(kind)))
+                !matches!(kind, pseudo_kind::FIRST_LINE | pseudo_kind::VIEW_TRANSITION) && deferred & (1 << kind) == 0
             }
             Self::Read(selected) | Self::Computed(selected) => selected == kind,
         }
@@ -65,7 +64,7 @@ impl RetainedState {
             & settlement
                 .kinds()
                 .iter()
-                .filter(|&&kind| settlement.selects(kind, self.deferred_pseudo_element))
+                .filter(|&&kind| settlement.selects(kind, self.deferred_pseudo_elements))
                 .fold(0_u64, |kinds, &kind| kinds | (1 << kind));
         if settlement == PseudoSettlement::Generated {
             if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
@@ -163,7 +162,7 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<()> {
-        use pseudo_kind::{BACKDROP, MARKER, SELECTION};
+        use pseudo_kind::{BACKDROP, MARKER};
 
         // Only an element's settled record leads here, which an unhosted engine never computes.
         debug_assert!(self.computes_records());
@@ -272,7 +271,7 @@ impl RetainedState {
         let mut pseudo_uses_substitution = scratch.pseudo_uses_substitution;
         for (pseudo_index, &kind) in settlement.kinds().iter().enumerate().skip(scratch.next_pseudo) {
             scratch.next_pseudo = pseudo_index + 1;
-            if !settlement.selects(kind, self.deferred_pseudo_element) {
+            if !settlement.selects(kind, self.deferred_pseudo_elements) {
                 continue;
             }
             // The backdrop of a node outside the top layer generates no box, whatever its rules;
@@ -307,8 +306,8 @@ impl RetainedState {
             if kind == MARKER && !implicit && settlement == PseudoSettlement::Generated {
                 continue;
             }
-            // A ::selection with no rules of its own still inherits its ancestor's.
-            let highlight_parent_record = (kind == SELECTION)
+            // A highlight pseudo-element with no rules of its own still inherits its ancestor's.
+            let highlight_parent_record = pseudo_kind::is_highlight(kind)
                 .then(|| self.retained_highlight_inheritance_parent_style_record(node, kind))
                 .flatten();
             let state = states
@@ -354,8 +353,9 @@ impl RetainedState {
             // A moved registry reaches a substitution, attributes reach an `attr()` and the
             // element's place among its siblings a tree-counting function, without moving the
             // state.
-            // A ::selection reads its ancestor's as well, which nothing here proves unchanged.
-            if kind != SELECTION
+            // A highlight pseudo-element reads its ancestor's as well, which nothing here proves
+            // unchanged.
+            if !pseudo_kind::is_highlight(kind)
                 && old.is_some()
                 && originating_inputs_unchanged
                 && !(scratch.viewport_moved && self.record_reads_the_viewport(old_record))
@@ -458,7 +458,7 @@ impl RetainedState {
                 .filter(|_| !element_alone && !has_registered_declarations)
                 .map(|(inherited_groups, parent_display)| PseudoCohortKey {
                     monospace_recascaded_font_size: state.map_or(0, |state| self.monospace_cohort_key(target, state)),
-                    parent_record: if kind == SELECTION
+                    parent_record: if pseudo_kind::is_highlight(kind)
                         || kind == BACKDROP
                         || state.is_some_and(|state| self.state_explicitly_inherits_non_inherited_property(node, state))
                     {
@@ -585,7 +585,7 @@ impl RetainedState {
                     };
                     // C++ marks the originating element's parent when a pseudo-element explicitly
                     // inherits a non-inherited property, as it does for the element itself.
-                    if kind != SELECTION {
+                    if !pseudo_kind::is_highlight(kind) {
                         scratch.element_explicitly_inherited_groups |= explicitly_inherited_groups;
                     }
                     let font = font.expect("a full drive resolves the font");

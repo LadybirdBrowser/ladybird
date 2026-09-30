@@ -94,8 +94,8 @@ pub enum FfiStyleInvalidationField {
     AffectsHitTesting = 1 << 22,
     /// The word holds the damage the engine computed with its answer.
     EngineComputed = 1 << 23,
-    /// Selection highlights, which text descendants paint, repaint.
-    RepaintSelection = 1 << 24,
+    /// Highlight pseudo-elements, which text descendants paint, repaint.
+    RepaintHighlights = 1 << 24,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -192,7 +192,7 @@ pub struct FfiEngineComputedRecord {
     pub composed_by_the_host: bool,
     /// The synthetic pseudo-element kinds whose records the engine settled beside the
     /// element's, as a bit per kind; a present slot holding zero is a removal.
-    pub pseudo_records_present: u8,
+    pub pseudo_records_present: u16,
     pub pseudo_records: [u64; PSEUDO_RECORD_SLOTS],
 }
 
@@ -212,12 +212,12 @@ pub struct FfiSettledPseudoRecords {
     pub explicitly_inherited_groups: u32,
     /// The kinds whose records the engine settled, as a bit per kind; a present slot holding zero
     /// is a removal, and an absent kind keeps its record.
-    pub pseudo_records_present: u8,
+    pub pseudo_records_present: u16,
     pub pseudo_records: [u64; PSEUDO_RECORD_SLOTS],
 }
 
 /// One record slot per synthetic pseudo-element kind in an engine record answer.
-pub const PSEUDO_RECORD_SLOTS: usize = 8;
+pub const PSEUDO_RECORD_SLOTS: usize = 9;
 
 #[derive(Default)]
 pub(crate) struct FfiStyleTransactionOutput {
@@ -710,9 +710,9 @@ pub struct FfiElementArrival {
 /// The last pseudo-element kind C++ materializes as a synthetic pseudo-element; the kinds up to
 /// it are the bits a style record's pseudo-element mask carries. Mirrors the C++
 /// `last_synthetic_pseudo_element`.
-pub const LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND: u16 = 7;
-pub const FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 8;
-pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 13;
+pub const LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND: u16 = 8;
+pub const FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 9;
+pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 14;
 
 /// What C++ reports about a style reaction it applied, for the engine to derive the reactions of
 /// the element's children. Mirrors C++ `StyleReactionAppliedFact`.
@@ -3478,18 +3478,19 @@ pub enum FfiDemandedPseudoElement {
     FirstLetter = 3,
     FirstLine = 4,
     Marker = 5,
-    Selection = 6,
-    ViewTransition = 7,
-    DetailsContent = 8,
-    FileSelectorButton = 9,
-    Placeholder = 10,
-    SliderFill = 11,
-    SliderThumb = 12,
-    SliderTrack = 13,
-    ViewTransitionGroup = 16,
-    ViewTransitionImagePair = 17,
-    ViewTransitionNew = 18,
-    ViewTransitionOld = 19,
+    SearchText = 6,
+    Selection = 7,
+    ViewTransition = 8,
+    DetailsContent = 9,
+    FileSelectorButton = 10,
+    Placeholder = 11,
+    SliderFill = 12,
+    SliderThumb = 13,
+    SliderTrack = 14,
+    ViewTransitionGroup = 17,
+    ViewTransitionImagePair = 18,
+    ViewTransitionNew = 19,
+    ViewTransitionOld = 20,
 }
 
 /// The answer to a record demand: the record, or that the pseudo-element read generates no box
@@ -3559,7 +3560,7 @@ pub(crate) fn answer_record_demand(
         payload.write_u64(result.record.style_record);
         payload.write_bool(result.is_absent);
         payload.write_bool(result.record.uses_substitution);
-        payload.write_u8(result.record.pseudo_records_present);
+        payload.write_u16(result.record.pseudo_records_present);
     });
     result
 }
@@ -3702,7 +3703,7 @@ pub unsafe fn settle_pseudo_records_after_host_record(
             payload.write_u32(node);
             payload.write_bool(old_is_list_item);
             payload.write_bool(result.refused);
-            payload.write_u8(result.pseudo_records_present);
+            payload.write_u16(result.pseudo_records_present);
         });
         result
     })

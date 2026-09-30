@@ -448,6 +448,14 @@ impl<'a> SelectorParser<'a> {
         {
             return Err(());
         }
+        // FIXME: Allow :current after ::search-text.
+        if compounds.iter().any(|compound| {
+            compound.simple_selectors.len() > 1
+                && matches!(compound.simple_selectors.first(), Some(SimpleSelector::PseudoElement(pseudo_element))
+                    if pseudo_element.pseudo_element == PseudoElementType::SearchText)
+        }) {
+            return Err(());
+        }
         Ok(CompiledSelector::new(compounds.into_boxed_slice()))
     }
 

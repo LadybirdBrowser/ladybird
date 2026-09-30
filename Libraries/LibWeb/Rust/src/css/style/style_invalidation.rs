@@ -41,7 +41,7 @@ struct StyleInvalidation {
     non_inherited_inheritance_source: bool,
     any_computed_value_changed: bool,
     affects_hit_testing: bool,
-    repaint_selection: bool,
+    repaint_highlights: bool,
 }
 
 impl StyleInvalidation {
@@ -91,7 +91,7 @@ impl StyleInvalidation {
         self.non_inherited_inheritance_source |= other.non_inherited_inheritance_source;
         self.any_computed_value_changed |= other.any_computed_value_changed;
         self.affects_hit_testing |= other.affects_hit_testing;
-        self.repaint_selection |= other.repaint_selection;
+        self.repaint_highlights |= other.repaint_highlights;
     }
 
     fn unpack(packed: u32) -> Self {
@@ -111,7 +111,7 @@ impl StyleInvalidation {
             non_inherited_inheritance_source: has(FfiStyleInvalidationField::NonInheritedInheritanceSource),
             any_computed_value_changed: has(FfiStyleInvalidationField::AnyComputedValueChanged),
             affects_hit_testing: has(FfiStyleInvalidationField::AffectsHitTesting),
-            repaint_selection: has(FfiStyleInvalidationField::RepaintSelection),
+            repaint_highlights: has(FfiStyleInvalidationField::RepaintHighlights),
         }
     }
 
@@ -130,7 +130,7 @@ impl StyleInvalidation {
         packed |=
             u32::from(self.any_computed_value_changed) * FfiStyleInvalidationField::AnyComputedValueChanged as u32;
         packed |= u32::from(self.affects_hit_testing) * FfiStyleInvalidationField::AffectsHitTesting as u32;
-        packed |= u32::from(self.repaint_selection) * FfiStyleInvalidationField::RepaintSelection as u32;
+        packed |= u32::from(self.repaint_highlights) * FfiStyleInvalidationField::RepaintHighlights as u32;
         packed
     }
 }
@@ -153,7 +153,7 @@ pub(super) fn child_reaction_facts_of_damage(damages: impl IntoIterator<Item = u
         && !damage.resnap_scroll_container
         && !damage.recompute_descendants
         && damage.inherited_groups == 0
-        && !damage.repaint_selection
+        && !damage.repaint_highlights
         && !damage.affects_hit_testing
         && !damage.repaint_text_decorations
         && !damage.non_inherited_inheritance_source
@@ -1045,15 +1045,15 @@ impl RetainedState {
         originating_style_record: u64,
         counter_styles_changed: bool,
     ) -> u32 {
-        use super::publication::pseudo_kind::{AFTER, BEFORE, MARKER, SELECTION};
+        use super::publication::pseudo_kind::{AFTER, BEFORE, MARKER};
         if old_style_record == new_style_record {
             return 0;
         }
-        // NB: Selection highlights do not generate boxes or affect layout.
-        if pseudo_kind == SELECTION {
+        // NB: Highlight pseudo-elements do not generate boxes or affect layout.
+        if super::publication::pseudo_kind::is_highlight(pseudo_kind) {
             return StyleInvalidation {
                 level: INVALIDATION_REPAINT,
-                repaint_selection: true,
+                repaint_highlights: true,
                 any_computed_value_changed: true,
                 ..StyleInvalidation::default()
             }

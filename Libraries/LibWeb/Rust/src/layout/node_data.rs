@@ -17,10 +17,10 @@ pub const GENERATED_FOR_FIRST_LETTER: u8 = 4;
 pub const GENERATED_FOR_MARKER: u8 = 6;
 /// The last pseudo-element an element holds a box for in its own right; the ones from
 /// `GENERATED_FOR_AFTER` up to it are an element's synthetic pseudo-elements.
-pub const GENERATED_FOR_LAST_SYNTHETIC: u8 = 8;
+pub const GENERATED_FOR_LAST_SYNTHETIC: u8 = 9;
 /// `CSS::PseudoElement::Selection`, as the style engine numbers an element's pseudo-element
 /// records. It generates no box, so no row names it.
-pub const SELECTION_PSEUDO_KIND: u8 = 6;
+pub const SELECTION_PSEUDO_KIND: u8 = 7;
 
 /// The pseudo-element a row generated for `generated_for` stands for, as the style engine numbers
 /// an element's pseudo-element records. `Layout::Node::encode_generated_for` is its inverse.

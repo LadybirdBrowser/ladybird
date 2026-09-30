@@ -1819,7 +1819,7 @@ impl StyleEngineState {
             retained: RetainedState {
                 memory,
                 admission: AdmissionFacts::default(),
-                deferred_pseudo_element: None,
+                deferred_pseudo_elements: 0,
                 tree,
                 program: StyleSheetProgram::new(),
                 native_rules: Default::default(),
@@ -3345,7 +3345,7 @@ impl RetainedState {
         let Self {
             memory: _,
             admission: _,
-            deferred_pseudo_element: _,
+            deferred_pseudo_elements: _,
             // Retires the whole batch at once, in `retire_elements`.
             tree: _,
             program: _,
