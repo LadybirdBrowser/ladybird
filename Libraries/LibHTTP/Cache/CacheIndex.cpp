@@ -68,6 +68,13 @@ static NonnullRefPtr<HeaderList> deserialize_headers(StringView serialized_heade
     return headers;
 }
 
+static void remove_cache_entry_files(LexicalPath const& cache_directory, u64 cache_key, u64 vary_key)
+{
+    (void)FileSystem::remove(path_for_cache_entry(cache_directory, cache_key, vary_key).string(), FileSystem::RecursionMode::Disallowed);
+    for (auto associated_data : CACHE_ENTRY_ASSOCIATED_DATA_TYPES)
+        (void)FileSystem::remove(path_for_cache_entry_associated_data(cache_directory, cache_key, vary_key, associated_data).string(), FileSystem::RecursionMode::Disallowed);
+}
+
 template<typename Callback>
 static void for_each_cache_entry_file(Database::Database& database, Callback&& callback)
 {
@@ -232,6 +239,29 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
         .maximum_disk_cache_size = maximum_disk_cache_size,
         .maximum_disk_cache_entry_size = compute_maximum_disk_cache_entry_size(maximum_disk_cache_size),
     };
+
+    auto remove_malformed_entries = TRY(database.prepare_statement(R"#(
+        DELETE FROM CacheIndex
+        WHERE typeof(cache_key) != 'integer' OR typeof(vary_key) != 'integer' OR typeof(url) != 'text'
+            OR typeof(request_headers) != 'blob' OR typeof(response_headers) != 'blob'
+            OR typeof(data_size) != 'integer' OR typeof(associated_data_size) != 'integer'
+            OR typeof(request_time) != 'integer' OR typeof(response_time) != 'integer' OR typeof(last_access_time) != 'integer'
+            OR data_size NOT BETWEEN 0 AND ?1 OR associated_data_size NOT BETWEEN 0 AND ?1
+        RETURNING cache_key, vary_key;
+    )#"sv));
+
+    TRY(database.try_execute_statement(
+        remove_malformed_entries,
+        [&](auto statement_id) -> ErrorOr<void> {
+            auto cache_key = database.result_i64_checked(statement_id, 0);
+            auto vary_key = database.result_i64_checked(statement_id, 1);
+            if (cache_key.is_error() || vary_key.is_error())
+                return {};
+
+            remove_cache_entry_files(cache_directory, decode_cache_key_from_database(cache_key.value()), decode_cache_key_from_database(vary_key.value()));
+            return {};
+        },
+        limits.maximum_disk_cache_size));
 
     i64 total_estimated_size { 0 };
     TRY(database.try_execute_statement(

@@ -334,6 +334,35 @@ TEST_CASE(persisted_entries_are_found_before_they_are_looked_up)
     EXPECT_EQ(reloaded_index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 10u + 5u + 25u);
 }
 
+TEST_CASE(malformed_rows_are_dropped_when_the_index_is_opened)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
+    auto now = UnixDateTime::now();
+
+    for (u64 cache_key = 1; cache_key <= 5; ++cache_key)
+        TRY_OR_FAIL(state.index.create_entry(cache_key, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET request_headers = NULL WHERE cache_key = 1;"sv));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET last_access_time = NULL WHERE cache_key = 2;"sv));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET data_size = 9223372036854775807 WHERE cache_key = 3;"sv));
+    TRY_OR_FAIL(state.database->execute_raw("UPDATE CacheIndex SET associated_data_size = 'large' WHERE cache_key = 4;"sv));
+
+    auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
+    for (u64 cache_key = 1; cache_key <= 4; ++cache_key)
+        EXPECT(!reloaded_index.find_entry(cache_key, *request_headers).has_value());
+    EXPECT(reloaded_index.find_entry(5, *request_headers).has_value());
+
+    EXPECT_EQ(reloaded_index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 10u + 25u);
+
+    TRY_OR_FAIL(reloaded_index.create_entry(6, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+    reloaded_index.set_maximum_disk_cache_size(40);
+    reloaded_index.remove_entries_exceeding_cache_limit({});
+    EXPECT(reloaded_index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total <= 40u);
+}
+
 TEST_CASE(stored_vary_wildcard_does_not_match)
 {
     auto state = create_cache_index();
