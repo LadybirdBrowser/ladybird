@@ -421,7 +421,7 @@ static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document& so
     // 1. If url is not null and url's blob URL entry is not null:
     Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry;
     if (url.has_value())
-        blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(source_document.page(), *url);
+        blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(source_document.page(), source_document.relevant_settings_object(), *url);
     if (blob_url_entry.has_value()) {
         // 1. Let blobOrigin be url's blob URL entry's environment's origin.
         auto blob_origin = blob_url_entry->origin;

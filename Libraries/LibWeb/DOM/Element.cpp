@@ -498,7 +498,7 @@ HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL cons
         return HTML::TokenizedFeature::NoOpener::Yes;
 
     // 3. If url's blob URL entry is not null:
-    if (auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(document().page(), url); blob_url_entry.has_value()) {
+    if (auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(document().page(), HTML::relevant_settings_object(*this), url); blob_url_entry.has_value()) {
         // 1. Let blobOrigin be url's blob URL entry's environment's origin.
         auto blob_origin = blob_url_entry->origin;
 

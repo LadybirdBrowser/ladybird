@@ -1256,7 +1256,7 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
     //    Otherwise:
     // AD-HOC: Skip these steps if the URL has no blob URL entry. Otherwise, we'll access a nonexistent
     //         blob URL entry below.
-    if (auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(document().page(), url_record); blob_url_entry.has_value()) {
+    if (auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(document().page(), document().relevant_settings_object(), url_record); blob_url_entry.has_value()) {
         // 1. Let isTopLevelSelfFetch be false.
         auto is_top_level_self_fetch = false;
         // 2. Let settingsObject be the media element's node document's relevant settings object.

@@ -320,7 +320,7 @@ private:
     virtual URL::BlobURLEntry::Token page_did_add_blob_url_entry(Web::HTML::EnvironmentSettingsObject const&, Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const&) override;
     virtual void page_did_remove_blob_url_entries(Web::HTML::EnvironmentSettingsObject const&, Vector<Utf16String> const& urls) override;
     virtual void page_did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token) override;
-    virtual Optional<Web::FileAPI::SerializedBlobURLEntry> page_did_request_blob_url_entry(Utf16String const& url, Optional<URL::BlobURLEntry::Token> token) override;
+    virtual Optional<Web::FileAPI::SerializedBlobURLEntry> page_did_request_blob_url_entry(GC::Ptr<Web::HTML::EnvironmentSettingsObject const>, Utf16String const& url, Optional<URL::BlobURLEntry::Token> token) override;
     virtual void page_did_request_color_picker(Color current_color) override;
     virtual void page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;
     virtual void page_did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items) override;

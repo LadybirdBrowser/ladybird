@@ -1717,9 +1717,12 @@ void PageClient::page_did_retain_blob_url_token(Web::HTML::CrossProcessId naviga
     client().async_did_retain_blob_url_token(navigable_id, token);
 }
 
-Optional<Web::FileAPI::SerializedBlobURLEntry> PageClient::page_did_request_blob_url_entry(Utf16String const& url, Optional<URL::BlobURLEntry::Token> token)
+Optional<Web::FileAPI::SerializedBlobURLEntry> PageClient::page_did_request_blob_url_entry(GC::Ptr<Web::HTML::EnvironmentSettingsObject const> environment, Utf16String const& url, Optional<URL::BlobURLEntry::Token> token)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestBlobUrlEntry>(url, token);
+    Optional<Web::HTML::EnvironmentId> environment_id;
+    if (environment)
+        environment_id = environment->id;
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestBlobUrlEntry>(m_id, environment_id, url, token);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestBlobUrlEntry");
         return {};

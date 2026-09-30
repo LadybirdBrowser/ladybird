@@ -81,7 +81,7 @@ endpoint WebContentClient routed by Web::PageId page_id
 
     [NotRouted] did_add_blob_url_entry(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) => (URL::BlobURLEntry::Token token)
     did_remove_blob_url_entries(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls) => ()
-    did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token) => (Optional<Web::FileAPI::SerializedBlobURLEntry> entry)
+    [NotRouted] did_request_blob_url_entry(Web::PageId page_id, Optional<Web::HTML::EnvironmentId> environment_id, Utf16String url, Optional<URL::BlobURLEntry::Token> token) => (Optional<Web::FileAPI::SerializedBlobURLEntry> entry)
     did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token) =|
 
     [NotRouted] allocate_compositor_context_id(Web::PageId page_id, Web::PagePresentationRegistration page_presentation_registration) => (Web::CompositorContextId context_id)

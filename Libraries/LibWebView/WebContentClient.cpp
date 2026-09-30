@@ -111,9 +111,12 @@ void WebContentClient::did_retain_blob_url_token(Web::HTML::CrossProcessId navig
         navigable->retain_blob_url_token(token);
 }
 
-Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token)
+Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did_request_blob_url_entry(Web::PageId page_id, Optional<Web::HTML::EnvironmentId> environment_id, Utf16String url, Optional<URL::BlobURLEntry::Token> token)
 {
-    return m_session->blob_url_store->resolve(url, token);
+    if (auto* page = this->page(page_id))
+        return page->did_request_blob_url_entry(move(environment_id), move(url), token);
+
+    return Optional<Web::FileAPI::SerializedBlobURLEntry> {};
 }
 
 void WebContentClient::connect_test_endpoint(NonnullOwnPtr<IPC::Transport> transport)

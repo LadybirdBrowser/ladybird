@@ -34,7 +34,7 @@ struct TopLevelSelfFetch { };
 WEB_API Optional<SerializedBlobURLEntry::Object> obtain_a_blob_object(SerializedBlobURLEntry const&, Variant<GC::Ref<HTML::Environment>, TopLevelNavigation, TopLevelSelfFetch> environment);
 WEB_API void remove_entry_from_blob_url_store(URL::URL const& url);
 Optional<URL::BlobURLEntry> resolve_a_blob_url(URL::URL const&);
-WEB_API Optional<SerializedBlobURLEntry> blob_url_entry_in_the_user_agent_store(Page&, URL::URL const&);
+WEB_API Optional<SerializedBlobURLEntry> blob_url_entry_in_the_user_agent_store(Page&, GC::Ptr<HTML::EnvironmentSettingsObject const>, URL::URL const&);
 Optional<BlobURLEntry const&> local_blob_url_entry(URL::URL const&);
 
 void run_unloading_cleanup_steps(GC::Ref<DOM::Document>);

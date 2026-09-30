@@ -1098,7 +1098,12 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
     // -> "blob"
     else if (request->current_url().scheme() == "blob"sv) {
         // 1. Let blobURLEntry be request’s current URL’s blob URL entry.
-        auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(Bindings::principal_host_defined_page(realm), request->current_url());
+        // NB: The entry is resolved for the environment settings object obtaining it: request's reserved client if it is
+        //     one, and request's client otherwise.
+        GC::Ptr<HTML::EnvironmentSettingsObject const> resolving_environment = as_if<HTML::EnvironmentSettingsObject>(request->reserved_client().ptr());
+        if (!resolving_environment)
+            resolving_environment = request->client();
+        auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(Bindings::principal_host_defined_page(realm), resolving_environment, request->current_url());
 
         // 2. If request’s method is not `GET` or blobURLEntry is null, then return a network error. [FILEAPI]
         if (request->method() != "GET"sv || !blob_url_entry.has_value())

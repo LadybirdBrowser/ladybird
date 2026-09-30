@@ -84,7 +84,7 @@ public:
     virtual Messages::WebContentClient::ResolveGenericFontResponse resolve_generic_font(String family, u16 weight, u8 slope) override;
     virtual Messages::WebContentClient::DidAddBlobUrlEntryResponse did_add_blob_url_entry(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) override;
     virtual void did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token) override;
-    virtual Messages::WebContentClient::DidRequestBlobUrlEntryResponse did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token) override;
+    virtual Messages::WebContentClient::DidRequestBlobUrlEntryResponse did_request_blob_url_entry(Web::PageId page_id, Optional<Web::HTML::EnvironmentId> environment_id, Utf16String url, Optional<URL::BlobURLEntry::Token> token) override;
 
     WebContentClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, Web::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id);
     ~WebContentClient();
