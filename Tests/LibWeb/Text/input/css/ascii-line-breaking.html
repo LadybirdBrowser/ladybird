@@ -1,0 +1,36 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: PlusLigatures;
+        src: url("../../../Assets/PlusLigatures.ttf");
+    }
+    #text {
+        font: 20px PlusLigatures;
+        font-feature-settings: "calt" 0;
+        width: 10px;
+    }
+</style>
+<div id="text"></div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.load("20px PlusLigatures");
+        const text = document.getElementById("text");
+        for (const content of [
+            "++", "$$", "%%", "+$", "$+", "a+b", "a/b", "a)b", "a!b",
+            "a(b", "a<b", "a[b", "a{b", "+(b", "+<b", "+[b", "+{b",
+            "a-b", "a?b", '-"b', '?"b', "-'b", "?'b", "-$b", "-!b", "-?b",
+            "-1", "a-1", "1-2", "a b", "a\nb",
+        ]) {
+            text.textContent = content;
+            const tops = [];
+            for (let i = 0; i < content.length; ++i) {
+                const range = document.createRange();
+                range.setStart(text.firstChild, i);
+                range.setEnd(text.firstChild, i + 1);
+                tops.push(range.getBoundingClientRect().top);
+            }
+            println(`${JSON.stringify(content)}: ${tops.map(top => top - tops[0]).join(", ")}`);
+        }
+    });
+</script>

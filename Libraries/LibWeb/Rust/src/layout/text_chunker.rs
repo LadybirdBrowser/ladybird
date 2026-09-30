@@ -194,6 +194,41 @@ fn is_interword_space(code_point: u32) -> bool {
     code_point == 0x0020 || code_point == 0x00a0
 }
 
+// INTEROP: Use browser-compatible line-breaking rules for printable ASCII. Unicode line breaking alone permits
+//          additional breaks within punctuation sequences, which also prevents contextual shaping when those
+//          sequences are split into separate chunks.
+fn ascii_line_break_at(text: &[u16], index: usize) -> Option<bool> {
+    if index == 0 || index >= text.len() {
+        return None;
+    }
+    let before = text[index - 1];
+    let after = text[index];
+    if !(0x21..=0x7f).contains(&before) || !(0x21..=0x7f).contains(&after) {
+        return None;
+    }
+
+    let before = before as u8;
+    let after = after as u8;
+    if before == b'-' && after.is_ascii_digit() {
+        return Some(index > 1 && text[index - 2] <= 0x7f && (text[index - 2] as u8).is_ascii_alphanumeric());
+    }
+    if before.is_ascii_alphanumeric()
+        || matches!(
+            before,
+            b'$' | b'\'' | b'(' | b'/' | b'<' | b'@' | b'[' | b'^'..=b'`' | b'{' | 0x7f
+        )
+        || matches!(
+            after,
+            b'!' | b')' | b',' | b'.' | b'/' | b':' | b';' | b'?' | b']' | b'}'
+        )
+        || (before == b'?' && matches!(after, b'"' | b'\''))
+        || (before == b'-' && after == b'$')
+    {
+        return Some(false);
+    }
+    Some(matches!(after, b'(' | b'<' | b'[' | b'{') || matches!(before, b'-' | b'?'))
+}
+
 // A chunk while it is still being accumulated: where it starts, plus the properties shared by
 // every chunk that can be committed from it.
 #[derive(Clone)]
@@ -289,8 +324,14 @@ impl<'text> TextChunker<'text> {
             Some(previous_code_point)
         };
 
-        let is_at_line_segmenter_boundary =
-            || self.line_segmenter.next_boundary(self.current_index, true) == Some(self.current_index);
+        let is_at_line_segmenter_boundary = || {
+            if self.word_break != word_break::BREAK_ALL
+                && let Some(is_boundary) = ascii_line_break_at(self.text, self.current_index)
+            {
+                return is_boundary;
+            }
+            self.line_segmenter.next_boundary(self.current_index, true) == Some(self.current_index)
+        };
 
         match self.word_break {
             word_break::NORMAL | word_break::BREAK_WORD => is_at_line_segmenter_boundary(),

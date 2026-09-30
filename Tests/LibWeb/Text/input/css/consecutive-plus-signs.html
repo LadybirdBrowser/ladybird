@@ -1,0 +1,44 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: PlusLigatures;
+        src: url("../../../Assets/PlusLigatures.ttf");
+    }
+    #text {
+        font: 40px PlusLigatures;
+        font-feature-settings: "calt";
+    }
+</style>
+<div id="text">C++</div>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        const text = document.getElementById("text");
+        const range = document.createRange();
+        const measure = () => {
+            range.selectNodeContents(text);
+            const rect = range.getBoundingClientRect();
+            return `${rect.width} x ${rect.height}`;
+        };
+
+        // Each glyph advances 20px. The font's calt feature replaces the two
+        // plus signs with a single glyph only when they follow C.
+        println(`normal: ${measure()}`);
+        text.style.whiteSpace = "nowrap";
+        println(`nowrap: ${measure()}`);
+        text.style.whiteSpace = "normal";
+        text.style.width = "45px";
+        println(`narrow: ${measure()}`);
+        text.style.fontFeatureSettings = '"calt" 0';
+        println(`disabled: ${measure()}`);
+        text.style.width = "25px";
+        println(`disabled and narrow: ${measure()}`);
+        text.textContent = "++";
+        println(`standalone plus signs: ${measure()}`);
+        text.style.wordBreak = "keep-all";
+        println(`keep-all: ${measure()}`);
+        text.style.wordBreak = "break-all";
+        println(`break-all: ${measure()}`);
+    });
+</script>

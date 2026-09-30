@@ -1,0 +1,8 @@
+normal: 40 x 40
+nowrap: 40 x 40
+narrow: 40 x 40
+disabled: 60 x 40
+disabled and narrow: 60 x 40
+standalone plus signs: 40 x 40
+keep-all: 40 x 40
+break-all: 20 x 80
