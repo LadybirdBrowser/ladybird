@@ -186,12 +186,24 @@ public:
         OwnPtr<MessageType> result;
         while (!result) {
             m_remote_transport->wait_until_readable();
-            (void)m_remote_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
-                auto message = MUST(RequestClientEndpoint::decode_message(raw_message.bytes.bytes(), raw_message.attachments));
-                if (!result && message->message_id() == MessageType::static_message_id())
-                    result = message.template release_nonnull<MessageType>();
-            });
+            read_client_messages(result);
         }
+        return result.release_nonnull();
+    }
+
+    // Keep the event loop running for requests that reach the network.
+    template<typename MessageType>
+    NonnullOwnPtr<MessageType> take_client_message(Core::EventLoop& event_loop)
+    {
+        // The client transport is outside the event loop, so prevent the loop from sleeping.
+        auto wake_timer = Core::Timer::create_repeating(10, [] { });
+        wake_timer->start();
+
+        OwnPtr<MessageType> result;
+        event_loop.spin_until([&] {
+            read_client_messages(result);
+            return result != nullptr;
+        });
         return result.release_nonnull();
     }
 
@@ -217,6 +229,16 @@ public:
     }
 
 private:
+    template<typename MessageType>
+    void read_client_messages(OwnPtr<MessageType>& result)
+    {
+        (void)m_remote_transport->read_as_many_messages_as_possible_without_blocking([&](auto&& raw_message) {
+            auto message = MUST(RequestClientEndpoint::decode_message(raw_message.bytes.bytes(), raw_message.attachments));
+            if (!result && message->message_id() == MessageType::static_message_id())
+                result = message.template release_nonnull<MessageType>();
+        });
+    }
+
     OwnPtr<IPC::MessageBuffer> dispatch(NonnullOwnPtr<IPC::Message> message)
     {
         return MUST(static_cast<RequestServerEndpoint::Stub&>(*m_connection).handle(move(message)));
@@ -606,4 +628,59 @@ TEST_CASE(interim_response_fields_are_not_part_of_the_response)
     auto storage_request = control.wait_for_storage_request(server.event_loop);
     EXPECT_EQ(storage_request->cookies().size(), 1u);
     EXPECT_EQ(storage_request->cookies().first().name, "session"sv);
+}
+
+static ByteString response_with_header_fields(size_t count)
+{
+    StringBuilder builder;
+    builder.append("HTTP/1.1 200 OK\r\n"sv);
+    for (size_t i = 0; i < count; ++i)
+        builder.appendff("X-Field-{}: {}\r\n", i, i);
+    builder.append("Content-Length: 2\r\nConnection: close\r\n\r\nok"sv);
+    return builder.to_byte_string();
+}
+
+TEST_CASE(response_header_names_use_the_first_casing)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+    SetCookieServer http_server { "HTTP/1.1 200 OK\r\nX-Field: a\r\nx-FIELD: b\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"sv };
+
+    connection.start_request(0, http_server.url());
+    auto cookie_request = control.take_cookie_request();
+    control.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch, cookie_request->cookie_request_id());
+
+    auto headers = connection.take_client_message<Messages::RequestClient::HeadersBecameAvailable>(server.event_loop);
+    Vector<ByteString> names;
+    for (auto const& header : headers->response_headers()) {
+        if (header.name.equals_ignoring_ascii_case("X-Field"sv))
+            names.append(header.name);
+    }
+    EXPECT_EQ(names, (Vector<ByteString> { "X-Field"sv, "X-Field"sv }));
+}
+
+TEST_CASE(responses_with_too_many_header_fields_fail)
+{
+    auto many_fields = response_with_header_fields(900);
+    auto too_many_fields = response_with_header_fields(1001);
+
+    struct TestResponse {
+        StringView response;
+        bool should_fail { false };
+    };
+
+    for (auto const& [response, should_fail] : Array { TestResponse { many_fields, false }, TestResponse { too_many_fields, true } }) {
+        TestServer server;
+        TestControlConnection control { server };
+        TestConnection connection { server };
+        SetCookieServer http_server { response };
+
+        connection.start_request(0, http_server.url());
+        auto cookie_request = control.take_cookie_request();
+        control.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch, cookie_request->cookie_request_id());
+
+        auto request_finished = connection.take_client_message<Messages::RequestClient::RequestFinished>(server.event_loop);
+        EXPECT_EQ(request_finished->network_error().has_value(), should_fail);
+    }
 }
