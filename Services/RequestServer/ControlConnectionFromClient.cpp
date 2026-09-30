@@ -8,6 +8,7 @@
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/TransportHandle.h>
+#include <RequestServer/AlternativeServices.h>
 #include <RequestServer/ControlConnectionFromClient.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
@@ -16,12 +17,11 @@ namespace RequestServer {
 
 static ControlConnectionFromClient* s_control_connection = nullptr;
 
-ControlConnectionFromClient::ControlConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, RequestServer::ConnectionFromClient::ConnectionMap& connections, RequestServer::ConnectionFromClient::RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache, ByteString alt_svc_cache_path)
+ControlConnectionFromClient::ControlConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, RequestServer::ConnectionFromClient::ConnectionMap& connections, RequestServer::ConnectionFromClient::RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache)
     : IPC::ConnectionFromClient<RequestServerControlClientEndpoint, RequestServerControlEndpoint>(*this, move(transport), 0)
     , m_connections(connections)
     , m_request_transfer_leases(request_transfer_leases)
     , m_disk_cache(disk_cache)
-    , m_alt_svc_cache_path(move(alt_svc_cache_path))
     , m_resolver(Resolver::default_resolver())
 {
     VERIFY(s_control_connection == nullptr);
@@ -69,7 +69,7 @@ ErrorOr<ControlConnectionFromClient::ClientSocket> ControlConnectionFromClient::
     auto disk_cache = is_private == IsPrivate::Yes ? Optional<HTTP::DiskCache&> {} : m_disk_cache;
 
     // Note: A ref is stored in the m_connections map
-    auto client = adopt_ref(*new RequestServer::ConnectionFromClient(move(paired.local), is_private, site_binding, m_connections, m_request_transfer_leases, disk_cache, m_alt_svc_cache_path));
+    auto client = adopt_ref(*new RequestServer::ConnectionFromClient(move(paired.local), is_private, site_binding, m_connections, m_request_transfer_leases, disk_cache));
 
     return ClientSocket { .handle = move(handle), .client_id = client->client_id() };
 }
@@ -214,6 +214,7 @@ void ControlConnectionFromClient::remove_cache_entries_accessed_since(u64 clear_
 {
     if (m_disk_cache.has_value())
         m_disk_cache->remove_entries_accessed_since(since);
+    AlternativeServiceCache::the().remove_entries_received_since(since);
 
     async_removed_cache_entries(clear_cache_request_id);
 }

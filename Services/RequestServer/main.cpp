@@ -16,6 +16,7 @@
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
@@ -117,6 +118,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             disk_cache = cache.release_value();
     }
 
+    // Alternative services are no longer persisted, so this only holds history.
+    if (!cache_path.is_empty())
+        (void)FileSystem::remove(LexicalPath::join(cache_path, "alt-svc-cache.txt"sv).string(), FileSystem::RecursionMode::Disallowed);
+
     TRY(RequestServer::initialize_libcurl());
 
     if (!disable_sandbox)
@@ -131,8 +136,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         mach_server_name,
         connections,
         request_transfer_leases,
-        disk_cache,
-        LexicalPath::join(cache_path, "alt-svc-cache.txt"sv).string()));
+        disk_cache));
 
     return event_loop.exec();
 }

@@ -80,7 +80,7 @@ public:
     void fetch_aia_intermediate(Badge<Request>, ByteString const& url, u64 for_request_id);
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, SiteBinding, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, SiteBinding, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>);
 
     bool may_use_network_isolation_key(HTTP::NetworkIsolationKey const&, URL::URL const* request_url = nullptr) const;
 
@@ -163,7 +163,6 @@ private:
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
 
     NonnullRefPtr<Resolver> m_resolver;
-    Optional<ByteString> m_alt_svc_cache_path;
 
     u64 m_next_revalidation_request_id { 0 };
 
