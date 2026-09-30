@@ -1,0 +1,7 @@
+1000 bytes beside 40000 in flight: sent
+30000 bytes beside 40000 in flight: rejected
+30000 bytes beside 40000 in flight after garbage collection: rejected
+40000 bytes once unblocked: sent, sent
+30000 bytes after that: sent
+20000 bytes beside 30000 redirected to a GET in flight: sent
+30000 bytes redirected to a GET once unblocked: sent

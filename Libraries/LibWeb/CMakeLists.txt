@@ -374,6 +374,7 @@ set(SOURCES
     Fetch/Infrastructure/HTTP/Requests.cpp
     Fetch/Infrastructure/HTTP/Responses.cpp
     Fetch/Infrastructure/IncrementalReadLoopReadRequest.cpp
+    Fetch/Infrastructure/KeepaliveQuotaAccountant.cpp
     Fetch/Infrastructure/MimeTypeBlocking.cpp
     Fetch/Infrastructure/NetworkPartitionKey.cpp
     Fetch/Infrastructure/NoSniffBlocking.cpp

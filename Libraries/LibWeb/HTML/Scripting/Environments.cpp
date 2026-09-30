@@ -63,6 +63,7 @@ Environment::~Environment() = default;
 
 EnvironmentSettingsObject::EnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> realm_execution_context)
     : m_realm_execution_context(move(realm_execution_context))
+    , m_keepalive_quota_accountant(Fetch::Infrastructure::KeepaliveQuotaAccountant::create())
 {
     m_module_map = GC::Heap::the().allocate<ModuleMap>();
 

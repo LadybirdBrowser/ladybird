@@ -436,6 +436,16 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
 
         // 2. Append record to request’s client’s fetch group’s fetch records.
         request.client()->fetch_group().append(record);
+
+        // AD-HOC: A keepalive request's body length counts toward its fetch group's keepalive quota from here until
+        //         its done flag is set or its body is null, since its fetch record can be collected before then.
+        if (request.keepalive()) {
+            auto body_length = request.body().visit(
+                [](Empty) -> u64 { return 0; },
+                [](ByteBuffer const& buffer) -> u64 { return buffer.size(); },
+                [](GC::Ref<Infrastructure::Body> body) -> u64 { return body->length().value_or(0); });
+            request.set_keepalive_quota_reservation(request.client()->keepalive_quota_accountant().reserve(body_length));
+        }
     }
 
     if (Core::StatsLog::the() && client_window && request.is_subresource_request())
@@ -2007,31 +2017,14 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // 10. If contentLength is non-null and httpRequest’s keepalive is true, then:
         if (content_length.has_value() && http_request->keepalive()) {
             // 1. Let inflightKeepaliveBytes be 0.
-            u64 inflight_keep_alive_bytes = 0;
-
             // 2. Let group be httpRequest’s client’s fetch group.
-            auto& group = http_request->client()->fetch_group();
-
             // 3. Let inflightRecords be the set of fetch records in group whose request’s keepalive is true and done flag is unset.
-            GC::RootVector<GC::Ref<Infrastructure::FetchRecord>> in_flight_records;
-            for (auto& fetch_record : group) {
-                if (fetch_record.request()->keepalive() && !fetch_record.request()->done())
-                    in_flight_records.append(fetch_record);
-            }
-
             // 4. For each fetchRecord of inflightRecords:
-            for (auto const& fetch_record : in_flight_records) {
-                // 1. Let inflightRequest be fetchRecord’s request.
-                auto const& in_flight_request = fetch_record->request();
-
-                // 2. Increment inflightKeepaliveBytes by inflightRequest’s body’s length.
-                inflight_keep_alive_bytes += in_flight_request->body().visit(
-                    [](Empty) -> u64 { return 0; },
-                    [](ByteBuffer const& buffer) -> u64 { return buffer.size(); },
-                    [](GC::Ref<Infrastructure::Body> body) -> u64 {
-                        return body->length().has_value() ? body->length().value() : 0;
-                    });
-            }
+            //     1. Let inflightRequest be fetchRecord’s request.
+            //     2. Increment inflightKeepaliveBytes by inflightRequest’s body’s length.
+            // AD-HOC: The fetch group's keepalive quota accountant holds this sum, so a request whose fetch record was
+            //         collected still counts.
+            auto inflight_keep_alive_bytes = http_request->client()->keepalive_quota_accountant().in_flight_byte_count();
 
             // 5. If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
             if ((content_length.value() + inflight_keep_alive_bytes) > keepalive_maximum_size)
