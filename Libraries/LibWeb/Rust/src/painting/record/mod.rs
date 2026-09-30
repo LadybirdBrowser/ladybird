@@ -355,7 +355,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                     let ui = style.inherited_ui();
                     (ui.color_scheme, ui.color_schemes.as_slice().is_empty())
                 });
-        let use_palette_for_normal_color_scheme = self.layout_arena.node_dom_node(node).is_null()
+        let use_palette_for_normal_color_scheme = !self.layout_arena.node_is_dom_backed(node)
             || (color_scheme_is_normal && !inputs.document_has_supported_color_schemes);
         let palette_color_scheme = if inputs.palette_is_dark {
             PREFERRED_COLOR_SCHEME_DARK

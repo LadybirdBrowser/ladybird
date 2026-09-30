@@ -1214,7 +1214,7 @@ impl LayoutNodeArena {
     pub(crate) fn set_style_node_of_generated_subtree(&self, root: NodeSlotId, style_node: Option<StyleNodeID>) {
         self.assert_owner_thread();
         self.for_each_node_in_layout_subtree_in_pre_order(root, |row| {
-            if self.data(row).generated_for.get() != 0 && self.dom_nodes[row.slot_index() as usize].get().is_null() {
+            if self.data(row).generated_for.get() != 0 && !self.node_is_dom_backed(row) {
                 self.set_node_style_node(row, style_node);
             }
         });
@@ -3427,8 +3427,20 @@ impl LayoutNodeArena {
         self.dom_nodes[id.slot_index() as usize].get()
     }
 
-    pub(crate) fn node_dom_node_is_element(&self, id: NodeSlotId) -> bool {
-        if self.node_dom_node(id).is_null() {
+    /// Whether the row was built for a DOM node: an element, a text node or the document. Anonymous
+    /// boxes and generated content were not, so they have none. The node itself is named by the row's
+    /// identity and resolved on the host side.
+    pub(crate) fn node_is_dom_backed(&self, id: NodeSlotId) -> bool {
+        self.node_data_if_live(id).is_some_and(|data| {
+            // A slot that has not been given a shell yet stands for nothing at all, and its flags
+            // do not say so.
+            data.kind.get() != NodeKind::Unset && !crate::layout::node_facts::has_flag(data, NodeFlag::Anonymous)
+        })
+    }
+
+    /// Whether the row was built for an element, as opposed to the document, a text node or nothing.
+    pub(crate) fn node_is_element_backed(&self, id: NodeSlotId) -> bool {
+        if !self.node_is_dom_backed(id) {
             return false;
         }
         let kind = self.data(id).kind.get();
@@ -3461,8 +3473,7 @@ impl LayoutNodeArena {
             if current.is_invalid() {
                 return NodeSlotId::INVALID;
             }
-            let has_dom_node = !self.dom_nodes[current.slot_index() as usize].get().is_null();
-            if has_dom_node || self.data(current).generated_for.get() != 0 {
+            if self.node_is_dom_backed(current) || self.data(current).generated_for.get() != 0 {
                 return current;
             }
         }

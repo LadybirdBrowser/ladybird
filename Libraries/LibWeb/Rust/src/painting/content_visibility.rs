@@ -21,7 +21,7 @@ pub(crate) fn for_each_box_with_auto_content_visibility(
         if node_painting::forms_unconnected_subtree(arena.data(node).kind.get()) {
             return false;
         }
-        if !arena.node_dom_node_is_element(node) || !arena.paintable_row_is_populated(node) {
+        if !arena.node_is_element_backed(node) || !arena.paintable_row_is_populated(node) {
             return true;
         }
         let content_visibility_is_auto = arena

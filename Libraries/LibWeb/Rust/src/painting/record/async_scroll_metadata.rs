@@ -218,7 +218,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             Some(CompositorScrollNodeKind::Viewport)
         } else if self.layout_arena.node_generated_for(paintable) != 0 {
             Some(CompositorScrollNodeKind::PseudoElement)
-        } else if self.layout_arena.node_dom_node_is_element(paintable) {
+        } else if self.layout_arena.node_is_element_backed(paintable) {
             Some(CompositorScrollNodeKind::Element)
         } else {
             None

@@ -440,7 +440,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     }
 
     fn node_has_dom_node(&self, node: NodeSlotId) -> bool {
-        !self.layout_arena.node_dom_node(node).is_null()
+        self.layout_arena.node_is_dom_backed(node)
     }
 
     fn append_box(
