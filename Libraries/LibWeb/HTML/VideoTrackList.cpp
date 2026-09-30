@@ -38,7 +38,7 @@ GC::Ptr<VideoTrack> VideoTrackList::item(size_t index) const
 void VideoTrackList::add_track(GC::Ref<VideoTrack> video_track)
 {
     m_video_tracks.append(video_track);
-    video_track->set_video_track_list({}, this);
+    video_track->add_video_track_list({}, *this);
     if (m_media_element)
         m_media_element->update_natural_dimensions();
 }
@@ -47,7 +47,7 @@ void VideoTrackList::remove_all_tracks()
 {
     for (auto& video_track : m_video_tracks) {
         video_track->set_selected(false);
-        video_track->set_video_track_list({}, nullptr);
+        video_track->remove_video_track_list({}, *this);
     }
     m_video_tracks.clear();
     if (m_media_element)

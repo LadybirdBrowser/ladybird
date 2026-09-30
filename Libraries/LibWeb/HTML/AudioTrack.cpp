@@ -40,7 +40,17 @@ AudioTrack::~AudioTrack() = default;
 void AudioTrack::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_audio_track_list);
+    visitor.visit(m_audio_track_lists);
+}
+
+void AudioTrack::add_audio_track_list(Badge<AudioTrackList>, AudioTrackList& audio_track_list)
+{
+    m_audio_track_lists.append(audio_track_list);
+}
+
+void AudioTrack::remove_audio_track_list(Badge<AudioTrackList>, AudioTrackList& audio_track_list)
+{
+    m_audio_track_lists.remove_first_matching([&](auto const& list) { return list.ptr() == &audio_track_list; });
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-enabled
@@ -54,11 +64,11 @@ void AudioTrack::set_enabled(bool enabled)
 
     m_enabled = enabled;
 
-    if (m_audio_track_list) {
+    for (auto audio_track_list : m_audio_track_lists) {
         // Whenever an audio track in an AudioTrackList that was disabled is enabled, and whenever one that was enabled
         // is disabled, the user agent must queue a media element task given the media element to fire an event named
         // change at the AudioTrackList object.
-        media_element().queue_a_media_element_task([this, audio_track_list = m_audio_track_list](HTMLMediaElement&) {
+        media_element().queue_a_media_element_task([this, audio_track_list](HTMLMediaElement&) {
             audio_track_list->dispatch_event(create_event_for_element(media_element(), HTML::EventNames::change));
         });
     }

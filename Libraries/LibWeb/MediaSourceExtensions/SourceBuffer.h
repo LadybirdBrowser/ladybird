@@ -63,6 +63,15 @@ public:
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
     GC::Ref<HTML::TimeRanges> buffered();
 
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-audiotracks
+    GC::Ref<HTML::AudioTrackList> audio_tracks() const { return m_audio_tracks; }
+
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-videotracks
+    GC::Ref<HTML::VideoTrackList> video_tracks() const { return m_video_tracks; }
+
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-texttracks
+    GC::Ref<HTML::TextTrackList> text_tracks() const { return m_text_tracks; }
+
     AK::Duration highest_presentation_timestamp() const;
     AK::Duration highest_end_time() const;
 

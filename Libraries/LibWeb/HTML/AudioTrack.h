@@ -22,7 +22,8 @@ public:
 
     virtual ~AudioTrack() override;
 
-    void set_audio_track_list(Badge<AudioTrackList>, GC::Ptr<AudioTrackList> audio_track_list) { m_audio_track_list = audio_track_list; }
+    void add_audio_track_list(Badge<AudioTrackList>, AudioTrackList&);
+    void remove_audio_track_list(Badge<AudioTrackList>, AudioTrackList&);
 
     bool enabled() const { return m_enabled; }
     void set_enabled(bool enabled);
@@ -35,7 +36,8 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-enabled
     bool m_enabled { false };
 
-    GC::Ptr<AudioTrackList> m_audio_track_list;
+    // A track is in its media element's list, and in its SourceBuffer's list if it has one.
+    Vector<GC::Ref<AudioTrackList>, 2> m_audio_track_lists;
 };
 
 }

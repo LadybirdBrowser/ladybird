@@ -36,14 +36,14 @@ GC::Ptr<AudioTrack> AudioTrackList::item(size_t index) const
 void AudioTrackList::add_track(GC::Ref<AudioTrack> audio_track)
 {
     m_audio_tracks.append(audio_track);
-    audio_track->set_audio_track_list({}, this);
+    audio_track->add_audio_track_list({}, *this);
 }
 
 void AudioTrackList::remove_all_tracks()
 {
     for (auto& audio_track : m_audio_tracks) {
         audio_track->set_enabled(false);
-        audio_track->set_audio_track_list({}, nullptr);
+        audio_track->remove_audio_track_list({}, *this);
     }
     m_audio_tracks.clear();
 }
