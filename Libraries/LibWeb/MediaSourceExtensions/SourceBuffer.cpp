@@ -16,7 +16,9 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TextTrackList.h>
 #include <LibWeb/HTML/TimeRanges.h>
+#include <LibWeb/HTML/TrackEvent.h>
 #include <LibWeb/HTML/VideoTrackList.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
@@ -26,6 +28,14 @@
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::MediaSourceExtensions {
+
+static void dispatch_addtrack_event(JS::Object& global_object, DOM::EventTarget& track_list, HTML::NullableTrackType const& track)
+{
+    HTML::TrackEventInit event_init {};
+    event_init.track = track;
+    auto event = HTML::TrackEvent::create(HTML::EventNames::addtrack, event_init, HighResolutionTime::current_high_resolution_time(global_object));
+    track_list.dispatch_event(event);
+}
 
 GC_DEFINE_ALLOCATOR(SourceBuffer);
 
@@ -816,6 +826,12 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
 
                 // 8. Add new audio track to the audioTracks attribute on this SourceBuffer object.
                 m_audio_tracks->add_track(new_audio_track);
+                // NOTE: This should trigger AudioTrackList [HTML] logic to queue a task to fire an event named
+                //       addtrack using TrackEvent with the track attribute initialized to new audio track, at the
+                //       AudioTrackList object referenced by the audioTracks attribute on this SourceBuffer object.
+                m_media_source->queue_a_media_source_task(GC::create_function(heap(), [media_source = m_media_source, audio_tracks = m_audio_tracks, new_audio_track] {
+                    dispatch_addtrack_event(media_source->relevant_global_object(), audio_tracks, new_audio_track);
+                }));
 
                 // 9. If the parent media source was constructed in a DedicatedWorkerGlobalScope:
                 if (!m_media_source->media_element_assigned_to()) {
@@ -825,6 +841,13 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
                 // Otherwise:
                 // Add new audio track to the audioTracks attribute on the HTMLMediaElement.
                 m_media_source->media_element_assigned_to()->audio_tracks()->add_track(new_audio_track);
+                // NOTE: This should trigger AudioTrackList [HTML] logic to queue a task to fire an event named
+                //       addtrack using TrackEvent with the track attribute initialized to mirrored audio track or new
+                //       audio track, at the AudioTrackList object referenced by the audioTracks attribute on the
+                //       HTMLMediaElement.
+                m_media_source->media_element_assigned_to()->queue_a_media_element_task([new_audio_track](HTML::HTMLMediaElement& media_element) {
+                    dispatch_addtrack_event(HTML::relevant_global_object(media_element), media_element.audio_tracks(), new_audio_track);
+                });
             }
 
             // 7. Create a new track buffer to store coded frames for this track.
@@ -874,6 +897,12 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
 
                 // 8. Add new video track to the videoTracks attribute on this SourceBuffer object.
                 m_video_tracks->add_track(new_video_track);
+                // NOTE: This should trigger VideoTrackList [HTML] logic to queue a task to fire an event named addtrack
+                //       using TrackEvent with the track attribute initialized to new video track, at the VideoTrackList
+                //       object referenced by the videoTracks attribute on this SourceBuffer object.
+                m_media_source->queue_a_media_source_task(GC::create_function(heap(), [media_source = m_media_source, video_tracks = m_video_tracks, new_video_track] {
+                    dispatch_addtrack_event(media_source->relevant_global_object(), video_tracks, new_video_track);
+                }));
 
                 // 9. If the parent media source was constructed in a DedicatedWorkerGlobalScope:
                 if (!m_media_source->media_element_assigned_to()) {
@@ -883,6 +912,13 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
                 // Otherwise:
                 // Add new video track to the videoTracks attribute on the HTMLMediaElement.
                 m_media_source->media_element_assigned_to()->video_tracks()->add_track(new_video_track);
+                // NOTE: This should trigger VideoTrackList [HTML] logic to queue a task to fire an event named addtrack
+                //       using TrackEvent with the track attribute initialized to mirrored video track or new video
+                //       track, at the VideoTrackList object referenced by the videoTracks attribute on the
+                //       HTMLMediaElement.
+                m_media_source->media_element_assigned_to()->queue_a_media_element_task([new_video_track](HTML::HTMLMediaElement& media_element) {
+                    dispatch_addtrack_event(HTML::relevant_global_object(media_element), media_element.video_tracks(), new_video_track);
+                });
             }
 
             // 7. Create a new track buffer to store coded frames for this track.
@@ -937,6 +973,12 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
 
                 // 9. Add new text track to the textTracks attribute on this SourceBuffer object.
                 m_text_tracks->add_track(new_text_track);
+                // NOTE: This should trigger TextTrackList [HTML] logic to queue a task to fire an event named addtrack
+                //       using TrackEvent with the track attribute initialized to new text track, at the TextTrackList
+                //       object referenced by the textTracks attribute on this SourceBuffer object.
+                m_media_source->queue_a_media_source_task(GC::create_function(heap(), [media_source = m_media_source, text_tracks = m_text_tracks, new_text_track] {
+                    dispatch_addtrack_event(media_source->relevant_global_object(), text_tracks, new_text_track);
+                }));
 
                 // 10. If the parent media source was constructed in a DedicatedWorkerGlobalScope:
                 if (!m_media_source->media_element_assigned_to()) {
@@ -946,6 +988,12 @@ void SourceBuffer::on_first_initialization_segment_processed(Vector<Media::Track
                 // Otherwise:
                 // Add new text track to the textTracks attribute on the HTMLMediaElement.
                 m_media_source->media_element_assigned_to()->text_tracks()->add_track(new_text_track);
+                // NOTE: This should trigger TextTrackList [HTML] logic to queue a task to fire an event named addtrack
+                //       using TrackEvent with the track attribute initialized to mirrored text track or new text track,
+                //       at the TextTrackList object referenced by the textTracks attribute on the HTMLMediaElement.
+                m_media_source->media_element_assigned_to()->queue_a_media_element_task([new_text_track](HTML::HTMLMediaElement& media_element) {
+                    dispatch_addtrack_event(HTML::relevant_global_object(media_element), media_element.text_tracks(), new_text_track);
+                });
             }
 
             // 7. Create a new track buffer to store coded frames for this track.

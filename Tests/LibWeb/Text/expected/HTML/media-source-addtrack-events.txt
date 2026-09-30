@@ -1,0 +1,11 @@
+appending two audio tracks
+addtrack at sourceBuffer.audioTracks: track 0
+addtrack at video.audioTracks: track 0
+addtrack at sourceBuffer.audioTracks: track 1
+addtrack at video.audioTracks: track 1
+appending two video tracks
+addtrack at sourceBuffer.videoTracks: track 0
+addtrack at video.videoTracks: track 0
+addtrack at sourceBuffer.videoTracks: track 1
+addtrack at video.videoTracks: track 1
+audio tracks: 2, video tracks: 2
