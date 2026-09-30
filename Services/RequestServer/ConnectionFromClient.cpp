@@ -252,6 +252,12 @@ static bool is_fetchable_url(URL::URL const& url)
     return !url.port().has_value() || !HTTP::is_bad_port(*url.port());
 }
 
+// IPC does not validate enum values; the cache requires a known associated-data kind.
+static bool is_valid_associated_data(HTTP::CacheEntryAssociatedData associated_data)
+{
+    return HTTP::CACHE_ENTRY_ASSOCIATED_DATA_TYPES.contains_slow(associated_data);
+}
+
 // Headers go verbatim on the wire; newlines would allow request injection.
 static bool are_valid_headers(Vector<HTTP::Header> const& headers)
 {
@@ -717,6 +723,11 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
 
 Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
 {
+    if (!is_valid_associated_data(associated_data)) {
+        did_misbehave("invalid cache associated data kind");
+        return false;
+    }
+
     if (!are_valid_headers(request_headers)) {
         did_misbehave("invalid request header");
         return false;
@@ -740,6 +751,11 @@ Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::
 
 Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClient::retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
 {
+    if (!is_valid_associated_data(associated_data)) {
+        did_misbehave("invalid cache associated data kind");
+        return Optional<Core::AnonymousBuffer> {};
+    }
+
     if (!are_valid_headers(request_headers)) {
         did_misbehave("invalid request header");
         return Optional<Core::AnonymousBuffer> {};
