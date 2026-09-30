@@ -1301,6 +1301,11 @@ void ViewImplementation::find_in_page_previous_match()
     page().async_find_in_page_previous_match();
 }
 
+void ViewImplementation::find_in_page_end()
+{
+    page().async_find_in_page_end();
+}
+
 void ViewImplementation::get_source()
 {
     page().async_get_source();
