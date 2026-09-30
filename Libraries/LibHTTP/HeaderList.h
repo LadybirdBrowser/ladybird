@@ -38,6 +38,8 @@ public:
     Optional<ByteString> get(StringView) const;
     Optional<Vector<String>> get_decode_and_split(StringView) const;
     void append(Header);
+    // The caller must match the casing of existing headers with this name.
+    void append_with_normalized_name(Header header) { m_headers.append(move(header)); }
     void delete_(StringView name);
     void set(Header);
     void combine(Header);

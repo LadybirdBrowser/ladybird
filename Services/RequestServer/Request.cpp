@@ -33,6 +33,8 @@ namespace RequestServer {
 extern OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 
 static long s_connect_timeout_seconds = 90L;
+
+static constexpr size_t max_response_header_count = 1000;
 static AK::Duration s_wait_for_cache_timeout = AK::Duration::from_seconds(10);
 static AK::Duration s_revalidation_stall_timeout = AK::Duration::from_seconds(30);
 
@@ -1505,6 +1507,7 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
     // libcurl reports interim responses too; retain only the final header block.
     if (header_line.starts_with("HTTP/"sv)) {
         request.m_response_headers->clear();
+        request.m_received_response_header_names.clear();
         request.m_reason_phrase.clear();
 
         // We need to extract the HTTP reason phrase since it can be a custom value. Fetching infrastructure needs this
@@ -1526,9 +1529,23 @@ size_t Request::on_header_received(void* buffer, size_t size, size_t nmemb, void
     }
 
     if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
-        auto name = HTTP::normalize_header_value(header_line.substring_view(0, *colon_index));
+        if (request.m_response_headers->headers().size() >= max_response_header_count) {
+            dbgln("Request::on_header_received: Aborting request with more than {} response headers", max_response_header_count);
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        ByteString name = HTTP::normalize_header_value(header_line.substring_view(0, *colon_index));
         auto value = HTTP::normalize_header_value(header_line.substring_view(*colon_index + 1));
-        request.m_response_headers->append({ name, value });
+
+        // https://fetch.spec.whatwg.org/#concept-header-list-append
+        // 1. If list contains name, then set name to the first such header’s name.
+        if (auto existing_name = request.m_received_response_header_names.find(name); existing_name != request.m_received_response_header_names.end())
+            name = *existing_name;
+        else
+            request.m_received_response_header_names.set(name);
+
+        // 2. Append (name, value) to list.
+        request.m_response_headers->append_with_normalized_name({ move(name), value });
     }
 
     return total_size;
