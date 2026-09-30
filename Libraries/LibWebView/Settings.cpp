@@ -575,7 +575,8 @@ JsonValue Settings::serialize_json() const
     content_blockers.set(CONTENT_BLOCKER_CUSTOM_FILTERS_KEY, m_custom_content_blocker_filters);
     settings.set(CONTENT_BLOCKERS_KEY, move(content_blockers));
 
-    // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool }
+    // dnsSettings :: ({ mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool })
+    //                & { proxy?: { server: string, resolvesAllHostnames: bool } }
     JsonObject dns_settings;
     m_dns_settings.visit(
         [&](SystemDNS) {
@@ -597,6 +598,22 @@ JsonValue Settings::serialize_json() const
             dns_settings.set("dnssec"sv, dns.validate_dnssec_locally);
             dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
         });
+
+    // Proxy-side resolution bypasses our DNS server and DNSSEC settings.
+    // Settings exist without an application in tests, which have no proxies to speak of.
+    HTTP::ProxyConfiguration proxy_configuration;
+    if (Application::is_initialized())
+        proxy_configuration = Application::request_server_options().proxy_configuration;
+    auto resolves_hostnames = [](Optional<HTTP::Proxy> const& proxy) { return proxy.has_value() && proxy->resolves_hostnames(); };
+    if (resolves_hostnames(proxy_configuration.http_proxy()) || resolves_hostnames(proxy_configuration.https_proxy())) {
+        auto const& proxy = resolves_hostnames(proxy_configuration.https_proxy()) ? *proxy_configuration.https_proxy() : *proxy_configuration.http_proxy();
+
+        JsonObject proxy_settings;
+        proxy_settings.set("server"sv, MUST(proxy.host.contains(':') ? String::formatted("[{}]:{}", proxy.host, proxy.port) : String::formatted("{}:{}", proxy.host, proxy.port)));
+        proxy_settings.set("resolvesAllHostnames"sv, resolves_hostnames(proxy_configuration.http_proxy()) && resolves_hostnames(proxy_configuration.https_proxy()));
+        dns_settings.set("proxy"sv, move(proxy_settings));
+    }
+
     settings.set(DNS_SETTINGS_KEY, move(dns_settings));
 
     JsonObject config_variables;
