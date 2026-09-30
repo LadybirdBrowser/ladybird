@@ -454,6 +454,36 @@ bool is_header_exempted_from_storage(StringView name)
         TEST_CACHE_REQUEST_TIME_OFFSET);
 }
 
+// https://httpwg.org/specs/rfc9111.html#storing.fields
+NonnullRefPtr<HeaderList> remove_connection_specific_fields(HeaderList const& headers)
+{
+    // * The Connection header field and fields whose names are listed in it are required by Section 7.6.1 of [HTTP]
+    //   to be removed before forwarding the message. This MAY be implemented by doing so before storage.
+    //
+    // NB: Strip these before deciding cacheability too.
+    Vector<StringView> connection_options;
+
+    headers.for_each_header_value("Connection"sv, [&](StringView value) {
+        value.for_each_split_view(',', SplitBehavior::Nothing, [&](StringView connection_option) {
+            if (connection_option = connection_option.trim(HTTP_WHITESPACE); !connection_option.is_empty())
+                connection_options.append(connection_option);
+        });
+        return IterationDecision::Continue;
+    });
+
+    auto result = HeaderList::create();
+
+    for (auto const& header : headers) {
+        auto is_connection_specific = any_of(connection_options, [&](auto connection_option) {
+            return header.name.equals_ignoring_ascii_case(connection_option);
+        });
+        if (!is_connection_specific)
+            result->append(header);
+    }
+
+    return result;
+}
+
 // https://httpwg.org/specs/rfc9111.html#heuristic.freshness
 static AK::Duration calculate_heuristic_freshness_lifetime(HeaderList const& headers, AK::Duration current_time_offset_for_testing)
 {
@@ -776,8 +806,11 @@ bool can_freshen_stored_response(HeaderList const& stored_headers, HeaderList co
 }
 
 // https://httpwg.org/specs/rfc9111.html#update
-void update_header_fields(HeaderList& stored_headers, HeaderList const& updated_headers)
+void update_header_fields(HeaderList& stored_headers, HeaderList const& received_updated_headers)
 {
+    auto updated_headers_without_connection_specific_fields = remove_connection_specific_fields(received_updated_headers);
+    auto const& updated_headers = *updated_headers_without_connection_specific_fields;
+
     // Caches are required to update a stored response's header fields from another (typically newer) response in
     // several situations; for example, see Sections 3.4, 4.3.4, and 4.3.5.
 

@@ -285,6 +285,23 @@ TEST_CASE(clearing_the_cache_removes_responses_still_being_written)
     EXPECT(!open_cache_entry(disk_cache, request, url, *lookup_request_headers).has_value());
 }
 
+TEST_CASE(connection_specific_cache_policy_does_not_allow_storage)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/redirect"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Connection"sv, "Cache-Control"sv },
+        { "Cache-Control"sv, "max-age=3600"sv },
+        { "Location"sv, "https://example.com/target"sv },
+    });
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    EXPECT(writer.write_status_and_reason(302, "Found"_string, *request_headers, *response_headers).is_error());
+}
+
 TEST_CASE(associated_data_round_trips_with_cache_entry)
 {
     auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
