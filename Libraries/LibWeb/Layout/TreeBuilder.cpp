@@ -686,6 +686,15 @@ static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& elem
     return content;
 }
 
+// A DOM node paired with the identity its layout rows carry, so Rust can find them itself.
+static RustFFI::FfiIdentifiedDomNode identified_dom_node(DOM::Node const* node)
+{
+    return {
+        .node = const_cast<DOM::Node*>(node),
+        .style_node = Node::style_node_of(node).value(),
+    };
+}
+
 static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_element)
 {
     switch (pseudo_element) {
@@ -788,7 +797,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                     .display_is_contents = false,
                     .display_is_list_item = false,
                     .has_content_replacement = false,
-                    .originating_layout_node_is_list_item = false,
+                    .originating_list_box = Node::slot_id(nullptr),
                     .normal_marker_has_content = false,
                     .marker_position_is_inside = false,
                 };
@@ -809,7 +818,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 .display_is_contents = frame.display.is_contents(),
                 .display_is_list_item = frame.display.is_list_item(),
                 .has_content_replacement = frame.replacement_image != nullptr,
-                .originating_layout_node_is_list_item = frame.originating_list_box != nullptr,
+                .originating_list_box = Node::slot_id(frame.originating_list_box),
                 .normal_marker_has_content = normal_marker_has_content,
                 .marker_position_is_inside = frame.originating_list_box
                     && frame.originating_list_box->list_style_position() == CSS::ListStylePosition::Inside,
@@ -1090,6 +1099,10 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(node_pointer);
             return static_cast<DOM::Node*>(node_pointer)->next_sibling();
         },
+        .next_identified_sibling = [](void* node_pointer) -> RustFFI::FfiIdentifiedDomNode {
+            VERIFY(node_pointer);
+            return identified_dom_node(static_cast<DOM::Node*>(node_pointer)->next_sibling());
+        },
         .clear_dom_update_flags = [](void* node_pointer) {
             VERIFY(node_pointer);
             auto& node = *static_cast<DOM::Node*>(node_pointer);
@@ -1175,8 +1188,8 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
                 .slot_element = slot_element,
                 .svg_graphics_element = graphics_element,
-                .svg_mask = const_cast<SVG::SVGMaskElement*>(mask.ptr()),
-                .svg_clip_path = const_cast<SVG::SVGClipPathElement*>(clip_path.ptr()),
+                .svg_mask = identified_dom_node(mask.ptr()),
+                .svg_clip_path = identified_dom_node(clip_path.ptr()),
                 .svg_fill_pattern = const_cast<SVG::SVGPatternElement*>(fill_pattern.ptr()),
                 .svg_stroke_pattern = const_cast<SVG::SVGPatternElement*>(stroke_pattern.ptr()),
             }; },
@@ -1213,22 +1226,15 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .has_computed_style = box_values != nullptr,
                 .display_is_none = box_values && box_values->display_value().is_none(),
             }; },
-        .svg_pattern_content_element = [](void* pattern_pointer) -> void* {
+        .svg_pattern_content_element = [](void* pattern_pointer) -> RustFFI::FfiIdentifiedDomNode {
             VERIFY(pattern_pointer);
-            return const_cast<SVG::SVGPatternElement*>(static_cast<SVG::SVGPatternElement*>(pattern_pointer)->pattern_content_element().ptr()); },
+            return identified_dom_node(static_cast<SVG::SVGPatternElement*>(pattern_pointer)->pattern_content_element().ptr()); },
         .register_svg_resource_reference = [](void* resource_pointer, void* graphics_element_pointer) {
             VERIFY(resource_pointer);
             VERIFY(graphics_element_pointer);
             LayoutTreeBuilderAccess::register_svg_resource_reference(
                 *static_cast<SVG::SVGElement*>(resource_pointer),
                 *static_cast<SVG::SVGGraphicsElement*>(graphics_element_pointer)); },
-        .element_layout_node = [](void* element_pointer) -> Compositing::RustFFI::NodeSlotId {
-            VERIFY(element_pointer);
-            // NB: Called during layout tree construction.
-            return Node::slot_id(static_cast<DOM::Element*>(element_pointer)->unsafe_layout_node()); },
-        .dom_node_layout_node = [](void* node_pointer) -> Compositing::RustFFI::NodeSlotId {
-            VERIFY(node_pointer);
-            return Node::slot_id(static_cast<DOM::Node*>(node_pointer)->unsafe_layout_node()); },
         .layout_node_dom_element = [](void* layout_node_pointer) -> void* {
             VERIFY(layout_node_pointer);
             auto* dom_node = static_cast<Layout::Node*>(layout_node_pointer)->dom_node();
