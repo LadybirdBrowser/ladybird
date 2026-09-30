@@ -117,6 +117,8 @@ private:
     [[nodiscard]] Layout::Node const* layout_node_for_item(Item) const;
     [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item) const;
     [[nodiscard]] DOM::Node const* item_dom_node(size_t item_index) const;
+    [[nodiscard]] DOM::NodeIdentity item_identity(size_t item_index) const;
+    [[nodiscard]] DOM::NodeIdentity event_dispatch_identity_for_item(size_t item_index) const;
     [[nodiscard]] DOM::Node const* event_dispatch_dom_node_for_item(size_t item_index) const;
     [[nodiscard]] bool item_is_direct_caret_target(size_t item_index) const;
     [[nodiscard]] HitTestResult hit_test_result_for_item(Item, CSSPixelPoint local_point) const;

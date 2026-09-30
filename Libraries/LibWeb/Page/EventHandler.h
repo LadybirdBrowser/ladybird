@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/DOM/HoverEventData.h>
+#include <LibWeb/DOM/NodeIdentity.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
@@ -134,12 +135,12 @@ private:
         Compositing::RustFFI::NodeSlotId hit_node;
         NonnullRefPtr<Layout::NodeArena> arena;
         RefPtr<Painting::ChromeWidget> chrome_widget;
-        GC::Ptr<DOM::Node> node;
+        DOM::NodeIdentity node;
         Optional<int> index_in_node;
         bool is_text_fragment { false };
 
         Layout::Node* layout_node() const;
-        GC::Ptr<DOM::Node> dom_node() const { return node; }
+        GC::Ptr<DOM::Node> dom_node() const;
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
     GC::Ptr<DOM::Node> focus_candidate_for_position(CSSPixelPoint) const;
