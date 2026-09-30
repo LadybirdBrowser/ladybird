@@ -1,0 +1,12 @@
+Find the removed item: false
+Find a remaining item: true
+Find after replaceChildren: true
+BlockContainer <ol#list> at [40,16] [0+0+40 760 0+0+0] [16+0+0 16 0+0+16] children: not-inline
+  ListItemBox <li> at [40,16] [0+0+0 760 0+0+0] [0+0+0 16 0+0+0] children: inline
+    frag 0 from TextNode start: 0, length: 10, rect: [40,16 76.375x16] baseline: 12.796875
+        "first item"
+    ListItemMarkerBox <(anonymous)> at [21,16] [0+0+0 18.6875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+      frag 0 from GeneratedTextNode start: 0, length: 3, rect: [21,16 18.6875x16] baseline: 12.796875
+          "1. "
+      GeneratedTextNode <(anonymous)> (not painted)
+    TextNode <#text> (not painted)

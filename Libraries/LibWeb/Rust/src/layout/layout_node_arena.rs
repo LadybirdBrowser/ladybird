@@ -3706,14 +3706,6 @@ pub unsafe extern "C" fn layout_arena_previous_dom_backed_or_generated_node(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_dom_node(arena: *mut c_void, node: NodeSlotId) -> *mut c_void {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.node_dom_node(node)
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_live_slot_count(arena: *mut c_void) -> u32 {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
@@ -4189,15 +4181,15 @@ pub unsafe extern "C" fn layout_arena_layout_is_up_to_date(
     unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_is_up_to_date(document_needs_layout_tree_build)
 }
 
-/// Visits the DOM node of every subtree root the last layout tree build rebuilt and left live.
-/// Anonymous roots have no DOM node and are skipped.
+/// Visits every subtree root the last layout tree build rebuilt and left live, as the row's layout
+/// node. Anonymous roots stand for no DOM node and are skipped; the host resolves the rest.
 ///
 /// # Safety
 ///
 /// `arena` must be a live handle on the document thread, and `visit` must return synchronously
-/// without entering the arena.
+/// without mutating the arena.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_for_each_pending_rebuilt_subtree_root_dom_node(
+pub unsafe extern "C" fn layout_arena_for_each_pending_rebuilt_subtree_root(
     arena: *mut c_void,
     context: *mut c_void,
     visit: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -4210,12 +4202,12 @@ pub unsafe extern "C" fn layout_arena_for_each_pending_rebuilt_subtree_root_dom_
         .clone();
     for root in roots {
         // SAFETY: As above.
-        let dom_node = unsafe { &*arena.cast::<LayoutNodeArena>() }.node_dom_node(root);
-        if dom_node.is_null() {
+        let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
+        if !arena.node_is_dom_backed(root) {
             continue;
         }
-        // SAFETY: The callback receives a DOM node the arena keeps alive.
-        unsafe { visit(context, dom_node) };
+        // SAFETY: The callback receives a layout node the arena keeps alive.
+        unsafe { visit(context, arena.node_shell(root)) };
     }
 }
 

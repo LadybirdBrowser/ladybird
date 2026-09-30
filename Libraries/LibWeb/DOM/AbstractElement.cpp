@@ -148,14 +148,16 @@ Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_meth
         if (slot.index == Compositing::RustFFI::INVALID_NODE_SLOT_INDEX)
             return OptionalNone {};
 
-        if (auto* previous_element = as_if<Element>(static_cast<Node*>(Layout::RustFFI::layout_arena_node_dom_node(arena_handle, slot))))
+        auto* previous_node = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena_handle, slot));
+        if (!previous_node)
+            continue;
+        // A row kept after its node or its generator was removed resolves to neither, and is skipped.
+        if (auto* previous_element = as_if<Element>(previous_node->dom_node()))
             return AbstractElement { *previous_element };
 
-        auto* generated_node = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena_handle, slot));
-        if (generated_node && generated_node->is_generated_for_pseudo_element()) {
-            auto pseudo_element = generated_node->generated_for_pseudo_element();
-            // A row kept after its generator was removed resolves to no generator, and is skipped.
-            auto generator = generated_node->pseudo_element_generator();
+        if (previous_node->is_generated_for_pseudo_element()) {
+            auto pseudo_element = previous_node->generated_for_pseudo_element();
+            auto generator = previous_node->pseudo_element_generator();
             if (generator && pseudo_element.has_value() && CSS::is_tree_abiding_pseudo_element(*pseudo_element))
                 return AbstractElement { *generator, pseudo_element };
         }
