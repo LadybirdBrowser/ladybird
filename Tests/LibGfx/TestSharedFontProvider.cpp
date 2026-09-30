@@ -480,6 +480,6 @@ TEST_CASE(file_collection_faces_share_the_same_mapping)
         EXPECT_EQ(typeface->slope(), index == 2 ? 1u : 0u);
         if (!faces.is_empty())
             EXPECT_EQ(typeface->font_data().data(), faces.first()->font_data().data());
-        faces.append(move(typeface)); }, Gfx::PathFontProvider::FontDataSource::SharedMapping);
+        faces.append(move(typeface)); });
     EXPECT_EQ(faces.size(), 3u);
 }

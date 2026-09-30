@@ -52,7 +52,7 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
     });
 }
 
-void PathFontProvider::for_each_typeface_in_uri(StringView uri, HashTable<String>& loaded_paths, Function<void(String const&, u32, FontFileFormat, NonnullRefPtr<Typeface>)> callback, FontDataSource font_data_source)
+void PathFontProvider::for_each_typeface_in_uri(StringView uri, HashTable<String>& loaded_paths, Function<void(String const&, u32, FontFileFormat, NonnullRefPtr<Typeface>)> callback)
 {
     auto root_or_error = Core::Resource::load_from_uri(uri);
     if (root_or_error.is_error()) {
@@ -83,26 +83,14 @@ void PathFontProvider::for_each_typeface_in_uri(StringView uri, HashTable<String
             return IterationDecision::Continue;
 
         if (is_truetype) {
-            RefPtr<Typeface::FontDataBacking> backing;
-            // NB: Catalog discovery shares one mapping across all collection faces instead of copying the file
-            //     for each face. Resource-backed fonts retain their URI for serialization through IPC.
-            if (font_data_source == FontDataSource::SharedMapping) {
-                auto mapping = Core::MappedFile::map(filesystem_path);
-                if (mapping.is_error())
-                    return IterationDecision::Continue;
-                backing = make_ref_counted<Typeface::FontDataBacking>(mapping.release_value());
-            }
             auto font_count = number_of_fonts_in_ttc(resource.data());
+            auto backing = make_ref_counted<Typeface::FontDataBacking>(resource.release_mapped_file());
+            auto bytes = backing->storage.get<NonnullOwnPtr<Core::MappedFile>>()->bytes();
             for (u32 ttc_index = 0; ttc_index < font_count; ++ttc_index) {
-                ErrorOr<NonnullRefPtr<Typeface>> font_or_error = [&]() -> ErrorOr<NonnullRefPtr<Typeface>> {
-                    if (backing) {
-                        auto const& mapping = backing->storage.get<NonnullOwnPtr<Core::MappedFile>>();
-                        return TRY(TypefaceSkia::load_from_buffer(mapping->bytes(), ttc_index, backing));
-                    }
-                    return Typeface::try_load_from_resource(resource, ttc_index);
-                }();
-                if (!font_or_error.is_error()) {
-                    callback(filesystem_path, ttc_index, FontFileFormat::OpenType, font_or_error.release_value());
+                if (auto font_or_error = TypefaceSkia::load_from_buffer(bytes, ttc_index, backing); !font_or_error.is_error()) {
+                    auto font = font_or_error.release_value();
+                    font->set_file_path(filesystem_path);
+                    callback(filesystem_path, ttc_index, FontFileFormat::OpenType, move(font));
                 }
             }
         } else {

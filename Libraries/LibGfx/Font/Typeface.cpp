@@ -52,14 +52,6 @@ ErrorOr<Vector<String>> Typeface::local_font_names() const
     return names;
 }
 
-ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, u32 ttc_index)
-{
-    // NB: Resource references are not atomic, so Skia must not retain one for release on another thread.
-    auto typeface = TRY(try_load_from_externally_owned_memory(resource.data(), ttc_index));
-    typeface->set_font_data(make_ref_counted<FontDataBacking>(NonnullRefPtr<Core::Resource const> { resource }));
-    return typeface;
-}
-
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file, u32 ttc_index)
 {
     auto bytes = mapped_file->bytes();
@@ -181,6 +173,13 @@ void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const
         return;
     }
 
+    if (m_file_path.has_value()) {
+        MUST(encoder.encode(FontDataFormat::MappedFile));
+        MUST(encoder.encode(*m_file_path));
+        MUST(encoder.encode(ttc_index()));
+        return;
+    }
+
     VERIFY(m_font_data);
 
     m_font_data->storage.visit(
@@ -189,12 +188,9 @@ void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const
             MUST(encoder.encode(anonymous_buffer));
             MUST(encoder.encode(ttc_index()));
         },
-        [&](NonnullRefPtr<Core::Resource const> const& resource) {
-            MUST(encoder.encode(FontDataFormat::ResourceFontData));
-            MUST(encoder.encode(resource->uri()));
-            MUST(encoder.encode(ttc_index()));
-        },
         [&](NonnullOwnPtr<Core::MappedFile> const&) {
+            // NB: SharedMappedFile backing should have an associated m_system_font_identifier or m_file_path and
+            //     therefore have already been handled above.
             VERIFY_NOT_REACHED();
         });
 }
@@ -203,6 +199,7 @@ void Typeface::copy_font_data_from(Typeface const& other)
 {
     m_font_data = other.m_font_data;
     m_system_font_identifier = other.m_system_font_identifier;
+    m_file_path = other.m_file_path;
 }
 
 }
@@ -229,11 +226,16 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> decode(Decoder& decoder)
             return Error::from_string_literal("Typeface IPC data contained invalid font data");
         return TRY(Gfx::Typeface::try_load_from_anonymous_buffer(move(font_data), ttc_index));
     }
-    case Gfx::Typeface::FontDataFormat::ResourceFontData: {
-        auto resource_uri = TRY(decoder.decode<String>());
+    case Gfx::Typeface::FontDataFormat::MappedFile: {
+        auto file_path = TRY(decoder.decode<String>());
         auto ttc_index = TRY(decoder.decode<u32>());
-        auto resource = TRY(Core::Resource::load_from_uri(resource_uri.bytes_as_string_view()));
-        return TRY(Gfx::Typeface::try_load_from_resource(*resource, ttc_index));
+
+        auto backing = make_ref_counted<Gfx::Typeface::FontDataBacking>(TRY(Core::MappedFile::map(file_path)));
+        auto bytes = backing->storage.get<NonnullOwnPtr<Core::MappedFile>>()->bytes();
+
+        auto typeface = TRY(Gfx::TypefaceSkia::load_from_buffer(bytes, ttc_index, backing));
+        typeface->set_file_path(move(file_path));
+        return typeface;
     }
     case Gfx::Typeface::FontDataFormat::SystemFont: {
         auto family_name = TRY(decoder.decode<String>());
