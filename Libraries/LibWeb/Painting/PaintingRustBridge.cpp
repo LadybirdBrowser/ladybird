@@ -453,11 +453,16 @@ static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bo
     auto& document = const_cast<DOM::Document&>(root.document());
     Layout::RustFFI::FfiLayoutTreeDumpCallbacks callbacks {
         .context = output_context,
-        .describe_dom_node = [](void*, void* dom_node_pointer, void* tag_name_sink, void* identifier_sink) {
-            auto const& dom_node = *static_cast<DOM::Node const*>(dom_node_pointer);
-            auto const* element = as_if<DOM::Element>(dom_node);
+        .describe_dom_node = [](void*, void* layout_node_pointer, void* tag_name_sink, void* identifier_sink) {
+            // A row whose node has been removed no longer names one, and the dump says so.
+            auto const* dom_node = static_cast<Layout::Node const*>(layout_node_pointer)->dom_node();
+            if (!dom_node) {
+                push_bytes_to_dump_sink(tag_name_sink, "(detached)"sv.bytes());
+                return;
+            }
+            auto const* element = as_if<DOM::Element>(*dom_node);
             StringBuilder tag_name_builder;
-            tag_name_builder.append(element ? element->local_name() : dom_node.node_name());
+            tag_name_builder.append(element ? element->local_name() : dom_node->node_name());
             push_bytes_to_dump_sink(tag_name_sink, tag_name_builder.string_view().bytes());
             if (!element)
                 return;
@@ -471,15 +476,16 @@ static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bo
                 identifier_builder.append(class_name);
             }
             push_bytes_to_dump_sink(identifier_sink, identifier_builder.string_view().bytes()); },
-        .navigable_container_content_document = [](void*, void* dom_node_pointer, void* url_sink) -> Layout::RustFFI::FfiNestedLayoutRoot {
-            auto const* content_document = as<HTML::NavigableContainer>(*static_cast<DOM::Node const*>(dom_node_pointer)).content_document_without_origin_check();
+        .navigable_container_content_document = [](void*, void* layout_node_pointer, void* url_sink) -> Layout::RustFFI::FfiNestedLayoutRoot {
+            auto const* container = as_if<HTML::NavigableContainer>(static_cast<Layout::Node const*>(layout_node_pointer)->dom_node());
+            auto const* content_document = container ? container->content_document_without_origin_check() : nullptr;
             if (!content_document)
                 return { .has_document = false, .layout_root_shell = nullptr };
             auto serialized_url = content_document->url().serialize();
             push_bytes_to_dump_sink(url_sink, serialized_url.bytes());
             return { .has_document = true, .layout_root_shell = const_cast<Layout::Viewport*>(content_document->layout_node()) }; },
-        .svg_as_image_layout_root = [](void*, void* dom_node_pointer) -> void* {
-            auto const* image_element = as_if<HTML::HTMLImageElement>(*static_cast<DOM::Node const*>(dom_node_pointer));
+        .svg_as_image_layout_root = [](void*, void* layout_node_pointer) -> void* {
+            auto const* image_element = as_if<HTML::HTMLImageElement>(static_cast<Layout::Node const*>(layout_node_pointer)->dom_node());
             if (!image_element)
                 return nullptr;
             auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(image_element->current_request().image_data().ptr());

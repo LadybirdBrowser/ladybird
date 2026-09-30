@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .contents { display: contents; }
+    .tagged::before { content: "tag "; }
+</style>
+<ol id="list">
+    <li>first item</li>
+    <li class="tagged">second item</li>
+    <li><span class="contents">third item</span></li>
+</ol>
+<script>
+    test(() => {
+        const list = document.getElementById("list");
+        list.children[1].remove();
+        println(`Find the removed item: ${window.find("second item")}`);
+        println(`Find a remaining item: ${window.find("third item")}`);
+
+        list.replaceChildren(list.firstElementChild);
+        println(`Find after replaceChildren: ${window.find("first item")}`);
+        println(internals.dumpLayoutTree(list).replace(/\n$/, ""));
+    });
+</script>

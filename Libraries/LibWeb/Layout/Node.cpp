@@ -96,7 +96,6 @@ Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind k
     , m_slot(m_arena->allocate(build_node_construction_facts(document, node, kind, this)))
     , m_kind(kind)
 {
-    VERIFY(RustFFI::layout_arena_node_dom_node(m_arena->handle(), m_slot) == node.ptr());
     update_has_scroll_offset_flag();
 
     if (!node)
@@ -116,7 +115,6 @@ Node::Node(DOM::Document& document, BindToPreparedArenaSlot, Compositing::RustFF
     , m_slot(slot)
     , m_kind(kind)
 {
-    VERIFY(RustFFI::layout_arena_node_dom_node(m_arena->handle(), m_slot) == nullptr);
     RustFFI::layout_arena_attach_shell(m_arena->handle(), m_slot, this);
 }
 

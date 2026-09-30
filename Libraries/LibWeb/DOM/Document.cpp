@@ -2098,10 +2098,11 @@ bool Document::reconcile_stale_list_item_counters_after_tree_build()
     // A rebuilt subtree has re-resolved the counters sets of any stale owner inside it, and an owner that has left
     // the document renders nothing.
     HashTable<Node const*> rebuilt_dom_roots;
-    Layout::RustFFI::layout_arena_for_each_pending_rebuilt_subtree_root_dom_node(
+    Layout::RustFFI::layout_arena_for_each_pending_rebuilt_subtree_root(
         layout_node_arena().handle(), &rebuilt_dom_roots,
-        [](void* context, void* dom_node) {
-            static_cast<HashTable<Node const*>*>(context)->set(static_cast<Node const*>(dom_node));
+        [](void* context, void* layout_node) {
+            if (auto const* dom_node = static_cast<Layout::Node const*>(layout_node)->dom_node())
+                static_cast<HashTable<Node const*>*>(context)->set(dom_node);
         });
     m_list_owners_with_stale_item_counters.remove_all_matching([&](GC::Ref<Element> const& list_owner) {
         if (!list_owner->is_connected())
@@ -9257,13 +9258,14 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
     Layout::RustFFI::layout_arena_find_matching_text(
         layout_node()->arena_handle(), Layout::Node::slot_id(layout_node()), query_view,
         case_sensitivity == CaseSensitivity::CaseSensitive,
-        [](void* dom_node) {
+        [](void* layout_node) {
             // Inert text is excluded from find-in-page.
-            return !static_cast<DOM::Text const*>(dom_node)->is_inert();
+            auto const* text = as_if<DOM::Text>(static_cast<Layout::Node const*>(layout_node)->dom_node());
+            return text && !text->is_inert();
         },
         &matches, [](void* context, Layout::RustFFI::FfiDomTextRange match) {
-            auto* start = static_cast<DOM::Text*>(match.start_node);
-            auto* end = static_cast<DOM::Text*>(match.end_node);
+            auto* start = as_if<DOM::Text>(static_cast<Layout::Node*>(match.start_layout_node)->dom_node());
+            auto* end = as_if<DOM::Text>(static_cast<Layout::Node*>(match.end_layout_node)->dom_node());
             if (!start || !end || &start->root() != &end->root()
                 || !start->is_connected() || !end->is_connected()
                 || match.start_offset > start->length() || match.end_offset > end->length())
