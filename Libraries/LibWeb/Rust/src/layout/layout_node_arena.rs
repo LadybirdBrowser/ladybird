@@ -498,10 +498,10 @@ pub(crate) struct LayoutNodeArena {
     dom_nodes: Vec<Cell<*mut c_void>>,
     style_records: Vec<Cell<u64>>,
     style_records_pinned_by_arena: Vec<Cell<bool>>,
-    /// The StyleNodeID of the element each row is bound to or generated for. Rows carrying one
-    /// identity are chained through `next_rows_with_same_style_node` from
-    /// `first_rows_by_style_node`, so retiring an identity reaches rows the element no longer
-    /// points at before the identity can be reused.
+    /// The StyleNodeID of the element or text node each row is bound to, or of the element it is
+    /// generated for. Rows carrying one identity are chained through `next_rows_with_same_style_node`
+    /// from `first_rows_by_style_node`, so retiring an identity reaches every row that carries it,
+    /// bound or not, before the identity can be reused.
     style_nodes: Vec<Cell<Option<StyleNodeID>>>,
     next_rows_with_same_style_node: Vec<Cell<NodeSlotId>>,
     first_rows_by_style_node: RefCell<FirstRowsByStyleNode>,
@@ -1078,7 +1078,7 @@ impl LayoutNodeArena {
         }
     }
 
-    /// Records a new identity for the element bound to `id`, on every row that shares its DOM node.
+    /// Records a new identity for the node bound to `id`, on every row that shares its DOM node.
     pub(crate) fn set_style_node_of_rows_sharing_dom_node_with(&self, id: NodeSlotId, style_node: Option<StyleNodeID>) {
         self.assert_owner_thread();
         for row in self.rows_sharing_dom_node_with(id) {
@@ -4145,6 +4145,36 @@ mod tests {
             arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
         }
         arena.forget_style_node(reconnected);
+    }
+
+    #[test]
+    fn element_and_text_style_nodes_with_the_same_index_chain_separately() {
+        use crate::css::style::tree::StyleNodeID;
+        let mut arena = LayoutNodeArena::new();
+        let mut element_storage = 0u8;
+        let mut text_storage = 0u8;
+        let element = StyleNodeID::element(2);
+        let text = StyleNodeID::text(2);
+        let element_row = arena.allocate(FfiNodeConstructionFacts {
+            style_node: element.raw(),
+            ..test_construction_facts(std::ptr::from_mut(&mut element_storage).cast::<c_void>())
+        });
+        let text_row = arena.allocate(FfiNodeConstructionFacts {
+            style_node: text.raw(),
+            ..test_construction_facts(std::ptr::from_mut(&mut text_storage).cast::<c_void>())
+        });
+        assert_eq!(arena.node_style_node(element_row), Some(element));
+        assert_eq!(arena.node_style_node(text_row), Some(text));
+
+        arena.forget_style_node(text);
+        assert_eq!(arena.node_style_node(text_row), None);
+        assert_eq!(arena.node_style_node(element_row), Some(element));
+
+        arena.set_style_node_of_rows_sharing_dom_node_with(text_row, Some(StyleNodeID::text(5)));
+        assert_eq!(arena.node_style_node(text_row), Some(StyleNodeID::text(5)));
+        for row in [element_row, text_row] {
+            arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
+        }
     }
 
     #[test]

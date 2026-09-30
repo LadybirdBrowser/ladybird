@@ -3413,7 +3413,7 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     m_published_presentational_hint_properties.clear();
     auto old_style_node_id = m_style_node_id;
     m_style_node_id = style_node_id;
-    Layout::Node::element_style_node_changed(*this, old_style_node_id);
+    Layout::Node::dom_node_style_node_changed(*this, old_style_node_id);
 }
 
 Layout::NodeWithStyle* Element::pseudo_element_layout_node(CSS::PseudoElement pseudo_element) const

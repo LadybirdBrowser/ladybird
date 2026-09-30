@@ -16,6 +16,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -56,6 +57,16 @@ static u8 dom_paint_facts_of(GC::Ptr<DOM::Node const> node)
     return facts;
 }
 
+// The StyleNodeID a row bound to this DOM node records: an element's or a text node's.
+static CSS::StyleNodeID style_node_of(DOM::Node const* node)
+{
+    if (auto const* element = as_if<DOM::Element>(node))
+        return element->style_node_id();
+    if (auto const* text = as_if<DOM::Text>(node))
+        return text->style_node_id();
+    return {};
+}
+
 static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, void* shell)
 {
     return {
@@ -71,7 +82,7 @@ static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Docu
         .is_editing_host = node && node->is_editing_host(),
         .is_body = node && node == GC::Ptr { document.body() },
         .dom_paint_facts = dom_paint_facts_of(node),
-        .style_node = node && node->is_element() ? static_cast<DOM::Element const&>(*node).style_node_id().value() : 0,
+        .style_node = style_node_of(node.ptr()).value(),
     };
 }
 
@@ -820,21 +831,24 @@ void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
         node_with_style->bind_generated_style_record(element.style_record_identity(type));
 }
 
-void Node::element_style_node_changed(DOM::Element& element, CSS::StyleNodeID old_style_node)
+void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old_style_node)
 {
-    auto* arena = element.document().layout_node_arena_if_created();
+    auto* arena = dom_node.document().layout_node_arena_if_created();
     if (!arena)
         return;
     // A retired identity may be reused, so it leaves every row carrying it, including rows of a
     // removed subtree that outlive the disconnection.
     if (old_style_node != 0)
         RustFFI::layout_arena_forget_style_node(arena->handle(), old_style_node.value());
-    auto new_style_node = element.style_node_id();
+    auto new_style_node = style_node_of(&dom_node);
     if (new_style_node == 0)
         return;
-    if (auto* layout_node = element.unsafe_layout_node())
+    if (auto* layout_node = dom_node.unsafe_layout_node())
         RustFFI::layout_arena_set_style_node_of_rows_sharing_dom_node_with(arena->handle(), layout_node->m_slot, new_style_node.value());
-    element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement, DOM::SyntheticPseudoElement const& pseudo_element) {
+    auto* element = as_if<DOM::Element>(dom_node);
+    if (!element)
+        return;
+    element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, DOM::SyntheticPseudoElement const& pseudo_element) {
         if (auto* layout_node = pseudo_element.unsafe_layout_node())
             RustFFI::layout_arena_set_style_node_of_generated_subtree(arena->handle(), layout_node->m_slot, new_style_node.value());
     });
