@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/IDAllocator.h>
 #include <AK/Math.h>
 #include <AK/NonnullOwnPtr.h>
@@ -12,6 +13,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
+#include <LibHTTP/Header.h>
 #include <LibHTTP/Method.h>
 #include <LibHTTP/Port.h>
 #include <LibIPC/TransportHandle.h>
@@ -250,6 +252,14 @@ static bool is_fetchable_url(URL::URL const& url)
     return !url.port().has_value() || !HTTP::is_bad_port(*url.port());
 }
 
+// Headers go verbatim on the wire; newlines would allow request injection.
+static bool are_valid_headers(Vector<HTTP::Header> const& headers)
+{
+    return all_of(headers, [](auto const& header) {
+        return HTTP::is_header_name(header.name) && HTTP::is_header_value(header.value);
+    });
+}
+
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
 {
     return is_supported_protocol_name(protocol);
@@ -275,6 +285,11 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     // 25.2. If method is not a method or method is a forbidden method, then throw a TypeError.
     if (!HTTP::is_method(method) || HTTP::is_forbidden_method(method)) {
         did_misbehave("invalid or forbidden request method");
+        return;
+    }
+
+    if (!are_valid_headers(request_headers)) {
+        did_misbehave("invalid request header");
         return;
     }
 
@@ -702,6 +717,11 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
 
 Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
 {
+    if (!are_valid_headers(request_headers)) {
+        did_misbehave("invalid request header");
+        return false;
+    }
+
     if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
         return false;
 
@@ -720,6 +740,11 @@ Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::
 
 Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClient::retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
 {
+    if (!are_valid_headers(request_headers)) {
+        did_misbehave("invalid request header");
+        return Optional<Core::AnonymousBuffer> {};
+    }
+
     if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
         return Optional<Core::AnonymousBuffer> {};
 
@@ -764,6 +789,16 @@ Messages::RequestServer::CreateSyntheticCacheEntryResponse ConnectionFromClient:
 
 void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
 {
+    // The origin, protocols and extensions all become header values in the handshake.
+    auto is_header_value = [](auto const& value) { return HTTP::is_header_value(value); };
+    if (!are_valid_headers(additional_request_headers)
+        || !is_header_value(origin)
+        || !all_of(protocols, is_header_value)
+        || !all_of(extensions, is_header_value)) {
+        did_misbehave("invalid WebSocket handshake header");
+        return;
+    }
+
     if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key)) {
         dbgln("RequestServer: Client {} is not bound to the network isolation key of its WebSocket for {}", client_id(), url);
         fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);

@@ -164,10 +164,17 @@ public:
         VERIFY(response);
     }
 
-    void start_request(u64 request_id, Optional<URL::URL> target_url = {}, ByteString method = "GET"sv)
+    void start_request(u64 request_id, Optional<URL::URL> target_url = {}, ByteString method = "GET"sv, Vector<HTTP::Header> headers = {})
     {
         auto url = target_url.value_or(URL::Parser::basic_parse("http://localhost"sv).release_value());
-        auto message = make<Messages::RequestServer::StartRequest>(request_id, move(method), move(url), Vector<HTTP::Header> {}, ByteBuffer {}, HTTP::CacheMode::Default, Optional<HTTP::NetworkIsolationKey> {}, HTTP::Cookie::IncludeCredentials::Yes, true, Optional<u32> {}, false, 0, 0);
+        auto message = make<Messages::RequestServer::StartRequest>(request_id, move(method), move(url), move(headers), ByteBuffer {}, HTTP::CacheMode::Default, Optional<HTTP::NetworkIsolationKey> {}, HTTP::Cookie::IncludeCredentials::Yes, true, Optional<u32> {}, false, 0, 0);
+        auto response = dispatch(move(message));
+        VERIFY(!response);
+    }
+
+    void websocket_connect(u64 websocket_id, URL::URL url, ByteString origin = "http://localhost"sv, Vector<ByteString> protocols = {}, Vector<HTTP::Header> headers = {})
+    {
+        auto message = make<Messages::RequestServer::WebsocketConnect>(websocket_id, move(url), Optional<HTTP::NetworkIsolationKey> {}, move(origin), move(protocols), Vector<ByteString> {}, move(headers));
         auto response = dispatch(move(message));
         VERIFY(!response);
     }
@@ -289,6 +296,59 @@ TEST_CASE(invalid_and_forbidden_request_methods_are_rejected)
     TestConnection connection { server };
 
     connection.start_request(0, {}, "PATCH"sv);
+    EXPECT_EQ(control.take_cookie_request()->request_id(), 0u);
+    EXPECT(connection.is_open());
+}
+
+TEST_CASE(invalid_request_headers_are_rejected)
+{
+    Vector<HTTP::Header> const invalid_headers[] = {
+        { { "X-Injected"sv, "a\r\nCookie: b"sv } },
+        { { "X-Injected"sv, "a\nb"sv } },
+        { { "X-Injected"sv, "a\0b"sv } },
+        { { "X-Injected"sv, " a"sv } },
+        { { "X Injected"sv, "a"sv } },
+        { { "X-Injected\r\n"sv, "a"sv } },
+        { { ""sv, "a"sv } },
+    };
+
+    for (auto const& headers : invalid_headers) {
+        TestServer server;
+        TestConnection connection { server };
+
+        connection.start_request(0, {}, "GET"sv, headers);
+        EXPECT(!connection.is_open());
+    }
+
+    for (auto const& headers : invalid_headers) {
+        TestServer server;
+        TestConnection connection { server };
+
+        connection.websocket_connect(0, URL::Parser::basic_parse("ws://localhost"sv).release_value(), "http://localhost"sv, {}, headers);
+        EXPECT(!connection.is_open());
+    }
+
+    {
+        TestServer server;
+        TestConnection connection { server };
+
+        connection.websocket_connect(0, URL::Parser::basic_parse("ws://localhost"sv).release_value(), "http://localhost\r\nX: y"sv);
+        EXPECT(!connection.is_open());
+    }
+
+    {
+        TestServer server;
+        TestConnection connection { server };
+
+        connection.websocket_connect(0, URL::Parser::basic_parse("ws://localhost"sv).release_value(), "http://localhost"sv, { "chat\r\nX: y"sv });
+        EXPECT(!connection.is_open());
+    }
+
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+
+    connection.start_request(0, {}, "GET"sv, { { "X-Valid"sv, "a b"sv }, { "X-Empty"sv, ""sv } });
     EXPECT_EQ(control.take_cookie_request()->request_id(), 0u);
     EXPECT(connection.is_open());
 }
