@@ -125,6 +125,37 @@ TEST_CASE(no_cache_request_for_fresh_entry_without_validators_goes_to_the_networ
     reader->revalidation_failed();
 }
 
+TEST_CASE(request_with_its_own_preconditions_does_not_revalidate_stored_response)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "ETag"sv, "\"old\""sv },
+    });
+    store_cache_entry(disk_cache, request, url, *request_headers, response_headers, "old"sv);
+
+    auto conditional_request_headers = HTTP::HeaderList::create({
+        { HTTP::TEST_CACHE_ENABLED_HEADER, "1"sv },
+        { "If-None-Match"sv, "\"current\""sv },
+    });
+    EXPECT(!open_cache_entry(disk_cache, request, url, *conditional_request_headers, HTTP::CacheMode::NoCache).has_value());
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *conditional_request_headers);
+    auto not_modified_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "ETag"sv, "\"current\""sv },
+    });
+    EXPECT(writer.write_status_and_reason(304, "Not Modified"_string, *conditional_request_headers, *not_modified_headers).is_error());
+
+    auto reader = open_cache_entry(disk_cache, request, url, *request_headers);
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->status_code(), 200u);
+}
+
 TEST_CASE(associated_data_round_trips_with_cache_entry)
 {
     auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();

@@ -105,6 +105,10 @@ void MemoryCache::create_entry(URL::URL const& url, StringView method, HeaderLis
     if (!is_cacheable(status_code, response_headers))
         return;
 
+    // This 304 answers the client's preconditions, not the cache's validators.
+    if (status_code == 304)
+        return;
+
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
     auto vary_key = create_vary_key(request_headers, response_headers);

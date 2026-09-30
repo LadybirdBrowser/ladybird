@@ -134,6 +134,10 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     if (!is_cacheable(method, request_headers))
         return Optional<CacheEntryReader&> {};
 
+    // AD-HOC: Client preconditions could make a 304 refer to a different representation. Let the origin evaluate them.
+    if (has_preconditions(request_headers))
+        return Optional<CacheEntryReader&> {};
+
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(partition, serialized_url, method);
 
