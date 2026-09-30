@@ -282,17 +282,7 @@ void ViewImplementation::set_has_system_focus(bool has_system_focus)
 
 void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
-    if (on_before_browser_initiated_navigation)
-        on_before_browser_initiated_navigation();
-
-    prepare_for_navigation_after_crash(url);
-    m_last_stopped_load_url.clear();
-    if (url.scheme() != "javascript"sv)
-        set_url(url);
-    traversable().navigate(url, {}, history_handling);
-    if (traversable().has_uncommitted_navigation())
-        set_loading_state(true);
-    dump_session_history("load"sv);
+    load(traversable().prepare_navigation(url, {}, history_handling));
 }
 
 // A navigation a page asked the browser's UI to start for it — a link opened with a middle-click, e.g. — whose
@@ -302,8 +292,8 @@ void ViewImplementation::load(Web::HTML::PreparedNavigationDescriptor navigation
     if (on_before_browser_initiated_navigation)
         on_before_browser_initiated_navigation();
 
-    prepare_for_navigation_after_crash(navigation.url);
-    m_last_stopped_load_url.clear();
+    prepare_for_navigation_after_crash(NavigationToRetry { navigation.url, prepare_navigation_to_retry(navigation) });
+    m_last_stopped_navigation.clear();
     if (navigation.url.scheme() != "javascript"sv)
         set_url(navigation.url);
     traversable().begin_navigation(move(navigation));
@@ -427,7 +417,7 @@ void ViewImplementation::load_html(StringView html)
         on_before_browser_initiated_navigation();
 
     prepare_for_navigation_after_crash();
-    m_last_stopped_load_url.clear();
+    m_last_stopped_navigation.clear();
     traversable().navigate(URL::about_srcdoc(), Utf16String::from_utf8(html));
     if (traversable().has_uncommitted_navigation())
         set_loading_state(true);
@@ -449,14 +439,13 @@ void ViewImplementation::reload()
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Reload;
 
     // A load stopped before its document was activated is loaded again, rather than the document it was to replace.
-    if (m_last_stopped_load_url.has_value()) {
-        auto url = m_last_stopped_load_url.release_value();
-        load(url, Web::Bindings::NavigationHistoryBehavior::Replace);
+    if (m_last_stopped_navigation.has_value()) {
+        retry_navigation(m_last_stopped_navigation.release_value(), Web::Bindings::NavigationHistoryBehavior::Replace);
         return;
     }
 
     if (m_crash_state.has_value() && m_crash_state->navigation_to_retry.has_value()) {
-        load(m_crash_state->navigation_to_retry.release_value());
+        retry_navigation(m_crash_state->navigation_to_retry.release_value(), Web::Bindings::NavigationHistoryBehavior::Auto);
         return;
     }
 
@@ -497,10 +486,7 @@ void ViewImplementation::stop_loading()
         return;
     // Only a stopped navigation that never activated its document needs reissuing on reload; a stopped
     // active-document load reloads through the session history.
-    if (traversable().ongoing_navigation().has_value())
-        m_last_stopped_load_url = traversable().ongoing_navigation()->url;
-    else
-        m_last_stopped_load_url = {};
+    m_last_stopped_navigation = navigation_to_retry_for_ongoing_navigation();
     if (cancel_uncommitted_top_level_navigation("stop-loading"sv, true))
         return;
     set_loading_state(false);
@@ -2866,8 +2852,9 @@ Optional<ViewImplementation&> ViewImplementation::find_view_by_handle(StringView
 
 void ViewImplementation::load_for_webdriver_navigation(URL::URL const& url)
 {
-    prepare_for_navigation_after_crash(url);
-    traversable().navigate(url);
+    auto navigation = traversable().prepare_navigation(url);
+    prepare_for_navigation_after_crash(NavigationToRetry { url, prepare_navigation_to_retry(navigation) });
+    traversable().begin_navigation(move(navigation));
 }
 
 void ViewImplementation::did_start_webdriver_navigation()
@@ -3236,10 +3223,13 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
 void ViewImplementation::handle_web_content_process_crash()
 {
     auto failed_url = m_url;
-    Optional<URL::URL> navigation_to_retry;
+    Optional<NavigationToRetry> navigation_to_retry;
     auto const* current_entry = traversable().session_history().current_entry();
-    if (!current_entry || current_entry->url != failed_url)
-        navigation_to_retry = failed_url;
+    if (!current_entry || current_entry->url != failed_url) {
+        navigation_to_retry = NavigationToRetry { failed_url, {} };
+        if (auto ongoing = navigation_to_retry_for_ongoing_navigation(); ongoing.has_value() && ongoing->url == failed_url)
+            navigation_to_retry = ongoing.release_value();
+    }
 
     reject_pending_selection_requests();
     // Nothing will finish the input events the crashed process still held, and the events another process holds
@@ -3338,7 +3328,26 @@ void ViewImplementation::respawn_web_content_process_after_crash()
     display_page_changed({});
 }
 
-void ViewImplementation::prepare_for_navigation_after_crash(Optional<URL::URL> navigation_to_retry)
+Optional<ViewImplementation::NavigationToRetry> ViewImplementation::navigation_to_retry_for_ongoing_navigation() const
+{
+    auto const& ongoing_navigation = traversable().ongoing_navigation();
+    if (!ongoing_navigation.has_value() || !ongoing_navigation->url.has_value())
+        return {};
+    return NavigationToRetry { *ongoing_navigation->url, ongoing_navigation->retry };
+}
+
+void ViewImplementation::retry_navigation(NavigationToRetry retry, Web::Bindings::NavigationHistoryBehavior history_handling)
+{
+    if (!retry.navigation.has_value()) {
+        load(retry.url, history_handling);
+        return;
+    }
+    auto navigation = retry.navigation.release_value();
+    navigation.history_handling = history_handling;
+    load(move(navigation));
+}
+
+void ViewImplementation::prepare_for_navigation_after_crash(Optional<NavigationToRetry> navigation_to_retry)
 {
     if (!m_crash_state.has_value())
         return;

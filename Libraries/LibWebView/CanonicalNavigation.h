@@ -43,6 +43,9 @@ public:
     Optional<URL::URL> url {};
     Optional<Utf16String> navigation_id {};
     Optional<Web::HTML::NavigationStartRequest> start_request {};
+    // The navigation to make again if the user stops this one and reloads, or a crash cuts it short. Kept from the start
+    // request, which population uses up. A javascript: URL has none.
+    Optional<Web::HTML::PreparedNavigationDescriptor> retry {};
     u64 sequence_number { 0 };
     bool has_started { false };
     Phase phase { Phase::Started };
@@ -54,5 +57,8 @@ public:
     RefPtr<CanonicalSessionHistoryEntry> reconstructed_entry {};
     Optional<PopulatedDocument> populated_document {};
 };
+
+WEBVIEW_API Web::HTML::PreparedNavigationDescriptor prepare_navigation_to_retry(Web::HTML::PreparedNavigationDescriptor);
+WEBVIEW_API Web::HTML::PreparedNavigationDescriptor prepare_navigation_to_retry(Web::HTML::NavigationStartRequest const&);
 
 }

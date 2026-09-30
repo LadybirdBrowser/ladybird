@@ -1686,10 +1686,12 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
         return;
     }
 
+    auto retry = prepare_navigation_to_retry(*start_request);
     target_navigable->set_ongoing_navigation(CanonicalNavigation {
         .url = move(url),
         .navigation_id = navigation_id,
         .start_request = move(start_request),
+        .retry = move(retry),
         .sequence_number = sequence_number,
         .phase = CanonicalNavigation::Phase::AwaitingUnloadCheck,
     });
@@ -2481,6 +2483,19 @@ void WebContentPage::did_request_crash_of_remote_frame_processes_for_testing()
             child_frame.remote_host().async_debug_request("crash-current-page"sv, ""sv);
         return IterationDecision::Continue;
     });
+}
+
+// The tab's Stop and Reload buttons.
+void WebContentPage::did_request_stop_loading_for_testing()
+{
+    if (displays_tab())
+        view().stop_loading();
+}
+
+void WebContentPage::did_request_reload_for_testing()
+{
+    if (displays_tab())
+        view().reload();
 }
 
 void WebContentPage::did_reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor active_entry)

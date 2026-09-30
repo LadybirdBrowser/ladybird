@@ -1646,6 +1646,18 @@ void PageClient::page_did_spoof_document_origin_for_testing(Web::HTML::Environme
         test_connection->did_spoof_document_origin_for_testing(m_id, environment.id, origin);
 }
 
+void PageClient::stop_loading_through_ui_process_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        test_connection->async_did_request_stop_loading_for_testing(m_id);
+}
+
+void PageClient::reload_through_ui_process_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        test_connection->async_did_request_reload_for_testing(m_id);
+}
+
 void PageClient::send_bad_ipc_message_for_testing(StringView kind, URL::URL const& active_document_url)
 {
     if (kind == "cookie-request-unknown-page-id"sv)

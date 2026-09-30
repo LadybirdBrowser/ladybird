@@ -1,0 +1,2 @@
+navigation, stopped: Sec-Fetch-Site same-origin, Referer this page
+navigation, made again by Reload: Sec-Fetch-Site same-origin, Referer this page
