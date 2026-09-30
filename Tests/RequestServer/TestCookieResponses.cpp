@@ -518,6 +518,20 @@ TEST_CASE(live_request_id_cannot_be_reused_for_an_adopted_request)
     EXPECT(!target_connection.is_open());
 }
 
+TEST_CASE(live_websocket_id_cannot_be_reused)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+
+    connection.websocket_connect(0, URL::Parser::basic_parse("ws://localhost:8080/"sv).release_value());
+    (void)control.take_cookie_request();
+    EXPECT(connection.is_open());
+
+    connection.websocket_connect(0, URL::Parser::basic_parse("ws://localhost:8080/"sv).release_value());
+    EXPECT(!connection.is_open());
+}
+
 TEST_CASE(duplicate_cookie_response_is_rejected)
 {
     TestServer server;
