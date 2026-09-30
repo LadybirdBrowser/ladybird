@@ -271,16 +271,6 @@ void Request::did_receive_headers(Badge<RequestClient>, NonnullRefPtr<HTTP::Head
         on_headers_received(move(response_headers), response_code, reason_phrase, move(javascript_bytecode), javascript_bytecode_cache_vary_key, cache_state);
 }
 
-void Request::did_request_certificates(Badge<RequestClient>)
-{
-    if (on_certificate_requested) {
-        auto result = on_certificate_requested();
-        if (!m_client->set_certificate({}, *this, result.certificate, result.key)) {
-            dbgln("Request: set_certificate failed");
-        }
-    }
-}
-
 void Request::did_transfer(Badge<RequestClient>)
 {
     m_transfer_lease.clear();
@@ -300,7 +290,6 @@ void Request::defer_teardown()
     Core::deferred_invoke([self = NonnullRefPtr(*this)] {
         self->on_headers_received = nullptr;
         self->on_finish = nullptr;
-        self->on_certificate_requested = nullptr;
         self->m_internal_buffered_data = nullptr;
         self->m_internal_stream_data = nullptr;
     });

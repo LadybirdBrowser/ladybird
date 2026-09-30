@@ -57,8 +57,6 @@ public:
     void ensure_connection(URL::URL const&, RequestServer::CacheLevel);
     int request_server_client_id() const { return m_request_server_client_id; }
 
-    bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
-
     RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
 
     ErrorOr<bool> store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, ReadonlyBytes);
@@ -79,8 +77,6 @@ private:
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, Optional<IPC::File>, u64 javascript_bytecode_size, Optional<u64>, CacheState) override;
     virtual void request_transferred(u64 request_id) override;
 
-    virtual void certificate_requested(u64 request_id) override;
-
     virtual void websocket_connected(u64 websocket_id) override;
     virtual void websocket_received(u64 websocket_id, bool, ByteBuffer) override;
     virtual void websocket_received_shared(u64 websocket_id, bool, Core::AnonymousBuffer) override;
@@ -88,7 +84,6 @@ private:
     virtual void websocket_closed(u64 websocket_id, u16, ByteString, bool) override;
     virtual void websocket_ready_state_changed(u64 websocket_id, u32 ready_state) override;
     virtual void websocket_subprotocol(u64 websocket_id, ByteString subprotocol) override;
-    virtual void websocket_certificate_requested(u64 websocket_id) override;
 
     HashMap<u64, RefPtr<Request>> m_requests;
     u64 m_next_request_id { 0 };

@@ -152,13 +152,6 @@ void RequestClient::ensure_connection(URL::URL const& url, RequestServer::CacheL
     async_ensure_connection(request_id, url, cache_level);
 }
 
-bool RequestClient::set_certificate(Badge<Request>, Request& request, ByteString certificate, ByteString key)
-{
-    if (!m_requests.contains(request.id()))
-        return false;
-    return IPCProxy::set_certificate(request.id(), move(certificate), move(key));
-}
-
 void RequestClient::request_requires_network(u64 request_id)
 {
     if (auto request = m_requests.get(request_id); request.has_value()) {
@@ -241,12 +234,6 @@ void RequestClient::request_transferred(u64 request_id)
     (*request)->did_transfer({});
 }
 
-void RequestClient::certificate_requested(u64 request_id)
-{
-    if (auto request = m_requests.get(request_id); request.has_value())
-        (*request)->did_request_certificates({});
-}
-
 RefPtr<WebSocket> RequestClient::websocket_connect(URL::URL const& url, Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers)
 {
     auto websocket_id = m_next_websocket_id++;
@@ -314,12 +301,6 @@ void RequestClient::websocket_subprotocol(u64 websocket_id, ByteString subprotoc
     if (auto connection = m_websockets.get(websocket_id); connection.has_value()) {
         (*connection)->set_subprotocol_in_use(move(subprotocol));
     }
-}
-
-void RequestClient::websocket_certificate_requested(u64 websocket_id)
-{
-    if (auto connection = m_websockets.get(websocket_id); connection.has_value())
-        (*connection)->did_request_certificates({});
 }
 
 }

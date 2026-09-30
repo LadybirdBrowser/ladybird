@@ -719,11 +719,6 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
     return true;
 }
 
-Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(u64, ByteString, ByteString)
-{
-    return false;
-}
-
 void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
     if (is_live_request_id(request_id)) {
@@ -1038,17 +1033,6 @@ void ConnectionFromClient::websocket_close(u64 websocket_id, u16 code, ByteStrin
 
     if (auto* connection = m_websockets.get(websocket_id).value_or({}); connection && connection->ready_state() != WebSocket::ReadyState::Closed)
         connection->close(code, reason);
-}
-
-Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::websocket_set_certificate(u64 websocket_id, ByteString, ByteString)
-{
-    auto success = false;
-    if (auto* connection = m_websockets.get(websocket_id).value_or({}); connection) {
-        // NO OP here
-        // connection->set_certificate(certificate, key);
-        success = true;
-    }
-    return success;
 }
 
 }
