@@ -153,7 +153,7 @@ void ControlConnectionFromClient::set_dns_server(ByteString host_or_address, u16
     dns_info.use_dns_over_tls = use_tls;
     dns_info.validate_dnssec_locally = validate_dnssec_locally;
 
-    m_resolver->dns.reset_connection();
+    Resolver::reset_connections();
 }
 
 void ControlConnectionFromClient::set_use_system_dns()
@@ -162,7 +162,7 @@ void ControlConnectionFromClient::set_use_system_dns()
     dns_info.server_hostname = {};
     dns_info.server_address = {};
 
-    m_resolver->dns.reset_connection();
+    Resolver::reset_connections();
 }
 
 void ControlConnectionFromClient::set_performance_monitor_enabled(bool enabled)
