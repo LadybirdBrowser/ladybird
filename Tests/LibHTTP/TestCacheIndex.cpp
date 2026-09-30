@@ -317,6 +317,23 @@ TEST_CASE(updated_response_headers_respect_entry_size_limit)
     EXPECT(!entry->response_headers->contains("X-Large"sv));
 }
 
+TEST_CASE(persisted_entries_are_found_before_they_are_looked_up)
+{
+    auto state = create_cache_index();
+
+    auto request_headers = HTTP::HeaderList::create();
+    auto response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv } });
+    auto now = UnixDateTime::now();
+
+    TRY_OR_FAIL(state.index.create_entry(1, 0, "https://example.com"_string, request_headers, response_headers, 10, now, now));
+
+    auto reloaded_index = MUST(HTTP::CacheIndex::create(*state.database, cache_directory()));
+    EXPECT(reloaded_index.has_entry(1, 0));
+
+    TRY_OR_FAIL(reloaded_index.update_associated_data_size(1, 0, 5));
+    EXPECT_EQ(reloaded_index.estimate_cache_size_accessed_since(UnixDateTime::earliest()).total, 10u + 5u + 25u);
+}
+
 TEST_CASE(stored_vary_wildcard_does_not_match)
 {
     auto state = create_cache_index();
