@@ -96,8 +96,8 @@ struct RequiredInvalidationAfterStyleChange {
     // A property controlling decorations originated by this box changed. Descendant boxes paint
     // the propagated decorations from these values, so their cached paint commands are stale.
     bool repaint_propagated_text_decorations : 1 { false };
-    // Selection highlights are painted by text descendants, even when the element has no box.
-    bool repaint_selection : 1 { false };
+    // Highlight pseudo-elements are painted by text descendants, even when the element has no box.
+    bool repaint_highlights : 1 { false };
     bool affects_hit_testing : 1 { false };
     // A non-inherited property changed without any other invalidation, which happens when a running
     // animation covers the property. Descendants that explicitly inherit non-inherited properties
@@ -121,7 +121,7 @@ struct RequiredInvalidationAfterStyleChange {
         recompute_descendant_styles |= other.recompute_descendant_styles;
         m_inherited_style_groups_changed |= other.m_inherited_style_groups_changed;
         repaint_propagated_text_decorations |= other.repaint_propagated_text_decorations;
-        repaint_selection |= other.repaint_selection;
+        repaint_highlights |= other.repaint_highlights;
         affects_hit_testing |= other.affects_hit_testing;
         non_inherited_property_inheritance_sources_changed |= other.non_inherited_property_inheritance_sources_changed;
     }
@@ -134,7 +134,7 @@ struct RequiredInvalidationAfterStyleChange {
             && !needs_scroll_container_resnap
             && !recompute_descendant_styles
             && !inherited_style_changed()
-            && !repaint_selection
+            && !repaint_highlights
             && !affects_hit_testing
             && !repaint_propagated_text_decorations
             && !non_inherited_property_inheritance_sources_changed;

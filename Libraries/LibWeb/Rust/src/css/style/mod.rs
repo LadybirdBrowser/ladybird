@@ -816,7 +816,7 @@ pub struct RetainedState {
     /// ledger is shared through an interior-mutable handle no worker owns a share of. The refresh
     /// points are `refresh_admission_facts`'s callers.
     admission: AdmissionFacts,
-    deferred_pseudo_element: Option<tree::PseudoElementKind>,
+    deferred_pseudo_elements: u64,
     tree: StyleNodeTree,
     program: StyleSheetProgram,
     native_rules: native_rules::NativeRuleRegistry,

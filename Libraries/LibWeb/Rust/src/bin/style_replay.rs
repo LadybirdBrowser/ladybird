@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashSet;
@@ -238,13 +239,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 EventKind::ApplyTransaction => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
-                    // The row arrays are consumed in place from the mapped log; nothing is copied.
+                    // The row arrays are consumed in place from the mapped log. Only the element arrivals of
+                    // an older format are copied.
                     let tree = event.payload.read_raw_slice::<FfiTreeDelta>()?;
                     element_arrivals += tree
                         .iter()
                         .filter(|delta| !delta.old_connected && delta.new_connected)
                         .count() as u64;
-                    let arrivals = event.payload.read_raw_slice::<FfiElementArrival>()?;
+                    let arrivals = element_arrivals_from_recording(
+                        event.payload.read_raw_slice::<FfiElementArrival>()?,
+                        format_version,
+                    );
                     let arrival_custom_state_atoms = event.payload.read_u32_vec()?;
                     let features = event.payload.read_raw_slice::<FfiLocalFeatureDelta>()?;
                     let states = event.payload.read_raw_slice::<FfiStateDelta>()?;
@@ -316,7 +321,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         0 => 0,
                         _ => {
                             replay_atom_mappings(engine, &mut event.payload)?;
-                            let program = libweb_rust::css::style::selector::replay::read(&mut event.payload)?;
+                            let program = read_selector_program(&mut event.payload, format_version)?;
                             selector_program_sharing.record(engine_index, &program);
                             unsafe { bridge::replay_add_style_rule(engine, sheet, before_rule, program) }
                         }
@@ -337,7 +342,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
                     let rule = event.payload.read_u32()?;
                     replay_atom_mappings(engine, &mut event.payload)?;
-                    let program = libweb_rust::css::style::selector::replay::read(&mut event.payload)?;
+                    let program = read_selector_program(&mut event.payload, format_version)?;
                     selector_program_sharing.record(engine_index, &program);
                     unsafe { bridge::replay_replace_style_rule_selectors(engine, rule, program) };
                 }
@@ -575,7 +580,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let expected_result = usize::try_from(event.payload.read_u64()?)?;
                     let has_output = event.payload.read_bool()?;
                     let expected = match has_output {
-                        true => read_rule_matches(&mut event.payload)?,
+                        true => read_rule_matches(&mut event.payload, format_version)?,
                         false => Vec::new(),
                     };
                     let mut actual = vec![
@@ -711,7 +716,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let expected = event.payload.read_u64()?;
                     let expected_absent = event.payload.read_bool()?;
                     let expected_uses_substitution = event.payload.read_bool()?;
-                    let expected_present = event.payload.read_u8()?;
+                    let expected_present = read_pseudo_records_present(&mut event.payload, format_version)?;
                     let actual = match demand {
                         RecordDemand::Element(demand) => unsafe {
                             bridge::style_engine_answer_record_demand_for_replay(engine, node, demand)
@@ -747,7 +752,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         event.payload.read_u64()? == 0
                     };
-                    let expected_present = event.payload.read_u8()?;
+                    let expected_present = read_pseudo_records_present(&mut event.payload, format_version)?;
                     let actual = unsafe {
                         bridge::settle_pseudo_records_after_host_record(engine.get_mut(), node, old_is_list_item)
                     };
@@ -761,7 +766,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::RemoveComputedPseudo => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
-                    let pseudo_kind = event.payload.read_u8()?;
+                    let pseudo_kind = pseudo_kind_from_recording(event.payload.read_u8()?, format_version);
                     let expected_old = event.payload.read_u64()?;
                     let expected_new = event.payload.read_u64()?;
                     let actual = unsafe { bridge::remove_computed_pseudo(engine.get_mut(), node, pseudo_kind) };
@@ -772,6 +777,63 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         )
                         .into());
                     }
+                }
+                EventKind::SetPseudoElementStyleDeferred => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let kind = pseudo_kind_from_recording(event.payload.read_u8()?, format_version);
+                    if u32::from(kind) >= u64::BITS {
+                        return Err(format!("deferred pseudo-element kind {kind} exceeds the 64-bit mask").into());
+                    }
+                    let deferred = event.payload.read_bool()?;
+                    bridge::operations::set_pseudo_element_style_deferred(unsafe { engine.get_mut() }, kind, deferred);
+                }
+                EventKind::PublishedPseudoStyleMask => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let node = event.payload.read_u32()?;
+                    let actual = bridge::operations::published_pseudo_style_mask(unsafe { engine.get() }, node);
+                    let expected = pseudo_kind_mask_from_recording(event.payload.read_u64()?, format_version);
+                    if actual != expected {
+                        return Err(format!(
+                            "published pseudo style mask diverged for node {node}: expected {expected:#x}, got {actual:#x}"
+                        )
+                        .into());
+                    }
+                }
+                EventKind::RecordTransitionBaseline => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let node = event.payload.read_u32()?;
+                    let pseudo_kind = pseudo_kind_from_recording(event.payload.read_u8()?, format_version);
+                    let style_record = event.payload.read_u64()?;
+                    bridge::operations::record_transition_baseline(
+                        unsafe { engine.get_mut() },
+                        node,
+                        pseudo_kind,
+                        style_record,
+                    );
+                }
+                EventKind::TransitionBaseline => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let node = event.payload.read_u32()?;
+                    let pseudo_kind = pseudo_kind_from_recording(event.payload.read_u8()?, format_version);
+                    let actual = bridge::operations::transition_baseline(unsafe { engine.get() }, node, pseudo_kind);
+                    let expected = event.payload.read_u64()?;
+                    if actual != expected {
+                        return Err(format!(
+                            "transition baseline diverged for node {node}: expected {expected}, got {actual}"
+                        )
+                        .into());
+                    }
+                }
+                EventKind::SetElementAssociatedPseudoKind => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let node = event.payload.read_u32()?;
+                    let pseudo_kind_plus_one =
+                        associated_pseudo_kind_from_recording(event.payload.read_u8()?, format_version);
+                    bridge::operations::set_element_associated_pseudo_kind(
+                        unsafe { engine.get_mut() },
+                        node,
+                        pseudo_kind_plus_one,
+                    );
                 }
                 EventKind::Counter => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
@@ -805,7 +867,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::PublishExactCascadeState => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
-                    let pseudo_kind = event.payload.read_u8()?;
+                    let pseudo_kind = pseudo_kind_from_recording(event.payload.read_u8()?, format_version);
                     let inherited_style_groups = event.payload.read_u8()?;
                     let expected_generation = event.payload.read_u64()?;
                     let expected_bound_generation = match event.payload.read_bool()? {
@@ -873,7 +935,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::PublishComputedGroups => {
                     let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
-                    let pseudo_kind = event.payload.read_u8()?;
+                    let pseudo_kind = pseudo_kind_from_recording(event.payload.read_u8()?, format_version);
                     let group_count = event.payload.read_length()?;
                     computed_group_payloads.clear();
                     computed_group_payloads.reserve(group_count);
@@ -886,7 +948,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     let inherited_group_count = event.payload.read_length()?;
                     let custom_property_environment = event.payload.read_u64()?;
-                    let pseudo_element_styles = event.payload.read_u64()?;
+                    let pseudo_element_styles =
+                        pseudo_kind_mask_from_recording(event.payload.read_u64()?, format_version);
                     let dependency_flags = event.payload.read_u8()?;
                     let counter_style_environment_identity = event.payload.read_u64()?;
                     let animation_overlay_identity = event.payload.read_u64()?;
@@ -1105,7 +1168,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let records = &mut recorded_style_record_views[engine_index];
                     if record_response {
                         let response = match event.payload.read_bool()? {
-                            true => Some(read_style_record_view(&mut event.payload)?),
+                            true => Some(read_style_record_view(&mut event.payload, format_version)?),
                             false => None,
                         };
                         if records.len() <= index {
@@ -2004,25 +2067,26 @@ fn read_record_demand(
         FfiDemandedPseudoElement as Pseudo, FfiPseudoElementRecordDemand as PseudoDemand, FfiRecordDemand as Demand,
     };
     let pseudo_element = |kind: u8| {
-        Ok::<_, Box<dyn std::error::Error>>(match kind {
+        Ok::<_, Box<dyn std::error::Error>>(match pseudo_kind_from_recording(kind, format_version) {
             0 => Pseudo::After,
             1 => Pseudo::Backdrop,
             2 => Pseudo::Before,
             3 => Pseudo::FirstLetter,
             4 => Pseudo::FirstLine,
             5 => Pseudo::Marker,
-            6 => Pseudo::Selection,
-            7 => Pseudo::ViewTransition,
-            8 => Pseudo::DetailsContent,
-            9 => Pseudo::FileSelectorButton,
-            10 => Pseudo::Placeholder,
-            11 => Pseudo::SliderFill,
-            12 => Pseudo::SliderThumb,
-            13 => Pseudo::SliderTrack,
-            16 => Pseudo::ViewTransitionGroup,
-            17 => Pseudo::ViewTransitionImagePair,
-            18 => Pseudo::ViewTransitionNew,
-            19 => Pseudo::ViewTransitionOld,
+            6 => Pseudo::SearchText,
+            7 => Pseudo::Selection,
+            8 => Pseudo::ViewTransition,
+            9 => Pseudo::DetailsContent,
+            10 => Pseudo::FileSelectorButton,
+            11 => Pseudo::Placeholder,
+            12 => Pseudo::SliderFill,
+            13 => Pseudo::SliderThumb,
+            14 => Pseudo::SliderTrack,
+            17 => Pseudo::ViewTransitionGroup,
+            18 => Pseudo::ViewTransitionImagePair,
+            19 => Pseudo::ViewTransitionNew,
+            20 => Pseudo::ViewTransitionOld,
             _ => return Err(format!("record demand of pseudo-element kind {kind}").into()),
         })
     };
@@ -2093,6 +2157,82 @@ fn read_engine(
     Ok(pointer)
 }
 
+fn read_pseudo_records_present(
+    payload: &mut PayloadReader,
+    format_version: u64,
+) -> Result<u16, Box<dyn std::error::Error>> {
+    Ok(if format_version >= 20 {
+        payload.read_u16()?
+    } else {
+        u16::try_from(pseudo_kind_mask_from_recording(
+            u64::from(payload.read_u8()?),
+            format_version,
+        ))?
+    })
+}
+
+fn pseudo_kind_from_recording(kind: u8, format_version: u64) -> u8 {
+    // Before version 20 there was no ::search-text, so the kinds after ::marker were numbered one lower.
+    if format_version < 20 && (6..u8::MAX).contains(&kind) {
+        kind + 1
+    } else {
+        kind
+    }
+}
+
+fn pseudo_kind_to_recording(kind: u8, format_version: u64) -> u8 {
+    if format_version < 20 && (7..u8::MAX).contains(&kind) {
+        kind - 1
+    } else {
+        kind
+    }
+}
+
+fn pseudo_kind_mask_from_recording(mask: u64, format_version: u64) -> u64 {
+    if format_version < 20 {
+        (mask & 0x3f) | ((mask & !0x3f) << 1)
+    } else {
+        mask
+    }
+}
+
+fn associated_pseudo_kind_from_recording(pseudo_kind_plus_one: u8, format_version: u64) -> u8 {
+    match pseudo_kind_plus_one {
+        0 => 0,
+        _ => pseudo_kind_from_recording(pseudo_kind_plus_one - 1, format_version) + 1,
+    }
+}
+
+fn read_selector_program(
+    payload: &mut PayloadReader,
+    format_version: u64,
+) -> Result<SelectorProgram, Box<dyn std::error::Error>> {
+    Ok(libweb_rust::css::style::selector::replay::read(payload, |kind| {
+        u8::try_from(kind).map_or(kind, |kind| u16::from(pseudo_kind_from_recording(kind, format_version)))
+    })?)
+}
+
+fn element_arrivals_from_recording(
+    arrivals: &[FfiElementArrival],
+    format_version: u64,
+) -> Cow<'_, [FfiElementArrival]> {
+    if format_version >= 20 {
+        return Cow::Borrowed(arrivals);
+    }
+    Cow::Owned(
+        arrivals
+            .iter()
+            .map(|arrival| FfiElementArrival {
+                associated_pseudo_kind_plus_one: associated_pseudo_kind_from_recording(
+                    arrival.associated_pseudo_kind_plus_one,
+                    format_version,
+                ),
+                ..*arrival
+            })
+            .collect(),
+    )
+}
+
 #[cold]
 fn engine_not_live<T>(engine_id: u64) -> Result<T, Box<dyn std::error::Error>> {
     Err(format!("event names engine {engine_id}, which is not live").into())
@@ -2112,7 +2252,10 @@ fn assert_identity(category: &str, expected: u32, actual: u32) -> Result<(), Box
     Ok(())
 }
 
-fn read_rule_matches(payload: &mut PayloadReader) -> Result<Vec<FfiRuleMatch>, Box<dyn std::error::Error>> {
+fn read_rule_matches(
+    payload: &mut PayloadReader,
+    format_version: u64,
+) -> Result<Vec<FfiRuleMatch>, Box<dyn std::error::Error>> {
     let count = payload.read_length()?;
     let mut matches = Vec::with_capacity(count);
     for _ in 0..count {
@@ -2120,7 +2263,10 @@ fn read_rule_matches(payload: &mut PayloadReader) -> Result<Vec<FfiRuleMatch>, B
             node: payload.read_u32()?,
             rule: payload.read_u32()?,
             semantic_declaration: 0,
-            pseudo_element: payload.read_u32()?,
+            pseudo_element: match payload.read_u32()? {
+                u32::MAX => u32::MAX,
+                kind => u32::from(pseudo_kind_from_recording(u8::try_from(kind)?, format_version)),
+            },
             scope_host: payload.read_u32()?,
             scope_proximity: payload.read_u32()?,
         });
@@ -2284,7 +2430,7 @@ fn read_style_transaction_outputs(
                 },
                 reaction: payload.read_u8()?,
                 inherited_style_groups: payload.read_u8()?,
-                pseudo_kind: payload.read_u8()?,
+                pseudo_kind: pseudo_kind_from_recording(payload.read_u8()?, format_version),
                 gap: match payload.read_u8()? {
                     0 => FfiStyleDeltaGap::None,
                     1 => FfiStyleDeltaGap::Materialize,
@@ -2346,7 +2492,7 @@ fn write_style_transaction_outputs(
             payload.write_u16(answer.damage as u16);
             payload.write_u8(answer.reaction);
             payload.write_u8(answer.inherited_style_groups);
-            payload.write_u8(answer.pseudo_kind);
+            payload.write_u8(pseudo_kind_to_recording(answer.pseudo_kind, format_version));
             payload.write_u8(answer.gap as u8);
             if format_version >= 16 {
                 payload.write_bool(answer.uses_substitution);
@@ -2536,6 +2682,7 @@ struct RecordedStyleRecordView<'a> {
 
 fn read_style_record_view<'a>(
     payload: &mut PayloadReader<'a>,
+    format_version: u64,
 ) -> Result<RecordedStyleRecordView<'a>, Box<dyn std::error::Error>> {
     let payloads = read_u64_slice(payload)?;
     let base_payloads = read_u64_slice(payload)?;
@@ -2552,7 +2699,7 @@ fn read_style_record_view<'a>(
         inheritance_dependent_values,
         raw_cascaded_font_size: payload.read_u64()?,
         animated_overlay_present: payload.read_u64()? != 0,
-        pseudo_element_styles: payload.read_u64()?,
+        pseudo_element_styles: pseudo_kind_mask_from_recording(payload.read_u64()?, format_version),
         counter_style_environment_identity: payload.read_u64()?,
         animation_overlay_identity: payload.read_u64()?,
         dependency_flags: payload.read_u8()?,
@@ -3109,6 +3256,52 @@ mod tests {
         assert_eq!(style_record_replay_index(first_generation).unwrap(), 34);
         assert_eq!(style_record_replay_index(later_generation).unwrap(), 34);
         assert_eq!(style_record_replay_index(overlay).unwrap(), 35);
+    }
+
+    #[test]
+    fn pseudo_records_present_from_before_search_text_are_renumbered() {
+        let mut payload = PayloadWriter::default();
+        payload.write_u8(0b1110_0000);
+        let present = read_pseudo_records_present(&mut PayloadReader::new(payload.as_bytes()), 19).unwrap();
+        assert_eq!(present, 0b1_1010_0000);
+    }
+
+    #[test]
+    fn rule_matches_from_before_search_text_are_renumbered() {
+        for (version, recorded, expected) in [(19, 5, 5), (19, 6, 7), (20, 6, 6)] {
+            let mut payload = PayloadWriter::default();
+            payload.write_length(2);
+            for pseudo_element in [recorded, u32::MAX] {
+                payload.write_u32(1);
+                payload.write_u32(2);
+                payload.write_u32(pseudo_element);
+                payload.write_u32(0);
+                payload.write_u32(u32::MAX);
+            }
+            let matches = read_rule_matches(&mut PayloadReader::new(payload.as_bytes()), version).unwrap();
+            assert_eq!(matches[0].pseudo_element, expected);
+            assert_eq!(matches[1].pseudo_element, u32::MAX);
+        }
+    }
+
+    #[test]
+    fn selector_targets_from_before_search_text_are_renumbered() {
+        use libweb_rust::css::style::selector::SelectorProgramBuilder;
+        use libweb_rust::css::style::tree::PseudoElementKind;
+        use libweb_rust::css::style::tree::PseudoElementTarget;
+
+        let program_targeting = |kind| {
+            let mut builder = SelectorProgramBuilder::new();
+            let root = builder.push_never();
+            builder.push_entry_for_pseudo(root, Some(PseudoElementTarget::new(PseudoElementKind(kind))));
+            builder.finish()
+        };
+        for (version, recorded, expected) in [(19, 5, 5), (19, 6, 7), (20, 6, 6)] {
+            let mut payload = PayloadWriter::default();
+            libweb_rust::css::style::selector::replay::write(&program_targeting(recorded), &mut payload);
+            let program = read_selector_program(&mut PayloadReader::new(payload.as_bytes()), version).unwrap();
+            assert!(program == program_targeting(expected));
+        }
     }
 }
 

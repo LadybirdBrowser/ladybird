@@ -67,7 +67,10 @@ pub fn write(program: &SelectorProgram, payload: &mut PayloadWriter) {
     payload.write_bool(program.subject_can_leave_scope);
 }
 
-pub fn read(payload: &mut PayloadReader) -> Result<SelectorProgram, Error> {
+pub fn read(
+    payload: &mut PayloadReader,
+    pseudo_element_kind_from_recording: impl Fn(u16) -> u16,
+) -> Result<SelectorProgram, Error> {
     let node_count = payload.read_length()?;
     let mut nodes = Vec::with_capacity(node_count);
     for _ in 0..node_count {
@@ -82,7 +85,7 @@ pub fn read(payload: &mut PayloadReader) -> Result<SelectorProgram, Error> {
     let entry_count = payload.read_length()?;
     let mut entries = Vec::with_capacity(entry_count);
     for _ in 0..entry_count {
-        entries.push(read_entry(payload)?);
+        entries.push(read_entry(payload, &pseudo_element_kind_from_recording)?);
     }
     let query_count = payload.read_length()?;
     let mut relative_queries = Vec::with_capacity(query_count);
@@ -386,7 +389,10 @@ fn write_entry(entry: SelectorEntry, payload: &mut PayloadWriter) {
     payload.write_u8(properties);
 }
 
-fn read_entry(payload: &mut PayloadReader) -> Result<SelectorEntry, Error> {
+fn read_entry(
+    payload: &mut PayloadReader,
+    pseudo_element_kind_from_recording: &impl Fn(u16) -> u16,
+) -> Result<SelectorEntry, Error> {
     let root = read_node(payload)?;
     let specificity = Specificity {
         ids: payload.read_u16()?,
@@ -398,7 +404,7 @@ fn read_entry(payload: &mut PayloadReader) -> Result<SelectorEntry, Error> {
         .then(|| {
             payload
                 .read_u16()
-                .map(|kind| PseudoElementTarget::new(PseudoElementKind(kind)))
+                .map(|kind| PseudoElementTarget::new(PseudoElementKind(pseudo_element_kind_from_recording(kind))))
         })
         .transpose()?;
     let scope_root = read_optional_node(payload)?;
@@ -658,7 +664,7 @@ mod tests {
 
         let mut reader = LogReader::new(Cursor::new(output)).unwrap();
         let mut event = reader.read_event().unwrap().unwrap();
-        let decoded = read(&mut event.payload).unwrap();
+        let decoded = read(&mut event.payload, |kind| kind).unwrap();
         event.payload.finish().unwrap();
         assert!(decoded == program);
     }
