@@ -523,11 +523,8 @@ bool CacheIndex::has_entry(u64 cache_key, u64 vary_key)
 
 Optional<CacheIndex::Entry&> CacheIndex::get_entry(u64 cache_key, u64 vary_key)
 {
-    auto entries = m_entries.get(cache_key);
-    if (!entries.has_value())
-        return {};
-
-    return find_value(*entries, [&](auto const& entry) { return entry.vary_key == vary_key; });
+    auto& entries = entries_for_cache_key(cache_key);
+    return find_value(entries, [&](auto const& entry) { return entry.vary_key == vary_key; });
 }
 
 void CacheIndex::adjust_total_estimated_size(i64 delta)
