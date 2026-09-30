@@ -286,6 +286,16 @@ bool is_cacheable(StringView method, HTTP::HeaderList const& request_headers)
     return !request_headers.contains("Range"sv);
 }
 
+// https://httpwg.org/specs/rfc9110.html#preconditions
+bool has_preconditions(HeaderList const& request_headers)
+{
+    return request_headers.contains("If-Match"sv)
+        || request_headers.contains("If-None-Match"sv)
+        || request_headers.contains("If-Modified-Since"sv)
+        || request_headers.contains("If-Unmodified-Since"sv)
+        || request_headers.contains("If-Range"sv);
+}
+
 // https://datatracker.ietf.org/doc/html/rfc9110#name-overview-of-status-codes
 static bool is_heuristically_cacheable_status(u32 status_code)
 {

@@ -136,6 +136,10 @@ ErrorOr<void> CacheEntryWriter::write_status_and_reason(u32 status_code, Optiona
         if (!is_cacheable(status_code, response_headers))
             return Error::from_string_literal("Response is not cacheable");
 
+        // This 304 answers the client's preconditions, not the cache's validators.
+        if (status_code == 304)
+            return Error::from_string_literal("Response is not modified");
+
         auto vary_key = create_vary_key(request_headers, response_headers);
         if (!vary_key.has_value())
             return Error::from_string_literal("Response cannot be selected by any request");
