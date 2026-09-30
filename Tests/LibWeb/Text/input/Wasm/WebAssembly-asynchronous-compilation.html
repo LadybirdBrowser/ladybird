@@ -1,0 +1,67 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const bytes = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f, 0x03, 0x02, 0x01,
+            0x00, 0x07, 0x09, 0x01, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04, 0x00, 0x41,
+            0x2a, 0x0b,
+        ]);
+
+        const inlineCompilations = [];
+        for (let index = 0; index < 16; ++index) {
+            const input = bytes.slice(0, 8);
+            inlineCompilations.push(WebAssembly.compile(input));
+            input.fill(0);
+        }
+        internals.gc();
+        const inlineModules = await Promise.all(inlineCompilations);
+        println(
+            `inline input copies: ${inlineModules.length}, ${inlineModules.every(module => Object.keys(new WebAssembly.Instance(module).exports).length === 0)}`
+        );
+
+        const compilations = [];
+        for (let index = 0; index < 16; ++index) {
+            const input = bytes.slice();
+            compilations.push(WebAssembly.compile(input));
+            input.fill(0);
+        }
+        internals.gc();
+        const modules = await Promise.all(compilations);
+        println(
+            `concurrent compilation copies: ${modules.length}, ${modules.every(module => new WebAssembly.Instance(module).exports.value() === 42)}`
+        );
+
+        const instantiateInput = bytes.slice();
+        const instantiation = WebAssembly.instantiate(instantiateInput);
+        instantiateInput.fill(0);
+        internals.gc();
+        println(`instantiation copy: ${(await instantiation).instance.exports.value()}`);
+
+        const streaming = WebAssembly.compileStreaming(
+            new Response(bytes, { headers: { "Content-Type": "application/wasm" } })
+        );
+        internals.gc();
+        println(`streaming compilation: ${new WebAssembly.Instance(await streaming).exports.value()}`);
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const ModuleFromFrame = iframe.contentWindow.WebAssembly.Module;
+        const compilationFromFrame = iframe.contentWindow.WebAssembly.compile(bytes);
+        iframe.remove();
+        internals.gc();
+        const moduleFromFrame = await compilationFromFrame;
+        println(
+            `removed realm: ${moduleFromFrame instanceof ModuleFromFrame}, ${new WebAssembly.Instance(moduleFromFrame).exports.value()}`
+        );
+
+        const invalidType = bytes.slice();
+        invalidType[invalidType.length - 3] = 0x42;
+        const errors = [WebAssembly.compile(new Uint8Array([0])), WebAssembly.compile(invalidType)];
+        internals.gc();
+        for (const result of await Promise.allSettled(errors))
+            println(`compilation error: ${result.status}, ${result.reason instanceof WebAssembly.CompileError}`);
+
+        println(`synchronous compilation: ${new WebAssembly.Instance(new WebAssembly.Module(bytes)).exports.value()}`);
+    });
+</script>
