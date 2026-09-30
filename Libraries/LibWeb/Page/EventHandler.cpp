@@ -262,35 +262,49 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(Layout::Node con
     return {};
 }
 
+// Whether the identity names an element. The document names itself rather than a style node, and a text node's style
+// node says so in its top bit. A row that has gone stale names nothing at all. A shadow root takes an element-kind
+// StyleNodeID too, but no row and no hit test result names one.
+static bool identity_names_element(DOM::NodeIdentity identity)
+{
+    auto style_node = identity.style_node();
+    return style_node != CSS::StyleNodeID {} && !CSS::style_node_is_text(style_node);
+}
+
 static bool parent_element_for_event_dispatch(Layout::Node& target_layout_node, GC::Ptr<DOM::Node>& node, Layout::Node*& layout_node)
 {
+    auto& arena = target_layout_node.node_arena();
+    auto identity = DOM::NodeIdentity::of(*node);
     layout_node = &target_layout_node;
     if (target_layout_node.is_generated_for_backdrop_pseudo_element()
         || target_layout_node.is_generated_for_after_pseudo_element()
         || target_layout_node.is_generated_for_before_pseudo_element()) {
-        node = target_layout_node.pseudo_element_generator();
-        if (auto* generator_layout_node = node->layout_node())
+        identity = target_layout_node.pseudo_element_generator_identity();
+        if (auto* generator_layout_node = identity.bound_layout_node(arena))
             layout_node = generator_layout_node;
     }
 
-    auto* current_ancestor_node = node.ptr();
-    do {
-        auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(current_ancestor_node);
-        if (form_associated_element && !form_associated_element->enabled()) {
+    // An event aimed at a disabled form control is not dispatched, and neither is one aimed at
+    // anything under one.
+    // NB: The document outlives every live row of its arena.
+    VERIFY(arena.document());
+    auto& document = *arena.document();
+    for (auto ancestor = identity.resolve(document); ancestor; ancestor = ancestor->parent()) {
+        if (auto const* form_associated_element = as_if<HTML::FormAssociatedElement>(*ancestor); form_associated_element && !form_associated_element->enabled())
             return false;
-        }
-    } while ((current_ancestor_node = current_ancestor_node->parent()));
+    }
 
-    while (layout_node && node && !node->is_element()) {
-        auto* dom_node = layout_node->is_anonymous() ? nullptr : layout_node->dom_node();
-        if (dom_node && dom_node != node.ptr()) {
-            node = dom_node;
+    while (layout_node && identity && !identity_names_element(identity)) {
+        auto row_identity = layout_node->is_anonymous() ? DOM::NodeIdentity {} : layout_node->dom_node_identity();
+        if (row_identity && row_identity != identity) {
+            identity = row_identity;
             continue;
         }
         if (!layout_node->parent())
             break;
         layout_node = layout_node->parent();
     }
+    node = identity.resolve(document);
     return node && layout_node;
 }
 

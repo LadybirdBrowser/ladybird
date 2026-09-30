@@ -8,7 +8,9 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/NodeIdentity.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/NodeArena.h>
 
 namespace Web::DOM {
 
@@ -37,6 +39,19 @@ GC::Ptr<Node> NodeIdentity::resolve(Document& document) const
         return document.style_computer().node_for_style_node(m_style_node);
     case Kind::Document:
         return document;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Layout::Node* NodeIdentity::bound_layout_node(Layout::NodeArena& arena) const
+{
+    switch (m_kind) {
+    case Kind::None:
+        return nullptr;
+    case Kind::StyleNode:
+        return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_bound_shell(arena.handle(), m_style_node.value()));
+    case Kind::Document:
+        return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_bound_viewport_shell(arena.handle()));
     }
     VERIFY_NOT_REACHED();
 }
