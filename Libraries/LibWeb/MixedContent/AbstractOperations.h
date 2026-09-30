@@ -10,15 +10,11 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/RequestOrResponseBlocking.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/MixedContent/ProhibitsMixedSecurityContexts.h>
 
 namespace Web::MixedContent {
 
 WEB_API void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infrastructure::Request&);
-
-enum class ProhibitsMixedSecurityContexts {
-    ProhibitsMixedSecurityContexts,
-    DoesNotRestrictMixedSecurityContexts,
-};
 
 ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(GC::Ptr<HTML::EnvironmentSettingsObject>);
 
