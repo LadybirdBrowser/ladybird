@@ -1,0 +1,3 @@
+Next match from the first match: selection "needle" in shadow tree
+Next match from the shadow tree: selection "needle" in after
+Next match wraps around: selection "needle" in before

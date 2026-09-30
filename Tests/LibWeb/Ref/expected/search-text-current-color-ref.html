@@ -5,22 +5,15 @@ p {
     font-size: 20px;
     line-height: 1.5;
 }
-p::selection {
-    background-color: yellow;
-    color: blue;
+span {
+    background-color: red;
+    color: red;
 }
-p::search-text {
-    background-color: blue;
-    color: blue;
-}
-b::search-text {
+b {
     background-color: white;
-    color: blue;
-    text-decoration: underline blue;
-    text-shadow: 0 10px blue;
+    color: red;
+    text-decoration: underline red;
+    text-shadow: 0 10px red;
 }
 </style>
-<p>Find the nee<b>dle</b> in this haystack</p>
-<script>
-internals.findInPage("needle");
-</script>
+<p>Find the <span>nee<b>dle</b></span> in this haystack</p>

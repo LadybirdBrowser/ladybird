@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-selection-change-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+</style>
+<p>Find the needle in this haystack</p>
+<script>
+internals.findInPage("needle");
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        const text = document.querySelector("p").firstChild;
+        const range = document.createRange();
+        range.setStart(text, 24);
+        range.setEnd(text, 32);
+        getSelection().addRange(range);
+        requestAnimationFrame(() => {
+            internals.signalTestIsDone("PASS");
+        });
+    });
+});
+</script>
+</html>

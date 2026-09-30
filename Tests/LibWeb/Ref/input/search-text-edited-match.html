@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-edited-match-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+</style>
+<p id="target">The needle</p>
+<script>
+internals.findInPage("needle");
+requestAnimationFrame(() => {
+    target.firstChild.replaceData(4, 1, "N");
+    requestAnimationFrame(() => {
+        internals.signalTestIsDone("PASS");
+    });
+});
+</script>
+</html>

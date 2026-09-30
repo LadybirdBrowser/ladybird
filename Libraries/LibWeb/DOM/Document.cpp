@@ -1056,10 +1056,27 @@ void Document::set_find_in_page_active_match(GC::Ptr<Range> active_match)
     Painting::set_needs_repaint(*unsafe_layout_node(), InvalidateDisplayList::PaintCommands);
 }
 
+static bool realign_find_in_page_match_to_its_text(Range& match, Utf16String const& text)
+{
+    if (match.collapsed())
+        return false;
+    auto current_text = match.to_string();
+    if (current_text == text)
+        return true;
+    auto* start_text = as_if<Text>(*match.start_container());
+    if (!start_text || !current_text.utf16_view().ends_with(text.utf16_view()))
+        return false;
+    auto new_start_offset = match.start_offset() + (current_text.length_in_code_units() - text.length_in_code_units());
+    if (new_start_offset > start_text->length_in_utf16_code_units())
+        return false;
+    MUST(match.set_start(*start_text, new_start_offset));
+    return true;
+}
+
 void Document::collapse_find_in_page_active_match_if_its_text_changed()
 {
     auto match = m_find_in_page_active_match;
-    if (!match || match->collapsed() || match->to_string() == m_find_in_page_active_match_text)
+    if (!match || match->collapsed() || realign_find_in_page_match_to_its_text(*match, m_find_in_page_active_match_text))
         return;
     set_find_in_page_active_match(Range::create(match->start_container(), match->start_offset(), match->start_container(), match->start_offset()));
 }

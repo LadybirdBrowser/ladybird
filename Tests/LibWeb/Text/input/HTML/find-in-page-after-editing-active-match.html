@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p id="target">needle middle needle last needle</p>
+<p id="removal">hay<b id="middle">sta</b>ck</p>
+<p id="insertion"><span>hay</span><b>stack</b></p>
+<script>
+    test(() => {
+        const text = target.firstChild;
+        const results = [];
+        const describeSelectionAfterEnding = description => {
+            internals.findInPageEnd();
+            results.push(`Selection after ${description}: "${getSelection().toString()}"`);
+            getSelection().removeAllRanges();
+        };
+
+        internals.findInPage("needle");
+        text.replaceData(0, 1, "X");
+        describeSelectionAfterEnding("editing the active match");
+
+        text.data = "needle middle needle last needle";
+        internals.findInPage("needle");
+        text.insertData(0, "X");
+        describeSelectionAfterEnding("inserting text at the start of the active match");
+
+        text.data = "needle middle needle last needle";
+        internals.findInPage("needle");
+        text.insertData(6, "X");
+        describeSelectionAfterEnding("inserting text at the end of the active match");
+
+        internals.findInPage("haystack");
+        middle.remove();
+        describeSelectionAfterEnding("removing part of the active match");
+
+        internals.findInPage("haystack");
+        insertion.insertBefore(document.createTextNode("X"), insertion.lastChild);
+        describeSelectionAfterEnding("inserting a node into the active match");
+
+        const describeNextMatchAfter = (description, edit) => {
+            text.data = "needle middle needle last needle";
+            internals.findInPage("needle");
+            edit();
+            internals.findInPageNextMatch();
+            internals.findInPageEnd();
+            results.push(`Next match after ${description}: offset ${getSelection().anchorOffset}`);
+            getSelection().removeAllRanges();
+        };
+
+        describeNextMatchAfter("deleting the active match", () => text.deleteData(0, 6));
+        describeNextMatchAfter("changing the case of the active match", () => text.replaceData(0, 1, "N"));
+
+        results.forEach(println);
+    });
+</script>

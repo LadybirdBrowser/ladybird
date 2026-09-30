@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-current-color-function-ref.html">
+<style>
+p {
+    color: blue;
+    font-size: 20px;
+    line-height: 1.5;
+}
+p::search-text {
+    color: blue;
+    background-color: rgb(from currentColor r g b / 50%);
+}
+</style>
+<p>Find the needle in this haystack</p>
+<script>
+internals.findInPage("needle");
+</script>
