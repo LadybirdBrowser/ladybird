@@ -15,17 +15,23 @@
 #include <RequestServer/Sandbox.h>
 #include <curl/curl.h>
 #include <dlfcn.h>
+#include <openssl/conf.h>
+#include <openssl/crypto.h>
 #include <openssl/x509.h>
 #include <string.h>
 
 namespace RequestServer {
 
-// Landlock rules bind to inodes. A rule on /etc/ssl therefore covers the files that live there, but not the
-// targets of the symlinks distributions such as Fedora (/etc/pki) and Arch (/etc/ca-certificates) place in
-// it. Opening the bundle path itself follows the link, so a rule on the exact file libcurl and OpenSSL open
-// grants the real bundle wherever it lives, and nothing next to it.
+// Landlock binds to inodes. Open each bundle path to grant its symlink target, including targets outside /etc/ssl.
 static ErrorOr<void> add_certificate_store_paths(Vector<Sandbox::LandlockPath>& paths)
 {
+    // OpenSSL may load OPENSSL_CONF during initialization.
+    if (auto* config_file = CONF_get1_default_config_file()) {
+        auto result = Sandbox::add_landlock_path_if_exists(paths, StringView { config_file, strlen(config_file) }, Sandbox::LandlockPath::Access::ReadOnly);
+        OPENSSL_free(config_file);
+        TRY(result);
+    }
+
     if (auto const* version_info = curl_version_info(CURLVERSION_NOW)) {
         if (version_info->cainfo)
             TRY(Sandbox::add_landlock_path_if_exists(paths, ByteString { version_info->cainfo }, Sandbox::LandlockPath::Access::ReadOnly));
@@ -92,7 +98,6 @@ ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, 
     Vector<Sandbox::LandlockPath> paths;
     TRY(Core::Directory::create(cache_path, Core::Directory::CreateDirectories::Yes));
 
-    TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/ssl"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(add_certificate_store_paths(paths));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/host.conf"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/hosts"sv, Sandbox::LandlockPath::Access::ReadOnly));
