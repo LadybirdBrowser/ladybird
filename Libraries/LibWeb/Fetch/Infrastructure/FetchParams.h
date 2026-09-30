@@ -16,6 +16,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
+#include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -58,6 +59,9 @@ public:
 
     [[nodiscard]] bool has_response_body_transfer_lease() const { return m_has_response_body_transfer_lease; }
     void set_has_response_body_transfer_lease(bool value) { m_has_response_body_transfer_lease = value; }
+
+    [[nodiscard]] Optional<FileAPI::SerializedBlobURLEntry> const& blob_url_entry() const { return m_blob_url_entry; }
+    void set_blob_url_entry(Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry) { m_blob_url_entry = move(blob_url_entry); }
 
 private:
     FetchParams(GC::Ref<Request>, GC::Ref<FetchAlgorithms const>, GC::Ref<FetchController>, NonnullRefPtr<FetchTimingInfo>);
@@ -115,6 +119,9 @@ private:
 
     // Non-spec process integration: a navigation response is retained while the UI process selects its document host.
     bool m_has_response_body_transfer_lease { false };
+
+    // The blob URL entry of the request's URL, when that is a blob: URL, as it was when the fetch started.
+    Optional<FileAPI::SerializedBlobURLEntry> m_blob_url_entry;
 };
 
 }

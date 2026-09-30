@@ -308,6 +308,14 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     if (auto const* buffer = request.body().get_pointer<ByteBuffer>())
         request.set_body(Infrastructure::byte_sequence_as_body(realm, buffer->bytes()));
 
+    // AD-HOC: The blob URL entry of request’s URL is resolved here, when the fetch starts, so that scheme fetch needs no
+    //         page. It is the entry of request’s current URL there, since no redirect leads to a blob URL.
+    if (request.url().scheme() == "blob"sv) {
+        auto& page = Bindings::principal_host_defined_page(realm);
+        auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(page, request.url());
+        fetch_params->set_blob_url_entry(move(blob_url_entry));
+    }
+
     auto* client_window = request.client() ? HTML::window_from_global_object(request.client()->global_object()) : nullptr;
 
     // 10. If all of the following conditions are true:
@@ -1317,7 +1325,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
     // -> "blob"
     else if (request->current_url().scheme() == "blob"sv) {
         // 1. Let blobURLEntry be request’s current URL’s blob URL entry.
-        auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(Bindings::principal_host_defined_page(realm), request->current_url());
+        auto const& blob_url_entry = fetch_params.blob_url_entry();
 
         // 2. If request’s method is not `GET` or blobURLEntry is null, then return a network error. [FILEAPI]
         if (request->method() != "GET"sv || !blob_url_entry.has_value())
