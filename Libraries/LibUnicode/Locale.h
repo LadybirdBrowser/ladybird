@@ -182,8 +182,8 @@ Optional<LanguageID> parse_unicode_language_id(Utf16View);
 Optional<LocaleID> parse_unicode_locale_id(StringView);
 Optional<LocaleID> parse_unicode_locale_id(Utf16View);
 
-Utf16String canonicalize_unicode_locale_id(StringView);
-Utf16String canonicalize_unicode_locale_id(Utf16View);
+Optional<Utf16String> canonicalize_unicode_locale_id(StringView);
+Optional<Utf16String> canonicalize_unicode_locale_id(Utf16View);
 Utf16String canonicalize_unicode_extension_values(StringView key, Utf16View value);
 
 Utf16View default_locale();

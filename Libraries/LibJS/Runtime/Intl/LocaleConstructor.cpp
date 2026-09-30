@@ -160,7 +160,7 @@ static ThrowCompletionOr<Utf16String> update_language_id(VM& vm, Utf16View tag, 
 }
 
 // 15.1.3 MakeLocaleRecord ( tag, options, localeExtensionKeys ), https://tc39.es/ecma402/#sec-makelocalerecord
-static LocaleAndKeys make_locale_record(Utf16View tag, LocaleOptionsAndKeys options, ReadonlySpan<Utf16View> locale_extension_keys)
+static ThrowCompletionOr<LocaleAndKeys> make_locale_record(VM& vm, Utf16View tag, LocaleOptionsAndKeys options, ReadonlySpan<Utf16View> locale_extension_keys)
 {
     auto locale_id = Unicode::parse_unicode_locale_id(tag);
     VERIFY(locale_id.has_value());
@@ -274,12 +274,12 @@ static LocaleAndKeys make_locale_record(Utf16View tag, LocaleOptionsAndKeys opti
     // 6. If attributes is not empty or keywords is not empty, then
     if (!attributes.is_empty() || !keywords.is_empty()) {
         // a. Set result.[[locale]] to InsertUnicodeExtensionAndCanonicalize(locale, attributes, keywords).
-        result.locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), move(attributes), move(keywords));
+        result.locale = TRY(insert_unicode_extension_and_canonicalize(vm, locale_id.release_value(), move(attributes), move(keywords)));
     }
     // 7. Else,
     else {
         // a. Set result.[[locale]] to CanonicalizeUnicodeLocaleId(locale).
-        result.locale = canonicalize_unicode_locale_id(locale);
+        result.locale = TRY(canonicalize_unicode_locale_id(vm, locale));
     }
 
     // 8. Return result.
@@ -351,7 +351,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
             return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag_string);
 
         // 13. Set tag to CanonicalizeUnicodeLocaleId(tag).
-        tag = canonicalize_unicode_locale_id(tag_string.utf16_view());
+        tag = TRY(canonicalize_unicode_locale_id(vm, tag_string.utf16_view()));
         tag_is_canonicalized = true;
     }
 
@@ -367,9 +367,8 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     //     options.
 
     // 13. Set tag to CanonicalizeUnicodeLocaleId(tag).
-    if (!tag_is_canonicalized) {
-        tag = canonicalize_unicode_locale_id(tag.utf16_view());
-    }
+    if (!tag_is_canonicalized)
+        tag = TRY(canonicalize_unicode_locale_id(vm, tag.utf16_view()));
 
     // 14. Set tag to ? UpdateLanguageId(tag, options).
     tag = TRY(update_language_id(vm, tag.utf16_view(), options));
@@ -428,7 +427,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     opt.nu = TRY(get_string_option(vm, options, vm.names.numberingSystem, is_type_identifier));
 
     // 35. Let r be MakeLocaleRecord(tag, opt, localeExtensionKeys).
-    auto result = make_locale_record(tag.utf16_view(), move(opt), locale_extension_keys);
+    auto result = TRY(make_locale_record(vm, tag.utf16_view(), move(opt), locale_extension_keys));
 
     // 36. Set locale.[[Locale]] to r.[[locale]].
     locale->set_locale(move(result.locale));
