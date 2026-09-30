@@ -204,15 +204,25 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
             return subject.child_index_from_end(SiblingsOfType);
         }
         VERIFY_NOT_REACHED(); },
-    .next_element_in_subtree = [](void const* node, void const* root, uintptr_t local_name) -> void const* {
+    .next_element_in_subtree = [](void const* node, void const* root, uintptr_t local_name, u64 attribute_names) -> void const* {
         auto const& stay_within = node_from_ffi(root);
-        for (auto const* next = node_from_ffi(node).next_in_pre_order(&stay_within); next; next = next->next_in_pre_order(&stay_within)) {
+        auto const* next = node_from_ffi(node).next_in_pre_order(&stay_within);
+        while (next) {
             auto const* element = as_if<Element>(*next);
+            if (element && (element->subtree_attribute_name_filter() & attribute_names) != attribute_names) {
+                // No element of this subtree has every attribute name, so skip past it.
+                while (next != &stay_within && !next->next_sibling())
+                    next = next->parent();
+                next = next == &stay_within ? nullptr : next->next_sibling();
+                continue;
+            }
             if (element && (!local_name || element->local_name().raw_identity() == local_name))
                 return node_to_ffi(element);
+            next = next->next_in_pre_order(&stay_within);
         }
         return nullptr;
     },
+    .attribute_name_filter_bit = [](uintptr_t local_name) { return Element::attribute_name_filter_bit(Utf16FlyString::from_raw(local_name)); },
     .shadow_root = [](void const* element) { return node_to_ffi(element_from_ffi(element).shadow_root().ptr()); },
     .host = [](void const* shadow_root) { return node_to_ffi(static_cast<ShadowRoot const&>(node_from_ffi(shadow_root)).host()); },
     .id_or_class_equals_ignoring_ascii_case = [](void const* pointer, bool is_class, uintptr_t name_identity) {

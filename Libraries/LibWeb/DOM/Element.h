@@ -251,6 +251,12 @@ public:
     // The element's attributes in order, borrowed until they next change.
     ReadonlySpan<Attribute> attribute_list() const;
 
+    // A filter over the local names of the attributes of this element and its descendants: a name whose bit is clear
+    // is on none of them. Bits are only ever added, so a name may keep its bit after its last attribute is gone.
+    static u64 attribute_name_filter_bit(Utf16FlyString const& local_name) { return 1ull << (local_name.hash() % 64); }
+    u64 subtree_attribute_name_filter() const { return m_subtree_attribute_name_filter; }
+    void add_to_subtree_attribute_name_filter(u64 bits);
+
     GC::Ptr<NamedNodeMap const> attributes() const;
     GC::Ptr<NamedNodeMap> attributes();
 
@@ -892,6 +898,7 @@ private:
     using AttributeList = Vector<Attribute, 1>;
 
     AttributeList& ensure_attribute_list();
+    void append_to_attribute_list(QualifiedName, Utf16String value);
 
     void install_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
     void synchronize_attribute(Utf16FlyString const& qualified_name) const;
@@ -944,6 +951,7 @@ private:
     Vector<Utf16FlyString, 1> m_classes;
 
     OwnPtr<AttributeList> m_attributes;
+    u64 m_subtree_attribute_name_filter { 0 };
     GC::Ptr<CSS::CSSStyleProperties> m_inline_style;
     GC::Ptr<ShadowRoot> m_shadow_root;
 

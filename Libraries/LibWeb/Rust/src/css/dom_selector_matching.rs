@@ -104,9 +104,16 @@ pub struct FfiDomSelectorCallbacks {
     /// The element's 1-based index among its inclusive element siblings, as `which` counts them.
     pub child_index: unsafe extern "C" fn(element: *const c_void, which: FfiChildIndex) -> u32,
     /// The first element after `node` in tree order that is a descendant of `root` and, unless `local_name` is zero,
-    /// has that local name. `node` is `root` itself to start. Both may be any node.
-    pub next_element_in_subtree:
-        unsafe extern "C" fn(node: *const c_void, root: *const c_void, local_name: usize) -> *const c_void,
+    /// has that local name, skipping the subtrees whose attribute name filter lacks one of the bits of
+    /// `attribute_names`. `node` is `root` itself to start. Both may be any node.
+    pub next_element_in_subtree: unsafe extern "C" fn(
+        node: *const c_void,
+        root: *const c_void,
+        local_name: usize,
+        attribute_names: u64,
+    ) -> *const c_void,
+    /// The bit of the DOM's attribute name filter for a local name.
+    pub attribute_name_filter_bit: unsafe extern "C" fn(local_name: usize) -> u64,
     /// The shadow root the element hosts, or null.
     pub shadow_root: unsafe extern "C" fn(element: *const c_void) -> *const c_void,
     /// The host of a shadow root.
@@ -187,8 +194,19 @@ pub struct DomSelectorProgram {
     subjects: Box<[SelectorNodeID]>,
     /// The local name every subject requires its element to have, or zero.
     subject_local_name: usize,
+    /// The local names of the attributes every subject requires its element to carry.
+    required_attribute_names: Box<[usize]>,
     /// Whether matching one element can ask the same question twice, which is only worth remembering answers for.
     lone_match_repeats_questions: bool,
+}
+
+impl DomSelectorProgram {
+    /// The attribute names every match carries, as bits of the DOM's attribute name filter.
+    fn required_attribute_name_bits(&self, dom: &FfiDomSelectorCallbacks) -> u64 {
+        self.required_attribute_names
+            .iter()
+            .fold(0, |bits, &name| bits | unsafe { (dom.attribute_name_filter_bit)(name) })
+    }
 }
 
 /// Compile a selector list for the DOM query APIs, in a document whose HTML elements are in `html_namespace`, which
@@ -223,9 +241,9 @@ pub unsafe extern "C" fn rust_dom_selector_program_create(
     // A walk up or back tests each element it passes once, and so does a count of the siblings `of S` matches, unless
     // what it tests reaches beyond the element it tests.
     let mut lone_match_repeats_questions = false;
-    // A tag name that folds is carried in one case or the other depending on the element, so the folded form it
+    // A name that folds is carried in one case or the other depending on the element, so the folded form it
     // dispatches on is not the name every match has.
-    let mut folding_tag_names = SmallVec::<[StyleAtomID; 4]>::new();
+    let mut folding_names = SmallVec::<[StyleAtomID; 4]>::new();
     for index in 0..program.node_count() {
         let Ok(index) = u32::try_from(index) else {
             break;
@@ -237,9 +255,12 @@ pub unsafe extern "C" fn rust_dom_selector_program_create(
                         attribute_names.push(name);
                     }
                 }
+                if test.name != test.folded {
+                    folding_names.push(test.folded);
+                }
             }
             SelectorOp::Feature(FeatureTest::TagName(tag)) if tag.written != tag.folded => {
-                folding_tag_names.push(tag.folded);
+                folding_names.push(tag.folded);
             }
             SelectorOp::Ancestor(tested)
             | SelectorOp::PrecedingSibling(tested)
@@ -252,25 +273,37 @@ pub unsafe extern "C" fn rust_dom_selector_program_create(
     }
     let mut subjects = Vec::new();
     let mut subject_local_name = None;
+    let mut required_attribute_names: Option<Vec<usize>> = None;
     for (index, entry) in program.entries().iter().enumerate() {
-        if entry.pseudo_element.is_some() {
+        if entry.pseudo_element.is_some() || program.entry_never_matches(entry) {
             continue;
         }
         subjects.push(entry.root);
         // The keys an entry dispatches on are alternatives, so a lone one is required as well.
         let dispatch = program.subject_dispatch_keys(index);
-        let required_local_name = program
+        let mut required_local_name = None;
+        let mut required_by_entry = SmallVec::<[usize; 4]>::new();
+        for &key in program
             .subject_required_keys(index)
             .iter()
             .chain(dispatch.iter().filter(|_| dispatch.len() == 1))
-            .find_map(|&key| match key {
-                DispatchKey::TagName(name) if !folding_tag_names.contains(&name) => Some(name),
-                _ => None,
-            });
+        {
+            match key {
+                DispatchKey::TagName(name) if !folding_names.contains(&name) => required_local_name = Some(name),
+                DispatchKey::AttributeName(name) if !folding_names.contains(&name) => {
+                    required_by_entry.push(names.raw(name));
+                }
+                _ => {}
+            }
+        }
         subject_local_name = match subject_local_name {
             None => Some(required_local_name),
             Some(agreed) => Some(agreed.filter(|&agreed| Some(agreed) == required_local_name)),
         };
+        match &mut required_attribute_names {
+            None => required_attribute_names = Some(required_by_entry.into_vec()),
+            Some(required) => required.retain(|name| required_by_entry.contains(name)),
+        }
     }
     let subject_local_name = subject_local_name.flatten().map_or(0, |name| names.raw(name));
     Box::into_raw(Box::new(DomSelectorProgram {
@@ -279,6 +312,7 @@ pub unsafe extern "C" fn rust_dom_selector_program_create(
         attribute_names: attribute_names.into_boxed_slice(),
         subjects: subjects.into_boxed_slice(),
         subject_local_name,
+        required_attribute_names: required_attribute_names.unwrap_or_default().into_boxed_slice(),
         lone_match_repeats_questions,
     }))
 }
@@ -338,7 +372,7 @@ impl SelectorTree for DomTree<'_> {
 
     #[inline]
     fn next_in_subtree(self, node: DomNode, root: DomNode) -> Option<DomNode> {
-        optional_node(unsafe { (self.dom.next_element_in_subtree)(node, root, 0) })
+        optional_node(unsafe { (self.dom.next_element_in_subtree)(node, root, 0, 0) })
     }
 }
 
@@ -806,9 +840,11 @@ pub unsafe extern "C" fn rust_dom_selector_query_subtree(
         return;
     }
     let dom = query_run.evaluator.subject.dom;
-    // Only an element with the local name every match has can match.
+    // Only an element with the local name every match has can match, and a subtree none of whose elements carries
+    // every attribute name each match carries holds no match.
     let local_name = query_run.query.subject_local_name;
-    let next = |node| optional_node(unsafe { (dom.next_element_in_subtree)(node, root, local_name) });
+    let attribute_names = query_run.query.required_attribute_name_bits(dom);
+    let next = |node| optional_node(unsafe { (dom.next_element_in_subtree)(node, root, local_name, attribute_names) });
     let mut candidate = next(root);
     while let Some(element) = candidate {
         if query_run.matches(element) && unsafe { found(context, element) } {

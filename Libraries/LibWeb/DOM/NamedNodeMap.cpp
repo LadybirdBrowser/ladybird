@@ -257,7 +257,7 @@ void NamedNodeMap::append_attribute(GC::Ref<Attr> attribute)
 {
     // 1. Append attribute to element’s attribute list.
     auto value = attribute->value();
-    associated_element().ensure_attribute_list().empend(attribute->m_qualified_name, value);
+    associated_element().append_to_attribute_list(attribute->m_qualified_name, value);
 
     // 2. Set attribute’s element to element.
     attribute->set_owner_element(&associated_element());

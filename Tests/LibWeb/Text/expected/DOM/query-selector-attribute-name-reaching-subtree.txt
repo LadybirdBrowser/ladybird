@@ -1,0 +1,24 @@
+before any attribute: 0 0 false
+setAttribute on a connected descendant: 1 1 true
+appended subtree: 1 1 true
+inserted subtree: 1 1 true
+moved subtree: 1 1 true
+style set through CSSOM: 1 1 true
+setAttributeNode: 1 1 true
+setNamedItem: 1 1 true
+toggleAttribute: 1 1 true
+setAttributeNS: 1 1 true
+cloned subtree: 1 1 true
+innerHTML: 1 1 true
+fragment children: 1 1 true
+compound needing two names: 1 1 true
+list of two names: 2 2 true
+:is() with a name one alternative lacks: 1 1 true
+:is() of alternatives with different names: 1 1 true
+:where() of a name: 1 1 true
+:not() of a name: 1 1 true
+:has() of a name: 1 1 true
+:nth-child() of a name: 1 1 true
+uppercase name: 1 1 true
+query from a shadow root: 1 0 true
+removed attribute: 0 0 false

@@ -320,6 +320,19 @@ Element::AttributeList& Element::ensure_attribute_list()
     return *m_attributes;
 }
 
+void Element::append_to_attribute_list(QualifiedName name, Utf16String value)
+{
+    add_to_subtree_attribute_name_filter(attribute_name_filter_bit(name.local_name()));
+    ensure_attribute_list().empend(move(name), move(value));
+}
+
+void Element::add_to_subtree_attribute_name_filter(u64 bits)
+{
+    // An element's filter holds those of its children, so the walk up ends at the first that has the bits.
+    for (auto* element = this; element && (element->m_subtree_attribute_name_filter & bits) != bits; element = element->parent_element().ptr())
+        element->m_subtree_attribute_name_filter |= bits;
+}
+
 void Element::ensure_attribute_capacity(size_t capacity)
 {
     if (capacity == 0)
@@ -966,9 +979,8 @@ void Element::append_attribute(Attr& attribute)
 void Element::append_attribute(QualifiedName name, Utf16String value)
 {
     auto old_value = Optional<Utf16String> {};
-    auto& attributes = ensure_attribute_list();
-    attributes.empend(move(name), move(value));
-    auto& attribute = attributes.last();
+    append_to_attribute_list(move(name), move(value));
+    auto& attribute = m_attributes->last();
     auto attribute_name = attribute.name;
     auto new_value = attribute.value;
     handle_attribute_changes(move(attribute_name), move(old_value), move(new_value));
@@ -3132,6 +3144,8 @@ void Element::did_update_inline_style()
     if (!m_style_attribute_is_dirty)
         document().mark_style_attribute_dirty(*this);
     m_style_attribute_is_dirty = true;
+    // The style attribute is appended when it is next synchronized, but a selector query may skip this subtree before.
+    add_to_subtree_attribute_name_filter(attribute_name_filter_bit(HTML::AttributeNames::style));
     queue_mutation_record(MutationType::attributes, HTML::AttributeNames::style, {}, old_value, {}, {}, nullptr, nullptr);
 
     if (!document().suppresses_attribute_style_invalidation())
@@ -3164,7 +3178,7 @@ void Element::synchronize_style_attribute() const
     if (style_attribute_index.has_value()) {
         element.m_attributes->at(*style_attribute_index).value = new_value;
     } else {
-        element.ensure_attribute_list().empend(QualifiedName { HTML::AttributeNames::style, {}, {} }, new_value);
+        element.append_to_attribute_list(QualifiedName { HTML::AttributeNames::style, {}, {} }, new_value);
     }
 
     CSS::record_element_attribute_changed(element, HTML::AttributeNames::style, {}, old_value, new_value);
