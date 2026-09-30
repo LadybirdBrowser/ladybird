@@ -493,7 +493,7 @@ ffi_bytes_fields!(DisplayListGradientColorStops {
 
 // Keep command payloads aligned, including inline object arrays.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C, align(16))]
+#[repr(C, align(8))]
 pub struct DisplayListCommandHeader {
     pub command_type: DisplayListCommandType,
     pub has_bounding_rect: bool,
@@ -510,7 +510,7 @@ ffi_bytes_fields!(DisplayListCommandHeader {
     payload_size,
     bounding_rect
 });
-const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 32);
+const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 24);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
