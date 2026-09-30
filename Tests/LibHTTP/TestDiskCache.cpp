@@ -74,6 +74,57 @@ static HTTP::CacheEntryWriter& create_cache_entry(HTTP::DiskCache& disk_cache, T
     return *writer;
 }
 
+static Optional<HTTP::CacheEntryReader&> open_cache_entry(HTTP::DiskCache& disk_cache, TestCacheRequest& request, URL::URL const& url, HTTP::HeaderList const& request_headers, HTTP::CacheMode cache_mode = HTTP::CacheMode::Default)
+{
+    Optional<HTTP::CacheEntryReader&> reader;
+
+    disk_cache.open_entry(request, test_partition(), url, "GET"sv, request_headers, cache_mode, HTTP::DiskCache::OpenMode::Read)
+        .visit(
+            [&](Optional<HTTP::CacheEntryReader&> cache_entry_reader) {
+                reader = cache_entry_reader;
+            },
+            [](HTTP::DiskCache::CacheHasOpenEntry) {
+                FAIL("Cache entry was unexpectedly open");
+            });
+
+    return reader;
+}
+
+static void store_cache_entry(HTTP::DiskCache& disk_cache, TestCacheRequest& request, URL::URL const& url, HTTP::HeaderList const& original_request_headers, NonnullRefPtr<HTTP::HeaderList> response_headers, StringView body)
+{
+    // Storage strips exempt fields from the supplied headers.
+    auto request_headers = HTTP::HeaderList::create(original_request_headers.headers());
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    TRY_OR_FAIL(writer.write_data(body.bytes()));
+    TRY_OR_FAIL(writer.flush(request_headers, response_headers));
+}
+
+TEST_CASE(no_cache_request_for_fresh_entry_without_validators_goes_to_the_network)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    store_cache_entry(disk_cache, request, url, *request_headers, create_cacheable_response_headers(), "hello"sv);
+
+    EXPECT(!open_cache_entry(disk_cache, request, url, *request_headers, HTTP::CacheMode::NoCache).has_value());
+
+    auto validated_url = parse_url("https://example.com/validated"sv);
+    auto validated_response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "ETag"sv, "\"v1\""sv },
+    });
+    store_cache_entry(disk_cache, request, validated_url, *request_headers, validated_response_headers, "hello"sv);
+
+    auto reader = open_cache_entry(disk_cache, request, validated_url, *request_headers, HTTP::CacheMode::NoCache);
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::MustRevalidate);
+    reader->revalidation_failed();
+}
+
 TEST_CASE(associated_data_round_trips_with_cache_entry)
 {
     auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();

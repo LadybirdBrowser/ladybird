@@ -173,6 +173,11 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     switch (cache_lifetime_status(request_headers, response_headers, freshness_lifetime, current_age)) {
     case CacheLifetimeStatus::Fresh:
         if (cache_mode == CacheMode::NoCache) {
+            if (!response_headers.contains("ETag"sv) && !response_headers.contains("Last-Modified"sv)) {
+                dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[33;1mCache entry cannot be revalidated for\033[0m {}", url);
+                return Optional<CacheEntryReader&> {};
+            }
+
             TRY(revalidate_cache_entry());
         } else if (open_mode == OpenMode::Read) {
             dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
