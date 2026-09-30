@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<script>
+    // Playback that has ended has data for the current playback position, but none to obtain in the direction of
+    // playback, so readyState must be HAVE_CURRENT_DATA. After endOfStream(), the buffered range ends exactly at the
+    // duration, which is where the current playback position rests.
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9"');
+                const response = await fetch("../../../Assets/vp9-frame-rate-change.webm");
+                if (!response.ok) {
+                    fail("fetch media", `HTTP ${response.status}`);
+                    return;
+                }
+                const data = new Uint8Array(await response.arrayBuffer());
+                sourceBuffer.appendBuffer(data);
+                await new Promise((resolve, reject) => {
+                    sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                    sourceBuffer.addEventListener("error", () => reject(new Error("error event on SourceBuffer")), { once: true });
+                });
+                mediaSource.endOfStream();
+                println(`buffered ends at duration: ${sourceBuffer.buffered.end(sourceBuffer.buffered.length - 1) === video.duration}`);
+
+                video.currentTime = video.duration - 0.1;
+                await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+                await video.play();
+                await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+                println(`ended: readyState=${readyStateName(video.readyState)}`);
+                done();
+            } catch (e) {
+                fail("sourceopen handler", e);
+            }
+        }, { once: true });
+    });
+</script>

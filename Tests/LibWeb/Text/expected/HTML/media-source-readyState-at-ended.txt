@@ -1,0 +1,2 @@
+buffered ends at duration: true
+ended: readyState=HAVE_CURRENT_DATA
