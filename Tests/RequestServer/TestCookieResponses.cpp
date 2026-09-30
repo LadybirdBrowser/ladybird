@@ -164,10 +164,10 @@ public:
         VERIFY(response);
     }
 
-    void start_request(u64 request_id, Optional<URL::URL> target_url = {})
+    void start_request(u64 request_id, Optional<URL::URL> target_url = {}, ByteString method = "GET"sv)
     {
         auto url = target_url.value_or(URL::Parser::basic_parse("http://localhost"sv).release_value());
-        auto message = make<Messages::RequestServer::StartRequest>(request_id, ByteString { "GET" }, move(url), Vector<HTTP::Header> {}, ByteBuffer {}, HTTP::CacheMode::Default, Optional<HTTP::NetworkIsolationKey> {}, HTTP::Cookie::IncludeCredentials::Yes, true, Optional<u32> {}, false, 0, 0);
+        auto message = make<Messages::RequestServer::StartRequest>(request_id, move(method), move(url), Vector<HTTP::Header> {}, ByteBuffer {}, HTTP::CacheMode::Default, Optional<HTTP::NetworkIsolationKey> {}, HTTP::Cookie::IncludeCredentials::Yes, true, Optional<u32> {}, false, 0, 0);
         auto response = dispatch(move(message));
         VERIFY(!response);
     }
@@ -271,6 +271,25 @@ TEST_CASE(requests_for_unsupported_urls_are_refused)
     connection.start_request(0, URL::Parser::basic_parse("http://localhost:8080/"sv).release_value());
     auto cookie_request = control.take_cookie_request();
     EXPECT_EQ(cookie_request->request_id(), 0u);
+    EXPECT(connection.is_open());
+}
+
+TEST_CASE(invalid_and_forbidden_request_methods_are_rejected)
+{
+    for (auto method : { "CONNECT"sv, "TRACE"sv, "track"sv, "Trace"sv, ""sv, "GET /"sv, "GET\r\nX:"sv }) {
+        TestServer server;
+        TestConnection connection { server };
+
+        connection.start_request(0, {}, method);
+        EXPECT(!connection.is_open());
+    }
+
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+
+    connection.start_request(0, {}, "PATCH"sv);
+    EXPECT_EQ(control.take_cookie_request()->request_id(), 0u);
     EXPECT(connection.is_open());
 }
 
