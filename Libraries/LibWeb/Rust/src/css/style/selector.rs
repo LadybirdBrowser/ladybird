@@ -42,7 +42,6 @@ use super::index::dispatch_bloom_bit;
 use super::instrumentation::Counters;
 use super::shared_vector::{SharedVector, SharedVectorPool};
 use smallvec::SmallVec;
-use std::cell::Cell;
 use std::cell::RefCell;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -66,15 +65,24 @@ use super::program::EntryID;
 use super::program::RuleID;
 use super::program::SelectorProgramID;
 use super::program::StyleSheetProgram;
+use super::relative_selector::RelationalWitnessKey;
 use super::relative_selector::RelativeAxis;
 use super::relative_selector::RelativeQuery;
 use super::relative_selector::RelativeQueryID;
 use super::relative_selector::WitnessEffect;
+use super::relative_selector::candidate_witnesses;
+use super::selector_evaluation::ElementFeatures;
+use super::selector_evaluation::RememberedPrefix;
+use super::selector_evaluation::SelectorBindings;
+use super::selector_evaluation::SelectorEvaluator;
+use super::selector_evaluation::SelectorSubject;
+use super::selector_evaluation::SelectorTree;
 use super::transaction::StateFact;
 use super::tree::PseudoElementTarget;
 use super::tree::StyleNodeID;
 use super::tree::StyleNodeTree;
 use super::tree::TreeScopeID;
+use crate::css::css_tokenizer::TokenizerInput;
 pub use crate::css::selector::Specificity;
 
 #[cfg(feature = "style-recording")]
@@ -206,20 +214,6 @@ impl TagTest {
             written: name,
             folded: name,
             fold_in_namespace: StyleAtomID::NONE,
-        }
-    }
-
-    #[must_use]
-    pub fn matches(self, tag: StyleAtomID, namespace: StyleAtomID) -> bool {
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
-        // When comparing a CSS element type selector to the names of HTML elements in HTML documents, the CSS element type
-        // selector must first be converted to ASCII lowercase. The same selector when compared to other elements must be
-        // compared according to its original case. In both cases, to match, the values must be identical to each other
-        // (and therefore the comparison is case sensitive).
-        if !self.fold_in_namespace.is_none() && namespace == self.fold_in_namespace {
-            tag == self.folded
-        } else {
-            tag == self.written
         }
     }
 }
@@ -812,7 +806,7 @@ impl SelectorProgram {
     /// The dispatch-bloom bits a node evaluated against the compound at `id` must carry. Zero —
     /// including for a program built without dispatch metadata — means no cheap requirement.
     #[must_use]
-    pub(super) fn relation_target_bloom(&self, id: SelectorNodeID) -> u64 {
+    fn relation_target_bloom(&self, id: SelectorNodeID) -> u64 {
         self.relation_target_blooms.get(id.0 as usize).copied().unwrap_or(0)
     }
 
@@ -4906,7 +4900,7 @@ impl TransactionFactView {
     }
 }
 
-pub(super) enum SiblingChildren<'a> {
+enum SiblingChildren<'a> {
     Live(super::tree::Children<'a>),
     Overlay(std::iter::Copied<std::slice::Iter<'a, StyleNodeID>>),
 }
@@ -4924,9 +4918,52 @@ impl Iterator for SiblingChildren<'_> {
 
 /// Evaluates match programs against the live tree and a batch of local facts.
 #[derive(Clone, Copy)]
-pub(super) struct MatchFactRow<'a> {
+pub(crate) struct MatchFactRow<'a> {
     pub(super) facts: &'a StyleNodeFacts,
     pub(super) row: u32,
+}
+
+impl<'a> ElementFeatures for MatchFactRow<'a> {
+    type Attribute = (&'a StyleNodeFacts, super::index::AttributeFact);
+
+    #[inline]
+    fn local_name_is(&self, name: StyleAtomID) -> bool {
+        self.facts.tag_of(self.row) == name
+    }
+
+    #[inline]
+    fn namespace_is(&self, namespace: StyleAtomID) -> bool {
+        self.facts.namespace_of(self.row) == namespace
+    }
+
+    #[inline]
+    fn has_id(&self, id: StyleAtomID) -> bool {
+        self.facts.id_of(self.row) == id
+    }
+
+    #[inline]
+    fn has_class(&self, class: StyleAtomID) -> bool {
+        self.facts.classes_of(self.row).contains(&class)
+    }
+
+    /// `[*|x]` names the attribute called `x` in each namespace the element carries it in, and they all publish the
+    /// same any-namespace atom as their local name.
+    #[inline]
+    fn attributes_named(
+        &self,
+        name: StyleAtomID,
+        any_namespace: bool,
+    ) -> impl Iterator<Item = (&'a StyleNodeFacts, super::index::AttributeFact)> + '_ {
+        let facts = self.facts;
+        facts
+            .attributes_of(self.row)
+            .iter()
+            .filter(move |attribute| match any_namespace {
+                false => attribute.name == name,
+                true => facts.attribute_name_forms(attribute.name).local == name,
+            })
+            .map(move |&attribute| (facts, attribute))
+    }
 }
 
 /// Which positional tests an evaluator answers from its workspace's shared sibling index.
@@ -4943,33 +4980,25 @@ pub(super) enum PositionalIndexPolicy {
     SteppedOnly,
 }
 
-pub struct MatchEvaluator<'a> {
-    pub(super) tree: &'a StyleNodeTree,
+/// The style engine's elements, as a selector program is evaluated against them: its tree, its fact
+/// rows, and the workspace its accelerations keep their answers in.
+pub struct EngineSubject<'a> {
+    tree: &'a StyleNodeTree,
     facts: &'a StyleNodeFacts,
     transaction_fact_view: Option<(&'a TransactionFactView, TransactionFactSide)>,
-    /// The shadow root of the tree whose rules are being evaluated, when it is one. `:host` names
-    /// the host of the tree its rule is in, so a rule from the document scope names no host at all.
-    pub(super) scope_shadow_root: Option<StyleNodeID>,
     /// The outer tree scope asking about a part exposed from a shadow tree.
-    pub(super) part_exposure_scope: Option<TreeScopeID>,
-    /// The scoping root a `<scope-end>` is currently being checked against. Bound only while the
-    /// limit walk runs, because that is the only place one scope instance is distinguishable from
-    /// another. Interior mutability so that evaluation stays a shared borrow.
-    pub(super) scope_root_instance: Cell<Option<StyleNodeID>>,
-    /// Whether evaluation is inside the argument of `:host()`. A nested `:host` does not describe
-    /// a feature of the host and must not match there.
-    pub(super) matching_host_argument: Cell<bool>,
-    pub(super) root_matches_parentless_node: bool,
-    /// The anchor of the relational query currently being evaluated. Bound only while the witness
-    /// walk runs, and restored after, so that a nested `:has()` names its own anchor.
-    pub(super) relative_anchor: Cell<Option<StyleNodeID>>,
-    pub(super) match_workspace: Option<(&'a mut MatchScratch, MatchEvaluationSide)>,
-    pub(super) positional_index_policy: PositionalIndexPolicy,
-    pub(super) transitive_relation_program: Cell<Option<SelectorProgramID>>,
+    part_exposure_scope: Option<TreeScopeID>,
+    root_matches_parentless_node: bool,
+    match_workspace: Option<(&'a mut MatchScratch, MatchEvaluationSide)>,
+    positional_index_policy: PositionalIndexPolicy,
+    transitive_relation_program: Option<SelectorProgramID>,
     /// Where a completed simple relational evaluation records its outcome, when the caller is
     /// evaluating the live tree and current facts. See `MatchEvaluator::observing_witnesses`.
-    pub(super) witnesses: Option<&'a mut Vec<WitnessEffect>>,
+    witnesses: Option<&'a mut Vec<WitnessEffect>>,
 }
+
+/// Evaluates match programs against the style engine's tree and a batch of local facts.
+pub(crate) type MatchEvaluator<'a> = SelectorEvaluator<EngineSubject<'a>>;
 
 /// Transaction-local answers for repeated match-program relations.
 ///
@@ -4977,7 +5006,7 @@ pub struct MatchEvaluator<'a> {
 /// or preceding-sibling relation differs from the preceding candidate by one edge, so retaining
 /// that answer turns repeated prefix walks into a dynamic program.
 #[derive(Default)]
-pub(super) struct MatchRelationCache {
+struct MatchRelationCache {
     answers: MatchRelationAnswers,
     preceding_sibling_parent_ids: HashMap<StyleNodeID, PrecedingSiblingParentID>,
     preceding_sibling_prefixes: PrecedingSiblingPrefixes,
@@ -4989,7 +5018,7 @@ struct MatchRelationAnswers {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct MatchRelationAnswerGap {
+struct MatchRelationAnswerGap {
     program: SelectorProgramID,
     relation: SelectorNodeID,
     node: StyleNodeID,
@@ -5005,13 +5034,9 @@ struct PrecedingSiblingPrefixes {
     columns: ProgramRelationColumns<PrecedingSiblingPrefixColumn>,
 }
 
-define_id! { pub(super) struct PrecedingSiblingParentID(); }
+define_id! { pub(crate) struct PrecedingSiblingParentID(); }
 
-#[derive(Clone, Copy, Default)]
-pub(super) struct PrecedingSiblingPrefix {
-    pub(super) next: Option<StyleNodeID>,
-    pub(super) answer: bool,
-}
+type PrecedingSiblingPrefix = super::selector_evaluation::PrecedingSiblingPrefix<StyleNodeID>;
 
 struct ProgramRelationColumns<C> {
     programs: Column<Option<Box<ProgramColumns<C>>>>,
@@ -5342,7 +5367,7 @@ impl MatchEvaluationSide {
 /// distinct.
 #[derive(Default)]
 pub struct MatchScratch {
-    pub(super) relations_by_evaluation_side: [MatchRelationCache; 3],
+    relations_by_evaluation_side: [MatchRelationCache; 3],
     sibling_geometry_by_tree_side: [SiblingSequenceGeometry; 2],
     type_positions_by_evaluation_side: [SiblingPositionColumn; 3],
     /// Whether final an+b answers are memoized at all. Style recalc runs many programs over one
@@ -5429,7 +5454,7 @@ impl MatchRelationCache {
         self.preceding_sibling_prefixes = PrecedingSiblingPrefixes::default();
     }
 
-    pub(super) fn lookup(
+    fn lookup(
         &self,
         program: SelectorProgramID,
         relation: SelectorNodeID,
@@ -5438,17 +5463,11 @@ impl MatchRelationCache {
         self.answers.lookup(program, relation, node)
     }
 
-    pub(super) fn insert(
-        &mut self,
-        program: SelectorProgramID,
-        relation: SelectorNodeID,
-        node: StyleNodeID,
-        answer: bool,
-    ) {
+    fn insert(&mut self, program: SelectorProgramID, relation: SelectorNodeID, node: StyleNodeID, answer: bool) {
         self.answers.insert(program, relation, node, answer);
     }
 
-    pub(super) fn preceding_sibling_prefix(
+    fn preceding_sibling_prefix(
         &mut self,
         program: SelectorProgramID,
         relation: SelectorNodeID,
@@ -5464,7 +5483,7 @@ impl MatchRelationCache {
         (parent, self.preceding_sibling_prefixes.get(program, relation, parent))
     }
 
-    pub(super) fn insert_preceding_sibling_prefix(
+    fn insert_preceding_sibling_prefix(
         &mut self,
         program: SelectorProgramID,
         relation: SelectorNodeID,
@@ -5529,7 +5548,7 @@ impl MatchScratch {
             PositionalAnswers::default();
     }
 
-    pub(super) fn relations(&self, side: MatchEvaluationSide) -> &MatchRelationCache {
+    fn relations(&self, side: MatchEvaluationSide) -> &MatchRelationCache {
         &self.relations_by_evaluation_side[side as usize]
     }
 
@@ -5554,19 +5573,14 @@ impl MatchScratch {
         }
     }
 
-    pub(super) fn positional_answer(
-        &self,
-        position: NthPosition,
-        node: StyleNodeID,
-        side: MatchEvaluationSide,
-    ) -> Option<bool> {
+    fn positional_answer(&self, position: NthPosition, node: StyleNodeID, side: MatchEvaluationSide) -> Option<bool> {
         if self.positional_answer_memo_suppressed {
             return None;
         }
         self.positional_answers_by_evaluation_side[side as usize].get(position, node)
     }
 
-    pub(super) fn insert_positional_answer(
+    fn insert_positional_answer(
         &mut self,
         position: NthPosition,
         node: StyleNodeID,
@@ -5605,46 +5619,45 @@ impl MatchScratch {
 impl<'a> MatchEvaluator<'a> {
     #[must_use]
     pub fn new(tree: &'a StyleNodeTree, facts: &'a StyleNodeFacts) -> Self {
-        Self {
-            tree,
-            facts,
-            transaction_fact_view: None,
-            scope_shadow_root: None,
-            part_exposure_scope: None,
-            scope_root_instance: Cell::new(None),
-            matching_host_argument: Cell::new(false),
-            root_matches_parentless_node: true,
-            relative_anchor: Cell::new(None),
-            match_workspace: None,
-            positional_index_policy: PositionalIndexPolicy::All,
-            transitive_relation_program: Cell::new(None),
-            witnesses: None,
+        SelectorEvaluator {
+            subject: EngineSubject {
+                tree,
+                facts,
+                transaction_fact_view: None,
+                part_exposure_scope: None,
+                match_workspace: None,
+                positional_index_policy: PositionalIndexPolicy::All,
+                transitive_relation_program: None,
+                root_matches_parentless_node: true,
+                witnesses: None,
+            },
+            bindings: SelectorBindings::default(),
         }
     }
 
     /// The same, evaluating rules attached to one shadow tree rather than to the document.
     #[must_use]
     pub fn in_shadow_tree(mut self, shadow_root: StyleNodeID) -> Self {
-        self.scope_shadow_root = Some(shadow_root);
+        self.bindings.scope_shadow_root = Some(shadow_root);
         self
     }
 
     /// Evaluate a part through the tree scope it is exposed to.
     #[must_use]
     pub fn for_a_part_exposed_in(mut self, scope: TreeScopeID) -> Self {
-        self.part_exposure_scope = Some(scope);
+        self.subject.part_exposure_scope = Some(scope);
         self
     }
 
     #[must_use]
-    pub fn with_scope_root(self, scope_root: StyleNodeID) -> Self {
-        self.scope_root_instance.set(Some(scope_root));
+    pub fn with_scope_root(mut self, scope_root: StyleNodeID) -> Self {
+        self.bindings.scope_root_instance = Some(scope_root);
         self
     }
 
     #[must_use]
     pub fn without_document_root(mut self) -> Self {
-        self.root_matches_parentless_node = false;
+        self.subject.root_matches_parentless_node = false;
         self
     }
 
@@ -5654,13 +5667,13 @@ impl<'a> MatchEvaluator<'a> {
         view: &'a TransactionFactView,
         side: TransactionFactSide,
     ) -> Self {
-        self.transaction_fact_view = Some((view, side));
+        self.subject.transaction_fact_view = Some((view, side));
         self
     }
 
     #[must_use]
     pub(super) fn with_match_workspace(mut self, workspace: &'a mut MatchScratch, side: MatchEvaluationSide) -> Self {
-        self.match_workspace = Some((workspace, side));
+        self.subject.match_workspace = Some((workspace, side));
         self
     }
 
@@ -5668,7 +5681,7 @@ impl<'a> MatchEvaluator<'a> {
     /// positional answer. See [`PositionalIndexPolicy::SteppedOnly`].
     #[must_use]
     pub(super) fn indexing_stepped_positions_only(mut self) -> Self {
-        self.positional_index_policy = PositionalIndexPolicy::SteppedOnly;
+        self.subject.positional_index_policy = PositionalIndexPolicy::SteppedOnly;
         self
     }
 
@@ -5680,48 +5693,23 @@ impl<'a> MatchEvaluator<'a> {
     /// call this.
     #[must_use]
     pub(super) fn observing_witnesses(mut self, witnesses: &'a mut Vec<WitnessEffect>) -> Self {
-        debug_assert!(self.transaction_fact_view.is_none());
+        debug_assert!(self.subject.transaction_fact_view.is_none());
         debug_assert!(
-            self.match_workspace
+            self.subject
+                .match_workspace
                 .as_ref()
                 .is_none_or(|(_, side)| matches!(side, MatchEvaluationSide::Current))
         );
-        self.witnesses = Some(witnesses);
+        self.subject.witnesses = Some(witnesses);
         self
     }
 
+    #[inline]
     pub(super) fn match_scratch_capacity_bytes(&self) -> u64 {
-        self.match_workspace
+        self.subject
+            .match_workspace
             .as_ref()
             .map_or(0, |(scratch, _)| scratch.capacity_bytes())
-    }
-
-    pub(super) fn parent_of(&self, node: StyleNodeID) -> Option<StyleNodeID> {
-        self.transaction_fact_view.map_or_else(
-            || self.tree.parent(node),
-            |(view, side)| view.parent_of(self.tree, side, node),
-        )
-    }
-
-    pub(super) fn previous_sibling_of(&self, node: StyleNodeID) -> Option<StyleNodeID> {
-        self.transaction_fact_view.map_or_else(
-            || self.tree.previous_element_sibling(node),
-            |(view, side)| view.previous_sibling_of(self.tree, side, node),
-        )
-    }
-
-    pub(super) fn next_sibling_of(&self, node: StyleNodeID) -> Option<StyleNodeID> {
-        self.transaction_fact_view.map_or_else(
-            || self.tree.next_element_sibling(node),
-            |(view, side)| view.next_sibling_of(self.tree, side, node),
-        )
-    }
-
-    pub(super) fn children_of(&self, parent: StyleNodeID) -> SiblingChildren<'a> {
-        match self.transaction_fact_view {
-            Some((view, side)) => view.children_of(self.tree, side, parent),
-            None => SiblingChildren::Live(self.tree.children(parent)),
-        }
     }
 
     /// How far the subject is from the scoping root its `@scope` resolved through.
@@ -5747,7 +5735,7 @@ impl<'a> MatchEvaluator<'a> {
                 return Ok(proximity);
             }
             proximity += 1;
-            candidate = self.tree.parent(current);
+            candidate = self.subject.tree.parent(current);
         }
         Ok(u32::MAX)
     }
@@ -5757,6 +5745,7 @@ impl<'a> MatchEvaluator<'a> {
     ///
     /// Short-circuiting is only allowed where it cannot hide a later entry with a greater cascade
     /// contribution, so every entry is evaluated rather than stopping at the first match.
+    #[cfg(test)]
     pub fn match_entries(
         &mut self,
         program: &SelectorProgram,
@@ -5776,6 +5765,7 @@ impl<'a> MatchEvaluator<'a> {
     }
 
     /// Whether `node` matches one entry.
+    #[inline]
     pub fn matches_entry(
         &mut self,
         program: &SelectorProgram,
@@ -5823,6 +5813,7 @@ impl<'a> MatchEvaluator<'a> {
 
     /// Whether `node` matches one entry, reusing transitive relation answers from other nodes
     /// evaluated against the same selector program.
+    #[inline]
     pub fn matches_entry_for_program(
         &mut self,
         program_id: SelectorProgramID,
@@ -5831,15 +5822,16 @@ impl<'a> MatchEvaluator<'a> {
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
-        let previous = self.transitive_relation_program.replace(Some(program_id));
+        let previous = self.subject.transitive_relation_program.replace(program_id);
         let result = self.matches_node(program, entry.root, node, counters);
-        self.transitive_relation_program.set(previous);
+        self.subject.transitive_relation_program = previous;
         result
     }
 
     /// Evaluate one entry without admitting its primitive and transitive relation answers to the
     /// shared program caches. Narrow exact comparisons consume the answer once, so they keep the
     /// workspace's positional geometry but avoid canonicalization and sparse-column traffic.
+    #[inline]
     pub(super) fn matches_entry_without_program_caches(
         &mut self,
         program: &SelectorProgram,
@@ -5852,6 +5844,7 @@ impl<'a> MatchEvaluator<'a> {
 
     /// Whether `node` matches one selector IR node. Routing's retained-witness check uses this to
     /// re-evaluate a simple query's compound on the one retained witness.
+    #[inline]
     pub(super) fn matches_selector_node(
         &mut self,
         program: &SelectorProgram,
@@ -5871,24 +5864,22 @@ impl<'a> MatchEvaluator<'a> {
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
-        let previous = self.transitive_relation_program.replace(Some(program_id));
-        let SelectorOp::And { first, count } = program.node(local.root) else {
-            let result = self.matches_node(program, local.root, node, counters);
-            self.transitive_relation_program.set(previous);
-            return result;
+        let previous = self.subject.transitive_relation_program.replace(program_id);
+        let result = match program.node(local.root) {
+            SelectorOp::And { first, count } => (|| {
+                for &operand in program.operands(first, count) {
+                    if Some(operand) == local.relation {
+                        continue;
+                    }
+                    if !self.matches_node(program, operand, node, counters)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            })(),
+            _ => self.matches_node(program, local.root, node, counters),
         };
-        let result = (|| {
-            for &operand in program.operands(first, count) {
-                if Some(operand) == local.relation {
-                    continue;
-                }
-                if !self.matches_node(program, operand, node, counters)? {
-                    return Ok(false);
-                }
-            }
-            Ok(true)
-        })();
-        self.transitive_relation_program.set(previous);
+        self.subject.transitive_relation_program = previous;
         result
     }
 
@@ -5897,37 +5888,48 @@ impl<'a> MatchEvaluator<'a> {
     /// A node the fact store has no row for is a shadow root, which publishes nothing and answers
     /// no question about what it carries. That is not a rejection: a candidate filter that read it
     /// as one would abandon the whole document over `.wrap > .child` inside any shadow tree.
+    #[inline]
     #[must_use]
     pub fn node_cannot_carry_dispatch_key(&self, key: DispatchKey, node: StyleNodeID) -> bool {
-        self.node_carries_dispatch_key(key, node).is_ok_and(|carries| !carries)
+        self.subject.row_of(node).is_ok_and(|row| {
+            !row.facts
+                .carries_dispatch_key(row.row, key, self.subject.tree.parent(node).is_none())
+        })
     }
 
-    fn node_carries_dispatch_key(&self, key: DispatchKey, node: StyleNodeID) -> Result<bool, Incomplete> {
-        let row = self.row_of(node)?;
-        Ok(row
-            .facts
-            .carries_dispatch_key(row.row, key, self.tree.parent(node).is_none()))
+    #[inline]
+    pub(super) fn indexed_sibling_position(
+        &mut self,
+        position: NthPosition,
+        node: StyleNodeID,
+    ) -> Result<Option<i64>, Incomplete> {
+        self.subject.indexed_sibling_position(position, node)
     }
 
-    /// The distinct hosts a `::part()` rule can address this element from, nearest first.
-    ///
-    /// One per level of `exportparts` forwarding. An element that carries a part name and is
-    /// forwarded nowhere has no recorded pairing at all, so the host of the tree it stands in is the
-    /// only level it has - which is every part in a document using no `exportparts`.
-    pub(super) fn part_exposure_hosts(&self, node: StyleNodeID) -> SmallVec<[StyleNodeID; 1]> {
-        let pairs = self.tree.part_hosts_of(node);
-        if pairs.is_empty() {
-            return self.tree.shadow_host_of(node).into_iter().collect();
+    #[inline]
+    pub(super) fn row_of(&self, node: StyleNodeID) -> Result<MatchFactRow<'a>, Incomplete> {
+        self.subject.row_of(node)
+    }
+
+    #[inline]
+    pub(super) fn serves_only_resident_rows(&self) -> bool {
+        self.subject.serves_only_resident_rows()
+    }
+}
+
+impl<'a> EngineSubject<'a> {
+    #[inline]
+    fn parent_of(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.tree().parent(node)
+    }
+
+    #[inline]
+    fn children_of(&self, parent: StyleNodeID) -> SiblingChildren<'a> {
+        match self.transaction_fact_view {
+            Some((view, side)) => view.children_of(self.tree, side, parent),
+            None => SiblingChildren::Live(self.tree.children(parent)),
         }
-        let mut hosts = SmallVec::new();
-        for &(_, host) in pairs {
-            if !hosts.contains(&host) {
-                hosts.push(host);
-            }
-        }
-        hosts
     }
-
     /// Return a sibling position from private scratch, building that sequence on its first ask.
     ///
     /// A broad matching or exact-planning batch asks many positional selectors about the same
@@ -6061,6 +6063,7 @@ impl<'a> MatchEvaluator<'a> {
         })))
     }
 
+    #[inline]
     pub(super) fn row_of(&self, node: StyleNodeID) -> Result<MatchFactRow<'a>, Incomplete> {
         let row = match self.transaction_fact_view {
             Some((view, side)) => view.row_of(side, self.facts, node),
@@ -6072,10 +6075,377 @@ impl<'a> MatchEvaluator<'a> {
 
     /// Whether every row this evaluator serves comes from the resident arrangement. Only a
     /// before-side view with retained before rows can serve a row from somewhere else.
+    #[inline]
     pub(super) fn serves_only_resident_rows(&self) -> bool {
         match self.transaction_fact_view {
             Some((view, TransactionFactSide::Before)) => view.before.is_none(),
             _ => true,
+        }
+    }
+
+    /// The distinct hosts a `::part()` rule can address this element from, nearest first.
+    ///
+    /// One per level of `exportparts` forwarding. An element that carries a part name and is
+    /// forwarded nowhere has no recorded pairing at all, so the host of the tree it stands in is the
+    /// only level it has - which is every part in a document using no `exportparts`.
+    fn part_exposure_hosts_of(&self, node: StyleNodeID) -> SmallVec<[StyleNodeID; 1]> {
+        let pairs = self.tree.part_hosts_of(node);
+        if pairs.is_empty() {
+            return self.tree.shadow_host_of(node).into_iter().collect();
+        }
+        let mut hosts = SmallVec::new();
+        for &(_, host) in pairs {
+            if !hosts.contains(&host) {
+                hosts.push(host);
+            }
+        }
+        hosts
+    }
+}
+
+/// The style engine's tree, as a transaction view shows it where there is one.
+#[derive(Clone, Copy)]
+pub struct EngineTree<'a> {
+    tree: &'a StyleNodeTree,
+    transaction_fact_view: Option<(&'a TransactionFactView, TransactionFactSide)>,
+}
+
+impl SelectorTree for EngineTree<'_> {
+    type Node = StyleNodeID;
+
+    #[inline]
+    fn parent(self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.transaction_fact_view.map_or_else(
+            || self.tree.parent(node),
+            |(view, side)| view.parent_of(self.tree, side, node),
+        )
+    }
+
+    #[inline]
+    fn previous_sibling(self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.transaction_fact_view.map_or_else(
+            || self.tree.previous_element_sibling(node),
+            |(view, side)| view.previous_sibling_of(self.tree, side, node),
+        )
+    }
+
+    #[inline]
+    fn next_sibling(self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.transaction_fact_view.map_or_else(
+            || self.tree.next_element_sibling(node),
+            |(view, side)| view.next_sibling_of(self.tree, side, node),
+        )
+    }
+
+    #[inline]
+    fn first_child(self, parent: StyleNodeID) -> Option<StyleNodeID> {
+        match self.transaction_fact_view {
+            Some((view, side)) => view.children_of(self.tree, side, parent).next(),
+            None => self.tree.first_element_child(parent),
+        }
+    }
+
+    #[inline]
+    fn children(self, parent: StyleNodeID) -> impl Iterator<Item = StyleNodeID> {
+        match self.transaction_fact_view {
+            Some((view, side)) => view.children_of(self.tree, side, parent),
+            None => SiblingChildren::Live(self.tree.children(parent)),
+        }
+    }
+
+    #[inline]
+    fn live_parent(self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.tree.parent(node)
+    }
+
+    #[inline]
+    fn shadow_root_of(self, host: StyleNodeID) -> Option<StyleNodeID> {
+        self.tree.shadow_root_of(host)
+    }
+
+    #[inline]
+    fn host_of(self, shadow_root: StyleNodeID) -> Option<StyleNodeID> {
+        self.tree.host_of(shadow_root)
+    }
+
+    #[inline]
+    fn for_each_on_axis(
+        self,
+        axis: RelativeAxis,
+        below_the_axis: bool,
+        anchor: StyleNodeID,
+        visit: impl FnMut(StyleNodeID) -> bool,
+    ) {
+        candidate_witnesses(axis, below_the_axis, anchor, self.tree, visit);
+    }
+
+    #[inline]
+    fn assigned_slot_of(self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.tree.assigned_slot_of(node)
+    }
+
+    #[inline]
+    fn shadow_host_of(self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.tree.shadow_host_of(node)
+    }
+}
+
+impl<'a> SelectorSubject for EngineSubject<'a> {
+    type Node = StyleNodeID;
+    type Tree = EngineTree<'a>;
+    type Row = MatchFactRow<'a>;
+    type Attribute = (&'a StyleNodeFacts, super::index::AttributeFact);
+    type Features<'s>
+        = MatchFactRow<'a>
+    where
+        Self: 's;
+    type Incomplete = Incomplete;
+    type Counters = Counters;
+    type PrefixSlot = PrecedingSiblingParentID;
+
+    #[inline]
+    fn tree(&self) -> EngineTree<'a> {
+        EngineTree {
+            tree: self.tree,
+            transaction_fact_view: self.transaction_fact_view,
+        }
+    }
+
+    #[inline]
+    fn row(&mut self, node: StyleNodeID) -> Result<MatchFactRow<'a>, Incomplete> {
+        self.row_of(node)
+    }
+
+    #[inline]
+    fn features(&self, row: MatchFactRow<'a>) -> MatchFactRow<'a> {
+        row
+    }
+
+    #[inline]
+    fn same_type(&self, row: MatchFactRow<'a>, other: MatchFactRow<'a>) -> bool {
+        row.facts.tag_of(row.row) == other.facts.tag_of(other.row)
+            && row.facts.namespace_of(row.row) == other.facts.namespace_of(other.row)
+    }
+
+    #[inline]
+    fn attribute_value_atom(&self, (_, attribute): (&'a StyleNodeFacts, super::index::AttributeFact)) -> StyleAtomID {
+        attribute.value
+    }
+
+    #[inline]
+    fn attribute_value_text(
+        &self,
+        (facts, attribute): (&'a StyleNodeFacts, super::index::AttributeFact),
+    ) -> Option<TokenizerInput<'_>> {
+        facts.text_of(attribute).map(TokenizerInput::Utf16)
+    }
+
+    #[inline]
+    fn has_state(&self, row: MatchFactRow<'a>, fact: StateFact) -> bool {
+        row.facts.states_of(row.row).contains(fact)
+    }
+
+    #[inline]
+    fn language_tag(&self, row: MatchFactRow<'a>) -> TokenizerInput<'_> {
+        TokenizerInput::Utf16(row.facts.language_tag_of(row.row))
+    }
+
+    #[inline]
+    fn directionality_is(&self, row: MatchFactRow<'a>, direction: StyleAtomID) -> bool {
+        row.facts.directionality_of(row.row) == direction
+    }
+
+    #[inline]
+    fn has_custom_state(&self, row: MatchFactRow<'a>, state: StyleAtomID) -> bool {
+        row.facts.custom_states_of(row.row).contains(&state)
+    }
+
+    #[inline]
+    fn heading_level(&self, row: MatchFactRow<'a>) -> u8 {
+        row.facts.heading_level_of(row.row)
+    }
+
+    #[inline]
+    fn is_empty(&mut self, node: StyleNodeID) -> Result<bool, Incomplete> {
+        // Element children are style nodes and the tree answers for them. A text or comment child is
+        // not, so the element publishes whether it holds one.
+        let row = self.row_of(node)?;
+        Ok(self.tree.first_element_child(node).is_none() && !row.facts.has_text_content_of(row.row))
+    }
+
+    #[inline]
+    fn is_root(&self, node: StyleNodeID) -> bool {
+        self.root_matches_parentless_node && self.parent_of(node).is_none()
+    }
+
+    #[inline]
+    fn is_node(&self, node: StyleNodeID, named: StyleNodeID) -> bool {
+        node == named
+    }
+
+    #[inline]
+    fn has_part(&self, row: MatchFactRow<'a>, part: StyleAtomID) -> bool {
+        row.facts.parts_of(row.row).contains(&part)
+    }
+
+    fn part_exposure_hosts(&self, node: StyleNodeID) -> SmallVec<[StyleNodeID; 1]> {
+        self.part_exposure_hosts_of(node)
+    }
+
+    fn part_hosts_in_exposure_scope(&self, node: StyleNodeID) -> Option<SmallVec<[StyleNodeID; 1]>> {
+        let scope = self.part_exposure_scope?;
+        let mut hosts = self.part_exposure_hosts_of(node);
+        hosts.retain(|host| self.tree.tree_scope(*host) == scope);
+        Some(hosts)
+    }
+
+    fn exposes_part_to(&mut self, node: StyleNodeID, part: StyleAtomID, host: StyleNodeID) -> Result<bool, Incomplete> {
+        let row = self.row_of(node)?;
+        let pairs = self.tree.part_hosts_of(node);
+        Ok(match pairs.is_empty() {
+            // With no pairing recorded the element is addressable only under the names it carries,
+            // and all of them reach the host of the tree it stands in.
+            true => row.facts.parts_of(row.row).contains(&part),
+            false => pairs
+                .iter()
+                .any(|&(exposed, exposed_to)| exposed == part && exposed_to == host),
+        })
+    }
+
+    /// A row facts cannot answer for yet is never prejudged.
+    #[inline]
+    fn may_match(&self, program: &SelectorProgram, compound: SelectorNodeID, node: StyleNodeID) -> bool {
+        let required = program.relation_target_bloom(compound);
+        if required == 0 {
+            return true;
+        }
+        match self.row_of(node) {
+            Ok(row) => row.facts.dispatch_bloom_of(row.row, false) & required == required,
+            Err(_) => true,
+        }
+    }
+
+    /// Answers are kept per compiled program, so only an evaluation that names its program and binds
+    /// no scope, anchor or shadow root may share them.
+    #[inline]
+    fn remembers_relations(&self, bindings: &SelectorBindings<StyleNodeID>) -> bool {
+        self.match_workspace.is_some()
+            && self.transitive_relation_program.is_some()
+            && bindings.scope_root_instance.is_none()
+            && bindings.relative_anchor.is_none()
+            && bindings.scope_shadow_root.is_none()
+    }
+
+    #[inline]
+    fn relation_answer(&self, _program: &SelectorProgram, relation: SelectorNodeID, node: StyleNodeID) -> Option<bool> {
+        let (workspace, side) = self.match_workspace.as_ref()?;
+        match workspace
+            .relations(*side)
+            .lookup(self.transitive_relation_program?, relation, node)
+        {
+            Lookup::Known(()) => Some(true),
+            Lookup::KnownAbsent => Some(false),
+            Lookup::Missing(_) => None,
+        }
+    }
+
+    #[inline]
+    fn record_relation_answer(
+        &mut self,
+        _program: &SelectorProgram,
+        relation: SelectorNodeID,
+        node: StyleNodeID,
+        answer: bool,
+    ) {
+        if let Some((workspace, side)) = self.match_workspace.as_mut()
+            && let Some(program_id) = self.transitive_relation_program
+        {
+            workspace.relations_by_evaluation_side[*side as usize].insert(program_id, relation, node, answer);
+        }
+    }
+
+    #[inline]
+    fn preceding_sibling_prefix(
+        &mut self,
+        _program: &SelectorProgram,
+        relation: SelectorNodeID,
+        parent: StyleNodeID,
+    ) -> Option<RememberedPrefix<PrecedingSiblingParentID, StyleNodeID>> {
+        let program_id = self.transitive_relation_program?;
+        let (workspace, side) = self.match_workspace.as_mut()?;
+        let (slot, prefix) = workspace.relations_by_evaluation_side[*side as usize]
+            .preceding_sibling_prefix(program_id, relation, parent);
+        Some(RememberedPrefix { slot, prefix })
+    }
+
+    #[inline]
+    fn record_preceding_sibling_prefix(
+        &mut self,
+        _program: &SelectorProgram,
+        relation: SelectorNodeID,
+        parent: PrecedingSiblingParentID,
+        prefix: PrecedingSiblingPrefix,
+    ) {
+        if let Some((workspace, side)) = self.match_workspace.as_mut()
+            && let Some(program_id) = self.transitive_relation_program
+        {
+            workspace.relations_by_evaluation_side[*side as usize]
+                .insert_preceding_sibling_prefix(program_id, relation, parent, prefix);
+        }
+    }
+
+    #[inline]
+    fn positional_answer(&self, position: NthPosition, node: StyleNodeID) -> Option<bool> {
+        if self.positional_index_policy != PositionalIndexPolicy::All {
+            return None;
+        }
+        let (workspace, side) = self.match_workspace.as_ref()?;
+        workspace.positional_answer(position, node, *side)
+    }
+
+    #[inline]
+    fn record_positional_answer(&mut self, position: NthPosition, node: StyleNodeID, answer: bool) {
+        if self.positional_index_policy == PositionalIndexPolicy::All
+            && let Some((workspace, side)) = self.match_workspace.as_mut()
+        {
+            workspace.insert_positional_answer(position, node, *side, answer);
+        }
+    }
+
+    #[inline]
+    fn sibling_index(&mut self, position: NthPosition, node: StyleNodeID) -> Result<Option<i64>, Incomplete> {
+        if position.step == 0 && self.positional_index_policy != PositionalIndexPolicy::All {
+            return Ok(None);
+        }
+        self.indexed_sibling_position(position, node)
+    }
+
+    /// A completed walk of the live tree is what a retained witness is: proof that the query's
+    /// Boolean on this element is true right now. Both outcomes are recorded - the entry doubles as
+    /// "the last completed evaluation answered true", which is the half a routing-time
+    /// re-verification cannot re-establish on its own.
+    fn record_relative_answer(
+        &mut self,
+        program: &SelectorProgram,
+        query: RelativeQueryID,
+        anchor: StyleNodeID,
+        answer: bool,
+        witness: Option<StyleNodeID>,
+    ) {
+        if let Some(witnesses) = self.witnesses.as_deref_mut()
+            && let Some(program_id) = self.transitive_relation_program
+            && program.retainable_relative_query(query).is_some()
+        {
+            let key = RelationalWitnessKey {
+                program: program_id,
+                query,
+                anchor,
+            };
+            match (answer, witness) {
+                (true, Some(witness)) => witnesses.push(WitnessEffect::Retain(key, witness)),
+                (false, _) => witnesses.push(WitnessEffect::Clear(key)),
+                (true, None) => {}
+            }
         }
     }
 }
