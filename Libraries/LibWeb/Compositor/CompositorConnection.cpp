@@ -9,6 +9,8 @@
 
 #include <AK/Debug.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/ElapsedTimer.h>
+#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
@@ -20,6 +22,15 @@
 #include <LibWeb/Page/Page.h>
 
 namespace Web::Compositor {
+
+static bool display_list_timing_enabled()
+{
+    static bool enabled = [] {
+        auto value = Core::Environment::get("LADYBIRD_DISPLAY_LIST_TIMING"sv);
+        return value.has_value() && !value->is_empty() && *value != "0"sv;
+    }();
+    return enabled;
+}
 
 CompositorConnection::CompositorConnection(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport))
@@ -123,9 +134,21 @@ void CompositorConnection::update_display_list(Web::CompositorContextId context_
     if (!post_resource_additions_in_batches(context_id, resource_transaction))
         return;
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, display_list, visual_context_tree, resource_transaction, scroll_state_snapshot));
+    // The tape and run table go over in a fresh shared buffer that the Compositor takes ownership of;
+    // this process keeps no mapping once the message is posted.
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+    auto shared_tape_buffer = display_list->copy_to_shared_buffer();
+    if (shared_tape_buffer.is_error()) {
+        dbgln("WebContent: Could not place a {} byte display list in shared memory: {}", display_list->command_bytes().size(), shared_tape_buffer.error());
+        return;
+    }
+    auto copy_time = timer.elapsed_time();
+
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list->command_bytes().size(), display_list->command_runs().size(), display_list->properties(), visual_context_tree, resource_transaction, scroll_state_snapshot));
     if (post_message(encoded_message).is_error())
         did_lose_compositor();
+    if (display_list_timing_enabled())
+        dbgln("DISPLAY_LIST_PUBLISH bytes={} copy={} µs encode+post={} µs", display_list->command_bytes().size(), copy_time.to_microseconds(), (timer.elapsed_time() - copy_time).to_microseconds());
 }
 
 void CompositorConnection::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction)
