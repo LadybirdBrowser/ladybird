@@ -84,6 +84,13 @@ private:
         Vector<HeldMessage> held_messages {};
     };
 
+    struct MediaStreamSource {
+        NonnullRefPtr<Media::Demuxer> demuxer;
+        Media::DemuxerScanState reported_scan_state;
+    };
+
+    void report_media_stream_scan_states();
+
     SourceBuffer* find_source_buffer(u64 source_buffer_id);
     void add_source_buffer_demuxer(u64 source_buffer_id, NonnullRefPtr<Media::Demuxer> const&);
     void finish_source_buffer_track_addition(u64 source_buffer_id, TrackAdditionOutcome);
@@ -95,6 +102,7 @@ private:
     NonnullOwnPtr<Media::PlaybackManager> m_manager;
     u64 m_applied_seek_request_id { 0 };
 
+    HashMap<u64, MediaStreamSource> m_media_stream_sources;
     HashMap<u64, SourceBuffer> m_source_buffers;
 };
 

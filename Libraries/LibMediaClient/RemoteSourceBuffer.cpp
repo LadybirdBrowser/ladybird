@@ -43,6 +43,21 @@ bool RemoteSourceBuffer::can_send() const
     return m_client && m_client->is_open();
 }
 
+Media::DemuxerScanState RemoteSourceBuffer::scan_state() const
+{
+    return {
+        .track_buffered_ranges = m_published_state.track_buffered_ranges,
+        .reached_end_of_stream = m_reached_end_of_stream,
+        .duration = m_published_state.highest_end_time,
+    };
+}
+
+void RemoteSourceBuffer::notify_playback_manager_of_state_change()
+{
+    if (m_playback_manager)
+        m_playback_manager->source_buffer_state_changed({});
+}
+
 void RemoteSourceBuffer::set_content_type_subtype(StringView subtype)
 {
     if (can_send())
@@ -129,6 +144,8 @@ void RemoteSourceBuffer::set_pending_initialization_segment_for_change_type_flag
 
 void RemoteSourceBuffer::set_reached_end_of_stream(bool reached)
 {
+    m_reached_end_of_stream = reached;
+    notify_playback_manager_of_state_change();
     if (can_send())
         m_client->async_set_source_buffer_reached_end_of_stream(m_session_id, m_id, reached);
 }
@@ -146,6 +163,8 @@ void RemoteSourceBuffer::duration_received(Badge<RemotePlaybackManager>, double 
 
 void RemoteSourceBuffer::first_initialization_segment_received(Badge<RemotePlaybackManager>, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Vector<Media::Track> text_tracks)
 {
+    m_audio_tracks = audio_tracks;
+    m_video_tracks = video_tracks;
     if (on_first_initialization_segment_received)
         on_first_initialization_segment_received(move(audio_tracks), move(video_tracks), move(text_tracks));
 }
@@ -160,6 +179,7 @@ void RemoteSourceBuffer::append_completed(Badge<RemotePlaybackManager>, u64 appe
 {
     m_append_generation_awaiting_outcome.clear();
     m_published_state = move(state);
+    notify_playback_manager_of_state_change();
     if (on_append_completed)
         on_append_completed(append_generation);
 }
@@ -168,6 +188,7 @@ void RemoteSourceBuffer::append_failed(Badge<RemotePlaybackManager>, u64 append_
 {
     m_append_generation_awaiting_outcome.clear();
     m_published_state = move(state);
+    notify_playback_manager_of_state_change();
     if (on_append_failed)
         on_append_failed(append_generation);
 }
@@ -185,6 +206,7 @@ void RemoteSourceBuffer::connection_lost(Badge<RemotePlaybackManager>)
 void RemoteSourceBuffer::removal_completed(Badge<RemotePlaybackManager>, Media::MediaSourceExtensions::PublishedState state)
 {
     m_published_state = move(state);
+    notify_playback_manager_of_state_change();
     if (on_removal_completed)
         on_removal_completed();
 }

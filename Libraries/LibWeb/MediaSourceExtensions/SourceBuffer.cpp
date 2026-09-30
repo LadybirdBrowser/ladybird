@@ -324,10 +324,10 @@ GC::Ref<HTML::TimeRanges> SourceBuffer::buffered()
     // FIXME: 1. If this object has been removed from the sourceBuffers attribute of the parent media source then throw
     //           an InvalidStateError exception and abort these steps.
 
-    // NB: Further steps to intersect the buffered ranges of the track buffers are implemented within
-    //     SourceBufferProcessor::buffered_ranges(), since it has access to the track buffers. Its result is
-    //     published after each command rather than computed here, so this read never observes a partial append.
-    auto ranges = m_remote_source_buffer->published_state().buffered_ranges;
+    // NB: The remaining steps are implemented by DemuxerScanState::buffered_ranges(), which the media server also uses
+    //     to limit playback. The track buffer ranges are published after each command, so this read never observes a
+    //     partial append, and the end of the stream is tracked here, so readyState changes take effect at once.
+    auto ranges = m_remote_source_buffer->scan_state().buffered_ranges();
     for (auto const& range : ranges)
         time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
 

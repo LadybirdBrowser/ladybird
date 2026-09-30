@@ -131,7 +131,7 @@ void SourceBufferProcessor::execute(Command& command)
 void SourceBufferProcessor::publish()
 {
     m_published_state = {
-        .buffered_ranges = buffered_ranges(),
+        .track_buffered_ranges = track_buffered_ranges(),
         .timestamp_offset = m_timestamp_offset,
         .append_state = m_append_state,
         .mode = m_mode,
@@ -933,13 +933,11 @@ AK::Duration SourceBufferProcessor::highest_end_time() const
     return highest_end_time;
 }
 
-// https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
-Media::TimeRanges SourceBufferProcessor::buffered_ranges() const
+Vector<Media::TimeRanges> SourceBufferProcessor::track_buffered_ranges() const
 {
-    // NB: The demuxer runs steps 2-4, since the same ranges limit what it lets the tracks be played through.
     if (!m_demuxer)
         return {};
-    return m_demuxer->buffered_ranges();
+    return m_demuxer->track_buffered_ranges();
 }
 
 }
@@ -949,7 +947,7 @@ namespace IPC {
 template<>
 ErrorOr<void> encode(Encoder& encoder, Media::MediaSourceExtensions::PublishedState const& state)
 {
-    TRY(encoder.encode(state.buffered_ranges));
+    TRY(encoder.encode(state.track_buffered_ranges));
     TRY(encoder.encode(state.timestamp_offset));
     TRY(encoder.encode(state.append_state));
     TRY(encoder.encode(state.mode));
@@ -965,7 +963,7 @@ ErrorOr<Media::MediaSourceExtensions::PublishedState> decode(Decoder& decoder)
 {
     using namespace Media::MediaSourceExtensions;
     PublishedState state;
-    state.buffered_ranges = TRY(decoder.decode<Media::TimeRanges>());
+    state.track_buffered_ranges = TRY(decoder.decode<Vector<Media::TimeRanges>>());
     state.timestamp_offset = TRY(decoder.decode<AK::Duration>());
     state.append_state = TRY(decoder.decode<AppendState>());
     if (state.append_state > AppendState::ParsingMediaSegment)

@@ -110,6 +110,7 @@ public:
     Function<void(DecoderError&&)> on_error;
 
     struct AddedTracks {
+        NonnullRefPtr<Demuxer> demuxer;
         Vector<Track> audio_tracks;
         Vector<Track> video_tracks;
     };

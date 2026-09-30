@@ -9,6 +9,7 @@
 #include <AK/Span.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/TimeRanges.h>
 
@@ -25,9 +26,19 @@ struct MEDIA_API DemuxerScanState {
     AK::Duration highest_track_end_time() const;
     TimeRanges buffered_ranges() const;
 
-    static TimeRanges buffered_ranges_of_sources(ReadonlySpan<DemuxerScanState const*>);
+    static TimeRanges buffered_ranges_of_sources(ReadonlySpan<DemuxerScanState>);
 
     bool operator==(DemuxerScanState const&) const = default;
 };
+
+}
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::DemuxerScanState const&);
+
+template<>
+MEDIA_API ErrorOr<Media::DemuxerScanState> decode(Decoder&);
 
 }

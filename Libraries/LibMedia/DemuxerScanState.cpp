@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibMedia/DemuxerScanState.h>
 
 namespace Media {
@@ -48,24 +50,47 @@ TimeRanges DemuxerScanState::buffered_ranges() const
 
 // The sources' combined ranges follow the steps of HTMLMediaElement's buffered attribute as extended by MSE.
 // https://w3c.github.io/media-source/#htmlmediaelement-extensions-buffered
-TimeRanges DemuxerScanState::buffered_ranges_of_sources(ReadonlySpan<DemuxerScanState const*> sources)
+TimeRanges DemuxerScanState::buffered_ranges_of_sources(ReadonlySpan<DemuxerScanState> sources)
 {
     if (sources.is_empty())
         return {};
 
     // A file's declared duration may lie beyond its tracks' data, and counts as buffered once its data has ended.
     AK::Duration highest_end_time;
-    for (auto const* source : sources)
-        highest_end_time = max(highest_end_time, source->duration);
+    for (auto const& source : sources)
+        highest_end_time = max(highest_end_time, source.duration);
 
     TimeRanges intersection { { AK::Duration::zero(), highest_end_time } };
-    for (auto const* source : sources) {
-        auto source_ranges = source->buffered_ranges();
-        if (source->reached_end_of_stream && !source_ranges.is_empty())
+    for (auto const& source : sources) {
+        auto source_ranges = source.buffered_ranges();
+        if (source.reached_end_of_stream && !source_ranges.is_empty())
             source_ranges.add_range(source_ranges[source_ranges.size() - 1].start, highest_end_time);
         intersection = intersection.intersection(source_ranges);
     }
     return intersection;
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Media::DemuxerScanState const& state)
+{
+    TRY(encoder.encode(state.track_buffered_ranges));
+    TRY(encoder.encode(state.reached_end_of_stream));
+    TRY(encoder.encode(state.duration));
+    return {};
+}
+
+template<>
+ErrorOr<Media::DemuxerScanState> decode(Decoder& decoder)
+{
+    Media::DemuxerScanState state;
+    state.track_buffered_ranges = TRY(decoder.decode<Vector<Media::TimeRanges>>());
+    state.reached_end_of_stream = TRY(decoder.decode<bool>());
+    state.duration = TRY(decoder.decode<AK::Duration>());
+    return state;
 }
 
 }

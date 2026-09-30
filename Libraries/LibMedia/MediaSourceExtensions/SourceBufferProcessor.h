@@ -128,7 +128,7 @@ using Command = Variant<
 // read never races a command that has not finished.
 struct PublishedState {
     // https://w3c.github.io/media-source/#track-buffer-ranges
-    Media::TimeRanges buffered_ranges;
+    Vector<Media::TimeRanges> track_buffered_ranges;
     // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
     AK::Duration timestamp_offset;
     // https://w3c.github.io/media-source/#dfn-append-state
@@ -188,7 +188,7 @@ private:
     size_t capacity_in_bytes() const;
     AK::Duration highest_presentation_timestamp() const;
     AK::Duration highest_end_time() const;
-    Media::TimeRanges buffered_ranges() const;
+    Vector<Media::TimeRanges> track_buffered_ranges() const;
 
     void drop_consumed_bytes_from_input_buffer();
     void unset_all_track_buffer_timestamps();
