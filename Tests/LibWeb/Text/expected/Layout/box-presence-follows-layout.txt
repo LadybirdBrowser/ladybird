@@ -1,0 +1,6 @@
+Dialog open after removal: true
+Hidden animated opacity: 0.5
+Shown animated opacity: 0.5, height 16
+Adopted height before: 16
+Adopted height after: 0
+Adopted height back home: 16
