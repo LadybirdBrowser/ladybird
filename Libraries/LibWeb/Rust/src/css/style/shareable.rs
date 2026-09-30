@@ -47,14 +47,6 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         sheets_excluded_from_routing,
         routing_needs_detachment_sweep,
         match_workspace,
-        query_match_workspace,
-        selector_query_generation,
-        query_settled_transaction_version,
-        query_sorted_candidates,
-        query_sorted_candidates_stamp,
-        query_preorder_ranks,
-        query_preorder_ranks_stamp,
-        query_workspace_generation,
         exact_covered_scratch,
         cascade_compaction_scratch,
         cascade_compaction_scratch_memory,
@@ -138,14 +130,6 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(sheets_excluded_from_routing);
     assert_member_is_sync(routing_needs_detachment_sweep);
     assert_member_is_sync(match_workspace);
-    assert_member_is_sync(query_match_workspace);
-    assert_member_is_sync(selector_query_generation);
-    assert_member_is_sync(query_settled_transaction_version);
-    assert_member_is_sync(query_sorted_candidates);
-    assert_member_is_sync(query_sorted_candidates_stamp);
-    assert_member_is_sync(query_preorder_ranks);
-    assert_member_is_sync(query_preorder_ranks_stamp);
-    assert_member_is_sync(query_workspace_generation);
     assert_member_is_sync(exact_covered_scratch);
     assert_member_is_sync(cascade_compaction_scratch);
     assert_member_is_sync(cascade_compaction_scratch_memory);

@@ -765,13 +765,6 @@ pub struct SelectorProgram<A: AtomSpace = EngineAtoms> {
 }
 
 impl<A: AtomSpace> SelectorProgram<A> {
-    /// Whether any operator here tests a sibling position. Only those queries can reuse sibling
-    /// geometry across candidates — and attaching a workspace to the rest would cache answers no
-    /// later candidate asks for.
-    pub(super) fn has_positional_test(&self) -> bool {
-        self.nodes.iter().any(|node| matches!(node, SelectorOp::NthPosition(_)))
-    }
-
     pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
         let mut visited = 0_u64;
         let mut insert = |atom: StyleAtomID| {
@@ -1757,24 +1750,6 @@ impl<A: AtomSpace> SelectorProgram<A> {
     #[must_use]
     pub fn subject_dispatch_keys(&self, entry: usize) -> &[DispatchKey] {
         &self.dispatch_metadata.0[entry].subject_dispatch_keys
-    }
-
-    pub(super) fn subject_attribute_value_test(&self, entry: usize) -> Option<AttributeTest> {
-        self.attribute_value_test_of(self.entries()[entry].root)
-    }
-
-    fn attribute_value_test_of(&self, id: SelectorNodeID) -> Option<AttributeTest> {
-        match self.node(id) {
-            SelectorOp::Feature(FeatureTest::Attribute(test)) if test.operator != AttributeOperator::Presence => {
-                Some(test)
-            }
-            SelectorOp::And { first, count } => self
-                .operands(first, count)
-                .iter()
-                .find_map(|&operand| self.attribute_value_test_of(operand)),
-            SelectorOp::Where(inner) => self.attribute_value_test_of(inner),
-            _ => None,
-        }
     }
 
     fn compute_subject_dispatch_keys(&self, entry: usize) -> Vec<DispatchKey> {
@@ -5017,7 +4992,6 @@ pub struct EngineSubject<'a> {
     transaction_fact_view: Option<(&'a TransactionFactView, TransactionFactSide)>,
     /// The outer tree scope asking about a part exposed from a shadow tree.
     part_exposure_scope: Option<TreeScopeID>,
-    root_matches_parentless_node: bool,
     match_workspace: Option<(&'a mut MatchScratch, MatchEvaluationSide)>,
     positional_index_policy: PositionalIndexPolicy,
     transitive_relation_program: Option<SelectorProgramID>,
@@ -5399,11 +5373,6 @@ pub struct MatchScratch {
     relations_by_evaluation_side: [MatchRelationCache; 3],
     sibling_geometry_by_tree_side: [SiblingSequenceGeometry; 2],
     type_positions_by_evaluation_side: [SiblingPositionColumn; 3],
-    /// Whether final an+b answers are memoized at all. Style recalc runs many programs over one
-    /// node — so the same test repeats, and the memo hits. A selector query is one program asking
-    /// each node once: no ask ever repeats, so the memo would only ever be written — and a map
-    /// insert per positional test is the single-most-expensive part of answering one.
-    positional_answer_memo_suppressed: bool,
     /// Canonical plain an+b answers shared across independently compiled selector programs.
     positional_answers_by_evaluation_side: [PositionalAnswers; 3],
 }
@@ -5593,19 +5562,7 @@ impl MatchScratch {
         }
     }
 
-    /// A workspace for the candidates of one selector query: sibling geometry is shared, final
-    /// answers are not memoized.
-    pub(super) fn for_selector_query() -> Self {
-        Self {
-            positional_answer_memo_suppressed: true,
-            ..Self::default()
-        }
-    }
-
     fn positional_answer(&self, position: NthPosition, node: StyleNodeID, side: MatchEvaluationSide) -> Option<bool> {
-        if self.positional_answer_memo_suppressed {
-            return None;
-        }
         self.positional_answers_by_evaluation_side[side as usize].get(position, node)
     }
 
@@ -5616,9 +5573,6 @@ impl MatchScratch {
         side: MatchEvaluationSide,
         answer: bool,
     ) {
-        if self.positional_answer_memo_suppressed {
-            return;
-        }
         self.positional_answers_by_evaluation_side[side as usize].insert(position, node, answer);
     }
 
@@ -5657,7 +5611,6 @@ impl<'a> MatchEvaluator<'a> {
                 match_workspace: None,
                 positional_index_policy: PositionalIndexPolicy::All,
                 transitive_relation_program: None,
-                root_matches_parentless_node: true,
                 witnesses: None,
             },
             bindings: SelectorBindings::default(),
@@ -5679,14 +5632,9 @@ impl<'a> MatchEvaluator<'a> {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn with_scope_root(mut self, scope_root: StyleNodeID) -> Self {
         self.bindings.scope_root_instance = Some(scope_root);
-        self
-    }
-
-    #[must_use]
-    pub fn without_document_root(mut self) -> Self {
-        self.subject.root_matches_parentless_node = false;
         self
     }
 
@@ -6321,7 +6269,7 @@ impl<'a> SelectorSubject for EngineSubject<'a> {
 
     #[inline]
     fn is_root(&self, node: StyleNodeID) -> bool {
-        self.root_matches_parentless_node && self.parent_of(node).is_none()
+        self.parent_of(node).is_none()
     }
 
     #[inline]

@@ -868,41 +868,6 @@ mod tests {
     }
 
     #[test]
-    fn selector_query_atom_mappings_event_round_trip() {
-        let mut output = Vec::new();
-        let mut writer = LogWriter::new(&mut output).unwrap();
-        let mut payload = PayloadWriter::default();
-        payload.write_u64(7);
-        payload.write_length(2);
-        payload.write_u8(0);
-        payload.write_u64(11);
-        payload.write_u32(1);
-        payload.write_u8(1);
-        payload.write_u32(2);
-        payload.write_u32(3);
-        payload.write_u32(4);
-        writer
-            .write_event(EventKind::SelectorQueryAtomMappings, &payload)
-            .unwrap();
-        writer.flush().unwrap();
-
-        let mut reader = LogReader::new(Cursor::new(output)).unwrap();
-        let mut event = reader.read_event().unwrap().unwrap();
-        assert_eq!(event.kind, EventKind::SelectorQueryAtomMappings);
-        assert_eq!(event.payload.read_u64().unwrap(), 7);
-        assert_eq!(event.payload.read_length().unwrap(), 2);
-        assert_eq!(event.payload.read_u8().unwrap(), 0);
-        assert_eq!(event.payload.read_u64().unwrap(), 11);
-        assert_eq!(event.payload.read_u32().unwrap(), 1);
-        assert_eq!(event.payload.read_u8().unwrap(), 1);
-        assert_eq!(event.payload.read_u32().unwrap(), 2);
-        assert_eq!(event.payload.read_u32().unwrap(), 3);
-        assert_eq!(event.payload.read_u32().unwrap(), 4);
-        event.payload.finish().unwrap();
-        assert!(reader.read_event().unwrap().is_none());
-    }
-
-    #[test]
     fn pointer_address_reuse_gets_a_new_token() {
         let mut tokens = PointerTokenRegistry::default();
         assert_eq!(tokens.token(1, 0x1234), 1);

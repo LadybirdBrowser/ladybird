@@ -326,10 +326,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let actual = unsafe { bridge::style_engine_intern_atom(engine, token) };
                     assert_identity("atom", expected, actual)?;
                 }
-                EventKind::SelectorQueryAtomMappings => {
-                    let engine = read_engine(&mut event.payload, &live_engines)?;
-                    replay_atom_mappings(engine, &mut event.payload)?;
-                }
                 EventKind::ReplaceStyleRuleSelectors => {
                     let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
                     let rule = event.payload.read_u32()?;

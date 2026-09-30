@@ -166,38 +166,6 @@ impl RetainedState {
         program
     }
 
-    pub(crate) fn compile_selector_query(&mut self, selectors: &[&CompiledSelector]) -> SelectorProgram {
-        let fold_id_and_class_name_case = self.fold_id_and_class_name_case;
-        let html_element_namespace = self.html_element_namespace;
-        let atoms = &mut self.atoms;
-        let mut intern = |raw: usize, namespace: Option<StyleAtomID>| -> StyleAtomID {
-            let local = atoms.intern_raw(raw);
-            let Some(namespace) = namespace else {
-                return local;
-            };
-            atoms.intern_qualified(namespace, local)
-        };
-
-        let mut compiler = SelectorCompiler::new(
-            &mut intern,
-            fold_id_and_class_name_case,
-            html_element_namespace,
-            NamespaceScope::default(),
-        );
-        for selector in selectors {
-            compiler.compile_for_query(selector);
-        }
-        let program = compiler.finish();
-        let mut requirements_changed = false;
-        for name in program.attribute_value_text_names() {
-            requirements_changed |= self.attribute_value_text_names.insert(name);
-        }
-        if requirements_changed {
-            self.attribute_value_text_requirements_version += 1;
-        }
-        program
-    }
-
     pub fn attribute_value_text_requirements_version(&self) -> u64 {
         self.attribute_value_text_requirements_version
     }
@@ -880,14 +848,6 @@ impl StyleEngineState {
                 sheets_excluded_from_routing: BitColumn::default(),
                 routing_needs_detachment_sweep: false,
                 match_workspace: MatchScratch::default(),
-                query_match_workspace: MatchScratch::for_selector_query(),
-                selector_query_generation: 0,
-                query_workspace_generation: 0,
-                query_settled_transaction_version: StyleTransactionVersion(0),
-                query_sorted_candidates: Vec::new(),
-                query_sorted_candidates_stamp: None,
-                query_preorder_ranks: HashMap::default(),
-                query_preorder_ranks_stamp: None,
                 exact_covered_scratch: Vec::new(),
                 cascade_compaction_scratch: ordering::CascadeCompactionWorkspace::default(),
                 cascade_compaction_scratch_memory: MemoryLease::new(MemoryCategory::BatchScratch),

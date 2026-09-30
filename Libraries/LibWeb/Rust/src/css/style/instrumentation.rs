@@ -61,7 +61,6 @@ define_counters! {
     AtomSweeps => "atomSweeps",
     AtomSweepsDeferredForActiveTraversal => "atomSweepsDeferredForActiveTraversal",
     AtomSweepRootSlotsVisited => "atomSweepRootSlotsVisited",
-    AtomSweepPinReleasesSkipped => "atomSweepPinReleasesSkipped",
     StyleAtomsReclaimed => "styleAtomsReclaimed",
     LanguageTextsPublished => "languageTextsPublished",
     CustomPropertyNamesPublished => "customPropertyNamesPublished",
@@ -121,13 +120,6 @@ define_counters! {
     CombinatorSteps => "combinatorSteps",
     StructuralTests => "structuralTests",
     RelationalTests => "relationalTests",
-
-    // DOM selector queries. Candidate rows are the elements admitted by the query plan, while
-    // evaluations are the rows that reached the exact matcher after selector-list deduplication.
-    SelectorQueryCandidateRows => "selectorQueryCandidateRows",
-    SelectorQueryEvaluations => "selectorQueryEvaluations",
-    SelectorQueryAttributeValuePlanHits => "selectorQueryAttributeValuePlanHits",
-    SelectorQueryAttributeValueCatalogScans => "selectorQueryAttributeValueCatalogScans",
 
     // Candidate enumeration and cold evaluation.
     ColdMatchingBatchMissingRows => "coldMatchingBatchMissingRows",

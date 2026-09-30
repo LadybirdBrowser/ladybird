@@ -287,6 +287,25 @@ impl<'a> SelectorCompiler<'a, QueryAtoms> {
         compiler.scope_root_is_bound = true;
         compiler
     }
+
+    /// Compile one selector of the query.
+    pub fn compile_for_query(&mut self, selector: &CompiledSelector) -> CompiledEntry {
+        let entry = self.compile(selector);
+        // https://dom.spec.whatwg.org/#scope-match-a-selectors-string
+        // NB: A selector query matches elements, never pseudo-elements. `::slotted()` is represented
+        //     as an operator on its assigned element for style matching, so it needs this explicit
+        //     query rejection rather than the entry's ordinary pseudo-element target check.
+        if selector.compound_selectors.iter().any(|compound| {
+            compound
+                .simple_selectors
+                .iter()
+                .any(|simple| matches!(simple, SimpleSelector::PseudoElement(_)))
+        }) {
+            let never = self.builder.push_never();
+            self.builder.set_entry_root(entry.entry, never);
+        }
+        entry
+    }
 }
 
 impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
@@ -326,7 +345,7 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
     /// The scope's `to` bound is not expressed. It can only narrow which elements match, so leaving
     /// it out keeps the entry a superset, which is the safe direction for invalidation and is what
     /// the exact evaluator settles afterwards.
-    pub fn compile_in_scope(&mut self, selector: &CompiledSelector, scope: &ScopeChain<'_>) -> CompiledEntry {
+    pub(super) fn compile_in_scope(&mut self, selector: &CompiledSelector, scope: &ScopeChain<'_>) -> CompiledEntry {
         let (scope_roots, scope_limits, scope_levels) = (scope.roots, scope.limits, scope.levels);
         let implicit_root_of = |level: usize| scope.implicit_roots.get(level).copied().flatten();
         if scope_levels.is_empty()
@@ -463,7 +482,7 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
         }
     }
 
-    pub fn compile(&mut self, selector: &CompiledSelector) -> CompiledEntry {
+    fn compile(&mut self, selector: &CompiledSelector) -> CompiledEntry {
         // `::slotted()` and `::part()` name an element in another tree, which the sheet's default
         // namespace says nothing about.
         self.selector_escapes_its_namespace = selector.compound_selectors.iter().any(|compound| {
@@ -494,26 +513,6 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
         self.builder.set_entry_specificity(entry, selector.specificity());
 
         CompiledEntry { entry, marker }
-    }
-
-    pub fn compile_for_query(&mut self, selector: &CompiledSelector) -> CompiledEntry {
-        let outer_bound = std::mem::replace(&mut self.scope_root_is_bound, true);
-        let entry = self.compile(selector);
-        self.scope_root_is_bound = outer_bound;
-        // https://dom.spec.whatwg.org/#scope-match-a-selectors-string
-        // NB: A selector query matches elements, never pseudo-elements. `::slotted()` is represented
-        //     as an operator on its assigned element for style matching, so it needs this explicit
-        //     query rejection rather than the entry's ordinary pseudo-element target check.
-        if selector.compound_selectors.iter().any(|compound| {
-            compound
-                .simple_selectors
-                .iter()
-                .any(|simple| matches!(simple, SimpleSelector::PseudoElement(_)))
-        }) {
-            let never = self.builder.push_never();
-            self.builder.set_entry_root(entry.entry, never);
-        }
-        entry
     }
 
     /// Compile compounds `0..=index` with the subject at `index`.

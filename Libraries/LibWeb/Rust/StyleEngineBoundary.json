@@ -78,8 +78,6 @@
     [75, "StyleRecordView"],
     [76, "SetComputedGroupDependencyMasks"],
     [77, "StyleDeltaBatch"],
-    [78, "SelectorQueryAtomMappings"],
-    [79, "PrepareSelectorQuery"],
     [80, "AddCounterStyleRule"],
     [81, "AttributeValueTextRequirementsVersion"],
     [82, "AttributeNameRequiresValueText"],
@@ -156,7 +154,6 @@
     { "event": "BeginColdMatchingBatch", "ffi": "style_engine_begin_cold_matching_batch", "cpp": "begin_cold_matching_batch", "return": "bool", "replay": false, "args": [["root", "style_node"]], "body": "let Some(root) = StyleNodeID::from_raw(root) else { return false; }; let result = engine.begin_cold_matching_batch(root);" },
     { "event": "BeginAdaptiveColdMatchingBatch", "ffi": "style_engine_begin_adaptive_cold_matching_batch", "cpp": "begin_adaptive_cold_matching_batch", "return": "void", "replay": false, "args": [["root", "style_node"]], "body": "let Some(root) = StyleNodeID::from_raw(root) else { return; }; engine.begin_adaptive_cold_matching_batch(root);" },
     { "event": "EndColdMatchingBatch", "ffi": "style_engine_end_cold_matching_batch", "cpp": "end_cold_matching_batch", "return": "void", "replay": false, "args": [], "body": "engine.end_cold_matching_batch();" },
-    { "event": "PrepareSelectorQuery", "ffi": "style_engine_prepare_selector_query", "return": "void", "args": [], "body": "engine.prepare_selector_query();" },
     { "event": "CompletePublishedMatchAnswersForClosure", "ffi": "style_engine_complete_published_match_answers_for_closure", "cpp": "complete_published_match_answers_for_closure", "return": "bool", "replay": false, "args": [["nodes", "style_node_slice"]], "body": "let Some(nodes) = nodes.iter().copied().map(StyleNodeID::from_raw).collect::<Option<Vec<_>>>() else { return false; }; let result = engine.complete_published_match_answers_for_closure(&nodes).is_ok();" },
     { "event": "PublishedMatchAnswerSignature", "ffi": "style_engine_published_match_answer_signature", "cpp": "published_match_answer_signature", "cpp_result": "optional_u32", "return": "u32", "replay": false, "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let result = engine.published_match_answer_signature(node).unwrap_or(0);" },
     { "event": "MatchElementSignature", "ffi": "style_engine_match_element_signature", "cpp": "match_element_signature", "cpp_result": "optional_u32", "cpp_const": true, "return": "u32", "replay": false, "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let result = engine.match_element_signature(node).unwrap_or(0);" },
@@ -233,7 +230,6 @@
     "StyleRecordPayloads",
     "StyleRecordView",
     "SetComputedGroupDependencyMasks",
-    "StyleDeltaBatch",
-    "SelectorQueryAtomMappings"
+    "StyleDeltaBatch"
   ]
 }

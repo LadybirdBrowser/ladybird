@@ -282,15 +282,9 @@ void record_subtree_connecting(DOM::Node& root)
     }
 }
 
-enum class InvalidateLanguageCache {
-    No,
-    Yes,
-};
-
-// Publish every selector-visible fact intrinsic to one element. Connected elements and isolated
-// selector queries differ only in how an initial local feature delta describes its old side.
+// Publish every selector-visible fact intrinsic to one element.
 template<typename PublishFeature, typename PublishEmptiness>
-static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, StyleNodeID node, PublishFeature publish_feature, PublishEmptiness publish_emptiness, InvalidateLanguageCache invalidate_language_cache)
+static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, StyleNodeID node, PublishFeature publish_feature, PublishEmptiness publish_emptiness)
 {
     // Slot identity and namespace never change during an element's lifetime.
     auto is_slot = is<HTML::HTMLSlotElement>(element);
@@ -333,8 +327,7 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     auto language_atom = language.has_value() ? style_engine.intern_language_atom(*language) : StyleAtomID {};
     auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"_utf16_fly_string : "ltr"_utf16_fly_string;
     auto directionality_atom = style_engine.intern_atom(directionality);
-    if (invalidate_language_cache == InvalidateLanguageCache::Yes)
-        element.invalidate_lang_value();
+    element.invalidate_lang_value();
 
     GC::Ptr<HTML::HTMLHeadingElement const> heading = as_if<HTML::HTMLHeadingElement>(element);
     auto heading_level = static_cast<u8>(min(heading ? heading->heading_level() : 0, 255u));
@@ -527,122 +520,6 @@ void publish_required_attribute_value_texts(StyleEngine& style_engine, StyleComp
     });
 }
 
-void configure_isolated_selector_query_engine(StyleEngine& style_engine, DOM::Document& document)
-{
-    style_engine.set_fold_id_and_class_name_case(document.in_quirks_mode());
-    style_engine.set_html_element_namespace(
-        document.document_type() == DOM::Document::Type::HTML
-            ? style_engine.intern_case_sensitive_text_atom(Namespace::HTML.view())
-            : 0);
-}
-
-StyleNodeID populate_isolated_selector_query_engine(StyleEngine& style_engine, DOM::ParentNode& root, Function<void(GC::Ref<DOM::Element>, StyleNodeID)> const& publish_identity)
-{
-    Optional<StyleNodeID> non_element_root_identity;
-    if (!is<DOM::Element>(root) && !is<DOM::Document>(root)) {
-        non_element_root_identity = style_engine.allocate_style_node();
-        style_engine.record_local_feature_delta({
-            .node = non_element_root_identity->value(),
-            .feature_kind = StyleEngineFFI::FfiFeatureKind::TagName,
-            .name_atom = 0,
-            .old_kind = StyleEngineFFI::FfiFeatureValueKind::Absent,
-            .old_atom = 0,
-            .new_kind = StyleEngineFFI::FfiFeatureValueKind::Atom,
-            .new_atom = style_engine.intern_atom(Utf16FlyString::from_utf16(u"#document-fragment"sv)).value(),
-        });
-        style_engine.record_tree_delta({
-            .node = non_element_root_identity->value(),
-            .old_connected = false,
-            .new_connected = true,
-            .old_relations = detached_relations(),
-            .new_relations = {
-                .parent = no_style_node.value(),
-                .previous_element_sibling = no_style_node.value(),
-                .next_element_sibling = no_style_node.value(),
-                .tree_scope = document_tree_scope.value(),
-                .assigned_slot = no_style_node.value(),
-                .reserved = 0,
-            },
-        });
-    }
-
-    HashMap<GC::Ptr<DOM::Element>, StyleNodeID> identities;
-    size_t element_count = 0;
-    root.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element&) {
-        ++element_count;
-        return TraversalDecision::Continue;
-    });
-    Vector<StyleNodeID> allocated_identities;
-    allocated_identities.resize(element_count);
-    style_engine.allocate_style_nodes(allocated_identities.span());
-    size_t identity_index = 0;
-    root.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
-        auto identity = allocated_identities[identity_index++];
-        identities.set(element, identity);
-        publish_identity(GC::Ref { element }, identity);
-        return TraversalDecision::Continue;
-    });
-
-    auto identity_of_element = [&](GC::Ptr<DOM::Element> element) -> StyleNodeID {
-        if (!element)
-            return no_style_node;
-        return identities.get(element).value_or(no_style_node);
-    };
-    auto record_query_feature = [&](StyleNodeID node, StyleEngineFFI::FfiFeatureKind kind, StyleAtomID name_atom, StyleEngineFFI::FfiFeatureValueKind value_kind, StyleAtomID value_atom) {
-        style_engine.record_local_feature_delta({
-            .node = node.value(),
-            .feature_kind = kind,
-            .name_atom = name_atom.value(),
-            .old_kind = StyleEngineFFI::FfiFeatureValueKind::Absent,
-            .old_atom = 0,
-            .new_kind = value_kind,
-            .new_atom = value_atom.value(),
-        });
-    };
-
-    root.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
-        auto node = identities.get(element).value();
-        auto parent = identity_of_element(element.parent_element());
-        if (parent == no_style_node && element.parent_node() == &root)
-            parent = non_element_root_identity.value_or(no_style_node);
-        style_engine.record_tree_delta({
-            .node = node.value(),
-            .old_connected = false,
-            .new_connected = true,
-            .old_relations = detached_relations(),
-            .new_relations = {
-                .parent = parent.value(),
-                .previous_element_sibling = identity_of_element(element.previous_element_sibling()).value(),
-                .next_element_sibling = identity_of_element(element.next_element_sibling()).value(),
-                .tree_scope = document_tree_scope.value(),
-                .assigned_slot = no_style_node.value(),
-                .reserved = 0,
-            },
-        });
-
-        publish_element_selector_features(
-            style_engine,
-            element,
-            node,
-            [&](auto kind, auto name_atom, auto value_kind, auto value_atom) {
-                record_query_feature(node, kind, name_atom, value_kind, value_atom);
-            },
-            [&](bool has_nonempty_text_child) {
-                record_query_feature(node, StyleEngineFFI::FfiFeatureKind::Emptiness, 0, has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Absent : StyleEngineFFI::FfiFeatureValueKind::Present, 0);
-            },
-            InvalidateLanguageCache::No);
-        return TraversalDecision::Continue;
-    });
-
-    // This snapshot only answers selectors; it never needs to plan a rendering update.
-    style_engine.prepare_selector_query();
-    if (non_element_root_identity.has_value())
-        return *non_element_root_identity;
-    if (auto* element = as_if<DOM::Element>(root))
-        return identities.get(element).value();
-    return identity_of_element(as<DOM::Document>(root).document_element());
-}
-
 // The atom an id or class name is published under. A quirks-mode document matches those selectors
 // ASCII case-insensitively, and a selector there is compiled against the lowercase folding of its
 // own name, so an element's name has to be folded the same way for the two to name one atom.
@@ -689,8 +566,7 @@ static void record_element_initial_features(DOM::Element& element)
                 .new_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Absent : StyleEngineFFI::FfiFeatureValueKind::Present,
                 .new_atom = 0,
             });
-        },
-        InvalidateLanguageCache::Yes);
+        });
 
     if (!element.part_names().is_empty())
         record_element_parts_changed(element);
@@ -1216,11 +1092,6 @@ static void publish_document_kind(DOM::Document& document)
         document.document_type() == DOM::Document::Type::HTML
             ? style_engine.intern_case_sensitive_text_atom(Namespace::HTML.view())
             : 0);
-}
-
-void record_document_kind(DOM::Document& document)
-{
-    publish_document_kind(document);
 }
 
 // https://drafts.csswg.org/css-cascade-6/#scope-atrule
