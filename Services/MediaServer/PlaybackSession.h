@@ -79,8 +79,7 @@ private:
 
         // Until the manager has added the first initialization segment's tracks, the renderer's messages wait, so
         // that it knows the tracks before it processes the segment.
-        size_t pending_track_additions { 0 };
-        bool track_addition_failed { false };
+        bool is_adding_tracks { false };
         u64 first_initialization_segment_append_generation { 0 };
         Vector<HeldMessage> held_messages {};
     };

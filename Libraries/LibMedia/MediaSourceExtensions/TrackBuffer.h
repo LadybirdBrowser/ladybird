@@ -12,20 +12,21 @@
 
 namespace Media::MediaSourceExtensions {
 
-class TrackBufferDemuxer;
+class SourceBufferDemuxer;
 
 // https://w3c.github.io/media-source/#track-buffers
 // TrackBuffer holds MSE spec state for a single track. Frame storage is managed by
-// the associated TrackBufferDemuxer, which is shared with the PlaybackManager.
+// the SourceBuffer's SourceBufferDemuxer, which is shared with the PlaybackManager.
 class TrackBuffer {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    TrackBuffer(NonnullRefPtr<TrackBufferDemuxer>);
+    TrackBuffer(NonnullRefPtr<SourceBufferDemuxer>, Media::Track const&);
     ~TrackBuffer();
 
-    TrackBufferDemuxer& demuxer() { return m_demuxer; }
-    TrackBufferDemuxer const& demuxer() const { return m_demuxer; }
+    SourceBufferDemuxer& demuxer() { return m_demuxer; }
+    SourceBufferDemuxer const& demuxer() const { return m_demuxer; }
+    Media::Track const& track() const { return m_track; }
 
     // https://w3c.github.io/media-source/#last-decode-timestamp
     Optional<AK::Duration> last_decode_timestamp() const { return m_last_decode_timestamp; }
@@ -51,7 +52,8 @@ public:
     void track_buffer_ranges() const;
 
 private:
-    NonnullRefPtr<TrackBufferDemuxer> m_demuxer;
+    NonnullRefPtr<SourceBufferDemuxer> m_demuxer;
+    Media::Track m_track;
 
     // https://w3c.github.io/media-source/#last-decode-timestamp
     Optional<AK::Duration> m_last_decode_timestamp;
