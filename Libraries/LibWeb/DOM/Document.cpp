@@ -1583,11 +1583,10 @@ void Document::tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecode
 
 void Document::tear_down_layout_tree_for_inactive_document()
 {
-    // The walk only forgets the DOM-side pointers. The subtree teardown below prepares every node under the
-    // layout root for detachment once and frees the whole tree, so detaching each node or pseudo-element
-    // subtree on its own would only repeat that work one node at a time.
+    // The walk only forgets the pseudo-elements' pointers; freeing the tree unbinds the nodes. The subtree teardown
+    // below prepares every node under the layout root for detachment once and frees the whole tree, so detaching each
+    // node or pseudo-element subtree on its own would only repeat that work one node at a time.
     for_each_in_inclusive_subtree([&](auto& node) {
-        node.clear_layout_node({});
         if (auto* element = as_if<Element>(node)) {
             element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
                 pseudo_element.set_layout_node(nullptr);

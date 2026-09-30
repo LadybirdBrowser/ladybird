@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .slot { width: 200px; height: 50px; }
+    #mover { width: 40px; height: 20px; margin-left: 10px; background: green; }
+</style>
+<div id="first" class="slot"><div id="mover">text</div></div>
+<div id="second" class="slot"></div>
+<script>
+    test(() => {
+        const mover = document.getElementById("mover");
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const describe = label => {
+            const rect = mover.getBoundingClientRect();
+            println(`${label}: ${rect.x},${rect.y} ${rect.width}x${rect.height}, ${mover.getClientRects().length} rect(s)`);
+        };
+
+        describe("Initial");
+        second.moveBefore(mover, null);
+        describe("After moveBefore");
+        mover.remove();
+        println(`Removed: ${mover.getClientRects().length} rect(s)`);
+        first.appendChild(mover);
+        describe("After reinsertion");
+        mover.remove();
+        second.insertBefore(mover, null);
+        describe("After remove and insert in one task");
+        println(internals.dumpLayoutTree(second).replace(/\n$/, ""));
+    });
+</script>
