@@ -80,9 +80,8 @@ public:
     };
     static ErrorOr<ProcessPaths> paths_for_process(StringView process_name, StringView runtime_directory);
 
-    // The part of this process's environment that a helper process may see: debugging switches, sanitizer options,
-    // locale and a few basic variables, plus the proxy configuration for RequestServer. The rest may hold secrets of the
-    // Browser, such as tokens.
+    // Helper processes receive only debugging, sanitizer, locale and basic environment variables; others may hold
+    // secrets.
     static Vector<ByteString> helper_process_environment(ProcessType);
     static ErrorOr<Optional<pid_t>> get_process_pid(StringView process_name, StringView pid_path);
     static ErrorOr<int> create_ipc_socket(ByteString const& socket_path);

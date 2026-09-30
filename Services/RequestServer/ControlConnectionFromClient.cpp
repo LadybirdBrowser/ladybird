@@ -165,6 +165,11 @@ void ControlConnectionFromClient::set_use_system_dns()
     Resolver::reset_connections();
 }
 
+void ControlConnectionFromClient::set_proxy_configuration(HTTP::ProxyConfiguration proxy_configuration)
+{
+    RequestServer::set_proxy_configuration(move(proxy_configuration));
+}
+
 void ControlConnectionFromClient::set_performance_monitor_enabled(bool enabled)
 {
     Request::set_performance_monitor_enabled(enabled);

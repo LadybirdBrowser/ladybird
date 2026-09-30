@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibHTTP/Proxy.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/ProcessType.h>
@@ -116,6 +117,7 @@ struct RequestServerOptions {
     ByteString cache_path;
     HTTPDiskCacheMode http_disk_cache_mode { HTTPDiskCacheMode::Disabled };
     Optional<ByteString> resource_substitution_map_path;
+    HTTP::ProxyConfiguration proxy_configuration;
 };
 
 enum class IsTestMode {

@@ -26,6 +26,7 @@
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibHTTP/NetworkIsolationKey.h>
+#include <LibHTTP/Proxy.h>
 #include <LibIPC/File.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -210,6 +211,7 @@ private:
     void handle_failed_cache_only_state();
     void handle_serve_substitution_state();
     void handle_dns_lookup_state();
+    void continue_after_dns_lookup();
     void handle_retrieve_cookie_state();
     void handle_connect_state();
     void handle_fetch_state();
@@ -305,6 +307,7 @@ private:
 
     NonnullRefPtr<Resolver> m_resolver;
     RefPtr<DNS::LookupResult const> m_dns_result;
+    Optional<HTTP::Proxy> m_proxy;
     CacheLevel m_connect_cache_level { CacheLevel::ResolveOnly };
 
     URL::URL m_url;
