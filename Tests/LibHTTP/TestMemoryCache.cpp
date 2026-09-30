@@ -135,6 +135,25 @@ TEST_CASE(permanent_redirects_without_explicit_freshness_are_reused)
     }
 }
 
+TEST_CASE(newer_response_replaces_entry_with_same_vary_key)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/script.js"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto old_response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv }, { "Vary"sv, "Accept, User-Agent"sv } });
+    auto new_response_headers = HTTP::HeaderList::create({ { "Cache-Control"sv, "max-age=60"sv }, { "Vary"sv, "User-Agent, Accept"sv } });
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *old_response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 200, *old_response_headers, immutable_bytes("old"sv));
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *new_response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 200, *new_response_headers, immutable_bytes("new"sv));
+
+    auto entry = cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default);
+    VERIFY(entry.has_value());
+    EXPECT_EQ(entry->response_body.bytes(), "new"sv.bytes());
+}
+
 TEST_CASE(responses_varying_on_cookie_are_not_reused)
 {
     auto cache = HTTP::MemoryCache::create();

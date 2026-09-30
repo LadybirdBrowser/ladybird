@@ -439,10 +439,23 @@ void CacheIndex::update_last_access_time(u64 cache_key, u64 vary_key)
 Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderList const& request_headers)
 {
     auto& entries = entries_for_cache_key(cache_key);
+    Optional<Entry const&> selected_entry;
 
-    return find_value(entries, [&](auto const& entry) {
-        return create_vary_key(request_headers, entry.response_headers) == entry.vary_key;
-    });
+    for (auto const& entry : entries) {
+        if (create_vary_key(request_headers, entry.response_headers) != entry.vary_key)
+            continue;
+
+        // https://httpwg.org/specs/rfc9111.html#caching.negotiated.responses
+        // If multiple stored responses match, the cache will need to choose one to use. [...] If such a mechanism is
+        // not available, or leads to equally preferred responses, the most recent response (as determined by the Date
+        // header field) is chosen, as per Section 4.
+        //
+        // NB: Receipt time is available for every stored response.
+        if (!selected_entry.has_value() || entry.response_time > selected_entry->response_time)
+            selected_entry = entry;
+    }
+
+    return selected_entry;
 }
 
 Vector<CacheIndex::Entry>& CacheIndex::entries_for_cache_key(u64 cache_key)

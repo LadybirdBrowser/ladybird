@@ -45,9 +45,22 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     }
 
     // - request header fields nominated by the stored response (if any) match those presented (see Section 4.1), and
-    auto cache_entry = find_value(*cache_entries, [&](auto const& entry) {
-        return entry_matches_request(request_headers, entry);
-    });
+    Optional<Entry const&> cache_entry;
+
+    for (auto const& entry : *cache_entries) {
+        if (!entry_matches_request(request_headers, entry))
+            continue;
+
+        // https://httpwg.org/specs/rfc9111.html#caching.negotiated.responses
+        // If multiple stored responses match, the cache will need to choose one to use. [...] If such a mechanism is
+        // not available, or leads to equally preferred responses, the most recent response (as determined by the Date
+        // header field) is chosen, as per Section 4.
+        //
+        // NB: Receipt time is available for every stored response.
+        if (!cache_entry.has_value() || entry.response_time > cache_entry->response_time)
+            cache_entry = entry;
+    }
+
     if (!cache_entry.has_value()) {
         dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[35;1mVary mismatch for\033[0m {}", url);
         return {};
@@ -149,7 +162,9 @@ void MemoryCache::finalize_entry(URL::URL const& url, StringView method, HeaderL
         if (cache_entries->is_empty())
             m_pending_entries.remove(cache_key);
 
-        m_complete_entries.ensure(cache_key).append(move(cache_entry));
+        auto& complete_entries = m_complete_entries.ensure(cache_key);
+        complete_entries.remove_all_matching([&](auto const& entry) { return entry.vary_key == cache_entry.vary_key; });
+        complete_entries.append(move(cache_entry));
     }
 }
 
