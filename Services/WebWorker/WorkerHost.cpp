@@ -12,6 +12,7 @@
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/Bindings/SharedWorkerGlobalScope.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -167,6 +168,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
         // 2. Set request's reserved client to inside settings.
         request->set_reserved_client(GC::Ptr<Web::HTML::EnvironmentSettingsObject>(inside_settings));
+        request->set_reserved_client_snapshot(Web::Fetch::Fetching::snapshot_reserved_client_context(*inside_settings));
 
         // NB: We need to store the process custom fetch response function on the heap here, because we're storing it
         //     in another heap function

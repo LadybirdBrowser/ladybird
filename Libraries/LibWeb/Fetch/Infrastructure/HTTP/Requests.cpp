@@ -18,7 +18,6 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebDriver/BiDi/Network.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -157,15 +156,6 @@ bool Request::is_navigation_request() const
     });
 }
 
-// Mixed Content refers to a request's target browsing context, which Fetch does not define. A navigation request targets
-// its reserved client's target browsing context: the navigable's active browsing context when the client was reserved.
-GC::Ptr<HTML::BrowsingContext> Request::target_browsing_context() const
-{
-    if (!m_reserved_client)
-        return {};
-    return m_reserved_client->target_browsing_context.ptr();
-}
-
 // https://fetch.spec.whatwg.org/#concept-request-tainted-origin
 RedirectTaint Request::redirect_taint() const
 {
@@ -246,6 +236,8 @@ GC::Ref<Request> Request::clone(JS::Realm& realm, BodyCloning body_cloning) cons
     new_request->set_unsafe_request(m_unsafe_request);
     new_request->set_client(m_client);
     new_request->set_reserved_client(m_reserved_client);
+    new_request->set_client_snapshot(m_client_snapshot);
+    new_request->set_reserved_client_snapshot(m_reserved_client_snapshot);
     new_request->set_replaces_client_id(m_replaces_client_id);
     new_request->set_traversable_for_user_prompts(m_traversable_for_user_prompts);
     new_request->set_keepalive(m_keepalive);

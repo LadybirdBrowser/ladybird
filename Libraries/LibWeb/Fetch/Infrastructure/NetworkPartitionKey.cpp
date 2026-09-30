@@ -5,18 +5,17 @@
  */
 
 #include <LibURL/Site.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
-#include <LibWeb/Fetch/Request.h>
-#include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#determine-the-network-partition-key
-Optional<NetworkPartitionKey> determine_the_network_partition_key(HTML::Environment const& environment)
+// NB: The frame site is that of the environment's document or worker, or, for an environment that is not yet a
+//     settings object, that of the document it is being created for.
+template<typename EnvironmentType>
+static Optional<NetworkPartitionKey> determine_the_network_partition_key(EnvironmentType const& environment, URL::Origin const& frame_origin, HasCrossSiteAncestor has_cross_site_ancestor)
 {
     // 1. Let topLevelOrigin be environment’s top-level origin.
     auto top_level_origin = environment.top_level_origin;
@@ -33,19 +32,38 @@ Optional<NetworkPartitionKey> determine_the_network_partition_key(HTML::Environm
         return {};
 
     // 5. Let secondKey be null or an implementation-defined value.
-    // NB: The frame site is that of the environment's document or worker, or, for an environment that is not yet a
-    //     settings object, that of the document it is being created for.
-    auto const* settings_object = as_if<HTML::EnvironmentSettingsObject>(environment);
-    auto frame_origin = settings_object ? settings_object->origin() : environment.creation_url.origin();
-
     // 6. Return (topLevelSite, secondKey).
     return NetworkPartitionKey {
         .top_level_site = top_level_site.release_value(),
         .frame_site = URL::Site::serialize_for_partitioning(frame_origin),
         .is_subframe_document = false,
         .is_cross_site_main_frame_navigation = false,
-        .has_cross_site_ancestor = settings_object && settings_object->has_cross_site_ancestor(),
+        .has_cross_site_ancestor = has_cross_site_ancestor == HasCrossSiteAncestor::Yes,
     };
+}
+
+Optional<NetworkPartitionKey> determine_the_network_partition_key(HTML::Environment const& environment)
+{
+    auto const* settings_object = as_if<HTML::EnvironmentSettingsObject>(environment);
+    auto frame_origin = settings_object ? settings_object->origin() : environment.creation_url.origin();
+    auto has_cross_site_ancestor = (settings_object && settings_object->has_cross_site_ancestor()) ? HasCrossSiteAncestor::Yes : HasCrossSiteAncestor::No;
+    return determine_the_network_partition_key(environment, frame_origin, has_cross_site_ancestor);
+}
+
+static Optional<NetworkPartitionKey> determine_the_network_partition_key(ClientContextSnapshot const& client)
+{
+    return determine_the_network_partition_key(client, client.origin, client.has_cross_site_ancestor);
+}
+
+static Optional<NetworkPartitionKey> determine_the_network_partition_key(ReservedClientContextSnapshot const& reserved_client)
+{
+    return reserved_client.kind.visit(
+        [&](ReservedClientContext::SettingsObject const& settings_object) {
+            return determine_the_network_partition_key(reserved_client, settings_object.origin, settings_object.has_cross_site_ancestor);
+        },
+        [&](ReservedClientContext::Environment const&) {
+            return determine_the_network_partition_key(reserved_client, reserved_client.creation_url.origin(), HasCrossSiteAncestor::No);
+        });
 }
 
 // https://fetch.spec.whatwg.org/#request-determine-the-network-partition-key
@@ -76,11 +94,11 @@ Optional<NetworkPartitionKey> determine_the_network_partition_key(Infrastructure
     Optional<NetworkPartitionKey> key;
 
     // 1. If request’s reserved client is non-null, then return the result of determining the network partition key given request’s reserved client.
-    if (auto reserved_client = request.reserved_client())
+    if (auto const& reserved_client = request.reserved_client_snapshot())
         key = determine_the_network_partition_key(*reserved_client);
 
     // 2. If request’s client is non-null, then return the result of determining the network partition key given request’s client.
-    else if (auto client = request.client())
+    else if (auto const& client = request.client_snapshot())
         key = determine_the_network_partition_key(*client);
 
     // 3. Return null.
@@ -94,24 +112,13 @@ Optional<NetworkPartitionKey> determine_the_network_partition_key(Infrastructure
         key->frame_site = URL::Site::serialize_for_partitioning(current_url_origin);
         key->is_subframe_document = true;
         key->has_cross_site_ancestor = [&] {
-            auto target_browsing_context = request.target_browsing_context();
-            if (!target_browsing_context)
+            auto const& reserved_client = request.reserved_client_snapshot();
+            auto const* environment = reserved_client ? reserved_client->kind.get_pointer<ReservedClientContext::Environment>() : nullptr;
+            if (!environment || !environment->parent.has_value())
                 return false;
-            auto const* document = target_browsing_context->active_document();
-            auto navigable = document ? document->navigable() : nullptr;
-            auto parent = navigable ? navigable->parent() : nullptr;
-            if (!parent)
-                return false;
-            auto parent_origin = parent->active_document_origin();
-            return parent->active_document_has_cross_site_ancestor() || !parent_origin.has_value() || !parent_origin->is_same_site(current_url_origin);
+            auto const& parent = *environment->parent;
+            return parent.active_document_has_cross_site_ancestor == HasCrossSiteAncestor::Yes || !parent.active_document_origin.has_value() || !parent.active_document_origin->is_same_site(current_url_origin);
         }();
-    }
-
-    // AD-HOC: A request a worker makes for its own script has the worker's environment as its reserved client, which is
-    //         not yet a settings object. The worker shares its creator's ancestors.
-    else if (request.reserved_client() && !is<HTML::EnvironmentSettingsObject>(*request.reserved_client())) {
-        if (auto client = request.client())
-            key->has_cross_site_ancestor = client->has_cross_site_ancestor();
     }
 
     return key;

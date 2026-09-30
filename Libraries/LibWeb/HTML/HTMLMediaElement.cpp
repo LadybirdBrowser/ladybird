@@ -67,6 +67,7 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
@@ -1378,10 +1379,12 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
         }
 
         // 5. Let stringOrEnvironment be "top-level-self-fetch" if isTopLevelSelfFetch is true; otherwise settingsObject.
-        auto string_or_environment = [&] -> Variant<GC::Ref<HTML::Environment>, FileAPI::TopLevelSelfFetch> {
+        // AD-HOC: settingsObject is given as its storage key for non-storage purposes, the only part of it that
+        //         obtaining a blob object reads.
+        auto string_or_environment = [&] -> Variant<StorageAPI::StorageKey, FileAPI::TopLevelSelfFetch> {
             if (is_top_level_self_fetch)
                 return FileAPI::TopLevelSelfFetch();
-            return { settings_object };
+            return StorageAPI::obtain_a_storage_key_for_non_storage_purposes(settings_object);
         }();
 
         // 6. Let object be the result of obtaining a blob object using the URL record's blob URL entry and stringOrEnvironment.

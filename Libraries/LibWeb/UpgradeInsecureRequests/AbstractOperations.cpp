@@ -5,12 +5,21 @@
  */
 
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/UpgradeInsecureRequests/AbstractOperations.h>
 #include <LibWebCommon/SecureContexts/AbstractOperations.h>
 
 namespace Web::UpgradeInsecureRequests {
+
+// AD-HOC: Upgrade Insecure Requests reads request's client's target browsing context, but means the browsing context
+//         being navigated, which request's reserved client names.
+static bool target_browsing_context_is_nested(Fetch::Infrastructure::Request const& request)
+{
+    using Context = Fetch::Infrastructure::ReservedClientContext;
+    auto const& reserved_client = request.reserved_client_snapshot();
+    auto const* environment = reserved_client ? reserved_client->kind.get_pointer<Context::Environment>() : nullptr;
+    return environment && environment->target_browsing_context == Context::TargetBrowsingContext::Nested;
+}
 
 // https://w3c.github.io/webappsec-upgrade-insecure-requests/#upgrade-request
 void upgrade_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infrastructure::Request& request)
@@ -37,9 +46,7 @@ void upgrade_request_to_a_potentially_trustworthy_url_if_appropriate(Fetch::Infr
         // 1. If request is a form submission, skip the remaining substeps, and continue upgrading request.
         // 2. If request's client's target browsing context is a nested browsing context, skip the remaining substeps
         //    and continue upgrading request.
-        // NB: A navigation request's target browsing context is its reserved client's.
-        auto target_browsing_context = request.target_browsing_context();
-        if (!request.is_form_submission() && (!target_browsing_context || target_browsing_context->is_top_level())) {
+        if (!request.is_form_submission() && !target_browsing_context_is_nested(request)) {
             // 3. Let tuple be a tuple of request's URL's host and port.
             // 4. If tuple is contained in client's upgrade insecure navigations set, then skip the remaining
             //    substeps, and continue upgrading request.

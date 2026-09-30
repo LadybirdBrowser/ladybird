@@ -12,9 +12,9 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
-#include <LibGC/Weak.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 
 namespace Web::WebDriver::BiDi {
 
@@ -26,8 +26,8 @@ class NetworkRequest final : public JS::Cell {
 
 public:
     String id;
-    // NB: An observed request must not keep a navigable or its load-event delayer alive.
-    GC::Weak<HTML::Navigable> navigable;
+    // The navigable the request's events go to.
+    Optional<HTML::CrossProcessId> navigable_id;
     Optional<String> navigation;
     HashTable<u8> before_request_sent;
     HashTable<u8> response_started;
