@@ -752,6 +752,16 @@ Utf16String Internals::selected_text_for_clipboard()
     return {};
 }
 
+void Internals::find_in_page(Utf16String const& query)
+{
+    page().find_in_page({ .string = query });
+}
+
+void Internals::find_in_page_next_match()
+{
+    page().find_in_page_next_match();
+}
+
 WebIDL::ExceptionOr<void> Internals::set_clipboard_file(Utf16String const& name, Utf16String const& mime_type, Utf16String const& data)
 {
     auto mime_type_utf8 = mime_type.to_utf8_but_should_be_ported_to_utf16();

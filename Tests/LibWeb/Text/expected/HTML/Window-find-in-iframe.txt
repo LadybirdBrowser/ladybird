@@ -1,0 +1,4 @@
+iframe window.find("inner"): true
+iframe selection: "inner"
+iframe window.find("outer"): false
+top-level selection: ""

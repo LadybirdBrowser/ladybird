@@ -2424,25 +2424,30 @@ Window::NamedObjects Window::named_objects(Utf16View name)
 
 bool Window::find(Utf16View string)
 {
-    if (string.is_empty())
+    auto& document = associated_document();
+    if (string.is_empty() || !document.is_fully_active())
         return false;
 
-    auto& page = this->page();
-    Optional<Page::FindInPageResult> result;
-    if (auto last_query = page.last_find_in_page_query(); last_query.has_value() && last_query->string == string) {
-        result = page.find_in_page_next_match();
-    } else {
-        Page::FindInPageQuery query {
-            Utf16String::from_utf16(string),
-            CaseSensitivity::CaseInsensitive,
-            Page::WrapAround::No,
-            Page::ClearSelectionOnNoMatch::No,
-        };
+    auto selection = document.get_selection();
+    if (!selection)
+        return false;
 
-        result = page.find_in_page(query);
-    }
+    auto current_range = selection->range();
+    auto matches = document.find_matching_text(string, CaseSensitivity::CaseInsensitive);
+    auto match = matches.first_matching([&](auto const& match) {
+        if (!current_range)
+            return true;
+        auto position = DOM::position_of_boundary_point_relative_to_other_boundary_point_in_flat_tree(match->start(), current_range->end());
+        return !position.has_value() || *position != DOM::RelativeBoundaryPointPosition::Before;
+    });
+    if (!match.has_value())
+        return false;
 
-    return result.has_value() && result->total_match_count.has_value() && *result->total_match_count > 0;
+    auto start = (*match)->start();
+    auto end = (*match)->end();
+    MUST(selection->set_base_and_extent(start.node, start.offset, end.node, end.offset));
+    selection->scroll_focus_into_view();
+    return true;
 }
 
 }

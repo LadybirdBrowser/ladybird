@@ -110,6 +110,10 @@ public:
     Utf16String current_cursor();
 
     Utf16String selected_text_for_clipboard();
+
+    void find_in_page(Utf16String const& query);
+    void find_in_page_next_match();
+
     WebIDL::ExceptionOr<void> set_clipboard_file(Utf16String const& name, Utf16String const& mime_type, Utf16String const& data);
 
     void set_marked_text_from_input_method(Utf16String const& text);

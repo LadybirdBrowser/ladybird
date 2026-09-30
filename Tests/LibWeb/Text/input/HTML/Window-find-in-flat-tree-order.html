@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="reordering-host"><span slot="a" id="first">needle A</span><span slot="b" id="second">needle B</span></div>
+<div id="trailing-host"><span id="slotted">needle slotted</span></div>
+<div id="empty-host"></div>
+<div id="unassigned-host"><span slot="none">ignored</span></div>
+<p id="after">needle after the hosts</p>
+<script>
+    test(() => {
+        document.getElementById("reordering-host").attachShadow({ mode: "open" }).innerHTML = '<slot name="b"></slot><slot name="a"></slot>';
+        document.getElementById("trailing-host").attachShadow({ mode: "open" }).innerHTML = '<slot></slot><span id="unslotted">needle unslotted</span>';
+        const emptyHost = document.getElementById("empty-host");
+        emptyHost.attachShadow({ mode: "open" }).innerHTML = '<span id="empty-host-content">needle in the empty host</span>';
+        const unassignedHost = document.getElementById("unassigned-host");
+        unassignedHost.attachShadow({ mode: "open" }).innerHTML = '<slot></slot><span id="unassigned-host-content">needle beside an unassigned child</span>';
+        const describeSelection = () => {
+            const selection = getSelection();
+            if (selection.rangeCount === 0)
+                return "(none)";
+            return `"${selection.toString()}" in ${selection.anchorNode.parentElement.id}`;
+        };
+
+        const results = [];
+        for (let i = 0; i < 8; ++i)
+            results.push(`window.find("needle"): ${window.find("needle")}, selection ${describeSelection()}`);
+
+        getSelection().collapse(emptyHost, 0);
+        results.push(`window.find("needle") from the start of an empty host: ${window.find("needle")}, selection ${describeSelection()}`);
+        getSelection().collapse(unassignedHost, 1);
+        results.push(`window.find("needle") from the end of a host's children: ${window.find("needle")}, selection ${describeSelection()}`);
+
+        results.forEach(println);
+    });
+</script>
