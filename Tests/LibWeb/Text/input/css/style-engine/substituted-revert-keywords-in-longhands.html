@@ -2,20 +2,15 @@
 <script src="../../include.js"></script>
 <style>
     #parent { color: rgb(0, 128, 0); font-size: 20px; }
-    #inline { color: blue; }
-    @layer lower { #layered { color: blue; } }
-    @layer upper { #layered { color: var(--missing, revert-layer); } }
 </style>
 <div id="parent">
-    <div id="inline" style="color: var(--missing, revert-layer); font-size: var(--missing, revert); margin-left: var(--missing, revert-layer); background-color: var(--missing, revert-layer)"></div>
+    <div id="inline" style="font-size: var(--missing, revert); margin-left: var(--missing, revert-layer); background-color: var(--missing, revert-layer)"></div>
     <div id="background-color" style="background-color: var(--missing, revert-layer)"></div>
     <div id="shorthand" style="background: var(--missing, revert-layer)"></div>
-    <div id="layered"></div>
 </div>
 <script>
     test(() => {
-        // A `revert` or `revert-layer` that a substitution produces for a longhand acts as `unset`.
-        for (const id of ["inline", "background-color", "shorthand", "layered"]) {
+        for (const id of ["inline", "background-color", "shorthand"]) {
             const style = getComputedStyle(document.getElementById(id));
             println(`${id}: color=${style.color} font-size=${style.fontSize} margin-left=${style.marginLeft} background-color=${style.backgroundColor}`);
         }

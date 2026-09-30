@@ -2416,8 +2416,7 @@ impl RetainedState {
                     )?;
                     let value = match resolved.data() {
                         crate::css::style_value::StyleValueData::GuaranteedInvalid => unset_value(),
-                        _ => expanded_longhand_value(shorthand, winner.property, &resolved)
-                            .map_or_else(unset_value, invalid_as_unset),
+                        _ => expanded_longhand_value(shorthand, winner.property, &resolved).unwrap_or_else(unset_value),
                     };
                     (WinnerValue::Substituted(value), None)
                 }
@@ -2427,6 +2426,15 @@ impl RetainedState {
                 WinnerValue::Substituted(value) => value.data(),
                 WinnerValue::Written { .. } => borrowed.expect("written declaration is borrowed"),
             };
+            if matches!(value, WinnerValue::Substituted(_))
+                && matches!(
+                    super::program_updates::declaration_operator(data),
+                    CascadeOperator::Revert | CascadeOperator::RevertLayer
+                )
+            {
+                counters.bump(Counter::EngineComputedRecordBailSubstitution);
+                return None;
+            }
             if !checks
                 .longhand_context_free
                 .unwrap_or_else(|| value_computes_without_document_context(data))
@@ -4147,20 +4155,11 @@ fn unset_value() -> crate::css::style_value::RetainedStyleValueData {
     })
 }
 
-/// A substituted value as the cascade takes it: one invalid at computed-value time is unset, and
-/// so is a `revert` or `revert-layer` the substitution produced, which the cascade does not roll
-/// back once substitution has run.
 fn invalid_as_unset(
     value: crate::css::style_value::RetainedStyleValueData,
 ) -> crate::css::style_value::RetainedStyleValueData {
-    use crate::css::style_compute::keyword;
     match value.data() {
         crate::css::style_value::StyleValueData::GuaranteedInvalid => unset_value(),
-        crate::css::style_value::StyleValueData::Keyword { keyword }
-            if *keyword == keyword::REVERT || *keyword == keyword::REVERT_LAYER =>
-        {
-            unset_value()
-        }
         _ => value,
     }
 }
