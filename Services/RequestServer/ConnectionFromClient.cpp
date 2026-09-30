@@ -648,9 +648,8 @@ void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString con
     set_option(CURLOPT_PRIVATE, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(fetch.ptr()) | aia_fetch_private_tag));
     set_option(CURLOPT_URL, fetch_url.characters());
     set_option(CURLOPT_PROTOCOLS_STR, "http");
-    set_option(CURLOPT_REDIR_PROTOCOLS_STR, "http");
-    set_option(CURLOPT_FOLLOWLOCATION, 1L);
-    set_option(CURLOPT_MAXREDIRS, 5L);
+    // curl would resolve a redirect's host itself, bypassing our resolver.
+    set_option(CURLOPT_FOLLOWLOCATION, 0L);
     set_option(CURLOPT_TIMEOUT, 10L);
     set_option(CURLOPT_MAXFILESIZE_LARGE, static_cast<curl_off_t>(max_aia_response_size));
     set_option(CURLOPT_NOSIGNAL, 1L);
