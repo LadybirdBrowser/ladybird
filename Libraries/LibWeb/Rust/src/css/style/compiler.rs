@@ -41,12 +41,15 @@ use super::fnv::fnv1a64;
 use super::index::StyleAtomID;
 use super::relative_selector::RelativeAxis;
 use super::relative_selector::RelativeQuery;
+use super::selector::AtomSpace;
 use super::selector::AttributeCase;
 use super::selector::AttributeOperator;
 use super::selector::AttributeTest;
+use super::selector::EngineAtoms;
 use super::selector::FeatureTest;
 use super::selector::NamespaceTest;
 use super::selector::NthPosition;
+use super::selector::QueryAtoms;
 use super::selector::SelectorNodeID;
 use super::selector::SelectorOp;
 use super::selector::SelectorProgram;
@@ -220,8 +223,8 @@ impl NamespaceScope {
 struct UndeclaredPrefix;
 
 /// Compiles parsed selectors into one program, interning names through the document's atom table.
-pub struct SelectorCompiler<'a> {
-    builder: SelectorProgramBuilder,
+pub struct SelectorCompiler<'a, A: AtomSpace = EngineAtoms> {
+    builder: SelectorProgramBuilder<A>,
     /// The document-local atom for a name, optionally qualified by a namespace. A qualified name is
     /// a name of its own: `[ns|x]` names an attribute that `[x]` does not, and one element can
     /// carry both.
@@ -265,8 +268,36 @@ impl<'a> SelectorCompiler<'a> {
         html_element_namespace: StyleAtomID,
         namespaces: NamespaceScope,
     ) -> Self {
+        Self::with_atoms(intern, fold_id_and_class_name_case, html_element_namespace, namespaces)
+    }
+}
+
+impl<'a> SelectorCompiler<'a, QueryAtoms> {
+    /// Compile the selectors of a DOM query, whose names `intern` keys by the query's own atoms.
+    ///
+    /// https://dom.spec.whatwg.org/#scope-match-a-selectors-string
+    /// A query is matched with a scoping root, which `:scope` names, and so does `&`, which has no parent rule in a
+    /// query. No `@namespace` is in scope, so a query can name no namespace prefix.
+    #[must_use]
+    pub fn for_query(
+        intern: &'a mut dyn FnMut(usize, Option<StyleAtomID>) -> StyleAtomID,
+        html_element_namespace: StyleAtomID,
+    ) -> Self {
+        let mut compiler = Self::with_atoms(intern, false, html_element_namespace, NamespaceScope::default());
+        compiler.scope_root_is_bound = true;
+        compiler
+    }
+}
+
+impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
+    fn with_atoms(
+        intern: &'a mut dyn FnMut(usize, Option<StyleAtomID>) -> StyleAtomID,
+        fold_id_and_class_name_case: bool,
+        html_element_namespace: StyleAtomID,
+        namespaces: NamespaceScope,
+    ) -> Self {
         Self {
-            builder: SelectorProgramBuilder::new(),
+            builder: SelectorProgramBuilder::default(),
             intern,
             fold_id_and_class_name_case,
             html_element_namespace,
@@ -280,7 +311,7 @@ impl<'a> SelectorCompiler<'a> {
     }
 
     #[must_use]
-    pub fn finish(self) -> SelectorProgram {
+    pub fn finish(self) -> SelectorProgram<A> {
         self.builder.finish()
     }
 

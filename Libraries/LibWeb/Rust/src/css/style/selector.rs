@@ -45,6 +45,7 @@ use smallvec::SmallVec;
 use std::cell::RefCell;
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::marker::PhantomData;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -715,9 +716,27 @@ impl SelectorPrefixPredicate {
     }
 }
 
+/// Whose names the atoms of a selector program are.
+///
+/// A program is evaluated against a subject whose storage is keyed by the same atoms, so the space is part of the
+/// program's type: a program compiled for one kind of storage cannot be run against another.
+pub trait AtomSpace: Default + PartialEq + Eq + Hash {}
+
+/// The style engine's atoms, which a document's style storage is keyed by.
+#[derive(Default, PartialEq, Eq, Hash)]
+pub struct EngineAtoms;
+
+impl AtomSpace for EngineAtoms {}
+
+/// A selector query's own names, interned when the query is compiled and compared with the DOM's names by identity.
+#[derive(Default, PartialEq, Eq, Hash)]
+pub struct QueryAtoms;
+
+impl AtomSpace for QueryAtoms {}
+
 /// A compiled selector program: one rule's selector list.
 #[derive(Default, PartialEq, Eq, Hash)]
-pub struct SelectorProgram {
+pub struct SelectorProgram<A: AtomSpace = EngineAtoms> {
     nodes: Vec<SelectorOp>,
     operands: Vec<SelectorNodeID>,
     text: Vec<u16>,
@@ -735,9 +754,10 @@ pub struct SelectorProgram {
     relation_target_blooms: Box<[u64]>,
     can_leave_scope: bool,
     subject_can_leave_scope: bool,
+    atoms: PhantomData<A>,
 }
 
-impl SelectorProgram {
+impl<A: AtomSpace> SelectorProgram<A> {
     /// Whether any operator here tests a sibling position. Only those queries can reuse sibling
     /// geometry across candidates — and attaching a workspace to the rest would cache answers no
     /// later candidate asks for.
@@ -930,8 +950,8 @@ impl SelectorProgram {
 /// Builds one selector program. C++ parses the selector text and drives this; the IR and its
 /// ordering are decided here, while specificity comes from the immutable compiled selector.
 #[derive(Default)]
-pub struct SelectorProgramBuilder {
-    program: SelectorProgram,
+pub struct SelectorProgramBuilder<A: AtomSpace = EngineAtoms> {
+    program: SelectorProgram<A>,
 }
 
 impl SelectorProgramBuilder {
@@ -939,10 +959,12 @@ impl SelectorProgramBuilder {
     pub fn new() -> Self {
         Self::default()
     }
+}
 
+impl<A: AtomSpace> SelectorProgramBuilder<A> {
     /// The program as built so far, for a compiler that has to inspect what it just emitted.
     #[must_use]
-    pub fn program(&self) -> &SelectorProgram {
+    pub fn program(&self) -> &SelectorProgram<A> {
         &self.program
     }
 
@@ -1100,7 +1122,7 @@ impl SelectorProgramBuilder {
     }
 
     #[must_use]
-    pub fn finish(mut self) -> SelectorProgram {
+    pub fn finish(mut self) -> SelectorProgram<A> {
         self.program.cache_dispatch_metadata();
         for index in 0..self.program.entries.len() {
             let entry = &self.program.entries[index];
@@ -1142,7 +1164,7 @@ impl SelectorProgramBuilder {
     }
 }
 
-impl SelectorProgram {
+impl<A: AtomSpace> SelectorProgram<A> {
     fn cache_dispatch_metadata(&mut self) {
         // Only ancestor walks consult these blooms; other programs need no per-node array.
         let target_count = if self.nodes.iter().any(|node| matches!(node, SelectorOp::Ancestor(_))) {
@@ -1350,7 +1372,7 @@ impl SelectorProgram {
                 SelectorPrefixPredicate::And(operands.into_boxed_slice())
             }
         }
-        fn predicate(program: &SelectorProgram, node: SelectorNodeID) -> SelectorPrefixPredicate {
+        fn predicate<A: AtomSpace>(program: &SelectorProgram<A>, node: SelectorNodeID) -> SelectorPrefixPredicate {
             match program.node(node) {
                 SelectorOp::And { first, count } => conjunction(
                     program
@@ -3722,7 +3744,7 @@ struct RouteDescriptor<'a> {
     path: &'a [InverseStep],
 }
 
-impl SelectorProgram {
+impl<A: AtomSpace> SelectorProgram<A> {
     /// Walk one entry and report every semantic input it mentions, with the inverse path from that
     /// input to the entry's subjects.
     ///
@@ -6191,6 +6213,7 @@ impl SelectorTree for EngineTree<'_> {
 }
 
 impl<'a> SelectorSubject for EngineSubject<'a> {
+    type Atoms = EngineAtoms;
     type Node = StyleNodeID;
     type Tree = EngineTree<'a>;
     type Row = MatchFactRow<'a>;
@@ -6797,7 +6820,7 @@ mod tests {
 
     #[test]
     fn selector_program_atom_roots_cover_every_operator_payload() {
-        let program = SelectorProgram {
+        let program: SelectorProgram = SelectorProgram {
             nodes: vec![
                 SelectorOp::Feature(FeatureTest::TagName(TagTest {
                     written: StyleAtomID(1),
