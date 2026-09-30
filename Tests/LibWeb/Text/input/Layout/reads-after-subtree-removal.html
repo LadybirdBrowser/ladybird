@@ -18,22 +18,28 @@
         await animationFrame();
 
         // The removed subtree's layout nodes stay in the tree, without StyleNodeIDs, until the parent is rebuilt.
-        // Each read below updates layout first, which tears them down and rebuilds the parent.
+        // Each read below updates layout first, which tears them down and rebuilds the parent after the removed
+        // nodes were collected.
         container.replaceChildren(survivor);
+        internals.gc();
         await internals.wheel(50, 50, 0, 100);
         println(`Scroll offset after wheel: ${document.scrollingElement.scrollTop}`);
 
         container.innerHTML = "<div class=box>inner text</div><span>more</span>";
+        internals.gc();
         const hit = internals.hitTest(20, 10);
         println(`Hit test lands on: ${hit.node.nodeName}`);
 
         container.replaceChildren(survivor);
+        internals.gc();
         println(`Survivor has client rects: ${survivor.getClientRects().length > 0}`);
 
         container.innerHTML = "find me";
+        internals.gc();
         println(`Find in page: ${window.find("find me")}`);
 
         container.replaceChildren(survivor);
+        internals.gc();
         println(internals.dumpLayoutTree(container).replace(/\n$/, ""));
     });
 </script>

@@ -2626,7 +2626,7 @@ impl TreeBuilderHost<'_> {
             .derive_anonymous_style_record(parent_style_record, style_kind, overrides);
         // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference derived from
         // it across the allocation.
-        let slot = unsafe { &mut *self.arena }.allocate_unbound(std::ptr::null_mut());
+        let slot = unsafe { &mut *self.arena }.allocate_unbound();
         self.arena().stamp_anonymous_box(slot, node_kind, derived);
         self.arena().refresh_insets_use_anchor_functions_flag(slot);
         if node_kind == NodeKind::InlineNode {
