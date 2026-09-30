@@ -3891,6 +3891,15 @@ void Node::queue_tree_mutation_record(ReadonlySpan<GC::Ref<Node>> added_nodes, R
     queue_mutation_record(MutationType::childList, {}, {}, {}, added_nodes, removed_nodes, previous_sibling, next_sibling);
 }
 
+// An element's attribute name filter holds those of its children.
+static void add_to_attribute_name_filter_of_parent(Node& parent, Node const& child)
+{
+    auto* parent_element = as_if<Element>(parent);
+    auto const* child_element = as_if<Element>(child);
+    if (parent_element && child_element)
+        parent_element->add_to_subtree_attribute_name_filter(child_element->subtree_attribute_name_filter());
+}
+
 void Node::append_child_impl(GC::Ref<Node> node)
 {
     VERIFY(!node->parent());
@@ -3902,6 +3911,7 @@ void Node::append_child_impl(GC::Ref<Node> node)
     node->set_root_for_subtree(root());
     if (auto count = node->m_associated_animation_count_in_subtree)
         change_associated_animation_count_in_subtree(count);
+    add_to_attribute_name_filter_of_parent(*this, node);
 }
 
 void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
@@ -3914,6 +3924,7 @@ void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
     node->set_root_for_subtree(root());
     if (auto count = node->m_associated_animation_count_in_subtree)
         change_associated_animation_count_in_subtree(count);
+    add_to_attribute_name_filter_of_parent(*this, node);
 }
 
 void Node::remove_child_impl(GC::Ref<Node> node)

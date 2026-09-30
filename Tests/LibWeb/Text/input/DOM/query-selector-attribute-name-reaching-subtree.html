@@ -1,0 +1,128 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+test(() => {
+    const host = document.getElementById("host");
+    function deepTree() {
+        const top = document.createElement("section");
+        let node = top;
+        for (let i = 0; i < 5; ++i)
+            node = node.appendChild(document.createElement("div"));
+        return { top, leaf: node };
+    }
+    function check(name, selector) {
+        println(`${name}: ${document.querySelectorAll(selector).length} ${host.querySelectorAll(selector).length} ${document.querySelector(selector) !== null}`);
+    }
+
+    const connected = deepTree();
+    host.append(connected.top);
+    check("before any attribute", "[data-late]");
+    connected.leaf.setAttribute("data-late", "1");
+    check("setAttribute on a connected descendant", "[data-late]");
+
+    const appended = deepTree();
+    appended.leaf.setAttribute("data-appended", "");
+    host.append(appended.top);
+    check("appended subtree", "[data-appended]");
+
+    const inserted = deepTree();
+    inserted.leaf.setAttribute("data-inserted", "");
+    host.insertBefore(inserted.top, host.firstChild);
+    check("inserted subtree", "[data-inserted]");
+
+    const moved = deepTree();
+    moved.leaf.setAttribute("data-moved", "");
+    document.body.append(moved.top);
+    connected.leaf.append(moved.top);
+    check("moved subtree", "[data-moved]");
+
+    const styled = deepTree();
+    host.append(styled.top);
+    styled.leaf.style.color = "red";
+    check("style set through CSSOM", "[style]");
+
+    const attribute = document.createAttribute("data-node");
+    const nodeTarget = deepTree();
+    host.append(nodeTarget.top);
+    nodeTarget.leaf.setAttributeNode(attribute);
+    check("setAttributeNode", "[data-node]");
+
+    const named = deepTree();
+    host.append(named.top);
+    named.leaf.attributes.setNamedItem(document.createAttribute("data-named"));
+    check("setNamedItem", "[data-named]");
+
+    const toggled = deepTree();
+    host.append(toggled.top);
+    toggled.leaf.toggleAttribute("data-toggled");
+    check("toggleAttribute", "[data-toggled]");
+
+    const namespaced = deepTree();
+    host.append(namespaced.top);
+    namespaced.leaf.setAttributeNS("urn:test", "t:data-namespaced", "");
+    check("setAttributeNS", "[*|data-namespaced]");
+
+    const original = deepTree();
+    original.leaf.setAttribute("data-cloned", "");
+    host.append(original.top.cloneNode(true));
+    check("cloned subtree", "[data-cloned]");
+
+    const parsed = document.createElement("div");
+    host.append(parsed);
+    parsed.innerHTML = "<p><span><b data-parsed>x</b></span></p>";
+    check("innerHTML", "[data-parsed]");
+
+    const fragment = document.createDocumentFragment();
+    const inFragment = deepTree();
+    fragment.append(inFragment.top);
+    inFragment.leaf.setAttribute("data-fragment", "");
+    host.append(fragment);
+    check("fragment children", "[data-fragment]");
+
+    const both = deepTree();
+    host.append(both.top);
+    both.top.setAttribute("data-first", "");
+    both.leaf.setAttribute("data-first", "");
+    both.leaf.setAttribute("data-second", "");
+    check("compound needing two names", "[data-first][data-second]");
+    check("list of two names", "[data-first], [data-missing]");
+
+    // Only a name every alternative of a subject requires may narrow the walk.
+    const alternatives = deepTree();
+    host.append(alternatives.top);
+    alternatives.leaf.setAttribute("data-either", "");
+    check(":is() with a name one alternative lacks", ":is([data-either], [data-either][data-missing])");
+    check(":is() of alternatives with different names", ":is([data-missing], [data-either])");
+    check(":where() of a name", ":where([data-either])");
+    check(":not() of a name", "div:not([data-missing]) > [data-either]");
+
+    // A name only an argument of :has() or `of S` asks for is not one the subject requires.
+    const relative = deepTree();
+    host.append(relative.top);
+    relative.leaf.setAttribute("data-has", "");
+    relative.leaf.setAttribute("data-nth", "");
+    check(":has() of a name", "section:has([data-has])");
+    check(":nth-child() of a name", ":nth-child(1 of [data-nth])");
+
+    // An HTML document folds the name in the selector to match the lowercase name on an HTML element.
+    const upper = deepTree();
+    host.append(upper.top);
+    upper.leaf.setAttribute("data-upper", "");
+    check("uppercase name", "[DATA-UPPER]");
+
+    const shadowHost = document.createElement("div");
+    host.append(shadowHost);
+    const shadowRoot = shadowHost.attachShadow({ mode: "open" });
+    const shadowed = deepTree();
+    shadowRoot.append(shadowed.top);
+    shadowed.leaf.setAttribute("data-shadowed", "");
+    println(`query from a shadow root: ${shadowRoot.querySelectorAll("[data-shadowed]").length} ${document.querySelectorAll("[data-shadowed]").length} ${shadowRoot.querySelector("section [data-shadowed]") === shadowed.leaf}`);
+
+    const removed = deepTree();
+    removed.leaf.setAttribute("data-removed", "");
+    host.append(removed.top);
+    removed.leaf.removeAttribute("data-removed");
+    check("removed attribute", "[data-removed]");
+});
+</script>

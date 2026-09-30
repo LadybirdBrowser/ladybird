@@ -840,6 +840,17 @@ impl<A: AtomSpace> SelectorProgram<A> {
         &self.entries
     }
 
+    /// Whether an entry matches nothing because its subject holds the test nothing satisfies, which is what the
+    /// compiler emits for an unsatisfiable compound.
+    #[must_use]
+    pub fn entry_never_matches(&self, entry: &SelectorEntry) -> bool {
+        let is_never = |id: SelectorNodeID| matches!(self.node(id), SelectorOp::Not(inner) if self.node(inner) == SelectorOp::Feature(FeatureTest::AnyElement));
+        match self.node(entry.root) {
+            SelectorOp::And { first, count } => self.operands(first, count).iter().any(|&operand| is_never(operand)),
+            _ => is_never(entry.root),
+        }
+    }
+
     #[must_use]
     pub fn contains_relational_selector(&self) -> bool {
         self.nodes
