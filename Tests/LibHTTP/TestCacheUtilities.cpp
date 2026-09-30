@@ -158,6 +158,15 @@ TEST_CASE(vary_nominating_too_many_fields_is_not_cacheable)
     EXPECT_EQ(HTTP::create_vary_key(*request_headers, *repeated_response_headers), HTTP::create_vary_key(*request_headers, HTTP::HeaderList::create({ { "Vary", "X-Fill" } })));
 }
 
+TEST_CASE(vary_cookie_is_not_cacheable)
+{
+    auto request_headers = HTTP::HeaderList::create({ { "Cookie", "account=A" } });
+    auto response_headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=60" }, { "Vary", "Accept, cookie" } });
+
+    EXPECT(!HTTP::is_cacheable(200, *response_headers));
+    EXPECT(!HTTP::create_vary_key(*request_headers, *response_headers).has_value());
+}
+
 TEST_CASE(vary_key_frames_each_nominated_field)
 {
     auto response_headers = HTTP::HeaderList::create({ { "Vary", "Accept, Accept-Language, Authorization" } });
