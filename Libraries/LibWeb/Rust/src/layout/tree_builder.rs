@@ -85,6 +85,7 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub builder: *mut c_void,
     pub first_child: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub next_sibling: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub next_identified_sibling: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
     pub clear_dom_update_flags: unsafe extern "C" fn(*mut c_void),
     pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
@@ -103,10 +104,8 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub rendered_in_top_layer: unsafe extern "C" fn(*mut c_void) -> bool,
     pub flat_tree_parent: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub flat_tree_render_facts: unsafe extern "C" fn(*mut c_void) -> FfiFlatTreeRenderFacts,
-    pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
     pub register_svg_resource_reference: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub element_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
-    pub dom_node_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub layout_node_dom_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub principal_node_entry_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalNodeEntryFacts,
     pub request_top_layer_zone_rebuild: unsafe extern "C" fn(*mut c_void),
@@ -128,6 +127,15 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub document_element_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub layout: FfiTreeBuilderCallbacks,
     pub pseudo: FfiPseudoTreeBuilderCallbacks,
+}
+
+/// A DOM node the tree builder reasons about by identity as well as by pointer: the identity names
+/// the node's rows in the arena, so Rust finds them without asking C++ for the answer.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiIdentifiedDomNode {
+    pub node: *mut c_void,
+    pub style_node: u32,
 }
 
 /// The C++ frame that retains a principal node's old and new layout boxes, paired with the old
@@ -190,8 +198,8 @@ pub struct FfiPrincipalDescendantFacts {
     pub shadow_root: *mut c_void,
     pub slot_element: *mut c_void,
     pub svg_graphics_element: *mut c_void,
-    pub svg_mask: *mut c_void,
-    pub svg_clip_path: *mut c_void,
+    pub svg_mask: FfiIdentifiedDomNode,
+    pub svg_clip_path: FfiIdentifiedDomNode,
     pub svg_fill_pattern: *mut c_void,
     pub svg_stroke_pattern: *mut c_void,
 }
@@ -621,9 +629,9 @@ impl DomTreeBuilderHost<'_> {
         unsafe { (self.callbacks.next_sibling)(node) }
     }
 
-    fn dom_node_layout_node(&self, node: *mut c_void) -> LayoutNode {
+    fn next_identified_sibling(&self, node: *mut c_void) -> FfiIdentifiedDomNode {
         // SAFETY: Callers only pass live DOM nodes.
-        unsafe { (self.callbacks.dom_node_layout_node)(node) }
+        unsafe { (self.callbacks.next_identified_sibling)(node) }
     }
 
     fn layout(&self) -> TreeBuilderHost<'_> {
@@ -932,22 +940,17 @@ unsafe fn update_layout_tree_for_display_contents(
     });
 }
 
-fn ancestor_stack_contains_element_layout_node(
-    host: &DomTreeBuilderHost<'_>,
-    state: &TreeBuilderState,
-    element: *mut c_void,
-) -> bool {
-    // An element's box registers itself on the element at construction time, before its subtree
-    // is built, so an element under construction anywhere on the ancestor stack is found here.
-    // SAFETY: `element` is a live DOM element.
-    let element_layout_node = unsafe { (host.callbacks.element_layout_node)(element) };
-    !element_layout_node.is_invalid() && state.ancestor_stack.contains(&element_layout_node)
+fn ancestor_stack_contains_element_box(arena: &LayoutNodeArena, state: &TreeBuilderState, style_node: u32) -> bool {
+    // An element's box binds itself to the element at construction time, before its subtree is
+    // built, so an element under construction anywhere on the ancestor stack is found here.
+    let element_box = bound_box(arena, style_node);
+    !element_box.is_invalid() && state.ancestor_stack.contains(&element_box)
 }
 
 fn update_svg_resource(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
-    resource: *mut c_void,
+    resource: FfiIdentifiedDomNode,
     graphics_element: *mut c_void,
     layout_node: LayoutNode,
     context: &mut TreeBuilderContext,
@@ -958,10 +961,10 @@ fn update_svg_resource(
     context.has_svg_root = true;
     state.ancestor_stack.push(layout_node);
 
-    if !ancestor_stack_contains_element_layout_node(host, state, resource) {
-        update_layout_tree(host, state, resource, context, true, FfiInsertionMode::Append);
+    if !ancestor_stack_contains_element_box(host.layout().arena(), state, resource.style_node) {
+        update_layout_tree(host, state, resource.node, context, true, FfiInsertionMode::Append);
         // SAFETY: Both pointers denote live SVG elements held by the graphics element.
-        unsafe { (host.callbacks.register_svg_resource_reference)(resource, graphics_element) };
+        unsafe { (host.callbacks.register_svg_resource_reference)(resource.node, graphics_element) };
     } else {
         // FIXME: Somehow either remove ancestor from the layout tree or mark it as invalid.
     }
@@ -975,7 +978,7 @@ fn update_svg_pattern(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
     pattern: *mut c_void,
-    content_element: *mut c_void,
+    content_element: FfiIdentifiedDomNode,
     graphics_element: *mut c_void,
     layout_node: LayoutNode,
     context: &mut TreeBuilderContext,
@@ -984,14 +987,21 @@ fn update_svg_pattern(
     context.layout_svg_pattern = true;
     state.ancestor_stack.push(layout_node);
 
-    if !ancestor_stack_contains_element_layout_node(host, state, content_element) {
-        update_layout_tree(host, state, content_element, context, true, FfiInsertionMode::Append);
+    if !ancestor_stack_contains_element_box(host.layout().arena(), state, content_element.style_node) {
+        update_layout_tree(
+            host,
+            state,
+            content_element.node,
+            context,
+            true,
+            FfiInsertionMode::Append,
+        );
         // The referenced pattern may inherit its content from another pattern via href. Removing either element
         // invalidates the attached resource box, so register the referencer with both.
         // SAFETY: All pointers denote live SVG elements held by the graphics element or pattern chain.
         unsafe {
-            (host.callbacks.register_svg_resource_reference)(content_element, graphics_element);
-            if pattern != content_element {
+            (host.callbacks.register_svg_resource_reference)(content_element.node, graphics_element);
+            if pattern != content_element.node {
                 (host.callbacks.register_svg_resource_reference)(pattern, graphics_element);
             }
         }
@@ -1220,7 +1230,7 @@ unsafe fn update_principal_node_descendants(
         if should_create_layout_node {
             if !facts.svg_graphics_element.is_null() {
                 for resource in [facts.svg_mask, facts.svg_clip_path] {
-                    if !resource.is_null() {
+                    if !resource.node.is_null() {
                         update_svg_resource(
                             host,
                             state,
@@ -1240,10 +1250,10 @@ unsafe fn update_principal_node_descendants(
                     }
                     // SAFETY: `pattern` is a live SVGPatternElement.
                     let content_element = unsafe { (host.callbacks.svg_pattern_content_element)(pattern) };
-                    if content_element.is_null() || seen_content_elements.contains(&content_element) {
+                    if content_element.node.is_null() || seen_content_elements.contains(&content_element.node) {
                         continue;
                     }
-                    seen_content_elements.push(content_element);
+                    seen_content_elements.push(content_element.node);
                     update_svg_pattern(
                         host,
                         state,
@@ -1352,6 +1362,14 @@ impl PrincipalBoxConstruction {
             created_box: None,
             handled_display_contents: false,
         }
+    }
+}
+
+/// The box the element or text node `style_node` names is bound to, if it has one.
+fn bound_box(arena: &LayoutNodeArena, style_node: u32) -> LayoutNode {
+    match StyleNodeID::from_raw(style_node) {
+        Some(style_node) => arena.bound_row(style_node),
+        None => NodeSlotId::INVALID,
     }
 }
 
@@ -2003,7 +2021,8 @@ pub struct FfiPseudoElementFacts {
     pub display_is_contents: bool,
     pub display_is_list_item: bool,
     pub has_content_replacement: bool,
-    pub originating_layout_node_is_list_item: bool,
+    /// The originating element's box when it is a list item box, for a ::marker.
+    pub originating_list_box: NodeSlotId,
     pub normal_marker_has_content: bool,
     pub marker_position_is_inside: bool,
 }
@@ -2068,7 +2087,7 @@ pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudo
 
         if facts.pseudo_element == FfiPseudoElement::Marker
             && facts.content_type == FfiComputedContentType::Normal
-            && facts.originating_layout_node_is_list_item
+            && !facts.originating_list_box.is_invalid()
         {
             // https://www.w3.org/TR/css-lists-3/#content-property
             // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
@@ -2155,11 +2174,10 @@ fn create_pseudo_element_with_frame(
     // https://drafts.csswg.org/css-lists-3/#list-style-position-outside
     // "the marker box is a block container and is placed outside the principal block box"
     if decision == FfiPseudoElementDecision::Box
-        && facts.originating_layout_node_is_list_item
+        && !facts.originating_list_box.is_invalid()
         && !facts.marker_position_is_inside
     {
-        // SAFETY: The originating element remains live and owns a list item box.
-        let list_item_box = unsafe { (host.callbacks.element_layout_node)(element) };
+        let list_item_box = facts.originating_list_box;
         assert_eq!(layout_host.data(list_item_box).kind.get(), NodeKind::ListItemBox);
         let first_child = layout_host.first_child(list_item_box);
         layout_host.attach_child(list_item_box, unplaced_box.take().expect("the marker box"), first_child);
@@ -3052,9 +3070,9 @@ fn insert_child_in_dom_order(
         )
     };
     if parent_is_empty_anonymous_wrapper && !wrapper_parent.is_invalid() {
-        let mut sibling = host.next_sibling(dom_node);
-        while !sibling.is_null() {
-            let mut sibling_layout_node = host.dom_node_layout_node(sibling);
+        let mut sibling = host.next_identified_sibling(dom_node);
+        while !sibling.node.is_null() {
+            let mut sibling_layout_node = bound_box(layout.arena(), sibling.style_node);
             while !sibling_layout_node.is_invalid() && layout.parent(sibling_layout_node) != wrapper_parent {
                 sibling_layout_node = layout.parent(sibling_layout_node);
             }
@@ -3062,18 +3080,18 @@ fn insert_child_in_dom_order(
                 layout.move_child(parent, wrapper_parent, sibling_layout_node);
                 break;
             }
-            sibling = host.next_sibling(sibling);
+            sibling = host.next_identified_sibling(sibling.node);
         }
     }
 
-    let mut sibling = host.next_sibling(dom_node);
-    while !sibling.is_null() {
-        let sibling_layout_node = host.dom_node_layout_node(sibling);
+    let mut sibling = host.next_identified_sibling(dom_node);
+    while !sibling.node.is_null() {
+        let sibling_layout_node = bound_box(layout.arena(), sibling.style_node);
         if !sibling_layout_node.is_invalid() && layout.parent(sibling_layout_node) == parent {
             layout.attach_child(parent, child, sibling_layout_node);
             return;
         }
-        sibling = host.next_sibling(sibling);
+        sibling = host.next_identified_sibling(sibling.node);
     }
 
     let after_layout_node = pseudo_element_box_of_element_box(&layout, parent, GENERATED_FOR_AFTER);
@@ -4238,7 +4256,7 @@ mod tests {
                       display_is_contents,
                       display_is_list_item,
                       has_content_replacement,
-                      originating_layout_node_is_list_item,
+                      originating_layout_node_is_list_item: bool,
                       normal_marker_has_content| {
             pseudo_element_decision(FfiPseudoElementFacts {
                 has_style: true,
@@ -4248,7 +4266,11 @@ mod tests {
                 display_is_contents,
                 display_is_list_item,
                 has_content_replacement,
-                originating_layout_node_is_list_item,
+                originating_list_box: if originating_layout_node_is_list_item {
+                    NodeSlotId::new(1, 1)
+                } else {
+                    NodeSlotId::INVALID
+                },
                 normal_marker_has_content,
                 marker_position_is_inside: false,
             })
