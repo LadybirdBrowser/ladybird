@@ -1556,6 +1556,7 @@ Layout::Node* Document::layout_root_if_live() const
 // retire the tree that was replaced and give the new one a paint state.
 Layout::RustFFI::FfiLayoutTreeBuildOutcome Document::build_layout_tree()
 {
+    m_needs_throttled_animation_style_update_check = true;
     auto replaced_root = layout_root_slot();
     auto outcome = Layout::build_layout_tree(*this);
     VERIFY(is<Layout::Viewport>(layout_node_arena().node_if_live(outcome.viewport)));
@@ -2344,8 +2345,23 @@ void Document::sample_animation_effects_needing_style_update()
     m_force_throttled_animation_style_update = false;
 }
 
+void Document::note_animations_that_can_skip_per_frame_style_updates()
+{
+    if (!m_needs_throttled_animation_style_update_check || m_has_throttled_animation_style_update || !layout_is_up_to_date())
+        return;
+    m_needs_throttled_animation_style_update_check = false;
+    for (auto& animation : m_associated_animations) {
+        auto* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
+        if (effect && effect->can_skip_per_frame_style_update()) {
+            note_throttled_animation_style_update();
+            return;
+        }
+    }
+}
+
 void Document::flush_throttled_animation_style_update()
 {
+    note_animations_that_can_skip_per_frame_style_updates();
     if (!m_has_throttled_animation_style_update)
         return;
     auto task_generation = relevant_settings_object().responsible_event_loop().task_generation();
@@ -2359,10 +2375,12 @@ void Document::flush_throttled_animation_style_update()
 
 void Document::flush_throttled_animation_style_update_for_node(Node const& node)
 {
-    // Only an animation that skipped a per-frame style update has anything for this read to catch
-    // up on. The last sampling pass recorded whether any did, and the document-wide flush above
-    // already trusts that record, so walking every associated animation to find none is wasted on
-    // every synchronous geometry read of a page that animates.
+    // Only an animation that can skip a per-frame style update has anything for this read to catch
+    // up on. Sampling and painting record whether any can, as do reads after a visibility or layout
+    // tree change, and the document-wide flush above already trusts that record, so walking every
+    // associated animation to find none is wasted on every synchronous geometry read of a page that
+    // animates.
+    note_animations_that_can_skip_per_frame_style_updates();
     if (!m_has_throttled_animation_style_update)
         return;
 
@@ -2453,8 +2471,10 @@ bool Document::compositor_animation_observation_timer_is_active() const
 
 void Document::throttled_animation_visibility_changed()
 {
-    if (!m_has_throttled_animation_style_update)
+    if (!m_has_throttled_animation_style_update) {
+        m_needs_throttled_animation_style_update_check = true;
         return;
+    }
     flush_throttled_animation_style_update();
     page().client().request_frame();
 }
@@ -7838,6 +7858,8 @@ void Document::update_compositor_animations()
                 effect.request_observation_sample();
                 requested_withdrawn_effect_sample = true;
             }
+            if (!m_has_throttled_animation_style_update && effect.can_skip_per_frame_style_update())
+                note_throttled_animation_style_update();
         };
         auto abstract_target = effect.target_abstract_element();
         if (!abstract_target.has_value() || effect.target_properties().is_empty())

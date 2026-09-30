@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        position: absolute;
+        left: 0;
+        width: 100px;
+        height: 20px;
+        background: green;
+    }
+</style>
+<div id="composited" style="top: 0"></div>
+<div id="hitTested" style="top: 40px"></div>
+<div id="hidden" style="top: 80px; transform-origin: center center 1px"></div>
+<div id="parentOfRemovedChild" style="top: 120px; visibility: hidden; transform-origin: center center 1px"><span id="removedChild" style="visibility: visible">x</span></div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    let lastFrameTime;
+
+    async function renderingUpdate() {
+        lastFrameTime = performance.now();
+        internals.injectRenderingOpportunity(lastFrameTime);
+        await nextTask();
+    }
+
+    // A read samples an animation at the current time, so a stale value only differs once the clock has moved past
+    // the last frame. The animations move fast enough for a single clock tick to show.
+    async function nextTaskAfterLastFrame() {
+        await nextTask();
+        while (performance.now() <= lastFrameTime) { }
+    }
+
+    function animate(element) {
+        return element.animate([{ transform: "translateX(0px)" }, { transform: "translateX(100000px)" }], { duration: 1000, iterations: Infinity });
+    }
+
+    function expectedOffset(animation) {
+        return (animation.currentTime % 1000) * 100;
+    }
+
+    promiseTest(async () => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        await renderingUpdate();
+
+        const compositedAnimation = animate(composited);
+        await renderingUpdate();
+        await nextTaskAfterLastFrame();
+        const offset = new DOMMatrix(getComputedStyle(composited).transform).m41;
+        println(`computed style follows current time: ${Math.abs(offset - expectedOffset(compositedAnimation)) < 1}`);
+        compositedAnimation.cancel();
+        // A document-wide read samples every animation, so the next case starts with none throttled.
+        document.elementFromPoint(0, 0);
+
+        const hitTestedAnimation = animate(hitTested);
+        await renderingUpdate();
+        await nextTaskAfterLastFrame();
+        println(`hit testing follows current time: ${document.elementFromPoint(2, 50) !== hitTested}`);
+        hitTestedAnimation.cancel();
+        document.elementFromPoint(0, 0);
+
+        // The transform origin's z offset keeps these animations on the main thread.
+        const hiddenAnimation = animate(hidden);
+        await renderingUpdate();
+        hidden.style.visibility = "hidden";
+        getComputedStyle(hidden).color;
+        await nextTaskAfterLastFrame();
+        println(`geometry follows current time after the target is hidden: ${Math.abs(hidden.getBoundingClientRect().left - expectedOffset(hiddenAnimation)) < 1}`);
+        hiddenAnimation.cancel();
+        hidden.style.visibility = "visible";
+        document.elementFromPoint(0, 0);
+
+        const parentOfRemovedChildAnimation = animate(parentOfRemovedChild);
+        await renderingUpdate();
+        // Settle earlier changes first, so that only the removal can make the animation skippable.
+        parentOfRemovedChild.getBoundingClientRect();
+        removedChild.remove();
+        parentOfRemovedChild.getBoundingClientRect();
+        await nextTaskAfterLastFrame();
+        println(`geometry follows current time after the last visible child is removed: ${Math.abs(parentOfRemovedChild.getBoundingClientRect().left - expectedOffset(parentOfRemovedChildAnimation)) < 1}`);
+        parentOfRemovedChildAnimation.cancel();
+
+        internals.setManualRenderingOpportunities(false);
+    });
+</script>

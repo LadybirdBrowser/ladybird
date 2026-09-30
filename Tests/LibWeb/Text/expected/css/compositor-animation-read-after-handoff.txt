@@ -1,0 +1,4 @@
+computed style follows current time: true
+hit testing follows current time: true
+geometry follows current time after the target is hidden: true
+geometry follows current time after the last visible child is removed: true

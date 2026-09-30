@@ -486,6 +486,7 @@ public:
 
     void update_style();
     void note_throttled_animation_style_update() { m_has_throttled_animation_style_update = true; }
+    void note_animations_that_can_skip_per_frame_style_updates();
     void flush_throttled_animation_style_update();
     void flush_throttled_animation_style_update_for_node(Node const&);
     void schedule_compositor_animation_wakeup(double delay_ms);
@@ -1795,6 +1796,7 @@ private:
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update_after_current_update;
     bool m_is_updating_animated_style { false };
     bool m_has_throttled_animation_style_update { false };
+    bool m_needs_throttled_animation_style_update_check { false };
     bool m_force_throttled_animation_style_update { false };
     Optional<u64> m_last_forced_throttled_animation_style_update_task_generation;
 
