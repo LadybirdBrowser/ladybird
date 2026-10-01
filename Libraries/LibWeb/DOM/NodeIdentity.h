@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/HashFunctions.h>
+#include <AK/Traits.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/Export.h>
@@ -30,6 +32,7 @@ public:
     bool is_none() const { return m_kind == Kind::None; }
     explicit operator bool() const { return !is_none(); }
     bool operator==(NodeIdentity const&) const = default;
+    [[nodiscard]] unsigned hash() const { return pair_int_hash(m_style_node.value(), to_underlying(m_kind)); }
 
     // The StyleNodeID this names, which is none for the document and for no node at all.
     [[nodiscard]] CSS::StyleNodeID style_node() const { return m_kind == Kind::StyleNode ? m_style_node : CSS::StyleNodeID {}; }
@@ -53,6 +56,15 @@ private:
 
     CSS::StyleNodeID m_style_node {};
     Kind m_kind { Kind::None };
+};
+
+}
+
+namespace AK {
+
+template<>
+struct Traits<Web::DOM::NodeIdentity> : public DefaultTraits<Web::DOM::NodeIdentity> {
+    static unsigned hash(Web::DOM::NodeIdentity const& identity) { return identity.hash(); }
 };
 
 }
