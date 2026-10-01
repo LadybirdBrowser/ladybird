@@ -86,17 +86,14 @@ void SettingsUI::register_interfaces()
     register_interface("loadAvailableEngines"sv, [this](auto const&) {
         load_available_engines();
     });
-    register_interface("setSearchEngine"sv, [this](auto const& data) {
-        set_search_engine(data);
+    register_interface("setSearchEngineSettings"sv, [this](auto const& data) {
+        set_search_engine_settings(data);
     });
     register_interface("addCustomSearchEngine"sv, [this](auto const& data) {
         add_custom_search_engine(data);
     });
     register_interface("removeCustomSearchEngine"sv, [this](auto const& data) {
         remove_custom_search_engine(data);
-    });
-    register_interface("setAutocompleteEngine"sv, [this](auto const& data) {
-        set_autocomplete_engine(data);
     });
 
     register_interface("loadForciblyEnabledSiteSettings"sv, [this](auto const&) {
@@ -299,29 +296,35 @@ void SettingsUI::set_config_variable(JsonValue const& variable)
 void SettingsUI::load_available_engines()
 {
     JsonArray search_engines;
-    for (auto const& engine : WebView::builtin_search_engines())
-        search_engines.must_append(engine.name);
-
-    JsonArray autocomplete_engines;
-    for (auto const& engine : WebView::autocomplete_engines())
-        autocomplete_engines.must_append(engine.name);
+    for (auto const& engine : WebView::builtin_search_engines()) {
+        JsonObject object;
+        object.set("name"sv, engine.name);
+        object.set("supportsSuggestions"sv, engine.suggestions.has_value());
+        search_engines.must_append(move(object));
+    }
 
     JsonObject engines;
     engines.set("search"sv, move(search_engines));
-    engines.set("autocomplete"sv, move(autocomplete_engines));
 
     async_send_message("loadEngines"sv, move(engines));
 }
 
-void SettingsUI::set_search_engine(JsonValue const& search_engine)
+void SettingsUI::set_search_engine_settings(JsonValue const& data)
 {
-    if (search_engine.is_null()) {
-        Application::settings().set_search_engine({});
-        Application::settings().set_autocomplete_engine(OptionalNone {});
-    } else if (search_engine.is_string()) {
-        Application::settings().set_search_engine(search_engine.as_string());
-    }
+    if (!data.is_object())
+        return;
 
+    auto engine = data.as_object().get("engine"sv);
+    auto suggestions = data.as_object().get_bool("suggestions"sv);
+    if (!engine.has_value() || (!engine->is_null() && !engine->is_string()) || !suggestions.has_value())
+        return;
+
+    auto& settings = Application::settings();
+    SearchEngineSettings search_engine_settings;
+    if (engine->is_string())
+        search_engine_settings.engine = settings.find_search_engine_by_name(engine->as_string());
+    search_engine_settings.suggestions = *suggestions;
+    settings.set_search_engine_settings(move(search_engine_settings));
     load_current_settings();
 }
 
@@ -339,14 +342,6 @@ void SettingsUI::remove_custom_search_engine(JsonValue const& search_engine)
         Application::settings().remove_custom_search_engine(*custom_engine);
 
     load_current_settings();
-}
-
-void SettingsUI::set_autocomplete_engine(JsonValue const& autocomplete_engine)
-{
-    if (autocomplete_engine.is_null())
-        Application::settings().set_autocomplete_engine(OptionalNone {});
-    else if (autocomplete_engine.is_string())
-        Application::settings().set_autocomplete_engine(autocomplete_engine.as_string());
 }
 
 enum class SiteSettingType {

@@ -11,14 +11,14 @@ namespace WebView {
 
 static auto const& s_builtin_search_engines = *new auto(to_array<SearchEngine>({
     { "Bing"_string, "https://www.bing.com/search?q=%s"_string },
-    { "Brave"_string, "https://search.brave.com/search?q=%s"_string },
-    { "DuckDuckGo"_string, "https://duckduckgo.com/?q=%s"_string },
+    { "Brave"_string, "https://search.brave.com/search?q=%s"_string, SearchSuggestions { "https://search.brave.com/api/suggest?q=%s"_string } },
+    { "DuckDuckGo"_string, "https://duckduckgo.com/?q=%s"_string, SearchSuggestions { "https://duckduckgo.com/ac/?q=%s"_string, SearchSuggestionsFormat::DuckDuckGo } },
     { "Ecosia"_string, "https://ecosia.org/search?q=%s"_string },
-    { "Google"_string, "https://www.google.com/search?q=%s"_string },
-    { "Kagi"_string, "https://kagi.com/search?q=%s"_string },
+    { "Google"_string, "https://www.google.com/search?q=%s"_string, SearchSuggestions { "https://www.google.com/complete/search?client=chrome&q=%s"_string } },
+    { "Kagi"_string, "https://kagi.com/search?q=%s"_string, SearchSuggestions { "https://kagisuggest.com/api/autosuggest?q=%s"_string } },
     { "Mojeek"_string, "https://www.mojeek.com/search?q=%s"_string },
     { "Startpage"_string, "https://startpage.com/search?q=%s"_string },
-    { "Yahoo"_string, "https://search.yahoo.com/search?p=%s"_string },
+    { "Yahoo"_string, "https://search.yahoo.com/search?p=%s"_string, SearchSuggestions { "https://search.yahoo.com/sugg/gossip/gossip-us-ura/?output=sd1&command=%s"_string, SearchSuggestionsFormat::Yahoo } },
     { "Yandex"_string, "https://yandex.com/search/?text=%s"_string },
 }));
 

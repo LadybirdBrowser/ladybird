@@ -16,7 +16,6 @@
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/WebView/BrowsingBehavior.h>
-#include <LibWebView/Autocomplete.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/SearchEngine.h>
@@ -46,6 +45,11 @@ struct TabSettings {
     bool vertical_tabs_expand_on_hover { false };
     VerticalTabsPosition vertical_tabs_position { VerticalTabsPosition::Left };
     Optional<u16> vertical_tabs_expanded_width;
+};
+
+struct SearchEngineSettings {
+    Optional<SearchEngine> engine;
+    bool suggestions { false };
 };
 
 struct SiteSetting {
@@ -113,8 +117,7 @@ public:
     virtual void content_settings_changed() { }
     virtual void tab_settings_changed() { }
     virtual void browsing_behavior_changed() { }
-    virtual void search_engine_changed() { }
-    virtual void autocomplete_engine_changed() { }
+    virtual void search_engine_settings_changed() { }
     virtual void autoplay_settings_changed() { }
     virtual void browsing_data_settings_changed() { }
     virtual void global_privacy_control_changed() { }
@@ -159,16 +162,13 @@ public:
     BrowsingBehavior browsing_behavior() const;
     void set_browsing_behavior(BrowsingBehavior);
 
-    Optional<SearchEngine> const& search_engine() const { return m_search_engine; }
-    void set_search_engine(Optional<StringView> search_engine_name);
+    SearchEngineSettings const& search_engine_settings() const { return m_search_engine_settings; }
+    void set_search_engine_settings(SearchEngineSettings);
+    Optional<SearchEngine> find_search_engine_by_name(StringView name) const;
 
     static Optional<SearchEngine> parse_custom_search_engine(JsonValue const&);
     void add_custom_search_engine(SearchEngine);
     void remove_custom_search_engine(SearchEngine const&);
-
-    Optional<AutocompleteEngine> const& autocomplete_engine() const { return m_autocomplete_engine; }
-    void set_autocomplete_engine(Optional<StringView> autocomplete_engine_name);
-    void set_autocomplete_engine(AutocompleteEngine);
 
     AutoplaySiteSetting const& autoplay_settings() const { return m_autoplay; }
     void set_autoplay_policy(Web::HTML::AutoplayPolicy);
@@ -224,8 +224,6 @@ private:
 
     void persist_settings();
 
-    Optional<SearchEngine> find_search_engine_by_name(StringView name);
-
     ByteString m_settings_path;
 
     URL::URL m_new_tab_page_url;
@@ -236,9 +234,8 @@ private:
     TabSettings m_tab_settings;
     BrowsingBehavior m_browsing_behavior;
 
-    Optional<SearchEngine> m_search_engine;
+    SearchEngineSettings m_search_engine_settings;
     Vector<SearchEngine> m_custom_search_engines;
-    Optional<AutocompleteEngine> m_autocomplete_engine;
 
     AutoplaySiteSetting m_autoplay;
     bool m_geolocation_enabled { false };

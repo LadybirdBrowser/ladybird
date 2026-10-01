@@ -103,7 +103,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto app = TRY(TestApplication::create(arguments, OptionalNone {}));
 #endif
 
-    WebView::Application::settings().set_autocomplete_engine(Optional<StringView> {});
+    WebView::Application::settings().set_search_engine_settings({});
     WebView::Application::autocomplete_service().update_bookmarks({ {
         .url = "https://ladybird.test/"_string,
         .title = "Ladybird test bookmark"_string,
@@ -241,7 +241,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Core::EventLoop::current().spin_until([&]() { return short_bookmark_query_completed; });
     }
 
-    WebView::Application::settings().set_search_engine("Google"sv);
+    WebView::Application::settings().set_search_engine_settings({
+        .engine = WebView::Application::settings().find_search_engine_by_name("Google"sv),
+    });
     auto whitespace_query_completed = false;
     {
         WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
@@ -411,9 +413,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // A closed loopback port makes the request fail fast and deterministically, with no real network.
     // Its on_finish synchronously delivers the final result. A data: URL cannot be used because the request
     // server's DNS path requires a host.
-    WebView::Application::settings().set_autocomplete_engine(WebView::AutocompleteEngine {
-        .name = "Test"sv,
-        .query_url = "http://127.0.0.1:47919/{}"sv,
+    WebView::Application::settings().add_custom_search_engine(WebView::SearchEngine {
+        .name = "Test"_string,
+        .query_url = "http://127.0.0.1:47919/search?q=%s"_string,
+        .suggestions = WebView::SearchSuggestions { "http://127.0.0.1:47919/suggest?q=%s"_string },
+    });
+    WebView::Application::settings().set_search_engine_settings({
+        .engine = WebView::Application::settings().find_search_engine_by_name("Test"sv),
+        .suggestions = true,
     });
 
     WebView::Autocomplete autocomplete { WebView::IsPrivate::No };

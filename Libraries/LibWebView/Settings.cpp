@@ -53,8 +53,9 @@ static constexpr auto SEARCH_ENGINE_CUSTOM_KEY = "custom"sv;
 static constexpr auto SEARCH_ENGINE_NAME_KEY = "name"sv;
 static constexpr auto SEARCH_ENGINE_URL_KEY = "url"sv;
 
-static constexpr auto AUTOCOMPLETE_ENGINE_KEY = "autocompleteEngine"sv;
-static constexpr auto AUTOCOMPLETE_ENGINE_NAME_KEY = "name"sv;
+static constexpr auto SEARCH_ENGINE_SELECTION_KEY = "engine"sv;
+static constexpr auto SEARCH_SUGGESTIONS_ENABLED_KEY = "suggestions"sv;
+static constexpr auto SEARCH_SUGGESTIONS_URL_KEY = "suggestionsUrl"sv;
 
 static constexpr auto SITE_SETTING_POLICY_KEY = "policy"sv;
 static constexpr auto SITE_SETTING_SITE_FILTERS_KEY = "siteFilters"sv;
@@ -278,14 +279,24 @@ Settings Settings::create(ByteString settings_path)
             });
         }
 
-        if (auto search_engine_name = search_engine->get_string(SEARCH_ENGINE_NAME_KEY); search_engine_name.has_value())
-            settings.m_search_engine = settings.find_search_engine_by_name(*search_engine_name);
-    }
+        auto selected_engine = search_engine->get(SEARCH_ENGINE_SELECTION_KEY);
+        auto search_engine_name = selected_engine.has_value()
+            ? search_engine->get_string(SEARCH_ENGINE_SELECTION_KEY)
+            : search_engine->get_string(SEARCH_ENGINE_NAME_KEY);
+        if (search_engine_name.has_value())
+            settings.m_search_engine_settings.engine = settings.find_search_engine_by_name(*search_engine_name);
 
-    if (settings.m_search_engine.has_value()) {
-        if (auto autocomplete_engine = settings_json.value().get_object(AUTOCOMPLETE_ENGINE_KEY); autocomplete_engine.has_value()) {
-            if (auto autocomplete_engine_name = autocomplete_engine->get_string(AUTOCOMPLETE_ENGINE_NAME_KEY); autocomplete_engine_name.has_value())
-                settings.m_autocomplete_engine = find_autocomplete_engine_by_name(*autocomplete_engine_name);
+        if (auto enabled = search_engine->get(SEARCH_SUGGESTIONS_ENABLED_KEY); enabled.has_value()) {
+            settings.m_search_engine_settings.suggestions = enabled->is_bool() && enabled->as_bool();
+        } else if (settings.m_search_engine_settings.engine.has_value() && settings.m_search_engine_settings.engine->suggestions.has_value()) {
+            // NB: Only migrate suggestions when the old provider matches the selected search engine, so typed text
+            //     does not start going to a different provider without the user's consent.
+            if (auto legacy_engine = settings_json.value().get_object("autocompleteEngine"sv); legacy_engine.has_value()) {
+                auto legacy_name = legacy_engine->get_string("name"sv);
+                settings.m_search_engine_settings.suggestions = legacy_name.has_value()
+                    && legacy_name->is_one_of("DuckDuckGo"sv, "Google"sv, "Kagi"sv, "Yahoo"sv)
+                    && *legacy_name == settings.m_search_engine_settings.engine->name;
+            }
         }
     }
 
@@ -478,6 +489,8 @@ JsonValue Settings::serialize_json() const
         JsonObject search_engine;
         search_engine.set(SEARCH_ENGINE_NAME_KEY, engine.name);
         search_engine.set(SEARCH_ENGINE_URL_KEY, engine.query_url);
+        if (engine.suggestions.has_value())
+            search_engine.set(SEARCH_SUGGESTIONS_URL_KEY, engine.suggestions->query_url);
 
         custom_search_engines.must_append(move(search_engine));
     }
@@ -485,18 +498,10 @@ JsonValue Settings::serialize_json() const
     JsonObject search_engine;
     if (!custom_search_engines.is_empty())
         search_engine.set(SEARCH_ENGINE_CUSTOM_KEY, move(custom_search_engines));
-    if (m_search_engine.has_value())
-        search_engine.set(SEARCH_ENGINE_NAME_KEY, m_search_engine->name);
+    search_engine.set(SEARCH_ENGINE_SELECTION_KEY, m_search_engine_settings.engine.has_value() ? JsonValue(m_search_engine_settings.engine->name) : JsonValue {});
 
-    if (!search_engine.is_empty())
-        settings.set(SEARCH_ENGINE_KEY, move(search_engine));
-
-    if (m_autocomplete_engine.has_value()) {
-        JsonObject autocomplete_engine;
-        autocomplete_engine.set(AUTOCOMPLETE_ENGINE_NAME_KEY, m_autocomplete_engine->name);
-
-        settings.set(AUTOCOMPLETE_ENGINE_KEY, move(autocomplete_engine));
-    }
+    search_engine.set(SEARCH_SUGGESTIONS_ENABLED_KEY, m_search_engine_settings.suggestions);
+    settings.set(SEARCH_ENGINE_KEY, move(search_engine));
 
     auto save_site_setting = [&](AutoplaySiteSetting const& site_setting, StringView key) {
         JsonArray site_filters;
@@ -782,17 +787,14 @@ void Settings::set_browsing_behavior(BrowsingBehavior browsing_behavior)
         observer.browsing_behavior_changed();
 }
 
-void Settings::set_search_engine(Optional<StringView> search_engine_name)
+void Settings::set_search_engine_settings(SearchEngineSettings search_engine_settings)
 {
-    if (search_engine_name.has_value())
-        m_search_engine = find_search_engine_by_name(*search_engine_name);
-    else
-        m_search_engine.clear();
+    m_search_engine_settings = move(search_engine_settings);
 
     persist_settings();
 
     for (auto& observer : m_observers)
-        observer.search_engine_changed();
+        observer.search_engine_settings_changed();
 }
 
 Optional<SearchEngine> Settings::parse_custom_search_engine(JsonValue const& search_engine)
@@ -809,7 +811,16 @@ Optional<SearchEngine> Settings::parse_custom_search_engine(JsonValue const& sea
     if (!parsed_url.has_value())
         return {};
 
-    return SearchEngine { .name = name.release_value(), .query_url = url.release_value() };
+    Optional<SearchSuggestions> suggestions;
+    if (auto suggestions_url = search_engine.as_object().get_string(SEARCH_SUGGESTIONS_URL_KEY); suggestions_url.has_value() && !suggestions_url->is_empty()) {
+        auto parsed_suggestions_url = URL::Parser::basic_parse(*suggestions_url);
+        if (!parsed_suggestions_url.has_value() || !parsed_suggestions_url->scheme().is_one_of("http"sv, "https"sv)
+            || !suggestions_url->contains("%s"sv))
+            return {};
+        suggestions = SearchSuggestions { suggestions_url.release_value() };
+    }
+
+    return SearchEngine { .name = name.release_value(), .query_url = url.release_value(), .suggestions = move(suggestions) };
 }
 
 void Settings::add_custom_search_engine(SearchEngine search_engine)
@@ -823,9 +834,9 @@ void Settings::add_custom_search_engine(SearchEngine search_engine)
 
 void Settings::remove_custom_search_engine(SearchEngine const& search_engine)
 {
-    auto reset_default_search_engine = m_search_engine.has_value() && m_search_engine->name == search_engine.name;
+    auto reset_default_search_engine = m_search_engine_settings.engine.has_value() && m_search_engine_settings.engine->name == search_engine.name;
     if (reset_default_search_engine)
-        m_search_engine.clear();
+        m_search_engine_settings.engine.clear();
 
     m_custom_search_engines.remove_all_matching([&](auto const& engine) {
         return engine.name == search_engine.name;
@@ -835,11 +846,11 @@ void Settings::remove_custom_search_engine(SearchEngine const& search_engine)
 
     if (reset_default_search_engine) {
         for (auto& observer : m_observers)
-            observer.search_engine_changed();
+            observer.search_engine_settings_changed();
     }
 }
 
-Optional<SearchEngine> Settings::find_search_engine_by_name(StringView name)
+Optional<SearchEngine> Settings::find_search_engine_by_name(StringView name) const
 {
     auto comparator = [&](auto const& engine) { return engine.name == name; };
 
@@ -849,29 +860,6 @@ Optional<SearchEngine> Settings::find_search_engine_by_name(StringView name)
         return result.copy();
 
     return {};
-}
-
-void Settings::set_autocomplete_engine(Optional<StringView> autocomplete_engine_name)
-{
-    if (autocomplete_engine_name.has_value())
-        m_autocomplete_engine = find_autocomplete_engine_by_name(*autocomplete_engine_name);
-    else
-        m_autocomplete_engine.clear();
-
-    persist_settings();
-
-    for (auto& observer : m_observers)
-        observer.autocomplete_engine_changed();
-}
-
-void Settings::set_autocomplete_engine(AutocompleteEngine autocomplete_engine)
-{
-    // Custom engines are not persisted: settings stores the engine by name and reloads it
-    // from the builtin list, so a non-builtin engine would not round-trip.
-    m_autocomplete_engine = autocomplete_engine;
-
-    for (auto& observer : m_observers)
-        observer.autocomplete_engine_changed();
 }
 
 void Settings::set_autoplay_policy(Web::HTML::AutoplayPolicy policy)

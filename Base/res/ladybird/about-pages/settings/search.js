@@ -4,115 +4,66 @@ const searchClose = document.querySelector("#search-close");
 const searchCustomAdd = document.querySelector("#search-custom-add");
 const searchCustomName = document.querySelector("#search-custom-name");
 const searchCustomURL = document.querySelector("#search-custom-url");
+const searchCustomSuggestionsURL = document.querySelector("#search-custom-suggestions-url");
 const searchDialog = document.querySelector("#search-dialog");
 const searchEngine = document.querySelector("#search-engine");
 const searchList = document.querySelector("#search-list");
 const searchSettings = document.querySelector("#search-settings");
 
-const autocompleteEngine = document.querySelector("#autocomplete-engine");
+const searchSuggestionsEnabled = document.querySelector("#search-suggestions-enabled");
+const searchSuggestionsDescription = document.querySelector("#search-suggestions-description");
 
 let SEARCH_ENGINE = {};
-let AUTOCOMPLETE_ENGINE = {};
+let ENGINES = [];
 
-let NATIVE_SEARCH_ENGINE_COUNT = 0;
+function populateSearchEngineSelect(select, engines, settings = {}) {
+    const disabledOption = select.options[0];
+    select.replaceChildren(disabledOption, document.createElement("hr"));
 
-const Engine = Object.freeze({
-    search: 1,
-    autocomplete: 2,
-});
-
-function loadEngineSettings(settings) {
-    SEARCH_ENGINE = settings.searchEngine || {};
-    AUTOCOMPLETE_ENGINE = settings.autocompleteEngine || {};
-
-    autocompleteEngine.disabled = !SEARCH_ENGINE.name;
-
-    loadCustomSearchEngines();
-    renderEngine(Engine.search, SEARCH_ENGINE);
-    renderEngine(Engine.autocomplete, AUTOCOMPLETE_ENGINE);
-
-    if (searchDialog.open) {
-        showSearchEngineSettings();
-    }
-}
-
-function engineForType(engine) {
-    if (engine === Engine.search) {
-        return ["Search", searchEngine];
-    }
-    if (engine === Engine.autocomplete) {
-        return ["Autocomplete", autocompleteEngine];
-    }
-    throw Error(`Unrecognized engine type ${engine}`);
-}
-
-function loadEngines(type, engines) {
-    const [name, engine] = engineForType(type);
-
-    for (const engineName of engines) {
+    function addEngine(engine) {
         const option = document.createElement("option");
-        option.text = engineName;
-        option.value = engineName;
-
-        engine.add(option);
+        option.value = option.textContent = engine.name;
+        option.dataset.supportsSuggestions = Boolean(engine.supportsSuggestions || engine.suggestionsUrl);
+        select.append(option);
     }
 
-    if (type === Engine.search) {
-        NATIVE_SEARCH_ENGINE_COUNT = engine.length;
-        engine.appendChild(document.createElement("hr"));
+    engines.forEach(addEngine);
+    if (settings.custom?.length) {
+        select.append(document.createElement("hr"));
+        settings.custom.forEach(addEngine);
     }
+    select.value = settings.engine || "";
 }
 
-function renderEngine(type, setting) {
-    const [name, engine] = engineForType(type);
-
-    if (setting.name) {
-        engine.value = setting.name;
-    } else {
-        engine.selectedIndex = 0;
-    }
+function updateSearchSuggestionsControl(select, checkbox, description) {
+    const supportsSuggestions = select.selectedOptions[0]?.dataset.supportsSuggestions === "true";
+    checkbox.disabled = !supportsSuggestions;
+    if (!select.value) description.textContent = "Choose a search engine to use search suggestions.";
+    else if (!supportsSuggestions) description.textContent = `Search suggestions aren't available for ${select.value}.`;
+    else description.textContent = `Sends what you type to ${select.value}.`;
 }
 
-function saveEngine(type) {
-    const [name, engine] = engineForType(type);
-
-    if (engine.selectedIndex !== 0) {
-        ladybird.sendMessage(`set${name}Engine`, engine.value);
-    } else {
-        ladybird.sendMessage(`set${name}Engine`, null);
-    }
+function renderEngineSettings() {
+    populateSearchEngineSelect(searchEngine, ENGINES, SEARCH_ENGINE);
+    searchSuggestionsEnabled.checked = SEARCH_ENGINE.suggestions === true;
+    updateSearchSuggestionsControl(searchEngine, searchSuggestionsEnabled, searchSuggestionsDescription);
+    if (searchDialog.open) showSearchEngineSettings();
 }
 
-function setSaveEngineListeners(type) {
-    const [name, engine] = engineForType(type);
-
-    engine.addEventListener("change", () => {
-        saveEngine(type);
+function saveSearchEngineSettings() {
+    ladybird.sendMessage("setSearchEngineSettings", {
+        engine: searchEngine.value || null,
+        suggestions: searchSuggestionsEnabled.checked,
     });
 }
 
-setSaveEngineListeners(Engine.search);
-setSaveEngineListeners(Engine.autocomplete);
-
-function loadCustomSearchEngines() {
-    while (searchEngine.length > NATIVE_SEARCH_ENGINE_COUNT) {
-        searchEngine.remove(NATIVE_SEARCH_ENGINE_COUNT);
-    }
-
-    const custom = SEARCH_ENGINE.custom || [];
-
-    custom.forEach(custom => {
-        const option = document.createElement("option");
-        option.text = custom.name;
-        option.value = custom.name;
-
-        searchEngine.add(option);
-    });
-}
+searchEngine.addEventListener("change", saveSearchEngineSettings);
+searchSuggestionsEnabled.addEventListener("change", saveSearchEngineSettings);
 
 function showSearchEngineSettings() {
     searchCustomName.classList.remove("error");
     searchCustomURL.classList.remove("error");
+    searchCustomSuggestionsURL.classList.remove("error");
     searchList.innerHTML = "";
 
     const custom = SEARCH_ENGINE.custom || [];
@@ -165,6 +116,12 @@ function showSearchEngineSettings() {
 function addCustomSearchEngine() {
     searchCustomName.classList.remove("error");
     searchCustomURL.classList.remove("error");
+    searchCustomSuggestionsURL.classList.remove("error");
+
+    if (!searchCustomName.value.trim()) {
+        searchCustomName.classList.add("error");
+        return;
+    }
 
     for (let i = 0; i < searchEngine.length; ++i) {
         if (searchCustomName.value === searchEngine.item(i).value) {
@@ -178,30 +135,36 @@ function addCustomSearchEngine() {
         return;
     }
 
+    if (
+        searchCustomSuggestionsURL.value &&
+        (!containsValidURL(searchCustomSuggestionsURL) ||
+            !searchCustomSuggestionsURL.value.includes("%s") ||
+            !["http:", "https:"].includes(new URL(searchCustomSuggestionsURL.value).protocol))
+    ) {
+        searchCustomSuggestionsURL.classList.add("error");
+        return;
+    }
+
     ladybird.sendMessage("addCustomSearchEngine", {
         name: searchCustomName.value,
         url: searchCustomURL.value,
+        suggestionsUrl: searchCustomSuggestionsURL.value,
     });
 
     searchCustomName.value = "";
     searchCustomURL.value = "";
+    searchCustomSuggestionsURL.value = "";
 
     setTimeout(() => searchCustomName.focus());
 }
 
 searchCustomAdd.addEventListener("click", addCustomSearchEngine);
 
-searchCustomName.addEventListener("keydown", event => {
-    if (event.key === "Enter") {
-        addCustomSearchEngine();
-    }
-});
-
-searchCustomURL.addEventListener("keydown", event => {
-    if (event.key === "Enter") {
-        addCustomSearchEngine();
-    }
-});
+for (const input of [searchCustomName, searchCustomURL, searchCustomSuggestionsURL]) {
+    input.addEventListener("keydown", event => {
+        if (event.key === "Enter") addCustomSearchEngine();
+    });
+}
 
 searchClose.addEventListener("click", () => {
     searchDialog.close();
@@ -224,9 +187,10 @@ document.addEventListener("WebUILoaded", () => {
 
 document.addEventListener("WebUIMessage", event => {
     if (event.detail.name === "loadSettings") {
-        loadEngineSettings(event.detail.data);
+        SEARCH_ENGINE = event.detail.data.searchEngine || {};
+        renderEngineSettings();
     } else if (event.detail.name === "loadEngines") {
-        loadEngines(Engine.search, event.detail.data.search);
-        loadEngines(Engine.autocomplete, event.detail.data.autocomplete);
+        ENGINES = event.detail.data.search;
+        renderEngineSettings();
     }
 });

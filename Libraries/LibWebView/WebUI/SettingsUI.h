@@ -29,10 +29,9 @@ private:
     void set_config_variable(JsonValue const&);
 
     void load_available_engines();
-    void set_search_engine(JsonValue const&);
+    void set_search_engine_settings(JsonValue const&);
     void add_custom_search_engine(JsonValue const&);
     void remove_custom_search_engine(JsonValue const&);
-    void set_autocomplete_engine(JsonValue const&);
 
     void load_forcibly_enabled_site_settings();
     void set_site_setting_policy(JsonValue const&);

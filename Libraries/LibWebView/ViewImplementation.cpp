@@ -314,7 +314,7 @@ void ViewImplementation::load_from_user_input(URL::URL const& url)
 
 void ViewImplementation::load_from_user_input(StringView input)
 {
-    load_from_user_input(input, sanitize_url(input, Application::settings().search_engine()));
+    load_from_user_input(input, sanitize_url(input, Application::settings().search_engine_settings().engine));
 }
 
 void ViewImplementation::load_from_user_input(StringView input, Optional<URL::URL> fallback_url)
@@ -3638,7 +3638,7 @@ void ViewImplementation::initialize_context_menus()
     m_reset_zoom_action->set_visible(false);
 
     m_search_selected_text_action = Action::create("Search Selected Text"sv, ActionID::SearchSelectedText, [this]() {
-        auto const& search_engine = Application::settings().search_engine();
+        auto const& search_engine = Application::settings().search_engine_settings().engine;
         if (!search_engine.has_value())
             return;
 
@@ -4025,7 +4025,7 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, Gf
             auto& cut_selection_action = Application::the().cut_selection_action();
             cut_selection_action.set_visible(for_input_events_target == Web::ContextMenuForInputEventsTarget::Yes);
 
-            auto const& search_engine = Application::settings().search_engine();
+            auto const& search_engine = Application::settings().search_engine_settings().engine;
             weak_this->m_search_text = search_engine.has_value() ? selected_text : OptionalNone {};
             auto selected_text_url = selected_text.has_value() ? url_from_text(*selected_text) : OptionalNone {};
             weak_this->update_look_up_selected_text_action(lookup, content_position);

@@ -194,7 +194,7 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
         auto ctrl_held = QApplication::keyboardModifiers() & Qt::ControlModifier;
         auto append_tld = ctrl_held ? WebView::AppendTLD::Yes : WebView::AppendTLD::No;
 
-        auto url = WebView::sanitize_url(input, WebView::Application::settings().search_engine(), append_tld);
+        auto url = WebView::sanitize_url(input, WebView::Application::settings().search_engine_settings().engine, append_tld);
         auto classified_input = WebView::classify_user_input(input, append_tld);
         if (destination_kind == WebView::OmniboxDestinationKind::Search
             || classified_input.classification != WebView::UserInputClassification::ExternalURL)
@@ -304,7 +304,7 @@ void LocationEdit::contextMenuEvent(QContextMenuEvent* event)
     auto qt_clipboard_text = QGuiApplication::clipboard()->text();
     auto clipboard_text = ak_string_from_qstring(qt_clipboard_text);
 
-    bool has_search_engine = WebView::Application::settings().search_engine().has_value();
+    bool has_search_engine = WebView::Application::settings().search_engine_settings().engine.has_value();
     auto paste_and_go_text = WebView::Omnibox::text_for_paste_and_go_action(clipboard_text, has_search_engine);
     // Escape any &s so Qt doesn't treat them as mnemonics.
     paste_and_go_text = MUST(paste_and_go_text.replace("&"sv, "&&"sv, ReplaceMode::All));
@@ -493,7 +493,7 @@ void LocationEdit::update_trailing_item_positions()
     m_trailing_action_button->raise();
 }
 
-void LocationEdit::search_engine_changed()
+void LocationEdit::search_engine_settings_changed()
 {
     update_placeholder();
     update_location_icon();
@@ -545,7 +545,7 @@ void LocationEdit::schedule_chrome_style_update()
 
 void LocationEdit::update_placeholder()
 {
-    if (auto const& search_engine = WebView::Application::settings().search_engine(); search_engine.has_value()) {
+    if (auto const& search_engine = WebView::Application::settings().search_engine_settings().engine; search_engine.has_value()) {
         auto prompt = MUST(String::formatted("Search with {} or enter web address", search_engine->name));
         setPlaceholderText(qstring_from_ak_string(prompt));
     } else {
@@ -631,7 +631,7 @@ void LocationEdit::update_location_icon()
         hide_indicator();
     } else if (WebView::location_looks_like_url(query_view)) {
         show_icon(ChromeIcon::Globe, "Go to address");
-    } else if (WebView::Application::settings().search_engine().has_value()) {
+    } else if (WebView::Application::settings().search_engine_settings().engine.has_value()) {
         show_icon(ChromeIcon::Search, "Search");
     } else {
         hide_indicator();

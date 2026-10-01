@@ -585,20 +585,17 @@
                             <button id="search-settings" class="secondary-button">Settings...</button>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-body">
-                    <div class="card-group">
-                        <label>
-                            Search Suggestions
-                            <p class="description">Select the engine that will provide search suggestions.</p>
+                    <div class="card-group inline-container">
+                        <label for="search-suggestions-enabled">
+                            Show search suggestions
+                            <p id="search-suggestions-description" class="description"></p>
                         </label>
-                        <select id="autocomplete-engine">
-                            <option value="">Disable search suggestions</option>
-                            <hr />
-                        </select>
+                        <input
+                            id="search-suggestions-enabled"
+                            type="checkbox"
+                            switch
+                            aria-describedby="search-suggestions-description"
+                        />
                     </div>
                 </div>
             </div>
@@ -873,6 +870,19 @@
                         <p class="description">Use %s as a placeholder for the search query</p>
                     </label>
                     <input id="search-custom-url" type="url" placeholder="https://example.com/search?q=%s" />
+                </div>
+                <div class="form-group">
+                    <label for="search-custom-suggestions-url">
+                        Suggestions URL (optional)
+                        <p class="description">
+                            Use %s for the query. The response must use the OpenSearch JSON format.
+                        </p>
+                    </label>
+                    <input
+                        id="search-custom-suggestions-url"
+                        type="url"
+                        placeholder="https://example.com/suggest?q=%s"
+                    />
                 </div>
                 <div class="dialog-controls">
                     <button id="search-custom-add" class="primary-button">Add&nbsp;Engine</button>
