@@ -661,13 +661,9 @@ pub mod element_adjustment_fact {
     pub const IS_TH: u32 = 1 << 15;
     pub const IS_DOCUMENT_ELEMENT: u32 = 1 << 16;
     pub const HAS_ANIMATIONS: u32 = 1 << 17;
-    pub const HAS_PRESENTATIONAL_HINTS: u32 = 1 << 18;
     /// The element stands for an element-reference pseudo-element of its shadow host, whose
     /// style C++ computes and installs on it.
     pub const IS_SHADOW_HOST_PSEUDO_ELEMENT: u32 = 1 << 19;
-    /// The element's presentational hints are mapped from another element's attributes, and
-    /// move without any of its own moving.
-    pub const HAS_DERIVED_PRESENTATIONAL_HINTS: u32 = 1 << 20;
     // The element types layout tree construction branches on. An element's type is fixed when it
     // is created, so the store holds these rather than the tree builder asking the DOM for them.
     pub const IS_SVG_ELEMENT: u32 = 1 << 21;

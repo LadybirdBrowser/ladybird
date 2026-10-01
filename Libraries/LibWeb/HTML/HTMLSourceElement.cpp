@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -106,8 +107,12 @@ void HTMLSourceElement::attribute_changed(Utf16FlyString const& name, Optional<U
 
     // Only following img siblings consider this source a "previous sibling".
     for (auto* sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
-        if (auto* img = as_if<HTMLImageElement>(sibling))
+        if (auto* img = as_if<HTMLImageElement>(sibling)) {
+            // An image whose dimension attribute source this is maps its width and height.
+            if (name.is_one_of(HTML::AttributeNames::width, HTML::AttributeNames::height) && &img->dimension_attribute_source() == this)
+                CSS::republish_presentational_hints(*img);
             img->update_the_image_data(true);
+        }
     }
 }
 

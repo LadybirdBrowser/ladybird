@@ -27,6 +27,10 @@ void invalidate_style_after_hyperlink_state_change(DOM::Element& element)
     record_element_state_changed(element, PseudoClass::AnyLink, is_link || is_visited);
     record_element_state_changed(element, PseudoClass::LocalLink, element.matches_local_link_pseudo_class());
     record_element_state_changed(element, PseudoClass::Visited, is_visited);
+    // The body's link colours are hints on the element by the link state it is now in.
+    auto& document = element.document();
+    if (document.normal_link_color().has_value() || document.visited_link_color().has_value() || document.active_link_color().has_value())
+        republish_presentational_hints(element);
 }
 
 void invalidate_style_after_legacy_link_color_change(DOM::Document& document)
@@ -36,7 +40,7 @@ void invalidate_style_after_legacy_link_color_change(DOM::Document& document)
         if (!element || (!element->matches_link_pseudo_class() && !element->matches_visited_pseudo_class()))
             return TraversalDecision::Continue;
 
-        document.style_computer().style_engine().record_element_style_input_change(element->style_node_id());
+        republish_presentational_hints(*element);
         return TraversalDecision::Continue;
     });
 }

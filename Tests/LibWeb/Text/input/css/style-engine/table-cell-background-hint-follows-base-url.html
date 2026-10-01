@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<table><tr><td id="cell" background="a.png">cell</td></tr></table>
+<script>
+    // A cell's background attribute is resolved against the base URL in force when the cell is
+    // restyled, also after a later <base> moved it.
+    test(() => {
+        const report = label => {
+            const image = getComputedStyle(cell).backgroundImage;
+            println(`${label}: ${image.includes("/sub/a.png") ? "sub/a.png" : image.includes("/a.png") ? "a.png" : image}`);
+        };
+        internals.updateStyle();
+        report("initial");
+        const base = document.createElement("base");
+        base.href = "sub/";
+        document.head.appendChild(base);
+        cell.classList.add("toggled");
+        internals.updateStyle();
+        report("after <base>");
+    });
+</script>

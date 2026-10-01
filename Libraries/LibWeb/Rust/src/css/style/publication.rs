@@ -479,8 +479,7 @@ impl RetainedState {
         };
         if facts
             & (bridge::element_adjustment_fact::HAS_ANIMATIONS
-                | bridge::element_adjustment_fact::IS_SHADOW_HOST_PSEUDO_ELEMENT
-                | bridge::element_adjustment_fact::HAS_DERIVED_PRESENTATIONAL_HINTS)
+                | bridge::element_adjustment_fact::IS_SHADOW_HOST_PSEUDO_ELEMENT)
             != 0
         {
             counters.bump(Counter::EngineComputedRecordBailWinnerElement);
@@ -492,14 +491,6 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         }
         let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node) else {
-            // Presentational hints are mapped from the attributes by the C++ computation, which
-            // publishes them as the element's declarations: a first record waits for that
-            // computation, and an attribute change asks for it through a recorded input, so a
-            // later record's winners carry the hints.
-            if facts & bridge::element_adjustment_fact::HAS_PRESENTATIONAL_HINTS != 0 {
-                counters.bump(Counter::EngineComputedRecordBailWinnerElement);
-                return Err(Unanswered::Refused);
-            }
             return self.engine_cold_record(node, (generation, state), scratch, goal, counters);
         };
         if self.record_requires_cpp_animation(old_style_record) {
@@ -2170,13 +2161,9 @@ impl RetainedState {
         if self.node_declares_custom_properties(node) {
             return;
         }
-        // A record C++ computed for an element with hints or animations is not what its winner
-        // state alone describes.
-        if facts
-            & (bridge::element_adjustment_fact::HAS_PRESENTATIONAL_HINTS
-                | bridge::element_adjustment_fact::HAS_ANIMATIONS)
-            != 0
-        {
+        // A record C++ computed for an element with animations is not what its winner state
+        // alone describes.
+        if facts & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0 {
             return;
         }
         // A state minted before the winner groups were evicted names nothing in the table now.

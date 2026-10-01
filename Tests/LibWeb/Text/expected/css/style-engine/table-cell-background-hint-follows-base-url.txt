@@ -1,0 +1,2 @@
+initial: a.png
+after <base>: sub/a.png

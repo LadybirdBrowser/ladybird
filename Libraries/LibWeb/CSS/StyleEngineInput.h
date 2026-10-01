@@ -116,14 +116,9 @@ enum ElementStyleAdjustmentFact : u32 {
     IsTh = 1 << 15,
     IsDocumentElement = 1 << 16,
     HasAnimations = 1 << 17,
-    HasPresentationalHints = 1 << 18,
     // The element stands for an element-reference pseudo-element of its shadow host, whose style
     // it takes.
     IsShadowHostPseudoElement = 1 << 19,
-    // The element's presentational hints are mapped from another element's attributes: a table
-    // cell's from its table's, an image's from its picture's source, a link's from the body's link
-    // colors. They move without any attribute of the element moving.
-    HasDerivedPresentationalHints = 1 << 20,
     // The element types layout tree construction branches on. An element's type is fixed when it is
     // created, so the store holds these rather than the tree builder asking the DOM for them.
     IsSvgElement = 1 << 21,
@@ -142,6 +137,8 @@ WEB_API u32 element_style_adjustment_facts(DOM::Element const&);
 WEB_API u32 element_box_type_adjustment_facts(DOM::Element const&);
 WEB_API void record_element_adjustment_facts(DOM::Element&);
 WEB_API bool record_element_presentational_hint_properties(DOM::Element&, ReadonlySpan<StyleProperty>);
+// Publish the element's hints again, after something they are mapped from beside its own attributes moved.
+WEB_API void republish_presentational_hints(DOM::Element&);
 WEB_API void record_element_animation_names(DOM::Element&, ReadonlySpan<Utf16FlyString>);
 WEB_API void record_element_css_defined_animations(DOM::Element&, u8 slot, ReadonlySpan<Utf16FlyString> names);
 WEB_API void record_element_custom_property_names(DOM::Element&, ReadonlySpan<Utf16FlyString>, bool uses_unnamed, bool uses_custom_functions);

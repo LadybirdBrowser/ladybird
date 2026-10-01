@@ -27,6 +27,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -1769,6 +1770,10 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
 
     // 4. Update the element's rendering and behavior to the new state's.
     m_type = new_state;
+    // Only the Image Button state maps align, border, width, height, hspace and vspace to hints,
+    // so entering or leaving it changes the element's hints without any attribute changing.
+    if ((old_state == TypeAttributeState::ImageButton) != (new_state == TypeAttributeState::ImageButton))
+        CSS::republish_presentational_hints(*this);
     update_radio_button_group_registration();
     if (auto* form = this->form(); form && (is_submit_button(old_state) || is_submit_button(new_state))) {
         submit_button_state_changed();
