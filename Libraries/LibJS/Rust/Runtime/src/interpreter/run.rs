@@ -12,6 +12,8 @@ use crate::bytecode::executable::Executable;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::value::Value;
+use crate::runtime::completion::{Throw, ThrowCompletionOr};
+use crate::script::Script;
 use libjs_abi::register;
 
 unsafe extern "C" {
@@ -95,5 +97,24 @@ impl Vm {
             Ok(value) if value == Value::EMPTY => Ok(Value::UNDEFINED),
             other => other,
         }
+    }
+
+    /// 16.1.6 ScriptEvaluation ( scriptRecord ), https://tc39.es/ecma262/#sec-runtime-semantics-scriptevaluation
+    pub fn run_script(&self, script: Script) -> ThrowCompletionOr<Value> {
+        let declarations = &script.compiled.declarations;
+        if !declarations.lexical_names.is_empty()
+            || !declarations.var_names.is_empty()
+            || !declarations.functions_to_initialize.is_empty()
+            || !declarations.lexical_bindings.is_empty()
+        {
+            crate::interpreter::runtime_functions::unimplemented_runtime_function(
+                "global declaration instantiation",
+                0,
+            );
+        }
+        let executable = self
+            .heap()
+            .allocate(Executable::from_executable_data(script.compiled.executable));
+        self.run_script_executable(executable).map_err(Throw::new)
     }
 }

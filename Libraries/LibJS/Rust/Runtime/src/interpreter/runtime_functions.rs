@@ -46,9 +46,10 @@ pub struct AsmSlowPathResult {
 /// The runtime's implementation of the functions the interpreter calls.
 pub struct Runtime;
 
+/// Stops the process at a runtime function or operation that is not implemented yet. This panics, so that a tool can
+/// report it through its panic hook.
 pub fn unimplemented_runtime_function(symbol: &str, pc: u32) -> ! {
-    eprintln!("libjs_runtime_rust: unimplemented runtime function {symbol} (pc {pc})");
-    std::process::abort()
+    panic!("libjs_runtime_rust: unimplemented runtime function {symbol} (pc {pc})")
 }
 
 mod generated {

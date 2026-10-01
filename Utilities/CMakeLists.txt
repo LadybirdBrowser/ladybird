@@ -18,6 +18,11 @@ if (WIN32)
 endif()
 
 ladybird_utility(test262-runner SOURCES test262-runner.cpp LIBS LibJS LibFileSystem LibGC LibMain)
+
+if (ENABLE_LIBJS_RUST_RUNTIME)
+    ladybird_utility(js-rust SOURCES js-rust.cpp LIBS libjs_runtime_rust LibMain)
+    ladybird_utility(test262-runner-rust SOURCES test262-runner-rust.cpp LIBS libjs_runtime_rust LibMain)
+endif()
 ladybird_utility(dump-html-tokens SOURCES dump-html-tokens.cpp LIBS LibMain LibWeb)
 ladybird_utility(dump-html-tree SOURCES dump-html-tree.cpp LIBS LibMain LibWeb LibJS LibGC LibGfx LibIPC LibURL)
 
