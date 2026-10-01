@@ -111,7 +111,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub flat_tree_parent: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub flat_tree_render_facts: unsafe extern "C" fn(*mut c_void) -> FfiFlatTreeRenderFacts,
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
-    pub register_svg_resource_reference: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub principal_node_entry_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalNodeEntryFacts,
     pub push_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiPrincipalNodeFrame,
     pub pop_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -200,11 +199,12 @@ pub struct FfiPrincipalDescendantFacts {
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
     pub slot_element: *mut c_void,
-    pub svg_graphics_element: *mut c_void,
+    /// The node's style node if it is an SVG graphics element, 0 otherwise.
+    pub svg_graphics_element: u32,
     pub svg_mask: FfiIdentifiedDomNode,
     pub svg_clip_path: FfiIdentifiedDomNode,
-    pub svg_fill_pattern: *mut c_void,
-    pub svg_stroke_pattern: *mut c_void,
+    pub svg_fill_pattern: FfiIdentifiedDomNode,
+    pub svg_stroke_pattern: FfiIdentifiedDomNode,
 }
 
 #[derive(Clone, Copy)]
@@ -950,11 +950,22 @@ fn ancestor_stack_contains_element_box(arena: &LayoutNodeArena, state: &TreeBuil
     !element_box.is_invalid() && state.ancestor_stack.contains(&element_box)
 }
 
+/// Tells the document that a graphics element's box now holds the content of an SVG resource. The
+/// resource outlives that box, so the document has to rebuild the referencing subtree when the
+/// resource goes away or changes, which is the only thing it does with this.
+fn report_svg_resource_reference(state: &mut TreeBuilderState, resource: u32, graphics_element: u32) {
+    state.reports.push(crate::layout::commit::FfiCommitMessage {
+        style_node: resource,
+        other_style_node: graphics_element,
+        kind: crate::layout::commit::FfiCommitMessageKind::SvgResourceReferenced,
+    });
+}
+
 fn update_svg_resource(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
     resource: FfiIdentifiedDomNode,
-    graphics_element: *mut c_void,
+    graphics_element: u32,
     layout_node: LayoutNode,
     context: &mut TreeBuilderContext,
     prior_context_value: bool,
@@ -966,8 +977,7 @@ fn update_svg_resource(
 
     if !ancestor_stack_contains_element_box(host.layout().arena(), state, resource.style_node) {
         update_layout_tree(host, state, resource.node, context, true, FfiInsertionMode::Append);
-        // SAFETY: Both pointers denote live SVG elements held by the graphics element.
-        unsafe { (host.callbacks.register_svg_resource_reference)(resource.node, graphics_element) };
+        report_svg_resource_reference(state, resource.style_node, graphics_element);
     } else {
         // FIXME: Somehow either remove ancestor from the layout tree or mark it as invalid.
     }
@@ -980,9 +990,9 @@ fn update_svg_resource(
 fn update_svg_pattern(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
-    pattern: *mut c_void,
+    pattern: FfiIdentifiedDomNode,
     content_element: FfiIdentifiedDomNode,
-    graphics_element: *mut c_void,
+    graphics_element: u32,
     layout_node: LayoutNode,
     context: &mut TreeBuilderContext,
 ) {
@@ -1001,12 +1011,9 @@ fn update_svg_pattern(
         );
         // The referenced pattern may inherit its content from another pattern via href. Removing either element
         // invalidates the attached resource box, so register the referencer with both.
-        // SAFETY: All pointers denote live SVG elements held by the graphics element or pattern chain.
-        unsafe {
-            (host.callbacks.register_svg_resource_reference)(content_element.node, graphics_element);
-            if pattern != content_element.node {
-                (host.callbacks.register_svg_resource_reference)(pattern, graphics_element);
-            }
+        report_svg_resource_reference(state, content_element.style_node, graphics_element);
+        if pattern.style_node != content_element.style_node {
+            report_svg_resource_reference(state, pattern.style_node, graphics_element);
         }
     }
 
@@ -1231,7 +1238,7 @@ unsafe fn update_principal_node_descendants(
         }
 
         if should_create_layout_node {
-            if !facts.svg_graphics_element.is_null() {
+            if facts.svg_graphics_element != 0 {
                 for resource in [facts.svg_mask, facts.svg_clip_path] {
                     if !resource.node.is_null() {
                         update_svg_resource(
@@ -1248,11 +1255,11 @@ unsafe fn update_principal_node_descendants(
 
                 let mut seen_content_elements = Vec::with_capacity(2);
                 for pattern in [facts.svg_fill_pattern, facts.svg_stroke_pattern] {
-                    if pattern.is_null() {
+                    if pattern.node.is_null() {
                         continue;
                     }
-                    // SAFETY: `pattern` is a live SVGPatternElement.
-                    let content_element = unsafe { (host.callbacks.svg_pattern_content_element)(pattern) };
+                    // SAFETY: `pattern.node` is a live SVGPatternElement.
+                    let content_element = unsafe { (host.callbacks.svg_pattern_content_element)(pattern.node) };
                     if content_element.node.is_null() || seen_content_elements.contains(&content_element.node) {
                         continue;
                     }
@@ -1813,10 +1820,10 @@ fn update_layout_tree(
                 // A member found here without an attached box was cleared together with a hidden ancestor subtree, and
                 // nothing is scheduled to rebuild it. Request another top-layer zone pass instead of stranding dirty
                 // flags below ancestors whose walks already finished.
-                state.reports.push(crate::layout::commit::FfiCommitMessage {
-                    style_node: 0,
-                    kind: crate::layout::commit::FfiCommitMessageKind::TopLayerZoneRebuildNeeded,
-                });
+                state.reports.push(crate::layout::commit::FfiCommitMessage::new(
+                    0,
+                    crate::layout::commit::FfiCommitMessageKind::TopLayerZoneRebuildNeeded,
+                ));
             }
             return;
         }
@@ -1930,10 +1937,10 @@ pub unsafe extern "C" fn rust_build_layout_tree(
             host.layout().arena().set_needs_full_layout_tree_update(true);
             continue;
         };
-        state.reports.push(crate::layout::commit::FfiCommitMessage {
-            style_node: element.raw(),
-            kind: crate::layout::commit::FfiCommitMessageKind::LayoutTreeRebuildRequested,
-        });
+        state.reports.push(crate::layout::commit::FfiCommitMessage::new(
+            element.raw(),
+            crate::layout::commit::FfiCommitMessageKind::LayoutTreeRebuildRequested,
+        ));
     }
 
     // What the build found out goes to the document now that the walk that could clear DOM update

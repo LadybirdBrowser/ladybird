@@ -20,7 +20,6 @@ class LayoutTreeBuilderAccess {
 private:
     static void clear_synthetic_pseudo_element_layout_nodes(DOM::Element&);
     static void detach_layout_node(DOM::Node&);
-    static void register_svg_resource_reference(SVG::SVGElement&, DOM::Element&);
     static void set_synthetic_pseudo_element_node(DOM::Element&, CSS::PseudoElement, Layout::NodeWithStyle*);
 };
 
