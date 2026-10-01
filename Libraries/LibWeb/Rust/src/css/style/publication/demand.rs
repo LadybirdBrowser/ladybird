@@ -406,7 +406,6 @@ impl StyleEngineState {
         if !read_only {
             self.host.journal.acknowledge_node(node, &mut self.retained.memory);
             self.consume_element_style_input_but_descendants(node);
-            self.retained.style_input_nodes_for_cpp.remove(&node);
         }
         Ok(RecordDemandAnswer::Record {
             record: answered,

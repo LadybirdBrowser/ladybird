@@ -1496,7 +1496,6 @@ impl StyleEngineState {
                 engine_computed_records_pending: HashMap::default(),
                 demand_records: HashMap::default(),
                 flush_stamp: 0,
-                style_input_nodes_for_cpp: HashSet::default(),
                 parent_inputs_moved_nodes: HashSet::default(),
                 engine_pseudo_record_cache: HashMap::default(),
                 batch_answers_complete_but_for_custom_properties: HashMap::default(),
@@ -1567,7 +1566,6 @@ impl StyleEngineState {
                 deferred_element_style_inputs_are_pending: false,
                 environment_move_changed_names: Default::default(),
                 environment_move_actions: Vec::new(),
-                externally_recorded_style_input_nodes: HashSet::default(),
                 deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
                 initial_tree_batch_applied: false,
                 initial_tree_bulk_load_is_pending: false,
@@ -1798,24 +1796,6 @@ impl StyleEngineState {
         !self.host.deferred_element_style_inputs.is_empty()
     }
 
-    /// Record an exact style reaction for one element, merged with what the element already owes.
-    /// It joins the next transaction.
-    pub fn record_element_style_input(&mut self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
-        if reaction == 0 {
-            return;
-        }
-        // A recorded input asks for the C++ computation, whatever the engine derived for the
-        // element beside it. For the style pass accounting, a transaction stays one of derived
-        // child reactions when the recorded inputs join reactions the engine derived.
-        let derived_already = self.has_deferred_element_style_input(node);
-        let externally_recorded_already = self.host.externally_recorded_style_input_nodes.contains(&node);
-        self.record_derived_element_style_input(node, reaction, inherited_style_groups);
-        if !derived_already || externally_recorded_already {
-            self.host.externally_recorded_style_input_nodes.insert(node);
-        }
-        self.retained.style_input_nodes_for_cpp.insert(node);
-    }
-
     /// Record that what a container query or a container-relative length read of the node's
     /// containers moved: a container's size, scroll state or style. The engine settles it where it
     /// can, deciding the node's gated rules again and publishing its winners anew from its
@@ -1829,15 +1809,15 @@ impl StyleEngineState {
         );
     }
 
-    /// Record a style reaction the engine derived itself for one element, or one C++ derived from
-    /// a reaction it applied: the engine settles it where it can.
+    /// Record a style reaction for one element, which the engine derived itself or C++ derived
+    /// from what it saw move, merged with what the element already owes. It joins the next
+    /// transaction, and the engine settles it where it can.
     pub fn record_derived_element_style_input(&mut self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
         if reaction == 0 {
             return;
         }
         self.defer_element_style_input(node, reaction, inherited_style_groups);
         self.host.deferred_element_style_inputs_are_pending = true;
-        self.host.externally_recorded_style_input_nodes.remove(&node);
     }
 
     /// Fold the style input an element owes into the reaction C++ is about to apply to it, when
@@ -1875,7 +1855,6 @@ impl StyleEngineState {
             return 0;
         }
         self.host.deferred_element_style_inputs.remove(index);
-        self.host.externally_recorded_style_input_nodes.remove(&node);
         u32::from(reaction | pending_reaction)
             | (u32::from(inherited_style_groups | pending_inherited_style_groups) << 8)
     }
@@ -1889,7 +1868,6 @@ impl StyleEngineState {
         {
             self.host.deferred_element_style_inputs.remove(index);
         }
-        self.host.externally_recorded_style_input_nodes.remove(&node);
     }
 
     /// Drop the style input an element owes but the descendant recompute it carries: a demand
@@ -1915,7 +1893,6 @@ impl StyleEngineState {
         } else {
             self.host.deferred_element_style_inputs.remove(index);
         }
-        self.host.externally_recorded_style_input_nodes.remove(&node);
     }
 
     /// Whether one element still owes a deferred style input, asked per node the way the recorded
@@ -3030,7 +3007,6 @@ impl RetainedState {
             demand_records,
             flush_stamp: _,
             // Taken by the transaction that fills them.
-            style_input_nodes_for_cpp: _,
             parent_inputs_moved_nodes: _,
             engine_pseudo_record_cache: _,
             // Filled and cleared within one transaction's record loop.

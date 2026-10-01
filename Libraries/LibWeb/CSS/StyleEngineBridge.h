@@ -243,8 +243,8 @@ public:
         WasDisplayNone = 1 << 7,
         DisplayChanged = 1 << 11,
     };
-    void record_element_style_input_change(StyleNodeID style_node, u8 reaction = PublishedStyle | RecomputeStyle, u8 inherited_style_groups = 0);
-    // A reaction C++ derived from one it applied, for the engine to settle where it can.
+    // A style reaction of one element, for the engine to settle where it can. It names what moved,
+    // not who computes the element's style again.
     void record_derived_element_style_input_change(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0);
     void record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0);
     // What a container query or container-relative length read of the element's containers moved.
@@ -254,7 +254,6 @@ public:
     // Records the dependents of every container a style computation asked about before it had a box.
     void evaluate_size_containers_needing_evaluation_after_layout();
     [[nodiscard]] Vector<StyleNodeID> viewport_dependent_style_nodes();
-    [[nodiscard]] bool has_recorded_element_style_input_change(StyleNodeID style_node) const;
     void record_benchmark_marker(Utf16View);
     [[nodiscard]] bool has_recorded_input() const;
     [[nodiscard]] bool has_pending_transaction() const;

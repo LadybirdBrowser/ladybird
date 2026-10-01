@@ -951,9 +951,6 @@ pub struct RetainedState {
     /// alike in that to share.
     /// Counts the style transactions taken; the winner rows record which one published them.
     flush_stamp: u64,
-    /// Nodes whose style input the C++ computation has to settle: C++ recorded one, or their
-    /// parent's display moved, which their box-type transformation reads.
-    style_input_nodes_for_cpp: HashSet<StyleNodeID>,
     /// Elements whose parent's display moved under their record this transaction: their
     /// box-type transformation reads it, so their record is driven again in full.
     parent_inputs_moved_nodes: HashSet<StyleNodeID>,
@@ -1110,10 +1107,6 @@ pub struct HostState {
     environment_move_changed_names: environment_move::ChangedCustomPropertyNames,
     /// What the last custom-property environment move answered the host, kept until the next one.
     environment_move_actions: Vec<bridge::FfiEnvironmentMoveAction>,
-    /// The nodes whose deferred element style input C++ recorded and the engine did not also
-    /// derive as a child reaction: what makes the next transaction a new pass of a style change
-    /// rather than one more generation of the last one.
-    externally_recorded_style_input_nodes: HashSet<StyleNodeID>,
     deferred_element_style_input_memory: MemoryLease,
     /// Whether any tree input batch has crossed into the engine. A first batch consisting entirely
     /// of unique arrivals can install its final relation rows as one bulk load.

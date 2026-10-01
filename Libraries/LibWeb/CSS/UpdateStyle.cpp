@@ -1246,8 +1246,7 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
     for (size_t i = inheritance_chain.size(); i > 0; --i) {
         auto& ancestor = inheritance_chain[i - 1];
         if (!topmost_element_requiring_style.has_value()
-            && (document.style_computer().style_engine().has_recorded_element_style_input_change(ancestor->style_node_id())
-                || document.style_computer().style_engine().has_deferred_element_style_input(ancestor->style_node_id())
+            && (document.style_computer().style_engine().has_deferred_element_style_input(ancestor->style_node_id())
                 || !ancestor->has_style())) {
             topmost_element_requiring_style = i - 1;
         }
