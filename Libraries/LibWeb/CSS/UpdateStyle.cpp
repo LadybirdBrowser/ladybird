@@ -813,6 +813,14 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
             return;
     }
 
+    // Settle each tree scope's counter-style registry before the engine answers any row: a record
+    // naming a counter style names the registry it was computed against, and a shadow tree can
+    // define its own. None of it depends on layout.
+    (void)document.style_scope().counter_style_environment_identity();
+    document.for_each_shadow_root([](DOM::ShadowRoot& shadow_root) {
+        (void)shadow_root.style_scope().counter_style_environment_identity();
+    });
+
     // A style flush is a transaction boundary. Everything recorded since the last one crosses into
     // StyleEngine as one flat batch, is normalized there, and is routed into the region its
     // transpose programs reach. A transaction that could not be proven narrower publishes a

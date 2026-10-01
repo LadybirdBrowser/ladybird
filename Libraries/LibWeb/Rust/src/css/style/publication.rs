@@ -530,7 +530,7 @@ impl RetainedState {
             && self
                 .winner_groups
                 .semantic_delta_properties(None, state)
-                .any(|property| self.first_record_winner_needs_cpp(state, property))
+                .any(|property| self.first_record_winner_needs_cpp(property))
         {
             counters.bump(Counter::EngineComputedRecordBailProperty);
             return Err(Unanswered::Refused);
@@ -911,6 +911,8 @@ impl RetainedState {
             .and_then(|parent| self.computed_group_sets.assigned_style_record(parent))
             .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
             .is_some_and(|view| view.dependency_flags & (1 << 2) != 0);
+        // A delta moving `content` or `list-style-type` is C++'s, so the record keeps the
+        // counter-style registry its base names.
         let assembly = self.computed_group_sets.replace_engine_computed_table(
             node,
             old_style_record,
@@ -921,8 +923,10 @@ impl RetainedState {
             font.as_ref(),
             parent_in_display_none_subtree,
             environment,
+            None,
         );
         self.settle_computed_memory();
+        let assembly = assembly.or_refused()?;
         counters.add(
             Counter::ComputedOutputGroupsCanonicalized,
             u64::from(assembly.canonicalized_groups),
@@ -1152,7 +1156,7 @@ impl RetainedState {
         // resolves the font from them and rebuilds every group, rejecting the values the font
         // resolution does not pass on yet.
         for property in self.winner_groups.semantic_delta_properties(None, state) {
-            if self.first_record_winner_needs_cpp(state, property) {
+            if self.first_record_winner_needs_cpp(property) {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
                 return Err(Unanswered::Refused);
             }
@@ -1279,17 +1283,22 @@ impl RetainedState {
                 let parent_in_display_none_subtree = parent_record
                     .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
                     .is_some_and(|view| view.dependency_flags & (1 << 2) != 0);
-                let assembly = self.computed_group_sets.replace_engine_computed_table(
-                    node,
-                    donor.record.record,
-                    computed::FinalStyleRecordID::NONE,
-                    table,
-                    groups_to_rebuild,
-                    &length,
-                    None,
-                    parent_in_display_none_subtree,
-                    Some(environment),
-                );
+                let counter_style_registry = self.table_counter_style_environment_identity(target, &table);
+                let assembly = self
+                    .computed_group_sets
+                    .replace_engine_computed_table(
+                        node,
+                        donor.record.record,
+                        computed::FinalStyleRecordID::NONE,
+                        table,
+                        groups_to_rebuild,
+                        &length,
+                        None,
+                        parent_in_display_none_subtree,
+                        Some(environment),
+                        Some(counter_style_registry),
+                    )
+                    .or_refused()?;
                 self.computed_group_sets
                     .set_pending_cascade_state(target, cascade_state);
                 self.settle_computed_memory();
@@ -1303,8 +1312,11 @@ impl RetainedState {
                     counters,
                 );
                 // The key names the parent's environment: a record whose own declarations
-                // resolved another is no answer for an element declaring none.
-                if let Some(cache_key) = cache_key.filter(|key| key.environment == environment) {
+                // resolved another is no answer for an element declaring none. Nor is one naming
+                // its tree scope's counter-style registry for an element of another scope.
+                if let Some(cache_key) =
+                    cache_key.filter(|key| key.environment == environment && counter_style_registry == 0)
+                {
                     let record = ColdRecord {
                         record: assembly.delta.1,
                         swap_eligible: self.computed_group_sets.node_inherited_group_swap_eligible(node),
@@ -1329,6 +1341,7 @@ impl RetainedState {
             FullDrive::RootInputs(root_inputs) => return Ok(ElementAnswer::RootInputs(Some(root_inputs))),
         };
         let font = font.expect("a full drive resolves the font");
+        let counter_style_registry = self.table_counter_style_environment_identity(target, &table);
         let (new_style_record, swap_eligible) = self.assemble_and_publish_engine_record(
             target,
             parent_record,
@@ -1337,7 +1350,7 @@ impl RetainedState {
             &font,
             environment,
             pseudo_styles,
-            0,
+            counter_style_registry,
             Some(cascade_state),
             &mut scratch.computability,
             counters,
@@ -1345,8 +1358,9 @@ impl RetainedState {
         let delta = (computed::FinalStyleRecordID::NONE, new_style_record);
         // The publication itself kept the record for later transactions; alike elements in this
         // one take it from the cohort. The key names the parent's environment, so a record whose
-        // own declarations resolved another is kept for no one.
-        if let Some(cache_key) = cache_key.filter(|key| key.environment == environment) {
+        // own declarations resolved another is kept for no one, and it names no tree scope, so
+        // neither is a record naming its scope's counter-style registry.
+        if let Some(cache_key) = cache_key.filter(|key| key.environment == environment && counter_style_registry == 0) {
             let record = ColdRecord {
                 record: delta.1,
                 swap_eligible,
@@ -1441,21 +1455,51 @@ impl RetainedState {
     }
 
     /// Whether a first record's winner keeps the record's computation in C++: a property that
-    /// starts an animation or transition, or reads the counter-style environment. A
-    /// `list-style-type` reads it only through an overridable counter-style name. The font-phase
-    /// longhands without a group of their own are inputs of the font group the full drive builds.
-    fn first_record_winner_needs_cpp(&self, state: CascadeStateID, property: u16) -> bool {
+    /// starts an animation or transition, or reads the counter-style environment through
+    /// `content`. A `list-style-type` names the registry it reads on the record the engine
+    /// assembles. The font-phase longhands without a group of their own are inputs of the font
+    /// group the full drive builds.
+    fn first_record_winner_needs_cpp(&self, property: u16) -> bool {
         use crate::css::property_metadata::property_id as prop;
         if property == prop::LIST_STYLE_TYPE {
-            return self.list_style_type_winner_reads_counter_style_environment(state);
-        }
-        if property == prop::DISPLAY {
-            // A list item's marker is derived beside its first record, and the default marker's
-            // font is not one the engine resolves yet: the record would be derived and abandoned.
-            return self.display_winner_is_list_item(state);
+            return false;
         }
         property_starts_animation_or_counter_environment(property)
             || (computed_group_dependency_mask(property).is_none() && !font_group_carries_longhand(property))
+    }
+
+    /// The counter-style registry a record computed for `target` from `table` names, as C++ stamps
+    /// it: its style scope's registry whenever its `list-style-type` names a counter style that
+    /// registry may define, which for a pseudo-element is any named one. Zero otherwise.
+    fn table_counter_style_environment_identity(
+        &self,
+        target: computed::ComputedStyleTarget,
+        table: &ComputedLonghandTable,
+    ) -> u64 {
+        let value = table
+            .effective_value(None, crate::css::property_metadata::property_id::LIST_STYLE_TYPE, true)
+            .value;
+        let names_a_counter_style = match unsafe { value.cast::<StyleValueData>().as_ref() } {
+            Some(StyleValueData::CounterStyle {
+                is_symbols: false,
+                name,
+                ..
+            }) => target.is_pseudo() || !counter_style_name_is_non_overridable(name.units()),
+            _ => false,
+        };
+        if !names_a_counter_style {
+            return 0;
+        }
+        // An element of a shadow tree built from the document's style sheets has the document's
+        // style scope.
+        let mut tree_scope = self.tree.tree_scope(target.node());
+        if self.program.scope_uses_document_sheets(tree_scope) {
+            tree_scope = TreeScopeID::DOCUMENT;
+        }
+        self.counter_style_environment_identities
+            .get(&tree_scope)
+            .copied()
+            .unwrap_or(0)
     }
 
     /// Whether the cascade state's winning `font-family` is monospace, which is what makes the
@@ -1488,52 +1532,11 @@ impl RetainedState {
         }
     }
 
-    fn display_winner_is_list_item(&self, state: CascadeStateID) -> bool {
-        use crate::css::style_value::StyleValueData;
-        self.winner_groups
-            .winner_in_state(state, crate::css::property_metadata::property_id::DISPLAY)
-            .and_then(|winner| self.winner_groups.resolved_winner(winner))
-            .is_some_and(|winner| match self.specified_values.value(winner.key.value) {
-                Lookup::Known(StyleValueData::Display { raw }) => {
-                    crate::css::display::FfiDisplay::from_raw(*raw).is_list_item()
-                }
-                _ => true,
-            })
-    }
-
-    fn list_style_type_winner_reads_counter_style_environment(&self, state: CascadeStateID) -> bool {
-        let Some(winner) = self
-            .winner_groups
-            .winner_in_state(state, crate::css::property_metadata::property_id::LIST_STYLE_TYPE)
-            .and_then(|winner| self.winner_groups.resolved_winner(winner))
-        else {
-            return true;
-        };
-        self.list_style_type_value_reads_counter_style_environment(&winner)
-    }
-
-    /// Whether a `list-style-type` winner names a counter style the environment may define: an
-    /// overridable name. `none`, a string, `symbols()` and the non-overridable names need none.
-    fn list_style_type_value_reads_counter_style_environment(&self, winner: &PropertyWinner) -> bool {
-        use crate::css::style_value::StyleValueData;
-        match self.specified_values.value(winner.key.value) {
-            Lookup::Known(StyleValueData::CounterStyle { is_symbols, name, .. }) => {
-                !*is_symbols && !counter_style_name_is_non_overridable(name.units())
-            }
-            Lookup::Known(StyleValueData::Keyword { keyword }) => *keyword != crate::css::style_compute::keyword::NONE,
-            Lookup::Known(StyleValueData::String { .. }) => false,
-            _ => true,
-        }
-    }
-
     /// Whether a pseudo-element's winner keeps its record in C++: the same rule as a first
     /// record's, since a pseudo-element record the engine settles is computed in full.
     fn pseudo_winner_needs_cpp(&self, winner: &PropertyWinner) -> bool {
-        use crate::css::property_metadata::property_id as prop;
-        if winner.property == prop::LIST_STYLE_TYPE {
-            return self.list_style_type_value_reads_counter_style_environment(winner);
-        }
-        property_starts_animation_or_counter_environment(winner.property)
+        winner.property != crate::css::property_metadata::property_id::LIST_STYLE_TYPE
+            && property_starts_animation_or_counter_environment(winner.property)
     }
 
     fn record_requires_cpp_animation(&self, record: computed::FinalStyleRecordID) -> bool {

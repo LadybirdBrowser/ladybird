@@ -949,8 +949,11 @@ void StyleScope::build_counter_style_cache()
                 }
             }
         }
-        if (counter_style_environment_changed)
+        if (counter_style_environment_changed) {
             m_counter_style_environment_identity = document().next_counter_style_environment_identity();
+            // The style engine names the same registry on every record it computes against it.
+            document().style_computer().style_engine().set_counter_style_environment_identity(style_engine_tree_scope(), m_counter_style_environment_identity);
+        }
 
         m_is_doing_counter_style_cache_update = false;
         m_needs_counter_style_cache_update = false;

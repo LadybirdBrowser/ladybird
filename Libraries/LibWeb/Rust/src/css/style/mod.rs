@@ -851,6 +851,10 @@ pub struct RetainedState {
     /// The elements whose style reads their custom-property environment other than through `var()`,
     /// which a moved environment computes again.
     environment_move_recompute_nodes: HashSet<StyleNodeID>,
+    /// The counter-style registry each tree scope's style scope has, as one identity per scope:
+    /// what a record whose `list-style-type` names a counter style the registry may define names,
+    /// so that an edit to `@counter-style` moves it.
+    counter_style_environment_identities: HashMap<TreeScopeID, u64>,
     /// The style record each element holds, for the elements that hold one, as the host reports
     /// every record it installs or clears.
     held_style_records: HashMap<StyleNodeID, u64>,

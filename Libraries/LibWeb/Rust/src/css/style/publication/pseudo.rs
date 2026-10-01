@@ -428,26 +428,8 @@ impl RetainedState {
                     }
                     let font = font.expect("a full drive resolves the font");
                     // A marker renders its list-style-type through the counter style a registry
-                    // defines, so C++ stamps the marker's record with its tree scope's registry,
-                    // and a new registry makes a new record. An @counter-style rule joining or
-                    // leaving the program, by its sheet's activation or attachment too, closes the
-                    // flush's named-rule gate to every node whose records name a registry, and C++
-                    // computes them: the registry the marker's own record names is the current one
-                    // whenever the engine settles the element. It is the only one the engine can
-                    // name.
-                    let registry = if kind == MARKER && table_names_a_counter_style(&table) {
-                        match old.and_then(|old| self.computed_group_sets.style_record_view(old.raw())) {
-                            Some(view) if view.counter_style_environment_identity != 0 => {
-                                view.counter_style_environment_identity
-                            }
-                            _ => {
-                                counters.bump(Counter::EngineComputedRecordBailProperty);
-                                return Err(Unanswered::Refused);
-                            }
-                        }
-                    } else {
-                        0
-                    };
+                    // defines, so its record names its tree scope's registry, as C++ stamps it.
+                    let registry = self.table_counter_style_environment_identity(target, &table);
                     let (record, _) = self.assemble_and_publish_engine_record(
                         target,
                         Some(new_element_record),
@@ -733,17 +715,6 @@ fn pseudo_content_generates_nothing(store: &impl crate::css::cascaded_properties
         }
         Some(_) => false,
     }
-}
-
-/// Whether a marker's record names a counter style a registry may define, as C++ decides when it
-/// stamps the record with its scope's registry: through a named `list-style-type`. A `content`
-/// counter never reaches an engine record.
-fn table_names_a_counter_style(table: &ComputedLonghandTable) -> bool {
-    let value = table
-        .effective_value(None, crate::css::property_metadata::property_id::LIST_STYLE_TYPE, true)
-        .value;
-    matches!(unsafe { value.cast::<StyleValueData>().as_ref() },
-        Some(StyleValueData::CounterStyle { is_symbols, .. }) if !*is_symbols)
 }
 
 impl StyleEngineState {
