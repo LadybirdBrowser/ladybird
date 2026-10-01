@@ -83,18 +83,13 @@ impl NamedRuleContextsMoved {
 }
 
 impl RetainedState {
-    /// Whether a moved named rule context reaches the node's record where the engine cannot follow:
-    /// a counter style reaches only a record that resolved one, and `@font-feature-values` reaches
-    /// values a record does not say it read.
-    fn named_rule_contexts_reach(&self, node: StyleNodeID, moved: NamedRuleContextsMoved) -> bool {
-        moved.font_feature_values || (moved.counter_styles && self.node_reads_counter_styles(node))
-    }
-
     /// Whether a moved named rule context drives the node's record again in full, its winners
-    /// standing as they were: a `@function` reaches an element whose style called one, which the
-    /// engine resolves against the published definitions.
+    /// standing as they were: a `@function` reaches an element whose style called one, and a
+    /// counter style a record that resolved one, which the engine resolves against the published
+    /// definitions and registry.
     fn named_rule_contexts_drive_in_full(&self, node: StyleNodeID, moved: NamedRuleContextsMoved) -> bool {
-        moved.custom_functions && self.facts.uses_custom_functions(node)
+        (moved.custom_functions && self.facts.uses_custom_functions(node))
+            || (moved.counter_styles && self.node_reads_counter_styles(node))
     }
 
     /// Whether the node's record, or the record of one of its pseudo-elements, resolved a counter
@@ -962,11 +957,16 @@ impl StyleEngineState {
             .markers
             .iter()
             .any(|marker| marker.kind == transaction::InputKind::Environment);
-        // A rule's declarations edited may be custom properties, which are no winners.
-        let rule_declarations_edited = transaction
-            .inputs
-            .iter()
-            .any(|input| matches!(input.key, InputKey::RuleField(_, RuleField::Declarations)));
+        // A rule's declarations edited may be custom properties, which are no winners. The
+        // descriptors of a named rule context, such as a counter style's, are no declarations a
+        // winner holds: the context moves, as below.
+        let rule_declarations_edited = transaction.inputs.iter().any(|input| {
+            matches!(input.key, InputKey::RuleField(rule, RuleField::Declarations)
+            if !matches!(
+                self.retained.program.rule_version(rule).kind,
+                RuleKind::CounterStyle | RuleKind::Function | RuleKind::FontFeatureValues
+            ))
+        });
         let mut named_rules_moved = NamedRuleContextsMoved::default();
         for delta in &transaction.program_joins {
             match self.retained.program.rule_version(delta.rule).kind {
@@ -1842,7 +1842,8 @@ impl StyleEngineState {
                     | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
                 let reaction_is_settleable = reaction & !(transaction::STYLE_REACTION_PUBLISHED_STYLE | DERIVABLE) == 0
                     && !(reaction & DERIVABLE != 0 && style_input_nodes_for_cpp.contains(&root));
-                let can_prepare = !(old_record.is_some() && self.named_rule_contexts_reach(root, named_rules_moved))
+                // A moved `@font-feature-values` reaches values a record does not say it read.
+                let can_prepare = !(old_record.is_some() && named_rules_moved.font_feature_values)
                     && (reaction_is_settleable
                         || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     && !self.retained.computed_group_sets.node_answer_is_incomplete(root)
@@ -2129,7 +2130,7 @@ impl StyleEngineState {
                         // C++ only refreshes the inherited environment for a non-consumer. There
                         // is no element record to recompute or compare against the parent's groups.
                         false
-                    } else if (old_style_record != 0 && self.named_rule_contexts_reach(node, named_rules_moved))
+                    } else if (old_style_record != 0 && named_rules_moved.font_feature_values)
                         || !(reaction_is_settleable
                             || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     {
