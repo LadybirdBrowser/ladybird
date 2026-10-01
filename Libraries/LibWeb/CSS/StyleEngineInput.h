@@ -143,6 +143,7 @@ WEB_API u32 element_box_type_adjustment_facts(DOM::Element const&);
 WEB_API void record_element_adjustment_facts(DOM::Element&);
 WEB_API bool record_element_presentational_hint_properties(DOM::Element&, ReadonlySpan<StyleProperty>);
 WEB_API void record_element_animation_names(DOM::Element&, ReadonlySpan<Utf16FlyString>);
+WEB_API void record_element_css_defined_animations(DOM::Element&, u8 slot, ReadonlySpan<Utf16FlyString> names);
 WEB_API void record_element_custom_property_names(DOM::Element&, ReadonlySpan<Utf16FlyString>, bool uses_unnamed, bool uses_custom_functions);
 
 // The same index, from the environments the element and its pseudo-elements resolved to, plus
