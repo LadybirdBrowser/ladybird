@@ -10,6 +10,7 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/PaintFacts.h>
 
 namespace Web::DOM {
 
@@ -71,6 +72,12 @@ void InvalidationJournal::note_dom_paint_facts(NodeIdentity identity, u8 facts)
     drain_if_layout_is_reading();
 }
 
+void InvalidationJournal::note_paint_facts(NodeIdentity identity, Painting::PaintFactsFamily families)
+{
+    entry_for(identity).stale_paint_facts |= families;
+    drain_if_layout_is_reading();
+}
+
 void InvalidationJournal::forget(CSS::StyleNodeID style_node)
 {
     auto index = m_entry_index_by_identity.take(NodeIdentity::of_style_node(style_node));
@@ -109,6 +116,8 @@ void InvalidationJournal::drain()
                     needs_repaint = true;
                     invalidate_display_list = InvalidateDisplayList::PaintCommandsAndHitTestList;
                 }
+                if (entry.stale_paint_facts != Painting::PaintFactsFamily::None)
+                    Painting::apply_paint_facts(*layout_node, entry.stale_paint_facts);
                 if (entry.needs_subtree_repaint)
                     Painting::apply_subtree_repaint_damage(*layout_node);
                 if (needs_repaint) {

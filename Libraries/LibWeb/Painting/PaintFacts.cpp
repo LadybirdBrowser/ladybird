@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -42,12 +43,22 @@ static void push_form_control_paint_facts_onto(HTML::HTMLInputElement const& inp
     Layout::RustFFI::layout_arena_set_form_control_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), facts);
 }
 
+// The journal finds the box as it drains, so the box is not looked up here.
+static void note_paint_facts(DOM::Node const& node, PaintFactsFamily families)
+{
+    if (!node.has_layout_box())
+        return;
+    if (auto identity = DOM::NodeIdentity::of(node))
+        const_cast<DOM::Document&>(node.document()).invalidation_journal().note_paint_facts(identity, families);
+    else
+        apply_paint_facts(*node.unsafe_layout_node(), families);
+}
+
 void push_form_control_paint_facts(HTML::HTMLInputElement& input)
 {
-    auto const* layout_node = input.unsafe_layout_node();
-    if (!layout_node || !paints_form_control_from_facts(*layout_node))
-        return;
-    push_form_control_paint_facts_onto(input, *layout_node);
+    using enum HTML::HTMLInputElement::TypeAttributeState;
+    if (first_is_one_of(input.type_state(), Checkbox, RadioButton))
+        note_paint_facts(input, PaintFactsFamily::FormControl);
 }
 
 static void push_canvas_paint_facts_onto(HTML::HTMLCanvasElement const& canvas, Layout::Node const& layout_node)
@@ -67,10 +78,7 @@ static void push_canvas_paint_facts_onto(HTML::HTMLCanvasElement const& canvas, 
 
 void push_canvas_paint_facts(HTML::HTMLCanvasElement const& canvas)
 {
-    auto const* layout_node = canvas.unsafe_layout_node();
-    if (!layout_node || layout_node->kind() != Layout::RustFFI::NodeKind::CanvasBox)
-        return;
-    push_canvas_paint_facts_onto(canvas, *layout_node);
+    note_paint_facts(canvas, PaintFactsFamily::Canvas);
 }
 
 static Optional<u64> composited_context_id_for_navigable_container(HTML::NavigableContainer const& navigable_container)
@@ -263,6 +271,14 @@ void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, Sty
         push_replaced_image_paint_facts(as<SVG::SVGImageElement>(*layout_node.dom_node()), layout_node);
     else if (layout_node.kind() == Layout::RustFFI::NodeKind::VideoBox)
         push_video_paint_facts_onto(as<HTML::HTMLVideoElement>(*layout_node.dom_node()), layout_node);
+}
+
+void apply_paint_facts(Layout::Node const& layout_node, PaintFactsFamily families)
+{
+    if (has_flag(families, PaintFactsFamily::FormControl) && paints_form_control_from_facts(layout_node))
+        push_form_control_paint_facts_onto(as<HTML::HTMLInputElement>(*layout_node.dom_node()), layout_node);
+    if (has_flag(families, PaintFactsFamily::Canvas) && layout_node.kind() == Layout::RustFFI::NodeKind::CanvasBox)
+        push_canvas_paint_facts_onto(as<HTML::HTMLCanvasElement>(*layout_node.dom_node()), layout_node);
 }
 
 }
