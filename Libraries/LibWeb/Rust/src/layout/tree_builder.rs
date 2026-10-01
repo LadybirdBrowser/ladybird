@@ -104,8 +104,7 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut FfiIdentifiedDomNode, usize),
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
-    pub principal_node_entry_facts: unsafe extern "C" fn(*mut c_void, u32, bool) -> FfiPrincipalNodeEntryFacts,
-    pub push_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiPrincipalNodeFrame,
+    pub push_principal_frame: unsafe extern "C" fn(*mut c_void, u32) -> FfiPrincipalNodeFrame,
     pub pop_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub prepare_principal_element: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool),
     pub create_principal_element_layout:
@@ -136,6 +135,9 @@ pub struct FfiIdentifiedDomNode {
 pub struct FfiPrincipalNodeFrame {
     pub frame: *mut c_void,
     pub old_layout_node: NodeSlotId,
+    /// The DOM node the walk's identity names. The walk navigates by identity and takes the pointer
+    /// from here, so the node is resolved once per visit rather than once per payload callback.
+    pub dom_node: *mut c_void,
 }
 
 #[derive(Clone, Copy)]
@@ -149,12 +151,10 @@ pub struct FfiPrincipalDescendantFacts {
     pub svg_stroke_pattern: FfiIdentifiedDomNode,
 }
 
+/// What the build knows about a node when it enters it: what its marks ask for, and what layout
+/// node it already has. Every field is read out of the arena by identity.
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPrincipalNodeEntryFacts {
-    /// The DOM node the walk's identity names. The walk navigates by identity and takes the pointer
-    /// from here, so the node is resolved once per visit rather than once per payload callback.
-    pub dom_node: *mut c_void,
+pub(crate) struct PrincipalNodeEntryFacts {
     pub must_create_subtree: bool,
     pub needs_layout_tree_update: bool,
     pub has_layout_node: bool,
@@ -1159,7 +1159,7 @@ impl ChildListInsertionReuse<'_, '_> {
 }
 
 pub(crate) fn principal_node_entry_decision(
-    facts: FfiPrincipalNodeEntryFacts,
+    facts: PrincipalNodeEntryFacts,
     reuse: LayoutNodeReuse,
     kind: PrincipalNodeKind,
     element_type_facts: u32,
@@ -2183,7 +2183,7 @@ fn transfer_fragments_to_replacement_box(
 
 fn update_principal_node_after_entry(
     update: &mut PrincipalNodeUpdate<'_, '_, '_, '_>,
-    entry_facts: FfiPrincipalNodeEntryFacts,
+    entry_facts: PrincipalNodeEntryFacts,
     entry_decision: PrincipalNodeEntryDecision,
 ) {
     let host = update.host;
@@ -2443,15 +2443,27 @@ fn update_layout_tree_from(
     is_document_root: bool,
 ) {
     abort_on_panic(|| {
-        // SAFETY: The builder remains live, and the identity names a live DOM node.
-        let entry_facts = unsafe {
-            (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, identity.raw(), must_create_subtree)
-        };
-        let dom_node = entry_facts.dom_node;
-        assert!(!dom_node.is_null());
         let kind = PrincipalNodeKind::of(identity, is_document_root);
         // The document's identity only roots the style mirror's child sequence; it has no style.
         let style_node = (!kind.is_document()).then_some(identity);
+
+        // The pointer rides back on the frame push, so the node is resolved once per visit rather
+        // than once per payload callback.
+        // SAFETY: The builder remains live, the identity names a live DOM node, and the callback
+        // retains frame-owned C++ objects.
+        let pushed_frame = unsafe { (host.callbacks.push_principal_frame)(host.callbacks.builder, identity.raw()) };
+        assert!(!pushed_frame.frame.is_null());
+        let dom_node = pushed_frame.dom_node;
+        assert!(!dom_node.is_null());
+        let old_layout_node = pushed_frame.old_layout_node;
+        let entry_facts = PrincipalNodeEntryFacts {
+            must_create_subtree,
+            needs_layout_tree_update: host.arena().needs_layout_tree_update(identity),
+            has_layout_node: !old_layout_node.is_invalid(),
+            layout_node_is_attached: !old_layout_node.is_invalid()
+                && !host.layout().parent(old_layout_node).is_invalid(),
+        };
+
         let reuse = resolve_layout_node_reuse(host, kind, style_node);
         let element_type_facts = host.element_type_facts(style_node);
         let entry_decision = principal_node_entry_decision(entry_facts, reuse, kind, element_type_facts, context);
@@ -2465,19 +2477,18 @@ fn update_layout_tree_from(
                     crate::layout::commit::FfiCommitMessageKind::TopLayerZoneRebuildNeeded,
                 ));
             }
+            // SAFETY: `frame` is the most recently pushed principal frame and is no longer used by Rust.
+            unsafe { (host.callbacks.pop_principal_frame)(host.callbacks.builder, pushed_frame.frame) };
             return;
         }
 
-        // SAFETY: The builder and DOM node remain live, and the callback retains frame-owned C++ objects.
-        let pushed_frame = unsafe { (host.callbacks.push_principal_frame)(host.callbacks.builder, dom_node) };
-        assert!(!pushed_frame.frame.is_null());
         let mut update = PrincipalNodeUpdate {
             kind,
             reuse,
             host,
             state,
             frame: pushed_frame.frame,
-            old_layout_node: pushed_frame.old_layout_node,
+            old_layout_node,
             dom_node,
             identity,
             style_node,
@@ -2526,9 +2537,8 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         document_needs_full_layout_tree_update: host.layout().arena().needs_full_layout_tree_update(),
         ..Default::default()
     };
-    // SAFETY: All pointers remain live throughout the build.
-    let entry_facts =
-        unsafe { (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, document_style_node, false) };
+    // Whether the document already had a viewport, read before the build replaces it.
+    let document_had_layout_node = !host.layout().arena().layout_root().is_invalid();
 
     update_layout_tree_from(
         &host,
@@ -2543,7 +2553,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     let document_layout_node = host.layout().arena().layout_root();
     let rebuilt_subtrees_were_updated_individually = !document_layout_node.is_invalid()
         && !(context.document_needs_full_layout_tree_update
-            || !entry_facts.has_layout_node
+            || !document_had_layout_node
             || state.layout_tree_update_escaped_rebuild_roots);
     if !document_layout_node.is_invalid() {
         let layout_host = host.layout();
@@ -4819,9 +4829,9 @@ mod tests {
     use crate::layout::node_data::NodeSlotId;
     use crate::layout::tree_builder::{
         FfiCodePointCategoryFacts, FfiComputedContentType, FfiElementLayoutKind, FfiPrincipalBoxPlacement,
-        FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts,
-        FfiReplacedElementDisplayAdjustment, LayoutNodeReuse, PrincipalBoxGenerationDecision,
-        PrincipalBoxPlacementFacts, PrincipalNodeKind, SvgEntryDecision, TopLayerEntryDecision, TreeBuilderContext,
+        FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment,
+        LayoutNodeReuse, PrincipalBoxGenerationDecision, PrincipalBoxPlacementFacts, PrincipalNodeEntryFacts,
+        PrincipalNodeKind, SvgEntryDecision, TopLayerEntryDecision, TreeBuilderContext,
         adjusted_table_display_for_replaced_element, display_contents_text_needs_style_wrapper, element_layout_kind,
         find_first_letter_in_text, principal_box_generation_decision, principal_box_placement_decision,
         principal_node_entry_decision, pseudo_element_decision,
@@ -5034,8 +5044,7 @@ mod tests {
 
     #[test]
     fn principal_node_entry_decisions() {
-        let mut facts = FfiPrincipalNodeEntryFacts {
-            dom_node: std::ptr::null_mut(),
+        let mut facts = PrincipalNodeEntryFacts {
             must_create_subtree: false,
             needs_layout_tree_update: false,
             has_layout_node: true,
