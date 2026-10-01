@@ -95,7 +95,7 @@ struct ResolvedFont {
     // Keep the family and feature values alive for the pointer identities in the cache key.
     _font_family: RetainedStyleValueData,
     _font_feature_values: [Option<RetainedStyleValueData>; FONT_RESOLUTION_FEATURE_INPUT_COUNT],
-    _font_cascade_list: Option<SharedFontCascadeList>,
+    _font_cascade_list: SharedFontCascadeList,
     ffi: FfiResolvedFont,
 }
 
@@ -126,11 +126,12 @@ impl FontResolutionCache {
     }
 
     fn insert(&mut self, request: FontRequest, ffi: FfiResolvedFont) {
-        // A null result is a completed, unsupported host resolution, not another cache miss.
-        let font_cascade_list = (!ffi.font_cascade_list.is_none()).then(|| {
-            // SAFETY: The callback transfers one reference to a live list.
-            SharedFontCascadeList(unsafe { FontCascadeListHandle::adopt(ffi.font_cascade_list.as_pointer()) })
-        });
+        // The host resolves every request, to the fallback font where nothing else matches, so the
+        // resolution always names a list.
+        debug_assert!(!ffi.font_cascade_list.is_none());
+        // SAFETY: The callback transfers one reference to a live list.
+        let font_cascade_list =
+            SharedFontCascadeList(unsafe { FontCascadeListHandle::adopt(ffi.font_cascade_list.as_pointer()) });
         self.cache.insert(
             FontResolutionKey::new(request.ffi),
             ResolvedFont {
@@ -292,46 +293,5 @@ mod tests {
 
         drop(resolver);
         assert_eq!(font_cascade_list_unref_count(), unrefs_before + 2);
-    }
-
-    #[test]
-    fn unavailable_resolution_is_a_completed_answer_until_the_environment_changes() {
-        unsafe extern "C" fn unavailable(
-            _: *mut c_void,
-            _: *const c_void,
-            _: FfiFontResolutionRequest,
-        ) -> FfiResolvedFont {
-            FfiResolvedFont::default()
-        }
-        let family = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 1 });
-        let request = FfiFontResolutionRequest {
-            font_family: crate::css::style::bridge::FfiHostHandle::from_pointer(family.pointer().cast()),
-            font_feature_values: [crate::css::style::bridge::FfiHostHandle::from_pointer(std::ptr::null());
-                FONT_RESOLUTION_FEATURE_INPUT_COUNT],
-            font_size_raw: 1024,
-            font_slope: 0,
-            font_weight: 400.0,
-            font_width: 100.0,
-            font_optical_sizing: 0,
-            font_environment_generation: 1,
-        };
-        let host = FontResolverHost::with_callback(unavailable, unsafe {
-            PublishedFontFaces::adopt(std::ptr::dangling(), std::ptr::dangling())
-        });
-        let mut resolver = FontResolutionCache::default();
-        resolver.prepare(1);
-        let owned = FontRequest::new(request);
-        drop(family);
-        assert!(resolver.lookup(request).is_none());
-        host.refill(&mut resolver, owned);
-        assert!(resolver.lookup(request).unwrap().font_cascade_list.is_none());
-        assert!(resolver.lookup(request).unwrap().font_cascade_list.is_none());
-        // A failed synchronous result must not cause an endless refill loop.
-        let next = FfiFontResolutionRequest {
-            font_environment_generation: 2,
-            ..request
-        };
-        assert!(resolver.lookup(next).is_none());
-        resolver.prepare(2);
     }
 }

@@ -755,10 +755,6 @@ impl RetainedState {
             });
             return Err(Unanswered::Suspended(Suspension::Font));
         };
-        if resolved.font_cascade_list.is_none() {
-            counters.bump(Counter::EngineComputedRecordBailFontPhase);
-            return Err(Unanswered::Refused);
-        }
         let own_metrics = |line_height: f64| FfiFontMetrics {
             font_size,
             x_height: drive_font_metric(resolved.x_height),
