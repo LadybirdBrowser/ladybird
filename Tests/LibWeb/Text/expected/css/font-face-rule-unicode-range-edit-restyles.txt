@@ -1,0 +1,3 @@
+the face renders the text: true
+a unicode-range that leaves the text out drops the face: true
+a unicode-range that covers the text again takes it back: true

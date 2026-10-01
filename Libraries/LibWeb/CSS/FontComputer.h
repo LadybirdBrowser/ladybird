@@ -171,6 +171,9 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
+    // The one funnel: every change to what a font resolution would answer passes through here.
+    void bump_environment_generation();
+
     void begin_font_face_change_batch();
     void end_font_face_change_batch();
     void clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names);
