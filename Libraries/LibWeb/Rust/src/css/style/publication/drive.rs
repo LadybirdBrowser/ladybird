@@ -13,6 +13,44 @@ pub(super) enum FontDriveGoal {
     RootInputs,
 }
 
+/// Why a row has no record. A suspended row is not refused: it waits on a request the host
+/// services between passes, and the same row resumes once that request is answered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::css::style) enum Unanswered {
+    Suspended(Suspension),
+    Refused,
+}
+
+/// What a suspended row waits on. The request itself stays where the host's service reads it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::css::style) enum Suspension {
+    /// The drive's font is not resolved yet; `FontDriveScratch::request` names it.
+    Font,
+}
+
+/// A row's answer from the engine, or why there is none.
+pub(in crate::css::style) type Drive<T> = Result<T, Unanswered>;
+
+/// A missing value on the way to a record is the engine declining the row.
+pub(in crate::css::style) trait OrRefused<T> {
+    fn or_refused(self) -> Drive<T>;
+}
+
+impl<T> OrRefused<T> for Option<T> {
+    fn or_refused(self) -> Drive<T> {
+        self.ok_or(Unanswered::Refused)
+    }
+}
+
+/// A driven longhand table with the length context it was driven against, the longhand
+/// evaluations it took, and the font a full drive resolved.
+pub(super) type DrivenTable = (
+    ComputedLonghandTable,
+    crate::css::style_compute::FfiLengthResolutionContext,
+    u32,
+    Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
+);
+
 #[derive(Default)]
 pub(in crate::css::style) struct FontDriveScratch {
     pub(super) root_inputs: Option<RootFontInputs>,
@@ -24,6 +62,13 @@ pub(in crate::css::style) struct FontDriveScratch {
 impl FontDriveScratch {
     pub(in crate::css::style) fn is_pending(&self) -> bool {
         self.pending.is_some()
+    }
+
+    /// The font request a drive suspended on.
+    pub(in crate::css::style) fn take_suspended_request(&mut self) -> font_resolution::FontRequest {
+        self.request
+            .take()
+            .expect("a drive suspended on a font names its request")
     }
 
     pub(in crate::css::style) fn capacity_bytes(&self) -> u64 {
@@ -279,12 +324,7 @@ impl RetainedState {
         font_scratch: &mut FontDriveScratch,
         goal: FontDriveGoal,
         counters: &mut Counters,
-    ) -> Option<(
-        ComputedLonghandTable,
-        crate::css::style_compute::FfiLengthResolutionContext,
-        u32,
-        Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
-    )> {
+    ) -> Drive<DrivenTable> {
         let store = store.view(self);
         use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
         use crate::css::css_pixels::CssPixels;
@@ -304,32 +344,32 @@ impl RetainedState {
         // An element with animations composes its style with their effects in C++.
         if facts & fact::HAS_ANIMATIONS != 0 {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-            return None;
+            return Err(Unanswered::Refused);
         }
         if self.font_resolution.is_none() {
             counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
-            return None;
+            return Err(Unanswered::Refused);
         }
         if store
             .winning_declaration(prop::FONT_FAMILY)
             .is_some_and(|(value, ..)| font_family_is_monospace(unsafe { &*value.cast::<StyleValueData>() }))
         {
             counters.bump(Counter::EngineComputedRecordBailFontPhase);
-            return None;
+            return Err(Unanswered::Refused);
         }
         let old_table = match old_style_record {
             Some(old_style_record) => {
                 let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
                     counters.bump(Counter::EngineComputedRecordBailRecord);
-                    return None;
+                    return Err(Unanswered::Refused);
                 };
                 if !view.animated_overlay.is_null() {
                     counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                    return None;
+                    return Err(Unanswered::Refused);
                 }
                 let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
                     counters.bump(Counter::EngineComputedRecordBailRecordTable);
-                    return None;
+                    return Err(Unanswered::Refused);
                 };
                 // A record kept under display:none is still what the element's own style is driven
                 // from, but the animations it names start only when C++ computes the element out of
@@ -338,7 +378,7 @@ impl RetainedState {
                     || crate::css::style_compute::has_active_transition_properties(old_table)
                 {
                     counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                    return None;
+                    return Err(Unanswered::Refused);
                 }
                 Some(old_table)
             }
@@ -348,15 +388,15 @@ impl RetainedState {
             Some(parent) => {
                 let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent) else {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                    return None;
+                    return Err(Unanswered::Refused);
                 };
                 let Some(parent_view) = self.computed_group_sets.style_record_view(parent_record.raw()) else {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                    return None;
+                    return Err(Unanswered::Refused);
                 };
                 if !parent_view.animated_overlay.is_null() {
                     counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                    return None;
+                    return Err(Unanswered::Refused);
                 }
                 Some(parent_view)
             }
@@ -400,7 +440,7 @@ impl RetainedState {
                 .is_some_and(|parent_view| parent_view.dependency_flags & (1 << 2) != 0)
         {
             counters.bump(Counter::EngineComputedRecordBailRecordParent);
-            return None;
+            return Err(Unanswered::Refused);
         }
         // The parent's display, past any display:contents ancestor, is what the box-type
         // transformation reads.
@@ -427,7 +467,7 @@ impl RetainedState {
             Some(parent_view) => {
                 let Some(parent_table) = (unsafe { parent_view.longhand_table.as_ref() }) else {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                    return None;
+                    return Err(Unanswered::Refused);
                 };
                 Some(crate::css::style_compute::ParentSnapshot::new(
                     parent_table,
@@ -444,7 +484,7 @@ impl RetainedState {
             Some(old_style_record) => {
                 let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
                     counters.bump(Counter::EngineComputedRecordBailRecord);
-                    return None;
+                    return Err(Unanswered::Refused);
                 };
                 Some(view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX])
             }
@@ -627,7 +667,7 @@ impl RetainedState {
             if !matches!(value_of(&table, property), Some(StyleValueData::Keyword { keyword }) if *keyword == default_keyword)
             {
                 counters.bump(Counter::EngineComputedRecordBailFontPhase);
-                return None;
+                return Err(Unanswered::Refused);
             }
         }
         // The font size the element's own lengths resolve against is the C++ working set's, a
@@ -638,7 +678,7 @@ impl RetainedState {
             }
             _ => {
                 counters.bump(Counter::EngineComputedRecordBailFontPhase);
-                return None;
+                return Err(Unanswered::Refused);
             }
         };
         let font_size_raw = CssPixels::nearest_value_for(font_size).raw_value();
@@ -658,7 +698,7 @@ impl RetainedState {
             }
             _ => {
                 counters.bump(Counter::EngineComputedRecordBailFontPhase);
-                return None;
+                return Err(Unanswered::Refused);
             }
         };
         let font_optical_sizing = match value_of(&table, prop::FONT_OPTICAL_SIZING) {
@@ -689,11 +729,11 @@ impl RetainedState {
                 effective_color_scheme,
                 resolved_viewport_relative_length,
             });
-            return None;
+            return Err(Unanswered::Suspended(Suspension::Font));
         };
         if resolved.font_cascade_list.is_none() {
             counters.bump(Counter::EngineComputedRecordBailFontPhase);
-            return None;
+            return Err(Unanswered::Refused);
         }
         let own_metrics = |line_height: f64| FfiFontMetrics {
             font_size,
@@ -745,7 +785,7 @@ impl RetainedState {
         };
         let Some(line_height_before_adjustments) = line_height_used(&table) else {
             counters.bump(Counter::EngineComputedRecordBailFontPhase);
-            return None;
+            return Err(Unanswered::Refused);
         };
         if goal == FontDriveGoal::RootInputs {
             font_scratch.root_inputs = Some(RootFontInputs {
@@ -765,7 +805,9 @@ impl RetainedState {
                 effective_color_scheme,
                 resolved_viewport_relative_length,
             });
-            return None;
+            // NB: The probe's answer is the scratch's root inputs; the drive stays pending for the
+            //     root's own row.
+            return Err(Unanswered::Refused);
         }
         drive(
             counters,
@@ -817,11 +859,11 @@ impl RetainedState {
         );
         if results.explicitly_inherited_non_inherited_style_groups != 0 || results.uses_tree_counting_function {
             counters.bump(Counter::EngineComputedRecordBailDrive);
-            return None;
+            return Err(Unanswered::Refused);
         }
         let Some(line_height_used_after) = line_height_used(&table) else {
             counters.bump(Counter::EngineComputedRecordBailFontPhase);
-            return None;
+            return Err(Unanswered::Refused);
         };
         let keyword_code = |property: u16, map: fn(u16) -> Option<u8>| match value_of(&table, property) {
             Some(StyleValueData::Keyword { keyword }) => map(*keyword).unwrap_or(0),
@@ -854,7 +896,7 @@ impl RetainedState {
             resolved_viewport_relative_length: std::ptr::null_mut(),
             ..remaining_length
         };
-        Some((table, length, results.longhand_evaluations, Some(font)))
+        Ok((table, length, results.longhand_evaluations, Some(font)))
     }
 }
 

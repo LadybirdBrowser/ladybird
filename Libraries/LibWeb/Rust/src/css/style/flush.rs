@@ -1937,6 +1937,7 @@ impl StyleEngineState {
             let mut next_published_index = 0;
             let mut pending_parent_inputs = None;
             while next_published_index < published_nodes.len() {
+                let mut suspended_on_font = false;
                 for (published_index, node) in published_nodes.iter().copied().enumerate().skip(next_published_index) {
                     let pseudo_inputs_may_have_changed = pseudo_inputs_may_have_changed
                         || !selector_truth_changes.refreshes_for(node).is_empty()
@@ -2098,50 +2099,52 @@ impl StyleEngineState {
                             }
                         }
                     };
-                    let engine_computed_delta = engine_computed_gate_passes
-                        .then(|| {
-                            // Unchanged winners stand for an unchanged record only when the reaction
-                            // is rules flipping for the node, every one of them known and declaring
-                            // nothing past its winners, or the node's answer is the one it had.
-                            let flipped_rules = selector_truth_changes.deltas_for(node);
-                            let answer_is_unchanged = answer.cascade_input.is_some()
-                                && answer.cascade_input == previous_cascade_inputs[published_index];
-                            let flipped: publication::FlippedRules = flipped_rules
-                                .iter()
-                                .map(|delta| {
-                                    self.retained
-                                        .programs
-                                        .entry(delta.entry)
-                                        .1
-                                        .pseudo_element
-                                        .map(|pseudo| pseudo.kind.0)
-                                })
-                                .collect();
-                            let winners_are_exact = !environment_changed
-                                && !rule_declarations_edited
-                                && selector_truth_changes.refreshes_for(node).is_empty()
-                                && (answer_is_unchanged
-                                    || (!flipped_rules.is_empty()
-                                        && flipped_rules.iter().all(|delta| {
-                                            self.retained.program.declarations_are_complete_for(delta.rule)
-                                        })));
-                            self.engine_computed_record_delta(
-                                node,
-                                answer.cascade_winners_are_complete,
-                                winners_are_exact.then_some(flipped),
-                                parent_inputs_moved,
-                                &mut engine_computed_record_scratch,
-                                counters,
-                            )
-                        })
-                        .flatten();
-                    if engine_computed_record_scratch.font_drive.request.is_some() {
+                    let engine_record_answer = engine_computed_gate_passes.then(|| {
+                        // Unchanged winners stand for an unchanged record only when the reaction
+                        // is rules flipping for the node, every one of them known and declaring
+                        // nothing past its winners, or the node's answer is the one it had.
+                        let flipped_rules = selector_truth_changes.deltas_for(node);
+                        let answer_is_unchanged = answer.cascade_input.is_some()
+                            && answer.cascade_input == previous_cascade_inputs[published_index];
+                        let flipped: publication::FlippedRules = flipped_rules
+                            .iter()
+                            .map(|delta| {
+                                self.retained
+                                    .programs
+                                    .entry(delta.entry)
+                                    .1
+                                    .pseudo_element
+                                    .map(|pseudo| pseudo.kind.0)
+                            })
+                            .collect();
+                        let winners_are_exact = !environment_changed
+                            && !rule_declarations_edited
+                            && selector_truth_changes.refreshes_for(node).is_empty()
+                            && (answer_is_unchanged
+                                || (!flipped_rules.is_empty()
+                                    && flipped_rules
+                                        .iter()
+                                        .all(|delta| self.retained.program.declarations_are_complete_for(delta.rule))));
+                        self.engine_computed_record_delta(
+                            node,
+                            answer.cascade_winners_are_complete,
+                            winners_are_exact.then_some(flipped),
+                            parent_inputs_moved,
+                            &mut engine_computed_record_scratch,
+                            counters,
+                        )
+                    });
+                    if let Some(Err(publication::Unanswered::Suspended(publication::Suspension::Font))) =
+                        engine_record_answer
+                    {
                         // NB: Retain this canonical suffix across refill. Descendants have not read
                         //     their pending parent's old record, and the journal may be empty.
                         next_published_index = published_index;
                         pending_parent_inputs = Some(parent_inputs_moved);
+                        suspended_on_font = true;
                         break;
                     }
+                    let engine_computed_delta = engine_record_answer.and_then(Result::ok);
                     next_published_index = published_index + 1;
                     // A first record C++ declines for the custom-property environment it inherits
                     // takes its descendants' first records down with it: a descendant's environment is
@@ -2259,7 +2262,8 @@ impl StyleEngineState {
                         );
                     }
                 }
-                if let Some(request) = engine_computed_record_scratch.font_drive.request.take() {
+                if suspended_on_font {
+                    let request = engine_computed_record_scratch.font_drive.take_suspended_request();
                     computation_scratch_memory.resize_required_to(
                         &mut self.retained.memory,
                         engine_computed_record_scratch.capacity_bytes(),
