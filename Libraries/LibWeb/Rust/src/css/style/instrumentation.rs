@@ -184,7 +184,6 @@ define_counters! {
     EngineComputedRecordBailValue => "engineComputedRecordBailValue",
     EngineComputedRecordBailAssemble => "engineComputedRecordBailAssemble",
     EngineComputedRecordBailRecordOverlay => "engineComputedRecordBailRecordOverlay",
-    EngineComputedRecordBailRecordTable => "engineComputedRecordBailRecordTable",
     PrefixDeadDeltaBailMatched => "prefixDeadDeltaBailMatched",
     PrefixDeadDeltaBailOwnAdditions => "prefixDeadDeltaBailOwnAdditions",
     PrefixDeadDeltaBailEndpoints => "prefixDeadDeltaBailEndpoints",

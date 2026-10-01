@@ -72,8 +72,8 @@ pub(super) struct DrivenTable {
 )]
 pub(super) enum PartialDrive {
     Driven(DrivenTable),
-    /// An input the drive reads for properties it did not select moved with the selection: the
-    /// caller drives the record in full instead.
+    /// An input the drive reads for properties it did not select moved with the selection, or the
+    /// old record holds no table to copy them from: the caller drives the record in full instead.
     DriverInputMoved,
 }
 
@@ -376,9 +376,10 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
+        // A record holding no table has no slots to copy the unselected properties from; the caller
+        // drives it in full.
         let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
-            counters.bump(Counter::EngineComputedRecordBailRecordTable);
-            return Err(Unanswered::Refused);
+            return Ok(PartialDrive::DriverInputMoved);
         };
         // A record under display:none may no longer be the style C++ holds, and a property change
         // on an element with active transitions starts one in the C++ computation.
@@ -656,20 +657,19 @@ impl RetainedState {
                     counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return Err(Unanswered::Refused);
                 }
-                let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
-                    counters.bump(Counter::EngineComputedRecordBailRecordTable);
-                    return Err(Unanswered::Refused);
-                };
+                // A record holding no table is driven from a fresh one, like a first record.
+                let old_table = unsafe { view.longhand_table.as_ref() };
                 // A record kept under display:none is still what the element's own style is driven
                 // from, but the animations it names start only when C++ computes the element out of
                 // that subtree.
-                if (view.dependency_flags & (1 << 2) != 0 && table_names_animations(old_table))
-                    || crate::css::style_compute::has_active_transition_properties(old_table)
-                {
+                if old_table.is_some_and(|old_table| {
+                    (view.dependency_flags & (1 << 2) != 0 && table_names_animations(old_table))
+                        || crate::css::style_compute::has_active_transition_properties(old_table)
+                }) {
                     counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return Err(Unanswered::Refused);
                 }
-                Some(old_table)
+                old_table
             }
             None => None,
         };
@@ -723,8 +723,8 @@ impl RetainedState {
                 }
                 None => (initial_metrics, false, 0.0),
             };
-        // C++ computes no style under a display:none ancestor.
-        if old_table.is_none()
+        // C++ computes no first style under a display:none ancestor.
+        if old_style_record.is_none()
             && parent_view
                 .as_ref()
                 .is_some_and(|parent_view| parent_view.dependency_flags & (1 << 2) != 0)
