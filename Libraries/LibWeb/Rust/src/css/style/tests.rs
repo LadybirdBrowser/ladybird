@@ -11973,3 +11973,55 @@ fn retiring_the_last_sheet_occurrence_invalidates_its_winners() {
     assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
     assert_eq!(planned, vec![nodes[1].raw()]);
 }
+
+#[test]
+fn a_reissued_style_node_identity_holds_no_retained_state() {
+    let (mut engine, nodes) = linear_document();
+    let class = StyleAtomID(200);
+    let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), class);
+    engine.set_rule_declared_properties_with_values(rule, &[(1, false, SpecifiedValueID(101))], true);
+    let leaving = nodes[3];
+    add_feature(&mut engine, leaving, LocalFeatureKey::Class(class));
+    discard_transaction(&mut engine);
+    assert!(engine.match_element_for_cascade(leaving).is_ok());
+    publish_current_cascade_as_computed(&mut engine, leaving);
+    engine.nodes_with_substituted_records.insert(leaving);
+    engine.pending_element_style_computation_selections.insert(
+        leaving,
+        StyleComputationSelection {
+            computed_property_words: [u64::MAX; crate::css::property_metadata::LONGHAND_WORD_COUNT],
+            computed_property_closure_is_exact: true,
+        },
+    );
+    let holds_winners = |engine: &StyleEngine| {
+        engine
+            .winner_groups
+            .token_for(WinnerGroupKey::current(leaving, engine.program.version()))
+            .sparse()
+            .is_ok()
+    };
+    assert!(holds_winners(&engine));
+    assert!(engine.computed_group_sets.assigned_style_record(leaving).is_some());
+
+    // The element leaves the tree. The transaction that sees it go retires its identity, and the end of that
+    // transaction's outputs releases the identity for the next element.
+    engine.record_tree_delta(
+        leaving,
+        Some(relations(Some(nodes[0].raw()), Some(nodes[2].raw()), None)),
+        None,
+    );
+    discard_transaction(&mut engine);
+    engine.discard_style_transaction_outputs();
+    let mut reissued = [0_u32; 1];
+    engine.allocate_style_nodes(&mut reissued);
+
+    assert_eq!(reissued[0], leaving.raw());
+    assert!(!holds_winners(&engine));
+    assert!(engine.computed_group_sets.assigned_style_record(leaving).is_none());
+    assert!(!engine.nodes_with_substituted_records.contains(&leaving));
+    assert!(
+        !engine
+            .pending_element_style_computation_selections
+            .contains_key(&leaving)
+    );
+}
