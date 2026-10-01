@@ -7,9 +7,6 @@
 #include <AK/Noncopyable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
-#include <LibWeb/HTML/HTMLAreaElement.h>
-#include <LibWeb/HTML/HTMLImageElement.h>
-#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -284,20 +281,17 @@ bool HitTestDisplayList::item_is_direct_caret_target(size_t item_index) const
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
-static GC::Ptr<DOM::Node> image_map_area_for_point(Layout::Node const& layout_node, CSSPixelPoint local_point)
+// NB: The image publishes the areas of the map it is associated with onto its row, so the hit names one of them without
+//     asking the DOM for the map or for the areas' attributes.
+static DOM::NodeIdentity image_map_area_for_point(Layout::Node const& layout_node, CSSPixelPoint local_point)
 {
-    auto* image_element = as_if<HTML::HTMLImageElement>(const_cast<DOM::Node*>(layout_node.dom_node()));
-    if (!image_element)
-        return {};
-
-    auto map_element = image_element->associated_map_element();
-    if (!map_element)
-        return {};
-
     // For historical reasons, the coordinates must be interpreted relative to the displayed image after any stretching
     // caused by the CSS 'width' and 'height' properties.
-    auto image_rect = Painting::absolute_rect(layout_node);
-    return map_element->area_for_point(local_point - image_rect.location(), image_rect.size());
+    auto point = (local_point - Painting::absolute_rect(layout_node).location()).to_type<float>();
+    auto area = Layout::RustFFI::layout_arena_image_map_area_for_point(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), point.x(), point.y());
+    if (area == 0)
+        return {};
+    return DOM::NodeIdentity::of_style_node(CSS::StyleNodeID { area });
 }
 
 HitTestResult HitTestDisplayList::hit_test_result_for_item(Item item, CSSPixelPoint local_point) const
@@ -326,13 +320,12 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item item, CSSPixelPo
     }
 
     auto resolved = Layout::RustFFI::layout_arena_hit_test_resolve_hit(m_arena->handle(), item.index(), local_point);
-    GC::Ptr<DOM::Node> node = root_element;
-    if (!node && paintable_layout_node)
-        node = image_map_area_for_point(*paintable_layout_node, local_point);
-    auto identity = DOM::NodeIdentity::of(node.ptr());
+    auto identity = DOM::NodeIdentity::of(root_element.ptr());
     // NB: Style runs before layout, so a laid-out document's style engine tracks its tree and every connected element
     //     in it has a StyleNodeID.
-    VERIFY(!node || identity);
+    VERIFY(!root_element || identity);
+    if (identity.is_none() && paintable_layout_node)
+        identity = image_map_area_for_point(*paintable_layout_node, local_point);
     if (identity.is_none())
         identity = identity_for_dispatch_shell(resolved.dispatch_shell, resolved.allow_pseudo_fallback);
     if (identity.is_none())

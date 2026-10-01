@@ -203,20 +203,6 @@ Optional<Gfx::Path> HTMLAreaElement::shape_path(CSSPixelSize image_size) const
     VERIFY_NOT_REACHED();
 }
 
-bool HTMLAreaElement::shape_contains_point(CSSPixelPoint point, CSSPixelSize image_size) const
-{
-    // AD-HOC: The coordinates of a shape are interpreted relative to the displayed image, so the rectangle that
-    //         exactly covers the entire image excludes the image's borders and padding. Treat the default state as
-    //         covering everything that hits the image instead, matching the behavior of other engines.
-    if (shape_state() == ShapeState::Default)
-        return true;
-
-    auto path = shape_path(image_size);
-    if (!path.has_value())
-        return false;
-    return path->contains(point.to_type<float>(), Gfx::WindingRule::EvenOdd);
-}
-
 // https://html.spec.whatwg.org/multipage/image-maps.html#dom-area-rellist
 GC::Ref<DOM::DOMTokenList> HTMLAreaElement::rel_list()
 {
