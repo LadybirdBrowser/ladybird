@@ -656,6 +656,10 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     (control-name "com.apple.netsrc")
     (literal "/private/var/run/mDNSResponder"))
 
+; SecTrust evaluates TLS certificates through the per-user trust daemon.
+(allow mach-lookup
+    (global-name "com.apple.trustd.agent"))
+
 ; Sharing a port with another socket would let a helper receive traffic that is meant for another process.
 (deny socket-option-set
     (require-all
