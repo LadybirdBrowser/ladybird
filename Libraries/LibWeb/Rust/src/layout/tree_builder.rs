@@ -273,55 +273,56 @@ pub(crate) fn display_contents_text_needs_style_wrapper(
     })
 }
 
-#[repr(C)]
-pub struct FfiStaleNodeCallbacks {
-    pub layout_dom_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
-    pub dom_is_shadow_including_inclusive_descendant: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
-}
-
 /// Returns whether an SVG resource layout node must survive cleanup of a DOM subtree.
+///
+/// SVGPatternBox, SVGMaskBox and SVGClipBox are created on behalf of a referencing element and
+/// attached to that element's layout subtree, so they survive cleanup of their DOM ancestor unless
+/// their layout attachment is inside the subtree being cleared too. The ancestors are arena rows,
+/// and the style mirror answers whether each one's node lies in the cleared subtree. An anonymous
+/// row stands for no node; the viewport stands for the document, which only a cleared document
+/// contains.
 ///
 /// # Safety
 ///
-/// The callback table, arena, layout node, and optional cleared subtree root must remain valid for the duration of the
-/// call.
+/// `arena` must be a live handle used on the document thread, and `layout_node` must name a live
+/// row. `cleared_subtree_root` is the identity of the root being cleared, or 0 when the clear is
+/// not bounded to one.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_should_preserve_svg_resource_layout_node(
-    callbacks: *const FfiStaleNodeCallbacks,
     arena: *mut c_void,
     layout_node: NodeSlotId,
-    cleared_subtree_root: *mut c_void,
+    cleared_subtree_root: u32,
 ) -> bool {
-    assert!(!callbacks.is_null());
     assert!(!arena.is_null());
     assert!(!layout_node.is_invalid());
-    // SAFETY: Guaranteed by the entry point's contract.
-    let callbacks = unsafe { &*callbacks };
-    let arena = arena.cast::<LayoutNodeArena>();
-    if cleared_subtree_root.is_null() {
+    let Some(cleared_subtree_root) = StyleNodeID::from_raw(cleared_subtree_root) else {
         return true;
-    }
-
-    // SAFETY: The arena and layout node remain live throughout the ancestor walk.
-    let mut ancestor = unsafe { &*arena }.data(layout_node).parent.get();
-    while !ancestor.is_invalid() {
-        // SAFETY: `ancestor` is a live layout node, and a non-anonymous one has a shell.
-        let data = unsafe { &*arena }.data(ancestor);
-        let parent = data.parent.get();
-        if data.flags.get() & NodeFlag::Anonymous as u32 != 0 {
-            ancestor = parent;
-            continue;
+    };
+    // SAFETY: Guaranteed by the entry point's contract.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    arena.with_style_store(|engine| {
+        let tree = engine.tree();
+        // The document holds every node a row stands for.
+        let root_is_document = tree.is_relation_only(cleared_subtree_root);
+        let mut ancestor = arena.data(layout_node).parent.get();
+        while !ancestor.is_invalid() {
+            let data = arena.data(ancestor);
+            if data.flags.get() & NodeFlag::Anonymous as u32 == 0 {
+                let inside = if data.kind.get() == NodeKind::Viewport {
+                    root_is_document
+                } else {
+                    arena.node_style_node(ancestor).is_some_and(|style_node| {
+                        root_is_document || tree.is_in_shadow_including_subtree_of(style_node, cleared_subtree_root)
+                    })
+                };
+                if inside {
+                    return false;
+                }
+            }
+            ancestor = data.parent.get();
         }
-        let dom_node = unsafe { (callbacks.layout_dom_node)(data.shell.get()) };
-        // SAFETY: Both DOM pointers remain live throughout cleanup.
-        if !dom_node.is_null()
-            && unsafe { (callbacks.dom_is_shadow_including_inclusive_descendant)(dom_node, cleared_subtree_root) }
-        {
-            return false;
-        }
-        ancestor = parent;
-    }
-    true
+        true
+    })
 }
 
 #[repr(C)]

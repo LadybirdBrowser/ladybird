@@ -1618,6 +1618,43 @@ impl StyleNodeTree {
         candidate == root
     }
 
+    /// Whether `node` is `root` or lies below it in the shadow-including tree: the climb out of a
+    /// shadow tree continues at the host rather than stopping there.
+    ///
+    /// `root` names an element or a shadow root. A climb that runs out of parents has reached a
+    /// child of the document, which no element contains, so it answers false rather than taking a
+    /// document identity to compare against.
+    #[must_use]
+    pub fn is_in_shadow_including_subtree_of(&self, node: StyleNodeID, root: StyleNodeID) -> bool {
+        if node == root {
+            return true;
+        }
+        if root.text_index().is_some() {
+            return false;
+        }
+        // Only an element owns a child sequence, so a text node is answered for by the element it
+        // is linked under.
+        let mut candidate = match node.text_index() {
+            Some(_) => match self.text_parent(node) {
+                Some(parent) => parent,
+                None => return false,
+            },
+            None => node,
+        };
+        loop {
+            if candidate == root {
+                return true;
+            }
+            candidate = match self.host_of(candidate) {
+                Some(host) => host,
+                None => match self.parent(candidate) {
+                    Some(parent) => parent,
+                    None => return false,
+                },
+            };
+        }
+    }
+
     // -- Accounting --------------------------------------------------------------------------
 
     /// Exact capacity of every column, charged to Tier 1.
@@ -2310,6 +2347,51 @@ mod tests {
         assert!(!fixture.tree.has_shadow_relations());
         assert_eq!(fixture.tree.flat_tree_children(parent).collect::<Vec<_>>(), vec![child]);
         assert_eq!(fixture.tree.assigned_nodes_of(parent), &[]);
+    }
+
+    #[test]
+    fn the_shadow_including_subtree_test_climbs_out_of_a_shadow_tree_to_its_host() {
+        let mut fixture = TreeFixture::new();
+        let root_element = fixture.element();
+        let host = fixture.element();
+        let light_child = fixture.element();
+        let shadow_root = fixture.element();
+        let shadow_child = fixture.element();
+        let nested_host = fixture.element();
+        let nested_shadow_root = fixture.element();
+        let nested_shadow_child = fixture.element();
+        let outside = fixture.element();
+        let text = fixture.tree.allocate_text(&mut fixture.memory);
+        fixture.attach_children(root_element, &[host, outside]);
+        fixture.attach_children(host, &[light_child]);
+        fixture.attach_children(shadow_root, &[shadow_child, nested_host]);
+        fixture.tree.set_shadow_root(host, shadow_root, &mut fixture.memory);
+        fixture.attach_children(nested_shadow_root, &[nested_shadow_child]);
+        fixture
+            .tree
+            .set_shadow_root(nested_host, nested_shadow_root, &mut fixture.memory);
+        fixture.tree.link_in_dom_order(text, Some(shadow_child), None);
+
+        let is_in = |node, root| fixture.tree.is_in_shadow_including_subtree_of(node, root);
+        assert!(is_in(host, host), "the test is inclusive");
+        assert!(is_in(light_child, host), "a light child lies below its host");
+        assert!(is_in(shadow_child, host), "and so does what its shadow tree holds");
+        assert!(is_in(text, host), "text inside that tree included");
+        assert!(
+            is_in(nested_shadow_child, host),
+            "a shadow tree nested inside that one included"
+        );
+        assert!(
+            is_in(shadow_child, shadow_root),
+            "a shadow root still holds its own tree"
+        );
+        assert!(!is_in(outside, host), "a sibling subtree lies outside");
+        assert!(!is_in(host, light_child), "a child is not an ancestor of its parent");
+        assert!(!is_in(host, text), "a text node holds nothing but itself");
+        assert!(
+            is_in(light_child, root_element),
+            "the climb reaches the element above the host"
+        );
     }
 
     #[test]
