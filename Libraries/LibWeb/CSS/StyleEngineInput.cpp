@@ -61,6 +61,46 @@ static StyleNodeID identity_of(GC::Ptr<DOM::Element> element)
     return element->style_node_id();
 }
 
+// The identity a node holds in the DOM child sequence the style tree keeps beside its element-only relations. Elements
+// and text nodes are its members; comments and processing instructions never reach style or layout, so they hold no
+// place in it.
+static StyleNodeID dom_order_identity_of(DOM::Node const& node)
+{
+    if (auto const* element = as_if<DOM::Element>(node))
+        return element->style_node_id();
+    if (auto const* text = as_if<DOM::Text>(node))
+        return text->style_node_id();
+    return no_style_node;
+}
+
+// Only an element or a shadow root owns a child sequence. The document's own children are not one anything reads.
+static StyleNodeID dom_order_parent_of(DOM::Node const* parent)
+{
+    if (auto const* element = as_if<DOM::Element>(parent))
+        return element->style_node_id();
+    if (auto const* shadow_root = as_if<DOM::ShadowRoot>(parent))
+        return shadow_root->style_node_id();
+    return no_style_node;
+}
+
+// Appends the (node, parent, previous sibling) triple that links the node into its parent's child sequence.
+static void append_dom_order_link(Vector<u32, 192>& links, DOM::Node const& node)
+{
+    auto previous = no_style_node;
+    for (auto const* sibling = node.previous_sibling(); sibling && previous == no_style_node; sibling = sibling->previous_sibling())
+        previous = dom_order_identity_of(*sibling);
+    links.append(dom_order_identity_of(node).value());
+    links.append(dom_order_parent_of(node.parent()).value());
+    links.append(previous.value());
+}
+
+static void link_in_dom_order(StyleEngine& style_engine, DOM::Node const& node)
+{
+    Vector<u32, 192> links;
+    append_dom_order_link(links, node);
+    style_engine.link_style_nodes_in_dom_order(links.span());
+}
+
 // A shadow root's identity, minted on first use.
 //
 // The root is not an element and gets no style, but it is the parent its children's relations name.
@@ -231,6 +271,7 @@ void record_element_connected(DOM::Element& element)
     element.set_style_node_id(style_engine->allocate_style_node());
     element.document().style_computer().register_style_node(element.style_node_id(), element);
     record_element_arrival_delta(element, *style_engine, tree_scope_of(element.root()));
+    link_in_dom_order(*style_engine, element);
 }
 
 void record_text_connected(DOM::Text& text)
@@ -242,6 +283,7 @@ void record_text_connected(DOM::Text& text)
     style_engine->allocate_text_style_nodes({ &identity, 1 });
     text.set_style_node_id(identity);
     text.document().style_computer().register_style_node(identity, text);
+    link_in_dom_order(*style_engine, text);
 }
 
 void record_subtree_connecting(DOM::Node& root)
@@ -256,15 +298,20 @@ void record_subtree_connecting(DOM::Node& root)
     };
     Vector<Arrival, 64> arrivals;
     Vector<GC::Ref<DOM::Text>, 64> text_arrivals;
+    // Elements and text nodes in tree order, which is the order their places in the DOM child sequence can be taken
+    // in: each node's previous sibling has taken its place first.
+    Vector<GC::Ref<DOM::Node>, 64> dom_order_arrivals;
     size_t element_count = 0;
     auto collect = [&](DOM::Node& node, TreeScopeID tree_scope) {
         if (auto* element = as_if<DOM::Element>(node); element && element->style_node_id() == no_style_node) {
             arrivals.append({ *element, tree_scope });
+            dom_order_arrivals.append(*element);
             ++element_count;
         } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node); shadow_root && shadow_root->style_node_id() == no_style_node) {
             arrivals.append({ *shadow_root, tree_scope });
         } else if (auto* text = as_if<DOM::Text>(node); text && text->style_node_id() == no_style_node) {
             text_arrivals.append(*text);
+            dom_order_arrivals.append(*text);
         }
     };
     for_each_shadow_including_inclusive_descendant_with_scope(root, tree_scope_of(root.root()), collect);
@@ -280,35 +327,42 @@ void record_subtree_connecting(DOM::Node& root)
         }
     }
 
-    if (arrivals.is_empty())
-        return;
+    if (!arrivals.is_empty()) {
+        Vector<StyleNodeID, 64> identities;
+        identities.resize(arrivals.size());
+        style_engine.allocate_style_nodes(identities.span());
+        style_computer.ensure_style_node_slot(identities.last());
+        size_t next_element_identity = 0;
+        size_t next_shadow_root_identity = element_count;
+        for (auto const& arrival : arrivals) {
+            if (auto* element = as_if<DOM::Element>(*arrival.node)) {
+                auto identity = identities[next_element_identity++];
+                element->set_style_node_id(identity);
+                style_computer.register_style_node(identity, *element);
+            } else {
+                auto identity = identities[next_shadow_root_identity++];
+                auto& shadow_root = as<DOM::ShadowRoot>(*arrival.node);
+                shadow_root.set_style_node_id(identity);
+                style_computer.register_style_node(identity, shadow_root);
+                style_engine.set_tree_scope_root(arrival.tree_scope, identity);
+            }
+        }
 
-    Vector<StyleNodeID, 64> identities;
-    identities.resize(arrivals.size());
-    style_engine.allocate_style_nodes(identities.span());
-    style_computer.ensure_style_node_slot(identities.last());
-    size_t next_element_identity = 0;
-    size_t next_shadow_root_identity = element_count;
-    for (auto const& arrival : arrivals) {
-        if (auto* element = as_if<DOM::Element>(*arrival.node)) {
-            auto identity = identities[next_element_identity++];
-            element->set_style_node_id(identity);
-            style_computer.register_style_node(identity, *element);
-        } else {
-            auto identity = identities[next_shadow_root_identity++];
-            auto& shadow_root = as<DOM::ShadowRoot>(*arrival.node);
-            shadow_root.set_style_node_id(identity);
-            style_computer.register_style_node(identity, shadow_root);
-            style_engine.set_tree_scope_root(arrival.tree_scope, identity);
+        // An arrival names the element's parent and siblings, so every identity in the subtree is
+        // assigned before the first arrival is recorded.
+        for (auto const& arrival : arrivals) {
+            if (auto* element = as_if<DOM::Element>(*arrival.node))
+                record_element_arrival_delta(*element, style_engine, arrival.tree_scope);
         }
     }
 
-    // An arrival names the element's parent and siblings, so every identity in the subtree is
-    // assigned before the first arrival is recorded.
-    for (auto const& arrival : arrivals) {
-        if (auto* element = as_if<DOM::Element>(*arrival.node))
-            record_element_arrival_delta(*element, style_engine, arrival.tree_scope);
-    }
+    if (dom_order_arrivals.is_empty())
+        return;
+    Vector<u32, 192> links;
+    links.ensure_capacity(dom_order_arrivals.size() * 3);
+    for (auto const& node : dom_order_arrivals)
+        append_dom_order_link(links, node);
+    style_engine.link_style_nodes_in_dom_order(links.span());
 }
 
 // Publish every selector-visible fact intrinsic to one element.
@@ -604,6 +658,16 @@ static void record_element_initial_features(DOM::Element& element)
         record_element_inline_style_properties(element);
     if (element.publishes_presentational_hints_on_arrival() && !element_may_have_derived_presentational_hints(element))
         StyleComputer::collect_presentational_hint_properties({ element });
+}
+
+void record_node_moved_in_dom_order(DOM::Node& node, DOM::Node const& old_parent)
+{
+    auto* style_engine = style_engine_for(node);
+    auto identity = dom_order_identity_of(node);
+    if (!style_engine || identity == no_style_node)
+        return;
+    style_engine->unlink_style_node_from_dom_order(identity, dom_order_parent_of(&old_parent));
+    link_in_dom_order(*style_engine, node);
 }
 
 void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Element* old_previous_sibling, DOM::Element* old_next_sibling)
@@ -1082,6 +1146,10 @@ void record_shadow_root_disconnecting(DOM::ShadowRoot& shadow_root)
 void record_subtree_disconnecting(DOM::Node& root)
 {
     auto* style_engine = style_engine_for(root);
+    // Only the root leaves a child sequence that stays in the tree. Every node below it leaves with the sequence it
+    // belongs to.
+    if (auto identity = dom_order_identity_of(root); style_engine && identity != no_style_node)
+        style_engine->unlink_style_node_from_dom_order(identity, dom_order_parent_of(root.parent()));
     auto root_tree_scope = tree_scope_of(root.root());
     Vector<GC::Ref<DOM::ShadowRoot>> shadow_roots;
     Vector<StyleNodeID, 64> departing_texts;

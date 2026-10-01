@@ -434,6 +434,26 @@ impl RetainedState {
         self.tree.retire_texts(nodes, &mut self.memory);
     }
 
+    // -- DOM child sequence ------------------------------------------------------------------
+    //
+    // Nothing selects, styles or invalidates from the DOM child sequence, so its arrivals and
+    // departures are spliced directly rather than journaled.
+
+    /// Splice nodes into the DOM child sequence, given as `(node, parent, previous sibling)`
+    /// triples of raw identities in tree order, so that each previous sibling is linked first.
+    pub fn link_style_nodes_in_dom_order(&mut self, links: &[u32]) {
+        for &[node, parent, previous] in links.as_chunks::<3>().0 {
+            if let Some(node) = StyleNodeID::from_raw(node) {
+                self.tree
+                    .link_in_dom_order(node, StyleNodeID::from_raw(parent), StyleNodeID::from_raw(previous));
+            }
+        }
+    }
+
+    pub fn unlink_style_node_from_dom_order(&mut self, node: StyleNodeID, parent: Option<StyleNodeID>) {
+        self.tree.unlink_from_dom_order(node, parent);
+    }
+
     // -- Stylesheet program ------------------------------------------------------------------
     //
     // Every CSSOM mutation maps to a precise typed delta. None of them produces a generic document

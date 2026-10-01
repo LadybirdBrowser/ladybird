@@ -49,6 +49,10 @@ WEB_API void record_subtree_disconnecting(DOM::Node&);
 // and its identity, so nothing disconnects and nothing connects, and only its relations move.
 WEB_API void record_element_moved(DOM::Element&, DOM::Node* old_parent, DOM::Element* old_previous_sibling, DOM::Element* old_next_sibling);
 
+// Report that an element or text node moved without leaving the tree, which moves its place in the
+// DOM child sequence even where its element relations stay the same.
+WEB_API void record_node_moved_in_dom_order(DOM::Node&, DOM::Node const& old_parent);
+
 // A slottable's assigned slot is its parent in the flat tree, and a slot's name changing reassigns
 // it there without any DOM mutation. Nothing else says so: the element did not move, so no tree
 // delta carries it.
