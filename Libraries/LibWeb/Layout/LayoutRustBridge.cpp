@@ -445,10 +445,6 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
             if (!anchor_box)
                 return Compositing::RustFFI::NodeSlotId_INVALID;
             return Node::slot_id(anchor_box); },
-        .node_unique_id = [](void* node) -> i64 {
-            auto const* dom_node = static_cast<Box const*>(node)->dom_node();
-            return dom_node ? dom_node->unique_id().value() : -1;
-        },
         .deliver_commit_messages = [](void* context, RustFFI::FfiCommitMessage const* messages, size_t count) {
             auto& commit_messages = static_cast<DOM::Document*>(context)->commit_messages();
             for (size_t index = 0; index < count; ++index)

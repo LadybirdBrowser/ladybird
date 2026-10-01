@@ -2679,13 +2679,19 @@ pub unsafe extern "C" fn layout_arena_paintable_flex_layout_json(
     container_node_id: i64,
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+    document_context: *const c_void,
+    resolve_node_id: unsafe extern "C" fn(*const c_void, u32) -> i64,
 ) {
     let arena = unsafe { arena_from_handle(arena) };
     if !arena.paintable_row_is_populated(paintable) {
         return;
     }
     if let Some(data) = crate::painting::paintable_geometry::committed_flex_layout_data(arena, paintable) {
-        let json = crate::painting::devtools_layout::serialize_flex_layout(&data, container_node_id);
+        // SAFETY: The host answers synchronously from the document the paintable belongs to.
+        let json = crate::painting::devtools_layout::serialize_flex_layout(&data, container_node_id, |style_node| {
+            let node_id = unsafe { resolve_node_id(document_context, style_node.raw()) };
+            (node_id >= 0).then_some(node_id)
+        });
         unsafe { consume(context, json.as_ptr(), json.len()) };
     }
 }
