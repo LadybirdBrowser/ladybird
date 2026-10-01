@@ -164,6 +164,7 @@ public:
     // to; the new record's identity, or zero when nothing moved.
     [[nodiscard]] StyleRecordID republish_record_environment(StyleNodeID, u64 environment, void const* store);
     [[nodiscard]] StyleEngineFFI::FfiEngineComputedRecord retry_engine_record_after_ancestor(StyleNodeID);
+    [[nodiscard]] StyleEngineFFI::FfiEngineComputedRecord settle_pseudo_records_after_host_record(StyleNodeID, bool old_is_list_item);
     // Whether an environment identity is one the engine minted for an environment it resolved.
     [[nodiscard]] static bool is_engine_custom_property_environment(u64 identity) { return (identity & (1ull << 62)) != 0; }
     [[nodiscard]] u64 atom_generation() const { return m_atom_generation; }

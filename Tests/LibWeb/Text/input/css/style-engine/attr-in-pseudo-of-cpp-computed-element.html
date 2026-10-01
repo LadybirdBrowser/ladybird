@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #item { anchor-name: --a; }
+    #item::before { content: "x"; color: attr(data-color type(<color>)); }
+</style>
+<span id="item" data-color="green"></span>
+<script>
+    // C++ computes #item, whose anchor-name the engine leaves to it, and the engine settles its
+    // ::before, whose attr() reads #item's attributes: an attribute change reaches the ::before.
+    test(() => {
+        internals.updateStyle();
+        println(`before: ${getComputedStyle(item, "::before").color}`);
+        item.dataset.color = "red";
+        internals.updateStyle();
+        println(`after: ${getComputedStyle(item, "::before").color}`);
+    });
+</script>

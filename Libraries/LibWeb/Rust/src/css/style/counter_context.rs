@@ -998,6 +998,17 @@ impl StyleEngine {
         self.state.retry_engine_record_after_ancestor(node, &mut self.counters)
     }
 
+    /// Settle the pseudo-element records of an element whose record C++ just installed.
+    #[inline]
+    pub(crate) fn settle_pseudo_records_after_host_record(
+        &mut self,
+        node: StyleNodeID,
+        old_is_list_item: bool,
+    ) -> (publication::RetriedEngineRecord, bool) {
+        self.state
+            .settle_pseudo_records_after_host_record(node, old_is_list_item, &mut self.counters)
+    }
+
     /// Publish the immutable computed-group payloads of one element's base style. This assigns
     /// dense identities to shared payloads and their ordered tuple, so an equal handle proves equal
     /// groups and downstream operators can consume one node handle.

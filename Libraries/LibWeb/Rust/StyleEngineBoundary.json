@@ -129,7 +129,8 @@
     [132, "SetElementIdName"],
     [133, "NoteAttributeSubstitutionName"],
     [134, "SetHeldStyleRecord"],
-    [135, "SetElementVarReads"]
+    [135, "SetElementVarReads"],
+    [136, "SettlePseudoRecordsAfterHostRecord"]
   ],
   "operations": [
     {"event": "TakeSharedComputationContext", "ffi": "style_engine_take_shared_computation_context", "cpp": "take_shared_computation_context", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["pseudo_elements", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.take_shared_computation_context(node, parent_record, environment, shape, pseudo_elements).unwrap_or(0);"},
@@ -236,6 +237,7 @@
   ],
   "bespoke_events": [
     "RetryEngineRecordAfterAncestor",
+    "SettlePseudoRecordsAfterHostRecord",
     "CreateGraph",
     "DestroyGraph",
     "AllocateStyleNodes",

@@ -391,7 +391,7 @@ impl RetainedState {
         let old_style_record = (delta.0 != computed::FinalStyleRecordID::NONE).then_some(delta.0);
         let generation = self.winner_groups.generation();
         if let Err(unanswered) =
-            self.engine_pseudo_records(node, old_style_record, delta.1, generation, scratch, counters)
+            self.engine_pseudo_records(node, old_style_record, None, delta.1, generation, scratch, counters)
         {
             match unanswered {
                 Unanswered::Suspended(_) => scratch.pending_element = Some(drive::PendingElement::new(node, delta)),

@@ -89,8 +89,15 @@ impl RetainedState {
                 scratch,
                 counters,
             ) {
-                let pseudos =
-                    self.engine_pseudo_records(node, Some(old_record), record, cascade_state.0, scratch, counters);
+                let pseudos = self.engine_pseudo_records(
+                    node,
+                    Some(old_record),
+                    None,
+                    record,
+                    cascade_state.0,
+                    scratch,
+                    counters,
+                );
                 if pseudos.is_ok() && scratch.pseudo_uses_substitution {
                     scratch.substitution_effects.push((node, true));
                 }
