@@ -522,6 +522,16 @@ impl RowsByStyleNode {
     }
 }
 
+/// What one step of the shadow-including walk that clears stale layout boxes needs to know about a
+/// node: whether its boxes belong to someone else, and where the walk goes next.
+#[derive(Clone, Copy)]
+pub(crate) struct StaleWalkFacts {
+    pub(crate) rendered_in_top_layer: bool,
+    pub(crate) shadow_root: Option<StyleNodeID>,
+    pub(crate) first_dom_child: Option<StyleNodeID>,
+    pub(crate) next_dom_sibling: Option<StyleNodeID>,
+}
+
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     chunks_by_address: Vec<ChunkAddress>,
@@ -1541,6 +1551,23 @@ impl LayoutNodeArena {
     /// no place in it.
     pub(crate) fn first_dom_child(&self, style_node: StyleNodeID) -> Option<StyleNodeID> {
         self.with_style_store(|engine| engine.tree().dom_children(style_node).next())
+    }
+
+    /// Everything one step of the stale-subtree walk reads out of the style mirror, in one borrow.
+    pub(crate) fn stale_walk_facts(&self, style_node: StyleNodeID) -> StaleWalkFacts {
+        self.with_style_store(|engine| {
+            let tree = engine.tree();
+            let owns_children = style_node.text_index().is_none();
+            StaleWalkFacts {
+                rendered_in_top_layer: owns_children
+                    && engine.element_adjustment_facts(style_node)
+                        & crate::css::style::bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
+                        != 0,
+                shadow_root: owns_children.then(|| tree.shadow_root_of(style_node)).flatten(),
+                first_dom_child: owns_children.then(|| tree.dom_children(style_node).next()).flatten(),
+                next_dom_sibling: tree.next_sibling_in_dom_order(style_node),
+            }
+        })
     }
 
     /// The shadow root the element `host` hosts, if any. The style mirror names a root the moment it
