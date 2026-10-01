@@ -1186,8 +1186,38 @@ pub struct FfiCascadeResolutionContext {
         unsafe extern "C" fn(*mut c_void, *const FfiCascadedCustomProperty, usize, *mut *const c_void) -> *const c_void,
     >,
     pub resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> u64>,
-    pub evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
+    /// What a style query resolves against, or null to have `load_style_query_inputs` load it
+    /// from the callback context the first time a query is evaluated.
+    pub style_query_inputs: *const FfiStyleQueryInputs,
+    pub load_style_query_inputs: Option<unsafe extern "C" fn(*mut c_void) -> *const FfiStyleQueryInputs>,
+    /// Null, or where the custom properties style queries read are kept: null until the first,
+    /// then a handle for `rust_style_query_dependencies_take`.
+    pub style_query_dependencies: *mut *mut c_void,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
+}
+
+/// What a `style()` query in a substitution resolves against, as the queried element's style
+/// computes it: its lengths, and the color scheme and currentcolor its colors resolve with.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiStyleQueryInputs {
+    pub length: crate::css::style_compute::FfiLengthResolutionContext,
+    /// A PreferredColorScheme code.
+    pub color_scheme: u8,
+    /// The packed currentcolor, as the C++ Color::value() packs it.
+    pub current_color: u32,
+}
+
+impl FfiStyleQueryInputs {
+    pub(crate) fn color_input(&self) -> crate::css::color_resolution::ColorResolutionInput<'_> {
+        crate::css::color_resolution::ColorResolutionInput {
+            scheme: Some(self.color_scheme),
+            current_color: Some(crate::css::color_resolution::Rgba::from_packed(self.current_color)),
+            current_color_value: None,
+            length: Some(&self.length),
+            channels: None,
+        }
+    }
 }
 
 /// One unresolved value submitted to the bulk substitution resolver.
@@ -1648,7 +1678,12 @@ pub(crate) fn resolve_cascade_value(
                 resolution_context.attribute_names_are_ascii_case_insensitive,
                 resolution_context.resolve_custom_function,
                 resolution_context.callback_context,
-                resolution_context.evaluate_style_query,
+                resolution_context.style_query_inputs.as_ref(),
+                resolution_context.load_style_query_inputs,
+                resolution_context
+                    .style_query_dependencies
+                    .cast::<Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>()
+                    .as_mut(),
                 final_custom_properties,
             )
         },

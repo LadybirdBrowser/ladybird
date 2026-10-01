@@ -16,17 +16,21 @@ use std::sync::Arc;
 
 use ak::ScopeGuard;
 
+use crate::css::calc::CanonicalNumericType;
 use crate::css::css_tokenizer::OwnedToken;
 use crate::css::css_tokenizer::OwnedTokenKind;
 use crate::css::css_tokenizer::tokenize_owned;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::function_signature::FunctionSignature;
+use crate::css::parser::component_value::ComponentSerializationMode;
 use crate::css::parser::query_parser::{
-    FfiMediaEnvironment, MatchResult, parse_and_evaluate_media_if_condition, parse_and_evaluate_supports_if_condition,
+    FeatureComparison, FfiMediaEnvironment, MatchResult, StyleFeature, StyleRangeValue as ParsedStyleRangeValue,
+    parse_and_evaluate_media_if_condition, parse_and_evaluate_supports_if_condition, parse_style_range_from_source,
 };
-use crate::css::parser::syntax::{SyntaxNode, clone_syntax_handle, parse_syntax, parse_with_syntax};
+use crate::css::parser::syntax::{SyntaxNode, SyntaxType, clone_syntax_handle, parse_syntax, parse_with_syntax};
 use crate::css::parser::value_parser::{FfiValueParsingContext, FfiValueParsingContextKind, ParseContext};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
+use crate::css::serialize::serialize_component_values_to_utf16;
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
 
@@ -248,6 +252,10 @@ impl CustomPropertyRegistry {
         }
     }
 }
+
+/// Loads what a style query resolves against from a resolution's callback context.
+pub(crate) type LoadStyleQueryInputs =
+    unsafe extern "C" fn(*mut c_void) -> *const crate::css::cascaded_properties::FfiStyleQueryInputs;
 
 impl CustomPropertyStore {
     /// The store this one's chain goes on in, which may skip the environment it inherits from
@@ -490,13 +498,6 @@ impl GuardedSubstitutionContexts {
         true
     }
 
-    fn contains_property(&self, name: &[u16], custom_function: Option<CustomFunctionIdentity>) -> bool {
-        self.contexts
-            .borrow()
-            .iter()
-            .any(|context| context.dependency.is_property(name, custom_function))
-    }
-
     fn innermost_function(&self) -> Option<CustomFunctionIdentity> {
         self.contexts
             .borrow()
@@ -523,7 +524,14 @@ struct ASFResolutionContext<'a> {
     media_environment: Option<&'a FfiMediaEnvironment>,
     load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
     callback_context: *mut c_void,
-    evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
+    /// What lengths in a style query resolve against: the element's last computed style.
+    style_query_length_resolution_context: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
+    /// What colors in a style query resolve against, where the queried element's are known.
+    style_query_color_resolution_input: Option<crate::css::color_resolution::ColorResolutionInput<'a>>,
+    /// Loads both from the callback context the first time a style query is evaluated.
+    load_style_query_inputs: Option<LoadStyleQueryInputs>,
+    /// Where the custom properties a style query reads are noted, for the host to record.
+    style_query_dependencies: Option<&'a mut Option<Box<StyleQueryDependencies>>>,
     final_custom_properties: Option<&'a HashMap<Vec<u16>, *const c_void>>,
     function_local_scopes: Vec<FunctionLocalScope>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
@@ -531,6 +539,25 @@ struct ASFResolutionContext<'a> {
 }
 
 impl ASFResolutionContext<'_> {
+    fn note_style_query_dependency(&mut self, name: &[u16]) {
+        if let Some(dependencies) = self.style_query_dependencies.as_deref_mut() {
+            dependencies.get_or_insert_default().note(name);
+        }
+    }
+
+    /// Load what a style query resolves against, if the host left it to be loaded.
+    fn load_style_query_inputs(&mut self) {
+        let Some(load) = self.load_style_query_inputs.take() else {
+            return;
+        };
+        // SAFETY: The host keeps what it loads live for the resolution.
+        let Some(inputs) = (unsafe { load(self.callback_context).as_ref() }) else {
+            return;
+        };
+        self.style_query_length_resolution_context = Some(&inputs.length);
+        self.style_query_color_resolution_input = Some(inputs.color_input());
+    }
+
     fn media_environment(&mut self) -> Option<&FfiMediaEnvironment> {
         if self.media_environment.is_none()
             && let Some(load_media_environment) = self.load_media_environment
@@ -543,6 +570,51 @@ impl ASFResolutionContext<'_> {
             };
         }
         self.media_environment
+    }
+}
+
+/// The custom properties style queries read in one resolution, which the host records as the
+/// element's style query references.
+#[derive(Default)]
+pub(crate) struct StyleQueryDependencies(Vec<Vec<u16>>);
+
+impl StyleQueryDependencies {
+    fn note(&mut self, name: &[u16]) {
+        if !self.0.iter().any(|noted| noted == name) {
+            self.0.push(name.to_vec());
+        }
+    }
+
+    pub(crate) fn names(&self) -> impl Iterator<Item = &[u16]> {
+        self.0.iter().map(Vec::as_slice)
+    }
+}
+
+/// Visits each custom property the style queries of a resolution read, and frees them.
+///
+/// # Safety
+/// `dependencies` must be null or what a resolution left in its `style_query_dependencies`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_query_dependencies_take(
+    dependencies: *mut c_void,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, FfiUtf16View),
+) {
+    if dependencies.is_null() {
+        return;
+    }
+    let dependencies = unsafe { Box::from_raw(dependencies.cast::<StyleQueryDependencies>()) };
+    for name in dependencies.names() {
+        unsafe {
+            visit(
+                context,
+                FfiUtf16View {
+                    ascii: std::ptr::null(),
+                    utf16: name.as_ptr(),
+                    length: name.len(),
+                },
+            );
+        }
     }
 }
 
@@ -1538,6 +1610,8 @@ fn registered_style_query_values_are_equal(
     syntax: &SyntaxNode,
     computed_tokens: &[OwnedToken],
     query_tokens: &[OwnedToken],
+    length_resolution_context: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
+    color_resolution_input: Option<&crate::css::color_resolution::ColorResolutionInput>,
 ) -> bool {
     let mut random_function_index = 0;
     let context = registry.parse_context(&mut random_function_index);
@@ -1547,19 +1621,214 @@ fn registered_style_query_values_are_equal(
     let Some(query) = parse_with_syntax(&context, &serialize_tokens(query_tokens), syntax) else {
         return false;
     };
-    let computed_color = crate::css::color_resolution::to_color(&computed, &crate::css::color_resolution::EMPTY_INPUT);
-    let query_color = crate::css::color_resolution::to_color(&query, &crate::css::color_resolution::EMPTY_INPUT);
+    let color_resolution_input = color_resolution_input.unwrap_or(&crate::css::color_resolution::EMPTY_INPUT);
+    let computed_color = crate::css::color_resolution::to_color(&computed, color_resolution_input);
+    let query_color = crate::css::color_resolution::to_color(&query, color_resolution_input);
     if computed_color.is_some() || query_color.is_some() {
         return computed_color.is_some() && computed_color == query_color;
+    }
+    // Numeric values compare computed: in their canonical unit, relative lengths resolved.
+    if let (Some(computed), Some(query)) = (
+        StyleRangeValue::of(&computed, length_resolution_context),
+        StyleRangeValue::of(&query, length_resolution_context),
+    ) {
+        return computed.kind == query.kind && computed.value == query.value;
     }
     computed == query
 }
 
+/// A `<style-range-value>` as a range compares it: its type, and its value in that type's
+/// canonical unit.
+#[derive(Clone, Copy)]
+struct StyleRangeValue {
+    kind: CanonicalNumericType,
+    value: f64,
+}
+
+impl StyleRangeValue {
+    /// The types a `<style-range-value>` parses as, in the order it tries them.
+    const SYNTAX_TYPES: [SyntaxType; 7] = [
+        SyntaxType::Number,
+        SyntaxType::Length,
+        SyntaxType::Percentage,
+        SyntaxType::Angle,
+        SyntaxType::Time,
+        SyntaxType::Frequency,
+        SyntaxType::Resolution,
+    ];
+
+    fn of(
+        value: &StyleValueData,
+        length_resolution_context: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
+    ) -> Option<Self> {
+        use crate::css::calc::CalcNumericValue;
+        let length_resolution = crate::css::calc::LengthResolution {
+            context: length_resolution_context,
+            fallback: None,
+        };
+        let (kind, value) = match *value {
+            StyleValueData::Number { value } => (CanonicalNumericType::Number, value),
+            StyleValueData::Integer { value } => (CanonicalNumericType::Number, f64::from(value)),
+            StyleValueData::Percentage { value } => (CanonicalNumericType::Percentage, value),
+            StyleValueData::Length { value, unit } => (
+                CanonicalNumericType::Length,
+                CalcNumericValue::Length { value, unit }.to_canonical_number(length_resolution),
+            ),
+            StyleValueData::Angle { value, unit } => (
+                CanonicalNumericType::Angle,
+                CalcNumericValue::Angle { value, unit }.to_canonical_number(length_resolution),
+            ),
+            StyleValueData::Time { value, unit } => (
+                CanonicalNumericType::Time,
+                CalcNumericValue::Time { value, unit }.to_canonical_number(length_resolution),
+            ),
+            StyleValueData::Frequency { value, unit } => (
+                CanonicalNumericType::Frequency,
+                CalcNumericValue::Frequency { value, unit }.to_canonical_number(length_resolution),
+            ),
+            StyleValueData::Resolution { value, unit } => (
+                CanonicalNumericType::Resolution,
+                CalcNumericValue::Resolution { value, unit }.to_canonical_number(length_resolution),
+            ),
+            StyleValueData::Calculated { .. } => {
+                crate::css::calc::resolve_calculated_canonically(value, length_resolution_context)?
+            }
+            _ => return None,
+        };
+        value.is_finite().then_some(Self { kind, value })
+    }
+
+    // https://drafts.csswg.org/css-conditional-5/#style-container
+    fn compare(self, comparison: FeatureComparison, other: Self) -> bool {
+        // A unitless zero compares with any dimension.
+        let is_dimension = |kind| !matches!(kind, CanonicalNumericType::Number | CanonicalNumericType::Percentage);
+        let is_unitless_zero = |value: Self| value.kind == CanonicalNumericType::Number && value.value == 0.0;
+        if self.kind != other.kind
+            && !(is_unitless_zero(self) && is_dimension(other.kind))
+            && !(is_unitless_zero(other) && is_dimension(self.kind))
+        {
+            return false;
+        }
+        match comparison {
+            FeatureComparison::Equal => self.value == other.value,
+            FeatureComparison::LessThan => self.value < other.value,
+            FeatureComparison::LessThanOrEqual => self.value <= other.value,
+            FeatureComparison::GreaterThan => self.value > other.value,
+            FeatureComparison::GreaterThanOrEqual => self.value >= other.value,
+        }
+    }
+}
+
+/// One `<style-range-value>`: a custom property name substitutes as if wrapped in `var()`, other
+/// values have their arbitrary substitution functions substituted, and either then parses as one
+/// of the numeric types. `None` when it does not.
+fn evaluate_style_range_value(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    operand: &ParsedStyleRangeValue,
+    context: &mut ASFResolutionContext,
+    recursion_depth: u32,
+) -> Result<Option<StyleRangeValue>, ConditionEvaluation> {
+    let resolution = match operand {
+        ParsedStyleRangeValue::Property(name) => {
+            context.note_style_query_dependency(name);
+            resolve_custom_property(store, registry, name, context, recursion_depth + 1)
+        }
+        ParsedStyleRangeValue::Components(values) => substitute_arbitrary_substitution_functions(
+            store,
+            registry,
+            &tokenize_owned(&serialize_component_values_to_utf16(
+                values,
+                ComponentSerializationMode::Normalized,
+            )),
+            context,
+            recursion_depth + 1,
+            None,
+        ),
+    };
+    let resolved = match resolution {
+        TokenResolution::Resolved(tokens) => tokens,
+        TokenResolution::Invalid => return Ok(None),
+        TokenResolution::Cyclic => return Err(ConditionEvaluation::Cyclic),
+        TokenResolution::NotHandled => return Err(ConditionEvaluation::NotHandled),
+    };
+    let source = serialize_tokens(&resolved);
+    let mut random_function_index = 0;
+    let registry_parse_context;
+    let parse_context = match (context.parse_context, registry) {
+        (Some(parse_context), _) => parse_context,
+        (None, Some(registry)) => {
+            registry_parse_context = registry.parse_context(&mut random_function_index);
+            &registry_parse_context
+        }
+        (None, None) => return Ok(None),
+    };
+    Ok(StyleRangeValue::SYNTAX_TYPES
+        .iter()
+        .find_map(|&syntax_type| parse_with_syntax(parse_context, &source, &SyntaxNode::Type(syntax_type)))
+        .and_then(|value| StyleRangeValue::of(&value, context.style_query_length_resolution_context)))
+}
+
+// https://drafts.csswg.org/css-conditional-5/#style-container
+fn evaluate_style_range(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    range: &StyleFeature,
+    context: &mut ASFResolutionContext,
+    recursion_depth: u32,
+) -> ConditionEvaluation {
+    let StyleFeature::Range {
+        left,
+        left_comparison,
+        middle,
+        right,
+    } = range
+    else {
+        return ConditionEvaluation::Invalid;
+    };
+    let mut value = |operand: &ParsedStyleRangeValue| match evaluate_style_range_value(
+        store,
+        registry,
+        operand,
+        context,
+        recursion_depth + 1,
+    ) {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Err(ConditionEvaluation::Match(false)),
+        Err(result) => Err(result),
+    };
+    let comparisons = std::iter::once((*left_comparison, middle))
+        .chain(right.as_ref().map(|(comparison, right)| (*comparison, right)));
+    let mut previous = match value(left) {
+        Ok(value) => value,
+        Err(result) => return result,
+    };
+    for (comparison, operand) in comparisons {
+        let next = match value(operand) {
+            Ok(value) => value,
+            Err(result) => return result,
+        };
+        if !previous.compare(comparison, next) {
+            return ConditionEvaluation::Match(false);
+        }
+        previous = next;
+    }
+    ConditionEvaluation::Match(true)
+}
+
+fn has_comparison(tokens: &[OwnedToken]) -> bool {
+    tokens.iter().any(|token| {
+        token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
+    })
+}
+
 fn validate_style_feature(tokens: &[OwnedToken]) -> ConditionValidation {
     let tokens = trim_whitespace(tokens);
-    if tokens.iter().any(|token| {
-        token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
-    }) {
+    // A `<style-feature-value>` is a `<declaration-value>`, which holds no top-level `!`.
+    if find_top_level_source(tokens, b"!").is_some() {
+        return ConditionValidation::Invalid;
+    }
+    if has_comparison(tokens) {
         return ConditionValidation::Valid;
     }
     let colon = find_top_level_source(tokens, b":");
@@ -1575,9 +1844,7 @@ fn validate_style_feature(tokens: &[OwnedToken]) -> ConditionValidation {
     }
     if let Some(colon) = colon {
         let query = trim_whitespace(&tokens[colon + 1..]);
-        if query.iter().any(|token| {
-            token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
-        }) {
+        if has_comparison(query) {
             return ConditionValidation::Invalid;
         }
     }
@@ -1592,34 +1859,12 @@ fn evaluate_style_feature(
     recursion_depth: u32,
 ) -> ConditionEvaluation {
     let tokens = trim_whitespace(tokens);
-    if tokens.iter().any(|token| {
-        token.source.equals_ascii(b"<") || token.source.equals_ascii(b">") || token.source.equals_ascii(b"=")
-    }) {
-        // FIXME: Range style queries are evaluated in C++ without access to the Rust guarded-context stack. The cyclic
-        //        result does not identify the context that began the cycle, so marking the innermost context could mark
-        //        a caller outside the cycle and cannot mark the complete cycle suffix. Share the guarded contexts across
-        //        the callback instead.
-        let Some(evaluate) = context.evaluate_style_query else {
-            return ConditionEvaluation::NotHandled;
+    if has_comparison(tokens) {
+        // A range parses as the query parser has it, as it did when C++ evaluated it.
+        let Some(range) = parse_style_range_from_source(&serialize_tokens(tokens)) else {
+            return ConditionEvaluation::Invalid;
         };
-        let source = serialize_tokens(tokens);
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateConditionCallback);
-        return match unsafe {
-            evaluate(
-                context.callback_context,
-                FfiUtf16View {
-                    ascii: std::ptr::null(),
-                    utf16: source.as_ptr(),
-                    length: source.len(),
-                },
-            )
-        } {
-            0 => ConditionEvaluation::Match(false),
-            1 => ConditionEvaluation::Match(true),
-            2 => ConditionEvaluation::Invalid,
-            3 => ConditionEvaluation::Cyclic,
-            _ => ConditionEvaluation::NotHandled,
-        };
+        return evaluate_style_range(store, registry, &range, context, recursion_depth + 1);
     }
     let colon = find_top_level_source(tokens, b":");
     let name_tokens = trim_whitespace(&tokens[..colon.unwrap_or(tokens.len())]);
@@ -1646,37 +1891,13 @@ fn evaluate_style_feature(
         .is_empty()
         .then(|| registry.and_then(|registry| registry.registrations.get(name)))
         .flatten();
+    context.note_style_query_dependency(name);
     let computed = resolve_custom_property(store, registry, name, context, recursion_depth + 1);
     let computed = match computed {
         TokenResolution::Resolved(tokens) => Some(tokens),
         TokenResolution::Invalid | TokenResolution::Cyclic => None,
         TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
     };
-    if registration.is_some()
-        // NB: `registration` is only populated when there is no function-local scope, so this property context has no
-        //     custom function identity.
-        && !context.guarded_contexts.contains_property(name, None)
-        && let Some(evaluate) = context.evaluate_style_query
-    {
-        let source = serialize_tokens(tokens);
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::EvaluateConditionCallback);
-        return match unsafe {
-            evaluate(
-                context.callback_context,
-                FfiUtf16View {
-                    ascii: std::ptr::null(),
-                    utf16: source.as_ptr(),
-                    length: source.len(),
-                },
-            )
-        } {
-            0 => ConditionEvaluation::Match(false),
-            1 => ConditionEvaluation::Match(true),
-            2 => ConditionEvaluation::Invalid,
-            3 => ConditionEvaluation::Cyclic,
-            _ => ConditionEvaluation::NotHandled,
-        };
-    }
     let Some(colon) = colon else {
         // A <style-feature-boolean> is true if the computed value differs from the property's initial value.
         // NB: A function parameter's initial value is its argument, but a parameter holding one still matches.
@@ -1691,6 +1912,8 @@ fn evaluate_style_feature(
             &registration.syntax,
             computed,
             &tokenize_owned(initial),
+            context.style_query_length_resolution_context,
+            context.style_query_color_resolution_input.as_ref(),
         ));
     };
     let query = trim_whitespace(&tokens[colon + 1..]);
@@ -1735,6 +1958,8 @@ fn evaluate_style_feature(
                         .unwrap_or_else(|| &registration.expect("registered property").syntax),
                     &computed,
                     &expected,
+                    context.style_query_length_resolution_context,
+                    context.style_query_color_resolution_input.as_ref(),
                 )
             }
             (Some(computed), Some(expected)) => trim_whitespace(&computed) == trim_whitespace(&expected),
@@ -1753,7 +1978,12 @@ fn evaluate_style_feature(
             .or_else(|| registration.map(|registration| &registration.syntax)),
     ) {
         return ConditionEvaluation::Match(registered_style_query_values_are_equal(
-            registry, syntax, &computed, query,
+            registry,
+            syntax,
+            &computed,
+            query,
+            context.style_query_length_resolution_context,
+            context.style_query_color_resolution_input.as_ref(),
         ));
     }
     ConditionEvaluation::Match(serialize_tokens(trim_whitespace(&computed)) == serialize_tokens(query))
@@ -1771,6 +2001,7 @@ fn evaluate_style_query(
         Err(ConditionValidation::Invalid) => return ConditionEvaluation::Invalid,
         Err(ConditionValidation::Valid) => unreachable!(),
     };
+    context.load_style_query_inputs();
     evaluate_parsed_boolean_expression(&expression, &mut |feature| {
         evaluate_style_feature(store, registry, feature, context, recursion_depth + 1)
     })
@@ -2682,7 +2913,9 @@ pub(crate) unsafe fn resolve_vars(
     attribute_names_are_ascii_case_insensitive: bool,
     resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> u64>,
     callback_context: *mut c_void,
-    evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
+    style_query_inputs: Option<&crate::css::cascaded_properties::FfiStyleQueryInputs>,
+    load_style_query_inputs: Option<LoadStyleQueryInputs>,
+    style_query_dependencies: Option<&mut Option<Box<StyleQueryDependencies>>>,
     final_custom_properties: Option<&HashMap<Vec<u16>, *const c_void>>,
 ) -> NativeVarResolution {
     let store = if store.is_null() {
@@ -2730,7 +2963,10 @@ pub(crate) unsafe fn resolve_vars(
         media_environment,
         load_media_environment,
         callback_context,
-        evaluate_style_query,
+        style_query_length_resolution_context: style_query_inputs.map(|inputs| &inputs.length),
+        style_query_color_resolution_input: style_query_inputs.map(|inputs| inputs.color_input()),
+        load_style_query_inputs,
+        style_query_dependencies,
         final_custom_properties,
         token_cache: Some(token_cache),
         resolution_stats: Some(resolution_stats),

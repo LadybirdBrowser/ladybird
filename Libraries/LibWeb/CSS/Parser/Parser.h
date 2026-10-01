@@ -168,7 +168,6 @@ private:
 };
 
 Optional<RustRule> parse_keyframe_rule(ParsingParams const&, Utf16View);
-Optional<RustQueryHandle> parse_style_query(Utf16View);
 
 }
 

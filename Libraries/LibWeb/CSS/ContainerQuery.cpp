@@ -119,8 +119,6 @@ struct ActiveStyleQueryResolution {
     bool operator==(ActiveStyleQueryResolution const&) const = default;
 };
 
-static thread_local bool s_style_query_cycle_detected = false;
-
 static Vector<ActiveStyleQueryResolution>& active_style_query_resolutions()
 {
     static thread_local NeverDestroyed<Vector<ActiveStyleQueryResolution>> resolutions;
@@ -139,17 +137,6 @@ static bool begin_style_query_resolution(AbstractOrHypotheticalElement const& el
 static void end_style_query_resolution()
 {
     active_style_query_resolutions().take_last();
-}
-
-void prepare_for_style_query_evaluation()
-{
-    if (active_style_query_resolutions().is_empty())
-        s_style_query_cycle_detected = false;
-}
-
-bool style_query_cycle_detected()
-{
-    return s_style_query_cycle_detected;
 }
 
 enum class StyleFeatureComparison : u8 {
@@ -335,10 +322,8 @@ static Optional<StyleRangeComparableValue> evaluate_style_range_value(StyleRange
             if (!property.is_custom_property())
                 return {};
 
-            if (!begin_style_query_resolution(element, property.name())) {
-                s_style_query_cycle_detected = true;
+            if (!begin_style_query_resolution(element, property.name()))
                 return {};
-            }
             ScopeGuard end_resolution = end_style_query_resolution;
 
             auto computed_value = document.style_computer().compute_value_of_custom_property(nullptr, element, property.name());
@@ -416,10 +401,8 @@ static MatchResult evaluate_style_feature(EvaluatedStyleFeature const& style_fea
     auto const& property_name = property.name();
     Optional<Keyword> query_css_wide_keyword;
 
-    if (!begin_style_query_resolution(element, property_name)) {
-        s_style_query_cycle_detected = true;
+    if (!begin_style_query_resolution(element, property_name))
         return MatchResult::False;
-    }
     ScopeGuard end_resolution = end_style_query_resolution;
 
     if (value.has_value()) {
@@ -727,31 +710,6 @@ static u8 evaluate_container_style_feature(void* context, Parser::ValueParserFFI
                 record_range_value_dependency(*range.right);
         });
     return to_underlying(evaluate_style_feature(*style_feature, *evaluation_context.document, evaluation_context.element, evaluation_context.depends_on_viewport_metrics));
-}
-
-MatchResult evaluate_style_query(RustQueryHandle const& handle, AbstractOrHypotheticalElement element)
-{
-    ContainerStyleEvaluationContext style_context { element.document(), element, element.abstract_element() };
-    Parser::ValueParserFFI::FfiContainerFacts facts {
-        .container_available = true,
-        .size_available = false,
-        .width = 0,
-        .height = 0,
-        .inline_axis_horizontal = false,
-        .length_resolution_context = nullptr,
-        .style_context = &style_context,
-        .evaluate_style_feature = evaluate_container_style_feature,
-        .scroll_state_available = false,
-        .stuck = 0,
-        .snapped = 0,
-        .scrollable = 0,
-        .scrolled = 0,
-        .block_start_side = 0,
-        .inline_start_side = 0,
-    };
-    auto result = Parser::ValueParserFFI::css_query_evaluate_container(handle.data(), facts);
-    VERIFY(result <= to_underlying(MatchResult::Unknown));
-    return static_cast<MatchResult>(result);
 }
 
 struct ScrollStateLogicalStartSides {

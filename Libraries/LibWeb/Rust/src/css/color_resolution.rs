@@ -68,6 +68,12 @@ fn from_converted(color_type: u8, components: Components) -> Rgba {
 }
 
 impl Rgba {
+    /// A color packed as the C++ Color::value() packs it.
+    pub(crate) fn from_packed(value: u32) -> Self {
+        let [b, g, r, a] = value.to_le_bytes();
+        Self { r, g, b, a }
+    }
+
     pub(crate) const BLACK: Self = Self {
         r: 0,
         g: 0,

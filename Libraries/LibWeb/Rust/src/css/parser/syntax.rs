@@ -30,6 +30,8 @@ pub(crate) enum SyntaxType {
     Angle,
     Color,
     CustomIdent,
+    /// Not a syntax a registration names: a `<style-range-value>` may be a `<frequency>`.
+    Frequency,
     Image,
     Integer,
     Length,
@@ -75,6 +77,7 @@ fn serialize_syntax(syntax: &SyntaxNode, sink: &mut TextSink) {
                 SyntaxType::Angle => "angle",
                 SyntaxType::Color => "color",
                 SyntaxType::CustomIdent => "custom-ident",
+                SyntaxType::Frequency => "frequency",
                 SyntaxType::Image => "image",
                 SyntaxType::Integer => "integer",
                 SyntaxType::Length => "length",
