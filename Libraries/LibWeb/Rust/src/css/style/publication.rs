@@ -616,11 +616,11 @@ impl RetainedState {
         // A moved environment reaches every winner written with a substitution, and so does a
         // moved custom-property registry. A winner written with `attr()` computes to what the
         // element's attributes hold now, one written with `inherit()` to what the parent's
-        // environment holds now, one written with `if()` to what its conditions say now, and one
-        // reading the element's place among its siblings
-        // to where it stands now, which no winner delta shows. Such a record is driven again in
-        // full, as is one holding no current cascade state or one under a moved document
-        // environment.
+        // environment holds now, one written with `if()` to what its conditions say now, one
+        // calling a custom function to what the function's definition says now, and one reading
+        // the element's place among its siblings to where it stands now, which no winner delta
+        // shows. Such a record is driven again in full, as is one holding no current cascade
+        // state or one under a moved document environment.
         let drive_in_full = holds_no_current_cascade_state
             || scratch.document_environment_moved
             || ((environment.is_some() || self.custom_property_registrations_changed)
@@ -2469,8 +2469,8 @@ impl RetainedState {
     }
 
     /// Whether a winner's declaration was written with a substitution the engine resolves itself,
-    /// or is a longhand pending a shorthand written with one. A value calling a custom function or
-    /// reading an attribute is C++'s, and what it computes to can move without any winner moving.
+    /// or is a longhand pending a shorthand written with one. A value reading an attribute is
+    /// C++'s, and what it computes to can move without any winner moving.
     fn winner_is_written_with_substitution(&self, node: StyleNodeID, winner: &PropertyWinner) -> bool {
         let written = match winner.source {
             WinnerSource::Rule(rule) => self
@@ -2567,6 +2567,9 @@ impl RetainedState {
             if custom_property_cascade::value_reads_conditions(value.data()) {
                 reads |= cascade::STATE_READS_IF_FUNCTION;
             }
+            if custom_property_cascade::value_calls_custom_functions(value.data()) {
+                reads |= cascade::STATE_READS_CUSTOM_FUNCTION;
+            }
         }
         if self
             .winner_groups
@@ -2585,14 +2588,15 @@ impl RetainedState {
 
     /// Whether any of a state's longhand winners, itself or through the shorthand it is pending,
     /// substitutes what the node's own custom-property environment does not decide: the element's
-    /// attributes through `attr()`, the parent's environment through `inherit()`, or the
-    /// document's media features and the element's lengths through `if()`. What such a state
-    /// substitutes to is the element's alone.
+    /// attributes through `attr()`, the parent's environment through `inherit()`, the document's
+    /// media features and the element's lengths through `if()`, or the `@function` definitions
+    /// through a custom function call. What such a state substitutes to is the element's alone.
     pub(super) fn state_reads_beyond_environment(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
         self.state_reads(node, state)
             & (cascade::STATE_READS_ATTRIBUTES
                 | cascade::STATE_READS_INHERIT_FUNCTION
-                | cascade::STATE_READS_IF_FUNCTION)
+                | cascade::STATE_READS_IF_FUNCTION
+                | cascade::STATE_READS_CUSTOM_FUNCTION)
             != 0
     }
 
@@ -2771,9 +2775,11 @@ impl RetainedState {
         // pseudo-element's reads its originating element's.
         let mut attributes = None;
         let attribute_element = self.substitution_attribute_element(node, pseudo_kind);
-        // What a `style()` query in an `if()` resolves against, likewise.
+        // What a `style()` query in an `if()` resolves against, and the custom functions a call
+        // reaches, likewise.
         let mut style_query = None;
         let style_query_references = std::cell::RefCell::new(None);
+        let mut functions: Option<custom_property_cascade::PreparedCustomFunctions> = None;
         for winner in self.winner_groups.winners_in_state(state) {
             // A revert whose continuation resumes at nothing leaves the property undeclared.
             let Some(winner) = self.winner_groups.resolved_winner(winner) else {
@@ -2820,7 +2826,18 @@ impl RetainedState {
                 source: winner.source,
                 index,
             };
-            if style_query.is_none() && custom_property_cascade::value_reads_conditions(value.data()) {
+            let calls_functions = custom_property_cascade::value_calls_custom_functions(value.data());
+            if calls_functions && functions.is_none() {
+                let Some(prepared) = self.prepare_custom_functions(node, pseudo_kind) else {
+                    counters.bump(Counter::EngineComputedRecordBailSubstitution);
+                    return Err(Unanswered::Refused);
+                };
+                functions = Some(prepared);
+            }
+            // A function's declarations may hold an `if()` as well.
+            if style_query.is_none()
+                && (calls_functions || custom_property_cascade::value_reads_conditions(value.data()))
+            {
                 style_query = Some(
                     self.style_query_inputs(computed::ComputedStyleTarget::new(node, pseudo_kind.unwrap_or(u8::MAX))),
                 );
@@ -2841,7 +2858,10 @@ impl RetainedState {
                 crate::css::style_value::StyleValueData::Unresolved { presence_attr, .. } => {
                     *substituted = true;
                     let value = value.clone_retained();
-                    if *presence_attr && attributes.is_none() {
+                    // A function's declarations may substitute `attr()` as well.
+                    let reads_attributes = *presence_attr
+                        || (calls_functions && functions.as_ref().is_some_and(|functions| functions.reads_attributes));
+                    if reads_attributes && attributes.is_none() {
                         attributes = Some(
                             custom_property_cascade::SubstitutionAttributes::of(
                                 &self.facts,
@@ -2855,9 +2875,10 @@ impl RetainedState {
                         document: &self.document_style_computation_inputs,
                         media: &self.document_media,
                         environment,
-                        attributes: attributes.as_ref().filter(|_| *presence_attr),
+                        attributes: attributes.as_ref().filter(|_| reads_attributes),
                         style_query: style_query.as_ref().and_then(Option::as_ref),
                         style_query_references: Some(&style_query_references),
+                        functions: functions.as_ref(),
                     };
                     let value = Self::substitute_written_value(
                         &mut self.custom_property_environments,
@@ -2894,6 +2915,7 @@ impl RetainedState {
                         attributes: None,
                         style_query: style_query.as_ref().and_then(Option::as_ref),
                         style_query_references: Some(&style_query_references),
+                        functions: functions.as_ref(),
                     };
                     let resolved = Self::substitute_written_value(
                         &mut self.custom_property_environments,
@@ -2974,6 +2996,11 @@ impl RetainedState {
                 index,
                 WinnerDeclaration::new(winner.property, winner.important, value),
             ));
+        }
+        // What a function's container conditions read is recorded with the node's record, as a
+        // gated rule's is.
+        if let Some(effects) = functions.and_then(|functions| functions.container_effects) {
+            self.note_container_effects_for_host(node, effects);
         }
         declarations.sort_by_key(|(priority, index, ..)| (*priority, *index));
         let store = WinnerStore::new(

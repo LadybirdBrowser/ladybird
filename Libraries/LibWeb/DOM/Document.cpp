@@ -2271,7 +2271,7 @@ void Document::invalidate_style_for_viewport_change()
     // computed-value dependency for the retained style engine to discover.
     auto elements = move(m_elements_with_viewport_dependent_style);
     for (auto& element : elements) {
-        if (&element.document() != this || (!element.style_uses_if_css_function() && !element.style_depends_on_viewport_metrics()))
+        if (&element.document() != this || (!element.style_uses_if_css_function() && !element.style_uses_custom_function() && !element.style_depends_on_viewport_metrics()))
             continue;
         m_elements_with_viewport_dependent_style.set(element);
         if (element.is_connected())

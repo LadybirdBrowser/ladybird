@@ -25,7 +25,8 @@ use crate::css::cascaded_properties::{
     parse_substituted_without_callbacks,
 };
 use crate::css::custom_properties::{
-    CustomPropertyStore, FfiSubstitutionFunctionVisibility, NativeVarResolution, prepare_var_resolution_environment,
+    CustomPropertyStore, FfiSubstitutionFunctionDeclaration, FfiSubstitutionFunctionDefinition,
+    FfiSubstitutionFunctionVisibility, NativeVarResolution, prepare_var_resolution_environment,
 };
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::value_parser::ParseOutcome;
@@ -145,13 +146,6 @@ impl DocumentMediaSnapshot {
 /// inputs: what a custom function call resolves against. A scope is a host `StyleScope`, named by
 /// its identity, as the resolver names the scope of a call and of a definition.
 #[derive(Default)]
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "style engine records read it once they resolve custom functions"
-    )
-)]
 pub(super) struct DocumentFunctionSnapshot {
     /// Each definition some scope sees, by its identity, with the scope that defines it.
     definitions: HashMap<u64, (Arc<CompiledFunction>, usize)>,
@@ -159,22 +153,25 @@ pub(super) struct DocumentFunctionSnapshot {
     visibilities: Vec<FfiSubstitutionFunctionVisibility>,
     /// The scope of each tree scope that sees a definition.
     caller_scopes: HashMap<TreeScopeID, usize>,
+    /// What a call from each scope reaches, worked out once for the transaction.
+    scope_functions: HashMap<usize, ScopeFunctions>,
+}
+
+/// What a call from one scope reaches, as `visible_from` finds it, with the input blocks of each
+/// definition's body the document's media selects: only the container-gated blocks among those
+/// differ from one element to the next.
+pub(super) struct ScopeFunctions {
+    /// Each reachable definition, with the scope that defines it and its selected blocks.
+    definitions: Vec<(Arc<CompiledFunction>, usize, Box<[usize]>)>,
+    visibilities: Vec<FfiSubstitutionFunctionVisibility>,
 }
 
 /// What a call from one tree scope may reach: the definitions its scope sees, and those the
 /// defining scope of each of them sees, which the calls in its body name.
-#[cfg_attr(
-    not(test),
-    allow(
-        dead_code,
-        reason = "style engine records read it once they resolve custom functions"
-    )
-)]
-pub(super) struct VisibleFunctions<'a> {
-    pub caller_scope: usize,
+struct VisibleFunctions<'a> {
     /// Each reachable definition, with the scope that defines it.
-    pub definitions: Vec<(&'a CompiledFunction, usize)>,
-    pub visibilities: Vec<FfiSubstitutionFunctionVisibility>,
+    definitions: Vec<(&'a CompiledFunction, usize)>,
+    visibilities: Vec<FfiSubstitutionFunctionVisibility>,
 }
 
 impl DocumentFunctionSnapshot {
@@ -184,10 +181,15 @@ impl DocumentFunctionSnapshot {
     /// # Safety
     /// The borrowed fields must name a live array of their stated length, or nothing, for this
     /// call, and each entry a live compiled function.
-    pub(super) unsafe fn take_in(&mut self, inputs: &mut bridge::FfiDocumentStyleComputationInputs) {
+    pub(super) unsafe fn take_in(
+        &mut self,
+        inputs: &mut bridge::FfiDocumentStyleComputationInputs,
+        media: &DocumentMediaSnapshot,
+    ) {
         self.definitions.clear();
         self.visibilities.clear();
         self.caller_scopes.clear();
+        self.scope_functions.clear();
         let entries = if inputs.custom_functions.is_none() || inputs.custom_function_count == 0 {
             &[]
         } else {
@@ -225,19 +227,58 @@ impl DocumentFunctionSnapshot {
         }
         inputs.custom_functions = bridge::FfiHostHandle::default();
         inputs.custom_function_count = 0;
+        let media_environment = media.environment();
+        // SAFETY: The environment points into the media snapshot, which outlives the evaluation.
+        let media_environment = unsafe { media_environment.borrow() };
+        for &caller_scope in self.caller_scopes.values() {
+            if self.scope_functions.contains_key(&caller_scope) {
+                continue;
+            }
+            let visible = self.visible_from_scope(caller_scope);
+            let definitions = visible
+                .definitions
+                .iter()
+                .map(|(function, scope)| {
+                    // A list without queries matches; one with queries matches when any query does.
+                    let selected = function
+                        .inputs
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, input)| {
+                            input.media.iter().all(|list| {
+                                list.queries.is_empty()
+                                    || list.queries.iter().any(|query| query.matches_media(media_environment))
+                            })
+                        })
+                        .map(|(index, _)| index)
+                        .collect();
+                    let function = self.definitions[&function.identity].0.clone();
+                    (function, *scope, selected)
+                })
+                .collect();
+            let scope_functions = ScopeFunctions {
+                definitions,
+                visibilities: visible.visibilities,
+            };
+            self.scope_functions.insert(caller_scope, scope_functions);
+        }
+    }
+
+    /// The scope a call from an element of `tree_scope` names, none where its scope sees no
+    /// definition, and what the call reaches.
+    pub(super) fn scope_functions(&self, tree_scope: TreeScopeID) -> (usize, Option<&ScopeFunctions>) {
+        let caller_scope = self.caller_scopes.get(&tree_scope).copied().unwrap_or(0);
+        (caller_scope, self.scope_functions.get(&caller_scope))
     }
 
     /// What a call from an element of `tree_scope` may reach. A tree scope whose scope sees no
     /// definition reaches none, and each of its calls names nothing.
-    #[cfg_attr(
-        not(test),
-        allow(
-            dead_code,
-            reason = "style engine records read it once they resolve custom functions"
-        )
-    )]
-    pub(super) fn visible_from(&self, tree_scope: TreeScopeID) -> VisibleFunctions<'_> {
-        let caller_scope = self.caller_scopes.get(&tree_scope).copied().unwrap_or(0);
+    #[cfg(test)]
+    fn visible_from(&self, tree_scope: TreeScopeID) -> VisibleFunctions<'_> {
+        self.visible_from_scope(self.caller_scopes.get(&tree_scope).copied().unwrap_or(0))
+    }
+
+    fn visible_from_scope(&self, caller_scope: usize) -> VisibleFunctions<'_> {
         let mut scopes = vec![caller_scope];
         let mut definitions: Vec<(&CompiledFunction, usize)> = Vec::new();
         let mut index = 0;
@@ -271,15 +312,35 @@ impl DocumentFunctionSnapshot {
             .copied()
             .collect();
         VisibleFunctions {
-            caller_scope,
             definitions,
             visibilities,
         }
     }
 }
 
+/// The custom functions a node's calls may reach, as the resolver takes them: each definition with
+/// the declarations its conditions select for the node, and which definition each scope's calls
+/// name. It points into the definitions the engine retains for the transaction, which outlive
+/// every drive in it.
+pub(super) struct PreparedCustomFunctions {
+    /// What `definitions` point into.
+    _declarations: Vec<Vec<FfiSubstitutionFunctionDeclaration>>,
+    definitions: Vec<FfiSubstitutionFunctionDefinition>,
+    visibilities: Vec<FfiSubstitutionFunctionVisibility>,
+    caller_scope: usize,
+    /// Whether a selected declaration substitutes `attr()`, which reads the node's attributes.
+    pub(super) reads_attributes: bool,
+    /// What the container conditions read of the node's containers, for the host to record with
+    /// its record; `None` when no condition was evaluated.
+    pub(super) container_effects: Option<super::container_queries::ContainerVerdict>,
+}
+
 /// The resolution context the engine substitutes under: the stores alone, with no callback into
 /// C++ - what the engine cannot resolve without one is left to C++ before this is built.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the context borrows each resolution input on its own"
+)]
 fn engine_resolution_context(
     parse_context: &crate::css::parser::value_parser::ParseContext,
     store: *const c_void,
@@ -289,6 +350,7 @@ fn engine_resolution_context(
     media_environment: &crate::css::parser::query_parser::FfiMediaEnvironment,
     style_query: Option<&crate::css::cascaded_properties::FfiStyleQueryInputs>,
     style_query_references: Option<&mut Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
+    functions: Option<&PreparedCustomFunctions>,
 ) -> FfiCascadeResolutionContext {
     let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
     FfiCascadeResolutionContext {
@@ -307,11 +369,11 @@ fn engine_resolution_context(
         attribute_count: substitution_attributes.len(),
         attribute_names_are_ascii_case_insensitive: attributes
             .is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
-        custom_functions: std::ptr::null(),
-        custom_function_count: 0,
-        custom_function_scope_identity: 0,
-        custom_function_visibilities: std::ptr::null(),
-        custom_function_visibility_count: 0,
+        custom_functions: functions.map_or(std::ptr::null(), |functions| functions.definitions.as_ptr()),
+        custom_function_count: functions.map_or(0, |functions| functions.definitions.len()),
+        custom_function_scope_identity: functions.map_or(0, |functions| functions.caller_scope),
+        custom_function_visibilities: functions.map_or(std::ptr::null(), |functions| functions.visibilities.as_ptr()),
+        custom_function_visibility_count: functions.map_or(0, |functions| functions.visibilities.len()),
         callback_context: std::ptr::null_mut(),
         install_custom_properties: None,
         style_query_inputs: style_query.map_or(std::ptr::null(), std::ptr::from_ref),
@@ -322,16 +384,10 @@ fn engine_resolution_context(
     }
 }
 
-/// Whether a token stream is a substitution the engine resolves itself: one that calls no custom
-/// function and substitutes no `attr()`.
+/// Whether a token stream is a substitution the engine resolves itself: one that substitutes no
+/// `attr()`.
 pub(super) fn value_is_engine_resolvable_substitution(value: &StyleValueData) -> bool {
-    matches!(value, StyleValueData::Unresolved { .. }) && custom_property_value_is_engine_resolvable(value)
-}
-
-/// Whether a cascaded custom-property value is one the engine resolves: a plain value, or a
-/// token stream that calls no custom function and substitutes no `attr()`.
-fn custom_property_value_is_engine_resolvable(value: &StyleValueData) -> bool {
-    !value_reads_attributes(value) && substitutions_but_attr_are_engine_resolvable(value)
+    matches!(value, StyleValueData::Unresolved { .. }) && !value_reads_attributes(value)
 }
 
 /// The token stream a written value substitutes: itself, or the shorthand a longhand pending its
@@ -377,10 +433,25 @@ pub(super) fn value_reads_conditions(value: &StyleValueData) -> bool {
     )
 }
 
+/// Whether a written value calls a custom function, whose result depends on the `@function`
+/// definitions its scope sees and on the conditions inside them.
+pub(super) fn value_calls_custom_functions(value: &StyleValueData) -> bool {
+    matches!(
+        substituted_tokens(value),
+        StyleValueData::Unresolved {
+            presence_dashed_function: true,
+            ..
+        }
+    )
+}
+
 /// What a written value's substitutions read beyond the element's custom-property environment,
 /// as `FfiNodeRecordReads` bits.
 fn substitution_reads(value: &StyleValueData) -> u8 {
     let mut reads = 0;
+    if value_calls_custom_functions(value) {
+        reads |= bridge::FfiNodeRecordReads::CustomFunction as u8;
+    }
     if value_reads_conditions(value) {
         reads |= bridge::FfiNodeRecordReads::IfFunction as u8;
     }
@@ -391,19 +462,6 @@ fn substitution_reads(value: &StyleValueData) -> u8 {
         reads |= bridge::FfiNodeRecordReads::InheritFunction as u8;
     }
     reads
-}
-
-/// Whether the engine resolves every substitution a value holds but `attr()`, which it resolves
-/// only where it has the element's attributes: every one but a custom function, whose definition
-/// the engine does not hold.
-fn substitutions_but_attr_are_engine_resolvable(value: &StyleValueData) -> bool {
-    !matches!(
-        value,
-        StyleValueData::Unresolved {
-            presence_dashed_function: true,
-            ..
-        }
-    )
 }
 
 /// The custom-property environments a node's winners substitute under: its own, which `var()`
@@ -417,8 +475,8 @@ pub(super) struct SubstitutionEnvironment {
 
 /// What a node's winners substitute against beside their written values: the document's inputs
 /// and media features, the custom-property environments, and what is read of the element itself,
-/// where a winner reads it - its attributes for `attr()`, and the lengths and colors a `style()`
-/// query in `if()` resolves against.
+/// where a winner reads it - its attributes for `attr()`, the lengths and colors a `style()` query
+/// in `if()` resolves against, and the custom functions its calls reach.
 pub(super) struct SubstitutionInputs<'a> {
     pub document: &'a bridge::FfiDocumentStyleComputationInputs,
     pub media: &'a DocumentMediaSnapshot,
@@ -428,6 +486,7 @@ pub(super) struct SubstitutionInputs<'a> {
     /// Where the custom properties a `style()` query reads are noted.
     pub style_query_references:
         Option<&'a std::cell::RefCell<Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>>,
+    pub functions: Option<&'a PreparedCustomFunctions>,
 }
 
 /// What an `attr()` reads of an element, as the resolution takes it: each of the element's
@@ -950,9 +1009,12 @@ impl RetainedState {
         if cascaded.is_empty() {
             return;
         }
-        // What an `if()` resolves to is the element's alone, which no memo hands to another.
+        // What an `attr()`, an `if()` or a custom function call resolves to is the element's
+        // alone, which no memo hands to another.
         if cascaded.iter().any(|(_, written)| {
-            !custom_property_value_is_engine_resolvable(written.data()) || value_reads_conditions(written.data())
+            value_reads_attributes(written.data())
+                || value_reads_conditions(written.data())
+                || value_calls_custom_functions(written.data())
         }) {
             return;
         }
@@ -1015,6 +1077,78 @@ impl RetainedState {
             // Opaque black, the initial color.
             current_color: 0xff00_0000,
         })
+    }
+
+    /// What the custom function calls in the values of a node, or of one of its pseudo-elements,
+    /// resolve against: the functions its tree scope's calls reach, each with the blocks of
+    /// declarations whose `@media` conditions hold for the transaction and whose container
+    /// conditions hold for the node. `None` when the engine cannot decide a container condition.
+    pub(super) fn prepare_custom_functions(
+        &self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+    ) -> Option<PreparedCustomFunctions> {
+        let (caller_scope, visible) = self.document_functions.scope_functions(self.tree.tree_scope(node));
+        let visible_definitions = visible.map_or(&[][..], |visible| visible.definitions.as_slice());
+        let mut container_effects: Option<super::container_queries::ContainerVerdict> = None;
+        let mut reads_attributes = false;
+        let mut declarations = Vec::with_capacity(visible_definitions.len());
+        for (function, _, selected_inputs) in visible_definitions {
+            let mut selected = Vec::new();
+            for input in selected_inputs.iter().map(|&index| &function.inputs[index]) {
+                if !input.containers.is_empty() {
+                    let verdict = self.container_conditions_verdict(&input.containers, node, pseudo.is_some())?;
+                    let matches = verdict.matches;
+                    container_effects.get_or_insert_default().add_reads(verdict);
+                    if !matches {
+                        continue;
+                    }
+                }
+                for descriptor in &input.declarations.descriptors {
+                    reads_attributes |= value_reads_attributes(&descriptor.value);
+                    let name = descriptor.name.units();
+                    selected.push(FfiSubstitutionFunctionDeclaration {
+                        name: FfiUtf16View {
+                            ascii: std::ptr::null(),
+                            utf16: name.as_ptr(),
+                            length: name.len(),
+                        },
+                        data: Arc::as_ptr(&descriptor.value).cast(),
+                    });
+                }
+            }
+            declarations.push(selected);
+        }
+        let definitions = visible_definitions
+            .iter()
+            .zip(&declarations)
+            .map(
+                |((function, scope, _), declarations)| FfiSubstitutionFunctionDefinition {
+                    identity: function.identity,
+                    scope_identity: *scope,
+                    signature: Arc::as_ptr(&function.signature).cast(),
+                    declarations: declarations.as_ptr(),
+                    declaration_count: declarations.len(),
+                },
+            )
+            .collect();
+        Some(PreparedCustomFunctions {
+            _declarations: declarations,
+            definitions,
+            visibilities: visible.map_or_else(Vec::new, |visible| visible.visibilities.clone()),
+            caller_scope,
+            reads_attributes,
+            container_effects,
+        })
+    }
+
+    /// Take in the custom functions the host lent with a transaction's inputs, and what a call
+    /// from each scope reaches under the document's media, which the inputs moved first.
+    ///
+    /// # Safety
+    /// As for `DocumentFunctionSnapshot::take_in`.
+    pub(super) unsafe fn take_in_document_functions(&mut self, inputs: &mut bridge::FfiDocumentStyleComputationInputs) {
+        unsafe { self.document_functions.take_in(inputs, &self.document_media) };
     }
 
     /// The name a cascaded custom declaration names, as its store entry keys it. A block's
@@ -1090,7 +1224,7 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         };
         self.note_custom_declaration_reads(node, pseudo, &cascaded);
-        self.engine_custom_property_environment_over(node, cascaded, parent_environment, inputs, counters)
+        self.engine_custom_property_environment_over(node, pseudo, cascaded, parent_environment, inputs, counters)
     }
 
     /// Note what the custom declarations cascaded for an element or one of its pseudo-elements
@@ -1124,6 +1258,7 @@ impl RetainedState {
     pub(super) fn engine_custom_property_environment_over(
         &mut self,
         node: StyleNodeID,
+        pseudo: Option<u8>,
         cascaded: Vec<(CustomDeclaration, RetainedStyleValueData)>,
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
@@ -1144,12 +1279,32 @@ impl RetainedState {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         }
-        // An `attr()` among the declarations reads the element's attributes, so what they resolve
-        // to is the element's alone and takes no memo.
-        let reads_attributes = cascaded.iter().any(|(_, value)| value_reads_attributes(value.data()));
+        // A custom function call reads the definitions its scope sees, with the blocks of
+        // declarations their conditions select for the element.
+        let functions = if cascaded
+            .iter()
+            .any(|(_, value)| value_calls_custom_functions(value.data()))
+        {
+            let Some(mut functions) = self.prepare_custom_functions(node, pseudo) else {
+                counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+                return Err(Unanswered::Refused);
+            };
+            if let Some(effects) = functions.container_effects.take() {
+                self.note_container_effects_for_host(node, effects);
+            }
+            Some(functions)
+        } else {
+            None
+        };
+        // An `attr()` among the declarations, or in the declarations of a function they call,
+        // reads the element's attributes, so what they resolve to is the element's alone and
+        // takes no memo.
+        let reads_attributes = functions.as_ref().is_some_and(|functions| functions.reads_attributes)
+            || cascaded.iter().any(|(_, value)| value_reads_attributes(value.data()));
         // So does an `if()`, whose conditions read the document's media features and the
-        // element's lengths.
-        let reads_conditions = cascaded.iter().any(|(_, value)| value_reads_conditions(value.data()));
+        // element's lengths, and so does a function call, which may hold one.
+        let reads_conditions =
+            functions.is_some() || cascaded.iter().any(|(_, value)| value_reads_conditions(value.data()));
         let memoizes = !reads_attributes && !reads_conditions;
         let key = Self::environment_inputs(
             parent_environment,
@@ -1179,10 +1334,6 @@ impl RetainedState {
             let Some(name) = self.declared_custom_property_name(declared.name) else {
                 continue;
             };
-            if !substitutions_but_attr_are_engine_resolvable(value.data()) {
-                counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
-                return Err(Unanswered::Refused);
-            }
             // A value the parent already holds, by identity, declares nothing new.
             if parent.is_some_and(|parent| parent.value_is_identical(name.raw.raw(), value.pointer().cast())) {
                 continue;
@@ -1221,7 +1372,7 @@ impl RetainedState {
         parse_context.in_quirks_mode = inputs.in_quirks_mode;
         let media_environment = self.document_media.environment();
         let style_query = reads_conditions
-            .then(|| self.style_query_inputs(computed::ComputedStyleTarget::new(node, u8::MAX)))
+            .then(|| self.style_query_inputs(computed::ComputedStyleTarget::new(node, pseudo.unwrap_or(u8::MAX))))
             .flatten();
         // The custom properties a `style()` query reads are the element's style query references,
         // which the host records with its record.
@@ -1235,6 +1386,7 @@ impl RetainedState {
             &media_environment,
             style_query.as_ref(),
             Some(&mut style_query_references),
+            functions.as_ref(),
         );
         let mut finalizer = EngineFinalizer { parent_store };
         let drive = FfiCustomPropertyDriveInput {
@@ -1285,11 +1437,11 @@ impl RetainedState {
     }
 
     /// What a node's records read beyond their cascade, as `FfiNodeRecordReads` bits, for the row
-    /// that installs them: an `attr()`, `inherit()` or `if()` in the element's winners, in its
-    /// pseudo-elements' (which read the originating element's attributes), or in the custom
-    /// properties either declares, as their resolution found; a tree-counting function in the
-    /// records the engine derived for the element or its pseudo-elements, written or substituted,
-    /// as their installation noted.
+    /// that installs them: an `attr()`, `inherit()`, `if()` or custom function call in the
+    /// element's winners, in its pseudo-elements' (which read the originating element's
+    /// attributes), or in the custom properties either declares, as their resolution found; a
+    /// tree-counting function in the records the engine derived for the element or its
+    /// pseudo-elements, written or substituted, as their installation noted.
     pub(super) fn node_record_reads(&self, node: StyleNodeID) -> u8 {
         let groups = self.current_winner_groups();
         let state = match groups.token_for(WinnerGroupKey::current(node, self.program.version())) {
@@ -1311,6 +1463,9 @@ impl RetainedState {
             if state_reads & cascade::STATE_READS_IF_FUNCTION != 0 {
                 reads |= bridge::FfiNodeRecordReads::IfFunction as u8;
             }
+            if state_reads & cascade::STATE_READS_CUSTOM_FUNCTION != 0 {
+                reads |= bridge::FfiNodeRecordReads::CustomFunction as u8;
+            }
         }
         if self.nodes_with_tree_counting_records.contains_key(&node) {
             reads |= bridge::FfiNodeRecordReads::SiblingPosition as u8;
@@ -1321,10 +1476,11 @@ impl RetainedState {
     /// What a written value with `var()` references substitutes to for a property under an
     /// environment, parsed as the property's value: what the C++ cascade computes for the
     /// declaration, memoized by the written value. An `attr()` reads the element's attributes, an
-    /// `inherit()` the environment the element inherits and an `if()` the document's media
-    /// features and the element's lengths, so any of these values is the element's alone and
-    /// takes no memo. Refused when the value holds a substitution the engine does not resolve, or
-    /// an environment is one the engine holds no store for.
+    /// `inherit()` the environment the element inherits, an `if()` the document's media features
+    /// and the element's lengths, and a custom function call the definitions its scope sees and
+    /// whatever their declarations read, so any of these values is the element's alone and takes
+    /// no memo. Refused when the inputs lack what the value reads, or an environment is one the
+    /// engine holds no store for.
     pub(super) fn substitute_written_value(
         environments: &mut custom_property_environments::CustomPropertyEnvironments,
         inputs: &SubstitutionInputs<'_>,
@@ -1332,15 +1488,19 @@ impl RetainedState {
         written: RetainedStyleValueData,
         counters: &mut Counters,
     ) -> Drive<RetainedStyleValueData> {
-        let attributes = inputs.attributes.filter(|_| value_reads_attributes(written.data()));
-        if (attributes.is_none() && !custom_property_value_is_engine_resolvable(written.data()))
-            || !substitutions_but_attr_are_engine_resolvable(written.data())
-        {
+        let calls_functions = value_calls_custom_functions(written.data());
+        let functions = inputs.functions.filter(|_| calls_functions);
+        let reads_attributes =
+            value_reads_attributes(written.data()) || functions.is_some_and(|functions| functions.reads_attributes);
+        let attributes = inputs.attributes.filter(|_| reads_attributes);
+        if (reads_attributes && attributes.is_none()) || (calls_functions && functions.is_none()) {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return Err(Unanswered::Refused);
         }
-        let reads_inherited_values = value_reads_inherited_values(written.data());
-        let memoizes = attributes.is_none() && !reads_inherited_values && !value_reads_conditions(written.data());
+        // A function's declarations may substitute `inherit()` and `if()` as well.
+        let reads_inherited_values = calls_functions || value_reads_inherited_values(written.data());
+        let memoizes =
+            !reads_attributes && !reads_inherited_values && !calls_functions && !value_reads_conditions(written.data());
         let environment = inputs.environment;
         if memoizes && let Some(value) = environments.substitution(&written, property, environment.own) {
             counters.bump(Counter::EngineComputedRecordSubstitutionMemoHits);
@@ -1373,11 +1533,11 @@ impl RetainedState {
             prepare_var_resolution_environment(
                 substitution_attributes.as_ptr(),
                 substitution_attributes.len(),
-                std::ptr::null(),
-                0,
-                0,
-                std::ptr::null(),
-                0,
+                functions.map_or(std::ptr::null(), |functions| functions.definitions.as_ptr()),
+                functions.map_or(0, |functions| functions.definitions.len()),
+                functions.map_or(0, |functions| functions.caller_scope),
+                functions.map_or(std::ptr::null(), |functions| functions.visibilities.as_ptr()),
+                functions.map_or(0, |functions| functions.visibilities.len()),
             )
         }) else {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
@@ -1488,7 +1648,7 @@ mod tests {
             ..Default::default()
         };
         let mut snapshot = DocumentFunctionSnapshot::default();
-        unsafe { snapshot.take_in(&mut inputs) };
+        unsafe { snapshot.take_in(&mut inputs, &DocumentMediaSnapshot::default()) };
         assert_eq!(inputs, bridge::FfiDocumentStyleComputationInputs::default());
         let reached = |visible: &VisibleFunctions<'_>| {
             visible
@@ -1500,7 +1660,7 @@ mod tests {
 
         // A call in the document reaches --inner through the body of --outer.
         let document = snapshot.visible_from(TreeScopeID(0));
-        assert_eq!(document.caller_scope, 1);
+        assert_eq!(snapshot.scope_functions(TreeScopeID(0)).0, 1);
         assert_eq!(
             reached(&document),
             [(outer.identity, 2), (local.identity, 1), (inner.identity, 2)]
@@ -1509,7 +1669,7 @@ mod tests {
 
         // A call in the shadow tree never reaches what only the document sees.
         let shadow = snapshot.visible_from(TreeScopeID(5));
-        assert_eq!(shadow.caller_scope, 2);
+        assert_eq!(snapshot.scope_functions(TreeScopeID(5)).0, 2);
         assert_eq!(reached(&shadow), [(outer.identity, 2), (inner.identity, 2)]);
         assert!(
             shadow
@@ -1520,7 +1680,7 @@ mod tests {
 
         // A tree scope whose scope sees no definition reaches none.
         let elsewhere = snapshot.visible_from(TreeScopeID(9));
-        assert_eq!(elsewhere.caller_scope, 0);
+        assert_eq!(snapshot.scope_functions(TreeScopeID(9)).0, 0);
         assert!(elsewhere.definitions.is_empty() && elsewhere.visibilities.is_empty());
     }
 }

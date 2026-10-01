@@ -587,15 +587,7 @@ public:
     bool style_uses_tree_counting_function() const { return m_style_uses_tree_counting_function; }
     // Whether this element's style resolution called a custom function. Which one is not reported by
     // the substitution machinery, so an `@function` change reaches the elements that called any.
-    void set_style_uses_custom_function()
-    {
-        if (m_style_uses_custom_function)
-            return;
-        bool const publishes = !style_recomputes_on_environment_move();
-        m_style_uses_custom_function = true;
-        if (publishes)
-            publish_style_recomputes_on_environment_move();
-    }
+    void set_style_uses_custom_function();
     bool style_uses_custom_function() const { return m_style_uses_custom_function; }
 
     bool style_uses_if_css_function() const { return m_style_uses_if_css_function; }
