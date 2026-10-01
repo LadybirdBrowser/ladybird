@@ -104,11 +104,13 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
 #include <math.h>
@@ -426,10 +428,15 @@ void StyleComputer::register_style_node(StyleNodeID style_node_id, DOM::Node& no
     if (style_node_id == 0)
         return;
     ensure_style_node_slot(style_node_id);
-    if (style_node_is_text(style_node_id))
+    if (style_node_is_text(style_node_id)) {
         m_text_style_nodes[style_node_index(style_node_id)] = as<DOM::Text>(node);
-    else
-        m_element_style_nodes[style_node_index(style_node_id)] = node;
+        return;
+    }
+    m_element_style_nodes[style_node_index(style_node_id)] = node;
+    // Registration is where an element's publications keyed by its style node begin: an attribute written before it
+    // had one published nothing.
+    if (auto* svg_element = as_if<SVG::SVGElement>(node))
+        Layout::publish_svg_attribute_facts(*svg_element);
 }
 
 static void ensure_slot(auto& nodes, u32 index)
@@ -462,6 +469,9 @@ void StyleComputer::unregister_style_node(StyleNodeID style_node_id)
         return;
     }
     if (index < m_element_style_nodes.size()) {
+        // A style node identity is reissued, so what was published under it leaves with it.
+        if (auto* svg_element = as_if<SVG::SVGElement>(m_element_style_nodes[index].ptr()))
+            Layout::clear_svg_attribute_facts(svg_element->document(), style_node_id);
         m_element_style_nodes[index] = nullptr;
         m_style_engine.consume_recorded_element_style_input_change(style_node_id);
     }

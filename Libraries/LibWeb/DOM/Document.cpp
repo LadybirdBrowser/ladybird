@@ -234,6 +234,7 @@
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
@@ -8400,6 +8401,10 @@ void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> ele
         element->document_or_shadow_root_element_by_id_map().add(new_id.value(), element);
     }
     note_svg_paint_resources_changed();
+    if (old_id.has_value())
+        republish_svg_patterns_inheriting_from(*old_id);
+    if (new_id.has_value())
+        republish_svg_patterns_inheriting_from(*new_id);
 }
 
 void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
@@ -8416,6 +8421,7 @@ void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Eleme
     if (auto id = element->id(); id.has_value()) {
         element->document_or_shadow_root_element_by_id_map().add(id.value(), element);
         note_svg_paint_resources_changed();
+        republish_svg_patterns_inheriting_from(*id);
     }
 }
 
@@ -8429,6 +8435,7 @@ void Document::element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Ele
     if (auto id = element->id(); id.has_value()) {
         element->document_or_shadow_root_element_by_id_map().remove(id.value(), element);
         note_svg_paint_resources_changed();
+        republish_svg_patterns_inheriting_from(*id);
     }
 }
 
@@ -9851,6 +9858,39 @@ void Document::set_needs_accumulated_visual_contexts_update(bool value)
     m_needs_accumulated_visual_contexts_update = value;
     if (value)
         set_needs_repaint(InvalidateDisplayList::No);
+}
+
+// A pattern connecting or disconnecting needs no republication of its own here: one that can be named has an id, and
+// the id's arrival or departure republishes the patterns that name it.
+void Document::register_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement& pattern)
+{
+    m_svg_pattern_elements.append(pattern);
+}
+
+void Document::unregister_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement& pattern)
+{
+    m_svg_pattern_elements.remove(pattern);
+}
+
+// A <pattern> that names another pattern inherits the attributes it does not carry from it, so its published facts
+// are not a function of its own attributes: anything that changes what an id along its `href` chain names, or what a
+// pattern along that chain carries, changes them. Republish the patterns whose chain passes through `id`.
+void Document::republish_svg_patterns_inheriting_from(Utf16FlyString const& id)
+{
+    HashTable<SVG::SVGPatternElement const*> republished;
+    republish_svg_patterns_inheriting_from(id, republished);
+}
+
+void Document::republish_svg_patterns_inheriting_from(Utf16FlyString const& id, HashTable<SVG::SVGPatternElement const*>& republished)
+{
+    for (auto& pattern : m_svg_pattern_elements) {
+        // Each pattern is republished once, which also ends the walk along a cyclic chain.
+        if (pattern.linked_id() != id.view() || republished.set(&pattern) != AK::HashSetResult::InsertedNewEntry)
+            continue;
+        pattern.publish_svg_attribute_facts();
+        if (auto pattern_id = pattern.id(); pattern_id.has_value())
+            republish_svg_patterns_inheriting_from(*pattern_id, republished);
+    }
 }
 
 void Document::note_svg_paint_resources_changed()
