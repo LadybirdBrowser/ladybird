@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container { --i: sibling-index(); }
+    .direct > .item { z-index: sibling-index(); }
+    .substituted > .item { z-index: var(--i); }
+    .warm > .item { z-index: 0; }
+    .warm.on > .item { z-index: var(--i); }
+    .donor > .a { z-index: var(--i); background-color: rgb(1, 2, 3); }
+    .donor > .b { z-index: var(--i); background-color: rgb(4, 5, 6); }
+    .pseudo > .item::before { content: ""; z-index: var(--i); }
+</style>
+<div id="container"></div>
+<script>
+    // Elements alike in what their records are computed from take one another's records, derive
+    // theirs from a donor's, or reuse the store a sibling built for their winners. Each record still
+    // reads its own element's place among its siblings, so an element inserted before them reaches
+    // every one: first records, warm records moved to a substituting state, records derived from a
+    // donor, and pseudo-elements. A child of a shadow root has no parent element, and counts as an
+    // only child.
+    test(() => {
+        const kinds = ["direct", "substituted", "warm", "donor", "pseudo"];
+        const lists = new Map();
+        for (const kind of kinds) {
+            lists.set(kind, []);
+            for (let index = 0; index < 2; ++index) {
+                const list = document.createElement("div");
+                list.className = kind;
+                for (let position = 0; position < 3; ++position) {
+                    const item = document.createElement("span");
+                    item.className = kind === "donor" ? `item ${(index + position) % 2 ? "b" : "a"}` : "item";
+                    list.append(item);
+                }
+                container.append(list);
+                lists.get(kind).push(list);
+            }
+        }
+        const host = document.createElement("div");
+        container.append(host);
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = "<style>span { z-index: sibling-index(); }</style><span></span><span></span><div><span></span><span></span></div>";
+        const shadowChildren = Array.from(shadow.children).filter(child => child.localName === "span");
+        const nested = shadow.querySelector("div");
+        const nestedChildren = Array.from(nested.children);
+        internals.updateStyle();
+        for (const list of lists.get("warm"))
+            list.classList.add("on");
+        internals.updateStyle();
+
+        const indices = (elements, pseudo = null) => elements.map(element => getComputedStyle(element, pseudo).zIndex).join(" ");
+        const print = label => {
+            for (const kind of kinds) {
+                const pseudo = kind === "pseudo" ? "::before" : null;
+                println(`${label} ${kind}: ${lists.get(kind).map(list => indices(Array.from(list.querySelectorAll(".item")), pseudo)).join(", ")}`);
+            }
+            println(`${label} shadow: ${indices(shadowChildren)}, ${indices(nestedChildren)}`);
+        };
+        print("before");
+
+        for (const list of Array.from(lists.values()).flat())
+            list.prepend(document.createElement("span"));
+        shadow.prepend(document.createElement("span"));
+        nested.prepend(document.createElement("span"));
+        internals.updateStyle();
+        print("after");
+    });
+</script>

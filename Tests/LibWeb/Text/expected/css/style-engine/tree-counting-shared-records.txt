@@ -1,0 +1,12 @@
+before direct: 1 2 3, 1 2 3
+before substituted: 1 2 3, 1 2 3
+before warm: 1 2 3, 1 2 3
+before donor: 1 2 3, 1 2 3
+before pseudo: 1 2 3, 1 2 3
+before shadow: 1 1, 1 2
+after direct: 2 3 4, 2 3 4
+after substituted: 2 3 4, 2 3 4
+after warm: 2 3 4, 2 3 4
+after donor: 2 3 4, 2 3 4
+after pseudo: 2 3 4, 2 3 4
+after shadow: 1 1, 2 3

@@ -216,6 +216,7 @@ impl RetainedState {
                         old,
                         computed::FinalStyleRecordID::NONE,
                         None,
+                        false,
                         0,
                         scratch,
                         counters,
@@ -268,6 +269,7 @@ impl RetainedState {
                         old_record,
                         computed::FinalStyleRecordID::NONE,
                         None,
+                        false,
                         0,
                         scratch,
                         counters,
@@ -280,12 +282,14 @@ impl RetainedState {
             }
             // Reuse only when the originating element preserves every input the pseudo reads,
             // including display transformation and explicit inheritance of non-inherited values.
-            // A moved registry reaches a substitution, and attributes reach an `attr()`, without
-            // moving the state.
+            // A moved registry reaches a substitution, attributes reach an `attr()` and the
+            // element's place among its siblings a tree-counting function, without moving the
+            // state.
             // A ::selection reads its ancestor's as well, which nothing here proves unchanged.
             if kind != SELECTION
                 && old.is_some()
                 && originating_inputs_unchanged
+                && !state.is_some_and(|state| self.sibling_position_key(node, state).is_some())
                 && (old_element_record == Some(new_element_record)
                     || !state.is_some_and(|state| self.state_explicitly_inherits_non_inherited_property(node, state)))
             {
@@ -381,6 +385,7 @@ impl RetainedState {
                     state,
                     facts,
                     font_environment_generation: inputs.font_environment_generation,
+                    sibling_position: state.and_then(|state| self.sibling_position_key(node, state)),
                     root_font_inputs: RootFontInputs::from_document(&inputs),
                 });
             let cascade_state = state.map(|state| (generation, state));
@@ -481,12 +486,14 @@ impl RetainedState {
                     (record, longhand_evaluations)
                 }
             };
+            let reads_sibling_position = store.uses_tree_counting_function(self);
             self.note_engine_computed_pseudo_record(
                 node,
                 kind,
                 old_record,
                 new_style_record,
                 cascade_state,
+                reads_sibling_position,
                 longhand_evaluations,
                 scratch,
                 counters,
@@ -497,7 +504,9 @@ impl RetainedState {
     }
 
     /// Account for a pseudo-element record the engine settled (a removal when `new_style_record`
-    /// is none) and leave its commitment to C++'s acknowledgement of the element.
+    /// is none) and leave its commitment to C++'s acknowledgement of the element. The record reads
+    /// the element's place among its siblings as `reads_sibling_position` says, in place of
+    /// whatever the record it replaces read.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn note_engine_computed_pseudo_record(
         &mut self,
@@ -506,10 +515,12 @@ impl RetainedState {
         old_style_record: computed::FinalStyleRecordID,
         new_style_record: computed::FinalStyleRecordID,
         cascade_state: Option<(u64, CascadeStateID)>,
+        reads_sibling_position: bool,
         longhand_evaluations: u32,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) {
+        self.note_sibling_position_reads(node, pseudo_kind, reads_sibling_position);
         counters.bump(Counter::EngineComputedPseudoRecords);
         self.engine_computed_records_pending
             .entry(node)
@@ -831,6 +842,8 @@ impl RetainedState {
         )?;
         scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
         scratch.noted_substitution = Some(substituted);
+        let reads_sibling_position = store.uses_tree_counting_function(self);
+        self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
         Ok((old_record.unwrap_or(computed::FinalStyleRecordID::NONE), record))
     }
 

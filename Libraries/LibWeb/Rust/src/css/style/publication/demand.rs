@@ -39,6 +39,7 @@ struct PrivateDemandSaves {
     container_effects: Option<container_queries::ContainerVerdict>,
     container_verdicts: Option<Vec<(RuleID, Option<bool>)>>,
     container_gate_unheld: bool,
+    tree_counting: Option<u16>,
 }
 
 fn set_contains(set: &mut HashSet<StyleNodeID>, node: StyleNodeID, contains: bool) {
@@ -57,6 +58,7 @@ impl RetainedState {
             container_effects: self.container_effects_for_host.get(&node).cloned(),
             container_verdicts: self.published_container_verdicts.get(&node).cloned(),
             container_gate_unheld: self.container_gates_unheld.contains(&node),
+            tree_counting: self.nodes_with_tree_counting_records.get(&node).copied(),
         }
     }
 
@@ -93,6 +95,14 @@ impl RetainedState {
             }
         }
         set_contains(&mut self.container_gates_unheld, node, saves.container_gate_unheld);
+        match saves.tree_counting {
+            Some(reads) => {
+                self.nodes_with_tree_counting_records.insert(node, reads);
+            }
+            None => {
+                self.nodes_with_tree_counting_records.remove(&node);
+            }
+        }
         self.discard_private_record_demand_matching_batch();
     }
 

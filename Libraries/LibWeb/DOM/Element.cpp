@@ -1666,6 +1666,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             set_style_uses_var_css_function();
         if (settled.record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::Attributes))
             set_style_uses_attr_css_function();
+        if (settled.record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::SiblingPosition))
+            set_style_uses_tree_counting_function();
         // What C++ marks the parent with when a pseudo-element it computes explicitly inherits a
         // non-inherited property.
         if (settled.explicitly_inherited_groups != 0 && parent())
@@ -2425,6 +2427,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     // computation notes it read them, even if the custom-property environment stayed the same.
     if (uses_substitution)
         m_style_uses_var_css_function = true;
+    // A tree-counting function in the record's winners reads the element's place among its
+    // siblings, so a change among them has to reach the element again.
+    if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::SiblingPosition))
+        set_style_uses_tree_counting_function();
     // An attr() in the record's winners, or in the custom properties the element declares, reads
     // the element's attributes, so an attribute change has to reach the element again. An engine
     // record only ever sets the flag: one that stops reading attributes leaves it set, and the
@@ -3655,7 +3661,8 @@ void Element::children_changed(ChildrenChangedMetadata const& metadata)
             if (!element.style_uses_tree_counting_function())
                 return IterationDecision::Continue;
 
-            document().style_computer().style_engine().record_element_style_input_change(element.style_node_id());
+            // The engine recomputes the element's record against its new place among its siblings.
+            document().style_computer().style_engine().record_derived_element_style_input_change(element.style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
 
             return IterationDecision::Continue;
         });

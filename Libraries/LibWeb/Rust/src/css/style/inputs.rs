@@ -1453,6 +1453,7 @@ impl StyleEngineState {
                 custom_property_environments: Default::default(),
                 nodes_with_substituted_records: HashSet::default(),
                 custom_declarations_reading_attributes: HashSet::default(),
+                nodes_with_tree_counting_records: HashMap::default(),
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
                 environment_move_recompute_nodes: HashSet::default(),
@@ -2932,6 +2933,7 @@ impl RetainedState {
             custom_property_environments: _,
             nodes_with_substituted_records,
             custom_declarations_reading_attributes,
+            nodes_with_tree_counting_records,
             element_custom_property_data,
             pseudo_element_custom_property_data,
             environment_move_recompute_nodes,
@@ -3027,6 +3029,7 @@ impl RetainedState {
         computed_group_sets.remove(node);
         nodes_with_substituted_records.remove(&node);
         custom_declarations_reading_attributes.remove(&node);
+        nodes_with_tree_counting_records.remove(&node);
         element_custom_property_data.remove(&node);
         pseudo_element_custom_property_data.remove(&node);
         environment_move_recompute_nodes.remove(&node);
