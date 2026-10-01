@@ -2095,10 +2095,10 @@ void record_element_attribute_changed(DOM::Element& element, Utf16FlyString cons
         record_element_adjustment_facts(element);
 
     // Both values cross as atoms. Their text is recorded once per distinct value only when a
-    // compiled selector for this attribute uses an operator that cannot compare atom identities.
-    // This lets the match evaluator reconstruct either side of such a transaction without asking
-    // the DOM, and two different values cannot cancel in the journal merely because both are
-    // present.
+    // compiled selector for this attribute uses an operator that cannot compare atom identities,
+    // or when an attr() can read the name. This lets the match evaluator reconstruct either side
+    // of such a transaction without asking the DOM, and two different values cannot cancel in the
+    // journal merely because both are present.
     // The same name an arriving attribute publishes, with the same other forms noted alongside it.
     // See `StyleEngine::intern_attribute_name`.
     auto atom = style_engine->intern_attribute_name(name, namespace_uri);

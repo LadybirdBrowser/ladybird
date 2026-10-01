@@ -227,15 +227,25 @@ impl RetainedState {
         program
     }
 
+    /// Moves whenever an attribute name comes to require its value text: a selector's here, or an
+    /// `attr()`'s anywhere in the process.
     pub fn attribute_value_text_requirements_version(&self) -> u64 {
         self.attribute_value_text_requirements_version
+            .wrapping_add(crate::css::parser::arbitrary_substitution::attr_names_read_generation())
     }
 
+    /// Whether the host records what the values of an attribute name spell: for a selector whose
+    /// operator an atom cannot answer, or for an `attr()`, which reads an attribute in no namespace
+    /// by its local name.
     #[must_use]
     pub fn attribute_name_requires_value_text(&self, name: StyleAtomID) -> bool {
         self.facts
             .attribute_name_keys(name)
             .any(|key| self.attribute_value_text_names.contains(&key))
+            || self
+                .facts
+                .attribute_substitution_name(name)
+                .is_some_and(crate::css::parser::arbitrary_substitution::attr_may_read_name)
     }
 
     #[must_use]
@@ -602,7 +612,8 @@ impl RetainedState {
         ))
     }
 
-    /// Record what an attribute-value atom spells, for the operators an atom cannot answer.
+    /// Record what an attribute-value atom spells, for the operators an atom cannot answer and for
+    /// `attr()`.
     pub fn set_attribute_value_text(&mut self, value: StyleAtomID, text: &[u16]) {
         self.facts.set_attribute_value_text(value, text);
     }
@@ -656,6 +667,11 @@ impl RetainedState {
     /// Give up the retention `retain_published_atom` took, as a publication is cleared or replaced.
     pub fn release_published_atom(&mut self, atom: StyleAtomID) {
         self.atoms.release_published(atom);
+    }
+
+    /// See `ElementFactStore::note_attribute_substitution_name`.
+    pub fn note_attribute_substitution_name(&mut self, name: StyleAtomID, local_name: &[u16]) {
+        self.facts.note_attribute_substitution_name(name, local_name);
     }
 
     pub fn set_shadow_root(&mut self, host: StyleNodeID, shadow_root: StyleNodeID) {

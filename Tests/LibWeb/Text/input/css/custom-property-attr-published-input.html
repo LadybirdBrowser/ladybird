@@ -1,0 +1,12 @@
+<!doctype html>
+<div id="target" data-size="10px" style="--size: attr(data-size type(<length>)); width: var(--size)"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(target).getPropertyValue("--size"));
+        println(getComputedStyle(target).width);
+        target.setAttribute("data-size", "20px");
+        println(getComputedStyle(target).getPropertyValue("--size"));
+        println(getComputedStyle(target).width);
+    });
+</script>

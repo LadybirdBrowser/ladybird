@@ -315,6 +315,9 @@ impl<T: Clone + Default> ShallowCapacityBytes for PagedOwnedColumn<T> {
 #[derive(Clone, Default)]
 struct AttributeCatalogs {
     name_forms: PagedCopyColumn<AttributeNameForms>,
+    /// The local name an `attr()` reads an attribute by, kept only for an attribute in no
+    /// namespace, which is the only kind substitution reads.
+    substitution_names: PagedOwnedColumn<Option<Box<[u16]>>>,
     value_texts: PagedOwnedColumn<Option<Box<[u16]>>>,
     language_texts: PagedOwnedColumn<Option<Box<[u16]>>>,
 }
@@ -4994,9 +4997,6 @@ impl ElementFactStore {
         self.element_declared_properties.get(node, kind)
     }
 
-    /// Record what one attribute-value atom spells, so a value operator can test it.
-    ///
-    /// Values repeat heavily across a document, so the text is held once per distinct value.
     /// Record that `name` is an attribute name whose any-namespace form is `local`.
     ///
     /// Published where the two atoms are minted, which is the only place that knows the pair. It is
@@ -5005,6 +5005,23 @@ impl ElementFactStore {
     pub fn note_attribute_name_forms(&mut self, name: StyleAtomID, forms: AttributeNameForms) {
         self.memory_dirty = true;
         self.attribute_catalogs_mut().name_forms.insert(name.0 as usize, forms);
+    }
+
+    /// Record the local name an `attr()` reads the attribute `name` by, which is in no namespace.
+    pub fn note_attribute_substitution_name(&mut self, name: StyleAtomID, local_name: &[u16]) {
+        self.memory_dirty = true;
+        self.attribute_catalogs_mut()
+            .substitution_names
+            .insert(name.0 as usize, Some(local_name.into()));
+    }
+
+    /// The local name an `attr()` reads an attribute by, if the attribute is in no namespace.
+    #[must_use]
+    pub fn attribute_substitution_name(&self, name: StyleAtomID) -> Option<&[u16]> {
+        self.attribute_catalogs
+            .substitution_names
+            .get(name.0 as usize)
+            .and_then(Option::as_deref)
     }
 
     /// The other names an attribute name answers to, all `NONE` if the name has not been published.
@@ -5025,6 +5042,8 @@ impl ElementFactStore {
             .filter_map(move |(index, key)| (!key.is_none() && !keys[..index].contains(&key)).then_some(key))
     }
 
+    /// Record what one attribute-value atom spells, for a value operator to test or an `attr()` to
+    /// read. Values repeat heavily across a document, so the text is held once per distinct value.
     pub fn set_attribute_value_text(&mut self, value: StyleAtomID, text: &[u16]) {
         let index = value.0 as usize;
         if value.is_none()
@@ -5263,6 +5282,9 @@ impl ElementFactStore {
             if catalogs.name_forms.get(index).is_some() {
                 catalogs.name_forms.insert(index, AttributeNameForms::default());
             }
+            if let Some(name) = catalogs.substitution_names.get_mut(index) {
+                *name = None;
+            }
             if let Some(text) = catalogs.value_texts.get_mut(index) {
                 *text = None;
             }
@@ -5362,6 +5384,13 @@ impl ElementFactStore {
             .flatten()
             .map(|text| text.len() * size_of::<u16>())
             .sum::<usize>();
+        let substitution_name_payloads = self
+            .attribute_catalogs
+            .substitution_names
+            .iter()
+            .flatten()
+            .map(|name| name.len() * size_of::<u16>())
+            .sum::<usize>();
 
         capacity_bytes! {
             shallow [
@@ -5376,6 +5405,7 @@ impl ElementFactStore {
                 self.attribute_catalogs.language_texts,
                 self.attribute_catalogs.value_texts,
                 self.attribute_catalogs.name_forms,
+                self.attribute_catalogs.substitution_names,
             ];
             cached [];
             nested [
@@ -5385,6 +5415,7 @@ impl ElementFactStore {
                 custom_property_name_index_payloads,
                 language_payloads,
                 attribute_value_payloads,
+                substitution_name_payloads,
             ];
             skip [];
         }
@@ -6775,6 +6806,7 @@ mod tests {
                 folded_local: StyleAtomID(43),
             },
         );
+        store.note_attribute_substitution_name(atom, &[11, 12]);
         store.set_attribute_value_text(atom, &[1, 2, 3]);
         store.set_language_text(atom, &[4, 5, 6]);
         store
@@ -6784,6 +6816,7 @@ mod tests {
         store.forget_atoms(&[atom, StyleAtomID(42)]);
 
         assert_eq!(store.attribute_name_forms(atom), AttributeNameForms::default());
+        assert_eq!(store.attribute_substitution_name(atom), None);
         assert!(!store.has_attribute_value_text(atom));
         assert_eq!(
             store.attribute_catalogs.language_texts.get(atom.0 as usize),

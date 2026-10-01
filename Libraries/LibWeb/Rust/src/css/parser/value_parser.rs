@@ -5330,8 +5330,12 @@ pub(crate) fn unresolved_value(
     } else {
         comparison_source
     };
+    let components = crate::css::style_value::RetainedComponentValueList::from_source(component_source);
+    if presence.attr {
+        crate::css::parser::arbitrary_substitution::note_attr_names_read_by(components.as_slice());
+    }
     StyleValueData::Unresolved {
-        components: crate::css::style_value::RetainedComponentValueList::from_source(component_source),
+        components,
         source_text: CssString::from_utf16(source_text),
         value_comparison_text: CssString::from_utf16(comparison_source),
         presence_attr: presence.attr,
