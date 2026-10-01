@@ -14,6 +14,18 @@ use super::*;
 /// the retry mints it, and only its holder may compute a record over a styleless parent.
 pub(in crate::css::style) struct InstalledAncestors(());
 
+impl EngineComputedRecordScratch {
+    /// The scratch of a row the host asks for again, driven under what its flush moved.
+    fn for_retry(moves: BatchMoves) -> Self {
+        Self {
+            document_environment_moved: moves.document_environment,
+            root_font_inputs_changed: moves.root_font_inputs,
+            installed_ancestors: Some(InstalledAncestors(())),
+            ..Self::default()
+        }
+    }
+}
+
 impl RetainedState {
     fn retry_engine_record_after_ancestor_step(
         &mut self,
@@ -140,10 +152,7 @@ impl StyleEngineState {
         }
         counters.bump(Counter::RetryAfterAncestorCalls);
         let started_at = std::time::Instant::now();
-        let mut scratch = EngineComputedRecordScratch {
-            installed_ancestors: Some(InstalledAncestors(())),
-            ..EngineComputedRecordScratch::default()
-        };
+        let mut scratch = EngineComputedRecordScratch::for_retry(self.host.batch_moves_for_retries);
         let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
         let style_record =
             self.retry_engine_record_after_ancestor_loop(node, &mut scratch, &mut suspended_memory, counters);

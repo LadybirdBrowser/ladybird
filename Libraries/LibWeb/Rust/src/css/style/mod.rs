@@ -1007,6 +1007,8 @@ pub struct RetainedState {
 /// Host-facing engine state: C++ ownership, journal intake and the record/replay adapters.
 /// Never reachable from an evaluation step.
 pub struct HostState {
+    /// What the flush whose rows the host is installing moved under every row.
+    batch_moves_for_retries: publication::BatchMoves,
     /// The host's synchronous font resolver. A step that misses the cache returns `NeedsInput`;
     /// the round outside the step calls this and the node is retried.
     font_resolver: Option<font_resolution::FontResolverHost>,
