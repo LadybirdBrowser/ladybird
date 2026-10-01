@@ -427,6 +427,14 @@ void record_subtree_connecting(DOM::Node& root)
 }
 
 // Publish every selector-visible fact intrinsic to one element.
+// The element-backed pseudo-element an element in its host's shadow tree stands for, as one plus
+// its kind, or zero.
+static u8 associated_pseudo_kind_plus_one(DOM::Element const& element)
+{
+    auto pseudo_element = element.associated_shadow_host_pseudo_element();
+    return pseudo_element.has_value() ? static_cast<u8>(to_underlying(*pseudo_element) + 1) : 0;
+}
+
 template<typename PublishFeature, typename PublishEmptiness>
 static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, StyleNodeID node, PublishFeature publish_feature, PublishEmptiness publish_emptiness)
 {
@@ -490,6 +498,7 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
                                             .custom_state_count = 0,
                                             .heading_level = heading_level,
                                             .is_slot = is_slot,
+                                            .associated_pseudo_kind_plus_one = associated_pseudo_kind_plus_one(element),
                                             .reserved = 0,
                                             .adjustment_facts = element_style_adjustment_facts(element),
                                         },
@@ -666,6 +675,7 @@ void record_element_adjustment_facts(DOM::Element& element)
     if (!style_engine || element.style_node_id() == no_style_node)
         return;
     style_engine->set_element_adjustment_facts(element.style_node_id(), element_style_adjustment_facts(element));
+    style_engine->set_element_associated_pseudo_kind(element.style_node_id(), associated_pseudo_kind_plus_one(element));
 }
 
 void publish_required_attribute_value_texts(StyleEngine& style_engine, StyleComputer& style_computer)

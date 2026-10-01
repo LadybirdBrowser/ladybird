@@ -611,7 +611,10 @@ pub struct FfiElementArrival {
     pub custom_state_count: u32,
     pub heading_level: u8,
     pub is_slot: bool,
-    pub reserved: u16,
+    /// One plus the element-backed pseudo-element kind the element stands for in its host's
+    /// shadow tree, or zero.
+    pub associated_pseudo_kind_plus_one: u8,
+    pub reserved: u8,
     /// The element's `ElementStyleAdjustmentFact` bits: what the box-type transformation and the
     /// element style adjustments read of the DOM. Mirrors the C++ enum.
     pub adjustment_facts: u32,
@@ -4134,6 +4137,7 @@ mod tests {
                 custom_state_count: 2,
                 heading_level: 4,
                 is_slot: true,
+                associated_pseudo_kind_plus_one: 0,
                 reserved: 0,
             },
             FfiElementArrival {
@@ -4146,6 +4150,7 @@ mod tests {
                 custom_state_count: 1,
                 heading_level: 0,
                 is_slot: false,
+                associated_pseudo_kind_plus_one: 0,
                 reserved: 0,
             },
         ];
@@ -4176,6 +4181,7 @@ mod tests {
             custom_state_count,
             heading_level: 0,
             is_slot: false,
+            associated_pseudo_kind_plus_one: 0,
             reserved: 0,
         }
     }

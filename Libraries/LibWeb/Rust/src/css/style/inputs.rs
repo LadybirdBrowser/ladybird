@@ -892,6 +892,13 @@ impl RetainedState {
         self.environment_move_recompute_nodes.contains(&node)
     }
 
+    /// Record the element-backed pseudo-element kind an element in its host's shadow tree stands
+    /// for, one plus the kind, or zero for none.
+    pub fn set_element_associated_pseudo_kind(&mut self, node: StyleNodeID, pseudo_kind_plus_one: u8) {
+        self.computed_group_sets
+            .set_associated_pseudo_kind(node, pseudo_kind_plus_one);
+    }
+
     /// Record the identity of the counter-style registry a tree scope's style scope has now.
     pub fn set_counter_style_environment_identity(&mut self, tree_scope: TreeScopeID, identity: u64) {
         self.counter_style_environment_identities.insert(tree_scope, identity);
@@ -2584,6 +2591,9 @@ impl StyleEngineState {
         self.retained
             .computed_group_sets
             .set_adjustment_facts(node, arrival.adjustment_facts);
+        self.retained
+            .computed_group_sets
+            .set_associated_pseudo_kind(node, arrival.associated_pseudo_kind_plus_one);
         for &state in custom_states {
             self.record_batched_input(
                 InputKey::LocalFeature(node, LocalFeatureKey::CustomState(state)),
