@@ -22,11 +22,7 @@
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
-#include <LibWeb/SVG/SVGClipPathElement.h>
-#include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
-#include <LibWeb/SVG/SVGMaskElement.h>
-#include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -68,38 +64,6 @@ GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_fragment_identifier_to_element
     }
 
     return {};
-}
-
-GC::Ptr<SVG::SVGMaskElement const> SVGGraphicsElement::mask(Layout::NodeWithStyle const& layout_node) const
-{
-    auto const& mask_reference = layout_node.mask();
-    if (!mask_reference.has_value())
-        return {};
-    return try_resolve_url_to<SVG::SVGMaskElement const>(mask_reference->url());
-}
-
-GC::Ptr<SVG::SVGClipPathElement const> SVGGraphicsElement::clip_path(Layout::NodeWithStyle const& layout_node) const
-{
-    auto const& clip_path = layout_node.clip_path();
-    if (!clip_path.has_value())
-        return {};
-    return try_resolve_url_to<SVG::SVGClipPathElement const>(*clip_path);
-}
-
-GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::fill_pattern(Layout::NodeWithStyle const& layout_node) const
-{
-    auto fill = layout_node.fill();
-    if (!fill.has_value() || !fill->is_url())
-        return {};
-    return try_resolve_url_to<SVG::SVGPatternElement const>(fill->as_url());
-}
-
-GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::stroke_pattern(Layout::NodeWithStyle const& layout_node) const
-{
-    auto stroke = layout_node.stroke();
-    if (!stroke.has_value() || !stroke->is_url())
-        return {};
-    return try_resolve_url_to<SVG::SVGPatternElement const>(stroke->as_url());
 }
 
 Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> transform_list)

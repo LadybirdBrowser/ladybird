@@ -39,12 +39,6 @@ public:
         return {};
     }
 
-    GC::Ptr<SVG::SVGMaskElement const> mask(Layout::NodeWithStyle const&) const;
-    GC::Ptr<SVG::SVGClipPathElement const> clip_path(Layout::NodeWithStyle const&) const;
-
-    GC::Ptr<SVG::SVGPatternElement const> fill_pattern(Layout::NodeWithStyle const&) const;
-    GC::Ptr<SVG::SVGPatternElement const> stroke_pattern(Layout::NodeWithStyle const&) const;
-
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Bindings::SVGBoundingBoxOptions const&);
     GC::Ref<SVGAnimatedTransformList> transform() const;
 
@@ -64,12 +58,6 @@ protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
 
     GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
-
-    template<typename T>
-    GC::Ptr<T> try_resolve_url_to(CSS::URL const& url) const
-    {
-        return as_if<T>(resolve_url_to_element(url).ptr());
-    }
 
 private:
     virtual bool is_svg_graphics_element() const final { return true; }

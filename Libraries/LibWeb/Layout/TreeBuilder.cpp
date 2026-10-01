@@ -550,28 +550,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .clear_stale_layout_node = [](void* builder_pointer, u32 style_node, u32 cleared_subtree_root) -> bool {
             auto decision = clear_stale_layout_node(node_for_style_node(builder_pointer, style_node), cleared_subtree_root);
             return decision == TraversalDecision::SkipChildrenAndContinue; },
-        .principal_descendant_facts = [](void* builder_pointer, u32 style_node, void* layout_node_pointer) -> RustFFI::FfiPrincipalDescendantFacts {
-            VERIFY(layout_node_pointer);
-            auto& node = node_for_style_node(builder_pointer, style_node);
-            auto* graphics_element = as_if<SVG::SVGGraphicsElement>(node);
-            GC::Ptr<SVG::SVGMaskElement const> mask;
-            GC::Ptr<SVG::SVGClipPathElement const> clip_path;
-            GC::Ptr<SVG::SVGPatternElement const> fill_pattern;
-            GC::Ptr<SVG::SVGPatternElement const> stroke_pattern;
-            if (graphics_element) {
-                auto const& layout_node = as<NodeWithStyle>(*static_cast<Node*>(layout_node_pointer));
-                mask = graphics_element->mask(layout_node);
-                clip_path = graphics_element->clip_path(layout_node);
-                fill_pattern = graphics_element->fill_pattern(layout_node);
-                stroke_pattern = graphics_element->stroke_pattern(layout_node);
-            }
-            return {
-                .svg_graphics_element = graphics_element ? Node::style_node_of(graphics_element).value() : 0,
-                .svg_mask = identified_dom_node(mask.ptr()),
-                .svg_clip_path = identified_dom_node(clip_path.ptr()),
-                .svg_fill_pattern = identified_dom_node(fill_pattern.ptr()),
-                .svg_stroke_pattern = identified_dom_node(stroke_pattern.ptr()),
-            }; },
         .create_first_letter_nodes = [](void* builder_pointer, u32 element_style_node, RustFFI::FfiFirstLetterTarget target) -> RustFFI::FfiFirstLetterNodes { return create_first_letter_nodes(as<DOM::Element>(node_for_style_node(builder_pointer, element_style_node)), target); },
         .top_layer_element_count = [](void* builder_pointer) {
             VERIFY(builder_pointer);
@@ -584,9 +562,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             size_t index = 0;
             for (auto const& element : elements)
                 output[index++] = identified_dom_node(element.ptr()); },
-        .svg_pattern_content_element = [](void* pattern_pointer) -> RustFFI::FfiIdentifiedDomNode {
-            VERIFY(pattern_pointer);
-            return identified_dom_node(static_cast<SVG::SVGPatternElement*>(pattern_pointer)->pattern_content_element().ptr()); },
         .prepare_principal_element = [](void* builder_pointer, u32 style_node, bool should_create_layout_node) {
             auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, style_node));
             element.update_inside_blocking_wheel_event_handler_state();
