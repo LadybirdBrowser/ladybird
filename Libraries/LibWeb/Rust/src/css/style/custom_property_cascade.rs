@@ -17,7 +17,7 @@ use std::ffi::c_void;
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
-use super::publication::{Drive, OrRefused, Unanswered};
+use super::publication::{Drive, Unanswered};
 use super::*;
 use crate::css::cascaded_properties::{
     CallbackFreeParseOutcome, FfiCascadeResolutionContext, FfiCustomPropertyDriveInput, FfiResolvedStyleValue,
@@ -31,7 +31,7 @@ use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::value_parser::ParseOutcome;
 use crate::css::style_compute::keyword;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData, release_style_value, retain_style_value};
-use custom_property_environments::CascadedCustomProperty;
+use custom_property_environments::{CascadedCustomProperty, CustomPropertyName};
 
 /// What the finalizer resolves a CSS-wide keyword against: the environment inherited.
 struct EngineFinalizer {
@@ -442,10 +442,37 @@ impl RetainedState {
         }
     }
 
+    /// The name a cascaded custom declaration names, as its store entry keys it. A block's
+    /// publication notes every custom property name it declares before the block is set, so a
+    /// live declaration's name is always known. A replay notes names without their fly strings,
+    /// and a name without one keys no store entry: `None` there, and the declaration declares
+    /// nothing.
+    fn declared_custom_property_name(&self, name: StyleAtomID) -> Option<&CustomPropertyName> {
+        let noted = self.custom_property_environments.name(name);
+        debug_assert!(
+            noted.is_some(),
+            "a custom declaration's name is noted at its publication"
+        );
+        noted.filter(|noted| noted.raw.raw() != 0)
+    }
+
+    /// The store behind an environment a node inherits, null for the empty one. A record that
+    /// names an environment keeps its store alive, and C++ makes a store for every environment,
+    /// so a parent's is always held. `None` if it is not anyway: an environment built over no
+    /// store would drop every custom property the node inherits.
+    fn inherited_environment_store(&self, environment: u64) -> Option<*const c_void> {
+        if environment == 0 {
+            return Some(std::ptr::null());
+        }
+        let store = self.custom_property_environments.store(environment);
+        debug_assert!(store.is_some(), "an inherited environment keeps its store");
+        store
+    }
+
     /// The environment of a node the engine computes a record for: the one it inherits when its
     /// cascade declares no custom property, else what its declarations resolve to over that one.
-    /// Refused when the environment is C++'s to compute: a registered name, a substitution the
-    /// engine does not resolve, or an inherited environment the engine holds no store for.
+    /// Refused when the environment is C++'s to compute: a registered name or a substitution the
+    /// engine does not resolve.
     ///
     /// A registration decides how its name computes, against the registered syntax and from its
     /// own initial value, which this resolution does not do, so an element declaring a registered
@@ -462,7 +489,15 @@ impl RetainedState {
         if !self.any_custom_property_is_declared() {
             return Ok(parent_environment);
         }
-        let cascaded = self.cascaded_custom_declarations(node).or_refused()?;
+        // A node the engine drives has the match answer its winners came from, and a published
+        // block carries a written value for each custom declaration, so the cascade answers. One
+        // that does not is refused rather than resolved without the node's own declarations.
+        let cascaded = self.cascaded_custom_declarations(node);
+        debug_assert!(cascaded.is_some(), "a driven node's custom declarations cascade");
+        let Some(cascaded) = cascaded else {
+            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+            return Err(Unanswered::Refused);
+        };
         if cascaded.is_empty() {
             return Ok(parent_environment);
         }
@@ -476,9 +511,8 @@ impl RetainedState {
         if registry_ref.has_registrations()
             && (registry_ref.has_non_inheriting_registrations()
                 || cascaded.iter().any(|(declared, _)| {
-                    self.custom_property_environments
-                        .name(declared.name)
-                        .is_none_or(|name| registry_ref.name_is_registered(&name.text))
+                    self.declared_custom_property_name(declared.name)
+                        .is_some_and(|name| registry_ref.name_is_registered(&name.text))
                 }))
         {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
@@ -493,24 +527,17 @@ impl RetainedState {
             counters.bump(Counter::EngineCustomPropertyEnvironmentMemoHits);
             return Ok(identity);
         }
-        let parent_store = match parent_environment {
-            0 => std::ptr::null(),
-            identity => {
-                let Some(store) = self.custom_property_environments.store(identity) else {
-                    counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
-                    return Err(Unanswered::Refused);
-                };
-                store
-            }
+        let Some(parent_store) = self.inherited_environment_store(parent_environment) else {
+            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+            return Err(Unanswered::Refused);
         };
         let parent = unsafe { parent_store.cast::<CustomPropertyStore>().as_ref() };
         let mut values = Vec::with_capacity(cascaded.len());
         for (declared, value) in &cascaded {
-            let Some(name) = self.custom_property_environments.name(declared.name) else {
-                counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
-                return Err(Unanswered::Refused);
+            let Some(name) = self.declared_custom_property_name(declared.name) else {
+                continue;
             };
-            if name.raw.raw() == 0 || !custom_property_value_is_engine_resolvable(value.data()) {
+            if !custom_property_value_is_engine_resolvable(value.data()) {
                 counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
                 return Err(Unanswered::Refused);
             }
