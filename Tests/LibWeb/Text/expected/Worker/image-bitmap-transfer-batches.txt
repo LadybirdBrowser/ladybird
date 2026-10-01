@@ -1,0 +1,3 @@
+1000 bitmaps transferred with intact pixels
+1000 bitmaps with ArrayBuffer and MessagePort transferred with intact pixels
+MessagePort with 1000 queued bitmaps transferred with intact pixels

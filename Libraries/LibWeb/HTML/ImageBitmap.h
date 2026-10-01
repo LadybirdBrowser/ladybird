@@ -8,6 +8,7 @@
 
 #include <AK/OwnPtr.h>
 #include <AK/Types.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/ImageBitmap.h>
 #include <LibWeb/Bindings/Serializable.h>
@@ -51,6 +52,18 @@ public:
     void close();
 
     // Implementation specific:
+
+    // AD-HOC: The pixels of every ImageBitmap that one message transfers share one buffer of shared memory, which the
+    //         message carries alongside the memory of its SharedArrayBuffers. However many bitmaps a message transfers,
+    //         their pixels then take one attachment, and the receiver uses them without copying.
+    struct SharedPixels {
+        Core::AnonymousBuffer buffer;
+        u32 buffer_index { 0 };
+        size_t used_size { 0 };
+    };
+    static size_t shared_pixels_size(Gfx::Bitmap const&);
+    WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&, SharedPixels*);
+
     void set_bitmap(RefPtr<Gfx::Bitmap>);
     Gfx::Bitmap* bitmap() const;
 

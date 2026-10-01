@@ -6,7 +6,10 @@
 
 #include "StructuredSerializeTestHelpers.h"
 #include <AK/NumericLimits.h>
+#include <AK/ScopeGuard.h>
+#include <LibIPC/Limits.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Crypto/CryptoKeySerializationTags.h>
@@ -21,9 +24,16 @@
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
+
+#if !defined(AK_OS_WINDOWS)
+#    include <fcntl.h>
+#    include <sys/resource.h>
+#    include <unistd.h>
+#endif
 
 static_assert(!IsSame<Web::HTML::IPCSerializationRecord, Web::HTML::StorageSerializationRecord>);
 static_assert(IsSame<decltype(Web::HTML::IPCSerializationRecord {}.data), IPC::MessageDataType>);
@@ -614,6 +624,274 @@ TEST_CASE(image_serializables_encode_to_frozen_bytes)
         auto expected = image_bitmap_record(bitmap->width(), bitmap->height(), bitmap->pitch(), "BGRA8888"sv, "premultiplied"sv, data);
         expect_storage_encoding(image_bitmap, expected);
     }
+}
+
+static GC::Ref<JS::Object> wrap_image_bitmap(JS::Realm& realm, GC::Ref<Web::HTML::ImageBitmap> image_bitmap)
+{
+    return Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, image_bitmap);
+}
+
+static GC::Ref<Web::HTML::ImageBitmap> create_image_bitmap(NonnullRefPtr<Gfx::Bitmap> bitmap)
+{
+    auto image_bitmap = Web::HTML::ImageBitmap::create();
+    image_bitmap->set_bitmap(move(bitmap));
+    return image_bitmap;
+}
+
+static Vector<JS::Value> deserialize_transfer_data_holders(JS::Realm& realm, Web::HTML::SerializedTransferRecord& record)
+{
+    Vector<JS::Value> values;
+    for (auto& holder : record.transfer_data_holders) {
+        Web::HTML::TransferDataDecoder decoder { move(holder) };
+        decoder.set_shared_buffers(record.shared_buffers);
+        values.append(MUST(Web::HTML::structured_deserialize_with_transfer_internal(decoder, realm)));
+    }
+    return values;
+}
+
+struct TransferredThroughIPC {
+    size_t payload_size { 0 };
+    size_t attachment_count { 0 };
+    GC::RootVector<JS::Value> transferred_values;
+};
+
+// Sends a transfer record through IPC encoding the way postMessage() does, and deserializes what arrives.
+static TransferredThroughIPC transfer_through_ipc(JS::Realm& realm, JS::Value value, ReadonlySpan<GC::Ref<JS::Object>> transfer)
+{
+    auto record = MUST(Web::HTML::structured_serialize_with_transfer(realm, value, transfer));
+    IPC::MessageBuffer message;
+    IPC::Encoder encoder { message };
+    MUST(encoder.encode(record));
+
+    TransferredThroughIPC result;
+    result.payload_size = message.data().size();
+    result.attachment_count = message.attachments().size();
+
+    FixedMemoryStream stream { message.data().span() };
+    Queue<IPC::Attachment> attachments;
+    for (auto& attachment : message.take_attachments())
+        attachments.enqueue(move(attachment));
+    IPC::Decoder decoder { stream, attachments };
+    auto received_record = MUST(decoder.decode<Web::HTML::SerializedTransferRecord>());
+    auto deserialized = MUST(Web::HTML::structured_deserialize_with_transfer(received_record, realm));
+    // The record can outlive its delivery, so it must not keep shared memory alive for the values.
+    EXPECT(received_record.shared_buffers.is_empty());
+    for (auto& value : deserialized.transferred_values)
+        result.transferred_values.append(value.ptr());
+    return result;
+}
+
+TEST_CASE(image_bitmap_transfer_keeps_pixels_out_of_the_message_payload)
+{
+    auto& realm = test_realm();
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, { 1024, 768 }));
+    bitmap->set_pixel(0, 0, Gfx::Color::Red);
+    bitmap->set_pixel(1023, 767, Gfx::Color::Blue);
+    auto source = create_image_bitmap(bitmap);
+    auto wrapper = wrap_image_bitmap(realm, source);
+    Array<GC::Ref<JS::Object>, 1> transfer { wrapper };
+
+    auto result = transfer_through_ipc(realm, wrapper, transfer);
+    EXPECT(source->is_detached());
+    EXPECT_EQ(source->bitmap(), nullptr);
+    EXPECT(result.payload_size < 4096);
+    EXPECT_EQ(result.attachment_count, 1u);
+
+    auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(result.transferred_values[0]);
+    // A bitmap that has the shared memory to itself is backed by it, so that passing it on does not copy it.
+    EXPECT(received.bitmap()->anonymous_buffer().is_valid());
+    EXPECT_EQ(received.width(), 1024u);
+    EXPECT_EQ(received.height(), 768u);
+    EXPECT_EQ(received.bitmap()->format(), Gfx::BitmapFormat::RGBA8888);
+    EXPECT_EQ(received.bitmap()->alpha_type(), Gfx::AlphaType::Unpremultiplied);
+    EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color::Red);
+    EXPECT_EQ(received.bitmap()->get_pixel(1023, 767), Gfx::Color::Blue);
+    received.close();
+    EXPECT_EQ(received.bitmap(), nullptr);
+}
+
+TEST_CASE(any_number_of_transferred_image_bitmaps_share_one_attachment)
+{
+    auto& realm = test_realm();
+    static constexpr size_t count = IPC::MAX_MESSAGE_FD_COUNT + 1;
+    GC::RootVector<GC::Ref<JS::Object>> transfer;
+    GC::RootVector<JS::Value> values;
+    for (size_t i = 0; i < count; ++i) {
+        auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
+        bitmap->set_pixel(0, 0, Gfx::Color(i % 256, i / 256, 0));
+        auto wrapper = wrap_image_bitmap(realm, create_image_bitmap(bitmap));
+        transfer.append(wrapper);
+        values.append(wrapper);
+    }
+    auto buffer = MUST(JS::ArrayBuffer::create(realm, 1));
+    auto port = Web::HTML::MessagePort::create(Web::DOM::EventTarget::create());
+    transfer.append(buffer);
+    transfer.append(Web::Bindings::message_port(realm, port));
+
+    auto result = transfer_through_ipc(realm, JS::Array::create_from(realm, values), transfer);
+    EXPECT_EQ(result.attachment_count, 1u);
+    EXPECT_EQ(result.transferred_values.size(), count + 2);
+    for (size_t i = 0; i < count; ++i) {
+        auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(result.transferred_values[i]);
+        EXPECT(!received.bitmap()->anonymous_buffer().is_valid());
+        EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color(i % 256, i / 256, 0));
+        received.close();
+    }
+}
+
+TEST_CASE(image_bitmap_with_padded_rows_transfers_its_pixels)
+{
+    auto& realm = test_realm();
+    Array<u32, 6> pixels { 0xffff0000, 0xff00ff00, 0, 0xff0000ff, 0xffffffff, 0 };
+    auto bitmap = MUST(Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 2, 2 }, 3 * sizeof(u32), pixels.data()));
+    auto wrapper = wrap_image_bitmap(realm, create_image_bitmap(bitmap));
+    Array<GC::Ref<JS::Object>, 1> transfer { wrapper };
+
+    auto result = transfer_through_ipc(realm, wrapper, transfer);
+    auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(result.transferred_values[0]);
+    EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color::Red);
+    EXPECT_EQ(received.bitmap()->get_pixel(1, 0), Gfx::Color::Green);
+    EXPECT_EQ(received.bitmap()->get_pixel(0, 1), Gfx::Color::Blue);
+    EXPECT_EQ(received.bitmap()->get_pixel(1, 1), Gfx::Color::White);
+    received.close();
+}
+
+TEST_CASE(image_bitmaps_queued_on_a_transferred_message_port_keep_their_pixels)
+{
+    auto& realm = test_realm();
+    auto* window = Web::HTML::window_from_global_object(realm.global_object());
+    VERIFY(window);
+    auto port = Web::HTML::MessagePort::create(*window);
+    static constexpr size_t count = IPC::MAX_MESSAGE_FD_COUNT + 1;
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
+    bitmap->set_pixel(0, 0, Gfx::Color::Blue);
+    GC::RootVector<GC::Ref<JS::Object>> transfer;
+    GC::RootVector<JS::Value> values;
+    for (size_t i = 0; i < count; ++i) {
+        auto wrapper = wrap_image_bitmap(realm, create_image_bitmap(bitmap));
+        transfer.append(wrapper);
+        values.append(wrapper);
+    }
+    MUST(port->post_message(realm, JS::Array::create_from(realm, values), transfer));
+    EXPECT_EQ(port->pending_outgoing_message_count(), 1u);
+
+    auto port_wrapper = Web::Bindings::message_port(realm, port);
+    Array<GC::Ref<JS::Object>, 1> port_transfer { port_wrapper };
+    auto record = MUST(Web::HTML::structured_serialize_with_transfer(realm, port_wrapper, port_transfer));
+    EXPECT(port->is_detached());
+    EXPECT_EQ(record.transfer_data_holders[0].buffer().attachments().size(), 1u);
+
+    Web::HTML::TransferDataDecoder port_decoder { move(record.transfer_data_holders[0]) };
+    EXPECT_EQ(MUST(port_decoder.decode<Web::HTML::TransferType>()), Web::HTML::TransferType::MessagePort);
+    EXPECT(MUST(port_decoder.decode<Vector<Web::HTML::SerializedTransferRecord>>()).is_empty());
+    auto queued_messages = MUST(port_decoder.decode<Vector<Web::HTML::SerializedTransferRecord>>());
+    EXPECT_EQ(queued_messages.size(), 1u);
+    auto received_values = deserialize_transfer_data_holders(realm, queued_messages[0]);
+    EXPECT_EQ(received_values.size(), count);
+    for (auto value : received_values) {
+        auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(value);
+        EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color::Blue);
+        received.close();
+    }
+}
+
+#if !defined(AK_OS_WINDOWS)
+TEST_CASE(image_bitmap_transfer_inlines_pixels_without_shared_memory)
+{
+    auto& realm = test_realm();
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
+    bitmap->set_pixel(0, 0, Gfx::Color::Green);
+    auto wrapper = wrap_image_bitmap(realm, create_image_bitmap(bitmap));
+    Array<GC::Ref<JS::Object>, 1> transfer { wrapper };
+
+    // Use up every descriptor, so that no shared memory can be created.
+    rlimit original_limit {};
+    VERIFY(getrlimit(RLIMIT_NOFILE, &original_limit) == 0);
+    auto limit = original_limit;
+    limit.rlim_cur = min<rlim_t>(original_limit.rlim_cur, 32);
+    VERIFY(setrlimit(RLIMIT_NOFILE, &limit) == 0);
+    Vector<int, 32> descriptors;
+    auto restore_descriptors_and_limit = [&] {
+        for (auto descriptor : descriptors)
+            VERIFY(close(descriptor) == 0);
+        descriptors.clear();
+        VERIFY(setrlimit(RLIMIT_NOFILE, &original_limit) == 0);
+    };
+    ArmedScopeGuard restore_guard = restore_descriptors_and_limit;
+    for (;;) {
+        auto descriptor = open("/dev/null", O_RDONLY | O_CLOEXEC);
+        if (descriptor < 0)
+            break;
+        descriptors.append(descriptor);
+    }
+    VERIFY(errno == EMFILE);
+    auto record = Web::HTML::structured_serialize_with_transfer(realm, wrapper, transfer);
+    restore_guard.disarm();
+    restore_descriptors_and_limit();
+
+    EXPECT(!record.is_error());
+    auto& transfer_record = record.value();
+    EXPECT(transfer_record.shared_buffers.is_empty());
+    EXPECT(transfer_record.transfer_data_holders[0].buffer().attachments().is_empty());
+    auto received_values = deserialize_transfer_data_holders(realm, transfer_record);
+    auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(received_values[0]);
+    EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color::Green);
+    received.close();
+}
+#endif
+
+TEST_CASE(image_bitmap_transfer_rejects_invalid_shared_pixels)
+{
+    auto& realm = test_realm();
+    Vector<Core::AnonymousBuffer> shared_buffers;
+    shared_buffers.append(MUST(Core::AnonymousBuffer::create_with_size(64)));
+    auto receive = [&](Vector<Core::AnonymousBuffer> const* buffers, u32 buffer_index, u64 offset, Gfx::BitmapFormat format, int width) {
+        Web::HTML::TransferDataEncoder holder;
+        MUST(holder.encode(true));
+        MUST(holder.encode(buffer_index));
+        MUST(holder.encode(offset));
+        MUST(holder.encode(width));
+        MUST(holder.encode(1));
+        MUST(holder.encode(format));
+        MUST(holder.encode(Gfx::AlphaType::Premultiplied));
+        Web::HTML::TransferDataDecoder decoder { move(holder) };
+        if (buffers)
+            decoder.set_shared_buffers(*buffers);
+        auto receiver = Web::HTML::ImageBitmap::create();
+        return receiver->transfer_receiving_steps(realm, decoder);
+    };
+    EXPECT(!receive(&shared_buffers, 0, 0, Gfx::BitmapFormat::BGRA8888, 16).is_error());
+    EXPECT(receive(nullptr, 0, 0, Gfx::BitmapFormat::BGRA8888, 16).is_error());
+    EXPECT(receive(&shared_buffers, 1, 0, Gfx::BitmapFormat::BGRA8888, 16).is_error());
+    EXPECT(receive(&shared_buffers, 0, 4, Gfx::BitmapFormat::BGRA8888, 16).is_error());
+    EXPECT(receive(&shared_buffers, 0, 1, Gfx::BitmapFormat::BGRA8888, 1).is_error());
+    EXPECT(receive(&shared_buffers, 0, NumericLimits<u64>::max() - 1, Gfx::BitmapFormat::BGRA8888, 1).is_error());
+    EXPECT(receive(&shared_buffers, 0, 0, Gfx::BitmapFormat::Invalid, 1).is_error());
+}
+
+TEST_CASE(image_bitmap_transfer_rejects_invalid_inline_pixels)
+{
+    auto& realm = test_realm();
+    auto receive = [&](Gfx::BitmapFormat format, size_t pitch, ReadonlyBytes pixels) {
+        Web::HTML::TransferDataEncoder holder;
+        MUST(holder.encode(false));
+        MUST(holder.encode(true));
+        MUST(holder.encode(1));
+        MUST(holder.encode(1));
+        MUST(holder.encode(static_cast<u64>(pitch)));
+        MUST(holder.encode(format));
+        MUST(holder.encode(Gfx::AlphaType::Premultiplied));
+        MUST(holder.encode(pixels));
+        Web::HTML::TransferDataDecoder decoder { move(holder) };
+        auto receiver = Web::HTML::ImageBitmap::create();
+        return receiver->transfer_receiving_steps(realm, decoder);
+    };
+    Array<u8, 4> pixels {};
+    EXPECT(!receive(Gfx::BitmapFormat::BGRA8888, 4, pixels).is_error());
+    EXPECT(receive(Gfx::BitmapFormat::Invalid, 4, pixels).is_error());
+    EXPECT(receive(Gfx::BitmapFormat::BGRA8888, 1, pixels).is_error());
+    EXPECT(receive(Gfx::BitmapFormat::BGRA8888, 4, pixels.span().slice(0, 1)).is_error());
+    EXPECT(receive(Gfx::BitmapFormat::BGRA8888, NumericLimits<size_t>::max(), pixels).is_error());
 }
 
 TEST_CASE(file_api_serializables_encode_to_frozen_bytes)

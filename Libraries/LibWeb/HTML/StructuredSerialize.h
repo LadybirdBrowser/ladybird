@@ -55,6 +55,10 @@ public:
     WebIDL::ExceptionOr<ByteBuffer> decode_buffer();
     WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> decode_unsigned_big_integer();
 
+    // The shared memory of the record that this transfer data belongs to, for transfer-receiving steps that map theirs.
+    void set_shared_buffers(Vector<Core::AnonymousBuffer> const& shared_buffers) { m_shared_buffers = &shared_buffers; }
+    Vector<Core::AnonymousBuffer> const* shared_buffers() const { return m_shared_buffers; }
+
 private:
     IPC::MessageBuffer m_buffer;
 
@@ -62,6 +66,8 @@ private:
     Queue<IPC::Attachment> m_attachments;
 
     IPC::Decoder m_decoder;
+
+    Vector<Core::AnonymousBuffer> const* m_shared_buffers { nullptr };
 };
 
 class WEB_API StructuredSerializeWriter {
@@ -215,7 +221,7 @@ WebIDL::ExceptionOr<T> decode_or_throw_data_clone_error(JS::Realm& realm, Transf
 }
 
 WEB_API WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::Realm&, JS::Value, ReadonlySpan<GC::Ref<JS::Object>> transfer_list);
-WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(SerializedTransferRecord&, JS::Realm&);
+WEB_API WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(SerializedTransferRecord&, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(TransferDataDecoder&, JS::Realm&);
 
 }

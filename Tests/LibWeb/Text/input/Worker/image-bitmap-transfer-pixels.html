@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const workerSource = `
+            function pixels(bitmap) {
+                const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+                const context = canvas.getContext("2d");
+                context.drawImage(bitmap, 0, 0);
+                return Array.from(context.getImageData(0, 0, canvas.width, canvas.height).data).join(",");
+            }
+
+            onmessage = event => {
+                try {
+                    const { round, bitmap } = event.data;
+                    const receivedPixels = pixels(bitmap);
+                    bitmap.close();
+                    if (bitmap.width !== 0 || bitmap.height !== 0)
+                        throw new Error("Closing worker receiver did not detach it");
+
+                    const canvas = new OffscreenCanvas(3, 2);
+                    const context = canvas.getContext("2d", { alpha: round % 2 === 0 });
+                    context.fillStyle = round % 2 === 0 ? "rgba(0, 255, 0, 0.5)" : "rgb(0, 0, 255)";
+                    context.fillRect(0, 0, 3, 2);
+                    const nextBitmap = canvas.transferToImageBitmap();
+                    context.fillStyle = "rgb(255, 0, 0)";
+                    context.fillRect(0, 0, 3, 2);
+                    postMessage({ round, receivedPixels, bitmap: nextBitmap }, [nextBitmap]);
+                    if (nextBitmap.width !== 0 || nextBitmap.height !== 0)
+                        throw new Error("Posting worker bitmap did not detach it");
+                } catch (error) {
+                    postMessage({ error: String(error) });
+                }
+            };
+        `;
+        const workerURL = URL.createObjectURL(new Blob([workerSource], { type: "application/javascript" }));
+        const worker = new Worker(workerURL);
+        let expectedPixels = "255,0,0,255,".repeat(6).slice(0, -1);
+        let completedRounds = 0;
+
+        worker.onmessage = event => {
+            const { round, receivedPixels, bitmap, error } = event.data;
+            if (error) {
+                println(error);
+                worker.terminate();
+                done();
+                return;
+            }
+            if (receivedPixels !== expectedPixels)
+                throw new Error(`Worker pixels differ in round ${round}: ${receivedPixels}`);
+
+            const canvas = document.createElement("canvas");
+            canvas.width = 3;
+            canvas.height = 2;
+            const context = canvas.getContext("2d");
+            context.drawImage(bitmap, 0, 0);
+            expectedPixels = (round % 2 === 0 ? "0,255,0,128," : "0,0,255,255,").repeat(6).slice(0, -1);
+            const actualPixels = Array.from(context.getImageData(0, 0, 3, 2).data).join(",");
+            if (actualPixels !== expectedPixels || bitmap.width !== 3 || bitmap.height !== 2)
+                throw new Error(`Window pixels or dimensions differ in round ${round}: ${actualPixels}`);
+
+            const clone = structuredClone(bitmap);
+            clone.close();
+            const transferred = structuredClone(bitmap, { transfer: [bitmap] });
+            bitmap.close();
+            completedRounds++;
+            if (completedRounds === 8) {
+                transferred.close();
+                println(`${completedRounds} worker round trips preserved pixels, dimensions, detach and close`);
+                worker.terminate();
+                URL.revokeObjectURL(workerURL);
+                done();
+                return;
+            }
+            worker.postMessage({ round: round + 1, bitmap: transferred }, [transferred]);
+            if (transferred.width !== 0 || transferred.height !== 0)
+                throw new Error("Posting window bitmap did not detach it");
+        };
+
+        const data = new Uint8ClampedArray([255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255,
+            255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255]);
+        const bitmap = await createImageBitmap(new ImageData(data, 3, 2));
+        worker.postMessage({ round: 0, bitmap }, [bitmap]);
+    });
+</script>
