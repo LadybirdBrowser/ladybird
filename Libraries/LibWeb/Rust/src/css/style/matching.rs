@@ -2615,7 +2615,8 @@ impl RetainedState {
             })
             .collect::<Option<_>>()?;
         exact_answer = self.in_cascade_order(exact_answer, false);
-        let cascade_winners_are_complete = self.cascade_winner_inventory_is_complete(&exact_answer, Some(node));
+        let cascade_winners_are_complete =
+            self.cascade_winner_inventory_is_complete_in_transaction(effects, &exact_answer, node);
         if exact_answer.iter().any(|entry| {
             entry.pseudo_element.is_some() && patch.cascade_update_rules.binary_search(&entry.rule).is_ok()
         }) {
@@ -3039,7 +3040,8 @@ impl RetainedState {
             materialized.push(entry.materialize(node, &self.programs, cascade_order)?);
         }
         let materialized = self.in_cascade_order(materialized, false);
-        let cascade_winners_are_complete = self.cascade_winner_inventory_is_complete(&materialized, Some(node));
+        let cascade_winners_are_complete =
+            self.cascade_winner_inventory_is_complete_in_transaction(effects, &materialized, node);
 
         verify_match_answer_against_cold(self, &materialized, node, "a retained match answer delta", counters);
 
@@ -3560,7 +3562,8 @@ impl RetainedState {
                     entry.materialize(node, &self.programs, cascade_order)
                 })
                 .collect::<Option<Vec<_>>>()?;
-            let cascade_winners_are_complete = self.cascade_winner_inventory_is_complete(&exact_answer, Some(node));
+            let cascade_winners_are_complete =
+                self.cascade_winner_inventory_is_complete_in_transaction(effects, &exact_answer, node);
             Some((exact_answer, cascade_winners_are_complete))
         });
         let (matches, cascade_winners_are_complete, compact_answer) =
@@ -4116,9 +4119,14 @@ impl RetainedState {
     ) -> bool {
         let complete = self.cascade_winner_inventory_is_complete(&matches, Some(node));
         let complete_but_for_custom_properties = self.element_declarations_are_complete_but_for_custom_properties(node)
-            && matches
-                .iter()
-                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope));
+            && matches.iter().all(|entry| {
+                self.match_is_complete_but_for_custom_properties(
+                    node,
+                    entry.rule,
+                    entry.tree_scope,
+                    entry.pseudo_element.is_some(),
+                )
+            });
         let mut effects = AnswerEffects::default();
         // The answer's pseudo-element inventory, and the matches its custom-property cascade runs
         // over where a record loop reads this transaction's.
@@ -5178,17 +5186,24 @@ impl RetainedState {
                                 let pseudo_winner_groups = (!pseudo_winner_groups.is_empty())
                                     .then(|| (self.winner_groups.generation(), Arc::from(pseudo_winner_groups)));
                                 let answer_cascade_input = self.intern_cascade_input(&answer, counters);
-                                let cascade_winner_inventory_is_complete =
-                                    self.cascade_winner_inventory_is_complete(&answer, Some(node));
-                                prefix_caches.borrow_mut().answers.remember(
-                                    &mut self.match_answers,
-                                    key,
-                                    &answer,
-                                    winner_group,
-                                    pseudo_winner_groups,
-                                    answer_cascade_input,
-                                    cascade_winner_inventory_is_complete,
-                                );
+                                // The winners of an answer holding a gated rule are this node's: its
+                                // containers decided them, and another node's may not.
+                                if !answer
+                                    .iter()
+                                    .any(|entry| self.program.rule_is_gated_by_container_query(entry.rule))
+                                {
+                                    let cascade_winner_inventory_is_complete =
+                                        self.cascade_winner_inventory_is_complete(&answer, Some(node));
+                                    prefix_caches.borrow_mut().answers.remember(
+                                        &mut self.match_answers,
+                                        key,
+                                        &answer,
+                                        winner_group,
+                                        pseudo_winner_groups,
+                                        answer_cascade_input,
+                                        cascade_winner_inventory_is_complete,
+                                    );
+                                }
                                 cascade_input = Some(answer_cascade_input);
                                 answer
                             }

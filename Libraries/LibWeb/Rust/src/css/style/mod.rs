@@ -61,6 +61,7 @@ mod child_reactions;
 mod column;
 pub mod compiler;
 mod computed;
+mod container_queries;
 mod counter_context;
 mod custom_property_cascade;
 mod custom_property_environments;
@@ -861,6 +862,16 @@ pub struct RetainedState {
     /// The elements whose style reads their custom-property environment other than through `var()`,
     /// which a moved environment computes again.
     environment_move_recompute_nodes: HashSet<StyleNodeID>,
+    /// What the container conditions of the rows the engine answered read of their containers,
+    /// per element, taken when the host installs the element's record.
+    container_effects_for_host: HashMap<StyleNodeID, container_queries::ContainerVerdict>,
+    /// Each node's gated rules and whether their conditions held when its winners were published,
+    /// `None` where the engine could not decide them: the winners hold a gated rule's declarations
+    /// exactly where it held, and an undecided one leaves the node to the host.
+    published_container_verdicts: HashMap<StyleNodeID, Vec<(RuleID, Option<bool>)>>,
+    /// Nodes whose winners were published while an ancestor's answer was moving in the same
+    /// transaction, so their gated rules' conditions could not be decided when they were.
+    container_gates_unheld: HashSet<StyleNodeID>,
     /// Whether, and as what, each element's published record makes it a query container.
     container_query_inputs: tree::ContainerQueryInputColumns,
     /// What the last layout commit and scroll state say of each container's box, for the
@@ -1063,6 +1074,8 @@ pub struct HostState {
     environment_move_changed_names: environment_move::ChangedCustomPropertyNames,
     /// What the last custom-property environment move answered the host, kept until the next one.
     environment_move_actions: Vec<bridge::FfiEnvironmentMoveAction>,
+    /// What the last container effects the host took held, kept until the next take.
+    container_effects: Vec<bridge::FfiContainerEffect>,
     /// The nodes whose deferred element style input C++ recorded and the engine did not also
     /// derive as a child reaction: what makes the next transaction a new pass of a style change
     /// rather than one more generation of the last one.

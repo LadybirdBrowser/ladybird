@@ -941,13 +941,12 @@ impl RetainedState {
         Ok(record)
     }
 
-    /// Whether every rule the node's answer matches for a pseudo-element declares only what the
-    /// winner columns hold, and custom properties, which the engine resolves into the
-    /// pseudo-element's own environment, with no container query deciding it.
+    /// Whether the winners hold every match the node's answer has for a pseudo-element, as
+    /// `match_is_complete_but_for_custom_properties` reads a pseudo-element's: custom properties
+    /// are resolved into the pseudo-element's own environment.
     fn pseudo_winners_are_complete(&self, node: StyleNodeID) -> bool {
-        let rule_is_complete = |rule: RuleID| {
-            !self.program.rule_is_gated_by_container_query(rule)
-                && self.program.declarations_are_complete_but_for_custom_properties(rule)
+        let is_complete = |rule: RuleID, tree_scope: TreeScopeID| {
+            self.match_is_complete_but_for_custom_properties(node, rule, tree_scope, true)
         };
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
@@ -958,9 +957,7 @@ impl RetainedState {
             return matches
                 .iter()
                 .filter(|entry| entry.pseudo_element.is_some())
-                .all(|entry| {
-                    self.match_scope_is_complete_for(Some(node), entry.tree_scope) && rule_is_complete(entry.rule)
-                });
+                .all(|entry| is_complete(entry.rule, entry.tree_scope));
         }
         let Lookup::Known(answer) = self.retained_match_answer(node) else {
             return false;
@@ -969,8 +966,7 @@ impl RetainedState {
             self.programs.get(rule_match.program).entries()[rule_match.entry as usize]
                 .pseudo_element
                 .is_none()
-                || (self.match_scope_is_complete_for(Some(node), rule_match.tree_scope)
-                    && rule_is_complete(rule_match.rule))
+                || is_complete(rule_match.rule, rule_match.tree_scope)
         })
     }
 }

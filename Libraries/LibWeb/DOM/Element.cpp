@@ -2367,6 +2367,40 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_environment_of_en
     return data;
 }
 
+// What the container conditions the style engine decided for the record read of the containers,
+// recorded as a C++ evaluation of the same conditions records it.
+static void record_engine_container_query_effects(Element& element)
+{
+    auto& document = element.document();
+    auto& style_computer = document.style_computer();
+    auto taken = CSS::StyleEngineFFI::style_engine_take_container_effects(style_computer.style_engine().rust_handle(), element.style_node_id().value());
+    if (taken.depends_on_size)
+        element.set_style_depends_on_size_container_query();
+    // The effects live until the engine is next called, which recording them may do.
+    Vector<CSS::StyleEngineFFI::FfiContainerEffect, 4> effects;
+    effects.append(taken.effects, taken.count);
+    for (auto const& effect : effects) {
+        auto container = style_computer.element_for_style_node(CSS::StyleNodeID { effect.node });
+        if (!container)
+            continue;
+        switch (effect.kind) {
+        case CSS::StyleEngineFFI::FfiContainerEffectKind::SizeContainerUsage:
+            container->set_is_size_query_container();
+            break;
+        case CSS::StyleEngineFFI::FfiContainerEffectKind::ScrollStateContainerUsage:
+            (void)document.scroll_state_query_containers().snapshot_for_query(*container);
+            break;
+        case CSS::StyleEngineFFI::FfiContainerEffectKind::NeedsEvaluationAfterLayout:
+            if (!document.layout_is_up_to_date())
+                document.set_needs_container_query_evaluation_after_layout(*container);
+            break;
+        case CSS::StyleEngineFFI::FfiContainerEffectKind::SubjectViewportDependency:
+            element.set_style_depends_on_viewport_metrics();
+            break;
+        }
+    }
+}
+
 CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties)
 {
     VERIFY(parent());
@@ -2400,6 +2434,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     // computation marks them, so that a later change to them reaches this element again.
     if (explicitly_inherited_non_inherited_style_groups != 0)
         parent()->add_children_explicitly_inherited_non_inherited_style_groups(explicitly_inherited_non_inherited_style_groups == NumericLimits<u32>::max() ? CSS::ComputedValues::all_style_groups : explicitly_inherited_non_inherited_style_groups);
+
+    record_engine_container_query_effects(*this);
 
     // The environment the record was published with: what the element inherits, or what the
     // engine resolved its own custom declarations to over that.

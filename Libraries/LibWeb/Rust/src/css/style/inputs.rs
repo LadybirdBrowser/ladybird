@@ -953,6 +953,11 @@ impl RetainedState {
         self.set_element_container_query_inputs(node, style_record);
     }
 
+    /// Whether, and as what, an element is a query container.
+    pub(super) fn container_query_inputs(&self, node: StyleNodeID) -> Option<&tree::ContainerQueryInputRow> {
+        self.container_query_inputs.get(node)
+    }
+
     /// Refresh whether, and as what, an element is a query container from a record it is published
     /// with. A record without its box group makes it none, and so does one naming no container
     /// type or name: such an element holds no row.
@@ -1451,6 +1456,9 @@ impl StyleEngineState {
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
                 environment_move_recompute_nodes: HashSet::default(),
+                container_effects_for_host: HashMap::default(),
+                published_container_verdicts: HashMap::default(),
+                container_gates_unheld: HashSet::default(),
                 container_query_inputs: Default::default(),
                 layout_style_snapshots: HashMap::default(),
                 counter_style_environment_identities: HashMap::default(),
@@ -1534,6 +1542,7 @@ impl StyleEngineState {
                 deferred_element_style_inputs_are_pending: false,
                 environment_move_changed_names: Default::default(),
                 environment_move_actions: Vec::new(),
+                container_effects: Vec::new(),
                 externally_recorded_style_input_nodes: HashSet::default(),
                 deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
                 initial_tree_batch_applied: false,
@@ -2924,6 +2933,9 @@ impl RetainedState {
             element_custom_property_data,
             pseudo_element_custom_property_data,
             environment_move_recompute_nodes,
+            container_effects_for_host,
+            published_container_verdicts,
+            container_gates_unheld,
             container_query_inputs,
             layout_style_snapshots,
             counter_style_environment_identities: _,
@@ -3014,6 +3026,9 @@ impl RetainedState {
         element_custom_property_data.remove(&node);
         pseudo_element_custom_property_data.remove(&node);
         environment_move_recompute_nodes.remove(&node);
+        container_effects_for_host.remove(&node);
+        published_container_verdicts.remove(&node);
+        container_gates_unheld.remove(&node);
         container_query_inputs.clear(node);
         layout_style_snapshots.remove(&node);
         held_style_records.remove(&node);

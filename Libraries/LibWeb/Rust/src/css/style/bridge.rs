@@ -3524,6 +3524,65 @@ pub unsafe extern "C" fn style_engine_native_rule_target(
     true
 }
 
+/// What a container condition the engine evaluated read of a container or its subject, which the
+/// host records as it records its own evaluation's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiContainerEffectKind {
+    /// The node is a container a size or scroll-state query asks about.
+    SizeContainerUsage,
+    /// The node is a scroll-state container a query asks about, whose state is snapshotted.
+    ScrollStateContainerUsage,
+    /// The node has no box yet, and the query is evaluated again after layout.
+    NeedsEvaluationAfterLayout,
+    /// The subject's style resolved a viewport-relative length in the query.
+    SubjectViewportDependency,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiContainerEffect {
+    pub node: u32,
+    pub kind: FfiContainerEffectKind,
+}
+
+/// What the container conditions of a row the engine answered read of its containers: whether the
+/// row's style depends on a size or scroll-state query, and the effects, valid until the engine is
+/// next called.
+#[repr(C)]
+pub struct FfiContainerEffects {
+    pub depends_on_size: bool,
+    pub effects: *const FfiContainerEffect,
+    pub count: usize,
+}
+
+/// Takes what the container conditions of the row the host is installing for `node` read of its
+/// containers, for the host to record as it records its own evaluation's.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_take_container_effects(engine: *mut c_void, node: u32) -> FfiContainerEffects {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let mut effects = std::mem::take(&mut engine.host.container_effects);
+    effects.clear();
+    let verdict = StyleNodeID::from_raw(node).and_then(|node| engine.take_container_effects_for_host(node));
+    let depends_on_size = verdict.as_ref().is_some_and(|verdict| verdict.depends_on_size);
+    effects.extend(
+        verdict
+            .into_iter()
+            .flat_map(|verdict| verdict.effects)
+            .map(|(node, kind)| FfiContainerEffect { node: node.raw(), kind }),
+    );
+    let answer = FfiContainerEffects {
+        depends_on_size,
+        effects: effects.as_ptr(),
+        count: effects.len(),
+    };
+    engine.host.container_effects = effects;
+    answer
+}
+
 /// Evaluate native container conditions while keeping their ownership independent of the host.
 ///
 /// # Safety
