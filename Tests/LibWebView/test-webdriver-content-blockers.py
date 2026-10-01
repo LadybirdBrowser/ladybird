@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory() as directory:
     (profile / "config" / "Settings.json").write_text(
         json.dumps(
             {
-                "contentBlockers": {"builtInLists": {"easyList": False}},
+                "contentBlockers": {"enabled": True, "builtInLists": {"easyList": False}},
             }
         )
     )
@@ -145,7 +145,8 @@ with tempfile.TemporaryDirectory() as directory:
                 "script": """
                 const tab = document.querySelector('[aria-selected="true"]');
                 const panel = document.querySelector('#tab-blocking');
-                const description = panel.querySelector('.card-body > .description');
+                const description = panel.querySelector('#custom-content-blocker-subscription-url')
+                    .closest('.card-body').querySelector('.description');
                 const form = description.nextElementSibling;
                 const lists = panel.querySelector('#built-in-content-blocker-lists');
                 const heading = panel.querySelector('.filter-list-header .card-title');

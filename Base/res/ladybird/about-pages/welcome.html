@@ -1,0 +1,127 @@
+<!doctype html>
+<!--
+Copyright (c) 2026-present, the Ladybird developers.
+
+SPDX-License-Identifier: BSD-2-Clause
+-->
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Welcome</title>
+        <link rel="icon" type="image/png" href="resource://icons/48x48/app-browser.png" />
+        <link rel="stylesheet" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" href="resource://ladybird/about-pages/webui.css" />
+        <link rel="stylesheet" href="resource://ladybird/about-pages/welcome.css" />
+        <script type="module" src="resource://ladybird/about-pages/welcome.js"></script>
+    </head>
+    <body>
+        <header>
+            <div class="welcome-title">
+                <img src="resource://icons/128x128/app-browser.png" alt="" />
+                <h1>Welcome to Ladybird</h1>
+            </div>
+            <p>Choose a few basics to get started. You can change these later in Settings.</p>
+        </header>
+        <main>
+            <form id="welcome-form">
+                <fieldset id="setup-options" disabled>
+                    <section id="tab-mode-section" class="card setup-section" aria-labelledby="tab-mode-title">
+                        <div class="section-heading">
+                            <span class="section-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                                    <path d="M9 4v16" />
+                                </svg>
+                            </span>
+                            <div>
+                                <h2 id="tab-mode-title">Tab mode</h2>
+                                <p>Choose how you'd like to organize your tabs.</p>
+                            </div>
+                        </div>
+                        <div class="tab-options" role="group" aria-labelledby="tab-mode-title">
+                            <label class="tab-option">
+                                <div class="tab-preview horizontal-preview" aria-hidden="true">
+                                    <div class="preview-toolbar">
+                                        <i></i><i></i><i></i> <span class="preview-tab"></span
+                                        ><span class="preview-tab"></span>
+                                    </div>
+                                    <div class="preview-content"></div>
+                                </div>
+                                <div class="tab-option-heading">
+                                    <input type="radio" name="tab-mode" value="horizontal" checked />
+                                    <span>Horizontal tabs</span>
+                                </div>
+                                <p>Tabs appear at the top.</p>
+                            </label>
+                            <label id="vertical-tab-option" class="tab-option">
+                                <div class="tab-preview vertical-preview" aria-hidden="true">
+                                    <div class="preview-toolbar"><i></i><i></i><i></i></div>
+                                    <div class="preview-sidebar">
+                                        <span class="preview-tab"></span><span class="preview-tab"></span>
+                                        <span class="preview-tab"></span>
+                                    </div>
+                                    <div class="preview-content"></div>
+                                </div>
+                                <div class="tab-option-heading">
+                                    <input type="radio" name="tab-mode" value="vertical" />
+                                    <span>Vertical tabs</span>
+                                </div>
+                                <p>Tabs appear in a sidebar on the side.</p>
+                            </label>
+                        </div>
+                    </section>
+                    <section class="card setup-section" aria-labelledby="search-engine-title">
+                        <div class="section-heading">
+                            <span class="section-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <circle cx="10" cy="10" r="7" />
+                                    <path d="m15 15 6 6" />
+                                </svg>
+                            </span>
+                            <div>
+                                <h2 id="search-engine-title">Default search engine</h2>
+                                <p>Choose your preferred search engine for the address bar.</p>
+                            </div>
+                        </div>
+                        <div class="section-controls">
+                            <select id="search-engine" aria-labelledby="search-engine-title">
+                                <option value="">Disabled</option>
+                            </select>
+                            <label class="checkbox-option search-suggestions">
+                                <input id="search-suggestions-enabled" type="checkbox" />
+                                <span>Show search suggestions</span>
+                            </label>
+                        </div>
+                    </section>
+                    <section class="card setup-section" aria-labelledby="ad-blocking-title">
+                        <div class="section-heading">
+                            <span class="section-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="M12 2 21 6v6c0 5-9 10-9 10S3 17 3 12V6Z" />
+                                </svg>
+                            </span>
+                            <div>
+                                <h2 id="ad-blocking-title">Ad blocking</h2>
+                                <p>Block ads and trackers for a cleaner, faster web.</p>
+                            </div>
+                        </div>
+                        <div class="section-controls">
+                            <label class="blocking-toggle">
+                                <input id="enable-content-blocking" type="checkbox" switch />
+                                <span>Enable ad blocking</span>
+                            </label>
+                            <div id="blocking-options">
+                                <div id="content-blocker-lists"></div>
+                            </div>
+                        </div>
+                    </section>
+                </fieldset>
+                <footer>
+                    <p id="save-status" role="status"></p>
+                    <button id="start-browsing" class="primary-button" type="submit" disabled>Start Browsing</button>
+                </footer>
+            </form>
+        </main>
+    </body>
+</html>

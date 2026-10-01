@@ -26,6 +26,7 @@ static constexpr auto s_pages = to_array<WebUI::Page>({
     { "settings"sv, "Settings"sv, WebUI::PageType::Dynamic },
     { "services"sv, "Services"sv, WebUI::PageType::Static },
     { "version"sv, "Version"sv, WebUI::PageType::Dynamic },
+    { "welcome"sv, "Welcome"sv, WebUI::PageType::Dynamic },
 });
 
 ReadonlySpan<WebUI::Page> WebUI::pages()
@@ -70,7 +71,7 @@ ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, Web::PageId page_
         web_ui = TRY(create_web_ui<DownloadsUI>(client, page_id, move(host)));
     else if (page->host == "history"sv)
         web_ui = TRY(create_web_ui<HistoryUI>(client, page_id, move(host)));
-    else if (page->host == "settings"sv)
+    else if (page->host.is_one_of("settings"sv, "welcome"sv))
         web_ui = TRY(create_web_ui<SettingsUI>(client, page_id, move(host)));
     else if (page->host == "version"sv)
         web_ui = TRY(create_web_ui<VersionUI>(client, page_id, move(host)));

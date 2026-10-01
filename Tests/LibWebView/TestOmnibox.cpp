@@ -210,6 +210,7 @@ TEST_CASE(all_web_ui_pages_are_suggested)
         "about:settings"sv,
         "about:services"sv,
         "about:version"sv,
+        "about:welcome"sv,
     };
 
     auto suggestions = WebView::web_ui_autocomplete_suggestions("about:"sv);

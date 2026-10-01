@@ -136,6 +136,9 @@ public:
 
     JsonValue serialize_json() const;
 
+    bool first_run_complete() const { return m_first_run_complete; }
+    ErrorOr<void> complete_first_run();
+
     URL::URL const& new_tab_page_url() const { return m_new_tab_page_url; }
     void set_new_tab_page_url(URL::URL);
 
@@ -198,6 +201,9 @@ public:
     bool automatic_filter_list_updates_allowed() const { return m_background_networking_enabled && m_filter_list_updates_enabled; }
     void set_filter_list_updates_enabled(bool);
 
+    bool content_blocker_enabled() const { return m_content_blocker_enabled; }
+    void set_content_blocker_enabled(bool);
+
     Vector<ContentBlockerList> const& content_blocker_lists() const { return m_content_blocker_lists; }
     Optional<ContentBlockerList const&> content_blocker_list(StringView identifier) const;
     String add_content_blocker_list(String name, Optional<URL::URL> = {});
@@ -226,6 +232,7 @@ private:
 
     ByteString m_settings_path;
 
+    bool m_first_run_complete { false };
     URL::URL m_new_tab_page_url;
     Vector<String> m_languages;
 
@@ -248,6 +255,7 @@ private:
 
     bool m_background_networking_enabled { true };
     bool m_filter_list_updates_enabled { false };
+    bool m_content_blocker_enabled { false };
     Vector<ContentBlockerList> m_content_blocker_lists;
     String m_custom_content_blocker_filters;
 

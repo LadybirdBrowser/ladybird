@@ -661,6 +661,14 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     create_platform_options(m_browser_options, m_request_server_options, m_web_content_options);
 
+    if (!m_settings->first_run_complete() && !m_browser_options.headless_mode.has_value()
+        && !m_browser_options.webdriver_browser_endpoint.has_value() && m_web_content_options.is_test_mode == IsTestMode::No) {
+        if (m_browser_options.raw_urls.is_empty())
+            m_browser_options.urls = { URL::about_welcome() };
+        else if (!m_browser_options.urls.contains_slow(URL::about_welcome()))
+            m_browser_options.urls.prepend(URL::about_welcome());
+    }
+
     m_font_service = FontService::create(m_browser_options.additional_font_directories);
 
     // Test mode implies experimental interfaces and internals object are exposed and the Skia CPU backend is used.
@@ -2683,8 +2691,22 @@ void Application::initialize_actions()
     m_enable_scripting_action->set_checked(m_browser_options.disable_scripting == WebView::DisableScripting::No);
     m_debug_menu->add_action(*m_enable_scripting_action);
 
-    m_enable_content_blocking_action = Action::create_checkable("Enable Content Blocking"sv, ActionID::EnableContentBlocking, check(m_enable_content_blocking_action, "content-blocking"sv));
-    m_enable_content_blocking_action->set_checked(m_browser_options.enable_content_blocker == WebView::EnableContentBlocker::Yes);
+    m_enable_content_blocking_action = Action::create_checkable("Enable Content Blocking"sv, ActionID::EnableContentBlocking, [this, toggle_views = check(m_enable_content_blocking_action, "content-blocking"sv)] {
+        if (m_web_content_options.is_test_mode == IsTestMode::Yes) {
+            toggle_views();
+            return;
+        }
+        m_settings->set_content_blocker_enabled(m_enable_content_blocking_action->checked());
+        if (m_enable_content_blocking_action->checked()) {
+            for (auto const& list : m_settings->content_blocker_lists()) {
+                if (list.enabled)
+                    download_content_blocker_list_if_needed({}, list.identifier);
+            }
+        }
+    });
+    // NB: Test mode supplies its own filter lists independently of profile preferences.
+    m_enable_content_blocking_action->set_checked(m_browser_options.enable_content_blocker == WebView::EnableContentBlocker::Yes
+        && (m_web_content_options.is_test_mode == IsTestMode::Yes || m_settings->content_blocker_enabled()));
     m_debug_menu->add_action(*m_enable_content_blocking_action);
 
     m_block_pop_ups_action = Action::create_checkable("Block Pop-ups"sv, ActionID::BlockPopUps, check(m_block_pop_ups_action, "block-pop-ups"sv));
@@ -2746,6 +2768,14 @@ void Application::background_networking_settings_changed(Badge<ApplicationSettin
 
 void Application::content_blocker_settings_changed(Badge<ApplicationSettingsObserver>)
 {
+    if (m_web_content_options.is_test_mode == IsTestMode::Yes)
+        return;
+    auto enabled = m_browser_options.enable_content_blocker == EnableContentBlocker::Yes && m_settings->content_blocker_enabled();
+    m_enable_content_blocking_action->set_checked(enabled);
+    ViewImplementation::for_each_view([enabled](ViewImplementation& view) {
+        view.debug_request("content-blocking"sv, enabled ? "on"sv : "off"sv);
+        return IterationDecision::Continue;
+    });
     apply_content_blocker_settings();
 }
 
@@ -2775,7 +2805,7 @@ void Application::update_content_blocker_lists(Badge<SettingsUI>)
     start_content_blocker_list_update(ContentBlockerListUpdateTrigger::UserInitiated);
 }
 
-void Application::download_content_blocker_list_if_needed(Badge<SettingsUI>, StringView identifier)
+void Application::download_content_blocker_list_if_needed(Badge<Application, SettingsUI>, StringView identifier)
 {
     if (content_blocker_list_last_updated_at(identifier).has_value())
         return;

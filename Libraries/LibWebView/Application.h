@@ -132,7 +132,7 @@ public:
     void content_blocker_settings_changed(Badge<ApplicationSettingsObserver>);
     bool content_blocker_list_update_in_progress() const;
     void update_content_blocker_lists(Badge<SettingsUI>);
-    void download_content_blocker_list_if_needed(Badge<SettingsUI>, StringView identifier);
+    void download_content_blocker_list_if_needed(Badge<Application, SettingsUI>, StringView identifier);
     ErrorOr<void> import_local_content_blocker_list(String name, String contents);
     void remove_content_blocker_list(Badge<SettingsUI>, StringView identifier);
     Optional<UnixDateTime> content_blocker_list_last_updated_at(StringView identifier) const;

@@ -13,6 +13,7 @@ const customFilters = document.querySelector("#custom-content-blocker-filters");
 const saveCustomFilters = document.querySelector("#save-custom-content-blocker-filters");
 const customFiltersStatus = document.querySelector("#custom-content-blocker-filters-status");
 const maximumCustomFilterSize = 4 * 1024 * 1024;
+const enableContentBlocking = document.querySelector("#enable-content-blocking");
 let updateTimer;
 let savedCustomFilters = "";
 
@@ -65,6 +66,7 @@ function loadSettings(settings) {
     if (!contentBlockers) {
         return;
     }
+    enableContentBlocking.checked = contentBlockers.enabled;
 
     for (const container of [builtInLists, languageLists, customSubscriptions, localLists]) {
         container.replaceChildren();
@@ -95,6 +97,10 @@ function loadSettings(settings) {
         updateTimer = setTimeout(() => ladybird.sendMessage("loadCurrentSettings"), 1000);
     }
 }
+
+enableContentBlocking.addEventListener("change", () => {
+    ladybird.sendMessage("setContentBlockerEnabled", enableContentBlocking.checked);
+});
 
 addSubscription.addEventListener("click", () => {
     if (!subscriptionUrl.reportValidity() || subscriptionUrl.value.length === 0) {
