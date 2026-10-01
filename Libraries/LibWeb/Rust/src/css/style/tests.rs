@@ -12310,6 +12310,28 @@ fn a_reissued_identity_holds_no_construction_facts() {
 }
 
 #[test]
+fn a_reissued_identity_asks_for_no_particular_box() {
+    use super::bridge::ElementBoxKind;
+    let (mut engine, nodes) = linear_document();
+    let leaving = nodes[3];
+    assert_eq!(engine.element_box_kind(leaving), ElementBoxKind::FromDisplay);
+    engine.set_element_box_kind(leaving, ElementBoxKind::Image);
+    assert_eq!(engine.element_box_kind(leaving), ElementBoxKind::Image);
+
+    engine.record_tree_delta(
+        leaving,
+        Some(relations(Some(nodes[0].raw()), Some(nodes[2].raw()), None)),
+        None,
+    );
+    discard_transaction(&mut engine);
+    engine.discard_style_transaction_outputs();
+    let mut reissued = [0_u32; 1];
+    engine.allocate_style_nodes(&mut reissued);
+    assert_eq!(reissued[0], leaving.raw());
+    assert_eq!(engine.element_box_kind(leaving), ElementBoxKind::FromDisplay);
+}
+
+#[test]
 fn a_text_node_holds_its_published_characters_until_its_identity_is_reissued() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 1];

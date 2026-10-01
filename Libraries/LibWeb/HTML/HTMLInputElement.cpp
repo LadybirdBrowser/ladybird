@@ -1173,6 +1173,9 @@ void HTMLInputElement::remove_image_button_alt_text_shadow_tree()
 
 void HTMLInputElement::update_image_button_alt_text_shadow_tree()
 {
+    // Whether an image button renders as its alternative text decides which box it asks for.
+    CSS::record_element_box_kind(*this);
+
     if (!shadow_root() && !has_style())
         return;
 

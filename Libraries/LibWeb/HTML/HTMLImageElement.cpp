@@ -342,6 +342,8 @@ void HTMLImageElement::create_alt_text_shadow_tree()
 
 void HTMLImageElement::remove_alt_text_shadow_tree()
 {
+    // A new request can stop the image rendering as its alternative text, which changes the box it asks for.
+    CSS::record_element_box_kind(*this);
     if (!m_alt_text_node)
         return;
 
@@ -351,6 +353,8 @@ void HTMLImageElement::remove_alt_text_shadow_tree()
 
 void HTMLImageElement::update_alt_text_shadow_tree()
 {
+    // Whether the image renders as its alternative text decides which box it asks for.
+    CSS::record_element_box_kind(*this);
     auto alt_text = alt();
     if (!renders_as_alt_text() || alt_text.is_empty()) {
         remove_alt_text_shadow_tree();

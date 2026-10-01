@@ -101,7 +101,9 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut FfiIdentifiedDomNode, usize),
     pub prepare_principal_element: unsafe extern "C" fn(*mut c_void, u32, bool),
-    pub create_principal_element_layout: unsafe extern "C" fn(*mut c_void, u32, FfiElementLayoutKind) -> NodeSlotId,
+    /// Makes the principal box of the element the identity names. The element asks for a box of
+    /// the `ElementBoxKind` given as its raw byte, which is what the style mirror publishes for it.
+    pub create_principal_element_layout: unsafe extern "C" fn(*mut c_void, u32, FfiElementLayoutKind, u8) -> NodeSlotId,
     pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, u32) -> NodeSlotId,
     /// Attaches the image observers a box's style asks for. Principal and pseudo-element boxes
@@ -2151,12 +2153,14 @@ fn construct_principal_layout_node(
                 context.layout_svg_mask_or_clip_path,
                 context.layout_svg_pattern,
             );
+            let box_kind = host.layout().arena().element_box_kind(update.style_node);
             // SAFETY: The builder remains live, and the identity names a live element.
             let created = unsafe {
                 (host.callbacks.create_principal_element_layout)(
                     host.callbacks.builder,
                     update.identity.raw(),
                     layout_kind,
+                    box_kind as u8,
                 )
             };
             layout_node = created;

@@ -520,6 +520,18 @@ impl RetainedState {
         self.computed_group_sets.set_construction_facts(node, facts);
     }
 
+    /// Record which principal box the element asks for.
+    pub fn set_element_box_kind(&mut self, node: StyleNodeID, box_kind: super::bridge::ElementBoxKind) {
+        self.computed_group_sets.set_box_kind(node, box_kind);
+    }
+
+    /// Which principal box the element asks for. A text node and a retired identity ask for
+    /// nothing in particular.
+    #[must_use]
+    pub(crate) fn element_box_kind(&self, node: StyleNodeID) -> super::bridge::ElementBoxKind {
+        self.computed_group_sets.box_kind(node)
+    }
+
     /// The facts a layout row built for the node records, as `bridge::element_construction_fact`
     /// names them. A retired identity holds none. A text node has no element columns and holds one
     /// of the facts on its own row: which kind of tree it sits in.
@@ -2895,6 +2907,9 @@ impl StyleEngineState {
         self.retained
             .computed_group_sets
             .set_construction_facts(node, arrival.construction_facts);
+        self.retained
+            .computed_group_sets
+            .set_box_kind(node, super::bridge::ElementBoxKind::from_raw(arrival.box_kind));
         self.retained
             .computed_group_sets
             .set_associated_pseudo_kind(node, arrival.associated_pseudo_kind_plus_one);

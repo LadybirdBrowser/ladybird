@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
@@ -528,7 +529,7 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
                                             .heading_level = heading_level,
                                             .is_slot = is_slot,
                                             .associated_pseudo_kind_plus_one = associated_pseudo_kind_plus_one(element),
-                                            .reserved = 0,
+                                            .box_kind = to_underlying(element.box_kind()),
                                             .adjustment_facts = element_style_adjustment_facts(element),
                                             .construction_facts = element_construction_facts(element),
                                         },
@@ -728,7 +729,16 @@ void record_element_adjustment_facts(DOM::Element& element)
         return;
     style_engine->set_element_adjustment_facts(element.style_node_id(), element_style_adjustment_facts(element));
     style_engine->set_element_construction_facts(element.style_node_id(), element_construction_facts(element));
+    style_engine->set_element_box_kind(element.style_node_id(), to_underlying(element.box_kind()));
     style_engine->set_element_associated_pseudo_kind(element.style_node_id(), associated_pseudo_kind_plus_one(element));
+}
+
+void record_element_box_kind(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() == no_style_node)
+        return;
+    style_engine->set_element_box_kind(element.style_node_id(), to_underlying(element.box_kind()));
 }
 
 void record_element_construction_facts(DOM::Element& element)

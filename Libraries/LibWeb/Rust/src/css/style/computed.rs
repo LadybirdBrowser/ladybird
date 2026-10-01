@@ -20,6 +20,7 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::num::NonZeroU32;
 
+use super::bridge::ElementBoxKind;
 use super::capacity::ShallowCapacityBytes;
 use super::capacity::capacity_bytes;
 use super::cascade::CascadeStateID;
@@ -422,6 +423,8 @@ struct PublishedComputedColumns {
     /// The element facts a layout row built for the element records; see
     /// `bridge::element_construction_fact`.
     construction_facts: Vec<u32>,
+    /// The principal box the element asks for.
+    box_kinds: Vec<ElementBoxKind>,
     /// One plus the element-backed pseudo-element kind the element stands for, or zero.
     associated_pseudo_kinds: Vec<u8>,
     /// The synthetic pseudo-elements the node's last published match answer has rules for, one
@@ -457,6 +460,7 @@ impl PublishedComputedColumns {
         self.flags.resize(len, 0);
         self.adjustment_facts.resize(len, 0);
         self.construction_facts.resize(len, 0);
+        self.box_kinds.resize(len, ElementBoxKind::default());
         self.associated_pseudo_kinds.resize(len, 0);
         self.pseudo_style_masks.resize(len, 0);
     }
@@ -586,6 +590,7 @@ impl PublishedComputedColumns {
             // of their own, so a retired element's facts must not stay behind for them.
             self.adjustment_facts[index] = 0;
             self.construction_facts[index] = 0;
+            self.box_kinds[index] = ElementBoxKind::default();
             self.associated_pseudo_kinds[index] = 0;
         }
         overlay
@@ -3041,6 +3046,21 @@ impl ComputedGroupSets {
             .and_then(|index| self.columns.construction_facts.get(index as usize))
             .copied()
             .unwrap_or(0)
+    }
+
+    pub fn set_box_kind(&mut self, node: StyleNodeID, box_kind: ElementBoxKind) {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return;
+        };
+        self.columns.ensure(index);
+        self.columns.box_kinds[index] = box_kind;
+    }
+
+    pub fn box_kind(&self, node: StyleNodeID) -> ElementBoxKind {
+        node.element_index()
+            .and_then(|index| self.columns.box_kinds.get(index as usize))
+            .copied()
+            .unwrap_or_default()
     }
 
     pub fn bind_cascade_state(
