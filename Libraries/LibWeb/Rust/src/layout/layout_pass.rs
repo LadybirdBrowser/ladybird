@@ -6,12 +6,41 @@
 
 use super::*;
 
-/// Arena and host inputs borrowed while computing a layout result. The pass ends before
-/// commit takes a mutable arena borrow, so its text and style views cannot survive commit.
+/// The one question a layout pass still asks the document while it runs: what the container-relative
+/// lengths on an element resolve against. Answering it notes in the document that the element depends
+/// on its query container's size, so the answer cannot be published ahead of the pass. A pass holds
+/// this and no other part of the host, and the arena hands its host only to code outside a pass, so
+/// a pass has no way to make any other call into the document.
+#[derive(Clone, Copy)]
+pub(crate) struct ContainerLengthBasesQuery {
+    context: *mut c_void,
+    query: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
+}
+
+impl ContainerLengthBasesQuery {
+    pub(crate) fn of(host: &FfiLayoutHostCallbacks) -> Self {
+        Self {
+            context: host.context,
+            query: host.container_length_bases,
+        }
+    }
+
+    /// What `cqw` and `cqh` are 100 of for `element`.
+    pub(crate) fn bases(
+        self,
+        element: crate::css::style::tree::StyleNodeID,
+    ) -> svg_formatting_context::FfiContainerLengthBases {
+        // SAFETY: The document registered the query with the arena and outlives the pass.
+        unsafe { (self.query)(self.context, element.raw()) }
+    }
+}
+
+/// Arena inputs borrowed while computing a layout result. The pass ends before commit takes a
+/// mutable arena borrow, so its text and style views cannot survive commit.
 #[derive(Clone, Copy)]
 pub(crate) struct LayoutPass<'arena> {
     arena: &'arena LayoutNodeArena,
-    pub(crate) host: &'arena FfiLayoutHostCallbacks,
+    pub(crate) container_length_bases: ContainerLengthBasesQuery,
     pub(crate) initial_containing_block_inline_size: CssPixels,
     pub(crate) initial_containing_block_block_size: CssPixels,
     pub(crate) document_in_quirks_mode: bool,
@@ -20,14 +49,14 @@ pub(crate) struct LayoutPass<'arena> {
 impl<'arena> LayoutPass<'arena> {
     pub(crate) fn new(
         arena: &'arena LayoutNodeArena,
-        host: &'arena FfiLayoutHostCallbacks,
+        container_length_bases: ContainerLengthBasesQuery,
         initial_containing_block_inline_size: CssPixels,
         initial_containing_block_block_size: CssPixels,
         document_in_quirks_mode: bool,
     ) -> Self {
         Self {
             arena,
-            host,
+            container_length_bases,
             initial_containing_block_inline_size,
             initial_containing_block_block_size,
             document_in_quirks_mode,
@@ -86,13 +115,6 @@ impl<'arena> LayoutPass<'arena> {
             child = data.next_sibling.get();
         }
         true
-    }
-
-    pub(crate) fn shell(&self, node: Node) -> *mut c_void {
-        self.arena.assert_layout_read_is_in_scope(node);
-        let shell = self.arena().node_shell(node);
-        assert!(!shell.is_null());
-        shell
     }
 
     pub(crate) fn is_before(&self, node: Node, other: Node) -> bool {

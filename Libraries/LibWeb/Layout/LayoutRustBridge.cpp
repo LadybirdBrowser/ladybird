@@ -372,9 +372,11 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
                 commit_messages.append(messages[index]);
             // The pass that produced them reads back what they change before it ends.
             commit_messages.apply(); },
-        .container_length_bases = [](void*, void* node_shell) -> RustFFI::FfiContainerLengthBases {
-            auto const& element = as<DOM::Element>(*static_cast<Node const*>(node_shell)->dom_node());
-            auto context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { element });
+        .container_length_bases = [](void* document_pointer, u32 style_node) -> RustFFI::FfiContainerLengthBases {
+            auto& document = *static_cast<DOM::Document*>(document_pointer);
+            auto element = document.style_computer().element_for_style_node(style_node);
+            VERIFY(element);
+            auto context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { *element });
             return {
                 .width = CSS::Length(100, CSS::LengthUnit::Cqw).to_px_without_rounding(context),
                 .height = CSS::Length(100, CSS::LengthUnit::Cqh).to_px_without_rounding(context),
