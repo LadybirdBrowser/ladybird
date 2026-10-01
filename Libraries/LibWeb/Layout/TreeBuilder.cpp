@@ -60,6 +60,8 @@ private:
     static TraversalDecision clear_stale_layout_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
     static TraversalDecision clear_stale_layout_node_in_subtree(DOM::Node&, DOM::Node const& subtree_root, DOM::Node const* cleared_subtree_root = nullptr);
 
+    DOM::Node& dom_node_for_style_node(u32 style_node) const;
+
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
     RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks();
@@ -708,45 +710,31 @@ LayoutTreeBuildBridge::~LayoutTreeBuildBridge()
 {
 }
 
+// The node an identity the walk carries names. The document is the build's root and is not in the style computer's node
+// table, because a document holding a reference back to itself there would keep itself alive; every other identity
+// resolves through the table.
+DOM::Node& LayoutTreeBuildBridge::dom_node_for_style_node(u32 style_node) const
+{
+    CSS::StyleNodeID identity { style_node };
+    if (identity == m_document->style_node_id())
+        return *m_document;
+    auto node = m_document->style_computer().node_for_style_node(identity);
+    VERIFY(node);
+    return *node;
+}
+
 RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_builder_callbacks()
 {
     return {
         .builder = this,
-        .first_child = [](void* parent_pointer) -> RustFFI::FfiIdentifiedDomNode {
-            VERIFY(parent_pointer);
-            return identified_dom_node(static_cast<DOM::ParentNode*>(parent_pointer)->first_child());
-        },
-        .next_sibling = [](void* node_pointer) -> void* {
-            VERIFY(node_pointer);
-            return static_cast<DOM::Node*>(node_pointer)->next_sibling();
-        },
-        .next_identified_sibling = [](void* node_pointer) -> RustFFI::FfiIdentifiedDomNode {
-            VERIFY(node_pointer);
-            return identified_dom_node(static_cast<DOM::Node*>(node_pointer)->next_sibling());
-        },
-        .assigned_node_count = ffi_assigned_node_count,
-        .assigned_node_at = ffi_assigned_node_at,
-        .clear_stale_layout_node = [](void* builder_pointer, void* node_pointer) {
+        .clear_stale_layout_node = [](void* builder_pointer, u32 style_node) {
             VERIFY(builder_pointer);
-            VERIFY(node_pointer);
-            (void)static_cast<LayoutTreeBuildBridge*>(builder_pointer)->clear_stale_layout_node(*static_cast<DOM::Node*>(node_pointer)); },
-        .display_contents_facts = [](void*, void* element_pointer) -> RustFFI::FfiDisplayContentsFacts {
-            VERIFY(element_pointer);
-            auto& element = *static_cast<DOM::Element*>(element_pointer);
-            auto* slot_element = as_if<HTML::HTMLSlotElement>(element);
-            auto shadow_root = element.shadow_root();
-            return {
-                .dom_children_parent = static_cast<DOM::ParentNode*>(&element),
-                .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
-                .shadow_root_style_node = shadow_root ? shadow_root->style_node_id().value() : 0,
-                .slot_element = slot_element,
-            };
-        },
-        .clear_stale_subtree = [](void* builder_pointer, void* root_pointer, RustFFI::FfiStaleSubtreeClearScope scope) {
-            VERIFY(builder_pointer);
-            VERIFY(root_pointer);
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            auto& root = *static_cast<DOM::Node*>(root_pointer);
+            (void)builder.clear_stale_layout_node(builder.dom_node_for_style_node(style_node)); },
+        .clear_stale_subtree = [](void* builder_pointer, u32 style_node, RustFFI::FfiStaleSubtreeClearScope scope) {
+            VERIFY(builder_pointer);
+            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
+            auto& root = builder.dom_node_for_style_node(style_node);
             auto const* cleared_subtree_root = scope == RustFFI::FfiStaleSubtreeClearScope::Inclusive ? nullptr : &root;
             if (scope == RustFFI::FfiStaleSubtreeClearScope::DescendantsBoundedToRoot) {
                 root.for_each_shadow_including_descendant([&](auto& node) {
@@ -771,10 +759,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(node_pointer);
             VERIFY(layout_node_pointer);
             auto& node = *static_cast<DOM::Node*>(node_pointer);
-            auto* element = as_if<DOM::Element>(node);
-            auto* slot_element = as_if<HTML::HTMLSlotElement>(node);
-            auto* parent_node = as_if<DOM::ParentNode>(node);
-            auto shadow_root = element ? element->shadow_root() : nullptr;
             auto* graphics_element = as_if<SVG::SVGGraphicsElement>(node);
             GC::Ptr<SVG::SVGMaskElement const> mask;
             GC::Ptr<SVG::SVGClipPathElement const> clip_path;
@@ -788,10 +772,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 stroke_pattern = graphics_element->stroke_pattern(layout_node);
             }
             return {
-                .dom_children_parent = parent_node,
-                .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
-                .shadow_root_style_node = shadow_root ? shadow_root->style_node_id().value() : 0,
-                .slot_element = slot_element,
                 .svg_graphics_element = graphics_element ? Node::style_node_of(graphics_element).value() : 0,
                 .svg_mask = identified_dom_node(mask.ptr()),
                 .svg_clip_path = identified_dom_node(clip_path.ptr()),
@@ -815,17 +795,17 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .svg_pattern_content_element = [](void* pattern_pointer) -> RustFFI::FfiIdentifiedDomNode {
             VERIFY(pattern_pointer);
             return identified_dom_node(static_cast<SVG::SVGPatternElement*>(pattern_pointer)->pattern_content_element().ptr()); },
-        .principal_node_entry_facts = [](void*, void* node_pointer, bool must_create_subtree) -> RustFFI::FfiPrincipalNodeEntryFacts {
-            VERIFY(node_pointer);
-            auto& node = *static_cast<DOM::Node*>(node_pointer);
+        .principal_node_entry_facts = [](void* builder_pointer, u32 style_node, bool must_create_subtree) -> RustFFI::FfiPrincipalNodeEntryFacts {
+            VERIFY(builder_pointer);
+            auto& node = static_cast<LayoutTreeBuildBridge*>(builder_pointer)->dom_node_for_style_node(style_node);
             // NB: Called during layout tree construction.
             auto* existing_layout_node = node.unsafe_layout_node();
             return {
+                .dom_node = &node,
                 .must_create_subtree = must_create_subtree,
                 .needs_layout_tree_update = node.needs_layout_tree_update(),
                 .has_layout_node = existing_layout_node != nullptr,
                 .layout_node_is_attached = existing_layout_node && existing_layout_node->has_parent(),
-                .style_node = Node::style_node_of(&node).value(),
             }; },
         .push_principal_frame = [](void* builder_pointer, void* node_pointer) -> RustFFI::FfiPrincipalNodeFrame {
             VERIFY(builder_pointer);
