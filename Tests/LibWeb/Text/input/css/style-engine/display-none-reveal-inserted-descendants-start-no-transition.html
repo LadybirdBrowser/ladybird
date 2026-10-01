@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body { color: rgb(10, 20, 30); }
+    label { transition: color 10s; }
+</style>
+<input id="field" placeholder="placeholder">
+<section id="main"><ul id="list"></ul></section>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+        main.style.display = "none";
+        document.body.offsetWidth;
+
+        field.value = "text";
+        main.style.display = "block";
+        list.innerHTML = `
+            <li>
+                <div>
+                    <label>Item</label>
+                </div>
+            </li>
+        `;
+        println(`animations: ${document.getAnimations().length}`);
+        println(`label color: ${getComputedStyle(list.querySelector("label")).color}`);
+    });
+</script>

@@ -1,0 +1,2 @@
+animations: 0
+label color: rgb(10, 20, 30)
