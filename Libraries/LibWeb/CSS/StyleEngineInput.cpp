@@ -162,7 +162,7 @@ static TreeScopeID tree_scope_of(DOM::Node& document_or_shadow_root)
     if (!shadow_root)
         return document_tree_scope;
     if (shadow_root->style_engine_tree_scope() == document_tree_scope)
-        shadow_root->set_style_engine_tree_scope(shadow_root->document().style_computer().allocate_tree_scope());
+        shadow_root->set_style_engine_tree_scope(shadow_root->document().style_computer().allocate_tree_scope(*shadow_root));
     return shadow_root->style_engine_tree_scope();
 }
 

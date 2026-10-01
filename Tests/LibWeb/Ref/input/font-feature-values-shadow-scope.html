@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/font-feature-values-shadow-scope-ref.html">
+<style>
+    @font-face {
+        font-family: FeatureFont;
+        src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+    }
+
+    @font-feature-values FeatureFont {
+        @stylistic { fancy: 2; }
+    }
+
+    p {
+        font-family: FeatureFont;
+        font-size: 2em;
+        font-variant-alternates: stylistic(fancy);
+    }
+</style>
+<p>Xnophijklmqrstuvwxyz</p>
+<div id="host"></div>
+<script>
+    host.attachShadow({ mode: "open" }).innerHTML = `
+        <style>
+            @font-face {
+                font-family: FeatureFont;
+                src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+            }
+            @font-feature-values FeatureFont {
+                @stylistic { fancy: 1; }
+            }
+            p {
+                font-family: FeatureFont;
+                font-size: 2em;
+                font-variant-alternates: stylistic(fancy);
+            }
+        </style>
+        <p>Xnophijklmqrstuvwxyz</p>`;
+</script>

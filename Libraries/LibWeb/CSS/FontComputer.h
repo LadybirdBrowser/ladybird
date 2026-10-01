@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/FontFeatureData.h>
 #include <LibWeb/CSS/Percentage.h>
+#include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
@@ -25,6 +26,8 @@
 #include <LibWebCommon/PixelUnits.h>
 
 namespace Web::CSS {
+
+class RustRuleView;
 
 struct FontWeightRange {
     int min { 0 };
@@ -72,8 +75,20 @@ struct ComputedFontCacheKey {
     Percentage font_width;
     HashMap<Utf16FlyString, double> font_variation_settings;
     FontFeatureData font_feature_data;
+    // The tree scope whose @font-feature-values the request reads, or the document's when its
+    // font-variant-alternates name no feature values, so that alike requests share one answer.
+    TreeScopeID font_feature_values_scope;
 
     [[nodiscard]] bool operator==(ComputedFontCacheKey const& other) const = default;
+};
+
+using FontFeatureValues = HashMap<FontFeatureValueKey, Vector<u32>>;
+
+struct FontFeatureValuesCacheKey {
+    TreeScopeID tree_scope;
+    Utf16FlyString family_name;
+    [[nodiscard]] u32 hash() const { return pair_int_hash(tree_scope.value(), family_name.hash()); }
+    [[nodiscard]] bool operator==(FontFeatureValuesCacheKey const&) const = default;
 };
 
 class FontLoader final : public GC::Cell {
@@ -144,9 +159,13 @@ public:
 
     void load_fonts_from_sheet(StyleSheetState&);
     void unload_fonts_from_sheet(StyleSheetState&);
+    // An @font-feature-values rule reaches the elements of every tree scope its sheet is in, where @font-face only
+    // reaches the document's font source, so its sheet forgets what was built from it whoever owns the sheet.
+    void forget_font_feature_values_declared_by(RustRuleView const&);
+    void forget_font_feature_values_declared_in(StyleSheetState const&);
 
-    NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(Vector<ComputedFontFamily> font_families, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const;
-    NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const;
+    NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(Vector<ComputedFontFamily> font_families, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const;
+    NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const;
     u64 environment_generation() const { return m_environment_generation; }
 
 private:
@@ -157,12 +176,13 @@ private:
     void clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names);
 
     struct MatchingFontCandidate;
-    RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values, bool inclusive) const;
-    RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values, bool inclusive) const;
-    NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values_impl(ReadonlySpan<ComputedFontFamily const> font_families, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const;
-    RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(Utf16FlyString const& family_name, int weight, Percentage const& font_width, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const;
+    RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, FontFeatureValues const& font_feature_values, bool inclusive) const;
+    RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, FontFeatureValues const& font_feature_values, bool inclusive) const;
+    NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values_impl(ReadonlySpan<ComputedFontFamily const> font_families, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const;
+    RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(Utf16FlyString const& family_name, int weight, Percentage const& font_width, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, FontFeatureValues const& font_feature_values) const;
 
-    HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values_for_family(Utf16FlyString const& family_name) const;
+    FontFeatureValues const& font_feature_values_for_family(Utf16FlyString const& family_name, TreeScopeID) const;
+    FontFeatureValues font_feature_values_in_scope(Utf16FlyString const& family_name, TreeScopeID) const;
 
     GC::Ptr<DOM::Document> m_document;
 
@@ -170,7 +190,9 @@ private:
     HashMap<String, GC::Ref<FontLoader>> m_loaders_by_source;
 
     mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_computed_font_cache;
-    mutable HashMap<Utf16FlyString, HashMap<FontFeatureValueKey, Vector<u32>>> m_font_feature_values_cache;
+    // NB: Tree scopes are never numbered again, so the entries of a shadow root that is gone answer nothing. They stay
+    //     until their family is next forgotten.
+    mutable HashMap<FontFeatureValuesCacheKey, FontFeatureValues> m_font_feature_values_cache;
 
     bool m_has_completed_initial_paint { false };
     bool m_initial_paint_had_pending_fonts { false };

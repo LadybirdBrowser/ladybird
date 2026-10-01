@@ -204,6 +204,7 @@ private:
     void set_rules(RustRuleList);
     void invalidate_shared_style_cache();
     bool has_document_owner() const;
+    void forget_font_feature_values();
 
     void set_constructed(bool constructed) { m_native_sheet.set_flag(RustStyleSheet::Flag::Constructed, constructed); }
     void set_disallow_modification(bool disallow_modification) { m_native_sheet.set_flag(RustStyleSheet::Flag::DisallowModification, disallow_modification); }

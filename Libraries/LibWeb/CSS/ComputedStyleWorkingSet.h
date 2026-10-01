@@ -161,7 +161,8 @@ public:
     float stop_opacity() const;
     float flood_opacity() const;
 
-    ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> computed_font_list(FontComputer const&) const;
+    // The font list for text in the given tree scope, whose @font-feature-values font-variant-alternates reads.
+    ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> computed_font_list(FontComputer const&, TreeScopeID) const;
     ValueComparingNonnullRefPtr<Gfx::Font const> first_available_computed_font(FontComputer const&) const;
 
     int math_depth() const;
@@ -232,6 +233,7 @@ private:
     OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> m_animated_custom_properties;
 
     mutable RefPtr<Gfx::FontCascadeList const> m_cached_computed_font_list;
+    mutable TreeScopeID m_cached_computed_font_list_scope;
     mutable RefPtr<Gfx::Font const> m_cached_first_available_computed_font;
 };
 

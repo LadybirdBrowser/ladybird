@@ -14,6 +14,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/WeakPtr.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSAnimationProperties.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
@@ -379,7 +380,9 @@ public:
     // Style scopes are numbered per document, with zero naming the document's own scope. A scope is
     // never reused, so a sheet detached with an identity that has been retired detaches nothing
     // rather than something else.
-    [[nodiscard]] TreeScopeID allocate_tree_scope() { return ++m_next_tree_scope; }
+    [[nodiscard]] TreeScopeID allocate_tree_scope(DOM::ShadowRoot&);
+    // The shadow root a scope numbers, while it lives and still belongs to this document.
+    [[nodiscard]] DOM::ShadowRoot* shadow_root_for_tree_scope(TreeScopeID) const;
 
 private:
     [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedStyleWorkingSet const&) const;
@@ -521,7 +524,8 @@ private:
     // holds shadow roots: a root gets no style, but it has a StyleNodeID of its own.
     Vector<GC::Ptr<DOM::Node>> m_element_style_nodes;
     Vector<GC::Ptr<DOM::Text>> m_text_style_nodes;
-    TreeScopeID m_next_tree_scope;
+    // The root each scope numbers, by scope minus one.
+    Vector<GC::Weak<DOM::ShadowRoot>> m_shadow_roots_by_tree_scope;
     Vector<NonAuthorStyleSheet> m_non_author_style_sheets;
     HashMap<RefPtr<StyleSheetState const>, SheetID> m_constructed_sheet_ids;
     HashMap<SharedCompiledStyleSheetKey, RefPtr<SharedCompiledStyleSheet>> m_shared_compiled_style_sheets;
