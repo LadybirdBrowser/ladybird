@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    html.large { font-size: 20px; }
+    .rem { width: 2rem; }
+    .rtl { direction: rtl; }
+    .logical { margin-inline-start: 3px; }
+</style>
+<div id="rem-parent"><div class="rem" id="rem"></div></div>
+<div id="direction-parent"><div class="logical" id="logical"></div></div>
+<script>
+    // A reaction that recomputes an element's descendants, for the root's font metrics or an
+    // ancestor's direction, is answered by a full recompute. Count who computes the records.
+    test(() => {
+        internals.updateStyle();
+        const measure = (label, mutate, check) => {
+            const before = internals.getStyleInvalidationCounters();
+            mutate();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            const engineRecords = after.engineComputedStyleRecords - before.engineComputedStyleRecords;
+            const recomputations = after.elementStyleRecomputations - before.elementStyleRecomputations;
+            println(`${label}: engine records ${engineRecords}, C++ recomputations ${recomputations}, ${check()}`);
+        };
+        measure("root font size", () => document.documentElement.classList.add("large"),
+            () => `width: ${getComputedStyle(rem).width}`);
+        measure("ancestor direction", () => document.getElementById("direction-parent").classList.add("rtl"),
+            () => `margin-right: ${getComputedStyle(logical).marginRight}, margin-left: ${getComputedStyle(logical).marginLeft}`);
+    });
+</script>

@@ -29,7 +29,10 @@
         println("read child color: " + readChildColor);
         println("sibling color: " + siblingColor);
         println("deep sibling color: " + deepSiblingColor);
-        println("style read recomputations: " + readCounters.elementStyleRecomputations);
-        println("subsequent update recomputations: " + (finalCounters.elementStyleRecomputations - readCounters.elementStyleRecomputations));
+        // The engine computes what it can of the reveal, and C++ the rest.
+        const recomputations = counters => counters.elementStyleRecomputations + counters.engineComputedStyleRecords;
+        println("style read recomputations: " + recomputations(readCounters));
+        println("subsequent update recomputations: " + (recomputations(finalCounters) - recomputations(readCounters)));
+        println("style read engine records: " + readCounters.engineComputedStyleRecords);
     });
 </script>
