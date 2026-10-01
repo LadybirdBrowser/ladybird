@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<math><mi id="identifier" mathcolor="green">x</mi></math>
+<script>
+    // A MathML element's hints are mapped from its own attributes, so they are published where the
+    // attributes move and the engine computes the element's record against them.
+    test(() => {
+        internals.updateStyle();
+        println(`color: ${getComputedStyle(identifier).color}`);
+        const before = internals.getStyleInvalidationCounters();
+        identifier.setAttribute("mathcolor", "red");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`hint change stays in the engine: ${after.elementStyleRecomputations - before.elementStyleRecomputations === 0}`);
+        println(`color: ${getComputedStyle(identifier).color}`);
+    });
+</script>
