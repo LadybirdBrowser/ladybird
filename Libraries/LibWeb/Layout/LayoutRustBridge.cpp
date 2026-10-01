@@ -30,7 +30,6 @@
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/Layout/DominantBaseline.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -81,6 +80,21 @@ static RustFFI::FfiSvgViewBox to_ffi_svg_view_box(SVG::ViewBox const& view_box)
         .width = view_box.width,
         .height = view_box.height,
     };
+}
+
+static RustFFI::FfiSvgLengthValue to_ffi_svg_length_value(Optional<SVG::SVGLengthValue> const& value)
+{
+    if (!value.has_value())
+        return { .value = 0, .kind = RustFFI::SVG_LENGTH_KIND_NONE, .unit = 0 };
+    switch (value->kind()) {
+    case SVG::SVGLengthValue::Kind::Number:
+        return { .value = value->value(), .kind = RustFFI::SVG_LENGTH_KIND_NUMBER, .unit = 0 };
+    case SVG::SVGLengthValue::Kind::Length:
+        return { .value = value->value(), .kind = RustFFI::SVG_LENGTH_KIND_LENGTH, .unit = static_cast<u8>(to_underlying(value->unit())) };
+    case SVG::SVGLengthValue::Kind::Percentage:
+        return { .value = value->value(), .kind = RustFFI::SVG_LENGTH_KIND_PERCENTAGE, .unit = 0 };
+    }
+    VERIFY_NOT_REACHED();
 }
 
 // The SVG attributes an element parses, as the layout stage reads them.
@@ -154,11 +168,16 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element cons
         line_y2 = line_element->y2_value();
     }
 
+    SVG::SVGTextPositioningElement::ParsedTextPositioning text_positioning;
+    if (auto const* text_positioning_element = as_if<SVG::SVGTextPositioningElement>(dom_node))
+        text_positioning = text_positioning_element->parsed_text_positioning();
+
     return {
         .is_graphics_element = is<SVG::SVGGraphicsElement>(dom_node),
         .is_use_element = is<SVG::SVGUseElement>(dom_node),
         .is_svg_svg_element = is<SVG::SVGSVGElement>(dom_node),
         .is_symbol_element = is<SVG::SVGSymbolElement>(dom_node),
+        .is_text_element = is<SVG::SVGTextElement>(dom_node),
         .is_fit_to_view_box = fit_to_view_box != nullptr,
         .has_active_view_box = active_view_box.has_value(),
         .active_view_box = active_view_box.has_value() ? to_ffi_svg_view_box(*active_view_box) : RustFFI::FfiSvgViewBox {},
@@ -178,6 +197,10 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element cons
         .line_y1 = to_ffi_number_percentage(line_y1),
         .line_x2 = to_ffi_number_percentage(line_x2),
         .line_y2 = to_ffi_number_percentage(line_y2),
+        .text_x = to_ffi_svg_length_value(text_positioning.x),
+        .text_y = to_ffi_svg_length_value(text_positioning.y),
+        .text_dx = to_ffi_svg_length_value(text_positioning.dx),
+        .text_dy = to_ffi_svg_length_value(text_positioning.dy),
     };
 }
 
@@ -217,96 +240,6 @@ static Utf16String rendered_svg_text_contents(SVG::SVGTextContentElement const& 
         return TraversalDecision::Continue;
     });
     return builder.to_string().trim_ascii_whitespace();
-}
-
-// The advance of the text run rendered by the given box; that is, of its direct child text content.
-static float svg_text_run_advance(Box const& text_box)
-{
-    auto text_contents = static_cast<SVG::SVGTextContentElement const&>(*text_box.dom_node()).text_contents();
-    float advance = 0;
-    for (auto const& glyph_run : Gfx::shape_text({}, text_contents, text_box.font_list()))
-        advance += glyph_run->width();
-    return advance;
-}
-
-// https://svgwg.org/svg2-draft/text.html#TermTextChunk
-// Each new absolute positioning adjustment (due to an 'x' or 'y' attribute, or forced line break) creates a new text chunk.
-// https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
-// NB: The initial value of 'x' and 'y' is "0 for 'text'; (none) for 'tspan'". So, a <text> element always positions its
-//     first character absolutely, and so always starts a chunk.
-static bool svg_text_box_starts_text_chunk(Box const& text_box)
-{
-    if (is<SVG::SVGTextElement>(*text_box.dom_node()))
-        return true;
-    auto text_positioning = as<SVG::SVGTextPositioningElement>(*text_box.dom_node()).text_positioning();
-    return !text_positioning.x.is_empty() || !text_positioning.y.is_empty();
-}
-
-struct SvgTextChunkMeasurement {
-    float advance { 0 };
-    CSS::TextAnchor anchor { CSS::TextAnchor::Start };
-};
-
-// Measures the total advance of the text chunk that starts at the given box, and determines the 'text-anchor' value
-// that applies to the chunk. The chunk extends in document order through the subtree of the containing <text> element
-// until the next box that starts a chunk of its own.
-static SvgTextChunkMeasurement measure_svg_text_chunk(Box const& chunk_start_box)
-{
-    auto const* subtree_root = &chunk_start_box;
-    for (auto const* ancestor = chunk_start_box.parent(); ancestor && ancestor->kind() == RustFFI::NodeKind::SVGTextBox; ancestor = ancestor->parent())
-        subtree_root = static_cast<Box const*>(ancestor);
-
-    SvgTextChunkMeasurement measurement;
-    bool found_chunk_start = false;
-    bool found_first_rendered_text = false;
-    subtree_root->for_each_in_inclusive_subtree([&](Node const& node) {
-        // AD-HOC: Text on a path is laid out independently; see compute_path_for_svg_text_path().
-        if (node.kind() == RustFFI::NodeKind::SVGTextPathBox)
-            return TraversalDecision::SkipChildrenAndContinue;
-        if (node.kind() != RustFFI::NodeKind::SVGTextBox)
-            return TraversalDecision::Continue;
-        auto const* text_box = static_cast<Box const*>(&node);
-        if (text_box == &chunk_start_box)
-            found_chunk_start = true;
-        else if (found_chunk_start && svg_text_box_starts_text_chunk(*text_box))
-            return TraversalDecision::Break;
-        if (found_chunk_start && !static_cast<SVG::SVGTextContentElement const&>(*text_box->dom_node()).text_contents().is_empty()) {
-            if (!found_first_rendered_text) {
-                // https://svgwg.org/svg2-draft/text.html#TextLayoutAlgorithm
-                // Adjust shift based on the value of 'text-anchor' and 'direction' of the element the character at index i.
-                // FIXME: Take text direction into account.
-                measurement.anchor = text_box->text_anchor();
-                found_first_rendered_text = true;
-            }
-            measurement.advance += svg_text_run_advance(*text_box);
-        }
-        return TraversalDecision::Continue;
-    });
-    return measurement;
-}
-
-struct SvgTextRun {
-    Gfx::Path path;
-    float advance { 0 };
-};
-
-static SvgTextRun compute_svg_text_run(Box const& text_box, Gfx::FloatPoint current_text_position)
-{
-    auto const& text_element = static_cast<SVG::SVGTextContentElement const&>(*text_box.dom_node());
-    auto text_contents = text_element.text_contents();
-
-    auto text_offset = current_text_position;
-    auto baseline_metric = resolve_dominant_baseline_metric(text_box);
-    // NB: The dominant-baseline offset is resolved against the metrics of the first available font — while each glyph
-    //     is rendered with the first font in the cascade that contains its code point.
-    text_offset.translate_by(0, dominant_baseline_offset(baseline_metric, text_box.first_available_font().pixel_metrics()));
-
-    SvgTextRun run;
-    for (auto const& glyph_run : Gfx::shape_text(text_offset, text_contents, text_box.font_list())) {
-        run.path.glyph_run(glyph_run);
-        run.advance += glyph_run->width();
-    }
-    return run;
 }
 
 static Gfx::Path compute_path_for_svg_text_path(Box const& text_path_box, CSSPixelSize viewport_size)
@@ -350,69 +283,14 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
         request.viewport_width,
         request.viewport_height,
     };
-    Gfx::FloatPoint text_position {
-        request.current_text_position.x,
-        request.current_text_position.y,
-    };
-
     Gfx::Path path;
-    if (graphics_box.kind() == RustFFI::NodeKind::SVGTextBox) {
-        auto const* text_box = &graphics_box;
-        auto const& text_element = as<SVG::SVGTextPositioningElement>(*text_box->dom_node());
-        // https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
-        // the starting X (Y) coordinate for rendering the glyphs corresponding to the given character is the X (Y) coordinate
-        // of the resulting current text position from the most recently rendered glyph for the current 'text' element.
-        // NB: The initial value of 'x' and 'y' is "0 for 'text'; (none) for 'tspan'": a <text> element starts at (0, 0)
-        //     regardless of the current text position, while a <tspan> without 'x'/'y' continues at the current text position.
-        if (is<SVG::SVGTextElement>(text_element))
-            text_position = {};
-        text_element.text_positioning().apply_to_text_position(viewport_size, text_position, 0u);
-        if (svg_text_box_starts_text_chunk(*text_box)) {
-            // https://svgwg.org/svg2-draft/text.html#TextAnchoringProperties
-            // The 'text-anchor' property is applied to each individual text chunk within a given 'text' element.
-            // AD-HOC: The spec applies 'text-anchor' as a shift of the chunk's rendered glyphs after layout; shifting
-            //         the chunk's starting position up front by the chunk's total advance is equivalent for horizontal
-            //         text — since every run in the chunk is laid out sequentially from this position.
-            auto chunk = measure_svg_text_chunk(*text_box);
-            switch (chunk.anchor) {
-            case CSS::TextAnchor::Start:
-                // The rendered characters are aligned such that the start of the resulting rendered text is at the
-                // initial current text position."
-                break;
-            case CSS::TextAnchor::Middle:
-                // The rendered characters are shifted such that the geometric middle of the resulting rendered text
-                // (determined from the initial and final current text position before applying the 'text-anchor'
-                // property) is at the initial current text position.
-                text_position.translate_by(-chunk.advance / 2, 0);
-                break;
-            case CSS::TextAnchor::End:
-                // The rendered characters are shifted such that the end of the resulting rendered text (final current
-                // text position before applying the 'text-anchor' property) is at the initial current text position."
-                text_position.translate_by(-chunk.advance, 0);
-                break;
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }
-        auto text_run = compute_svg_text_run(*text_box, text_position);
-        path = move(text_run.path);
-        // https://svgwg.org/svg2-draft/text.html#TextLayoutIntroduction
-        // After each glyph is placed, the current text position is advanced by the glyph's advance value (typically the
-        // width for horizontal text or height for vertical text).
-        // FIXME: Take writing mode and text direction into account.
-        text_position.translate_by(text_run.advance, 0);
-    } else if (graphics_box.kind() == RustFFI::NodeKind::SVGTextPathBox) {
+    if (graphics_box.kind() == RustFFI::NodeKind::SVGTextPathBox)
         path = compute_path_for_svg_text_path(graphics_box, viewport_size);
-    }
 
     // Rust adopts this heap-allocated path and destroys it via ladybird_gfx_path_destroy().
     auto* path_handle = new Gfx::Path(move(path));
     return {
         .path_handle = path_handle,
-        .text_position_after = {
-            .x = text_position.x(),
-            .y = text_position.y(),
-        },
     };
 }
 
@@ -546,6 +424,13 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
             if (auto const* box = as_if<Box>(node))
                 *facts = box->build_replaced_content_facts_for_arena(); },
         .viewport_propagation_facts = [](void* context) { return viewport_propagation_facts(*static_cast<DOM::Document*>(context)); },
+        .container_length_bases = [](void*, void* node_shell) -> RustFFI::FfiContainerLengthBases {
+            auto const& element = as<DOM::Element>(*static_cast<Node const*>(node_shell)->dom_node());
+            auto context = CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { element });
+            return {
+                .width = CSS::Length(100, CSS::LengthUnit::Cqw).to_px_without_rounding(context),
+                .height = CSS::Length(100, CSS::LengthUnit::Cqh).to_px_without_rounding(context),
+            }; },
     };
     RustFFI::layout_arena_set_layout_host_callbacks(arena.handle(), callbacks);
     RustFFI::layout_arena_set_document_is_decoded_svg(arena.handle(), document.is_decoded_svg());

@@ -7,45 +7,10 @@
 
 #pragma once
 
-#include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/SVG/SVGLengthValue.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
 
 namespace Web::SVG {
-
-// https://svgwg.org/svg2-draft/text.html#TSpanNotes
-// https://svgwg.org/svg2-draft/text.html#TSpanAttributes
-struct TextPositioning {
-    using Position = Variant<CSS::LengthPercentage, CSS::Number>;
-
-    Vector<Position> x;
-    Vector<Position> y;
-    Vector<Position> dx;
-    Vector<Position> dy;
-    Vector<float> rotate;
-
-    void apply_to_text_position(CSSPixelSize viewport, Gfx::FloatPoint& current_text_position, size_t character_index) const
-    {
-        auto value_for_character = [&](Vector<Position> const& values) -> float {
-            if (values.is_empty())
-                return 0.f;
-
-            auto position = character_index < values.size() ? values[character_index] : values.last();
-            return position.visit(
-                [](CSS::Number const& number) { return static_cast<float>(number.value()); },
-                [&](CSS::LengthPercentage const& length_percentage) {
-                    auto reference = &values == &x || &values == &dx ? viewport.width() : viewport.height();
-                    return length_percentage.to_px(reference).to_float();
-                });
-        };
-
-        if (!x.is_empty())
-            current_text_position.set_x(value_for_character(x));
-        if (!y.is_empty())
-            current_text_position.set_y(value_for_character(y));
-
-        current_text_position.translate_by(value_for_character(dx), value_for_character(dy));
-    }
-};
 
 // https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextPositioningElement
 class SVGTextPositioningElement : public SVGTextContentElement {
@@ -54,7 +19,15 @@ class SVGTextPositioningElement : public SVGTextContentElement {
 public:
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    TextPositioning text_positioning() const;
+    // The positioning attributes as written. A relative length follows the element's font rather than its attributes,
+    // so the layout stage, not this parse, is what turns one into pixels.
+    struct ParsedTextPositioning {
+        Optional<SVGLengthValue> x;
+        Optional<SVGLengthValue> y;
+        Optional<SVGLengthValue> dx;
+        Optional<SVGLengthValue> dy;
+    };
+    ParsedTextPositioning parsed_text_positioning() const;
 
     GC::Ref<SVGAnimatedLengthList> x();
     GC::Ref<SVGAnimatedLengthList> y();

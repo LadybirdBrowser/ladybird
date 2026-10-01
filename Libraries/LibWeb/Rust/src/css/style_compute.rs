@@ -255,6 +255,13 @@ pub(crate) fn length_unit_is_font_or_container_relative(unit: u8) -> bool {
     )
 }
 
+pub(crate) fn length_unit_is_container_relative(unit: u8) -> bool {
+    matches!(
+        length_unit_kinds().get(unit as usize),
+        Some(LengthUnitKind::ContainerRelative { .. })
+    )
+}
+
 fn select_font_metric(metrics: &FfiFontMetrics, metric: FontMetricSelector) -> f64 {
     match metric {
         FontMetricSelector::FontSize => metrics.font_size,

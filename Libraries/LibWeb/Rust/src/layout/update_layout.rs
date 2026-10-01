@@ -275,6 +275,7 @@ unsafe fn try_partial_relayout(
                 arena_handle,
                 root,
                 facts.viewport_inline_size_raw,
+                facts.viewport_block_size_raw,
                 facts.document_in_quirks_mode,
             );
         }

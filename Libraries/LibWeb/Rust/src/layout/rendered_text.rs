@@ -45,6 +45,9 @@ pub(crate) struct TextContent {
     grapheme_segmenter: OnceCell<super::text_chunker::GraphemeSegmenter>,
     chunks: RefCell<Option<Rc<CachedTextChunks>>>,
     pub(super) rendering_key: Option<TextRenderingKey>,
+    /// The DOM text as it was written, kept only under an SVG text box: SVG text shapes the
+    /// element's raw character data, not the white-space-collapsed rendering every other box uses.
+    pub(crate) svg_source_text: Option<Box<[u16]>>,
 }
 
 // DOM mutations explicitly invalidate this key. Style changes enroll the node
@@ -171,6 +174,7 @@ impl TextContent {
             && self.dom_start_offset == other.dom_start_offset
             && self.dom_length_in_code_units == other.dom_length_in_code_units
             && self.edits == other.edits
+            && self.svg_source_text == other.svg_source_text
     }
 
     pub(crate) fn grapheme_segmenter(&self) -> &super::text_chunker::GraphemeSegmenter {
@@ -364,8 +368,11 @@ unsafe fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId, input: 
         // SAFETY: The host lends the source view for this synchronous build.
         let source = unsafe { input.text.to_utf16() }.expect("text source carries no storage");
         let untransformed_text_is_ascii_whitespace = source.iter().all(|unit| matches!(unit, 0x09..=0x0d | 0x20));
+        let svg_source_text =
+            super::node_facts::kind_is_svg_text(arena.data(parent).kind.get()).then(|| Box::from(&source[..]));
         let rendered = render_text(source, key.locale.as_deref(), key.options);
         let content = TextContent {
+            svg_source_text,
             may_require_bidi_processing: may_require_bidi_processing(&rendered.text),
             text: rendered.text,
             untransformed_text_is_ascii_whitespace,

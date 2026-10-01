@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="400" height="100">
+    <text id="changed" y="50" style="text-transform: uppercase">abc</text>
+    <text id="reference" y="80">ABC</text>
+</svg>
+<script>
+    // SVG shapes a text node's characters as written, not its rendered text. Under text-transform:
+    // uppercase, "abc" and "ABC" render the same, so the change must reach SVG through the source.
+    test(() => {
+        const changed = document.getElementById("changed");
+        const reference = document.getElementById("reference");
+        const width = element => element.getBoundingClientRect().width;
+        println(`differs before the change: ${width(changed) !== width(reference)}`);
+        changed.firstChild.data = "ABC";
+        println(`matches after the change: ${width(changed) === width(reference)}`);
+    });
+</script>

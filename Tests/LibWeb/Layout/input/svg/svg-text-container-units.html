@@ -1,0 +1,23 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    div {
+        container-type: size;
+        width: 200px;
+        height: 100px;
+    }
+</style>
+<div>
+    <svg width="200" height="100">
+        <text id="text" x="50cqw" y="50cqh">A</text>
+    </svg>
+</div>
+<script>
+    // A container unit resolves against the container's box from the previous layout, so the text is laid out
+    // again once the container has one.
+    document.body.offsetWidth;
+    text.style.fontSize = "20px";
+</script>

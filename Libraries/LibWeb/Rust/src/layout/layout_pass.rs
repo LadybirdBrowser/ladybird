@@ -13,6 +13,7 @@ pub(crate) struct LayoutPass<'arena> {
     arena: &'arena LayoutNodeArena,
     pub(crate) host: &'arena FfiLayoutHostCallbacks,
     pub(crate) initial_containing_block_inline_size: CssPixels,
+    pub(crate) initial_containing_block_block_size: CssPixels,
     pub(crate) document_in_quirks_mode: bool,
 }
 
@@ -21,12 +22,14 @@ impl<'arena> LayoutPass<'arena> {
         arena: &'arena LayoutNodeArena,
         host: &'arena FfiLayoutHostCallbacks,
         initial_containing_block_inline_size: CssPixels,
+        initial_containing_block_block_size: CssPixels,
         document_in_quirks_mode: bool,
     ) -> Self {
         Self {
             arena,
             host,
             initial_containing_block_inline_size,
+            initial_containing_block_block_size,
             document_in_quirks_mode,
         }
     }

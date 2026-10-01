@@ -934,6 +934,9 @@ pub struct FfiLayoutHostCallbacks {
     /// The document element and body facts the viewport propagation decides from.
     pub viewport_propagation_facts:
         unsafe extern "C" fn(*mut c_void) -> viewport_propagation::FfiViewportPropagationFacts,
+    /// What a container-relative length on the element of a live box shell resolves against.
+    pub container_length_bases:
+        unsafe extern "C" fn(*mut c_void, *mut c_void) -> svg_formatting_context::FfiContainerLengthBases,
 }
 
 /// # Safety
@@ -2363,6 +2366,7 @@ pub(crate) unsafe fn run_root_layout(
         arena,
         &host,
         CssPixels::from_raw(viewport_inline_size_raw),
+        CssPixels::from_raw(viewport_block_size_raw),
         document_in_quirks_mode,
     );
     let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
@@ -2499,11 +2503,18 @@ pub unsafe extern "C" fn layout_arena_compute_subtree_layout(
     arena: *mut c_void,
     root: NodeSlotId,
     viewport_inline_size_raw: i32,
+    viewport_block_size_raw: i32,
     document_in_quirks_mode: bool,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
     unsafe {
-        compute_subtree_layout(arena, root, viewport_inline_size_raw, document_in_quirks_mode);
+        compute_subtree_layout(
+            arena,
+            root,
+            viewport_inline_size_raw,
+            viewport_block_size_raw,
+            document_in_quirks_mode,
+        );
     }
 }
 
@@ -2518,6 +2529,7 @@ pub(crate) unsafe fn compute_subtree_layout(
     arena_handle: *mut c_void,
     root: NodeSlotId,
     viewport_inline_size_raw: i32,
+    viewport_block_size_raw: i32,
     document_in_quirks_mode: bool,
 ) {
     assert!(!arena_handle.is_null(), "layout node arena handle is null");
@@ -2533,6 +2545,7 @@ pub(crate) unsafe fn compute_subtree_layout(
         arena,
         &host,
         CssPixels::from_raw(viewport_inline_size_raw),
+        CssPixels::from_raw(viewport_block_size_raw),
         document_in_quirks_mode,
     );
     // The boundary can be wider than the rebuilt roots that led to it, and laying it out may
