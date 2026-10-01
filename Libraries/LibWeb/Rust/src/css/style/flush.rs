@@ -1851,6 +1851,9 @@ impl StyleEngineState {
                                 && flipped_rules
                                     .iter()
                                     .all(|delta| self.retained.program.declarations_are_complete_for(delta.rule))));
+                    engine_computed_record_scratch.answer_or_declarations_moved = rule_declarations_edited
+                        || !flipped_rules.is_empty()
+                        || !selector_truth_changes.refreshes_for(root).is_empty();
                     self.prepare_root_font_inputs(
                         root,
                         answer.cascade_winners_are_complete,
@@ -2101,6 +2104,9 @@ impl StyleEngineState {
                                     && flipped_rules
                                         .iter()
                                         .all(|delta| self.retained.program.declarations_are_complete_for(delta.rule))));
+                        engine_computed_record_scratch.answer_or_declarations_moved = rule_declarations_edited
+                            || !flipped_rules.is_empty()
+                            || !selector_truth_changes.refreshes_for(node).is_empty();
                         self.engine_computed_record_delta(
                             node,
                             answer.cascade_winners_are_complete,

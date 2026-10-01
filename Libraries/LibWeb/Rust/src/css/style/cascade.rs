@@ -2486,6 +2486,15 @@ impl WinnerGroups {
     pub(super) fn admits_new_rows(&self) -> bool {
         self.admitting
     }
+
+    /// Admit rows until `restore_admission` puts back the returned admission.
+    pub(super) fn admit_demanded_rows(&mut self) -> bool {
+        std::mem::replace(&mut self.admitting, true)
+    }
+
+    pub(super) fn restore_admission(&mut self, admitting: bool) {
+        self.admitting = admitting;
+    }
 }
 
 impl WinnerGroups {
