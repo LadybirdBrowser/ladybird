@@ -1577,8 +1577,10 @@ impl RetainedState {
     /// `inherit()` the environment the element inherits, an `if()` the document's media features
     /// and the element's lengths, and a custom function call the definitions its scope sees and
     /// whatever their declarations read, so any of these values is the element's alone and takes
-    /// no memo. Refused when the inputs lack what the value reads, or an environment is one the
-    /// engine holds no store for.
+    /// no memo. A substitution the resolver cannot make, or a substituted source no grammar
+    /// accepts, is the guaranteed-invalid value, as in the C++ cascade: the declaration is invalid
+    /// at computed-value time. Refused when the inputs lack what the value reads, or an
+    /// environment is one the engine holds no store for.
     pub(super) fn substitute_written_value(
         environments: &mut custom_property_environments::CustomPropertyEnvironments,
         inputs: &SubstitutionInputs<'_>,
@@ -1627,7 +1629,7 @@ impl RetainedState {
         parse_context.in_quirks_mode = inputs.document.in_quirks_mode;
         let media_environment = inputs.media.environment();
         let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
-        let Some(mut resolution_environment) = (unsafe {
+        let resolution_environment = unsafe {
             prepare_var_resolution_environment(
                 substitution_attributes.as_ptr(),
                 substitution_attributes.len(),
@@ -1637,40 +1639,41 @@ impl RetainedState {
                 functions.map_or(std::ptr::null(), |functions| functions.visibilities.as_ptr()),
                 functions.map_or(0, |functions| functions.visibilities.len()),
             )
-        }) else {
-            counters.bump(Counter::EngineComputedRecordBailSubstitution);
-            return Err(Unanswered::Refused);
         };
         let mut style_query_references = inputs.style_query_references.map(std::cell::RefCell::borrow_mut);
-        // SAFETY: The store is live while a record names its environment, and the written value
-        // is retained by the declaration that carries it.
-        let resolution = unsafe {
-            crate::css::custom_properties::resolve_vars(
-                store,
-                inheritance_store,
-                std::ptr::from_ref(registry_ref).cast(),
-                Some(&parse_context),
-                Some(&media_environment),
-                None,
-                property,
-                FfiUtf16View {
-                    ascii: std::ptr::null(),
-                    utf16: std::ptr::null(),
-                    length: 0,
-                },
-                written.pointer().cast(),
-                &mut resolution_environment,
-                attributes.is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
-                std::ptr::null_mut(),
-                inputs.style_query,
-                None,
-                style_query_references.as_deref_mut(),
-                None,
-            )
+        // A function definition whose declarations do not tokenize resolves nothing.
+        let resolution = match resolution_environment {
+            // SAFETY: The store is live while a record names its environment, and the written
+            // value is retained by the declaration that carries it.
+            Some(mut resolution_environment) => unsafe {
+                crate::css::custom_properties::resolve_vars(
+                    store,
+                    inheritance_store,
+                    std::ptr::from_ref(registry_ref).cast(),
+                    Some(&parse_context),
+                    Some(&media_environment),
+                    None,
+                    property,
+                    FfiUtf16View {
+                        ascii: std::ptr::null(),
+                        utf16: std::ptr::null(),
+                        length: 0,
+                    },
+                    written.pointer().cast(),
+                    &mut resolution_environment,
+                    attributes.is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
+                    std::ptr::null_mut(),
+                    inputs.style_query,
+                    None,
+                    style_query_references.as_deref_mut(),
+                    None,
+                )
+            },
+            None => NativeVarResolution::NotHandled,
         };
         // The substituted source parses as the C++ cascade parses it: without callbacks first,
-        // then with the parse context's. A grammar the Rust parser does not handle parses in C++;
-        // the value is C++'s to compute.
+        // then with the parse context's.
+        let invalid = || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
         let value = match resolution {
             NativeVarResolution::Resolved {
                 source,
@@ -1688,18 +1691,10 @@ impl RetainedState {
                     ParseOutcome::Parsed(value) => unsafe {
                         RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(value))
                     },
-                    ParseOutcome::Invalid => RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
-                    ParseOutcome::NotHandled => {
-                        counters.bump(Counter::EngineComputedRecordBailSubstitution);
-                        return Err(Unanswered::Refused);
-                    }
+                    ParseOutcome::Invalid | ParseOutcome::NotHandled => invalid(),
                 }
             }
-            NativeVarResolution::Invalid => RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
-            NativeVarResolution::NotHandled => {
-                counters.bump(Counter::EngineComputedRecordBailSubstitution);
-                return Err(Unanswered::Refused);
-            }
+            NativeVarResolution::Invalid | NativeVarResolution::NotHandled => invalid(),
         };
         counters.bump(Counter::EngineComputedRecordSubstitutions);
         if memoizes {
