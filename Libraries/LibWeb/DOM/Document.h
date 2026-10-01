@@ -451,6 +451,10 @@ public:
     bool style_engine_tracks_tree() const { return m_style_engine_tracks_tree; }
     void ensure_style_engine_tracks_tree();
 
+    // The document's identity in the style mirror, which only names it as the root of the DOM child sequence.
+    [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
+    void set_style_node_id(CSS::StyleNodeID style_node_id) { m_style_node_id = style_node_id; }
+
     Page& page();
     Page const& page() const;
     GC::Ref<EventTarget> relevant_global_event_target() const { return m_relevant_global_event_target; }
@@ -1768,6 +1772,7 @@ private:
 
     bool m_has_completed_style_update { false };
     bool m_style_engine_tracks_tree { false };
+    CSS::StyleNodeID m_style_node_id;
     GC::WeakHashSet<Element> m_elements_with_dirty_style_attributes;
     GC::WeakHashSet<Element> m_elements_with_viewport_dependent_style;
     bool m_suppresses_attribute_style_invalidation { false };
