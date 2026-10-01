@@ -2391,8 +2391,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     // the element's attributes, so an attribute change has to reach the element again. An engine
     // record only ever sets the flag: one that stops reading attributes leaves it set, and the
     // element's attribute changes keep reaching it until C++ computes its style and clears the flag.
-    if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::Attributes))
+    if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::Attributes)) {
         m_style_uses_attr_css_function = true;
+        // An element standing for its shadow host's pseudo-element reads the host's attributes.
+        if (associated_shadow_host_pseudo_element().has_value()) {
+            if (auto host = root().parent_or_shadow_host_element())
+                host->set_style_uses_attr_css_function();
+        }
+    }
 
     // The parent's groups the record read through an explicit `inherit`, marked the way a C++
     // computation marks them, so that a later change to them reaches this element again.

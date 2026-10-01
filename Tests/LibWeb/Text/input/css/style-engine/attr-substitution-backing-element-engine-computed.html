@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    input::placeholder { color: attr(data-color type(<color>), rgb(1, 2, 3)); }
+    details::details-content { color: attr(data-color type(<color>), rgb(1, 2, 3)); }
+</style>
+<input id="input" placeholder="p" data-color="green">
+<details id="details" open data-color="green"><summary>s</summary><span id="inside">text</span></details>
+<script>
+    // An element standing for its shadow host's pseudo-element substitutes the host's attributes
+    // in attr(), and a change to them reaches it and what inherits from it.
+    test(() => {
+        const report = () => {
+            println(`::placeholder: ${getComputedStyle(input, "::placeholder").color}`);
+            println(`::details-content: ${getComputedStyle(details, "::details-content").color}`);
+            println(`inside: ${getComputedStyle(inside).color}`);
+        };
+        internals.updateStyle();
+        report();
+        input.dataset.color = "red";
+        details.dataset.color = "red";
+        internals.updateStyle();
+        report();
+    });
+</script>

@@ -1381,6 +1381,7 @@ impl StyleEngineState {
                 engine_pseudo_record_cache: HashMap::default(),
                 batch_answers_complete_but_for_custom_properties: HashMap::default(),
                 batch_custom_property_matches: HashMap::default(),
+                batch_backing_pseudo_matches: HashMap::default(),
                 engine_cold_record_cache: HashMap::default(),
                 engine_cold_record_donors: HashMap::default(),
                 computed_group_set_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
@@ -2855,6 +2856,7 @@ impl RetainedState {
             // Filled and cleared within one transaction's record loop.
             batch_answers_complete_but_for_custom_properties: _,
             batch_custom_property_matches: _,
+            batch_backing_pseudo_matches: _,
             engine_cold_record_cache: _,
             engine_cold_record_donors: _,
             computed_group_set_memory: _,

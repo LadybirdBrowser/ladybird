@@ -485,7 +485,7 @@ impl RetainedState {
         Some(cascaded.into_iter().map(|(declared, _)| declared).collect())
     }
 
-    fn cascade_custom_declarations(
+    pub(super) fn cascade_custom_declarations(
         &self,
         node: StyleNodeID,
         pseudo: Option<u8>,
@@ -747,15 +747,38 @@ impl RetainedState {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         };
-        // Whether the declarations read the element's attributes, whatever environment they
-        // resolve to: the host notes it beside the element's record. The element's own resolve
-        // first, and its pseudo-elements' only add to what they found.
-        let reads_attributes = cascaded.iter().any(|(_, value)| value_reads_attributes(value.data()));
-        if reads_attributes {
+        self.note_custom_declarations_reading_attributes(node, pseudo, &cascaded);
+        self.engine_custom_property_environment_over(node, cascaded, parent_environment, inputs, counters)
+    }
+
+    /// Note whether the custom declarations cascaded for an element or one of its pseudo-elements
+    /// read the element's attributes, whatever environment they resolve to: the host notes it
+    /// beside the element's record. The element's own resolve first, and its pseudo-elements'
+    /// only add to what they found.
+    pub(super) fn note_custom_declarations_reading_attributes(
+        &mut self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+        cascaded: &[(CustomDeclaration, RetainedStyleValueData)],
+    ) {
+        if cascaded.iter().any(|(_, value)| value_reads_attributes(value.data())) {
             self.custom_declarations_reading_attributes.insert(node);
         } else if pseudo.is_none() {
             self.custom_declarations_reading_attributes.remove(&node);
         }
+    }
+
+    /// What `engine_custom_property_environment_of` says of custom declarations the caller
+    /// cascaded for the node or one of its pseudo-elements; `attr()` among them reads the node's
+    /// attributes.
+    pub(super) fn engine_custom_property_environment_over(
+        &mut self,
+        node: StyleNodeID,
+        cascaded: Vec<(CustomDeclaration, RetainedStyleValueData)>,
+        parent_environment: u64,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+        counters: &mut Counters,
+    ) -> Drive<u64> {
         if cascaded.is_empty() {
             return Ok(parent_environment);
         }
@@ -773,6 +796,7 @@ impl RetainedState {
         }
         // An `attr()` among the declarations reads the element's attributes, so what they resolve
         // to is the element's alone and takes no memo.
+        let reads_attributes = cascaded.iter().any(|(_, value)| value_reads_attributes(value.data()));
         let key = Self::environment_inputs(
             parent_environment,
             inputs.custom_property_registration_generation,

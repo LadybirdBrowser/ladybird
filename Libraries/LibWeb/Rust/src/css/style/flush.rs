@@ -1936,6 +1936,7 @@ impl StyleEngineState {
             // answer's completeness and the matches its custom-property cascade runs over.
             self.retained.batch_answers_complete_but_for_custom_properties.clear();
             self.retained.batch_custom_property_matches.clear();
+            self.retained.batch_backing_pseudo_matches.clear();
             for &node in &published_nodes {
                 let Some(answer) = published_match_answers.lookup(node) else {
                     continue;
@@ -1959,6 +1960,12 @@ impl StyleEngineState {
                         .batch_custom_property_matches_of(&published_match_answers, answer)
                 {
                     self.retained.batch_custom_property_matches.insert(node, matches);
+                }
+                if let Some(matches) =
+                    self.retained
+                        .batch_backing_pseudo_matches_of(node, &published_match_answers, answer)
+                {
+                    self.retained.batch_backing_pseudo_matches.insert(node, matches);
                 }
                 if let Some(complete) =
                     self.retained
@@ -2091,12 +2098,14 @@ impl StyleEngineState {
                     {
                         counters.bump(Counter::EngineComputedRecordGateReaction);
                         false
-                    } else if previous_answer_was_incomplete
+                    } else if (previous_answer_was_incomplete
                         || selector_truth_changes.deltas_for(node).iter().any(|delta| {
                             !self
                                 .program
                                 .declarations_are_complete_but_for_custom_properties(delta.rule)
-                        })
+                        }))
+                        // An element standing for its host's pseudo-element takes the host's rules.
+                        && !self.retained.backs_host_pseudo_element(node)
                     {
                         // Custom declarations are resolved by the engine's environment computation.
                         // Other declarations missing from the winner columns still require C++.
@@ -2350,6 +2359,7 @@ impl StyleEngineState {
         published_match_answers.discard_unobserved_retained_answers = publish_document_root_arrival || plan_is_broad;
         self.retained.batch_answers_complete_but_for_custom_properties.clear();
         self.retained.batch_custom_property_matches.clear();
+        self.retained.batch_backing_pseudo_matches.clear();
         self.retained.published_match_answers = published_match_answers;
         if initial_tree_was_bulk_loaded {
             counters.bump(Counter::InitialBulkMatchLoads);

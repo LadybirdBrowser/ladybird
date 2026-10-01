@@ -37,6 +37,30 @@ impl RetainedState {
         if facts & bridge::element_adjustment_fact::DISALLOW_DISPLAY_CONTENTS != 0 {
             return Err(Unanswered::Refused);
         }
+        // An element standing for its host's pseudo-element is its host's to cascade, and is
+        // driven in full against its parent as it is now, from an answer as complete as any.
+        if self.backs_host_pseudo_element(node) {
+            if !scratch.font_drive.is_pending_for(node) && self.computed_group_sets.node_answer_is_incomplete(node) {
+                return Err(Unanswered::Refused);
+            }
+            let backing_answer_is_complete = self
+                .current_published_answer(node)
+                .is_some_and(|answer| answer.cascade_winners_are_complete);
+            let parent_inputs_moved = ParentInputsMoved {
+                inherited_style: true,
+                display: true,
+            };
+            return self
+                .engine_computed_record_delta(
+                    node,
+                    backing_answer_is_complete,
+                    None,
+                    parent_inputs_moved,
+                    scratch,
+                    counters,
+                )
+                .map(|(_, record)| record.raw());
+        }
         let Lookup::Known(cascade_state) = self
             .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))

@@ -4534,7 +4534,11 @@ impl RetainedState {
         Ok(answer)
     }
 
-    fn exact_match_answer(&mut self, node: StyleNodeID, counters: &mut Counters) -> Result<Vec<RuleMatch>, Incomplete> {
+    pub(super) fn exact_match_answer(
+        &mut self,
+        node: StyleNodeID,
+        counters: &mut Counters,
+    ) -> Result<Vec<RuleMatch>, Incomplete> {
         let scope = self.tree.tree_scope(node);
         let inner_scope = self
             .tree
