@@ -66,6 +66,7 @@ mod custom_property_cascade;
 mod custom_property_environments;
 #[cfg(test)]
 mod differential_tests;
+mod environment_move;
 pub mod exact_matcher;
 pub use crate::fast_hash;
 mod flush;
@@ -1023,6 +1024,11 @@ pub struct HostState {
     /// Whether the deferred element style inputs are owed to the next transaction, as opposed to
     /// held back by a flush without a document root.
     deferred_element_style_inputs_are_pending: bool,
+    /// The custom properties whose values differ between the environments moves of this
+    /// transaction moved between.
+    environment_move_changed_names: environment_move::ChangedCustomPropertyNames,
+    /// What the last custom-property environment move answered the host, kept until the next one.
+    environment_move_actions: Vec<bridge::FfiEnvironmentMoveAction>,
     /// The nodes whose deferred element style input C++ recorded and the engine did not also
     /// derive as a child reaction: what makes the next transaction a new pass of a style change
     /// rather than one more generation of the last one.

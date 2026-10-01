@@ -3068,6 +3068,118 @@ pub unsafe extern "C" fn style_engine_republish_record_environment(
     result
 }
 
+/// An environment the host holds, as a custom-property environment move names it: its identity and
+/// the store behind it, both zero for the empty environment.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiNamedEnvironment {
+    pub identity: u64,
+    pub store: *const c_void,
+}
+
+/// A move of one element's custom-property environment, as the host made it: what its style
+/// resolved to before and resolves to now, and what it handed its children before and hands them
+/// now, with the host's object for the latter and whether that declares custom properties of its
+/// own.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiEnvironmentMove {
+    pub old_base: FfiNamedEnvironment,
+    pub new_base: FfiNamedEnvironment,
+    pub old_inheritable: u64,
+    pub new_inheritable: FfiNamedEnvironment,
+    pub new_inheritable_data: *const c_void,
+    pub new_inheritable_declares: bool,
+}
+
+/// What the host does for an element a custom-property environment move reached.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiEnvironmentMoveActionKind {
+    /// Install `style_record`, the element's record over the moved environment, and move the
+    /// environments of its element-backed pseudo-elements that held `replaced`.
+    Republish,
+    /// Build the custom properties the element declares again over the moved environment.
+    Rebuild,
+    /// Compute the element again.
+    Recompute,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiEnvironmentMoveAction {
+    pub kind: FfiEnvironmentMoveActionKind,
+    pub node: u32,
+    pub style_record: u64,
+    pub replaced: u64,
+}
+
+impl From<super::environment_move::EnvironmentMoveAction> for FfiEnvironmentMoveAction {
+    fn from(action: super::environment_move::EnvironmentMoveAction) -> Self {
+        use super::environment_move::EnvironmentMoveAction;
+        let (kind, node, style_record, replaced) = match action {
+            EnvironmentMoveAction::Republish {
+                node,
+                style_record,
+                replaced,
+            } => (FfiEnvironmentMoveActionKind::Republish, node, style_record, replaced),
+            EnvironmentMoveAction::Rebuild(node) => (FfiEnvironmentMoveActionKind::Rebuild, node, 0, 0),
+            EnvironmentMoveAction::Recompute(node) => (FfiEnvironmentMoveActionKind::Recompute, node, 0, 0),
+        };
+        Self {
+            kind,
+            node: node.raw(),
+            style_record,
+            replaced,
+        }
+    }
+}
+
+#[repr(C)]
+pub struct FfiEnvironmentMoveActions {
+    pub actions: *const FfiEnvironmentMoveAction,
+    pub count: usize,
+}
+
+/// Moves the custom-property environments below `origin`, whose own moved as `moved` says, and
+/// answers what the host does for the elements the move reached, in flat tree preorder. The answer
+/// stays valid until the engine is next called.
+///
+/// # Safety
+/// `engine` must be live, the stores `moved` names must be null or live raw `Arc` pointers, and
+/// `moved.new_inheritable_data` must be null or a live `Web::CSS::CustomPropertyData`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_move_custom_property_environment(
+    engine: *mut c_void,
+    origin: u32,
+    moved: FfiEnvironmentMove,
+) -> FfiEnvironmentMoveActions {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let mut actions = std::mem::take(&mut engine.host.environment_move_actions);
+    actions.clear();
+    if let Some(origin) = StyleNodeID::from_raw(origin) {
+        let named = |environment: FfiNamedEnvironment| super::environment_move::NamedEnvironment {
+            identity: environment.identity,
+            store: environment.store,
+        };
+        let moved = super::environment_move::EnvironmentMove {
+            old_base: named(moved.old_base),
+            new_base: named(moved.new_base),
+            old_inheritable: moved.old_inheritable,
+            new_inheritable: named(moved.new_inheritable),
+            new_inheritable_data: moved.new_inheritable_data,
+            new_inheritable_declares: moved.new_inheritable_declares,
+        };
+        unsafe { engine.move_custom_property_environment(origin, &moved, |action| actions.push(action.into())) };
+    }
+    let answer = FfiEnvironmentMoveActions {
+        actions: actions.as_ptr(),
+        count: actions.len(),
+    };
+    engine.host.environment_move_actions = actions;
+    answer
+}
+
 /// Replays a record moved to a refreshed environment.
 ///
 /// # Safety

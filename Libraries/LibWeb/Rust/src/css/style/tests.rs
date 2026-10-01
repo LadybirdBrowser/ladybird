@@ -555,7 +555,7 @@ fn prepare_route_liveness(engine: &mut StyleEngine) {
         .prepare_route_liveness(&retained.program, &retained.programs);
 }
 
-fn discard_transaction(engine: &mut StyleEngine) {
+pub(super) fn discard_transaction(engine: &mut StyleEngine) {
     let transaction = engine.take_transaction();
     engine.release_transaction(transaction);
 }
@@ -2383,7 +2383,7 @@ fn moving_back_after_an_intermediate_tree_apply_restores_depth() {
 }
 
 /// Builds `root -> [a, b, c]` through the same delta path C++ drives.
-fn linear_document() -> (StyleEngine, Vec<StyleNodeID>) {
+pub(super) fn linear_document() -> (StyleEngine, Vec<StyleNodeID>) {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 4];
     engine.allocate_style_nodes(&mut raw);
