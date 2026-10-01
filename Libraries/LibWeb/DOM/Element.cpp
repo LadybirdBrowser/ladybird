@@ -2291,8 +2291,16 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
 
     // The engine substituted custom properties into the record's winners the way a C++
     // computation notes it read them, even if the custom-property environment stayed the same.
-    if (uses_substitution)
+    // An attr() among the substitutions reads the element's attributes, so an attribute change
+    // has to reach the element again. An engine record only ever sets the flag: one that stops
+    // reading attributes leaves it set, and the element's attribute changes keep reaching it until
+    // C++ computes its style and clears the flag.
+    if (uses_substitution) {
         m_style_uses_var_css_function = true;
+        auto const record_reads = CSS::StyleEngineFFI::style_engine_node_record_reads(style_computer.style_engine().rust_handle(), style_node_id().value());
+        if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::Attributes))
+            m_style_uses_attr_css_function = true;
+    }
 
     // The parent's groups the record read through an explicit `inherit`, marked the way a C++
     // computation marks them, so that a later change to them reaches this element again.

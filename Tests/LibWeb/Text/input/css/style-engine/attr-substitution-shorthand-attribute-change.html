@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { margin: attr(data-margin type(<length>)); }
+</style>
+<div class="item" id="item" data-margin="5px"></div>
+<script>
+    // A shorthand written with attr() leaves each of its longhands pending the shorthand's
+    // substitution. An attribute change reaches the element all the same.
+    test(() => {
+        internals.updateStyle();
+        println(`before: ${getComputedStyle(item).marginLeft}`);
+        item.dataset.margin = "7px";
+        internals.updateStyle();
+        println(`after: ${getComputedStyle(item).marginLeft}`);
+    });
+</script>

@@ -48,8 +48,10 @@ impl RetainedState {
             && let Some(environment) = self.computed_group_sets.custom_property_environment_identity(parent)
             && let Some(pseudo_styles) = self.pseudo_style_mask(node)
         {
+            // A record whose winners read the element's attributes is the element's alone.
             let cache_key = self
                 .cold_record_parent(node, parent, parent_record, cascade_state.1)
+                .filter(|_| !self.state_reads_attributes(node, cascade_state.1))
                 .map(|parent| ColdRecordKey {
                     monospace_recascaded_font_size: self
                         .monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), cascade_state.1),

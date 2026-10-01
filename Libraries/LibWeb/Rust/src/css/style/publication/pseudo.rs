@@ -281,6 +281,8 @@ impl RetainedState {
             }
             // Reuse only when the originating element preserves every input the pseudo reads,
             // including display transformation and explicit inheritance of non-inherited values.
+            // A moved registry reaches a substitution, and attributes reach an `attr()`, without
+            // moving the state.
             if old.is_some()
                 && originating_inputs_unchanged
                 && (old_element_record == Some(new_element_record)
@@ -295,6 +297,7 @@ impl RetainedState {
                         bound_generation == generation
                             && !(self.custom_property_registrations_changed
                                 && self.state_has_substitutions(node, state))
+                            && !self.state_reads_attributes(node, state)
                             && self.winner_groups.states_are_semantically_equal(bound_state, state)
                     }
                     (None, None) => true,
@@ -304,8 +307,15 @@ impl RetainedState {
                     continue;
                 }
             }
+            // A store substituting `attr()` holds the element's attributes, which no other element
+            // shares.
+            let reads_attributes = state.is_some_and(|state| self.state_reads_attributes(node, state));
             let store = match state {
-                Some(state) => match scratch.pseudo_stores.get(&(kind, state, environment)) {
+                Some(state) => match scratch
+                    .pseudo_stores
+                    .get(&(kind, state, environment))
+                    .filter(|_| !reads_attributes)
+                {
                     Some(store) => store.clone(),
                     None => {
                         let mut substituted = false;
@@ -321,7 +331,9 @@ impl RetainedState {
                             scratch.substituted_states.insert((state, environment));
                         }
                         scratch.store_capacity_bytes += store.capacity_bytes();
-                        scratch.pseudo_stores.insert((kind, state, environment), store.clone());
+                        if !reads_attributes {
+                            scratch.pseudo_stores.insert((kind, state, environment), store.clone());
+                        }
                         store
                     }
                 },
@@ -335,11 +347,13 @@ impl RetainedState {
             }
             // What the record is derived from: the element's inherited style, display and
             // environment, and the element's record itself only when the state inherits a
-            // non-inherited property from it.
+            // non-inherited property from it. A record whose winners read the originating
+            // element's attributes is that element's alone.
             let key = self
                 .computed_group_sets
                 .node_inherited_groups_identity(node)
                 .zip(self.box_type_parent_display(node))
+                .filter(|_| !reads_attributes)
                 .map(|(inherited_groups, parent_display)| PseudoCohortKey {
                     monospace_recascaded_font_size: state.map_or(0, |state| self.monospace_cohort_key(target, state)),
                     parent_record: if state
