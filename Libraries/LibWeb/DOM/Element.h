@@ -378,8 +378,21 @@ public:
         CSS::StyleRecordID old_style_record;
         CSS::StyleRecordID new_style_record;
         u32 packed { 0 };
+
+        [[nodiscard]] bool answers(CSS::StyleRecordID old_record, CSS::StyleRecordID new_record) const { return old_style_record == old_record && new_style_record == new_record; }
     };
-    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, Optional<EngineRecordDamage> = {});
+    // A pseudo-element's move is decided against the originating element's record as well, so its
+    // answer also names that record.
+    struct EnginePseudoElementRecordDamage {
+        EngineRecordDamage move;
+        CSS::StyleRecordID originating_style_record;
+    };
+    // The damages the style engine answered an element's row and its pseudo-element rows with.
+    struct EngineRecordDamages {
+        Optional<EngineRecordDamage> element;
+        Array<Optional<EnginePseudoElementRecordDamage>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)> pseudo_elements {};
+    };
+    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, EngineRecordDamages const* = nullptr);
     // The custom-property environment an engine-computed record was published with: the one the
     // element inherits, or one the engine resolved over it. Nothing when it cannot be installed.
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_environment_of_engine_record(CSS::StyleRecordID, bool& installable) const;
@@ -969,7 +982,7 @@ private:
     Utf16FlyString make_html_uppercased_qualified_name() const;
 
     void exit_fullscreen_on_element_removal();
-    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* = nullptr, PreservedPseudoElementStyles* = nullptr, EnginePseudoElementRecords const* = nullptr);
+    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* = nullptr, PreservedPseudoElementStyles* = nullptr, EnginePseudoElementRecords const* = nullptr, EngineRecordDamages const* = nullptr);
     void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void publish_custom_property_names();

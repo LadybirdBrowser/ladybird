@@ -2354,6 +2354,18 @@ impl StyleEngineState {
                     // follow it, for C++ to install with it.
                     if gap == FfiStyleDeltaGap::Computed {
                         for pseudo in engine_computed_record_scratch.pseudo_deltas.drain(..) {
+                            let (old_pseudo_record, new_pseudo_record) =
+                                (pseudo.old_style_record.raw(), pseudo.new_style_record.raw());
+                            // What the pseudo-element's move damages is answered with its record
+                            // too, decided against the element's new record.
+                            let record_damage = self.retained.pseudo_element_record_damage(
+                                node,
+                                pseudo.kind,
+                                old_pseudo_record,
+                                new_pseudo_record,
+                                new_style_record,
+                                false,
+                            ) | bridge::FfiStyleInvalidationField::EngineComputed as u32;
                             if style_deltas.len() == style_deltas.capacity() {
                                 style_deltas.reserve(1);
                                 style_delta_memory.resize_required_to(
@@ -2364,8 +2376,8 @@ impl StyleEngineState {
                             style_deltas.push(PublishedStyleDeltaRecord {
                                 style_node: node.raw(),
                                 match_answer: style_delta.match_answer,
-                                old_style_record: pseudo.old_style_record.raw(),
-                                new_style_record: pseudo.new_style_record.raw(),
+                                old_style_record: old_pseudo_record,
+                                new_style_record: new_pseudo_record,
                                 damage: FfiStyleDeltaDamage::Full,
                                 reaction: transaction::STYLE_REACTION_PUBLISHED_STYLE,
                                 inherited_style_groups: 0,
@@ -2374,7 +2386,7 @@ impl StyleEngineState {
                                 uses_substitution: false,
                                 record_reads: 0,
                                 explicitly_inherited_groups: 0,
-                                record_damage: 0,
+                                record_damage,
                             });
                         }
                     }
