@@ -29,4 +29,28 @@ Optional<StringView> normalize_user_agent_name(StringView name)
     return {};
 }
 
+StringView navigator_compatibility_mode_to_string(Web::NavigatorCompatibilityMode mode)
+{
+    switch (mode) {
+    case Web::NavigatorCompatibilityMode::Chrome:
+        return "chrome"sv;
+    case Web::NavigatorCompatibilityMode::Gecko:
+        return "gecko"sv;
+    case Web::NavigatorCompatibilityMode::WebKit:
+        return "webkit"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+Optional<Web::NavigatorCompatibilityMode> navigator_compatibility_mode_from_string(StringView mode)
+{
+    if (mode == "chrome"sv)
+        return Web::NavigatorCompatibilityMode::Chrome;
+    if (mode == "gecko"sv)
+        return Web::NavigatorCompatibilityMode::Gecko;
+    if (mode == "webkit"sv)
+        return Web::NavigatorCompatibilityMode::WebKit;
+    return {};
+}
+
 }

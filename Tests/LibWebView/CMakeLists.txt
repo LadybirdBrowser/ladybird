@@ -20,6 +20,7 @@ set(TEST_SOURCES
     TestSessionHistoryTraversalQueue.cpp
     TestSessionStore.cpp
     TestSiteCompatibilityDataLoading.cpp
+    TestSpoofingSettings.cpp
     TestStorageJar.cpp
     TestTabPerformanceStats.cpp
     TestWebViewURL.cpp
