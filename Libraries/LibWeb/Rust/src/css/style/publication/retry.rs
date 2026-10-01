@@ -51,6 +51,8 @@ impl RetainedState {
             let cache_key = self
                 .cold_record_parent(node, parent, parent_record, cascade_state.1)
                 .map(|parent| ColdRecordKey {
+                    monospace_recascaded_font_size: self
+                        .monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), cascade_state.1),
                     parent,
                     previous_style_record: old_style_record.raw(),
                     generation: cascade_state.0,

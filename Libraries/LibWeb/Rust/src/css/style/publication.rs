@@ -670,6 +670,7 @@ impl RetainedState {
             // record moving to the empty environment when both started with the same style.
             current_environment,
             RootFontInputs::from_document(&inputs),
+            self.monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), state),
         );
         if let Some(&new_style_record) = scratch.cohorts.get(&cohort) {
             self.note_node_substitution(node, scratch, state, current_environment);
@@ -1073,6 +1074,8 @@ impl RetainedState {
             .zip(parent_record)
             .and_then(|(parent, parent_record)| self.cold_record_parent(node, parent, parent_record, state))
             .map(|parent| ColdRecordKey {
+                monospace_recascaded_font_size: self
+                    .monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), state),
                 parent,
                 previous_style_record: 0,
                 generation: cascade_state.0,
@@ -1148,6 +1151,8 @@ impl RetainedState {
             .zip(parent_record)
             .and_then(|(parent, parent_record)| self.cold_record_parent(node, parent, parent_record, state))
             .map(|parent| ColdRecordKey {
+                monospace_recascaded_font_size: self
+                    .monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), state),
                 parent,
                 previous_style_record: 0,
                 generation: cascade_state.0,
@@ -1383,6 +1388,32 @@ impl RetainedState {
         }
         property_starts_animation_or_counter_environment(property)
             || (computed_group_dependency_mask(property).is_none() && !font_group_carries_longhand(property))
+    }
+
+    /// Whether the cascade state's winning `font-family` is monospace, which is what makes the
+    /// font-size recascade against a 13px default. It is the target's own declaration that decides
+    /// this, not what it inherits.
+    fn font_family_winner_is_monospace(&self, state: CascadeStateID) -> bool {
+        self.winner_groups
+            .winner_in_state(state, crate::css::property_metadata::property_id::FONT_FAMILY)
+            .and_then(|winner| self.winner_groups.resolved_winner(winner))
+            .is_some_and(|winner| match self.specified_values.value(winner.key.value) {
+                Lookup::Known(data) => crate::css::style_compute::font_family_is_monospace(data),
+                _ => true,
+            })
+    }
+
+    /// What a record for this target under this cascade state owes the monospace recascade, as a
+    /// cohort key carries it: zero for a font-family that is not monospace. Two targets whose
+    /// parents hold equal records can still sit under different cascaded font-size chains, and the
+    /// recascade reads the chain rather than the records, so a cohort that ignored this would hand
+    /// one target the other's font size.
+    fn monospace_cohort_key(&self, target: computed::ComputedStyleTarget, state: CascadeStateID) -> i32 {
+        if !self.font_family_winner_is_monospace(state) {
+            return 0;
+        }
+        self.monospace_recascaded_font_size(target, &self.document_style_computation_inputs)
+            .map_or(i32::MIN, |(size, _)| size)
     }
 
     fn display_winner_is_list_item(&self, state: CascadeStateID) -> bool {
@@ -2081,6 +2112,8 @@ impl RetainedState {
         };
         let swap_eligible = self.computed_group_sets.node_inherited_group_swap_eligible(node);
         let key = ColdRecordKey {
+            monospace_recascaded_font_size: self
+                .monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), cascade_state.1),
             parent,
             previous_style_record: previous_style_record.map_or(0, computed::FinalStyleRecordID::raw),
             generation: cascade_state.0,
@@ -3751,6 +3784,10 @@ fn cold_record_facts(facts: u32) -> u32 {
 /// element has rules for, and the font environment.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) struct ColdRecordKey {
+    /// What the monospace font-size recascade gives this node, or zero when its winning
+    /// font-family is not monospace. The recascade reads the whole cascaded chain, which equal
+    /// parent records do not pin down.
+    monospace_recascaded_font_size: i32,
     parent: ColdRecordParent,
     previous_style_record: u64,
     generation: u64,
@@ -3912,7 +3949,8 @@ pub(super) struct EngineComputedRecordScratch {
     /// The nodes whose substituted-record fact the step decided, in the order it decided them.
     /// The boundary that installs the record applies them.
     substitution_effects: Vec<(StyleNodeID, bool)>,
-    cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs), computed::FinalStyleRecordID>,
+    cohorts:
+        HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs, i32), computed::FinalStyleRecordID>,
     computability: EngineComputabilityScratch,
     /// What each node the walk has reached tells its children: whether the chain above it is
     /// confined, and whether it resolved the record its children inherit from. A column with
@@ -4089,6 +4127,8 @@ pub(super) struct PseudoRecordDelta {
 /// element facts and font environment the drive reads.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(super) struct PseudoCohortKey {
+    /// What the monospace font-size recascade gives the pseudo-element, as for an element's cohort.
+    monospace_recascaded_font_size: i32,
     parent_record: u64,
     inherited_groups: u32,
     parent_display: u32,
