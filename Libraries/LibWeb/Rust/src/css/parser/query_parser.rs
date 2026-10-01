@@ -1275,20 +1275,14 @@ where
     Some(Expression::StyleFeature(StyleFeature::Boolean(name)))
 }
 
-fn parse_style_query_from_source<'a, R>(
-    source: impl Into<TokenizerInput<'a>>,
-    resolve_feature: &R,
-) -> Option<Expression>
-where
-    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
-{
+/// A `<style-range>` as `style()` parses it, or `None` where the source is not one.
+pub(crate) fn parse_style_range_from_source(source: &[u16]) -> Option<StyleFeature> {
     let values = components_from_source(source)?;
     let mut stream = TokenStream::new(&values);
-    let expression = parse_boolean_expression(&mut stream, MatchResult::False, &|stream| {
-        parse_style_feature(stream, resolve_feature)
-    })?;
-    stream.discard_whitespace();
-    (!stream.has_next_token()).then_some(expression)
+    match parse_style_feature(&mut stream, &resolve_query_feature)? {
+        Expression::StyleFeature(range @ StyleFeature::Range { .. }) => Some(range),
+        _ => None,
+    }
 }
 
 fn parse_container_feature<R>(stream: &mut TokenStream<'_>, resolve_feature: &R) -> Option<Expression>
@@ -3013,19 +3007,6 @@ pub unsafe extern "C" fn rust_parse_supports_condition(
         return std::ptr::null();
     };
     create_expression_handle(expression, QueryKind::Supports)
-}
-
-/// # Safety
-/// The source pointers must identify readable storage for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parse_style_query(source: FfiUtf16View) -> *const FfiQueryHandle {
-    let Some(source) = (unsafe { source.units() }) else {
-        return std::ptr::null();
-    };
-    let Some(expression) = parse_style_query_from_source(source, &resolve_query_feature) else {
-        return std::ptr::null();
-    };
-    create_expression_handle(expression, QueryKind::Style)
 }
 
 /// Adds one strong reference to a borrowed query handle.

@@ -5,7 +5,7 @@ supports result: 1px
 supports callbacks: 0
 supports media environment callbacks: 0
 style result: 1px
-style callbacks: 2
+style callbacks: 0
 style media environment callbacks: 0
 shared results: 1px, 1px
 shared media environment callbacks: 0

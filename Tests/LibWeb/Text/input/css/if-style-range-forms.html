@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="--n: 5"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        for (const range of [
+            "1 < --n < 9",
+            "--n >= 5",
+            "--n <= 4",
+            "1 < --n > 3",
+            "5 = --n = 5",
+            "1 <= --n = 5",
+        ]) {
+            target.style.width = `if(style(${range}): 10px; else: 20px)`;
+            println(`${range}: ${getComputedStyle(target).width}`);
+        }
+    });
+</script>

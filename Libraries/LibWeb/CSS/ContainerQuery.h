@@ -81,8 +81,5 @@ private:
 
 bool container_name_matches(DOM::Element const&, Optional<Utf16FlyString> const& container_name);
 bool evaluate_native_container_condition(Parser::ValueParserFFI::FfiQueryHandle const*, Utf16View name, DOM::AbstractElement const&);
-MatchResult evaluate_style_query(RustQueryHandle const&, AbstractOrHypotheticalElement);
-void prepare_for_style_query_evaluation();
-bool style_query_cycle_detected();
 
 }

@@ -49,12 +49,4 @@ Optional<RustQueryHandle> Parser::parse_as_supports(Utf16View source)
     return RustQueryHandle { handle };
 }
 
-Optional<RustQueryHandle> parse_style_query(Utf16View source)
-{
-    auto* handle = rust_parse_style_query(ffi_utf16_view(source));
-    if (!handle)
-        return {};
-    return RustQueryHandle { handle };
-}
-
 }

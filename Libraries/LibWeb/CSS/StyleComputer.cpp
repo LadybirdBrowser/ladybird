@@ -258,14 +258,14 @@ static u64 resolve_custom_function_for_substitution(size_t scope_identity, Compu
     return definition.has_value() ? definition->function.identity() : 0;
 }
 
-static u8 evaluate_style_query_for_substitution(AbstractOrHypotheticalElement element, ComputedValuesFFI::FfiUtf16View source)
+// The custom properties the style queries of a substitution read are the element's style query
+// references, as a style query in a container condition records them.
+static void record_style_query_dependencies(DOM::AbstractElement element, void* dependencies)
 {
-    auto query = Parser::parse_style_query(utf16_view(source));
-    if (!query.has_value())
-        return 2;
-    prepare_for_style_query_evaluation();
-    auto matches = evaluate_style_query(*query, element) == MatchResult::True;
-    return style_query_cycle_detected() ? 3 : matches;
+    ComputedValuesFFI::rust_style_query_dependencies_take(dependencies, &element, [](void* context, ComputedValuesFFI::FfiUtf16View name) {
+        auto& element = *static_cast<DOM::AbstractElement*>(context);
+        element.element().record_style_query_custom_property_reference(element.pseudo_element(), Utf16FlyString::from_utf16(utf16_view(name)));
+    });
 }
 
 class Fnv1a64 {
@@ -283,6 +283,31 @@ private:
 };
 
 GC_DEFINE_ALLOCATOR(StyleComputer);
+
+// What a style query in a substitution resolves against, as the C++ evaluator took it: the lengths the element's last
+// computed style resolves, and the color scheme and currentcolor of that style, else of its parent's, else the defaults.
+static ComputedValuesFFI::FfiStyleQueryInputs style_query_inputs_for(StyleComputer const& style_computer, AbstractOrHypotheticalElement const& element)
+{
+    auto length = to_ffi_length_resolution_context(style_computer.fallback_computation_context_for_custom_property(element).length_resolution_context);
+    auto abstract_element = element.abstract_element();
+    Optional<DOM::AbstractElement> styled_element;
+    if (abstract_element.has_style())
+        styled_element = abstract_element;
+    else if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value() && parent->has_style())
+        styled_element = parent;
+    if (!styled_element.has_value()) {
+        return {
+            .length = length,
+            .color_scheme = static_cast<u8>(to_underlying(element.document().page().preferred_color_scheme())),
+            .current_color = InitialValues::color().value(),
+        };
+    }
+    return {
+        .length = length,
+        .color_scheme = static_cast<u8>(to_underlying(styled_element->style_group<ComputedValues::InheritedUIValues>()->color_scheme_value())),
+        .current_color = styled_element->style_group<ComputedValues::InheritedTextValues>()->color_value().value(),
+    };
+}
 
 // What a rule contributes, for the two rule types that carry a declaration block.
 static RustDeclarationBlock const& declaration_of_rule(CSSRule const& rule)
@@ -3004,6 +3029,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         RefPtr<CustomPropertyData const> parent_custom_property_data;
         void const* inheritance_custom_property_store { nullptr };
         void const* (*install_custom_properties)(BulkCascadeContext&, ComputedValuesFFI::FfiCascadedCustomProperty const*, size_t, void const*&) { nullptr };
+        Optional<ComputedValuesFFI::FfiStyleQueryInputs> style_query_inputs {};
     } bulk_context {
         .cascaded_properties = *cascaded_properties,
         .abstract_element = abstract_element,
@@ -3092,6 +3118,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
 
     auto& document = bulk_context.abstract_element.document();
     SubstitutionData substitution_data { abstract_element, has_unresolved_declarations, has_custom_function_declarations };
+    void* style_query_dependencies = nullptr;
     ComputedValuesFFI::FfiCascadeResolutionContext resolution_context {
         .parse_context = &substitution_data.parse_context,
         .media_environment = cached_media_environment_for_style_update(),
@@ -3115,10 +3142,14 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             return bulk_context.install_custom_properties(bulk_context, properties, count, *rust_store);
         },
         .resolve_custom_function = resolve_custom_function_for_substitution,
-        .evaluate_style_query = [](void* context, ComputedValuesFFI::FfiUtf16View source) -> u8 {
+        .style_query_inputs = nullptr,
+        .load_style_query_inputs = [](void* context) -> ComputedValuesFFI::FfiStyleQueryInputs const* {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
-            return evaluate_style_query_for_substitution(bulk_context.abstract_element, source);
+            if (!bulk_context.style_query_inputs.has_value())
+                bulk_context.style_query_inputs = style_query_inputs_for(bulk_context.abstract_element.document().style_computer(), bulk_context.abstract_element);
+            return &*bulk_context.style_query_inputs;
         },
+        .style_query_dependencies = &style_query_dependencies,
         .note_substitution = [](void* context, void const* unresolved_data) {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
@@ -3166,6 +3197,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         ComputedValuesFFI::rust_cascade_result_destroy(cascade_result.storage, cascade_result.source_slot_assignment_count);
     };
     assign_source_slots(cascade_result.source_slot_assignments, cascade_result.source_slot_assignment_count);
+    record_style_query_dependencies(abstract_element, style_query_dependencies);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
@@ -5478,12 +5510,17 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     auto inheritance_parent = abstract_element.element_to_inherit_style_from();
     struct CustomPropertyResolutionState {
         AK_ALLOC_WITH_KMALLOC;
+        AK_MAKE_NONCOPYABLE(CustomPropertyResolutionState);
+        AK_MAKE_NONMOVABLE(CustomPropertyResolutionState);
 
+    public:
         NonnullRefPtr<CustomPropertyData const> data;
         RefPtr<CustomPropertyData const> parent_data;
         AbstractOrHypotheticalElement resolution_element;
         SubstitutionData substitution_data;
         ComputedValuesFFI::FfiCascadeResolutionContext resolution_context {};
+        Optional<ComputedValuesFFI::FfiStyleQueryInputs> style_query_inputs;
+        void* style_query_dependencies { nullptr };
         FlatPtr document_identity;
         size_t registration_generation;
         Optional<PreferredColorScheme> color_scheme;
@@ -5498,6 +5535,12 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             , document_identity(document_identity)
             , registration_generation(registration_generation)
         {
+        }
+
+        // A computation that ends before it records the dependencies still owns them.
+        ~CustomPropertyResolutionState()
+        {
+            ComputedValuesFFI::rust_style_query_dependencies_take(style_query_dependencies, nullptr, [](void*, ComputedValuesFFI::FfiUtf16View) { });
         }
     };
     using PreparePhaseContext = void (*)(void*, u8, ComputedValuesFFI::FfiLonghandPhaseContext*);
@@ -5751,7 +5794,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                         .parse_context = &resolution.substitution_data.parse_context,
                         .media_environment = style_computer.cached_media_environment_for_style_update(),
                         .load_media_environment = [](void* context) -> void const* {
-                            auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
+                            auto& element = static_cast<CustomPropertyResolutionState*>(context)->resolution_element;
                             return element.document().style_computer().ensure_media_environment_for_style_update();
                         },
                         .custom_property_store = resolution.data->rust_store(),
@@ -5764,14 +5807,19 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                         .custom_functions = resolution.substitution_data.ffi_functions.data(),
                         .custom_function_count = resolution.substitution_data.ffi_functions.size(),
                         .custom_function_scope_identity = bit_cast<FlatPtr>(&resolution.resolution_element.style_scope()),
-                        .callback_context = &resolution.resolution_element,
+                        .callback_context = &resolution,
                         .install_custom_properties = nullptr,
                         .resolve_custom_function = resolve_custom_function_for_substitution,
-                        .evaluate_style_query = [](void* context, ComputedValuesFFI::FfiUtf16View source) -> u8 {
-                            return evaluate_style_query_for_substitution(*static_cast<AbstractOrHypotheticalElement*>(context), source);
+                        .style_query_inputs = nullptr,
+                        .load_style_query_inputs = [](void* context) -> ComputedValuesFFI::FfiStyleQueryInputs const* {
+                            auto& resolution = *static_cast<CustomPropertyResolutionState*>(context);
+                            if (!resolution.style_query_inputs.has_value())
+                                resolution.style_query_inputs = style_query_inputs_for(resolution.resolution_element.document().style_computer(), resolution.resolution_element);
+                            return &*resolution.style_query_inputs;
                         },
+                        .style_query_dependencies = &resolution.style_query_dependencies,
                         .note_substitution = [](void* context, void const* unresolved_data) {
-                            auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
+                            auto& element = static_cast<CustomPropertyResolutionState*>(context)->resolution_element;
                             auto& dom_element = element.abstract_element().element();
                             auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
                                 static_cast<StyleValueFFI::StyleValueData const*>(unresolved_data)));
@@ -5845,6 +5893,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 if (resolution_read_only_the_environment && !resolution_state.computed_registered_value)
                     resolution_state.data->set_cached_resolution(resolution_state.document_identity, resolution_state.registration_generation, resolution_state.color_scheme.value(), resolved);
                 context.abstract_element.set_custom_property_data(move(resolved));
+                record_style_query_dependencies(context.abstract_element, exchange(resolution_state.style_query_dependencies, nullptr));
             }
             state.animation_definitions.ensure_capacity(longhand_result->animations.count);
             state.animation_definition_matches.ensure_capacity(longhand_result->animations.count);
@@ -6017,11 +6066,16 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
                                                                        return parent.custom_property_data();
                                                                    })
                                 .value_or(nullptr);
+    struct ResolutionCallbackContext {
+        AbstractOrHypotheticalElement& element;
+        Optional<ComputedValuesFFI::FfiStyleQueryInputs> style_query_inputs;
+    } callback_context { element, {} };
+    void* style_query_dependencies = nullptr;
     ComputedValuesFFI::FfiCascadeResolutionContext resolution_context {
         .parse_context = &substitution_data.parse_context,
         .media_environment = cached_media_environment_for_style_update(),
         .load_media_environment = [](void* context) -> void const* {
-            auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
+            auto& element = static_cast<ResolutionCallbackContext*>(context)->element;
             return element.document().style_computer().ensure_media_environment_for_style_update();
         },
         .custom_property_store = custom_property_data ? custom_property_data->rust_store() : nullptr,
@@ -6034,13 +6088,17 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
         .custom_functions = substitution_data.ffi_functions.data(),
         .custom_function_count = substitution_data.ffi_functions.size(),
         .custom_function_scope_identity = bit_cast<FlatPtr>(&element.style_scope()),
-        .callback_context = &element,
+        .callback_context = &callback_context,
         .install_custom_properties = nullptr,
         .resolve_custom_function = resolve_custom_function_for_substitution,
-        .evaluate_style_query = [](void* context, ComputedValuesFFI::FfiUtf16View source) -> u8 {
-            auto& element = *static_cast<AbstractOrHypotheticalElement*>(context);
-            return evaluate_style_query_for_substitution(element, source);
+        .style_query_inputs = nullptr,
+        .load_style_query_inputs = [](void* context) -> ComputedValuesFFI::FfiStyleQueryInputs const* {
+            auto& callback_context = *static_cast<ResolutionCallbackContext*>(context);
+            if (!callback_context.style_query_inputs.has_value())
+                callback_context.style_query_inputs = style_query_inputs_for(callback_context.element.document().style_computer(), callback_context.element);
+            return &*callback_context.style_query_inputs;
         },
+        .style_query_dependencies = &style_query_dependencies,
         .note_substitution = nullptr,
     };
     ComputedValuesFFI::FfiUnresolvedStyleValue input {
@@ -6052,6 +6110,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
     ComputedValuesFFI::FfiResolvedStyleValue output {};
     ComputedValuesFFI::rust_resolve_unresolved_style_values(
         &resolution_context, &input, 1, &output, nullptr, nullptr);
+    record_style_query_dependencies(element.abstract_element(), style_query_dependencies);
     VERIFY(output.data);
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(output.data));
 }

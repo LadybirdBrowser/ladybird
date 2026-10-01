@@ -3166,6 +3166,56 @@ pub(crate) fn resolve_calculated_number_with_context(
     numeric_type.matches_number(resolve_as).then_some(value)
 }
 
+/// The numeric types a value may be compared in, each in its canonical unit.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CanonicalNumericType {
+    Number,
+    Percentage,
+    Length,
+    Angle,
+    Time,
+    Frequency,
+    Resolution,
+}
+
+/// Resolves a calculated value to whichever of number, percentage, length, angle, time,
+/// frequency or resolution it produces, in that type's canonical unit, with relative lengths
+/// resolved against `context`.
+pub(crate) fn resolve_calculated_canonically(
+    calculated: &crate::css::style_value::StyleValueData,
+    context: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
+) -> Option<(CanonicalNumericType, f64)> {
+    let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
+        calculated,
+        None,
+        LengthResolution {
+            context,
+            fallback: None,
+        },
+    )?;
+    if numeric_type.matches_number(resolve_as) {
+        return Some((CanonicalNumericType::Number, value));
+    }
+    if numeric_type.matches_percentage() {
+        return Some((CanonicalNumericType::Percentage, value));
+    }
+    // The dimensions in the order of the type's base types.
+    [
+        CanonicalNumericType::Length,
+        CanonicalNumericType::Angle,
+        CanonicalNumericType::Time,
+        CanonicalNumericType::Frequency,
+        CanonicalNumericType::Resolution,
+    ]
+    .into_iter()
+    .enumerate()
+    .find_map(|(base, dimension)| {
+        numeric_type
+            .matches_dimension(base, resolve_as)
+            .then_some((dimension, value))
+    })
+}
+
 /// Resolves a calculated value that must produce a percentage, with no
 /// external context; the equivalent of the C++ resolve_percentage with an
 /// empty context.

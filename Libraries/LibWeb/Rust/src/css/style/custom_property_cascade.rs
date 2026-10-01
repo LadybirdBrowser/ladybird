@@ -104,7 +104,9 @@ fn engine_resolution_context(
         callback_context: std::ptr::null_mut(),
         install_custom_properties: None,
         resolve_custom_function: None,
-        evaluate_style_query: None,
+        style_query_inputs: std::ptr::null(),
+        load_style_query_inputs: None,
+        style_query_dependencies: std::ptr::null_mut(),
         note_substitution: None,
     }
 }
@@ -1032,6 +1034,8 @@ impl RetainedState {
                 attributes.is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
                 None,
                 std::ptr::null_mut(),
+                None,
+                None,
                 None,
                 None,
             )
