@@ -57,10 +57,8 @@ public:
 private:
     struct PrincipalNodeFrameStorage;
     struct PseudoElementFrameStorage;
-    static TraversalDecision clear_stale_layout_node(DOM::Node&, DOM::Node const* cleared_subtree_root = nullptr);
-    static TraversalDecision clear_stale_layout_node_in_subtree(DOM::Node&, DOM::Node const& subtree_root, DOM::Node const* cleared_subtree_root = nullptr);
-
-    DOM::Node& dom_node_for_style_node(u32 style_node) const;
+    static TraversalDecision clear_stale_layout_node(DOM::Node&, u32 cleared_subtree_root);
+    static TraversalDecision clear_stale_layout_node_in_subtree(DOM::Node&, DOM::Node const& subtree_root, u32 cleared_subtree_root);
 
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
@@ -605,12 +603,24 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
     };
 }
 
+// The node an identity names. The document is not in the style computer's node table, because a document holding a
+// reference back to itself there would keep itself alive; every other identity resolves through the table.
+static DOM::Node& dom_node_for_style_node(DOM::Document& document, u32 style_node)
+{
+    CSS::StyleNodeID identity { style_node };
+    if (identity == document.style_node_id())
+        return document;
+    auto node = document.style_computer().node_for_style_node(identity);
+    VERIFY(node);
+    return *node;
+}
+
 static bool is_svg_resource_box(Node const& layout_node)
 {
     return layout_node.is_svg_pattern_box() || layout_node.is_svg_mask_box() || layout_node.is_svg_clip_box();
 }
 
-TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node_in_subtree(DOM::Node& node, DOM::Node const& subtree_root, DOM::Node const* cleared_subtree_root)
+TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node_in_subtree(DOM::Node& node, DOM::Node const& subtree_root, u32 cleared_subtree_root)
 {
     if (&node != &subtree_root) {
         auto const* element = as_if<DOM::Element>(node);
@@ -620,7 +630,7 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node_in_subtree(DOM:
     return clear_stale_layout_node(node, cleared_subtree_root);
 }
 
-TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node, DOM::Node const* cleared_subtree_root)
+TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node, u32 cleared_subtree_root)
 {
     node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
     node.set_child_needs_layout_tree_update(false);
@@ -641,8 +651,11 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node
                 VERIFY(root_pointer);
                 return static_cast<DOM::Node*>(node_pointer)->is_shadow_including_inclusive_descendant_of(*static_cast<DOM::Node*>(root_pointer)); },
         };
+        // The cleared root is only ever looked at here, so the walk carries it as an identity and it is resolved once
+        // an SVG resource box asks rather than once per cleared node.
+        auto* cleared_subtree_root_node = cleared_subtree_root ? &dom_node_for_style_node(node.document(), cleared_subtree_root) : nullptr;
         if (RustFFI::rust_should_preserve_svg_resource_layout_node(
-                &callbacks, layout_node->arena_handle(), Node::slot_id(layout_node), const_cast<DOM::Node*>(cleared_subtree_root)))
+                &callbacks, layout_node->arena_handle(), Node::slot_id(layout_node), cleared_subtree_root_node))
             return TraversalDecision::SkipChildrenAndContinue;
     }
 
@@ -678,7 +691,7 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
             VERIFY(root_pointer);
             auto& root = *static_cast<DOM::Node*>(root_pointer);
             root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return clear_stale_layout_node_in_subtree(node, root, &root);
+                return clear_stale_layout_node_in_subtree(node, root, Node::style_node_of(&root).value());
             }); },
         .slot_element = [](void* element_pointer) -> void* {
             VERIFY(element_pointer);
@@ -710,41 +723,15 @@ LayoutTreeBuildBridge::~LayoutTreeBuildBridge()
 {
 }
 
-// The node an identity the walk carries names. The document is the build's root and is not in the style computer's node
-// table, because a document holding a reference back to itself there would keep itself alive; every other identity
-// resolves through the table.
-DOM::Node& LayoutTreeBuildBridge::dom_node_for_style_node(u32 style_node) const
-{
-    CSS::StyleNodeID identity { style_node };
-    if (identity == m_document->style_node_id())
-        return *m_document;
-    auto node = m_document->style_computer().node_for_style_node(identity);
-    VERIFY(node);
-    return *node;
-}
-
 RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_builder_callbacks()
 {
     return {
         .builder = this,
-        .clear_stale_layout_node = [](void* builder_pointer, u32 style_node) {
+        .clear_stale_layout_node = [](void* builder_pointer, u32 style_node, u32 cleared_subtree_root) -> bool {
             VERIFY(builder_pointer);
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            (void)builder.clear_stale_layout_node(builder.dom_node_for_style_node(style_node)); },
-        .clear_stale_subtree = [](void* builder_pointer, u32 style_node, RustFFI::FfiStaleSubtreeClearScope scope) {
-            VERIFY(builder_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            auto& root = builder.dom_node_for_style_node(style_node);
-            auto const* cleared_subtree_root = scope == RustFFI::FfiStaleSubtreeClearScope::Inclusive ? nullptr : &root;
-            if (scope == RustFFI::FfiStaleSubtreeClearScope::DescendantsBoundedToRoot) {
-                root.for_each_shadow_including_descendant([&](auto& node) {
-                    return builder.clear_stale_layout_node_in_subtree(node, root, cleared_subtree_root);
-                });
-            } else {
-                root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                    return builder.clear_stale_layout_node_in_subtree(node, root, cleared_subtree_root);
-                });
-            } },
+            auto decision = clear_stale_layout_node(dom_node_for_style_node(*builder.m_document, style_node), cleared_subtree_root);
+            return decision == TraversalDecision::SkipChildrenAndContinue; },
         .resolve_counters = [](void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo) {
             VERIFY(element_pointer);
             auto& element = *static_cast<DOM::Element*>(element_pointer);
@@ -804,7 +791,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             if (storage.active_frame_count == storage.frames.size())
                 storage.frames.append(make<PrincipalNodeFrame>());
             auto& frame = *storage.frames[storage.active_frame_count++];
-            auto& node = builder.dom_node_for_style_node(style_node);
+            auto& node = dom_node_for_style_node(*builder.m_document, style_node);
             frame.layout_node = nullptr;
             frame.anonymous_computed_values = nullptr;
             VERIFY(!frame.style_record_owner);

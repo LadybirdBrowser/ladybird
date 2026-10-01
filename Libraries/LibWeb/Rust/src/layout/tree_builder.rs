@@ -12,7 +12,7 @@ use crate::css::style::StyleEngine;
 use crate::css::style::bridge::element_adjustment_fact;
 use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides};
 use crate::css::style::tree::StyleNodeID;
-use crate::layout::layout_node_arena::LayoutNodeArena;
+use crate::layout::layout_node_arena::{LayoutNodeArena, StaleWalkFacts};
 use crate::layout::node_data::{
     GENERATED_FOR_AFTER, GENERATED_FOR_BACKDROP, GENERATED_FOR_BEFORE, GENERATED_FOR_FIRST_LETTER,
     GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId,
@@ -84,8 +84,7 @@ impl TreeBuilderState {
 // boxes whose layout attachment lies inside the cleared root; the unbounded scope always lets
 // them survive the cleanup.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiStaleSubtreeClearScope {
+enum StaleSubtreeClearScope {
     Inclusive,
     InclusiveBoundedToRoot,
     DescendantsBoundedToRoot,
@@ -94,8 +93,10 @@ pub enum FfiStaleSubtreeClearScope {
 #[repr(C)]
 pub struct FfiDomTreeBuilderCallbacks {
     pub builder: *mut c_void,
-    pub clear_stale_layout_node: unsafe extern "C" fn(*mut c_void, u32),
-    pub clear_stale_subtree: unsafe extern "C" fn(*mut c_void, u32, FfiStaleSubtreeClearScope),
+    /// Clears one node's stale layout box, answering whether its subtree must survive with it.
+    /// The second identity is the root of the subtree being cleared, or 0 when the clear is not
+    /// bounded to one; only an SVG resource box reads it.
+    pub clear_stale_layout_node: unsafe extern "C" fn(*mut c_void, u32, u32) -> bool,
     pub resolve_counters: unsafe extern "C" fn(*mut c_void, FfiPseudoElement),
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
@@ -1267,6 +1268,15 @@ impl DomTreeBuilderHost<'_> {
             arena: self.arena,
         }
     }
+
+    /// The build's own view of the stale-subtree walk.
+    fn stale(&self) -> StaleSubtreeHost {
+        StaleSubtreeHost {
+            arena: self.arena,
+            context: self.callbacks.builder,
+            clear_stale_layout_node: self.callbacks.clear_stale_layout_node,
+        }
+    }
 }
 
 /// Whether a flat-tree ancestor of the element keeps it out of the rendered tree.
@@ -1372,18 +1382,97 @@ fn update_layout_tree_for_assigned_slottables(
     });
 }
 
+/// What the shadow-including walk that clears stale layout boxes needs. The navigation is the style
+/// mirror's, read out of the arena by identity; clearing one node's box is the host's.
+#[derive(Clone, Copy)]
+struct StaleSubtreeHost {
+    arena: *mut LayoutNodeArena,
+    context: *mut c_void,
+    clear_stale_layout_node: unsafe extern "C" fn(*mut c_void, u32, u32) -> bool,
+}
+
+impl StaleSubtreeHost {
+    fn arena(&self) -> &LayoutNodeArena {
+        // SAFETY: The arena outlives every walk over it.
+        unsafe { &*self.arena }
+    }
+
+    /// Clears the stale layout box of `node`, answering whether its subtree survives with it.
+    fn clear_stale_layout_node(&self, node: StyleNodeID, cleared_subtree_root: Option<StyleNodeID>) -> bool {
+        // SAFETY: The host remains live throughout the walk, and the identity names a live node.
+        unsafe {
+            (self.clear_stale_layout_node)(
+                self.context,
+                node.raw(),
+                cleared_subtree_root.map_or(0, StyleNodeID::raw),
+            )
+        }
+    }
+}
+
+/// Clears every stale layout node in the shadow-including subtree `root` names.
+///
+/// A DOM walk visits a node, then its shadow root's subtree, then its DOM children. A node the
+/// style mirror has not named holds no layout tree update mark and can have no box, so navigating
+/// the mirror's DOM child sequence reaches everything such a walk had work for, in the same order.
+fn clear_stale_subtree(host: StaleSubtreeHost, root: StyleNodeID, scope: StaleSubtreeClearScope) {
+    let cleared_subtree_root = (scope != StaleSubtreeClearScope::Inclusive).then_some(root);
+    let facts = host.arena().stale_walk_facts(root);
+    if scope == StaleSubtreeClearScope::DescendantsBoundedToRoot {
+        clear_stale_subtree_descendants(host, facts, root, cleared_subtree_root);
+    } else {
+        clear_stale_node(host, root, facts, root, cleared_subtree_root);
+    }
+}
+
+fn clear_stale_node(
+    host: StaleSubtreeHost,
+    node: StyleNodeID,
+    facts: StaleWalkFacts,
+    subtree_root: StyleNodeID,
+    cleared_subtree_root: Option<StyleNodeID>,
+) {
+    // A top layer member lays out as a sibling of the root element, so its boxes are not this
+    // subtree's to clear.
+    if node != subtree_root && facts.rendered_in_top_layer {
+        return;
+    }
+    if host.clear_stale_layout_node(node, cleared_subtree_root) {
+        return;
+    }
+    clear_stale_subtree_descendants(host, facts, subtree_root, cleared_subtree_root);
+}
+
+/// Walks below a node whose own facts the caller already read. Clearing a node's box never moves a
+/// node, so each child's own step carries where the walk goes after it.
+fn clear_stale_subtree_descendants(
+    host: StaleSubtreeHost,
+    facts: StaleWalkFacts,
+    subtree_root: StyleNodeID,
+    cleared_subtree_root: Option<StyleNodeID>,
+) {
+    if let Some(shadow_root) = facts.shadow_root {
+        let shadow_root_facts = host.arena().stale_walk_facts(shadow_root);
+        clear_stale_node(host, shadow_root, shadow_root_facts, subtree_root, cleared_subtree_root);
+    }
+    let mut child = facts.first_dom_child;
+    while let Some(current) = child {
+        let child_facts = host.arena().stale_walk_facts(current);
+        clear_stale_node(host, current, child_facts, subtree_root, cleared_subtree_root);
+        child = child_facts.next_dom_sibling;
+    }
+}
+
 /// Removes the stale layout subtree of every node a slot projects, for a slot whose own box hides
 /// its content.
-fn clear_stale_assigned_slottables(host: &DomTreeBuilderHost<'_>, slot: StyleNodeID) {
-    for root in host.assigned_nodes(slot) {
-        // SAFETY: The builder remains live, and the identity names a live DOM node.
-        unsafe {
-            (host.callbacks.clear_stale_subtree)(
-                host.callbacks.builder,
-                root.raw(),
-                FfiStaleSubtreeClearScope::InclusiveBoundedToRoot,
-            );
-        }
+fn clear_stale_assigned_slottables(host: StaleSubtreeHost, slot: StyleNodeID) {
+    let arena = host.arena();
+    for index in 0..arena.assigned_node_count(Some(slot)) {
+        clear_stale_subtree(
+            host,
+            arena.assigned_node_at(slot, index),
+            StaleSubtreeClearScope::InclusiveBoundedToRoot,
+        );
     }
 }
 
@@ -1416,10 +1505,7 @@ fn update_layout_tree_for_svg_switch_children(
         let mut child = host.first_dom_child(switch_element);
         while let Some(current) = child {
             if child != rendered_child {
-                // SAFETY: The builder remains live, and the identity names a live DOM node.
-                unsafe {
-                    (host.callbacks.clear_stale_layout_node)(host.callbacks.builder, current.raw());
-                }
+                host.stale().clear_stale_layout_node(current, None);
             }
             child = host.next_dom_sibling(current);
         }
@@ -1465,15 +1551,9 @@ unsafe fn update_layout_tree_for_display_contents(
         }
 
         if should_create_layout_node {
-            // SAFETY: The builder and element remain live throughout this call.
-            unsafe {
-                (host.callbacks.clear_stale_subtree)(
-                    host.callbacks.builder,
-                    style_node.raw(),
-                    FfiStaleSubtreeClearScope::Inclusive,
-                );
-                (host.callbacks.resolve_counters)(element, FfiPseudoElement::None);
-            }
+            clear_stale_subtree(host.stale(), style_node, StaleSubtreeClearScope::Inclusive);
+            // SAFETY: The element remains live throughout this call.
+            unsafe { (host.callbacks.resolve_counters)(element, FfiPseudoElement::None) };
         }
 
         if should_create_layout_node && !content_visibility_hidden && !context.has_svg_root {
@@ -1514,7 +1594,7 @@ unsafe fn update_layout_tree_for_display_contents(
                     must_create_subtree || should_create_layout_node,
                 );
             } else {
-                clear_stale_assigned_slottables(host, style_node);
+                clear_stale_assigned_slottables(host.stale(), style_node);
             }
         }
 
@@ -1706,14 +1786,11 @@ unsafe fn update_principal_node_descendants(
         }
 
         if content_visibility_hidden {
-            // SAFETY: The builder remains live, and the identity names a live DOM node.
-            unsafe {
-                (host.callbacks.clear_stale_subtree)(
-                    host.callbacks.builder,
-                    update.mirror_identity.raw(),
-                    FfiStaleSubtreeClearScope::DescendantsBoundedToRoot,
-                );
-            }
+            clear_stale_subtree(
+                host.stale(),
+                update.mirror_identity,
+                StaleSubtreeClearScope::DescendantsBoundedToRoot,
+            );
         }
 
         if (should_create_layout_node
@@ -1803,14 +1880,7 @@ unsafe fn update_principal_node_descendants(
                         continue;
                     }
                     if has_unrendered_flat_tree_ancestor(host, Some(member)) {
-                        // SAFETY: The builder remains live, and the identity names a live DOM node.
-                        unsafe {
-                            (host.callbacks.clear_stale_subtree)(
-                                host.callbacks.builder,
-                                style_node,
-                                FfiStaleSubtreeClearScope::InclusiveBoundedToRoot,
-                            );
-                        }
+                        clear_stale_subtree(host.stale(), member, StaleSubtreeClearScope::InclusiveBoundedToRoot);
                         continue;
                     }
                     update_layout_tree(
@@ -1840,7 +1910,7 @@ unsafe fn update_principal_node_descendants(
                 );
                 assert!(state.ancestor_stack.pop().is_some());
             } else {
-                clear_stale_assigned_slottables(host, update.mirror_identity);
+                clear_stale_assigned_slottables(host.stale(), update.mirror_identity);
             }
         }
 
@@ -2394,14 +2464,7 @@ fn update_principal_node_after_entry(
             }
         }
         // If no layout node was created, remove every stale layout and paint node from the shadow-including subtree.
-        // SAFETY: The builder remains live, and the identity names a live DOM node.
-        unsafe {
-            (host.callbacks.clear_stale_subtree)(
-                host.callbacks.builder,
-                update.identity.raw(),
-                FfiStaleSubtreeClearScope::Inclusive,
-            );
-        }
+        clear_stale_subtree(host.stale(), update.identity, StaleSubtreeClearScope::Inclusive);
     }
 
     if matches!(

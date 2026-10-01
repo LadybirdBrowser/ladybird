@@ -518,6 +518,9 @@ impl PublishedComputedColumns {
         if let Some(flags) = self.flags.get_mut(index) {
             *flags = 0;
             self.animation_overlay_slots[index] = 0;
+            // The index may be handed to a shadow root or the document next, which publish no facts
+            // of their own, so a retired element's facts must not stay behind for them.
+            self.adjustment_facts[index] = 0;
         }
         overlay
     }
