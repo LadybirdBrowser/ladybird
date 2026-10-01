@@ -31,7 +31,6 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -58,7 +57,6 @@ private:
     struct PrincipalNodeFrameStorage;
     struct PseudoElementFrameStorage;
     static TraversalDecision clear_stale_layout_node(DOM::Node&, u32 cleared_subtree_root);
-    static TraversalDecision clear_stale_layout_node_in_subtree(DOM::Node&, DOM::Node const& subtree_root, u32 cleared_subtree_root);
 
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
@@ -93,22 +91,6 @@ void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& el
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
 struct PrincipalNodeFrame;
 static Compositing::RustFFI::NodeSlotId create_layout_node_for_text(PrincipalNodeFrame&, DOM::Text&);
-
-static size_t ffi_assigned_node_count(void* slot_element_pointer)
-{
-    VERIFY(slot_element_pointer);
-    return static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal().size();
-}
-
-static void* ffi_assigned_node_at(void* slot_element_pointer, size_t index)
-{
-    VERIFY(slot_element_pointer);
-    auto assigned_nodes = static_cast<HTML::HTMLSlotElement*>(slot_element_pointer)->assigned_nodes_internal();
-    VERIFY(index < assigned_nodes.size());
-    DOM::Node* node = nullptr;
-    assigned_nodes[index].visit([&](auto& assigned_node) { node = assigned_node.ptr(); });
-    return node;
-}
 
 class GeneratedContentImageProvider final
     : public ImageProvider {
@@ -620,16 +602,6 @@ static bool is_svg_resource_box(Node const& layout_node)
     return layout_node.is_svg_pattern_box() || layout_node.is_svg_mask_box() || layout_node.is_svg_clip_box();
 }
 
-TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node_in_subtree(DOM::Node& node, DOM::Node const& subtree_root, u32 cleared_subtree_root)
-{
-    if (&node != &subtree_root) {
-        auto const* element = as_if<DOM::Element>(node);
-        if (element && element->rendered_in_top_layer())
-            return TraversalDecision::SkipChildrenAndContinue;
-    }
-    return clear_stale_layout_node(node, cleared_subtree_root);
-}
-
 TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node, u32 cleared_subtree_root)
 {
     node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
@@ -680,27 +652,18 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node
 void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element& element)
 {
     RustFFI::FfiTopLayerDetachCallbacks callbacks {
-        .element_layout_node = [](void* element_pointer) -> Compositing::RustFFI::NodeSlotId {
-            VERIFY(element_pointer);
-            // NB: Called at DOM mutation processing time, outside layout tree construction.
-            return Node::slot_id(static_cast<DOM::Element*>(element_pointer)->unsafe_layout_node()); },
+        .context = &element.document(),
         .prepare_subtree_for_detach = [](void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
             static_cast<Layout::Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
-        .clear_stale_subtree = [](void* root_pointer) {
-            VERIFY(root_pointer);
-            auto& root = *static_cast<DOM::Node*>(root_pointer);
-            root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return clear_stale_layout_node_in_subtree(node, root, Node::style_node_of(&root).value());
-            }); },
-        .slot_element = [](void* element_pointer) -> void* {
-            VERIFY(element_pointer);
-            return as_if<HTML::HTMLSlotElement>(*static_cast<DOM::Element*>(element_pointer)); },
-        .assigned_node_count = ffi_assigned_node_count,
-        .assigned_node_at = ffi_assigned_node_at,
+        .clear_stale_layout_node = [](void* document_pointer, u32 style_node, u32 cleared_subtree_root) -> bool {
+            VERIFY(document_pointer);
+            auto& document = *static_cast<DOM::Document*>(document_pointer);
+            auto decision = clear_stale_layout_node(dom_node_for_style_node(document, style_node), cleared_subtree_root);
+            return decision == TraversalDecision::SkipChildrenAndContinue; },
     };
     RustFFI::rust_detach_top_layer_element_layout_subtree(
-        &callbacks, element.document().layout_node_arena().handle(), &element);
+        &callbacks, element.document().layout_node_arena().handle(), element.style_node_id().value());
 }
 
 struct PrincipalNodeFrame {
