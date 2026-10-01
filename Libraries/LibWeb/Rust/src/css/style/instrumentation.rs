@@ -143,7 +143,6 @@ define_counters! {
     EngineComputedRecordDeltas => "engineComputedRecordDeltas",
     EngineComputedRecordCohortHits => "engineComputedRecordCohortHits",
     EngineComputedRecordSharedHits => "engineComputedRecordSharedHits",
-    EngineComputedRecordGateReaction => "engineComputedRecordGateReaction",
     EngineComputedRecordGateIncompleteAnswer => "engineComputedRecordGateIncompleteAnswer",
     EngineComputedPseudoRecords => "engineComputedPseudoRecords",
     EngineComputedRecordUnchangedWinners => "engineComputedRecordUnchangedWinners",

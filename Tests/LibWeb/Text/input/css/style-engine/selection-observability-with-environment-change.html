@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta id="scheme" name="color-scheme" content="light">
+<script src="../../include.js"></script>
+<style>
+    .sel::selection { color: rgb(1, 2, 3); background-color: rgb(4, 5, 6); }
+</style>
+<p id="styled" class="sel">styled <span id="inner">inner</span> text</p>
+<script>
+    // A selection makes ::selection styles observable in the update that also moves the document's
+    // style environment (its supported color schemes). Every element in the selection is told its
+    // pseudo-element inputs may have changed: count who computes their records.
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        getSelection().selectAllChildren(document.body);
+        scheme.content = "light dark";
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`engine computed records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords > 0}`);
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        const styled = getComputedStyle(document.getElementById("styled"), "::selection");
+        println(`styled ::selection: ${styled.color} on ${styled.backgroundColor}`);
+        const inner = getComputedStyle(document.getElementById("inner"), "::selection");
+        println(`inner ::selection inherits: ${inner.color} on ${inner.backgroundColor}`);
+    });
+</script>

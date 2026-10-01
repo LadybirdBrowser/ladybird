@@ -82,49 +82,6 @@ impl NamedRuleContextsMoved {
     }
 }
 
-/// The reactions the engine derives for a child of an applied reaction. The same reactions C++
-/// asked for through a recorded input are C++'s.
-const DERIVABLE_REACTIONS: u8 = transaction::STYLE_REACTION_RECOMPUTE_STYLE
-    | transaction::STYLE_REACTION_INHERITED_STYLE
-    | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
-
-/// The reaction gate of one transaction: the reactions the engine settles in it.
-#[derive(Clone, Copy)]
-struct ReactionGate {
-    settleable: u8,
-}
-
-impl ReactionGate {
-    /// A published-style reaction is the engine's, as are the derivable ones. So is a moved font
-    /// environment: the `@font-face` table the record's font cascade resolves against is a
-    /// published input, and the record is driven again in full. So are a descendant recompute and
-    /// an ancestor becoming visible, which C++ answers with a full recompute, as the engine does. So
-    /// is a reaction saying the element's pseudo-element inputs may have changed (a deferred
-    /// ::selection becoming observable): the element's own record answers as any other, and
-    /// installing it recomputes its highlight pseudo-elements. A transaction that moved the document
-    /// environment still leaves such a row to C++.
-    fn for_transaction(environment_changed: bool) -> Self {
-        const SETTLEABLE_REACTIONS: u8 = transaction::STYLE_REACTION_PUBLISHED_STYLE
-            | transaction::STYLE_REACTION_FONT_INPUTS_CHANGED
-            | transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
-            | transaction::STYLE_REACTION_ANCESTOR_BECAME_VISIBLE
-            | transaction::STYLE_REACTION_PSEUDO_INPUTS_MAY_HAVE_CHANGED
-            | DERIVABLE_REACTIONS;
-        let settleable = if environment_changed {
-            SETTLEABLE_REACTIONS & !transaction::STYLE_REACTION_PSEUDO_INPUTS_MAY_HAVE_CHANGED
-        } else {
-            SETTLEABLE_REACTIONS
-        };
-        Self { settleable }
-    }
-
-    /// Whether the engine settles a row with this reaction, of a node whose style input C++ may
-    /// have recorded for itself.
-    fn settles(self, reaction: u8, recorded_for_cpp: bool) -> bool {
-        reaction & !self.settleable == 0 && !(reaction & DERIVABLE_REACTIONS != 0 && recorded_for_cpp)
-    }
-}
-
 impl RetainedState {
     /// Whether a moved named rule context drives the node's record again in full, its winners
     /// standing as they were: a `@function` reaches an element whose style called one, and a
@@ -331,8 +288,9 @@ impl StyleEngineState {
         }
         self.host.deferred_element_style_inputs_are_pending = false;
         self.host.externally_recorded_style_input_nodes.clear();
-        // The nodes whose style input the C++ computation has to settle this transaction.
-        let style_input_nodes_for_cpp = std::mem::take(&mut self.retained.style_input_nodes_for_cpp);
+        // A style input C++ recorded for itself asks for no more than one the engine derived, and
+        // the engine settles both alike.
+        self.retained.style_input_nodes_for_cpp.clear();
         // The nodes whose containers moved under what their queries or container-relative lengths
         // read of them.
         let container_input_nodes = std::mem::take(&mut self.retained.container_input_nodes);
@@ -1885,7 +1843,6 @@ impl StyleEngineState {
             );
             engine_computed_record_scratch.viewport_moved =
                 std::mem::replace(&mut self.retained.driven_viewport, viewport) != viewport;
-            let reaction_gate = ReactionGate::for_transaction(environment_changed);
             let computation_loop_timer = PassTimer::start();
             computation_scratch_memory.resize_required_to(
                 &mut self.retained.memory,
@@ -1906,7 +1863,6 @@ impl StyleEngineState {
                     != 0
             }) {
                 let answer = published_match_answers.lookup(root).unwrap();
-                let old_record = self.retained.computed_group_sets.assigned_style_record(root);
                 let reaction = style_input_reactions
                     .binary_search_by_key(&root, |&(node, _, _)| node)
                     .map_or(transaction::STYLE_REACTION_PUBLISHED_STYLE, |index| {
@@ -1917,9 +1873,7 @@ impl StyleEngineState {
                     display: parent_inputs_moved_nodes.contains(&root),
                 };
                 // The probe settles what the root's own row settles, under the same unseen inputs.
-                let can_prepare = (reaction_gate.settles(reaction, style_input_nodes_for_cpp.contains(&root))
-                    || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
-                    && !self.retained.computed_group_sets.node_answer_is_incomplete(root)
+                let can_prepare = !self.retained.computed_group_sets.node_answer_is_incomplete(root)
                     && !selector_truth_changes.deltas_for(root).iter().any(|delta| {
                         !self
                             .program
@@ -2190,12 +2144,6 @@ impl StyleEngineState {
                     {
                         // C++ only refreshes the inherited environment for a non-consumer. There
                         // is no element record to recompute or compare against the parent's groups.
-                        false
-                    } else if !(reaction_gate.settles(reaction, style_input_nodes_for_cpp.contains(&node))
-                        // A first record takes any published-style reaction.
-                        || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
-                    {
-                        counters.bump(Counter::EngineComputedRecordGateReaction);
                         false
                     } else if (previous_answer_was_incomplete
                         || selector_truth_changes.deltas_for(node).iter().any(|delta| {

@@ -4,4 +4,3 @@ body hint wins: true
 iframe hint restored: true
 hint removed: true
 child recomputations: 0
-child reaction gates: 0
