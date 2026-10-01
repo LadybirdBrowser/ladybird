@@ -497,26 +497,27 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
-        // A record C++ computed holds no cascade state; when the reaction moved none of the
-        // node's own rules its winners are the ones the record was computed from, and a full
-        // drive against the moved parent inputs binds the state.
-        let winners_unchanged = exact_flipped_rules.is_some_and(|flipped| !flipped.element);
-        let delta = match self.computed_group_sets.cascade_state(target) {
-            Some((previous_generation, previous_state)) => {
-                if previous_generation != generation {
-                    counters.bump(Counter::EngineComputedRecordBailStaleCascadeState);
-                    return Err(Unanswered::Refused);
-                }
-                self.winner_groups.semantic_delta(Some(previous_state), state)
+        // A record C++ computed holds no cascade state, so there is no earlier state to take a
+        // delta from, and the state of a record from a replaced rule program names winners of
+        // another generation: either record is driven again in full from the node's winners,
+        // which binds the state. The old record still supplies the before-change values.
+        let (delta, holds_no_current_cascade_state) = match self.computed_group_sets.cascade_state(target) {
+            Some((previous_generation, previous_state)) if previous_generation == generation => {
+                (self.winner_groups.semantic_delta(Some(previous_state), state), false)
             }
-            None if winners_unchanged && (parent_inputs_moved.any() || root_inputs_moved) => {
-                self.winner_groups.semantic_delta(Some(state), state)
-            }
-            None => {
-                counters.bump(Counter::EngineComputedRecordBailNoCascadeState);
-                return Err(Unanswered::Refused);
-            }
+            Some(_) | None => (self.winner_groups.semantic_delta(Some(state), state), true),
         };
+        // No delta names the winners such a record is driven from, so they are checked as a first
+        // record's are: one starting an animation keeps the record in C++.
+        if holds_no_current_cascade_state
+            && self
+                .winner_groups
+                .semantic_delta_properties(None, state)
+                .any(|property| self.first_record_winner_needs_cpp(state, property))
+        {
+            counters.bump(Counter::EngineComputedRecordBailProperty);
+            return Err(Unanswered::Refused);
+        }
         let mut inputs = self.document_style_computation_inputs;
         if let Some((root, root_inputs)) = scratch.root_element_inputs
             && root == node
@@ -558,9 +559,10 @@ impl RetainedState {
         // A moved environment reaches every winner written with a substitution, and so does a
         // moved custom-property registry. A winner written with `attr()` computes to what the
         // element's attributes hold now, which no winner delta shows. Such a record is driven
-        // again in full.
-        let substitutions_moved = ((environment.is_some() || self.custom_property_registrations_changed)
-            && self.state_has_substitutions(node, state))
+        // again in full, as is one holding no current cascade state.
+        let drive_in_full = holds_no_current_cascade_state
+            || ((environment.is_some() || self.custom_property_registrations_changed)
+                && self.state_has_substitutions(node, state))
             || self.state_reads_attributes(node, state);
         if delta.is_empty() {
             // The winners the record was computed from are the winners now. When everything else
@@ -586,7 +588,7 @@ impl RetainedState {
             // record: it is driven again in full against the parent as it is now. The record
             // does not say which parent display it was transformed under, and a winner's own
             // value may read the parent (a relative length, an inherit keyword).
-            if !parent_inputs_moved.any() && !root_inputs_moved && !substitutions_moved {
+            if !parent_inputs_moved.any() && !root_inputs_moved && !drive_in_full {
                 // A declaration in an inherited payload group does not prove that the other
                 // properties in that group still inherit from the current parent. Re-drive the
                 // record in full when its payloads cannot prove the relationship.
@@ -641,7 +643,7 @@ impl RetainedState {
         // and the inheritance are part of the full drive.
         let full_drive = parent_inputs_moved.any()
             || root_inputs_moved
-            || substitutions_moved
+            || drive_in_full
             || delta.properties().iter().any(|&property| {
                 !property_computes_in_remaining_phase(property) || property_feeds_box_type_transformation(property)
             });
