@@ -27,6 +27,7 @@
 
 namespace Web::CSS {
 
+class FontFaceSnapshot;
 class RustRuleView;
 
 struct FontWeightRange {
@@ -51,6 +52,15 @@ struct FontFaceKey {
             && width == other.width;
     }
 };
+
+}
+
+template<>
+struct AK::Traits<Web::CSS::FontFaceKey> : public AK::DefaultTraits<Web::CSS::FontFaceKey> {
+    static unsigned hash(Web::CSS::FontFaceKey const& key) { return key.hash(); }
+};
+
+namespace Web::CSS {
 
 enum class ComputedFontFamilySyntax {
     CustomIdent,
@@ -168,6 +178,10 @@ public:
     NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const;
     u64 environment_generation() const { return m_environment_generation; }
 
+    // The @font-face table at the current font environment generation. Inside a font face change batch the live
+    // table moves ahead of it, and the generation catches up when the batch ends; nothing resolves a font in between.
+    [[nodiscard]] NonnullRefPtr<FontFaceSnapshot const> font_face_snapshot() const;
+
 private:
     virtual void visit_edges(Visitor&) override;
 
@@ -201,6 +215,7 @@ private:
     bool m_initial_paint_had_pending_fonts { false };
     u32 m_font_face_change_batch_depth { 0 };
     u64 m_environment_generation { 1 };
+    mutable RefPtr<FontFaceSnapshot const> m_font_face_snapshot;
     Vector<Utf16FlyString> m_batched_font_face_change_families;
 };
 

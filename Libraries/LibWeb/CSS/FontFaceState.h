@@ -127,6 +127,8 @@ public:
 
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     bool has_urls() const { return !m_urls.is_empty(); }
+    // Its font-display period failed or its load errored, so it contributes nothing to a cascade.
+    bool is_unusable_for_rendering() const { return m_font_display_failed || m_status == FontFaceLoadStatus::Error; }
     bool is_pending_rendering_from_cache() const;
     bool has_pending_rendering() const;
     void set_font_display_time_for_testing(u32 milliseconds);
