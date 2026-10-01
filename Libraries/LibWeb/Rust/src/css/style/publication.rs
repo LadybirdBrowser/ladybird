@@ -1020,6 +1020,10 @@ impl RetainedState {
         counters.add(Counter::CascadeWinnerDeltaProperties, delta_property_count);
         counters.add(Counter::ComputedWinnerDeltaPropertiesConsumed, delta_property_count);
         counters.bump(Counter::EngineComputedRecordDeltas);
+        // The containers the node's descendants ask about are the ones its settled record
+        // describes, as the host publishes them when it installs a record: a descendant this batch
+        // derives after it reads the container as the host will leave it.
+        self.set_element_container_query_inputs(node, delta.1.raw());
         self.engine_computed_records_pending
             .entry(node)
             .or_default()
@@ -1085,12 +1089,22 @@ impl RetainedState {
                 self.revert_engine_computed_pseudo_record(&pending, counters);
                 continue;
             }
-            self.computed_group_sets.revert_engine_computed_record(
-                pending.node,
-                pending.new_style_record,
-                pending.old_style_record,
-            );
+            self.revert_engine_computed_element_record(&pending);
         }
+    }
+
+    /// Put an element back on the record it held before the engine derived one for it, unless a
+    /// publication has moved it on since, and its container query inputs back on the record the
+    /// host holds: the derived record they were read from goes with the derivation, and may be
+    /// reclaimed.
+    fn revert_engine_computed_element_record(&mut self, pending: &PendingEngineComputedRecord) {
+        self.computed_group_sets.revert_engine_computed_record(
+            pending.node,
+            pending.new_style_record,
+            pending.old_style_record,
+        );
+        let held_style_record = self.held_style_records.get(&pending.node).copied().unwrap_or(0);
+        self.set_element_container_query_inputs(pending.node, held_style_record);
     }
 
     /// Derive a node's first record: every winner of its state driven through every phase, every
@@ -1779,8 +1793,7 @@ impl RetainedState {
             if pending.pseudo_kind == u8::MAX {
                 let target = computed::ComputedStyleTarget::new(node, u8::MAX);
                 self.computed_group_sets.take_pending_cascade_state(target);
-                self.computed_group_sets
-                    .revert_engine_computed_record(node, derived, pending.old_style_record);
+                self.revert_engine_computed_element_record(&pending);
                 scratch.cohorts.retain(|_, (record, _)| *record != derived);
                 scratch.cold_cohorts.retain(|_, record| record.record != derived);
                 self.engine_cold_record_cache

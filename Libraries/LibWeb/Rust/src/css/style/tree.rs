@@ -37,6 +37,46 @@ use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::transaction::TreeRelations;
 
+/// What an element's published style record says about whether, and as what, it is a query
+/// container. Kept apart from the selector facts, since it moves only when a record is published.
+#[derive(Clone, Default)]
+pub(super) struct ContainerQueryInputRow {
+    pub(super) style_record: u64,
+    pub(super) names: Vec<Vec<u16>>,
+    pub(super) is_size_container: bool,
+    pub(super) is_inline_size_container: bool,
+    pub(super) is_scroll_state_container: bool,
+    pub(super) writing_mode: u8,
+    pub(super) direction: u8,
+}
+
+#[derive(Default)]
+pub(super) struct ContainerQueryInputColumns {
+    rows: Vec<Option<ContainerQueryInputRow>>,
+}
+
+impl ContainerQueryInputColumns {
+    pub(super) fn set(&mut self, node: StyleNodeID, row: ContainerQueryInputRow) {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return;
+        };
+        if self.rows.len() <= index {
+            self.rows.resize_with(index + 1, || None);
+        }
+        self.rows[index] = Some(row);
+    }
+
+    pub(super) fn clear(&mut self, node: StyleNodeID) {
+        if let Some(row) = node.element_index().and_then(|index| self.rows.get_mut(index as usize)) {
+            *row = None;
+        }
+    }
+
+    pub(super) fn get(&self, node: StyleNodeID) -> Option<&ContainerQueryInputRow> {
+        self.rows.get(node.element_index()? as usize).and_then(Option::as_ref)
+    }
+}
+
 /// Document-local identity of an element or a text node.
 ///
 /// The top bit says which kind of node it names, and the rest is a dense index into that kind's own
