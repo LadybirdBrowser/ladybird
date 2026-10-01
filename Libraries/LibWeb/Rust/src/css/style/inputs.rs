@@ -1075,6 +1075,31 @@ impl RetainedState {
         self.css_defined_animations.names(node, slot)
     }
 
+    /// Replaces the `@keyframes` row of one style scope, as its rule cache resolved them: each name
+    /// with the host's keyframe set for it. An empty row gives the scope's row up.
+    pub fn set_tree_scope_animation_keyframes(
+        &mut self,
+        tree_scope: TreeScopeID,
+        shadow_root_identity: usize,
+        name_lengths: &[u32],
+        name_units: &[u16],
+        keyframe_sets: &[usize],
+    ) {
+        self.animation_keyframes.set(
+            tree_scope,
+            shadow_root_identity,
+            name_lengths,
+            name_units,
+            keyframe_sets,
+        );
+    }
+
+    /// The `@keyframes` the document's style scopes define.
+    #[must_use]
+    pub(crate) fn animation_keyframes(&self) -> &animations::AnimationKeyframes {
+        &self.animation_keyframes
+    }
+
     /// Record the custom properties an element declares or references. Also an index rather than an
     /// input, and for the same reason: it answers which elements an `@property` registration reaches.
     pub fn set_element_custom_property_names(
@@ -1495,6 +1520,7 @@ impl StyleEngineState {
                 children_explicitly_inherit_marks: HashSet::default(),
                 host_var_reads: HashMap::default(),
                 css_defined_animations: Default::default(),
+                animation_keyframes: Default::default(),
                 random_base_values: Default::default(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
@@ -3004,6 +3030,7 @@ impl RetainedState {
             children_explicitly_inherit_marks,
             host_var_reads,
             css_defined_animations,
+            animation_keyframes: _,
             random_base_values,
             transition_baselines,
             custom_property_registrations_changed: _,

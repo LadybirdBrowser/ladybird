@@ -13,7 +13,6 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibGC/Weak.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -25,8 +24,8 @@ namespace Web::CSS {
 
 // A thin shell over the Rust cascaded property store. The store owns the
 // entries (values, importance, origin, layer, cascade order); this shell keeps
-// the GC-weak stylesheet sources the store cannot hold, one pair per
-// store-assigned slot.
+// the weak stylesheet sources the store cannot hold, one per store-assigned
+// slot.
 class CascadedProperties final : public RefCounted<CascadedProperties> {
 public:
     static NonnullRefPtr<CascadedProperties> create();
@@ -34,24 +33,18 @@ public:
     ~CascadedProperties();
 
     [[nodiscard]] RefPtr<StyleValue const> property(PropertyID) const;
-    [[nodiscard]] GC::Ptr<DOM::ShadowRoot const> property_source_shadow_root(PropertyID) const;
     // For the Rust-driven cascade application: the underlying store, and assignment of the
-    // GC-weak stylesheet source pair for a slot the store handed out. Inline declarations have no sheet.
+    // weak stylesheet source for a slot the store handed out. Inline declarations have no sheet.
     ComputedValuesFFI::CascadedPropertyStore* rust_store() { return m_store; }
-    void assign_source_slot(u32 slot, RefPtr<StyleSheetState const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
+    void assign_source_slot(u32 slot, RefPtr<StyleSheetState const> source);
     [[nodiscard]] size_t source_slot_count() const { return m_source_slots.size(); }
     [[nodiscard]] RefPtr<StyleSheetState const> source_for_slot(u32 slot) const;
 
 private:
     CascadedProperties();
 
-    struct SourcePair {
-        WeakPtr<StyleSheetState const> source;
-        GC::Weak<DOM::ShadowRoot const> source_shadow_root;
-    };
-
     ComputedValuesFFI::CascadedPropertyStore* m_store { nullptr };
-    Vector<SourcePair> m_source_slots;
+    Vector<WeakPtr<StyleSheetState const>> m_source_slots;
     mutable HashMap<PropertyID, ValueComparingNonnullRefPtr<StyleValue const>> m_property_cache;
 };
 

@@ -341,10 +341,11 @@ void StyleScope::build_rule_cache()
     }
 
     // A constructed-sheet cache can be shared by several shadow scopes. Its keyframes and other
-    // reference data are reusable, but each scope owns a distinct engine layer order and publishes
-    // this cache generation into that slot once.
+    // reference data are reusable, but each scope owns a distinct engine layer order and keyframes
+    // row, and publishes this cache generation into them once.
     if (m_published_layer_order_generation != style_cache.rule_cache_generation) {
         publish_cascade_layer_order();
+        publish_animation_keyframes();
         m_published_layer_order_generation = style_cache.rule_cache_generation;
     }
 }
@@ -659,6 +660,49 @@ void StyleScope::publish_cascade_layer_order(StyleSheetState* pending_attachment
         sheets.data(), sheets.size(), document().style_computer().style_engine().rust_handle(),
         style_engine_tree_scope().value(), m_has_published_named_layer_order, &document(),
         [](void* document) { static_cast<DOM::Document*>(document)->flush_deferred_style_change_event(); });
+}
+
+// The `@keyframes` this scope defines, as the rule cache just built resolved them. The style computation resolves an
+// animation's keyframes from these, so it never builds a rule cache itself.
+void StyleScope::publish_animation_keyframes()
+{
+    auto const& keyframes = m_style_cache->rule_cache->rules_by_animation_keyframes;
+    Vector<u32> name_lengths;
+    Vector<u16> name_units;
+    Vector<size_t> keyframe_sets;
+    Vector<NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet const>> published;
+    name_lengths.ensure_capacity(keyframes.size());
+    keyframe_sets.ensure_capacity(keyframes.size());
+    published.ensure_capacity(keyframes.size());
+    for (auto const& [name, keyframe_set] : keyframes) {
+        name_lengths.unchecked_append(name.length_in_code_units());
+        for (size_t index = 0; index < name.length_in_code_units(); ++index)
+            name_units.append(name.code_unit_at(index));
+        keyframe_sets.unchecked_append(bit_cast<size_t>(keyframe_set.ptr()));
+        published.unchecked_append(*keyframe_set);
+    }
+    // A scope that defined nothing before and defines nothing now has no row to replace.
+    if (published.is_empty() && m_published_keyframe_sets.is_empty())
+        return;
+    StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(
+        document().style_computer().style_engine().rust_handle(), style_engine_tree_scope().value(),
+        bit_cast<FlatPtr>(as_if<DOM::ShadowRoot>(*m_node)), name_lengths.data(), name_units.data(), name_units.size(),
+        keyframe_sets.data(), name_lengths.size());
+    m_published_keyframe_sets = move(published);
+}
+
+Optional<StyleScope::DepartedAnimationKeyframes> StyleScope::take_published_animation_keyframes()
+{
+    // The scope publishes again in the document it joins, if it joins one, under the tree scope that document gives it.
+    m_published_layer_order_generation = 0;
+    auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node);
+    if (!shadow_root || m_published_keyframe_sets.is_empty())
+        return {};
+    return DepartedAnimationKeyframes {
+        .tree_scope = shadow_root->style_engine_tree_scope(),
+        .shadow_root_identity = bit_cast<FlatPtr>(shadow_root),
+        .keyframe_sets = move(m_published_keyframe_sets),
+    };
 }
 
 TreeScopeID StyleScope::style_engine_tree_scope() const

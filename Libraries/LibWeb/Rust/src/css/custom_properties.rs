@@ -1118,7 +1118,7 @@ fn tokens_for_function_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, 
 ///
 /// # Safety
 /// A non-empty array must be live for `'a`.
-unsafe fn ffi_slice<'a, T>(items: *const T, count: usize) -> &'a [T] {
+pub(crate) unsafe fn ffi_slice<'a, T>(items: *const T, count: usize) -> &'a [T] {
     if count == 0 {
         &[]
     } else {

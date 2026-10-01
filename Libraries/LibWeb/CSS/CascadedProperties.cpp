@@ -36,18 +36,18 @@ NonnullRefPtr<CascadedProperties> CascadedProperties::create()
     return adopt_ref(*new CascadedProperties);
 }
 
-void CascadedProperties::assign_source_slot(u32 slot, RefPtr<StyleSheetState const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root)
+void CascadedProperties::assign_source_slot(u32 slot, RefPtr<StyleSheetState const> source)
 {
     if (slot >= m_source_slots.size())
         m_source_slots.resize(slot + 1);
-    m_source_slots[slot] = SourcePair { source.ptr(), source_shadow_root.ptr() };
+    m_source_slots[slot] = source.ptr();
 }
 
 RefPtr<StyleSheetState const> CascadedProperties::source_for_slot(u32 slot) const
 {
     if (slot >= m_source_slots.size())
         return nullptr;
-    return m_source_slots[slot].source.ptr();
+    return m_source_slots[slot].ptr();
 }
 
 RefPtr<StyleValue const> CascadedProperties::property(PropertyID property_id) const
@@ -67,14 +67,6 @@ RefPtr<StyleValue const> CascadedProperties::property(PropertyID property_id) co
     }
     m_property_cache.set(property_id, value);
     return value;
-}
-
-GC::Ptr<DOM::ShadowRoot const> CascadedProperties::property_source_shadow_root(PropertyID property_id) const
-{
-    auto slot = ComputedValuesFFI::rust_cascaded_properties_source_slot(m_store, to_underlying(property_id));
-    if (slot < 0)
-        return nullptr;
-    return m_source_slots[slot].source_shadow_root.ptr();
 }
 
 }

@@ -354,6 +354,14 @@ impl CascadedPropertyStore {
         self.last_entry(property_id).map(|entry| entry.origin)
     }
 
+    /// The pointer identity of the shadow root the winning declaration of a property was written
+    /// in, or zero for one written in the document tree.
+    #[must_use]
+    pub(crate) fn winning_source_shadow_root_identity(&self, property_id: u16) -> usize {
+        self.last_entry(property_id)
+            .map_or(0, |entry| entry.source_shadow_root_identity)
+    }
+
     fn winning_entries(&self) -> impl Iterator<Item = (u16, &Entry)> + '_ {
         self.contained
             .iter()

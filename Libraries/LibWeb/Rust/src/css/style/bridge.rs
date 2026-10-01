@@ -27,7 +27,7 @@
 use std::ffi::c_void;
 
 use crate::abort_on_panic as abort_on_boundary_panic;
-use crate::css::custom_properties::CustomPropertyRegistry;
+use crate::css::custom_properties::{CustomPropertyRegistry, ffi_slice};
 use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::selector::CompiledSelector;
 use crate::css::style_value::RetainedStyleValueData;
@@ -1268,6 +1268,40 @@ pub unsafe extern "C" fn style_engine_publish_font_faces(
             engine.retained.font_resolution = Some(super::font_resolution::FontResolutionCache::default());
         }
     }
+}
+
+/// Replaces the `@keyframes` row of one style scope: each name the scope defines, packed into one
+/// buffer of code units with a length each, with the host's keyframe set for it. An empty row gives
+/// the scope's row up; a shadow root's scope is named by the root's pointer identity as well.
+///
+/// The host publishes a scope whenever its rule cache is built, and keeps a reference to every set
+/// the row names until it replaces or gives the row up. This is not a recorded boundary event: a
+/// keyframe set is a host pointer, which a replayed engine could not be handed.
+///
+/// # Safety
+/// `engine` must be live, and each buffer must hold the count it is given.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
+    engine: *mut c_void,
+    tree_scope: u32,
+    shadow_root_identity: usize,
+    name_lengths: *const u32,
+    name_units: *const u16,
+    name_unit_count: usize,
+    keyframe_sets: *const usize,
+    count: usize,
+) {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let name_lengths = unsafe { ffi_slice(name_lengths, count) };
+    let name_units = unsafe { ffi_slice(name_units, name_unit_count) };
+    let keyframe_sets = unsafe { ffi_slice(keyframe_sets, count) };
+    engine.set_tree_scope_animation_keyframes(
+        TreeScopeID(tree_scope),
+        shadow_root_identity,
+        name_lengths,
+        name_units,
+        keyframe_sets,
+    );
 }
 
 /// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.
