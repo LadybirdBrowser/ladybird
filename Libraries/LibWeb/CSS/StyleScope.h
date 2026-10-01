@@ -145,6 +145,7 @@ public:
     void build_counter_style_cache();
     u64 counter_style_environment_identity() const;
     RefPtr<CSS::CounterStyle const> get_registered_counter_style(Utf16FlyString const& name) const;
+    void publish_counter_style_lookup_chain() const;
 
     struct FunctionDefinitionAndScope {
         RustCompiledFunction function;
@@ -170,11 +171,18 @@ public:
     bool m_has_published_named_layer_order : 1 { false };
     u64 m_published_layer_order_generation { 0 };
     u64 m_counter_style_environment_identity { 0 };
+    // What the layout node arena last received from this scope: the counter style environment it registered, and the
+    // scope a name it does not register is looked for in next.
+    mutable Optional<u64> m_published_counter_style_environment_identity;
+    mutable Optional<TreeScopeID> m_published_parent_counter_style_scope;
     HashMap<Utf16FlyString, NonnullRefPtr<CSS::CounterStyle const>> m_registered_counter_styles;
 
     GC::Ref<DOM::Node> m_node;
 
 private:
+    [[nodiscard]] StyleScope* parent_counter_style_scope() const;
+    void publish_counter_styles_if_changed() const;
+
     void add_sheet(StyleSheetState&, StyleEngineUpdate);
     void remove_sheet(StyleSheetState&, StyleEngineUpdate);
     void insert_sheet_in_tree_order(StyleSheetState&);

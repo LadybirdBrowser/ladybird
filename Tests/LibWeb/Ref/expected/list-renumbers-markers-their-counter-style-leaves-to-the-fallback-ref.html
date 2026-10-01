@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    @counter-style stars-for-two {
+        system: cyclic;
+        symbols: "*";
+        range: 1 2;
+    }
+    @counter-style from-seven {
+        system: fixed 7;
+        symbols: "x" "y";
+    }
+    .stars li {
+        list-style-type: stars-for-two;
+    }
+    .sevens li {
+        list-style-type: from-seven;
+    }
+</style>
+<ol class="stars"><li>b</li><li>c</li><li>d</li></ol>
+<ol class="sevens"><li>b</li><li>c</li><li>d</li></ol>

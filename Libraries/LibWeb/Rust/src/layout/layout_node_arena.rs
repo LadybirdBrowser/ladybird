@@ -646,6 +646,10 @@ pub(crate) struct LayoutNodeArena {
     messages_reported_during_pass: RefCell<Vec<super::commit::FfiCommitMessage>>,
     /// What the DOM has asked the next layout tree build to rebuild, by style node identity.
     layout_tree_update_marks: RefCell<super::tree_update_marks::LayoutTreeUpdateMarks>,
+    /// The counter styles each tree scope registers. The rule cache that settles them is C++'s,
+    /// and the document owns the result because a fallback chain is followed from the scope the
+    /// counter is used in, not from the scope the style was written in.
+    counter_styles: RefCell<crate::css::counter_representation::CounterStyleRegistry>,
     owner_thread: thread::ThreadId,
 }
 
@@ -730,6 +734,7 @@ impl LayoutNodeArena {
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
             messages_reported_during_pass: RefCell::new(Vec::new()),
             layout_tree_update_marks: RefCell::default(),
+            counter_styles: RefCell::default(),
             owner_thread: thread::current().id(),
         }
     }
@@ -1539,6 +1544,25 @@ impl LayoutNodeArena {
 
     /// Reads the style mirror. As with `with_style_engine`, no host callback runs while the borrow
     /// is active.
+    /// Replace what one tree scope registers. C++ rebuilds a scope's counter styles whole, so the
+    /// publication does too.
+    pub(crate) fn publish_counter_styles(
+        &self,
+        tree_scope: u32,
+        scope: crate::css::counter_representation::CounterStyleScope,
+    ) {
+        self.assert_owner_thread();
+        self.counter_styles.borrow_mut().publish_scope(tree_scope, scope);
+    }
+
+    pub(crate) fn with_counter_style_registry<T>(
+        &self,
+        callback: impl FnOnce(&crate::css::counter_representation::CounterStyleRegistry) -> T,
+    ) -> T {
+        self.assert_owner_thread();
+        callback(&self.counter_styles.borrow())
+    }
+
     pub(crate) fn with_style_store<T>(&self, query: impl FnOnce(&StyleEngine) -> T) -> T {
         let host = self.style_record_host();
         assert!(!host.style_engine.is_null());

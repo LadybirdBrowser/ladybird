@@ -8,8 +8,13 @@
 //! integer to the text a marker or a `counter()` shows.
 //!
 //! The descriptors a `@counter-style` rule settles on are resolved by C++ - `extends` chains,
-//! `auto` ranges and the cascade between origins and layers all belong to the rule cache - and
-//! handed over here.
+//! `auto` ranges and the cascade between origins and layers all belong to the rule cache - and the
+//! result is published here, per tree scope, as the registry a fallback chain is looked up in.
+
+use std::collections::HashMap;
+use std::ffi::c_void;
+use std::rc::Rc;
+use std::sync::LazyLock;
 
 /// A counter symbol. The `<image>` half of `<symbol>` is not implemented, so every symbol is text.
 pub(crate) type Symbol = Box<[u16]>;
@@ -51,10 +56,89 @@ pub(crate) enum Algorithm {
     ExtendedCjk(ExtendedCjkStyle),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RangeEntry {
+    pub start: i32,
+    pub end: i32,
+}
+
 /// A counter style with every descriptor resolved: what `CounterStyle::create` produces C++-side.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct CounterStyle {
+    pub name: Symbol,
     pub algorithm: Algorithm,
+    pub negative_prefix: Symbol,
+    pub negative_suffix: Symbol,
+    pub range: Vec<RangeEntry>,
+    /// Every counter style but `decimal` has a fallback; a missing one is read as `decimal`.
+    pub fallback: Option<Symbol>,
+    pub pad_minimum_length: i32,
+    pub pad_symbol: Symbol,
+}
+
+/// The counter styles one tree scope registers, and the scope a name it does not register is
+/// looked for in next. https://drafts.csswg.org/css-shadow-1/#tree-scoped-name-global
+#[derive(Default)]
+pub(crate) struct CounterStyleScope {
+    pub(crate) parent: Option<u32>,
+    pub(crate) styles: HashMap<Symbol, Rc<CounterStyle>>,
+}
+
+/// Every tree scope's registered counter styles, keyed by the tree scope's identity.
+#[derive(Default)]
+pub(crate) struct CounterStyleRegistry {
+    scopes: HashMap<u32, CounterStyleScope>,
+}
+
+impl CounterStyleRegistry {
+    pub(crate) fn publish_scope(&mut self, tree_scope: u32, scope: CounterStyleScope) {
+        self.scopes.insert(tree_scope, scope);
+    }
+
+    /// The style a name resolves to from `tree_scope`: this scope's own registration, else the
+    /// host's, recursively.
+    pub(crate) fn lookup(&self, tree_scope: u32, name: &[u16]) -> Option<&CounterStyle> {
+        let mut scope_id = Some(tree_scope);
+        // A malformed parent chain would otherwise spin; the depth bound is the shadow nesting depth.
+        let mut remaining_hops = self.scopes.len() + 1;
+        while let Some(current) = scope_id {
+            let scope = self.scopes.get(&current)?;
+            if let Some(style) = scope.styles.get(name) {
+                return Some(style);
+            }
+            remaining_hops = remaining_hops.checked_sub(1)?;
+            scope_id = scope.parent;
+        }
+        None
+    }
+}
+
+fn symbol(text: &str) -> Symbol {
+    text.encode_utf16().collect::<Vec<_>>().into_boxed_slice()
+}
+
+/// https://drafts.csswg.org/css-counter-styles-3/#decimal
+pub(crate) fn decimal() -> &'static CounterStyle {
+    static DECIMAL: LazyLock<CounterStyle> = LazyLock::new(|| CounterStyle {
+        name: symbol("decimal"),
+        algorithm: Algorithm::Generic {
+            system: GenericSystem::Numeric,
+            symbols: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+                .iter()
+                .map(|digit| symbol(digit))
+                .collect(),
+        },
+        negative_prefix: symbol("-"),
+        negative_suffix: symbol(""),
+        range: vec![RangeEntry {
+            start: i32::MIN,
+            end: i32::MAX,
+        }],
+        fallback: None,
+        pad_minimum_length: 0,
+        pad_symbol: symbol(""),
+    });
+    &DECIMAL
 }
 
 // C++ computes `value % symbol_list.size()` and `value - 1 % ...` in the unsigned type the size
@@ -66,6 +150,44 @@ fn wrapping_index(value: i64, modulus: usize) -> usize {
 }
 
 impl CounterStyle {
+    /// https://drafts.csswg.org/css-counter-styles-3/#counter-style-negative
+    /// Not all system values use a negative sign. In particular, a counter style uses a negative
+    /// sign if its system value is symbolic, alphabetic, numeric, additive, or extends if the
+    /// extended counter style itself uses a negative sign.
+    // NB: We have resolved extends to the underlying algorithm before this is asked.
+    fn uses_a_negative_sign(&self) -> bool {
+        match &self.algorithm {
+            Algorithm::Additive(_) => true,
+            Algorithm::Fixed { .. } => false,
+            Algorithm::Generic { system, .. } => !matches!(system, GenericSystem::Cyclic),
+            // https://drafts.csswg.org/css-counter-styles-3/#complex-predefined-counters
+            // All of the counter styles defined in this section have a spoken form of numbers, and
+            // use a negative sign.
+            Algorithm::EthiopicNumeric | Algorithm::ExtendedCjk(_) => true,
+        }
+    }
+
+    /// Only a cyclic style with one distinct symbol represents every value alike, and only if no
+    /// value is outside its range and left to the fallback style. Every other system counts, or
+    /// leaves some value to the fallback style.
+    fn representation_depends_on_value(&self) -> bool {
+        let Algorithm::Generic {
+            system: GenericSystem::Cyclic,
+            symbols,
+        } = &self.algorithm
+        else {
+            return true;
+        };
+        let Some((first, rest)) = symbols.split_first() else {
+            return true;
+        };
+        let represents_every_value = self
+            .range
+            .iter()
+            .any(|entry| entry.start == i32::MIN && entry.end == i32::MAX);
+        !represents_every_value || rest.iter().any(|symbol| symbol != first)
+    }
+
     /// The representation before the pad and the negative sign are applied, or nothing when this
     /// style cannot represent the value and the fallback style must.
     fn generate_an_initial_representation_for_the_counter_value(&self, mut value: i64) -> Option<Vec<u16>> {
@@ -583,16 +705,142 @@ fn generate_an_extended_cjk_representation(mut value: i64, style: ExtendedCjkSty
     representation
 }
 
+/// https://drafts.csswg.org/css-counter-styles-3/#generate-a-counter
+/// When asked to generate a counter representation using a particular counter style for a
+/// particular counter value, follow these steps.
+pub(crate) fn generate_a_counter_representation<'a>(
+    registry: &'a CounterStyleRegistry,
+    tree_scope: u32,
+    counter_style: Option<&'a CounterStyle>,
+    value: i32,
+) -> Vec<u16> {
+    // https://drafts.csswg.org/css-counter-styles-3/#counter-style-fallback
+    // If the value of the fallback descriptor isn't the name of any defined counter style, the used
+    // value of the fallback descriptor is decimal instead. Similarly, while following fallbacks to
+    // find a counter style that can render the given counter value, if a loop in the specified
+    // fallbacks is detected, the decimal style must be used instead.
+    let mut fallback_history: Vec<&'a [u16]> = Vec::new();
+
+    // 1. If the counter style is unknown, exit this algorithm and instead generate a counter
+    //    representation using the decimal style and the same counter value.
+    let mut counter_style = counter_style.unwrap_or(decimal());
+
+    // Each hop either lands on `decimal`, which represents every value and so is the last one, or
+    // on a style whose name the history does not hold yet, so the chain is bounded by the registry.
+    // The bound is a backstop for a registry that changed under a chain, not a rule of the algorithm.
+    for _ in 0..=registry.scopes.values().map(|scope| scope.styles.len()).sum::<usize>() + 2 {
+        let mut fall_back_to = |style: &'a CounterStyle| -> &'a CounterStyle {
+            let Some(fallback_name) = style.fallback.as_deref() else {
+                return decimal();
+            };
+            let Some(fallback) = registry.lookup(tree_scope, fallback_name) else {
+                return decimal();
+            };
+            if fallback_history.contains(&fallback_name) {
+                return decimal();
+            }
+            fallback_history.push(&style.name);
+            fallback
+        };
+
+        // 2. If the counter value is outside the range of the counter style, exit this algorithm
+        //    and instead generate a counter representation using the counter style's fallback style
+        //    and the same counter value.
+        if !counter_style
+            .range
+            .iter()
+            .any(|entry| value >= entry.start && value <= entry.end)
+        {
+            counter_style = fall_back_to(counter_style);
+            continue;
+        }
+
+        let value_is_negative_and_uses_negative_sign = value < 0 && counter_style.uses_a_negative_sign();
+
+        // 3. Using the counter value and the counter algorithm for the counter style, generate an
+        //    initial representation for the counter value. If the counter value is negative and the
+        //    counter style uses a negative sign, instead generate an initial representation using
+        //    the absolute value of the counter value.
+        let initial_value = if value_is_negative_and_uses_negative_sign {
+            i64::from(value).abs()
+        } else {
+            i64::from(value)
+        };
+
+        // AD-HOC: Algorithms are sometimes unable to produce a representation and require us to use
+        //         the fallback.
+        let Some(mut representation) =
+            counter_style.generate_an_initial_representation_for_the_counter_value(initial_value)
+        else {
+            counter_style = fall_back_to(counter_style);
+            continue;
+        };
+
+        // 4. Prepend symbols to the representation as specified in the pad descriptor.
+        // https://drafts.csswg.org/css-counter-styles-3/#counter-style-pad
+        // Let difference be the provided <integer> minus the number of grapheme clusters in the
+        // initial representation for the counter value.
+        // FIXME: We should be counting grapheme clusters here.
+        let mut difference = counter_style.pad_minimum_length - representation.len() as i32;
+
+        // If the counter value is negative and the counter style uses a negative sign, further
+        // reduce difference by the number of grapheme clusters in the counter style's negative
+        // descriptor's <symbol>(s).
+        // FIXME: We should be counting grapheme clusters here.
+        if value_is_negative_and_uses_negative_sign {
+            difference -= counter_style.negative_prefix.len() as i32 + counter_style.negative_suffix.len() as i32;
+        }
+
+        // If difference is greater than zero, prepend difference copies of the specified <symbol>
+        // to the representation.
+        if difference > 0 {
+            let mut padded =
+                Vec::with_capacity(counter_style.pad_symbol.len() * difference as usize + representation.len());
+            for _ in 0..difference {
+                padded.extend_from_slice(&counter_style.pad_symbol);
+            }
+            padded.append(&mut representation);
+            representation = padded;
+        }
+
+        // 5. If the counter value is negative and the counter style uses a negative sign, wrap the
+        //    representation in the counter style's negative sign as specified in the negative
+        //    descriptor.
+        if value_is_negative_and_uses_negative_sign {
+            let mut signed = Vec::with_capacity(
+                counter_style.negative_prefix.len() + representation.len() + counter_style.negative_suffix.len(),
+            );
+            signed.extend_from_slice(&counter_style.negative_prefix);
+            signed.append(&mut representation);
+            signed.extend_from_slice(&counter_style.negative_suffix);
+            representation = signed;
+        }
+
+        // 6. Return the representation.
+        return representation;
+    }
+
+    Vec::new()
+}
+
 // The FFI half: the resolved descriptors arrive from C++, which owns `@counter-style` parsing and
 // the cascade that picks one definition per name.
 
-/// A counter style C++ holds a handle to.
-pub struct FfiRegisteredCounterStyle(CounterStyle);
+/// A counter style C++ holds a handle to and names in a publication or a representation request.
+pub struct FfiRegisteredCounterStyle(Rc<CounterStyle>);
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiCounterStyleRange {
+    pub start: i32,
+    pub end: i32,
+}
 
 /// One resolved counter style, as flat rows of `AK::Utf16FlyString` raw words. Every string word
 /// carries one leaked reference, which this side gives up.
 #[repr(C)]
 pub struct FfiCounterStyleDescriptors {
+    pub name: usize,
     /// 0 additive, 1 fixed, 2 generic, 3 ethiopic-numeric, 4 extended CJK.
     pub algorithm_kind: u8,
     /// `CounterStyleSystem`, for the generic algorithms.
@@ -604,6 +852,14 @@ pub struct FfiCounterStyleDescriptors {
     pub symbol_count: usize,
     /// Parallel with `symbols` for the additive algorithm, and null otherwise.
     pub additive_weights: *const i32,
+    pub ranges: *const FfiCounterStyleRange,
+    pub range_count: usize,
+    pub negative_prefix: usize,
+    pub negative_suffix: usize,
+    /// Zero when the style has no fallback, which only `decimal` does not.
+    pub fallback: usize,
+    pub pad_symbol: usize,
+    pub pad_minimum_length: i32,
 }
 
 /// Adopts one leaked `AK::Utf16FlyString` reference and copies out its code units.
@@ -674,7 +930,31 @@ pub unsafe extern "C" fn rust_counter_style_create(
         }),
     };
 
-    Box::into_raw(Box::new(FfiRegisteredCounterStyle(CounterStyle { algorithm })))
+    let ranges = if descriptors.range_count == 0 {
+        &[][..]
+    } else {
+        // SAFETY: The caller keeps the column alive for this synchronous call.
+        unsafe { std::slice::from_raw_parts(descriptors.ranges, descriptors.range_count) }
+    };
+
+    let style = CounterStyle {
+        name: unsafe { adopt_symbol(descriptors.name) },
+        algorithm,
+        negative_prefix: unsafe { adopt_symbol(descriptors.negative_prefix) },
+        negative_suffix: unsafe { adopt_symbol(descriptors.negative_suffix) },
+        range: ranges
+            .iter()
+            .map(|entry| RangeEntry {
+                start: entry.start,
+                end: entry.end,
+            })
+            .collect(),
+        fallback: (descriptors.fallback != 0).then(|| unsafe { adopt_symbol(descriptors.fallback) }),
+        pad_minimum_length: descriptors.pad_minimum_length,
+        pad_symbol: unsafe { adopt_symbol(descriptors.pad_symbol) },
+    };
+
+    Box::into_raw(Box::new(FfiRegisteredCounterStyle(Rc::new(style))))
 }
 
 /// # Safety
@@ -689,8 +969,8 @@ pub unsafe extern "C" fn rust_counter_style_release(style: *mut FfiRegisteredCou
     drop(unsafe { Box::from_raw(style) });
 }
 
-/// Whether the first three values this counter style represents are not all the same text: a
-/// marker whose text never changes (disc, circle, square, ...) reveals no renumbering.
+/// Whether two counter values can be represented by different text: a marker whose text never
+/// changes (disc, circle, square, ...) reveals no renumbering.
 ///
 /// # Safety
 ///
@@ -700,11 +980,78 @@ pub unsafe extern "C" fn rust_counter_style_representation_depends_on_value(
     style: *const FfiRegisteredCounterStyle,
 ) -> bool {
     // SAFETY: The handle is live for the duration of the call.
-    let style = &unsafe { &*style }.0;
-    let first = style.generate_an_initial_representation_for_the_counter_value(1);
-    let second = style.generate_an_initial_representation_for_the_counter_value(2);
-    let third = style.generate_an_initial_representation_for_the_counter_value(3);
-    first != second || second != third
+    unsafe { &*style }.0.representation_depends_on_value()
+}
+
+/// Replaces one tree scope's registered counter styles, and names the scope a name it does not
+/// register is looked for in next.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The name
+/// and style columns must address `count` elements, every name word must carry one leaked string
+/// reference, and every style handle must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_publish_counter_styles(
+    arena: *mut c_void,
+    tree_scope: u32,
+    parent_tree_scope: u32,
+    has_parent_tree_scope: bool,
+    names: *const usize,
+    styles: *const *const FfiRegisteredCounterStyle,
+    count: usize,
+) {
+    let (names, styles) = if count == 0 {
+        (&[][..], &[][..])
+    } else {
+        // SAFETY: The caller keeps both columns alive for this synchronous call.
+        unsafe {
+            (
+                std::slice::from_raw_parts(names, count),
+                std::slice::from_raw_parts(styles, count),
+            )
+        }
+    };
+
+    let mut scope = CounterStyleScope {
+        parent: has_parent_tree_scope.then_some(parent_tree_scope),
+        styles: HashMap::with_capacity(count),
+    };
+    for (name, style) in names.iter().zip(styles) {
+        let name = unsafe { adopt_symbol(*name) };
+        // SAFETY: The handle is live, so borrowing it without taking a reference is sound.
+        let style = unsafe { &**style };
+        scope.styles.insert(name, style.0.clone());
+    }
+
+    // SAFETY: Guaranteed by the caller.
+    let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
+    arena.publish_counter_styles(tree_scope, scope);
+}
+
+/// Generates the representation of `value` in `style`, following the fallback chain through the
+/// counter styles `tree_scope` registers. A null style is an unknown one, which is `decimal`.
+///
+/// The result is an `AK::Utf16String` raw representation the caller adopts.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `style` must be null or a live handle from `rust_counter_style_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_generate_a_counter_representation(
+    arena: *mut c_void,
+    tree_scope: u32,
+    style: *const FfiRegisteredCounterStyle,
+    value: i32,
+) -> usize {
+    // SAFETY: The handle is live for the duration of the call.
+    let style = unsafe { style.as_ref() }.map(|style| &*style.0);
+    // SAFETY: Guaranteed by the caller.
+    let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
+    let representation = arena
+        .with_counter_style_registry(|registry| generate_a_counter_representation(registry, tree_scope, style, value));
+    ak::Utf16String::from_utf16(&representation).into_raw()
 }
 
 #[cfg(test)]

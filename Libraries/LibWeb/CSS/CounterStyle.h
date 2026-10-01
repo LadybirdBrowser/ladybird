@@ -22,7 +22,6 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-counter-styles-3/#counter-styles
 class CounterStyle : public RefCounted<CounterStyle> {
 public:
-    static NonnullRefPtr<CounterStyle const> decimal();
     static NonnullRefPtr<CounterStyle const> disc();
     static NonnullRefPtr<CounterStyle const> from_counter_style_definition(CounterStyleDefinition const&, StyleScope const&);
 
@@ -43,13 +42,11 @@ public:
     Optional<Utf16FlyString> const& fallback() const { return m_fallback; }
     CounterStylePad const& pad() const { return m_pad; }
 
-    Optional<Utf16String> generate_an_initial_representation_for_the_counter_value(i64 value) const;
-    bool uses_a_negative_sign() const;
     bool representation_is_constant() const;
     bool equals(CounterStyle const&) const;
 
-    // The Rust counterpart of this style, which runs the representation algorithm. It is made the first time it is
-    // asked for: a style scope rebuilding its counter styles resolves every one of them again and keeps the one it had
+    // The Rust counterpart of this style, which runs the representation algorithm and is what the style scope
+    // publishes. It is made the first time it is asked for: a style scope rebuilding its counter styles resolves every one of them again and keeps the one it had
     // whenever the new one equals it.
     Parser::ValueParserFFI::FfiRegisteredCounterStyle const* rust_counter_style() const;
 

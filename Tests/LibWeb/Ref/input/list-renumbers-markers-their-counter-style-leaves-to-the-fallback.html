@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/list-renumbers-markers-their-counter-style-leaves-to-the-fallback-ref.html">
+<style>
+    @counter-style stars-for-two {
+        system: cyclic;
+        symbols: "*";
+        range: 1 2;
+    }
+    @counter-style from-seven {
+        system: fixed 7;
+        symbols: "x" "y";
+    }
+    .stars li {
+        list-style-type: stars-for-two;
+    }
+    .sevens li {
+        list-style-type: from-seven;
+    }
+    .hidden {
+        display: none;
+    }
+</style>
+<ol class="stars"><li>a</li><li>b</li><li>c</li><li>d</li></ol>
+<ol class="sevens"><li>a</li><li>b</li><li>c</li><li>d</li></ol>
+<script>
+    document.body.offsetHeight;
+    for (const list of document.querySelectorAll("ol"))
+        list.children[0].classList.add("hidden");
+    document.body.offsetHeight;
+</script>
