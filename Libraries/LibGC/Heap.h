@@ -64,18 +64,12 @@ public:
     template<typename T, typename... Args>
     Ref<T> allocate(Args&&... args)
     {
-        VERIFY(!m_collecting_garbage);
         auto* memory = allocate_cell<T>();
         defer_gc();
         new (memory) T(forward<Args>(args)...);
         auto* cell = static_cast<T*>(memory);
         cell->set_cell_kind(T::cell_kind_for_class);
-        // Cells allocated during incremental sweep must be marked so they
-        // survive until the next GC cycle clears and re-establishes marks.
-        if (m_incremental_sweep_active) {
-            cell->set_marked(true);
-            m_cells_allocated_during_sweep.append(cell);
-        }
+        mark_if_allocated_during_incremental_sweep(*cell);
         undefer_gc();
         return *cell;
     }
@@ -163,8 +157,25 @@ private:
         static_assert(IsSame<T, typename decltype(T::cell_allocator)::CellType>,
             "GC cell allocator type mismatch");
 
-        will_allocate(sizeof(T));
-        return T::cell_allocator.for_heap(*this).allocate_cell(*this);
+        return allocate_cell(T::cell_allocator);
+    }
+
+    // Shared by allocate<T>() and any allocation whose cell type is only known through its allocator descriptor.
+    Cell* allocate_cell(CellAllocatorDescriptorBase& descriptor)
+    {
+        VERIFY(!m_collecting_garbage);
+        will_allocate(descriptor.cell_size());
+        return descriptor.for_heap(*this).allocate_cell(*this);
+    }
+
+    // Cells allocated during incremental sweep must be marked so they
+    // survive until the next GC cycle clears and re-establishes marks.
+    void mark_if_allocated_during_incremental_sweep(Cell& cell)
+    {
+        if (!m_incremental_sweep_active)
+            return;
+        cell.set_marked(true);
+        m_cells_allocated_during_sweep.append(&cell);
     }
 
     void will_allocate(size_t);
