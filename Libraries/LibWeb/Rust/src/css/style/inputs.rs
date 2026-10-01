@@ -770,6 +770,22 @@ impl RetainedState {
             })
     }
 
+    /// Record whether the element's style reads its custom-property environment other than through
+    /// `var()`: through `if()`, `inherit()`, a custom function or a style container query. A moved
+    /// environment computes such an element again rather than handing it the moved one.
+    pub fn set_element_recomputes_on_environment_move(&mut self, node: StyleNodeID, recomputes: bool) {
+        if recomputes {
+            self.environment_move_recompute_nodes.insert(node);
+        } else {
+            self.environment_move_recompute_nodes.remove(&node);
+        }
+    }
+
+    #[must_use]
+    pub fn element_recomputes_on_environment_move(&self, node: StyleNodeID) -> bool {
+        self.environment_move_recompute_nodes.contains(&node)
+    }
+
     /// Record the names of the CSS animations the host holds for one of an element's animation
     /// lists, in the order it holds them. The names arrive packed into one buffer because a list is
     /// almost always a single name, and a length per name is cheaper than a handle per name.
@@ -1193,6 +1209,7 @@ impl StyleEngineState {
                 nodes_with_substituted_records: HashSet::default(),
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
+                environment_move_recompute_nodes: HashSet::default(),
                 css_defined_animations: Default::default(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
@@ -2648,6 +2665,7 @@ impl RetainedState {
             nodes_with_substituted_records,
             element_custom_property_data,
             pseudo_element_custom_property_data,
+            environment_move_recompute_nodes,
             css_defined_animations,
             transition_baselines,
             custom_property_registrations_changed: _,
@@ -2727,6 +2745,7 @@ impl RetainedState {
         nodes_with_substituted_records.remove(&node);
         element_custom_property_data.remove(&node);
         pseudo_element_custom_property_data.remove(&node);
+        environment_move_recompute_nodes.remove(&node);
         css_defined_animations.retire(node);
         pending_element_style_computation_selections.remove(&node);
         pending_pseudo_style_computation_selections.remove(&node);
