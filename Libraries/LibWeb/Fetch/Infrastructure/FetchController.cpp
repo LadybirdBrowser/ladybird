@@ -44,6 +44,7 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_fetch_params);
     visitor.visit(m_pending_preloaded_response);
     visitor.visit(m_stop_steps);
+    visitor.visit(m_pending_responses);
 }
 
 void FetchController::set_pending_request(RefPtr<Requests::Request> const& request)
@@ -215,6 +216,17 @@ void FetchController::fetch_task_queued(u64 fetch_task_id, HTML::TaskID event_id
 void FetchController::fetch_task_complete(u64 fetch_task_id)
 {
     m_ongoing_fetch_tasks.remove(fetch_task_id);
+}
+
+void FetchController::add_pending_response(Badge<Fetching::PendingResponse>, GC::Ref<Fetching::PendingResponse> pending_response)
+{
+    VERIFY(!m_pending_responses.contains_slow(pending_response));
+    m_pending_responses.append(pending_response);
+}
+
+void FetchController::remove_pending_response(Badge<Fetching::PendingResponse>, GC::Ref<Fetching::PendingResponse> pending_response)
+{
+    m_pending_responses.remove_first_matching([&](auto entry) { return entry == pending_response; });
 }
 
 GC_DEFINE_ALLOCATOR(FetchControllerHolder);

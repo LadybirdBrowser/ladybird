@@ -470,7 +470,7 @@ private:
     void park_navigation_for_population(Utf16String navigation_id, Optional<PreparedNavigation>);
     void clear_parked_navigations();
     Optional<NavigationParkedForPopulation> take_navigation_parked_for_population(Utf16String const& navigation_id);
-    void navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure::Request>, HistoryHandlingBehavior, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
+    void navigate_to_a_javascript_url(NonnullRefPtr<Fetch::Infrastructure::Request>, HistoryHandlingBehavior, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
 
     void reset_cursor_blink_cycle();
 

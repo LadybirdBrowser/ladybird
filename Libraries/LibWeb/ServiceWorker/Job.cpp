@@ -216,7 +216,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
     // - Soft-Update has no client
 
     // To perform the fetch hook given request, run the following steps:
-    auto perform_the_fetch_hook_function = [&registration = *registration, job, newest_worker, state](GC::Ref<Fetch::Infrastructure::Request> request, HTML::TopLevelModule top_level, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> WebIDL::ExceptionOr<void> {
+    auto perform_the_fetch_hook_function = [&registration = *registration, job, newest_worker, state](NonnullRefPtr<Fetch::Infrastructure::Request> request, HTML::TopLevelModule top_level, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> WebIDL::ExceptionOr<void> {
         // FIXME: Soft-Update has no client
         auto& realm = job->client->realm();
 

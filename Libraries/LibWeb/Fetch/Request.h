@@ -32,8 +32,8 @@ class Request final
     GC_DECLARE_ALLOCATOR(Request);
 
 public:
-    [[nodiscard]] static GC::Ref<Request> create(GC::Ref<Infrastructure::Request>);
-    [[nodiscard]] static GC::Ref<Request> create(GC::Ref<Infrastructure::Request>, Headers::Guard, GC::Ref<DOM::AbortSignal>);
+    [[nodiscard]] static GC::Ref<Request> create(NonnullRefPtr<Infrastructure::Request>);
+    [[nodiscard]] static GC::Ref<Request> create(NonnullRefPtr<Infrastructure::Request>, Headers::Guard, GC::Ref<DOM::AbortSignal>);
     static WebIDL::ExceptionOr<GC::Ref<Request>> create_for_constructor(JS::Object&, RequestInfo const& input, Bindings::RequestInit const& init = {});
     static WebIDL::ExceptionOr<GC::Ref<Request>> create_with_settings(HTML::EnvironmentSettingsObject&, RequestInfo const& input, Bindings::RequestInit const& init = {});
 
@@ -50,7 +50,7 @@ public:
     using BodyMixin::json;
     using BodyMixin::text;
 
-    [[nodiscard]] GC::Ref<Infrastructure::Request> request() const { return m_request; }
+    [[nodiscard]] NonnullRefPtr<Infrastructure::Request> request() const { return m_request; }
 
     // JS API functions
     [[nodiscard]] String method() const;
@@ -72,13 +72,13 @@ public:
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<Request>> clone(JS::Realm&) const;
 
 private:
-    explicit Request(GC::Ref<Infrastructure::Request>);
+    explicit Request(NonnullRefPtr<Infrastructure::Request>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://fetch.spec.whatwg.org/#concept-request-request
     // A Request object has an associated request (a request).
-    GC::Ref<Infrastructure::Request> m_request;
+    NonnullRefPtr<Infrastructure::Request> m_request;
 
     // The body of this's request, with its stream.
     GC::Ptr<Infrastructure::Body> m_body;

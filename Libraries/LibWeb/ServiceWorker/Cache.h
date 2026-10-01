@@ -29,7 +29,7 @@ struct CacheBatchOperation : public GC::Cell {
         Put,
     };
 
-    CacheBatchOperation(Type type, GC::Ref<Fetch::Infrastructure::Request> request, GC::Ptr<Fetch::Infrastructure::Response> response = {}, CacheQueryOptions options = {})
+    CacheBatchOperation(Type type, NonnullRefPtr<Fetch::Infrastructure::Request> request, GC::Ptr<Fetch::Infrastructure::Response> response = {}, CacheQueryOptions options = {})
         : type(type)
         , request(request)
         , response(response)
@@ -40,7 +40,7 @@ struct CacheBatchOperation : public GC::Cell {
     virtual void visit_edges(Visitor&) override;
 
     Type type;
-    GC::Ref<Fetch::Infrastructure::Request> request;
+    NonnullRefPtr<Fetch::Infrastructure::Request> request;
     GC::Ptr<Fetch::Infrastructure::Response> response;
     CacheQueryOptions options;
 };
@@ -68,7 +68,7 @@ private:
         No,
         Yes,
     };
-    GC::Ref<RequestResponseList> query_cache(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request> request_query, CacheQueryOptions options = {}, GC::Ptr<RequestResponseList> = {}, CloneCache = Cache::CloneCache::Yes);
+    GC::Ref<RequestResponseList> query_cache(JS::Realm&, NonnullRefPtr<Fetch::Infrastructure::Request> request_query, CacheQueryOptions options = {}, GC::Ptr<RequestResponseList> = {}, CloneCache = Cache::CloneCache::Yes);
     WebIDL::ExceptionOr<bool> batch_cache_operations(JS::Realm&, GC::Ref<GC::HeapVector<GC::Ref<CacheBatchOperation>>>);
 
     GC::Ref<RequestResponseList> m_request_response_list;

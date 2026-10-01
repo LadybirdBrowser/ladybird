@@ -93,7 +93,7 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
 }
 
 // https://w3c.github.io/webappsec-csp/#create-violation-for-request
-GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(GC::Ref<Fetch::Infrastructure::Request> request, NonnullRefPtr<Policy const> policy)
+GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(NonnullRefPtr<Fetch::Infrastructure::Request> request, NonnullRefPtr<Policy const> policy)
 {
     // 1. Let directive be the result of executing § 6.8.1 Get the effective directive for request on request.
     auto directive = Directives::get_the_effective_directive_for_request(request);

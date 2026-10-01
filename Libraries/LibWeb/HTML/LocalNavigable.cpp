@@ -126,7 +126,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     GC_CELL(NavigationParamsFetchStateHolder, JS::Cell);
     GC_DECLARE_ALLOCATOR(NavigationParamsFetchStateHolder);
 
-    NavigationParamsFetchStateHolder(OpenerPolicyEnforcementResult&& coop_enforcement_result, URL::URL current_url, GC::Ref<Fetch::Infrastructure::Request> request,
+    NavigationParamsFetchStateHolder(OpenerPolicyEnforcementResult&& coop_enforcement_result, URL::URL current_url, NonnullRefPtr<Fetch::Infrastructure::Request> request,
         Optional<URL::Origin> initiator_origin,
         Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
         Optional<URL::URL> about_base_url,
@@ -166,7 +166,11 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     URL::URL current_url;
     GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints;
 
-    GC::Ref<Fetch::Infrastructure::Request> request;
+    NonnullRefPtr<Fetch::Infrastructure::Request> request;
+
+    // The reserved client of request, whose snapshot request holds.
+    GC::Ptr<Environment> reserved_client;
+
     GC::Ptr<LocalNavigable> navigable;
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
     Bindings::NavigationTimingType navigation_timing_type { Bindings::NavigationTimingType::Navigate };
@@ -208,7 +212,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
         visitor.visit(response);
         visitor.visit(fetch_controller);
         visitor.visit(commit_early_hints);
-        visitor.visit(request);
+        visitor.visit(reserved_client);
         visitor.visit(navigable);
         visitor.visit(source_snapshot_params);
         visitor.visit(continuation_steps);
@@ -2238,12 +2242,12 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
     //       calling the top level completion steps and then returning.
 
     // 1. If request's reserved client is not null and currentURL's origin is not the same as request's reserved client's creation URL's origin, then:
-    if (state_holder->request->reserved_client() && !state_holder->current_url.origin().is_same_origin(state_holder->request->reserved_client()->creation_url.origin())) {
+    if (state_holder->reserved_client && !state_holder->current_url.origin().is_same_origin(state_holder->reserved_client->creation_url.origin())) {
         // 1. Run the environment discarding steps for request's reserved client.
-        state_holder->request->reserved_client()->discard_environment();
+        state_holder->reserved_client->discard_environment();
 
         // 2. Set request's reserved client to null.
-        state_holder->request->set_reserved_client(nullptr);
+        state_holder->reserved_client = nullptr;
         state_holder->request->set_reserved_client_snapshot(nullptr);
 
         // 3. Set commitEarlyHints to null.
@@ -2251,7 +2255,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
     }
 
     // 2. If request's reserved client is null, then:
-    if (!state_holder->request->reserved_client()) {
+    if (!state_holder->reserved_client) {
         // 1. Let topLevelCreationURL be currentURL.
         Optional<URL::URL> top_level_creation_url = state_holder->current_url;
 
@@ -2285,9 +2289,8 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         //    creation URL is currentURL,
         //    top-level creation URL is topLevelCreationURL,
         //    and top-level origin is topLevelOrigin.
-        auto reserved_client = realm.create<Environment>(EnvironmentId::generate(), state_holder->current_url, top_level_creation_url, top_level_origin, state_holder->navigable->active_browsing_context());
-        state_holder->request->set_reserved_client(reserved_client);
-        state_holder->request->set_reserved_client_snapshot(Fetch::Fetching::snapshot_reserved_client_context(reserved_client));
+        state_holder->reserved_client = realm.create<Environment>(EnvironmentId::generate(), state_holder->current_url, top_level_creation_url, top_level_origin, state_holder->navigable->active_browsing_context());
+        state_holder->request->set_reserved_client_snapshot(Fetch::Fetching::snapshot_reserved_client_context(*state_holder->reserved_client));
     }
 
     // 3. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then set response to a network error and break. [CSP]
@@ -2380,7 +2383,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         }
 
         // 9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given response and request's reserved client.
-        state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(*state_holder->response, state_holder->request->reserved_client());
+        state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(*state_holder->response, state_holder->reserved_client);
 
         // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
         state_holder->final_sandbox_flags = state_holder->target_snapshot_params.sandboxing_flags | state_holder->response_policy_container->csp_list.csp_derived_sandboxing_flags();
@@ -2394,7 +2397,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         if (!state_holder->response->is_network_error() && state_holder->navigable->is_top_level_traversable()) {
             // 1. Set responseCOOP to the result of obtaining an opener policy given response and request's reserved client.
             // AD-HOC: We don't yet set up environments in all cases. Without one, responseCOOP stays a new opener policy.
-            if (auto const& reserved_client = state_holder->request->reserved_client())
+            if (auto const& reserved_client = state_holder->reserved_client)
                 state_holder->response_coop = obtain_an_opener_policy(*state_holder->response->header_list(), is_non_secure_context(*reserved_client));
 
             // 2. Set coopEnforcementResult to the result of enforcing the response's opener policy given navigable's active browsing context,
@@ -2518,7 +2521,6 @@ static void create_navigation_params_by_fetching(
     Bindings::NavigationTimingType navigation_timing_type,
     GC::Ref<GC::Function<void(GC::Ref<InternalNavigationResult>)>> completion_steps)
 {
-    auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
     auto& realm = navigable->active_window()->principal_realm();
     auto& active_document = *navigable->active_document();
@@ -2541,7 +2543,7 @@ static void create_navigation_params_by_fetching(
     //    referrer: entry's document state's request referrer
     //    referrer policy: entry's document state's request referrer policy
     //    policy container: sourceSnapshotParams's source policy container
-    auto request = Fetch::Infrastructure::Request::create(vm);
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url(entry.url);
     if (source_snapshot_params->fetch_client)
         request->set_client(source_snapshot_params->fetch_client->address());
@@ -2843,7 +2845,7 @@ static void create_navigation_params_by_fetching(
             state_holder->fetch_controller,
             state_holder->commit_early_hints,
             state_holder->coop_enforcement_result,
-            state_holder->request->reserved_client(),
+            state_holder->reserved_client,
             *state_holder->response_origin,
             result_policy_container,
             state_holder->final_sandbox_flags,
@@ -3475,7 +3477,7 @@ void LocalNavigable::navigate_to_a_javascript_url_from_ui_process(URL::URL const
     //     1. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source
     //        policy container.
     auto source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*window), source_snapshot);
-    auto request = Fetch::Infrastructure::Request::create(vm());
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url);
     request->set_policy_container(source_snapshot_params->source_policy_container);
 
@@ -3662,7 +3664,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         //    policy container: sourceSnapshotParams's source policy container
         // NB: This is a synthetic request, needed because the Content Security Policy check in navigate to a javascript:
         //     URL operates on a request. It will never hit the network.
-        auto request = Fetch::Infrastructure::Request::create(vm);
+        auto request = Fetch::Infrastructure::Request::create();
         request->set_url(url);
         if (source_snapshot_params->fetch_client)
             request->set_client(source_snapshot_params->fetch_client->address());
@@ -4129,7 +4131,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure::Request> request, HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion initial_insertion, Utf16String navigation_id)
+void LocalNavigable::navigate_to_a_javascript_url(NonnullRefPtr<Fetch::Infrastructure::Request> request, HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion initial_insertion, Utf16String navigation_id)
 {
     // AD-HOC: These return paths do not run finalize_a_cross_document_navigation(). Clear a child navigable's
     //         load-event delay and tell the UI that the admitted navigation produced no document.

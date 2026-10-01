@@ -185,7 +185,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     // 2. Let request be a new request, whose URL is requestURL, client is client, service-workers mode is "none",
     //    referrer is "no-referrer", mode is "websocket", credentials mode is "include", cache mode is "no-store", and
     //    redirect mode is "error".
-    auto request = Fetch::Infrastructure::Request::create(client.vm());
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url(move(request_url));
     request->set_client(client.address());
     request->set_service_workers_mode(Fetch::Infrastructure::Request::ServiceWorkersMode::None);

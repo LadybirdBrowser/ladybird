@@ -14,11 +14,11 @@
 
 namespace Web::ContentSecurityPolicy {
 
-[[nodiscard]] ViolationReporter violation_reporter_for_request(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request>);
+[[nodiscard]] ViolationReporter violation_reporter_for_request(JS::Realm&, NonnullRefPtr<Fetch::Infrastructure::Request>);
 
-Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_content_security_policy(GC::Ref<Fetch::Infrastructure::Request> navigation_request, Directives::Directive::NavigationType navigation_type);
+Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_content_security_policy(NonnullRefPtr<Fetch::Infrastructure::Request> navigation_request, Directives::Directive::NavigationType navigation_type);
 Directives::Directive::Result should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(
-    GC::Ptr<Fetch::Infrastructure::Request> navigation_request,
+    RefPtr<Fetch::Infrastructure::Request> navigation_request,
     GC::Ref<Fetch::Infrastructure::Response> navigation_response,
     ContentSecurityPolicy::PolicyList const& response_csp_list,
     Directives::Directive::NavigationType navigation_type,

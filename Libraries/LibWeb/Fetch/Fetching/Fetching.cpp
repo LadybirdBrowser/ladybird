@@ -612,7 +612,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 if (auto pending_preloaded_response = controller->pending_preloaded_response())
                     return *pending_preloaded_response;
 
-                auto pending_preloaded_response = PendingResponse::create(request);
+                auto pending_preloaded_response = PendingResponse::create(fetch_params);
                 controller->set_pending_preloaded_response(pending_preloaded_response);
                 return pending_preloaded_response;
             }
@@ -621,7 +621,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
             VERIFY(fetch_params.preloaded_response_candidate().has<GC::Ref<Infrastructure::Response>>());
 
             // 3. Return fetchParams’s preloaded response candidate.
-            return PendingResponse::create(request, fetch_params.preloaded_response_candidate().get<GC::Ref<Infrastructure::Response>>());
+            return PendingResponse::create(fetch_params, fetch_params.preloaded_response_candidate().get<GC::Ref<Infrastructure::Response>>());
         }
 
         // -> request’s current URL’s origin is same origin with request’s origin, and request’s response tainting is "basic"
@@ -653,14 +653,14 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         // -> request’s mode is "same-origin"
         if (request->mode() == Infrastructure::Request::Mode::SameOrigin) {
             // Return a network error.
-            return PendingResponse::create(request, Infrastructure::Response::network_error("Request with 'same-origin' mode must have same URL and request origin"_string));
+            return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request with 'same-origin' mode must have same URL and request origin"_string));
         }
 
         // -> request’s mode is "no-cors"
         if (request->mode() == Infrastructure::Request::Mode::NoCORS) {
             // 1. If request’s redirect mode is not "follow", then return a network error.
             if (request->redirect_mode() != Infrastructure::Request::RedirectMode::Follow)
-                return PendingResponse::create(request, Infrastructure::Response::network_error("Request with 'no-cors' mode must have redirect mode set to 'follow'"_string));
+                return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request with 'no-cors' mode must have redirect mode set to 'follow'"_string));
 
             // 2. Set request’s response tainting to "opaque".
             request->set_response_tainting(Infrastructure::Request::ResponseTainting::Opaque);
@@ -677,7 +677,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
             VERIFY(request->mode() == Infrastructure::Request::Mode::CORS);
 
             // Return a network error.
-            return PendingResponse::create(request, Infrastructure::Response::network_error("Request with 'cors' mode must have URL with HTTP or HTTPS scheme"_string));
+            return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request with 'cors' mode must have URL with HTTP or HTTPS scheme"_string));
         }
 
         // -> request’s use-CORS-preflight flag is set
@@ -691,7 +691,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
             // 1. Set request’s response tainting to "cors".
             request->set_response_tainting(Infrastructure::Request::ResponseTainting::CORS);
 
-            auto returned_pending_response = PendingResponse::create(request);
+            auto returned_pending_response = PendingResponse::create(fetch_params);
 
             // 2. Let corsWithPreflightResponse be the result of running HTTP fetch given fetchParams and true.
             auto cors_with_preflight_response = http_fetch(realm, fetch_params, MakeCORSPreflight::Yes);
@@ -722,7 +722,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         //     matching statement:
         auto pending_response = !response
             ? get_response->function()()
-            : PendingResponse::create(request, *response);
+            : PendingResponse::create(fetch_params, *response);
 
         // 13. If recursive is true, then return response.
         return pending_response;
@@ -732,7 +732,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, &fetch_params, request, response, get_response] {
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
         //     matching statement:
-        auto pending_response = PendingResponse::create(request, Infrastructure::Response::create());
+        auto pending_response = PendingResponse::create(fetch_params, Infrastructure::Response::create());
         if (!response) {
             pending_response = get_response->function()();
         }
@@ -1299,7 +1299,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
 
     // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
     if (fetch_params.is_canceled())
-        return PendingResponse::create(fetch_params.request(), Infrastructure::Response::appropriate_network_error(fetch_params));
+        return PendingResponse::create(fetch_params, Infrastructure::Response::appropriate_network_error(fetch_params));
 
     // 2. Let request be fetchParams’s request.
     auto request = fetch_params.request();
@@ -1318,7 +1318,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             response->header_list()->append({ "Content-Type"sv, "text/html;charset=utf-8"sv });
             response->set_body(Infrastructure::byte_sequence_as_body(realm, ""sv.bytes()));
 
-            return PendingResponse::create(request, response);
+            return PendingResponse::create(fetch_params, response);
         }
 
         // FIXME: This is actually wrong, see note above.
@@ -1331,7 +1331,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
 
         // 2. If request’s method is not `GET` or blobURLEntry is null, then return a network error. [FILEAPI]
         if (request->method() != "GET"sv || !blob_url_entry.has_value())
-            return PendingResponse::create(request, Infrastructure::Response::network_error("Request has an invalid 'blob:' URL"_string));
+            return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request has an invalid 'blob:' URL"_string));
 
         // 3. Let requestEnvironment be the result of determining the environment given request.
         auto request_environment = determine_the_environment(request);
@@ -1380,11 +1380,11 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
 
         // 8. If blob is not a Blob object, then return a network error.
         if (!maybe_blob_object.has_value())
-            return PendingResponse::create(request, Infrastructure::Response::network_error("Failed to obtain a Blob object from 'blob:' URL"_string));
+            return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Failed to obtain a Blob object from 'blob:' URL"_string));
 
         auto const* blob_object = maybe_blob_object.value().get_pointer<FileAPI::SerializedBlobURLEntry::Blob>();
         if (!blob_object)
-            return PendingResponse::create(request, Infrastructure::Response::network_error("Failed to obtain a Blob object from 'blob:' URL"_string));
+            return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Failed to obtain a Blob object from 'blob:' URL"_string));
         auto const blob = FileAPI::Blob::create(blob_object->data, Utf16String::from_utf8(blob_object->type));
 
         // 9. Let response be a new response.
@@ -1430,7 +1430,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
 
             // 4. If rangeValue is failure, then return a network error.
             if (!maybe_range_value.has_value())
-                return PendingResponse::create(request, Infrastructure::Response::network_error("Failed to parse single range header value"_string));
+                return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Failed to parse single range header value"_string));
 
             // 5. Let (rangeStart, rangeEnd) be rangeValue.
             auto& [range_start, range_end] = maybe_range_value.value();
@@ -1449,7 +1449,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
             else {
                 // 1. If rangeStart is greater than or equal to fullLength, then return a network error.
                 if (*range_start >= full_length)
-                    return PendingResponse::create(request, Infrastructure::Response::network_error("rangeStart is greater than or equal to fullLength"_string));
+                    return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("rangeStart is greater than or equal to fullLength"_string));
 
                 // 2. If rangeEnd is null or rangeEnd is greater than or equal to fullLength, then set rangeEnd to fullLength − 1.
                 if (!range_end.has_value() || *range_end >= full_length)
@@ -1493,7 +1493,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         }
 
         // 15. Return response.
-        return PendingResponse::create(request, response);
+        return PendingResponse::create(fetch_params, response);
     }
     // -> "data"
     else if (request->current_url().scheme() == "data"sv) {
@@ -1502,7 +1502,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
 
         // 2. If dataURLStruct is failure, then return a network error.
         if (data_url_struct.is_error())
-            return PendingResponse::create(request, Infrastructure::Response::network_error("Failed to process 'data:' URL"_string));
+            return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Failed to process 'data:' URL"_string));
 
         // 3. Let mimeType be dataURLStruct’s MIME type, serialized.
         auto const& mime_type = data_url_struct.value().mime_type.serialized();
@@ -1516,7 +1516,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         response->header_list()->append(move(header));
 
         response->set_body(Infrastructure::byte_sequence_as_body(realm, data_url_struct.value().body));
-        return PendingResponse::create(request, response);
+        return PendingResponse::create(fetch_params, response);
     }
     // -> "file"
     // AD-HOC: "resource"
@@ -1524,7 +1524,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         // For now, unfortunate as it is, file: URLs are left as an exercise for the reader.
         // When in doubt, return a network error.
 
-        auto error = PendingResponse::create(request, Infrastructure::Response::network_error("Request with 'file:' or 'resource:' URL blocked"_string));
+        auto error = PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request with 'file:' or 'resource:' URL blocked"_string));
 
         auto const* origin = request->origin().get_pointer<URL::Origin>();
         if (!origin)
@@ -1566,7 +1566,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
     auto message = request->current_url().scheme() == "about"sv
         ? "Request has invalid 'about:' URL, only 'about:blank' can be fetched"_string
         : "Request URL has invalid scheme, must be one of 'about', 'blob', 'data', 'file', 'http', or 'https'"_string;
-    return PendingResponse::create(request, Infrastructure::Response::network_error(move(message)));
+    return PendingResponse::create(fetch_params, Infrastructure::Response::network_error(move(message)));
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-fetch
@@ -1634,14 +1634,14 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 // - request’s redirect mode is not "follow" and response’s URL list has more than one item.
                 || (request->redirect_mode() != Infrastructure::Request::RedirectMode::Follow && response->url_list().size() > 1)) {
                 // then return a network error.
-                return PendingResponse::create(request, Infrastructure::Response::network_error("Invalid request/response state combination"_string));
+                return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Invalid request/response state combination"_string));
             }
         }
     }
 
     GC::Ptr<PendingResponse> pending_actual_response;
 
-    auto returned_pending_response = PendingResponse::create(request);
+    auto returned_pending_response = PendingResponse::create(fetch_params);
 
     // 4. If response is null, then:
     if (!response) {
@@ -1663,7 +1663,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
 
         if (make_cors_preflight == MakeCORSPreflight::Yes && (method_needs_preflight || headers_need_preflight)) {
             // 1. Let preflightResponse be the result of running CORS-preflight fetch given request.
-            pending_preflight_response = cors_preflight_fetch(realm, request);
+            pending_preflight_response = cors_preflight_fetch(realm, fetch_params);
 
             // NOTE: Step 2 is performed in pending_preflight_response's load callback below.
         }
@@ -1684,7 +1684,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
         });
 
         if (pending_preflight_response) {
-            pending_actual_response = PendingResponse::create(request);
+            pending_actual_response = PendingResponse::create(fetch_params);
             pending_preflight_response->when_loaded([returned_pending_response, pending_actual_response, fetch_main_content](GC::Ref<Infrastructure::Response> preflight_response) {
                 dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' pending_preflight_response load callback");
 
@@ -1704,7 +1704,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
             pending_actual_response = fetch_main_content->function()();
         }
     } else {
-        pending_actual_response = PendingResponse::create(request, Infrastructure::Response::create());
+        pending_actual_response = PendingResponse::create(fetch_params, Infrastructure::Response::create());
     }
 
     pending_actual_response->when_loaded([&realm, &fetch_params, request, response, internal_response, returned_pending_response, response_was_null = !response](GC::Ref<Infrastructure::Response> resolved_actual_response) mutable {
@@ -1824,7 +1824,7 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
 
     // 4. If locationURL is null, then return response.
     if (!location_url_or_error.is_error() && !location_url_or_error.value().has_value())
-        return PendingResponse::create(request, response);
+        return PendingResponse::create(fetch_params, response);
 
     // AD-HOC: Navigation responses have a RequestServer transfer lease so they can move through the UI process.
     //         This response will be discarded in favor of either a network error or the redirect response, so
@@ -1833,17 +1833,17 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
 
     // 5. If locationURL is failure, then return a network error.
     if (location_url_or_error.is_error())
-        return PendingResponse::create(request, Infrastructure::Response::network_error("Request redirect URL is invalid"_string));
+        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request redirect URL is invalid"_string));
 
     auto location_url = location_url_or_error.release_value().release_value();
 
     // 6. If locationURL’s scheme is not an HTTP(S) scheme, then return a network error.
     if (!Infrastructure::is_http_or_https_scheme(location_url.scheme()))
-        return PendingResponse::create(request, Infrastructure::Response::network_error("Request redirect URL must have HTTP or HTTPS scheme"_string));
+        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request redirect URL must have HTTP or HTTPS scheme"_string));
 
     // 7. If request’s redirect count is 20, then return a network error.
     if (request->redirect_count() == 20)
-        return PendingResponse::create(request, Infrastructure::Response::network_error("Request has reached maximum redirect count of 20"_string));
+        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request has reached maximum redirect count of 20"_string));
 
     // 8. Increase request’s redirect count by 1.
     request->set_redirect_count(request->redirect_count() + 1);
@@ -1854,20 +1854,20 @@ GC::Ptr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::F
         && location_url.includes_credentials()
         && request->origin().has<URL::Origin>()
         && !request->origin().get<URL::Origin>().is_same_origin(location_url.origin())) {
-        return PendingResponse::create(request, Infrastructure::Response::network_error("Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"_string));
+        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"_string));
     }
 
     // 10. If request’s response tainting is "cors" and locationURL includes credentials, then return a network error.
     // NOTE: This catches a cross-origin resource redirecting to a same-origin URL.
     if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS && location_url.includes_credentials())
-        return PendingResponse::create(request, Infrastructure::Response::network_error("Request with 'cors' response tainting must not include credentials in redirect URL"_string));
+        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request with 'cors' response tainting must not include credentials in redirect URL"_string));
 
     // 11. If internalResponse’s status is not 303, request’s body is non-null, and request’s body’s source is null, then
     //     return a network error.
     if (internal_response->status() != 303
         && !request->body().has<Empty>()
         && !request->body().get<Infrastructure::FetchBody>().source().has_value()) {
-        return PendingResponse::create(request, Infrastructure::Response::network_error("Request has body but no body source"_string));
+        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request has body but no body source"_string));
     }
 
     // 12. If one of the following is true
@@ -1964,7 +1964,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
     GC::Ptr<Infrastructure::FetchParams const> http_fetch_params;
 
     // 3. Let httpRequest be null.
-    GC::Ptr<Infrastructure::Request> http_request;
+    RefPtr<Infrastructure::Request> http_request;
 
     // 4. Let response be null.
     GC::Ptr<Infrastructure::Response> response;
@@ -2070,7 +2070,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
             // 5. If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
             if ((content_length.value() + inflight_keep_alive_bytes) > keepalive_maximum_size)
-                return PendingResponse::create(request, Infrastructure::Response::network_error("Keepalive request exceeded maximum allowed size of 64 KiB"_string));
+                return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Keepalive request exceeded maximum allowed size of 64 KiB"_string));
 
             // NOTE: The above limit ensures that requests that are allowed to outlive the environment settings object
             //       and contain a body, have a bounded size and are not allowed to stay alive indefinitely.
@@ -2248,7 +2248,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
     // 9. If aborted, then return the appropriate network error for fetchParams.
     if (aborted)
-        return PendingResponse::create(request, Infrastructure::Response::appropriate_network_error(fetch_params));
+        return PendingResponse::create(fetch_params, Infrastructure::Response::appropriate_network_error(fetch_params));
 
     GC::Ptr<PendingResponse> pending_forward_response;
 
@@ -2262,14 +2262,14 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         //    and isNewConnectionFetch.
         pending_forward_response = nonstandard_resource_loader_file_or_http_network_fetch(realm, *http_fetch_params, include_credentials, is_new_connection_fetch, http_cache);
     } else {
-        pending_forward_response = PendingResponse::create(request, Infrastructure::Response::create());
+        pending_forward_response = PendingResponse::create(fetch_params, Infrastructure::Response::create());
     }
 
     // AD-HOC: If the controller is already in the non-spec Stopped state, we should cancel the network request immediately.
     if (http_fetch_params->controller()->state() == Infrastructure::FetchController::State::Stopped)
         http_fetch_params->controller()->stop_fetch();
 
-    auto returned_pending_response = PendingResponse::create(request);
+    auto returned_pending_response = PendingResponse::create(fetch_params);
 
     pending_forward_response->when_loaded([&realm, &fetch_params, request, response, stored_response, http_request, http_fetch_params, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](GC::Ref<Infrastructure::Response> resolved_forward_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
@@ -2322,7 +2322,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         // 13. Set response’s request-includes-credentials to includeCredentials.
         response->set_request_includes_credentials(include_credentials == HTTP::Cookie::IncludeCredentials::Yes);
 
-        auto inner_pending_response = PendingResponse::create(request, *response);
+        auto inner_pending_response = PendingResponse::create(fetch_params, *response);
 
         // 14. If response’s status is 401, httpRequest’s response tainting is not "cors", includeCredentials is true,
         //     and request’s traversable for user prompts is a traversable navigable:
@@ -2420,7 +2420,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 // (Doing this without step 4 would potentially lead to an infinite request cycle.)
             }
 
-            auto inner_pending_response = PendingResponse::create(request, *response);
+            auto inner_pending_response = PendingResponse::create(fetch_params, *response);
 
             // 16. If all of the following are true
             if (
@@ -2551,7 +2551,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             load_request.set_body(MUST(source->copy_to_byte_buffer()));
     }
 
-    auto pending_response = PendingResponse::create(request);
+    auto pending_response = PendingResponse::create(fetch_params);
 
     if constexpr (WEB_FETCH_DEBUG) {
         dbgln("Fetch: Invoking ResourceLoader");
@@ -2823,8 +2823,10 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 }
 
 // https://fetch.spec.whatwg.org/#cors-preflight-fetch-0
-GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::Request& request)
+// NB: request is given as its fetch params.
+GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params)
 {
+    auto& request = *fetch_params.request();
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' with request @ {}", &request);
 
     // 1. Let preflight be a new request whose method is `OPTIONS`, URL list is a clone of request’s URL list, initiator is
@@ -2868,13 +2870,13 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     // 6. Let response be the result of running HTTP-network-or-cache fetch given a new fetch params whose request is preflight.
     // FIXME: The spec doesn't say anything about timing_info here, but FetchParams requires a non-null FetchTimingInfo object.
     auto timing_info = Infrastructure::FetchTimingInfo::create();
-    auto fetch_params = Infrastructure::FetchParams::create(preflight, Infrastructure::FetchAlgorithms::create(Infrastructure::FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard }), timing_info);
+    auto preflight_fetch_params = Infrastructure::FetchParams::create(preflight, Infrastructure::FetchAlgorithms::create(Infrastructure::FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard }), timing_info);
 
-    auto returned_pending_response = PendingResponse::create(request);
+    auto returned_pending_response = PendingResponse::create(fetch_params);
 
-    auto preflight_response = http_network_or_cache_fetch(realm, fetch_params);
+    auto preflight_response = http_network_or_cache_fetch(realm, preflight_fetch_params);
 
-    preflight_response->when_loaded([&request, returned_pending_response, preflight_controller = fetch_params->controller()](GC::Ref<Infrastructure::Response> response) {
+    preflight_response->when_loaded([request = fetch_params.request(), returned_pending_response, preflight_controller = preflight_fetch_params->controller()](GC::Ref<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'CORS-preflight fetch' preflight_response load callback");
 
         if (WebDriver::BiDi::g_network_events_enabled) {
@@ -2890,7 +2892,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
 
         // 7. If a CORS check for request and response returns success and response’s status is an ok status, then:
         // NOTE: The CORS check is done on request rather than preflight to ensure the correct credentials mode is used.
-        if (cors_check(request, response) && Infrastructure::is_ok_status(response->status())) {
+        if (cors_check(*request, response) && Infrastructure::is_ok_status(response->status())) {
             // 1. Let methods be the result of extracting header list values given `Access-Control-Allow-Methods` and response’s header list.
             auto methods_or_failure = response->header_list()->extract_header_list_values("Access-Control-Allow-Methods"sv);
 
@@ -2920,26 +2922,26 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
 
             // 4. If methods is null and request’s use-CORS-preflight flag is set, then set methods to a new list containing request’s method.
             // NOTE: This ensures that a CORS-preflight fetch that happened due to request’s use-CORS-preflight flag being set is cached.
-            if (methods.is_empty() && request.use_cors_preflight())
-                methods = { request.method() };
+            if (methods.is_empty() && request->use_cors_preflight())
+                methods = { request->method() };
 
             // 5. If request’s method is not in methods, request’s method is not a CORS-safelisted method, and request’s credentials mode
             //    is "include" or methods does not contain `*`, then return a network error.
-            if (!methods.contains_slow(request.method()) && !HTTP::is_cors_safelisted_method(request.method())) {
-                if (request.credentials_mode() == Infrastructure::Request::CredentialsMode::Include) {
-                    returned_pending_response->resolve(Infrastructure::Response::network_error(TRY_OR_IGNORE(String::formatted("Non-CORS-safelisted method '{}' not found in the CORS-preflight response's Access-Control-Allow-Methods header (the header may be missing). '*' is not allowed as the main request includes credentials.", request.method()))));
+            if (!methods.contains_slow(request->method()) && !HTTP::is_cors_safelisted_method(request->method())) {
+                if (request->credentials_mode() == Infrastructure::Request::CredentialsMode::Include) {
+                    returned_pending_response->resolve(Infrastructure::Response::network_error(TRY_OR_IGNORE(String::formatted("Non-CORS-safelisted method '{}' not found in the CORS-preflight response's Access-Control-Allow-Methods header (the header may be missing). '*' is not allowed as the main request includes credentials.", request->method()))));
                     return;
                 }
 
                 if (!methods.contains_slow("*"sv)) {
-                    returned_pending_response->resolve(Infrastructure::Response::network_error(TRY_OR_IGNORE(String::formatted("Non-CORS-safelisted method '{}' not found in the CORS-preflight response's Access-Control-Allow-Methods header and there was no '*' entry. The header may be missing.", request.method()))));
+                    returned_pending_response->resolve(Infrastructure::Response::network_error(TRY_OR_IGNORE(String::formatted("Non-CORS-safelisted method '{}' not found in the CORS-preflight response's Access-Control-Allow-Methods header and there was no '*' entry. The header may be missing.", request->method()))));
                     return;
                 }
             }
 
             // 6. If one of request’s header list’s names is a CORS non-wildcard request-header name and is not a byte-case-insensitive match
             //    for an item in headerNames, then return a network error.
-            for (auto const& header : *request.header_list()) {
+            for (auto const& header : *request->header_list()) {
                 if (Infrastructure::is_cors_non_wildcard_request_header_name(header.name)) {
                     bool is_in_header_names = false;
 
@@ -2960,7 +2962,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
             // 7. For each unsafeName of the CORS-unsafe request-header names with request’s header list, if unsafeName is not a
             //    byte-case-insensitive match for an item in headerNames and request’s credentials mode is "include" or headerNames
             //    does not contain `*`, return a network error.
-            auto unsafe_names = Infrastructure::get_cors_unsafe_header_names(request.header_list());
+            auto unsafe_names = Infrastructure::get_cors_unsafe_header_names(request->header_list());
             for (auto const& unsafe_name : unsafe_names) {
                 bool is_in_header_names = false;
 
@@ -2972,7 +2974,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
                 }
 
                 if (!is_in_header_names) {
-                    if (request.credentials_mode() == Infrastructure::Request::CredentialsMode::Include) {
+                    if (request->credentials_mode() == Infrastructure::Request::CredentialsMode::Include) {
                         returned_pending_response->resolve(Infrastructure::Response::network_error(TRY_OR_IGNORE(String::formatted("CORS-unsafe request-header '{}' not found in the CORS-preflight response's Access-Control-Allow-Headers header (the header may be missing). '*' is not allowed as the main request includes credentials.", unsafe_name))));
                         return;
                     }

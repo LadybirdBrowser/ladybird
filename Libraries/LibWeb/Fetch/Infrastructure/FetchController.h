@@ -87,6 +87,9 @@ public:
     void fetch_task_queued(u64 fetch_task_id, HTML::TaskID event_id);
     void fetch_task_complete(u64 fetch_task_id);
 
+    void add_pending_response(Badge<Fetching::PendingResponse>, GC::Ref<Fetching::PendingResponse>);
+    void remove_pending_response(Badge<Fetching::PendingResponse>, GC::Ref<Fetching::PendingResponse>);
+
 private:
     FetchController();
 
@@ -134,6 +137,9 @@ private:
 
     // AD-HOC: Run when the fetch is stopped, for whatever was waiting on its response.
     GC::Ptr<GC::Function<void()>> m_stop_steps;
+
+    // The pending responses of this fetch whose callbacks have yet to run.
+    Vector<GC::Ref<Fetching::PendingResponse>> m_pending_responses;
 };
 
 class FetchControllerHolder : public JS::Cell {

@@ -12,10 +12,15 @@ namespace Web::ServiceWorker {
 
 GC_DEFINE_ALLOCATOR(RequestResponse);
 
+RequestResponse::RequestResponse(NonnullRefPtr<Fetch::Infrastructure::Request> request, GC::Ref<Fetch::Infrastructure::Response> response)
+    : request(move(request))
+    , response(response)
+{
+}
+
 void RequestResponse::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(request);
     visitor.visit(response);
 }
 

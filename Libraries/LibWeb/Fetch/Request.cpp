@@ -206,7 +206,7 @@ static bool is_empty(Bindings::RequestInit const& request_init)
 
 GC_DEFINE_ALLOCATOR(Request);
 
-Request::Request(GC::Ref<Infrastructure::Request> request)
+Request::Request(NonnullRefPtr<Infrastructure::Request> request)
     : m_request(request)
 {
 }
@@ -216,7 +216,6 @@ Request::~Request() = default;
 void Request::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_request);
     visitor.visit(m_body);
     visitor.visit(m_headers);
     visitor.visit(m_signal);
@@ -256,12 +255,12 @@ GC::Ptr<Infrastructure::Body> Request::body_impl()
 }
 
 // https://fetch.spec.whatwg.org/#request-create
-GC::Ref<Request> Request::create(GC::Ref<Infrastructure::Request> request)
+GC::Ref<Request> Request::create(NonnullRefPtr<Infrastructure::Request> request)
 {
     return GC::Heap::the().allocate<Request>(request);
 }
 
-GC::Ref<Request> Request::create(GC::Ref<Infrastructure::Request> request, Headers::Guard guard, GC::Ref<DOM::AbortSignal> signal)
+GC::Ref<Request> Request::create(NonnullRefPtr<Infrastructure::Request> request, Headers::Guard guard, GC::Ref<DOM::AbortSignal> signal)
 {
     // 1. Let requestObject be a new Request object with realm.
     // 2. Set requestObject’s request to request.
@@ -291,7 +290,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::create_with_settings(HTML::Enviro
     auto request_object = create(Infrastructure::Request::create());
 
     // 1. Let request be null.
-    GC::Ptr<Infrastructure::Request> input_request;
+    RefPtr<Infrastructure::Request> input_request;
 
     // 2. Let fallbackMode be null.
     Optional<Infrastructure::Request::Mode> fallback_mode;

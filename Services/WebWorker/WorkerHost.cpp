@@ -154,7 +154,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
                                  : Web::Fetch::Infrastructure::Request::Destination::Worker;
 
     // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel, and processCustomFetchResponse:
-    auto perform_fetch_function = [inside_settings, outside_settings, worker_global_scope, is_shared](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
+    auto perform_fetch_function = [inside_settings, outside_settings, worker_global_scope, is_shared](NonnullRefPtr<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
         auto& realm = inside_settings->realm();
 
         Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Web::Fetch::Engine::BodyIntent::ConsumeForCallback };
@@ -168,7 +168,6 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         }
 
         // 2. Set request's reserved client to inside settings.
-        request->set_reserved_client(GC::Ptr<Web::HTML::EnvironmentSettingsObject>(inside_settings));
         request->set_reserved_client_snapshot(Web::Fetch::Fetching::snapshot_reserved_client_context(*inside_settings));
 
         // NB: We need to store the process custom fetch response function on the heap here, because we're storing it

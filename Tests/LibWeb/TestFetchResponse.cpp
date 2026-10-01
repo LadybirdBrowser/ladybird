@@ -72,7 +72,7 @@ TEST_CASE(http_redirect_fetch_releases_intermediate_response_transfer_lease)
     auto request_url = URL::Parser::basic_parse("https://example.test/start"sv);
     VERIFY(request_url.has_value());
 
-    auto request = Web::Fetch::Infrastructure::Request::create(*vm);
+    auto request = Web::Fetch::Infrastructure::Request::create();
     request->set_url_list({ request_url.release_value() });
     request->set_redirect_count(20);
 

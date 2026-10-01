@@ -89,7 +89,7 @@ private:
     URL::URL m_url;
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-event-stream-request
-    GC::Ptr<Fetch::Infrastructure::Request> m_request;
+    RefPtr<Fetch::Infrastructure::Request> m_request;
 
     // https://html.spec.whatwg.org/multipage/server-sent-events.html#concept-event-stream-reconnection-time
     AK::Duration m_reconnection_time { AK::Duration::from_seconds(3) };

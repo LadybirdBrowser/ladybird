@@ -133,7 +133,7 @@ void SharedResourceRequest::set_fetch_controller(GC::Ptr<Fetch::Infrastructure::
     m_fetch_controller = move(fetch_controller);
 }
 
-void SharedResourceRequest::fetch_resource(GC::Ref<Fetch::Infrastructure::Request> request)
+void SharedResourceRequest::fetch_resource(NonnullRefPtr<Fetch::Infrastructure::Request> request)
 {
     auto& realm = HTML::relevant_realm(*m_document);
     VERIFY(needs_fetching());

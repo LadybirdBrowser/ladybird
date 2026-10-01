@@ -52,6 +52,6 @@ GC::Ptr<Fetch::Infrastructure::FetchController> fetch_a_style_resource(StyleReso
 GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(StyleResourceURL const&, RuleOrDeclaration, DOM::Document&);
 
 // https://drafts.csswg.org/css-values-5/#apply-request-modifiers-from-url-value
-void apply_request_modifiers_from_url_value(URL const&, GC::Ref<Fetch::Infrastructure::Request>);
+void apply_request_modifiers_from_url_value(URL const&, NonnullRefPtr<Fetch::Infrastructure::Request>);
 
 }

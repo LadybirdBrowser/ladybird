@@ -17,25 +17,22 @@ class WEB_API FetchRecord final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(FetchRecord);
 
 public:
-    [[nodiscard]] static GC::Ref<FetchRecord> create(GC::Ref<Infrastructure::Request>);
-    [[nodiscard]] static GC::Ref<FetchRecord> create(GC::Ref<Infrastructure::Request>, GC::Ptr<FetchController>);
+    [[nodiscard]] static GC::Ref<FetchRecord> create(NonnullRefPtr<Infrastructure::Request>, GC::Ptr<FetchController>);
 
-    [[nodiscard]] GC::Ref<Infrastructure::Request> request() const { return m_request; }
-    void set_request(GC::Ref<Infrastructure::Request> request) { m_request = request; }
+    [[nodiscard]] Infrastructure::Request& request() const { return *m_request; }
 
     [[nodiscard]] GC::Ptr<FetchController> fetch_controller() const { return m_fetch_controller; }
     void set_fetch_controller(GC::Ptr<FetchController> fetch_controller) { m_fetch_controller = fetch_controller; }
 
 private:
-    explicit FetchRecord(GC::Ref<Infrastructure::Request>);
-    FetchRecord(GC::Ref<Infrastructure::Request>, GC::Ptr<FetchController>);
+    FetchRecord(NonnullRefPtr<Infrastructure::Request>, GC::Ptr<FetchController>);
 
     virtual void visit_edges(Visitor&) override;
     virtual void finalize() override;
 
     // https://fetch.spec.whatwg.org/#concept-request
     // A fetch record has an associated request (a request)
-    GC::Ref<Infrastructure::Request> m_request;
+    NonnullRefPtr<Infrastructure::Request> m_request;
 
     // https://fetch.spec.whatwg.org/#fetch-controller
     // A fetch record has an associated controller (a fetch controller or null)
