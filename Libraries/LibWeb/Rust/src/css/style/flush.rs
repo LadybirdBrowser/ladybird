@@ -1909,7 +1909,7 @@ impl StyleEngineState {
                         break chain;
                     }
                     crossed.push(ancestor);
-                    current = engine.tree.flat_tree_parent(ancestor);
+                    current = engine.tree.inheritance_parent(ancestor);
                 };
                 let mut chain_is_final = true;
                 for &ancestor in crossed.iter().rev() {
@@ -1989,7 +1989,7 @@ impl StyleEngineState {
                     // path reads without asking about the chain above it.
                     let direct_inherited_delta = (reaction == transaction::STYLE_REACTION_INHERITED_STYLE
                         && !resuming_font)
-                        .then(|| self.retained.tree.flat_tree_parent(node))
+                        .then(|| self.retained.tree.inheritance_parent(node))
                         .flatten()
                         .filter(|parent| {
                             !row_of(&engine_computed_record_scratch.derived_child_inputs, *parent)
@@ -2075,7 +2075,7 @@ impl StyleEngineState {
                     } else {
                         match self
                             .tree
-                            .flat_tree_parent(node)
+                            .inheritance_parent(node)
                             .map_or(publication::AncestorChain::ROOT, |parent| {
                                 ancestor_chain(
                                     self,

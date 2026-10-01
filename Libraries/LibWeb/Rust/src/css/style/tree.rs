@@ -1242,6 +1242,18 @@ impl StyleNodeTree {
         Some(parent)
     }
 
+    /// The element whose computed values this element inherits. Unlike [`Self::flat_tree_parent`],
+    /// this keeps the DOM parent of an element excluded from the flat tree: such an element can
+    /// still have its style requested through CSSOM and inherits from that parent when it does.
+    #[must_use]
+    pub fn inheritance_parent(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        if let Some(slot) = self.assigned_slot_of(node) {
+            return Some(slot);
+        }
+        let parent = self.parent(node)?;
+        Some(self.host_of(parent).unwrap_or(parent))
+    }
+
     /// Compare nodes in the order C++ must apply style reactions.
     ///
     /// This is preorder over the style-inheritance tree, extended to keep shadow-tree children

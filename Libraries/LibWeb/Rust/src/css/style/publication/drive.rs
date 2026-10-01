@@ -154,7 +154,7 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
-        let snapshot = match self.tree.flat_tree_parent(node) {
+        let snapshot = match self.tree.inheritance_parent(node) {
             None => None,
             Some(parent) => match self.computed_group_sets.assigned_style_record(parent) {
                 Some(record) => {
@@ -480,7 +480,7 @@ impl RetainedState {
                 parent_display = Some(display);
                 break;
             }
-            ancestor = self.tree.flat_tree_parent(current);
+            ancestor = self.tree.inheritance_parent(current);
         }
         let snapshot = match &parent_view {
             Some(parent_view) => {

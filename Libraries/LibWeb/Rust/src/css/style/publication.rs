@@ -481,7 +481,7 @@ impl RetainedState {
         // declaring none keeps its record's, which is the parent's; a moved environment
         // republishes the record under the new one.
         let environment = {
-            let parent_environment = match self.tree.flat_tree_parent(node) {
+            let parent_environment = match self.tree.inheritance_parent(node) {
                 Some(parent) => {
                     let Some(parent_environment) =
                         self.computed_group_sets.custom_property_environment_identity(parent)
@@ -604,7 +604,7 @@ impl RetainedState {
         // Partial drives can share across parents whose inherited inputs agree. Keep the full
         // parent record in the key when a non-inherited property explicitly inherits, including
         // through substitution, or when a full drive may read more of the parent's style.
-        let parent = self.tree.flat_tree_parent(node);
+        let parent = self.tree.inheritance_parent(node);
         let parent_record = parent.and_then(|parent| self.computed_group_sets.assigned_style_record(parent));
         let mut cohort_parent = RecordDeltaParent::Exact(parent_record.map_or(0, |record| record.raw()));
         if !full_drive
@@ -804,7 +804,7 @@ impl RetainedState {
         };
         let parent_in_display_none_subtree = self
             .tree
-            .flat_tree_parent(node)
+            .inheritance_parent(node)
             .and_then(|parent| self.computed_group_sets.assigned_style_record(parent))
             .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
             .is_some_and(|view| view.dependency_flags & (1 << 2) != 0);
@@ -997,13 +997,9 @@ impl RetainedState {
             root_inputs.apply_to(&mut inputs);
         }
         let facts = self.computed_group_sets.adjustment_facts(node);
-        let parent = self.tree.flat_tree_parent(node);
-        // Only the document element is styled without a flat-tree parent: it inherits from the
-        // initial values.
-        if parent.is_none() && facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT == 0 {
-            counters.bump(Counter::EngineComputedRecordBailRecordParent);
-            return Err(Unanswered::Refused);
-        }
+        let parent = self.tree.inheritance_parent(node);
+        // Only the document element has no inheritance parent: it inherits from the initial values.
+        debug_assert!(parent.is_some() || facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0);
         let parent_record = match parent {
             Some(parent) => match self.computed_group_sets.assigned_style_record(parent) {
                 Some(parent_record) => Some(parent_record),
@@ -1516,7 +1512,7 @@ impl RetainedState {
             && !self.node_declares_custom_properties(node)
             && let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node)
             && let Some(inputs) = self.document_style_computation_inputs
-            && let Some(parent) = self.tree.flat_tree_parent(node)
+            && let Some(parent) = self.tree.inheritance_parent(node)
             && let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent)
             && let Some(environment) = self.computed_group_sets.custom_property_environment_identity(parent)
             && let Some(pseudo_styles) = self.pseudo_style_mask(node)
@@ -1757,7 +1753,7 @@ impl RetainedState {
     /// `owned_groups` is the parent's own, no non-inherited property is inherited explicitly, and
     /// its custom-property environment is the parent's.
     fn record_inherits_from_current_parent(&self, node: StyleNodeID, state: CascadeStateID, owned_groups: u32) -> bool {
-        let Some(parent) = self.tree.flat_tree_parent(node) else {
+        let Some(parent) = self.tree.inheritance_parent(node) else {
             return false;
         };
         if self.state_explicitly_inherits_non_inherited_property(node, state) {
@@ -1840,12 +1836,9 @@ impl RetainedState {
 
     fn element_drive_subject(&mut self, node: StyleNodeID, counters: &mut Counters) -> Drive<DriveSubject> {
         let facts = self.computed_group_sets.adjustment_facts(node);
-        let parent = self.tree.flat_tree_parent(node);
-        // Only the document element is styled without a flat-tree parent.
-        if parent.is_none() && facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT == 0 {
-            counters.bump(Counter::EngineComputedRecordBailRecordParent);
-            return Err(Unanswered::Refused);
-        }
+        let parent = self.tree.inheritance_parent(node);
+        // Only the document element has no inheritance parent.
+        debug_assert!(parent.is_some() || facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0);
         if self.parent_composes_animations(node) {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
@@ -1857,7 +1850,7 @@ impl RetainedState {
     /// parent's record. An animation that settles a custom property installs an environment of its
     /// own on the parent, and sampling moves it without a publication the engine sees.
     fn parent_composes_animations(&self, node: StyleNodeID) -> bool {
-        self.tree.flat_tree_parent(node).is_some_and(|parent| {
+        self.tree.inheritance_parent(node).is_some_and(|parent| {
             self.computed_group_sets.node_has_animation_overlay(parent)
                 || self.computed_group_sets.adjustment_facts(parent) & bridge::element_adjustment_fact::HAS_ANIMATIONS
                     != 0
@@ -2013,7 +2006,7 @@ impl RetainedState {
                         | u32::from(display.box_value) << 4,
                 );
             }
-            ancestor = self.tree.flat_tree_parent(current);
+            ancestor = self.tree.inheritance_parent(current);
         }
         None
     }
@@ -2107,7 +2100,7 @@ impl RetainedState {
         if cascade_state.0 != self.winner_groups.generation() {
             return;
         }
-        let Some(parent) = self.tree.flat_tree_parent(node) else {
+        let Some(parent) = self.tree.inheritance_parent(node) else {
             return;
         };
         let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent) else {
