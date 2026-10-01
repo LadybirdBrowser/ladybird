@@ -22,6 +22,9 @@ pub enum FfiCommitMessageKind {
     /// A top layer member was reached with no box and nothing scheduled to rebuild it, so the
     /// document has to run another top layer zone pass. This one is about the document itself.
     TopLayerZoneRebuildNeeded,
+    /// The node is the element a pseudo-element was generated for, and the pseudo-element's content
+    /// or list marker shows the value of the `list-item` counter.
+    ListItemCounterValueRendered,
     /// The node is an SVG resource, a `<mask>`, `<clipPath>` or `<pattern>`, whose content the
     /// tree build laid out under the graphics element `other_style_node` names. The resource
     /// outlives that box, so removing it has to rebuild the subtree the box sits in.

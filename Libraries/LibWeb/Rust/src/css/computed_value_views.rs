@@ -533,6 +533,11 @@ impl<'a> ComputedValuesView<'a> {
         self.content().content.data()
     }
 
+    /// The computed `quotes` value.
+    pub(crate) fn quotes_value(self) -> Option<&'a StyleValueData> {
+        self.inherited_list().quotes.data()
+    }
+
     /// The `counter-reset` list, empty for `none`.
     pub(crate) fn counter_reset(self) -> &'a [crate::css::style_value::RetainedCounterDefinition] {
         counter_definitions(&self.content().counter_reset)

@@ -23,7 +23,7 @@ use std::rc::Rc;
 // must be clamped to that range." - https://drafts.csswg.org/css-lists-3/#auto-numbering
 pub(crate) type CounterValue = i32;
 
-const LIST_ITEM_COUNTER_NAME: [u16; 9] = [
+pub(crate) const LIST_ITEM_COUNTER_NAME: [u16; 9] = [
     b'l' as u16,
     b'i' as u16,
     b's' as u16,
@@ -39,17 +39,41 @@ fn is_list_item_counter_name(name: &[u16]) -> bool {
     name == LIST_ITEM_COUNTER_NAME
 }
 
-fn name_matches(name: &ak::Utf16StringUnits<'_>, counter_name: &CssString) -> bool {
-    let counter_name = counter_name.units();
-    match name {
-        ak::Utf16StringUnits::Ascii(bytes) => {
-            bytes.len() == counter_name.len()
-                && bytes
-                    .iter()
-                    .zip(counter_name)
-                    .all(|(&byte, &unit)| u16::from(byte) == unit)
+/// A counter name as a reader of the counters set has it.
+pub(crate) enum CounterName<'a> {
+    /// A name the host passes as the code units of one of its strings.
+    Host(&'a ak::Utf16StringUnits<'a>),
+    /// A name a computed style spells.
+    Css(&'a CssString),
+    Units(&'a [u16]),
+}
+
+impl CounterName<'_> {
+    fn matches(&self, counter_name: &CssString) -> bool {
+        let counter_name = counter_name.units();
+        match self {
+            Self::Host(ak::Utf16StringUnits::Ascii(bytes)) => {
+                bytes.len() == counter_name.len()
+                    && bytes
+                        .iter()
+                        .zip(counter_name)
+                        .all(|(&byte, &unit)| u16::from(byte) == unit)
+            }
+            Self::Host(ak::Utf16StringUnits::Utf16(units)) => *units == counter_name,
+            Self::Css(name) => name.units() == counter_name,
+            Self::Units(units) => *units == counter_name,
         }
-        ak::Utf16StringUnits::Utf16(units) => *units == counter_name,
+    }
+
+    fn to_css_string(&self) -> CssString {
+        match self {
+            Self::Host(ak::Utf16StringUnits::Ascii(bytes)) => {
+                CssString::from_utf16(&bytes.iter().map(|&byte| u16::from(byte)).collect::<Vec<_>>())
+            }
+            Self::Host(ak::Utf16StringUnits::Utf16(units)) => CssString::from_utf16(units),
+            Self::Css(name) => (*name).clone(),
+            Self::Units(units) => CssString::from_utf16(units),
+        }
     }
 }
 
@@ -123,17 +147,13 @@ impl CountersSets {
     // a new counter of the given name with a starting value of 0 before setting or incrementing its value."
     /// Returns every value named `name` in `owner`'s set, outermost first, instantiating the counter
     /// first when there is none.
-    pub(crate) fn counter_values_for_use(
-        &mut self,
-        owner: CounterOwner,
-        name: &ak::Utf16StringUnits<'_>,
-    ) -> Vec<CounterValue> {
+    pub(crate) fn counter_values_for_use(&mut self, owner: CounterOwner, name: &CounterName<'_>) -> Vec<CounterValue> {
         if let Some(set) = self.sets.get(&owner)
-            && set.iter().any(|counter| name_matches(name, &counter.name))
+            && set.iter().any(|counter| name.matches(&counter.name))
         {
             return set
                 .iter()
-                .filter(|counter| name_matches(name, &counter.name))
+                .filter(|counter| name.matches(&counter.name))
                 .map(|counter| counter.value.unwrap_or(0))
                 .collect();
         }
@@ -143,13 +163,9 @@ impl CountersSets {
 
     /// The value of the innermost counter named `name` in `owner`'s set, instantiating it first when
     /// there is none.
-    pub(crate) fn counter_value_for_use(
-        &mut self,
-        owner: CounterOwner,
-        name: &ak::Utf16StringUnits<'_>,
-    ) -> CounterValue {
+    pub(crate) fn counter_value_for_use(&mut self, owner: CounterOwner, name: &CounterName<'_>) -> CounterValue {
         if let Some(set) = self.sets.get(&owner)
-            && let Some(counter) = set.iter().rev().find(|counter| name_matches(name, &counter.name))
+            && let Some(counter) = set.iter().rev().find(|counter| name.matches(&counter.name))
         {
             return counter.value.unwrap_or(0);
         }
@@ -159,13 +175,8 @@ impl CountersSets {
 
     // NB: No counter of this name exists, so instantiating one never removes another and needs no
     //     tree order.
-    fn instantiate_unused_counter(&mut self, owner: CounterOwner, name: &ak::Utf16StringUnits<'_>) {
-        let name = match name {
-            ak::Utf16StringUnits::Ascii(bytes) => {
-                CssString::from_utf16(&bytes.iter().map(|&byte| u16::from(byte)).collect::<Vec<_>>())
-            }
-            ak::Utf16StringUnits::Utf16(units) => CssString::from_utf16(units),
-        };
+    fn instantiate_unused_counter(&mut self, owner: CounterOwner, name: &CounterName<'_>) {
+        let name = name.to_css_string();
         Rc::make_mut(self.sets.entry(owner).or_default()).push(Counter {
             name,
             originating_element: owner,

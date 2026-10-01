@@ -49,6 +49,7 @@ private:
         UnexpectedFragmentedInline,
         NeedsLayoutTreeUpdate,
         TopLayerZoneRebuildNeeded,
+        ListItemCounterValueRendered,
         SvgResourceReferenced,
     };
 

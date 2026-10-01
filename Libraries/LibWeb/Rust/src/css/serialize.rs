@@ -17,7 +17,9 @@ mod shorthand;
 use crate::css::css_enums::keyword;
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::parser::component_value::{ComponentSerializationMode, serialize_component_values_into};
-use crate::css::style_value::{BasicShapeData, RetainedColorStopList, RetainedString, StyleValueData};
+use crate::css::style_value::{
+    BasicShapeData, COUNTER_FUNCTION_COUNTERS, RetainedColorStopList, RetainedString, StyleValueData,
+};
 
 include!(concat!(env!("OUT_DIR"), "/transform_functions_generated.rs"));
 
@@ -1284,8 +1286,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             let Some(counter_style) = counter_style.optional_data() else {
                 return false;
             };
-            // CounterStyleValue::CounterFunction: Counter is 0, Counters is 1.
-            let is_counters = *function == 1;
+            let is_counters = *function == COUNTER_FUNCTION_COUNTERS;
             sink.push_ascii(if is_counters { "counters(" } else { "counter(" });
             with_fly_string_units(counter_name, |units| serialize_an_identifier(sink, &units));
             if is_counters {

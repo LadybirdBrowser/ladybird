@@ -3996,7 +3996,7 @@ pub unsafe extern "C" fn layout_arena_counter_value_for_use(
     unsafe { &*arena.cast::<LayoutNodeArena>() }
         .counters_sets()
         .borrow_mut()
-        .counter_value_for_use(owner, &name)
+        .counter_value_for_use(owner, &super::counters::CounterName::Host(&name))
 }
 
 /// Every value named `name` in the counters set of the element `style_node` names, or of its
@@ -4026,7 +4026,7 @@ pub unsafe extern "C" fn layout_arena_counter_values_for_use(
             unsafe { &*arena.cast::<LayoutNodeArena>() }
                 .counters_sets()
                 .borrow_mut()
-                .counter_values_for_use(owner, &name)
+                .counter_values_for_use(owner, &super::counters::CounterName::Host(&name))
         }
         None => vec![0],
     };
@@ -4034,6 +4034,31 @@ pub unsafe extern "C" fn layout_arena_counter_values_for_use(
         // SAFETY: The caller keeps `context` valid for the callback.
         unsafe { callback(context, value) };
     }
+}
+
+/// The text the content of the pseudo-element `generated_for` of the element `style_node` names last
+/// resolved to, the way accessibility reads it: the alt text when there is one, otherwise every
+/// string in order. The result is an `AK::Utf16String` raw representation the caller adopts.
+///
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_generated_content_accessible_text(
+    arena: *mut c_void,
+    style_node: u32,
+    generated_for: u8,
+) -> usize {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    let Some(owner) = counter_owner(style_node, generated_for) else {
+        return ak::Utf16String::from_utf16(&[]).into_raw();
+    };
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on the
+    // document thread.
+    let generated_content = unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .generated_content()
+        .borrow();
+    ak::Utf16String::from_utf16(generated_content.accessible_text(owner)).into_raw()
 }
 
 /// Whether the innermost `list-item` counter in the counters set of the element `style_node` names
