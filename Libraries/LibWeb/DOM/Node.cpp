@@ -2035,6 +2035,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         new_parent.insert_before_impl(*this, child);
     }
 
+    CSS::record_node_moved_in_dom_order(*this, *old_parent);
     if (moved_element)
         CSS::record_element_moved(*moved_element, moved_from_parent.ptr(), moved_from_previous.ptr(), moved_from_next.ptr());
     else if (is<CharacterData>(*this)) {
