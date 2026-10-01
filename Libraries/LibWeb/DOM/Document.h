@@ -533,6 +533,8 @@ public:
     // The marks the DOM side has made on this document's layout and paint state but not written there yet.
     [[nodiscard]] InvalidationJournal& invalidation_journal() { return *m_invalidation_journal; }
     void drain_invalidation_journal() const;
+    // What layout has told this document and the document has not acted on yet.
+    [[nodiscard]] CommitMessages& commit_messages() { return *m_commit_messages; }
 
     void invalidate_layout_tree(InvalidateLayoutTreeReason);
 
@@ -1614,6 +1616,7 @@ private:
 
     RefPtr<Layout::NodeArena> m_layout_node_arena;
     NonnullOwnPtr<InvalidationJournal> m_invalidation_journal;
+    NonnullOwnPtr<CommitMessages> m_commit_messages;
     OwnPtr<Painting::DocumentPaintState> m_paint_state;
     NonnullRefPtr<Painting::ChromeWidgetRegistry> m_chrome_widget_registry;
     bool m_may_have_content_visibility_auto_style { false };

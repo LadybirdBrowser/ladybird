@@ -1061,6 +1061,19 @@ impl LayoutNodeArena {
         self.style_nodes[id.slot_index() as usize].get()
     }
 
+    /// Names the DOM node a row stands for the way a commit message does: by its style node, or by
+    /// 0 for the document, which the viewport row stands for. An anonymous row, which includes a
+    /// pseudo-element's, stands for no DOM node, and there is nothing to tell the document about it.
+    pub(crate) fn commit_message_style_node(&self, id: NodeSlotId) -> Option<u32> {
+        if !self.slot_is_live(id) || super::node_facts::has_flag(self.data(id), NodeFlag::Anonymous) {
+            return None;
+        }
+        if self.data(id).kind.get() == NodeKind::Viewport {
+            return Some(0);
+        }
+        self.node_style_node(id).map(StyleNodeID::raw)
+    }
+
     fn set_node_style_node(&self, id: NodeSlotId, style_node: Option<StyleNodeID>) {
         let index = id.slot_index() as usize;
         let previous = self.style_nodes[index].get();
@@ -4421,6 +4434,33 @@ mod tests {
             arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
         }
         arena.forget_style_node(reconnected);
+    }
+
+    #[test]
+    fn a_commit_message_names_the_dom_node_a_row_stands_for() {
+        use crate::css::style::tree::StyleNodeID;
+        let mut arena = LayoutNodeArena::new();
+        let element = StyleNodeID::element(3);
+        let principal = arena.allocate(FfiNodeConstructionFacts {
+            style_node: element.raw(),
+            ..test_construction_facts()
+        });
+        let viewport = arena.allocate(test_construction_facts_with_kind(NodeKind::Viewport));
+        let anonymous = arena.allocate(test_anonymous_construction_facts());
+        let pseudo_element = arena.allocate(test_anonymous_construction_facts());
+        arena.set_node_generated_for(pseudo_element, 1, Some(element));
+
+        assert_eq!(arena.commit_message_style_node(principal), Some(element.raw()));
+        assert_eq!(arena.commit_message_style_node(viewport), Some(0));
+        assert_eq!(arena.commit_message_style_node(anonymous), None);
+        assert_eq!(arena.commit_message_style_node(pseudo_element), None);
+
+        arena.free_subtree(principal).destroy_shells_and_invoke_callbacks();
+        assert_eq!(arena.commit_message_style_node(principal), None);
+        for row in [viewport, anonymous, pseudo_element] {
+            arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
+        }
+        arena.forget_style_node(element);
     }
 
     #[test]

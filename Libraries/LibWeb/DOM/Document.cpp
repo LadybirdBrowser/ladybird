@@ -103,6 +103,7 @@
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/CaretPosition.h>
 #include <LibWeb/DOM/Comment.h>
+#include <LibWeb/DOM/CommitMessages.h>
 #include <LibWeb/DOM/CustomEvent.h>
 #include <LibWeb/DOM/DOMImplementation.h>
 #include <LibWeb/DOM/Document.h>
@@ -625,6 +626,7 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
     , m_url(url)
     , m_relevant_global_event_target(relevant_global_event_target)
     , m_invalidation_journal(make<InvalidationJournal>(*this))
+    , m_commit_messages(make<CommitMessages>(*this))
     , m_chrome_widget_registry(make_ref_counted<Painting::ChromeWidgetRegistry>())
     , m_fonts(CSS::FontFaceSet::create(relevant_settings_object()))
     , m_temporary_document_for_fragment_parsing(temporary_document_for_fragment_parsing == TemporaryDocumentForFragmentParsing::Yes)
@@ -801,6 +803,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     m_style_scope.visit_edges(visitor);
     m_invalidation_journal->visit_edges(visitor);
+    m_commit_messages->visit_edges(visitor);
     for (auto const& import : m_pending_css_import_rules)
         import->visit_edges(visitor);
     visitor.visit(m_page);
