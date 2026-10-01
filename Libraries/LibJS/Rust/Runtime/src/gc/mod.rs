@@ -12,6 +12,7 @@ pub mod class;
 pub mod class_id;
 pub mod gc_ref_cell;
 pub mod heap;
+pub mod interpreter_buffer;
 pub mod root;
 pub mod visitor;
 pub mod weak;

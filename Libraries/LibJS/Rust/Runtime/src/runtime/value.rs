@@ -162,7 +162,7 @@ impl Value {
         self.as_f64().is_finite()
     }
 
-    fn with_cell_tag<T>(tag: u64, cell: Gc<T>) -> Self {
+    pub(crate) fn with_cell_tag<T>(tag: u64, cell: Gc<T>) -> Self {
         let address = cell.as_ptr() as usize as u64;
         Self((tag << nan_box::TAG_SHIFT) | (address & HEAP_REGION_OFFSET_MASK))
     }
@@ -170,7 +170,7 @@ impl Value {
     /// # Safety
     ///
     /// The value must hold a cell of type T.
-    unsafe fn cell<T>(self) -> Gc<T> {
+    pub(crate) unsafe fn cell<T>(self) -> Gc<T> {
         debug_assert!(self.is_cell());
         keep_encoded_value_alive(self.0);
         // SAFETY: Cell values are offsets into the heap region, whose base LibGC fixed before any cell existed.

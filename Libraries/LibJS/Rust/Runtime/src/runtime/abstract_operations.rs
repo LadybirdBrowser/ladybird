@@ -4,33 +4,48 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The parts of Libraries/LibJS/Runtime/AbstractOperations.cpp the object model needs.
+//! The parts of Libraries/LibJS/Runtime/AbstractOperations.cpp the runtime has so far.
+
+use core::cell::Cell;
+use std::collections::HashSet;
 
 use ak::{ScopeGuard, Utf16FlyString};
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
+use crate::gc::class::GcCell;
+use crate::gc::class_id::ClassId;
+use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::function_object::EcmascriptFunctionObject;
 use crate::layout::function_object::FunctionObject;
 use crate::layout::value::Value;
 use crate::runtime::accessor::Accessor;
+use crate::runtime::arguments_object::ArgumentsObject;
+use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::declarative_environment::DeclarativeEnvironment;
+use crate::runtime::environment::{Environment, InitializeBindingHint, ThisBindingStatus};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::indexed_properties::ValueAndAttributes;
-use crate::runtime::object::{Object, StackFrameInfo};
+use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, StackFrameInfo, allocate_object};
+use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment};
 use crate::runtime::private_environment::PrivateEnvironment;
-use crate::runtime::property_attributes::PropertyAttributes;
+use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::realm::Realm;
+use crate::runtime::shared_function_instance_data::ThisMode;
 use crate::runtime::value::same_value;
+use libjs_runtime_macros::Trace;
 
 /// The Object a function object starts with.
 pub fn function_object_as_object(function: Gc<FunctionObject>) -> Gc<Object> {
-    // SAFETY: FunctionObject is #[repr(C)] and starts with its Object.
-    unsafe { Gc::from_non_null(function.as_non_null().cast()) }
+    function.upcast()
 }
 
 // 7.2.1 RequireObjectCoercible ( argument ), https://tc39.es/ecma262/#sec-requireobjectcoercible
@@ -63,7 +78,7 @@ fn with_callee_context<T>(
         argument_count: u32::try_from(arguments_list.len()).expect("the argument count fits in u32"),
         ..Default::default()
     };
-    function.get_stack_frame_info(&mut stack_frame_info);
+    function.get_stack_frame_info(vm, &mut stack_frame_info);
 
     let stack = vm.interpreter_stack();
     let stack_mark = stack.top.get();
@@ -245,6 +260,36 @@ pub fn species_constructor(
 
     // 7. Throw a TypeError exception.
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAConstructor, &[&species])
+}
+
+// 7.3.25 GetFunctionRealm ( obj ), https://tc39.es/ecma262/#sec-getfunctionrealm
+pub fn get_function_realm(vm: &Vm, function: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<Realm>> {
+    // 1. If obj has a [[Realm]] internal slot, then
+    if let Some(realm) = function.realm() {
+        // a. Return obj.[[Realm]].
+        return Ok(realm);
+    }
+
+    // 2. If obj is a bound function exotic object, then
+    if let Some(bound_function) = function.upcast::<Object>().downcast::<BoundFunction>() {
+        // a. Let boundTargetFunction be obj.[[BoundTargetFunction]].
+        let bound_target_function = bound_function.bound_target_function();
+
+        // b. Return ? GetFunctionRealm(boundTargetFunction).
+        return get_function_realm(vm, bound_target_function);
+    }
+
+    // 3. If obj is a Proxy exotic object, then
+    if function.class().id == ClassId::ProxyObject {
+        // a. a. Perform ? ValidateNonRevokedProxy(obj).
+        // b. Let proxyTarget be obj.[[ProxyTarget]].
+        // c. Assert: proxyTarget is a function object.
+        // d. Return ? GetFunctionRealm(proxyTarget).
+        unimplemented_runtime_function("ProxyObject::target, for GetFunctionRealm", 0);
+    }
+
+    // 4. Return the current Realm Record.
+    Ok(vm.current_realm().expect("there is a current realm"))
 }
 
 // 10.1.6.2 IsCompatiblePropertyDescriptor ( Extensible, Desc, Current ), https://tc39.es/ecma262/#sec-iscompatiblepropertydescriptor
@@ -445,9 +490,481 @@ pub fn validate_and_apply_property_descriptor(
     true
 }
 
+/// A realm's intrinsic object, the C++ pointer to an Intrinsics member function.
+pub type IntrinsicDefaultPrototype = fn(&Realm) -> Gc<Object>;
+
+// 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
+/// The form of OrdinaryCreateFromConstructor that creates an ordinary object.
+pub fn ordinary_create_from_constructor(
+    vm: &Vm,
+    _realm: Gc<Realm>,
+    constructor: Gc<FunctionObject>,
+    intrinsic_default_prototype: IntrinsicDefaultPrototype,
+) -> ThrowCompletionOr<Gc<Object>> {
+    let prototype = get_prototype_from_constructor(vm, constructor, intrinsic_default_prototype)?;
+    Ok(allocate_object(
+        vm,
+        Object::new_with_prototype(vm, Object::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+    ))
+}
+
+// 10.1.14 GetPrototypeFromConstructor ( constructor, intrinsicDefaultProto ), https://tc39.es/ecma262/#sec-getprototypefromconstructor
+pub fn get_prototype_from_constructor(
+    vm: &Vm,
+    constructor: Gc<FunctionObject>,
+    intrinsic_default_prototype: IntrinsicDefaultPrototype,
+) -> ThrowCompletionOr<Gc<Object>> {
+    // 1. Assert: intrinsicDefaultProto is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
+
+    // 2. Let proto be ? Get(constructor, "prototype").
+    let mut prototype = constructor.get_with_cache(
+        vm,
+        &vm.names.prototype,
+        vm.static_property_lookup_cache(StaticPropertyLookupCacheSite::GetPrototypeFromConstructorPrototype),
+    )?;
+
+    // 3. If Type(proto) is not Object, then
+    if !prototype.is_object() {
+        // a. Let realm be ? GetFunctionRealm(constructor).
+        let realm = get_function_realm(vm, constructor)?;
+
+        // b. Set proto to realm's intrinsic object named intrinsicDefaultProto.
+        prototype = Value::from_object(intrinsic_default_prototype(&realm));
+    }
+
+    // 4. Return proto.
+    Ok(prototype.as_object())
+}
+
 // 9.2.1.1 NewPrivateEnvironment ( outerPrivEnv ), https://tc39.es/ecma262/#sec-newprivateenvironment
 pub fn new_private_environment(vm: &Vm, outer: Option<Gc<PrivateEnvironment>>) -> Gc<PrivateEnvironment> {
     // 1. Let names be a new empty List.
     // 2. Return the PrivateEnvironment Record { [[OuterPrivateEnvironment]]: outerPrivEnv, [[Names]]: names }.
     PrivateEnvironment::create(vm, outer)
+}
+
+// 9.1.2.2 NewDeclarativeEnvironment ( E ), https://tc39.es/ecma262/#sec-newdeclarativeenvironment
+// 4.1.2.1 NewDeclarativeEnvironment ( E ), https://tc39.es/proposal-explicit-resource-management/#sec-declarative-environment-records-initializebinding-n-v
+pub fn new_declarative_environment(vm: &Vm, environment: Gc<Environment>) -> Gc<DeclarativeEnvironment> {
+    // 1. Let env be a new Declarative Environment Record containing no bindings.
+    // 2. Set env.[[OuterEnv]] to E.
+    // 3. Set env.[[DisposeCapability]] to NewDisposeCapability().
+    // 4. Return env.
+    DeclarativeEnvironment::create(vm, Some(environment))
+}
+
+// 9.1.2.3 NewObjectEnvironment ( O, W, E ), https://tc39.es/ecma262/#sec-newobjectenvironment
+pub fn new_object_environment(
+    vm: &Vm,
+    object: Gc<Object>,
+    is_with_environment: bool,
+    environment: Option<Gc<Environment>>,
+) -> Gc<ObjectEnvironment> {
+    // 1. Let env be a new Object Environment Record.
+    // 2. Set env.[[BindingObject]] to O.
+    // 3. Set env.[[IsWithEnvironment]] to W.
+    // 4. Set env.[[OuterEnv]] to E.
+    // 5. Return env.
+    ObjectEnvironment::create(
+        vm,
+        object,
+        if is_with_environment {
+            IsWithEnvironment::Yes
+        } else {
+            IsWithEnvironment::No
+        },
+        environment,
+    )
+}
+
+fn native_javascript_backed_function_this_mode_is_lexical(_function: Gc<FunctionObject>) -> bool {
+    unimplemented_runtime_function(
+        "NativeJavaScriptBackedFunction::this_mode, for NewFunctionEnvironment",
+        0,
+    )
+}
+
+// 9.1.2.4 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/ecma262/#sec-newfunctionenvironment
+// 4.1.2.2 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/proposal-explicit-resource-management/#sec-newfunctionenvironment
+pub fn new_function_environment(
+    vm: &Vm,
+    function: Gc<EcmascriptFunctionObject>,
+    new_target: Option<Gc<Object>>,
+) -> Gc<FunctionEnvironment> {
+    // 1. Let env be a new function Environment Record containing no bindings.
+    let env = FunctionEnvironment::create(vm, function.environment());
+
+    // 2. Set env.[[FunctionObject]] to F.
+    env.set_function_object(function.upcast());
+
+    if function.this_mode() == ThisMode::Lexical {
+        // 3. If F.[[ThisMode]] is lexical, set env.[[ThisBindingStatus]] to lexical.
+        env.set_this_binding_status(ThisBindingStatus::Lexical);
+    } else {
+        // 4. Else, set env.[[ThisBindingStatus]] to uninitialized.
+        env.set_this_binding_status(ThisBindingStatus::Uninitialized);
+    }
+
+    // 5. Set env.[[NewTarget]] to newTarget.
+    env.set_new_target(new_target.map_or(Value::UNDEFINED, Value::from_object));
+
+    // 6. Set env.[[OuterEnv]] to F.[[Environment]].
+    // 7. Set env.[[DisposeCapability]] to NewDisposeCapability().
+    // NOTE: Done in step 1 via the FunctionEnvironment constructor.
+
+    // 8. Return env.
+    env
+}
+
+// 9.1.2.4 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/ecma262/#sec-newfunctionenvironment
+// 4.1.2.2 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/proposal-explicit-resource-management/#sec-newfunctionenvironment
+pub fn new_function_environment_for_native_javascript_backed_function(
+    vm: &Vm,
+    function: Gc<FunctionObject>,
+    new_target: Option<Gc<Object>>,
+) -> Gc<FunctionEnvironment> {
+    // 1. Let env be a new function Environment Record containing no bindings.
+    let env = FunctionEnvironment::create(vm, None);
+
+    // 2. Set env.[[FunctionObject]] to F.
+    env.set_function_object(function);
+
+    if native_javascript_backed_function_this_mode_is_lexical(function) {
+        // 3. If F.[[ThisMode]] is lexical, set env.[[ThisBindingStatus]] to lexical.
+        env.set_this_binding_status(ThisBindingStatus::Lexical);
+    } else {
+        // 4. Else, set env.[[ThisBindingStatus]] to uninitialized.
+        env.set_this_binding_status(ThisBindingStatus::Uninitialized);
+    }
+
+    // 5. Set env.[[NewTarget]] to newTarget.
+    env.set_new_target(new_target.map_or(Value::UNDEFINED, Value::from_object));
+
+    // 6. Set env.[[OuterEnv]] to F.[[Environment]].
+    // 7. Set env.[[DisposeCapability]] to NewDisposeCapability().
+    // NOTE: Done in step 1 via the FunctionEnvironment constructor.
+
+    // 8. Return env.
+    env
+}
+
+// 9.4.3 GetThisEnvironment ( ), https://tc39.es/ecma262/#sec-getthisenvironment
+pub fn get_this_environment(vm: &Vm) -> Gc<Environment> {
+    let context = vm
+        .running_execution_context()
+        .expect("GetThisEnvironment runs in an execution context");
+
+    // 1. Let env be the running execution context's LexicalEnvironment.
+    // SAFETY: The running execution context is live.
+    let mut env = unsafe { context.as_ref() }.lexical_environment.get();
+
+    // 2. Repeat,
+    while let Some(environment) = env {
+        // a. Let exists be env.HasThisBinding().
+        // b. If exists is true, return env.
+        if environment.has_this_binding() {
+            return environment;
+        }
+
+        // c. Let outer be env.[[OuterEnv]].
+        // d. Assert: outer is not null.
+        // e. Set env to outer.
+        env = environment.outer_environment();
+    }
+    unreachable!("the outermost environment has a this binding");
+}
+
+// 10.4.4.6 CreateUnmappedArgumentsObject ( argumentsList ), https://tc39.es/ecma262/#sec-createunmappedargumentsobject
+pub fn create_unmapped_arguments_object(vm: &Vm, arguments: &[Cell<Value>]) -> Gc<Object> {
+    let realm = vm.current_realm().expect("there is a current realm");
+
+    // 1. Let len be the number of elements in argumentsList.
+    let length = arguments.len();
+
+    // 2. Let obj be OrdinaryObjectCreate(%Object.prototype%, « [[ParameterMap]] »).
+    // 3. Set obj.[[ParameterMap]] to undefined.
+    let object = Object::create_with_premade_shape(vm, realm.unmapped_arguments_object_shape());
+
+    // 4. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
+    object.put_direct(
+        realm.unmapped_arguments_object_length_offset(),
+        Value::from_f64(length as f64),
+    );
+
+    // 5. Let index be 0.
+    // 6. Repeat, while index < len,
+    for (index, argument) in arguments.iter().enumerate() {
+        // a. Let val be argumentsList[index].
+        let value = argument.get();
+
+        // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
+        object.indexed_put(
+            u32::try_from(index).expect("the argument index fits in u32"),
+            value,
+            DEFAULT_ATTRIBUTES,
+        );
+
+        // c. Set index to index + 1.
+    }
+
+    // 7. Perform ! DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor { [[Value]]: %Array.prototype.values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
+    let array_prototype_values = realm.array_prototype_values_function();
+    object.put_direct(
+        realm.unmapped_arguments_object_well_known_symbol_iterator_offset(),
+        Value::from_object(array_prototype_values),
+    );
+
+    // 8. Perform ! DefinePropertyOrThrow(obj, "callee", PropertyDescriptor { [[Get]]: %ThrowTypeError%, [[Set]]: %ThrowTypeError%, [[Enumerable]]: false, [[Configurable]]: false }).
+    object.put_direct(
+        realm.unmapped_arguments_object_callee_offset(),
+        Value::from_accessor(realm.throw_type_error_accessor()),
+    );
+
+    // 9. Return obj.
+    object
+}
+
+// 10.4.4.7 CreateMappedArgumentsObject ( func, formals, argumentsList, env ), https://tc39.es/ecma262/#sec-createmappedargumentsobject
+pub fn create_mapped_arguments_object(
+    vm: &Vm,
+    function: Gc<FunctionObject>,
+    parameter_names: &[Utf16FlyString],
+    arguments: &[Cell<Value>],
+    environment: Gc<Environment>,
+) -> Gc<Object> {
+    let realm = vm.current_realm().expect("there is a current realm");
+
+    // 1. Assert: formals does not contain a rest parameter, any binding patterns, or any initializers. It may contain duplicate identifiers.
+
+    // 2. Let len be the number of elements in argumentsList.
+    let length = i32::try_from(arguments.len()).expect("the argument count fits in i32");
+
+    // 3. Let obj be MakeBasicObject(« [[Prototype]], [[Extensible]], [[ParameterMap]] »).
+    // 4. Set obj.[[GetOwnProperty]] as specified in 10.4.4.1.
+    // 5. Set obj.[[DefineOwnProperty]] as specified in 10.4.4.2.
+    // 6. Set obj.[[Get]] as specified in 10.4.4.3.
+    // 7. Set obj.[[Set]] as specified in 10.4.4.4.
+    // 8. Set obj.[[Delete]] as specified in 10.4.4.5.
+    // 9. Set obj.[[Prototype]] to %Object.prototype%.
+    let object = ArgumentsObject::create(vm, realm, environment, parameter_names.is_empty());
+
+    // 14. Let index be 0.
+    // 15. Repeat, while index < len,
+    for (index, argument) in arguments.iter().enumerate() {
+        // a. Let val be argumentsList[index].
+        let value = argument.get();
+
+        // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
+        object.indexed_put(
+            u32::try_from(index).expect("the argument index fits in u32"),
+            value,
+            DEFAULT_ATTRIBUTES,
+        );
+
+        // c. Set index to index + 1.
+    }
+
+    // 16. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
+    object.put_direct(realm.mapped_arguments_object_length_offset(), Value::from_i32(length));
+
+    // OPTIMIZATION: We take a different route here than what the spec suggests.
+    //               The spec would have us allocate a new object for the parameter map,
+    //               and then populate it with getters and setters for each mapped parameter.
+    //               That would be 1 GC allocation for the parameter map and 2 more for each
+    //               parameter's getter/setter pair.
+    //               Instead, we allocate the ArgumentsObject and let it implement the parameter map
+    //               and getter/setter behavior itself without extra GC allocations.
+
+    // 17. Let mappedNames be a new empty List.
+    let mut seen_names: HashSet<Utf16FlyString> = HashSet::new();
+    let mut mapped_names: Vec<Utf16FlyString> = Vec::new();
+
+    // 18. Set index to numberOfParameters - 1.
+    // 19. Repeat, while index ≥ 0,
+    let parameter_count = i32::try_from(parameter_names.len()).expect("the parameter count fits in i32");
+    for index in (0..parameter_count).rev() {
+        // a. Let name be parameterNames[index].
+        let name = &parameter_names[index as usize];
+
+        // b. If name is not an element of mappedNames, then
+        if seen_names.contains(name) {
+            continue;
+        }
+
+        // i. Add name as an element of the list mappedNames.
+        seen_names.insert(name.clone());
+
+        // ii. If index < len, then
+        if index < length {
+            // 1. Let g be MakeArgGetter(name, env).
+            // 2. Let p be MakeArgSetter(name, env).
+            // 3. Perform ! map.[[DefineOwnProperty]](! ToString(𝔽(index)), PropertyDescriptor { [[Set]]: p, [[Get]]: g, [[Enumerable]]: false, [[Configurable]]: true }).
+            if index as usize >= mapped_names.len() {
+                mapped_names.resize(index as usize + 1, Utf16FlyString::default());
+            }
+
+            mapped_names[index as usize] = name.clone();
+        }
+    }
+
+    object.set_mapped_names(mapped_names);
+
+    // 20. Perform ! DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor { [[Value]]: %Array.prototype.values%, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
+    let array_prototype_values = realm.array_prototype_values_function();
+    object.put_direct(
+        realm.mapped_arguments_object_well_known_symbol_iterator_offset(),
+        Value::from_object(array_prototype_values),
+    );
+
+    // 21. Perform ! DefinePropertyOrThrow(obj, "callee", PropertyDescriptor { [[Value]]: func, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
+    object.put_direct(
+        realm.mapped_arguments_object_callee_offset(),
+        Value::from_object(function),
+    );
+
+    // 22. Return obj.
+    object.upcast()
+}
+
+// 2.1.1 DisposeCapability Records, https://tc39.es/proposal-explicit-resource-management/#sec-disposecapability-records
+#[derive(Default, Trace)]
+pub struct DisposeCapability {
+    pub disposable_resource_stack: Option<Vec<DisposableResource>>, // [[DisposableResourceStack]]
+}
+
+// 2.1.2 DisposableResource Records, https://tc39.es/proposal-explicit-resource-management/#sec-disposableresource-records
+#[derive(Clone, Copy, Trace)]
+pub struct DisposableResource {
+    pub resource_value: Option<Gc<Object>>, // [[ResourceValue]]
+    #[gc(untraced)]
+    pub hint: InitializeBindingHint, // [[Hint]]
+    pub dispose_method: Option<Gc<FunctionObject>>, // [[DisposeMethod]]
+}
+
+// 2.1.3 NewDisposeCapability ( ), https://tc39.es/proposal-explicit-resource-management/#sec-newdisposecapability
+pub fn new_dispose_capability() -> DisposeCapability {
+    // 1. Let stack be a new empty List.
+    // 2. Return the DisposeCapability Record { [[DisposableResourceStack]]: stack }.
+    DisposeCapability::default()
+}
+
+// 2.1.4 AddDisposableResource ( disposeCapability, V, hint [ , method ] ), https://tc39.es/proposal-explicit-resource-management/#sec-adddisposableresource-disposable-v-hint-disposemethod
+pub fn add_disposable_resource(
+    vm: &Vm,
+    dispose_capability: &GcRefCell<DisposeCapability>,
+    value: Value,
+    hint: InitializeBindingHint,
+    method: Option<Gc<FunctionObject>>,
+) -> ThrowCompletionOr<()> {
+    let resource = match method {
+        // 1. If method is not present then,
+        None => {
+            // a. If V is either null or undefined and hint is sync-dispose, then
+            if value.is_nullish() && hint == InitializeBindingHint::SyncDispose {
+                // i. Return unused.
+                return Ok(());
+            }
+
+            // b. NOTE: When V is either null or undefined and hint is async-dispose, we record that the resource was evaluated
+            //    to ensure we will still perform an Await when resources are later disposed.
+
+            // c. Let resource be ? CreateDisposableResource(V, hint).
+            create_disposable_resource(vm, value, hint, None)?
+        }
+        // 2. Else,
+        Some(method) => {
+            // a. Assert: V is undefined.
+            assert!(value.is_undefined());
+
+            // b. Let resource be ? CreateDisposableResource(undefined, hint, method).
+            create_disposable_resource(vm, Value::UNDEFINED, hint, Some(method))?
+        }
+    };
+
+    // 3. Append resource to disposeCapability.[[DisposableResourceStack]].
+    // NB: Creating the resource can run JavaScript, so the capability is only borrowed to append to it.
+    dispose_capability
+        .borrow_mut()
+        .disposable_resource_stack
+        .get_or_insert_with(Vec::new)
+        .push(resource);
+
+    // 4. Return unused.
+    Ok(())
+}
+
+// 2.1.5 CreateDisposableResource ( V, hint [ , method ] ), https://tc39.es/proposal-explicit-resource-management/#sec-createdisposableresource
+pub fn create_disposable_resource(
+    vm: &Vm,
+    value: Value,
+    hint: InitializeBindingHint,
+    method: Option<Gc<FunctionObject>>,
+) -> ThrowCompletionOr<DisposableResource> {
+    let mut method = method;
+
+    // 1. If method is not present, then
+    // a. If V is either null or undefined, then
+    //    i. Set V to undefined.
+    //    ii. Set method to undefined.
+    // b. Else,
+    if method.is_none() && !value.is_nullish() {
+        // i. If V is not an Object, throw a TypeError exception.
+        if !value.is_object() {
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&value]);
+        }
+
+        // ii. Set method to ? GetDisposeMethod(V, hint).
+        method = get_dispose_method(vm, value, hint)?;
+
+        // iii. If method is undefined, throw a TypeError exception.
+        if method.is_none() {
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NoDisposeMethod, &[&value]);
+        }
+    }
+    // 2. Else,
+    //    a. If IsCallable(method) is false, throw a TypeError exception.
+    //    NOTE: This is guaranteed to never occur due to its type.
+
+    // 3. Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]: hint, [[DisposeMethod]]: method }.
+    Ok(DisposableResource {
+        resource_value: value.is_object().then(|| value.as_object()),
+        hint,
+        dispose_method: method,
+    })
+}
+
+// 2.1.6 GetDisposeMethod ( V, hint ), https://tc39.es/proposal-explicit-resource-management/#sec-getdisposemethod
+pub fn get_dispose_method(
+    vm: &Vm,
+    value: Value,
+    hint: InitializeBindingHint,
+) -> ThrowCompletionOr<Option<Gc<FunctionObject>>> {
+    // 1. If hint is async-dispose, then
+    if hint == InitializeBindingHint::AsyncDispose {
+        // a. Let method be ? GetMethod(V, @@asyncDispose).
+        let method = value.get_method(vm, &PropertyKey::from(vm.well_known_symbols().async_dispose))?;
+
+        // b. If method is undefined, then
+        if method.is_none() {
+            // i. Set method to ? GetMethod(V, @@dispose).
+            let method = value.get_method(vm, &PropertyKey::from(vm.well_known_symbols().dispose))?;
+
+            // ii. If method is not undefined, then
+            if method.is_some() {
+                // 1. Let closure be a new Abstract Closure with no parameters that captures method and performs the
+                //    following steps when called: ...
+                // 3. Return CreateBuiltinFunction(closure, 0, "", « »).
+                unimplemented_runtime_function("the async-dispose wrapper of a @@dispose method", 0);
+            }
+            return Ok(None);
+        }
+
+        // 3. Return method.
+        return Ok(method);
+    }
+
+    // 2. Else,
+    //    a. Let method be ? GetMethod(V, @@dispose).
+    // 3. Return method.
+    value.get_method(vm, &PropertyKey::from(vm.well_known_symbols().dispose))
 }

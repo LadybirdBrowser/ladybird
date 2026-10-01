@@ -5,7 +5,9 @@
  */
 
 use core::cell::Cell;
+use std::rc::Rc;
 
+use crate::bytecode::class_blueprint::ClassBlueprint;
 use crate::frontend_host::rust_free_compiled_regex;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::heap::cell_is_dead;
@@ -24,8 +26,11 @@ pub use crate::layout::property_lookup_cache::{
 use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
 use crate::runtime::big_int::{BigInt, SignedBigInteger};
+use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::primitive_string::u64_hash;
+use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
+use crate::source_code::SourceCode;
 use libjs_rust::bytecode::constant::WellKnownSymbolKind;
 use libjs_rust::bytecode::executable::ExecutableData;
 use libjs_rust::bytecode::generator::{ConstantValue, ExceptionHandler};
@@ -512,6 +517,14 @@ impl Drop for PropertyLookupCache {
 }
 
 impl GlobalVariableCache {
+    /// Assigns a default GlobalVariableCache, as `cache = {}` does in C++.
+    pub fn reset(&self) {
+        self.entry.set(PropertyLookupCacheEntryData::default());
+        self.environment_serial_number.set(0);
+        self.environment_binding_index.set(0);
+        self.has_environment_binding_index.set(false);
+    }
+
     pub fn first_entry(&self) -> Option<PropertyLookupCacheEntryData> {
         let entry = self.entry.get();
         (entry.entry_type != PropertyLookupCacheEntryType::Empty).then_some(entry)
@@ -552,6 +565,7 @@ define_static_property_lookup_cache_sites! {
     SpeciesConstructorConstructor,
     SpeciesConstructorSpecies,
     ValueToPrimitive,
+    GetPrototypeFromConstructorPrototype,
 }
 
 /// The caches of the static call sites, one set per VM, which prunes them like the caches of executables.
@@ -591,7 +605,8 @@ pub struct Executable {
     constants: Box<[Value]>,
     property_lookup_caches: Box<[PropertyLookupCache]>,
     global_variable_caches: Box<[GlobalVariableCache]>,
-    environment_coordinate_caches: Box<[EnvironmentCoordinate]>,
+    environment_coordinate_caches: Box<[Cell<EnvironmentCoordinate>]>,
+    environment_shape_caches: Box<[Cell<Option<Gc<EnvironmentShape>>>]>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict_mode: bool,
@@ -600,6 +615,9 @@ pub struct Executable {
     pub string_table: Vec<ak::Utf16FlyString>,
     /// Sorted by start offset, and not overlapping.
     pub exception_handlers: Box<[ExceptionHandler]>,
+    /// The functions the bytecode creates, which NewFunction and NewClass refer to by index.
+    shared_function_data: Box<[Gc<SharedFunctionInstanceData>]>,
+    class_blueprints: Box<[ClassBlueprint]>,
 }
 
 define_cell!(Executable, Other);
@@ -611,6 +629,7 @@ pub struct ExecutableCacheCounts {
     pub property_lookup_caches: u32,
     pub global_variable_caches: u32,
     pub environment_coordinate_caches: u32,
+    pub environment_shape_caches: u32,
 }
 
 fn interpreter_buffer<T>(elements: &[T]) -> InterpreterBuffer<T> {
@@ -664,12 +683,12 @@ impl Executable {
                 has_environment_binding_index: Cell::new(false),
             })
             .collect();
-        let environment_coordinate_caches: Box<[EnvironmentCoordinate]> = (0..cache_counts
+        let environment_coordinate_caches: Box<[Cell<EnvironmentCoordinate>]> = (0..cache_counts
             .environment_coordinate_caches)
-            .map(|_| EnvironmentCoordinate {
-                hops: EnvironmentCoordinate::INVALID_MARKER,
-                index: EnvironmentCoordinate::INVALID_MARKER,
-            })
+            .map(|_| Cell::new(EnvironmentCoordinate::invalid()))
+            .collect();
+        let environment_shape_caches = (0..cache_counts.environment_shape_caches)
+            .map(|_| Cell::new(None))
             .collect();
         let registers_and_locals_count = number_of_registers + number_of_locals;
         let constant_count = u32::try_from(constants.len()).expect("constant count fits in u32");
@@ -684,7 +703,12 @@ impl Executable {
             constants: interpreter_buffer(&constants),
             property_lookup_caches: interpreter_buffer(&property_lookup_caches),
             global_variable_caches: interpreter_buffer(&global_variable_caches),
-            environment_coordinate_caches: interpreter_buffer(&environment_coordinate_caches),
+            // The interpreter only reads the caches, which slow paths update through their cells.
+            environment_coordinate_caches: InterpreterBuffer {
+                data: Cell::new(environment_coordinate_caches.as_ptr().cast_mut().cast()),
+                size: Cell::new(environment_coordinate_caches.len()),
+                capacity: Cell::new(environment_coordinate_caches.len()),
+            },
         };
         Self {
             head,
@@ -693,6 +717,7 @@ impl Executable {
             property_lookup_caches,
             global_variable_caches,
             environment_coordinate_caches,
+            environment_shape_caches,
             number_of_registers,
             number_of_arguments,
             is_strict_mode,
@@ -700,17 +725,44 @@ impl Executable {
             property_key_table: Vec::new(),
             string_table: Vec::new(),
             exception_handlers: Box::new([]),
+            shared_function_data: Box::new([]),
+            class_blueprints: Box::new([]),
         }
     }
 
-    /// Creates the executable for what the frontend compiled.
+    /// Creates the executable for what the frontend compiled from code it does not know the source of.
     pub fn create(vm: &Vm, data: ExecutableData) -> Gc<Executable> {
-        if !data.shared_function_data.is_empty() {
-            unimplemented_runtime_function("creating the functions an executable declares", 0);
+        Self::create_with_source_code(vm, data, None)
+    }
+
+    /// Creates the executable for what the frontend compiled from `source_code`, with the functions and classes it
+    /// declares, as ffi::create_executable does for the C++ runtime.
+    pub fn create_with_source_code(
+        vm: &Vm,
+        mut data: ExecutableData,
+        source_code: Option<&Rc<SourceCode>>,
+    ) -> Gc<Executable> {
+        // The shared function data and the literal values of class elements stay rooted until the executable that
+        // holds them is allocated.
+        let rooted_shared_function_data = MarkedVec::with_capacity(vm, data.shared_function_data.len());
+        let is_strict = data.is_strict;
+        for pending in &mut data.shared_function_data {
+            rooted_shared_function_data.push(SharedFunctionInstanceData::create_from_pending_shared_function_data(
+                vm,
+                pending,
+                is_strict,
+                source_code,
+            ));
         }
-        if !data.class_blueprints.is_empty() {
-            unimplemented_runtime_function("creating the classes an executable declares", 0);
-        }
+        let rooted_literal_values = MarkedVec::new(vm);
+        let class_blueprints: Box<[ClassBlueprint]> = data
+            .class_blueprints
+            .iter()
+            .map(|blueprint| ClassBlueprint::create(vm, blueprint, source_code, &rooted_literal_values))
+            .collect();
+        let shared_function_data: Box<[Gc<SharedFunctionInstanceData>]> =
+            rooted_shared_function_data.to_vec().into_boxed_slice();
+
         // The regexes were only compiled to report early errors; the runtime compiles them again when it runs.
         for regex in data.compiled_regexes {
             // SAFETY: Each handle came from rust_compile_regex and is freed once.
@@ -726,6 +778,7 @@ impl Executable {
             property_lookup_caches: data.cache_counts.property_lookup,
             global_variable_caches: data.cache_counts.global_variable,
             environment_coordinate_caches: data.cache_counts.environment_coordinate,
+            environment_shape_caches: data.cache_counts.environment_shape,
         };
         let number_of_locals = u32::try_from(data.local_variables.len()).expect("local count fits in u32");
         let mut executable = Self::new(
@@ -741,9 +794,35 @@ impl Executable {
         executable.property_key_table = data.property_key_table;
         executable.string_table = data.string_table;
         executable.exception_handlers = data.exception_handlers.into_boxed_slice();
+        executable.shared_function_data = shared_function_data;
+        executable.class_blueprints = class_blueprints;
         let executable = Self::create_from_parts(vm, executable);
         drop(rooted_constants);
+        drop(rooted_literal_values);
+        drop(rooted_shared_function_data);
         executable
+    }
+
+    pub fn head(executable: Gc<Executable>) -> Gc<ExecutableHead> {
+        // SAFETY: An Executable starts with its head.
+        unsafe { Gc::from_non_null(executable.as_non_null().cast()) }
+    }
+
+    pub fn from_head(head: Gc<ExecutableHead>) -> Gc<Executable> {
+        // SAFETY: Only executables have an ExecutableHead.
+        unsafe { Gc::from_non_null(head.as_non_null().cast()) }
+    }
+
+    pub fn shared_function_data(&self, index: u32) -> Gc<SharedFunctionInstanceData> {
+        self.shared_function_data[index as usize]
+    }
+
+    pub fn shared_function_data_count(&self) -> usize {
+        self.shared_function_data.len()
+    }
+
+    pub fn class_blueprint(&self, index: u32) -> &ClassBlueprint {
+        &self.class_blueprints[index as usize]
     }
 
     /// The handler whose range holds the instruction at `offset`.
@@ -772,6 +851,21 @@ impl Executable {
 
     pub fn registers_and_locals_count(&self) -> u32 {
         self.head.registers_and_locals_count.get()
+    }
+
+    pub fn global_variable_cache(&self, index: u32) -> &GlobalVariableCache {
+        &self.global_variable_caches[index as usize]
+    }
+
+    pub fn environment_coordinate_cache(&self, index: u32) -> &Cell<EnvironmentCoordinate> {
+        &self.environment_coordinate_caches[index as usize]
+    }
+
+    pub fn environment_shape_cache(&self, index: u32) -> EnvironmentShapeCache {
+        let slot = &self.environment_shape_caches[index as usize];
+        // SAFETY: Executables are only reached through the heap, and the slot is part of this one's caches, which
+        // live as long as it does.
+        unsafe { EnvironmentShapeCache::new(Gc::from_ref(self), slot) }
     }
 }
 
@@ -808,10 +902,14 @@ fn parse_big_int_literal(literal: &str) -> SignedBigInteger {
     SignedBigInteger::parse_bytes(digits, radix).expect("the frontend only emits valid BigInt literals")
 }
 
-// SAFETY: The constants are the only cells an executable holds so far. The inline caches do not keep the shapes
-// and objects they remember alive.
+// SAFETY: Visits the constants, the environment shapes, the functions the bytecode creates and the literal values of
+// its classes, which are all the cells an executable keeps alive so far. The inline caches do not keep the shapes and
+// objects they remember alive.
 unsafe impl Trace for Executable {
     fn trace(&self, visitor: &mut Visitor) {
         visitor.visit_values(&self.constants);
+        self.environment_shape_caches.trace(visitor);
+        self.shared_function_data.trace(visitor);
+        self.class_blueprints.trace(visitor);
     }
 }

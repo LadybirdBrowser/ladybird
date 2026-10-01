@@ -10,8 +10,8 @@ use core::ptr::NonNull;
 use std::alloc::{Layout, handle_alloc_error};
 use std::collections::HashSet;
 
-use ak::Utf16FlyString;
-use libjs_abi::PutKind;
+use ak::{Utf16FlyString, Utf16String};
+use libjs_abi::{Builtin, PutKind};
 use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
@@ -25,20 +25,23 @@ use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
-use crate::layout::function_object::FunctionObject;
+use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject};
 pub use crate::layout::object::{
     INDEXED_ELEMENTS_HEADER_SIZE, INLINE_NAMED_STORAGE_CAPACITY, IndexedStorageKind, Object, object_flag,
 };
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::{
     call, call_function_object, function_object_as_object, validate_and_apply_property_descriptor,
 };
 use crate::runtime::accessor::Accessor;
 use crate::runtime::array::Array;
+use crate::runtime::class_field_definition::{ClassElementName, ClassFieldDefinition, ClassFieldInitializer};
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::indexed_properties::{GenericIndexedPropertyStorage, ValueAndAttributes};
+use crate::runtime::native_function::{NativeFunction, NativeFunctionMethods, RawNativeFunction};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::private_environment::PrivateName;
 use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
@@ -242,7 +245,14 @@ pub struct ObjectMethods {
     pub internal_construct: Option<InternalConstruct>,
     pub has_constructor: fn(&Object) -> bool,
     pub is_strict_mode: fn(&Object) -> bool,
-    pub get_stack_frame_info: fn(&Object, &mut StackFrameInfo),
+    /// Takes the VM since an ECMAScript function compiles its body the first time it is asked.
+    pub get_stack_frame_info: fn(&Object, &Vm, &mut StackFrameInfo),
+    /// FunctionObject::realm(), the [[Realm]] of a function that has one.
+    pub function_realm: fn(&Object) -> Option<Gc<Realm>>,
+    /// FunctionObject::name_for_call_stack(), which every class of function object defines.
+    pub name_for_call_stack: fn(&Object) -> Utf16String,
+    /// The virtual methods of NativeFunction, which only native functions have.
+    pub native_function: Option<&'static NativeFunctionMethods>,
     pub is_cacheable_for_property_absence: fn(&Object) -> bool,
     pub is_cacheable_for_inherited_property: fn(&Object) -> bool,
     pub eligible_for_own_property_enumeration_fast_path: fn(&Object) -> bool,
@@ -264,7 +274,10 @@ pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     internal_construct: None,
     has_constructor: |_| false,
     is_strict_mode: |_| false,
-    get_stack_frame_info: |_, _| {},
+    get_stack_frame_info: |_, _, _| {},
+    function_realm: |_| None,
+    name_for_call_stack: |_| unreachable!("FunctionObject::name_for_call_stack is pure virtual"),
+    native_function: None,
     is_cacheable_for_property_absence: |_| true,
     is_cacheable_for_inherited_property: |_| true,
     eligible_for_own_property_enumeration_fast_path: |_| true,
@@ -1196,6 +1209,76 @@ impl Object {
         Ok(())
     }
 
+    // 7.3.33 DefineField ( receiver, fieldRecord ), https://tc39.es/ecma262/#sec-definefield
+    pub fn define_field(&self, vm: &Vm, field: &ClassFieldDefinition) -> ThrowCompletionOr<()> {
+        // 1. Let fieldName be fieldRecord.[[Name]].
+        let field_name = &field.name;
+
+        // 2. Let initializer be fieldRecord.[[Initializer]].
+        let initializer = field.initializer;
+
+        let mut init_value = Value::UNDEFINED;
+
+        // 3. If initializer is not empty, then
+        match initializer {
+            // OPTIMIZATION: If the initializer is a value (from a literal), we can skip the call.
+            ClassFieldInitializer::Value(initializer_value) => init_value = initializer_value,
+            ClassFieldInitializer::Function(initializer_function) => {
+                // a. Let initValue be ? Call(initializer, receiver).
+                init_value =
+                    call_function_object(vm, initializer_function.upcast(), Value::from_object(self.as_gc()), &[])?;
+            }
+            // 4. Else, let initValue be undefined.
+            ClassFieldInitializer::Empty => {}
+        }
+
+        match field_name {
+            // 5. If fieldName is a Private Name, then
+            ClassElementName::PrivateName(private_name) => {
+                // a. Perform ? PrivateFieldAdd(receiver, fieldName, initValue).
+                self.private_field_add(vm, private_name, init_value)?;
+            }
+            // 6. Else,
+            ClassElementName::PropertyKey(property_key) => {
+                // a. Assert: IsPropertyKey(fieldName) is true.
+                // b. Perform ? CreateDataPropertyOrThrow(receiver, fieldName, initValue).
+                self.create_data_property_or_throw(vm, property_key, init_value)?;
+            }
+        }
+
+        // 7. Return unused.
+        Ok(())
+    }
+
+    // 7.3.34 InitializeInstanceElements ( O, constructor ), https://tc39.es/ecma262/#sec-initializeinstanceelements
+    pub fn initialize_instance_elements(
+        &self,
+        vm: &Vm,
+        constructor: Gc<EcmascriptFunctionObject>,
+    ) -> ThrowCompletionOr<()> {
+        // AD-HOC: Avoid lazy instantiation of ECMAScriptFunctionObject::ClassData.
+        if !constructor.has_class_data() {
+            return Ok(());
+        }
+
+        // 1. Let methods be the value of constructor.[[PrivateMethods]].
+        // 2. For each PrivateElement method of methods, do
+        for index in 0..constructor.private_methods_count() {
+            // a. Perform ? PrivateMethodOrAccessorAdd(O, method).
+            self.private_method_or_accessor_add(vm, constructor.private_method(index))?;
+        }
+
+        // 3. Let fields be the value of constructor.[[Fields]].
+        // 4. For each element fieldRecord of fields, do
+        for index in 0..constructor.fields_count() {
+            // a. Perform ? DefineField(O, fieldRecord).
+            self.define_field(vm, &constructor.field(index))?;
+        }
+
+        // 5. Return unused.
+        Ok(())
+    }
+
     // The internal methods, which dispatch through the object's class.
 
     pub fn internal_get_prototype_of(&self, vm: &Vm) -> ThrowCompletionOr<Option<Gc<Object>>> {
@@ -1293,8 +1376,20 @@ impl Object {
         (self.methods().is_strict_mode)(self)
     }
 
-    pub fn get_stack_frame_info(&self, info: &mut StackFrameInfo) {
-        (self.methods().get_stack_frame_info)(self, info);
+    pub fn get_stack_frame_info(&self, vm: &Vm, info: &mut StackFrameInfo) {
+        (self.methods().get_stack_frame_info)(self, vm, info);
+    }
+
+    pub fn function_realm(&self) -> Option<Gc<Realm>> {
+        (self.methods().function_realm)(self)
+    }
+
+    pub fn name_for_call_stack(&self) -> Utf16String {
+        (self.methods().name_for_call_stack)(self)
+    }
+
+    pub(crate) fn native_function_methods(&self) -> Option<&'static NativeFunctionMethods> {
+        self.methods().native_function
     }
 
     pub(crate) fn internal_call_method(&self) -> Option<InternalCall> {
@@ -2198,6 +2293,50 @@ impl Object {
         Value::UNDEFINED
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn define_native_function(
+        &self,
+        vm: &Vm,
+        realm: Gc<Realm>,
+        property_key: &PropertyKey,
+        native_function: RawNativeFunctionPointer,
+        length: i32,
+        attribute: PropertyAttributes,
+        builtin: Option<Builtin>,
+    ) {
+        let function = RawNativeFunction::create(vm, native_function, length, property_key, Some(realm), None, builtin);
+        self.define_direct_property(vm, property_key, Value::from_object(function), attribute);
+    }
+
+    /// define_native_function() with a native function whose behaviour captures state, see NativeFunction::create().
+    #[allow(clippy::too_many_arguments)]
+    pub fn define_capturing_native_function<C, F>(
+        &self,
+        vm: &Vm,
+        realm: Gc<Realm>,
+        property_key: &PropertyKey,
+        captures: C,
+        native_function: F,
+        length: i32,
+        attribute: PropertyAttributes,
+        builtin: Option<Builtin>,
+    ) where
+        C: Trace + 'static,
+        F: Fn(&Vm, &C) -> ThrowCompletionOr<Value> + 'static,
+    {
+        let function = NativeFunction::create(
+            vm,
+            captures,
+            native_function,
+            length,
+            property_key,
+            Some(realm),
+            None,
+            builtin,
+        );
+        self.define_direct_property(vm, property_key, Value::from_object(function), attribute);
+    }
+
     pub fn define_direct_property(
         &self,
         vm: &Vm,
@@ -2228,6 +2367,24 @@ impl Object {
         if self.storage_has(&property_key) {
             self.storage_delete(vm, &property_key);
         }
+    }
+
+    pub fn define_native_accessor(
+        &self,
+        vm: &Vm,
+        realm: Gc<Realm>,
+        property_key: &PropertyKey,
+        getter: RawNativeFunctionPointer,
+        setter: RawNativeFunctionPointer,
+        attribute: PropertyAttributes,
+    ) {
+        let getter_function = getter
+            .is_some()
+            .then(|| RawNativeFunction::create(vm, getter, 0, property_key, Some(realm), Some("get"), None).upcast());
+        let setter_function = setter
+            .is_some()
+            .then(|| RawNativeFunction::create(vm, setter, 1, property_key, Some(realm), Some("set"), None).upcast());
+        self.define_direct_accessor(vm, property_key, getter_function, setter_function, attribute);
     }
 
     pub fn define_direct_accessor(

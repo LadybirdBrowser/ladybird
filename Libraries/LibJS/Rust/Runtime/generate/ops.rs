@@ -88,6 +88,23 @@ pub fn generate(ops: &[InstructionDefinition], ops_with_values: &BTreeSet<String
         }
         out.push_str("}\n");
         out.push_str(&assertions);
+        match (op.layout.size, op.layout.m_length_offset) {
+            (Some(size), _) => {
+                let _ = writeln!(
+                    out,
+                    "impl {} {{\n    /// The instruction's size in the bytecode, as C++ sizeof(Op::{}).\n    pub const LENGTH: u32 = {size};\n\n    pub fn length(&self) -> u32 {{\n        Self::LENGTH\n    }}\n}}",
+                    op.name, op.name
+                );
+            }
+            (None, Some(_)) => {
+                let _ = writeln!(
+                    out,
+                    "impl {} {{\n    /// The instruction's size in the bytecode, which it records itself.\n    pub fn length(&self) -> u32 {{\n        self.length\n    }}\n}}",
+                    op.name
+                );
+            }
+            (None, None) => panic!("{} has neither a fixed size nor a length field", op.name),
+        }
 
         if ops_with_values.contains(&op.name) {
             let layout = SlowPathLayout::new(op);

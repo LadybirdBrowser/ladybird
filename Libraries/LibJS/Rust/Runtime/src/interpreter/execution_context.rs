@@ -27,6 +27,10 @@ impl ExecutionContext {
         let slots = self.slots();
         &slots[slots.len() - self.argument_count.get() as usize..]
     }
+
+    pub fn argument(&self, index: usize) -> Value {
+        self.arguments().get(index).map_or(Value::UNDEFINED, Cell::get)
+    }
 }
 
 // SAFETY: Visits every cell a frame can reach. Until the frame is initialized only its reserved registers and its

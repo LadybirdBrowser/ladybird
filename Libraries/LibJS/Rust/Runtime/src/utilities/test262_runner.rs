@@ -25,10 +25,13 @@ use std::time::Instant;
 
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
+use crate::layout::cell::Gc;
+use crate::layout::realm::Realm;
 use crate::layout::value::Value;
 use crate::parser_error::ParserError;
 use crate::script::Script;
 use crate::utf16::{string_from_utf8_with_replacement_character, utf16_from_wtf8};
+use crate::utilities::initialize_realm_without_intrinsics;
 use libjs_rust::ast::ProgramType;
 use libjs_rust::compile::parse;
 
@@ -508,7 +511,12 @@ fn parse_only_check(source: &[u16], program_type: ProgramType) -> Result<(), Tes
     Ok(())
 }
 
-fn parse_program(source: &[u16], program_type: ProgramType) -> Result<Script, TestError> {
+fn parse_program(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    source: &[u16],
+    program_type: ProgramType,
+) -> Result<Gc<Script>, TestError> {
     if program_type == ProgramType::Module {
         let parsed = parse(source, ProgramType::Module, 1);
         if parsed.has_errors() {
@@ -521,7 +529,7 @@ fn parse_program(source: &[u16], program_type: ProgramType) -> Result<Script, Te
         }
         unimplemented_runtime_function("running modules", 0);
     }
-    Script::parse(source)
+    Script::parse(vm, source, realm)
         .map_err(|errors| TestError::syntax_error(NegativePhase::ParseOrEarly, first_parser_error(&errors), ""))
 }
 
@@ -529,8 +537,8 @@ fn describe_thrown_value(_value: Value) -> TestError {
     unimplemented_runtime_function("describing a value a test262 test threw", 0)
 }
 
-fn run_program(vm: &Vm, script: Script) -> Result<(), TestError> {
-    vm.run_script(script)
+fn run_program(vm: &Vm, script: Gc<Script>) -> Result<(), TestError> {
+    vm.run_script(script, None)
         .map(|_| ())
         .map_err(|throw| describe_thrown_value(throw.value()))
 }
@@ -546,7 +554,8 @@ fn run_test(
     }
 
     let vm = Vm::create();
-    let program = parse_program(decoded_source(source, "The test"), metadata.program_type)?;
+    let realm = initialize_realm_without_intrinsics(&vm);
+    let program = parse_program(&vm, realm, decoded_source(source, "The test"), metadata.program_type)?;
 
     let mut harness_source = Vec::new();
     for harness_file in &metadata.harness_files {
@@ -556,8 +565,8 @@ fn run_test(
 
     if !harness_source.is_empty() {
         let harness_source = utf16_from_wtf8(&harness_source);
-        let harness_program =
-            Script::parse(decoded_source(harness_source.as_deref(), "The harness")).map_err(|errors| {
+        let harness_program = Script::parse(&vm, decoded_source(harness_source.as_deref(), "The harness"), realm)
+            .map_err(|errors| {
                 TestError::syntax_error(NegativePhase::Harness, first_parser_error(&errors), "<harness>")
             })?;
         if let Err(error) = run_program(&vm, harness_program) {

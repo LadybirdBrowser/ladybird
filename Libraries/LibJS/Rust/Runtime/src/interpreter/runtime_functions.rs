@@ -66,6 +66,22 @@ pub fn unimplemented_runtime_function(symbol: &str, pc: u32) -> ! {
     panic!("libjs_runtime_rust: unimplemented runtime function {symbol} (pc {pc})")
 }
 
+/// Unwraps a ThrowCompletionOr in a slow path, or returns the control word that hands its exception to the
+/// interpreter, like ASM_TRY in SlowPaths.cpp.
+#[allow(unused_macros)] // Until the first slow path that calls a throwing operation lands.
+macro_rules! asm_try {
+    ($vm:expr, $pc:expr, $expression:expr) => {
+        match $expression {
+            Ok(value) => value,
+            Err(throw) => {
+                return $crate::interpreter::runtime_functions::handle_asm_exception($vm, $pc, throw.value());
+            }
+        }
+    };
+}
+#[allow(unused_imports)]
+pub(crate) use asm_try;
+
 mod generated {
     #![allow(clippy::missing_safety_doc)]
 
