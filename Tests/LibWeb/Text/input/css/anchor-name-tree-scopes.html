@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #document-anchor { anchor-name: --shared; width: 40px; height: 10px; margin-left: 70px; }
+    #document-target { position: absolute; left: anchor(--shared left, 7px); }
+</style>
+<div id="document-anchor"></div>
+<div id="document-target"></div>
+<div id="scoped-host"></div>
+<div id="outward-host"></div>
+<div id="nested-host"></div>
+<div id="slot-host"><div style="anchor-name: --slotted; height: 10px; margin-left: 150px;"></div><div id="slotted-target" style="position: absolute; left: anchor(--inner left, 7px);"></div></div>
+<script>
+    const shadowTarget = `<div id="target" style="position: absolute; left: anchor(--shared left, 7px);"></div>`;
+
+    test(() => {
+        // A name registered inside a shadow tree is invisible to the document tree.
+        const scopedRoot = document.getElementById("scoped-host").attachShadow({ mode: "open" });
+        scopedRoot.innerHTML = `<div style="anchor-name: --shared; margin-left: 200px;"></div>`;
+        println(`document target: ${document.getElementById("document-target").offsetLeft}`);
+
+        // A name the shadow tree does not register is looked for in the host's tree scope.
+        const outwardRoot = document.getElementById("outward-host").attachShadow({ mode: "open" });
+        outwardRoot.innerHTML = shadowTarget;
+        println(`shadow target with no name of its own: ${outwardRoot.getElementById("target").offsetLeft}`);
+
+        // The name the innermost scope registers wins over the one outside it.
+        scopedRoot.append(document.createRange().createContextualFragment(shadowTarget));
+        println(`shadow target beside a name of its own: ${scopedRoot.getElementById("target").offsetLeft}`);
+
+        // The search leaves one shadow tree at a time.
+        const nestedRoot = document.getElementById("nested-host").attachShadow({ mode: "open" });
+        nestedRoot.innerHTML = `<div id="inner-host" style="anchor-name: --shared; margin-left: 130px;"></div>`;
+        const innerRoot = nestedRoot.getElementById("inner-host").attachShadow({ mode: "open" });
+        innerRoot.innerHTML = shadowTarget;
+        println(`target two shadow trees deep: ${innerRoot.getElementById("target").offsetLeft}`);
+
+        // A slotted element stays in its host's tree scope: a positioned element in the shadow tree
+        // finds its name by leaving the shadow tree, and a slotted positioned element cannot see a
+        // name registered inside the shadow tree it is slotted into.
+        const slotRoot = document.getElementById("slot-host").attachShadow({ mode: "open" });
+        slotRoot.innerHTML = `<slot></slot>
+            <div style="anchor-name: --inner; height: 10px; margin-left: 90px;"></div>
+            <div id="target" style="position: absolute; left: anchor(--slotted left, 7px);"></div>`;
+        println(`shadow target with a slotted anchor: ${slotRoot.getElementById("target").offsetLeft}`);
+        println(`slotted target with a name only the shadow tree has: ${document.getElementById("slotted-target").offsetLeft}`);
+
+        // A shadow tree taken out of the document and put back registers its names again.
+        const scopedHost = document.getElementById("scoped-host");
+        scopedHost.remove();
+        document.body.append(scopedHost);
+        println(`shadow target after its host is reinserted: ${scopedRoot.getElementById("target").offsetLeft}`);
+
+        // A name that changes away leaves the search to the host's tree scope.
+        scopedRoot.firstElementChild.style.anchorName = "--other";
+        println(`shadow target after its own name changes: ${scopedRoot.getElementById("target").offsetLeft}`);
+
+        // A removed anchor is no longer found.
+        document.getElementById("document-anchor").remove();
+        println(`document target after its anchor is removed: ${document.getElementById("document-target").offsetLeft}`);
+    });
+</script>
