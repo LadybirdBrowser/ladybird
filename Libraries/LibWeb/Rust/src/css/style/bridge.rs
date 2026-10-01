@@ -3758,6 +3758,9 @@ pub enum FfiContainerEffectKind {
     NeedsEvaluationAfterLayout,
     /// The subject's style resolved a viewport-relative length in the query.
     SubjectViewportDependency,
+    /// A container-relative length resolved against the node, which has no box yet, and is
+    /// resolved again after layout, a partial relayout included.
+    UnitsNeedEvaluationAfterLayout,
 }
 
 #[derive(Clone, Copy)]

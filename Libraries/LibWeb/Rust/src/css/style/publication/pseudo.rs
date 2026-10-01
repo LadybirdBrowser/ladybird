@@ -638,6 +638,12 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
     ) {
         self.note_sibling_position_reads(node, pseudo_kind, reads_sibling_position);
+        // The host records what a pseudo-element's container units read as its element's own.
+        if let Some((_, state)) = cascade_state
+            && new_style_record != computed::FinalStyleRecordID::NONE
+        {
+            self.note_container_unit_effects_for_host(node, true, state, old_style_record);
+        }
         self.engine_computed_records_pending
             .entry(node)
             .or_default()

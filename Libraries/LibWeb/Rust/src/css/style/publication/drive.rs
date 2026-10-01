@@ -205,9 +205,9 @@ impl RetainedState {
     /// The font size the monospace recascade gives a drive target: the cascaded font-size of every
     /// ancestor it inherits from, root first, walked again from a 13px default. A pseudo-element
     /// inherits from its originating element. A length the walk cannot resolve from the document's
-    /// inputs alone resolves against the monospace font at the size reached so far and the line
-    /// height its ancestor inherits; a `calc()` is skipped as C++ skips it. `None` when a length
-    /// still does not resolve, which C++ resolves.
+    /// inputs alone resolves against the monospace font at the size reached so far, the line
+    /// height its ancestor inherits and the ancestor's query containers; a `calc()` is skipped as
+    /// C++ skips it. `None` where a length still does not resolve, which it should not.
     pub(super) fn monospace_recascaded_font_size(
         &self,
         target: computed::ComputedStyleTarget,
@@ -226,16 +226,18 @@ impl RetainedState {
             false => self.tree.inheritance_parent(target.node()),
         };
         while let Some(node) = ancestor {
-            views.push(
+            views.push((
+                node,
                 self.computed_group_sets
                     .assigned_style_record(node)
                     .and_then(|record| self.computed_group_sets.style_record_view(record.raw())),
-            );
+            ));
             ancestor = self.tree.inheritance_parent(node);
         }
         views.reverse();
         let value_at = |index: usize| {
             views[index]
+                .1
                 .as_ref()
                 .and_then(|view| unsafe { view.longhand_table.as_ref() })
                 .map_or(std::ptr::null(), ComputedLonghandTable::raw_cascaded_font_size)
@@ -278,7 +280,7 @@ impl RetainedState {
             // inherits, and the initial one is zero.
             let (line_height, inherited_font_metrics_depend_on_viewport_metrics) = index
                 .checked_sub(1)
-                .and_then(|parent| views[parent].as_ref())
+                .and_then(|parent| views[parent].1.as_ref())
                 .map_or((0.0, false), |view| {
                     let font = unsafe {
                         view.payloads[STYLE_GROUP_INDEX_FONT]
@@ -290,7 +292,8 @@ impl RetainedState {
                         view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS != 0,
                     )
                 });
-            let subject_inline_axis_is_horizontal = views[index].as_ref().is_none_or(|view| {
+            let (ancestor_node, ancestor_view) = &views[index];
+            let subject_inline_axis_is_horizontal = ancestor_view.as_ref().is_none_or(|view| {
                 let inherited_box = unsafe {
                     view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX]
                         .cast::<crate::css::computed_values::InheritedBoxValues>()
@@ -298,7 +301,7 @@ impl RetainedState {
                 };
                 inherited_box.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB
             });
-            let context = FfiLengthResolutionContext {
+            let mut context = FfiLengthResolutionContext {
                 viewport_width: inputs.viewport_width,
                 viewport_height: inputs.viewport_height,
                 font_metrics: FfiFontMetrics {
@@ -327,6 +330,8 @@ impl RetainedState {
                 subject_inline_axis_is_horizontal,
                 resolved_viewport_relative_length: std::ptr::null_mut(),
             };
+            // The ancestor's container-relative font size resolves against its own containers.
+            self.container_unit_bases(*ancestor_node).apply_to(&mut context);
             batch = recascade_font_size_batch(
                 views.len(),
                 value_at,
@@ -337,9 +342,9 @@ impl RetainedState {
                 document_inputs,
                 &raw const context,
             );
-            // A length the context does not resolve either, such as a container-relative one, is
-            // left to C++.
+            // The context resolves every length a cascaded font-size holds.
             if batch.status == FontSizeRecascadeStatus::NeedsCppLengthResolution {
+                debug_assert!(false, "the recascade left a font-size length unresolved");
                 return None;
             }
         }
@@ -370,6 +375,7 @@ impl RetainedState {
             .or_refused()
             .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailValue))?;
         let resource_contexts = store.drive_resource_contexts(self);
+        let reads_container_units = store.reads_container_units(self);
         let document_base_url = &self.document_resource_contexts.document_base_url;
         let store = store.view(self);
         use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
@@ -431,7 +437,7 @@ impl RetainedState {
                 .deref()
         };
         let mut resolved_viewport_relative_length = false;
-        let length = FfiLengthResolutionContext {
+        let mut length = FfiLengthResolutionContext {
             viewport_width: inputs.viewport_width,
             viewport_height: inputs.viewport_height,
             font_metrics: FfiFontMetrics {
@@ -462,6 +468,9 @@ impl RetainedState {
                 == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
             resolved_viewport_relative_length: &raw mut resolved_viewport_relative_length,
         };
+        if reads_container_units {
+            self.container_unit_bases(node).apply_to(&mut length);
+        }
         // No element fact reaches the remaining phase through this environment but the element's
         // place among its siblings: the moved properties were checked not to need one, and the
         // required driver inputs are compared against the record below.
@@ -612,6 +621,11 @@ impl RetainedState {
             .or_refused()
             .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailValue))?;
         let resource_contexts = store.drive_resource_contexts(self);
+        // A pseudo-element's container-relative lengths resolve against its originating
+        // element's query containers.
+        let container_unit_bases = store
+            .reads_container_units(self)
+            .then(|| self.container_unit_bases(subject.target.node()));
         let document_base_url = &self.document_resource_contexts.document_base_url;
         let store = store.view(self);
         use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
@@ -871,11 +885,11 @@ impl RetainedState {
         // element itself, whose font phase reads the initial font and whose line-height phase
         // reads its own font; its remaining phase reads the document's metrics as they stand,
         // which C++ refreshes only after computing it.
-        let length_context =
-            |font_metrics: FfiFontMetrics,
-             font_metrics_depend_on_viewport_metrics: bool,
-             root_font_metrics: FfiFontMetrics,
-             root_font_metrics_depend_on_viewport_metrics: bool| FfiLengthResolutionContext {
+        let length_context = |font_metrics: FfiFontMetrics,
+                              font_metrics_depend_on_viewport_metrics: bool,
+                              root_font_metrics: FfiFontMetrics,
+                              root_font_metrics_depend_on_viewport_metrics: bool| {
+            let mut length = FfiLengthResolutionContext {
                 viewport_width: inputs.viewport_width,
                 viewport_height: inputs.viewport_height,
                 font_metrics,
@@ -891,6 +905,11 @@ impl RetainedState {
                 subject_inline_axis_is_horizontal,
                 resolved_viewport_relative_length: resolved_viewport_relative_length_pointer,
             };
+            if let Some(bases) = &container_unit_bases {
+                bases.apply_to(&mut length);
+            }
+            length
+        };
         // A drive another row left behind is dropped rather than taken up.
         let resumed = font_scratch
             .pending

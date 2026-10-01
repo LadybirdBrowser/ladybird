@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container { container-type: size; height: 100px; }
+    #horizontal { width: 200px; }
+    #vertical { width: 200px; writing-mode: vertical-lr; }
+    #unit { width: 20cqw; height: 1px; }
+    #unit::before { content: ""; display: block; width: 10cqw; height: 1px; }
+    #inline { height: 10cqi; width: 1px; }
+    .late { width: 50cqw; height: 1px; }
+</style>
+<div class="container" id="horizontal"><div id="unit"></div></div>
+<div class="container" id="vertical"><div id="inline"></div></div>
+<script>
+    // Container-relative lengths follow their containers: a resize, a pseudo-element's, a logical
+    // unit in a vertical writing mode, and a container that has no box yet when its child is styled.
+    test(() => {
+        const unit = document.getElementById("unit");
+        const report = label => {
+            println(`${label}: width ${getComputedStyle(unit).width}, ::before ${getComputedStyle(unit, "::before").width}, cqi ${getComputedStyle(document.getElementById("inline")).height}`);
+        };
+        document.body.offsetWidth;
+        report("initial");
+        document.getElementById("horizontal").style.width = "300px";
+        document.getElementById("vertical").style.height = "300px";
+        document.body.offsetWidth;
+        report("resized");
+
+        const late = document.createElement("div");
+        late.className = "container";
+        late.style.width = "100px";
+        late.innerHTML = '<div class="late"></div>';
+        document.body.appendChild(late);
+        document.body.offsetWidth;
+        println(`late container: ${getComputedStyle(late.firstChild).width}`);
+    });
+</script>

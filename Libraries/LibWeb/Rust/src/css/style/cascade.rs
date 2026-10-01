@@ -1401,6 +1401,9 @@ pub(super) const STATE_READS_CUSTOM_FUNCTION: u8 = 1 << 4;
 /// A state's winners are written with a random function whose random base value is drawn for the
 /// element.
 pub(super) const STATE_READS_ELEMENT_RANDOM_BASE: u8 = 1 << 5;
+/// A state's winners are written with a container-relative length, which reads the sizes of the
+/// element's query containers.
+pub(super) const STATE_READS_CONTAINER_UNITS: u8 = 1 << 6;
 /// What a state's winners read has been decided.
 const STATE_READS_DECIDED: u8 = 1 << 7;
 

@@ -1450,6 +1450,25 @@ fn container_relative_length_unit_bit(unit: u8) -> u8 {
     }
 }
 
+/// Which physical axes, width and height, the units of a `container_relative_length_unit_mask`
+/// read the bases of, for a subject whose inline axis is or is not the horizontal one.
+pub(crate) fn container_relative_axes_read(unit_mask: u8, subject_inline_axis_is_horizontal: bool) -> (bool, bool) {
+    const CQW: u8 = 1 << 0;
+    const CQH: u8 = 1 << 1;
+    const CQI: u8 = 1 << 2;
+    const CQB: u8 = 1 << 3;
+    const CQMIN_OR_CQMAX: u8 = (1 << 4) | (1 << 5);
+    let (width_axis, height_axis) = if subject_inline_axis_is_horizontal {
+        (CQW | CQI, CQH | CQB)
+    } else {
+        (CQW | CQB, CQH | CQI)
+    };
+    (
+        unit_mask & (width_axis | CQMIN_OR_CQMAX) != 0,
+        unit_mask & (height_axis | CQMIN_OR_CQMAX) != 0,
+    )
+}
+
 pub(crate) fn collect_external_value_dependencies(value: &StyleValueData) -> ExternalValueDependencies {
     fn collect_optional(value: &RetainedStyleValueData, dependencies: &mut ExternalValueDependencies) {
         if let Some(value) = value.optional_data() {

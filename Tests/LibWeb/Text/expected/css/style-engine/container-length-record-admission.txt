@@ -1,4 +1,4 @@
 initial: 1px, 1px
-direct: value refusals 2, C++ recomputations 2, widths 40px, 60px
+direct: value refusals 0, C++ recomputations 0, widths 40px, 60px
 mixed: value refusals 2, C++ recomputations 2, widths 2px, 6px
 resized: 2.5px, 6px
