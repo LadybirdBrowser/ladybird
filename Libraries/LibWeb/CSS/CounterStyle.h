@@ -86,8 +86,6 @@ private:
     mutable Parser::ValueParserFFI::FfiRegisteredCounterStyle* m_rust_counter_style { nullptr };
 };
 
-Utf16String generate_a_counter_representation(RefPtr<CounterStyle const> const& counter_style, StyleScope const& style_scope, i32 value);
-
 // Whether the first three values this counter style represents are not all the same text: a marker whose text never
 // changes (disc, circle, square, ...) reveals no renumbering.
 bool counter_style_representation_depends_on_value(CounterStyle const&);

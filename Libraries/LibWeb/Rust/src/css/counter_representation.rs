@@ -1170,30 +1170,5 @@ pub unsafe extern "C" fn rust_publish_counter_styles(
     arena.publish_counter_styles(tree_scope, scope);
 }
 
-/// Generates the representation of `value` in `style`, following the fallback chain through the
-/// counter styles `tree_scope` registers. A null style is an unknown one, which is `decimal`.
-///
-/// The result is an `AK::Utf16String` raw representation the caller adopts.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
-/// `style` must be null or a live handle from `rust_counter_style_create`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_generate_a_counter_representation(
-    arena: *mut c_void,
-    tree_scope: u32,
-    style: *const FfiRegisteredCounterStyle,
-    value: i32,
-) -> usize {
-    // SAFETY: The handle is live for the duration of the call.
-    let style = unsafe { style.as_ref() }.map(|style| &*style.0);
-    // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
-    let representation = arena
-        .with_counter_style_registry(|registry| generate_a_counter_representation(registry, tree_scope, style, value));
-    ak::Utf16String::from_utf16(&representation).into_raw()
-}
-
 #[cfg(test)]
 mod tests;

@@ -7,7 +7,6 @@
 #include "CounterStyle.h"
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS {
@@ -87,20 +86,6 @@ bool CounterStyle::representation_is_constant() const
     return m_range.size() == 1
         && m_range.first().start == NumericLimits<i32>::min()
         && m_range.first().end == NumericLimits<i32>::max();
-}
-
-// https://drafts.csswg.org/css-counter-styles-3/#generate-a-counter
-Utf16String generate_a_counter_representation(RefPtr<CounterStyle const> const& counter_style, StyleScope const& style_scope, i32 value)
-{
-    // NB: The fallback chain is followed through the counter styles each tree scope publishes to the layout node arena,
-    //     so every scope a fallback name may be looked up in has to be settled and published first.
-    style_scope.publish_counter_style_lookup_chain();
-    auto representation = Parser::ValueParserFFI::rust_generate_a_counter_representation(
-        style_scope.document().layout_node_arena().handle(),
-        style_scope.style_engine_tree_scope().value(),
-        counter_style ? counter_style->rust_counter_style() : nullptr,
-        value);
-    return Utf16String::adopt_raw(representation);
 }
 
 // The descriptors travel as flat columns of `AK::Utf16FlyString` raw words; the Rust side takes ownership of the one
