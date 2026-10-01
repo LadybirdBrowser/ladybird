@@ -3334,6 +3334,61 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
     })
 }
 
+/// The record of an element no rule reaches, computed from its presentational hints and its
+/// inline style alone over the initial values; see `declared_only_record`. `subject` is the
+/// document's style node. Returns a pinned record the host unpins, or zero where the engine
+/// leaves the computation to C++.
+///
+/// # Safety
+/// `engine` must be live. `hints` must borrow `hint_count` `FfiDeclaredProperty` entries whose
+/// values point at live, Arc-backed `StyleValueData` roots. A non-null `inline_block` must borrow
+/// a live `DeclarationBlock`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_declared_only_record(
+    engine: *mut c_void,
+    subject: u32,
+    facts: u32,
+    hint_kind: FfiElementDeclarationKind,
+    hints: *const c_void,
+    hint_count: usize,
+    inline_block: *const c_void,
+) -> u64 {
+    use crate::css::declaration_block::{DeclarationBlock, FfiDeclaredProperty, declaration_from_view};
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        // A record no row holds is no event a replay could reproduce.
+        let Some(subject) = StyleNodeID::from_raw(subject).filter(|_| engine.recording_id().is_none()) else {
+            return 0;
+        };
+        let hints = if hint_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(hints.cast::<FfiDeclaredProperty>(), hint_count) }
+        };
+        let hints = hints
+            .iter()
+            .map(|hint| unsafe { declaration_from_view(hint) })
+            .collect::<Vec<_>>();
+        let inline_data = unsafe { inline_block.cast::<DeclarationBlock>().as_ref() }.map(DeclarationBlock::data);
+        let declares_custom_properties = inline_data
+            .as_ref()
+            .is_some_and(|data| !data.custom_properties.is_empty());
+        let hint_kind = decode_element_declaration_kind(hint_kind);
+        let declarations = hints
+            .iter()
+            .map(|hint| (hint_kind, hint))
+            .chain(inline_data.iter().flat_map(|data| {
+                data.properties
+                    .iter()
+                    .map(|declaration| (ElementDeclarationKind::InlineStyle, declaration))
+            }))
+            .collect::<Vec<_>>();
+        engine
+            .declared_only_record(subject, facts, &declarations, declares_custom_properties)
+            .map_or(0, super::computed::FinalStyleRecordID::raw)
+    })
+}
+
 /// Settle the synthetic pseudo-element records of an element whose record C++ has just installed.
 /// A zero `style_record` leaves them to C++.
 ///

@@ -1429,7 +1429,7 @@ impl RetainedState {
         let font = font.expect("a full drive resolves the font");
         let counter_style_registry = self.table_counter_style_environment_identity(target, &table);
         let (new_style_record, swap_eligible) = self.assemble_and_publish_engine_record(
-            target,
+            Some(target),
             parent_record,
             table,
             &length,
@@ -1743,11 +1743,11 @@ impl RetainedState {
 
     /// Build a driven table's groups against the parent record's payloads and publish the record
     /// for `target` the way a C++ computation publishes one; the record's swap eligibility comes
-    /// back beside its identity.
+    /// back beside its identity. Without a target, no row holds the record.
     #[allow(clippy::too_many_arguments)]
     fn assemble_and_publish_engine_record(
         &mut self,
-        target: computed::ComputedStyleTarget,
+        target: Option<computed::ComputedStyleTarget>,
         parent_record: Option<computed::FinalStyleRecordID>,
         mut table: ComputedLonghandTable,
         length: &crate::css::style_compute::FfiLengthResolutionContext,
@@ -1813,7 +1813,9 @@ impl RetainedState {
             animation_overlay_payloads: &[],
             longhand_table: HostShared::new(table),
         };
-        if let Some(cascade_state) = cascade_state {
+        if let Some(target) = target
+            && let Some(cascade_state) = cascade_state
+        {
             self.computed_group_sets
                 .set_pending_cascade_state(target, cascade_state);
         }
@@ -1824,7 +1826,7 @@ impl RetainedState {
             table: true,
         };
         let publication = self.publish_computed_groups_impl(
-            Some(target),
+            target,
             &payloads,
             computed::ENGINE_INHERITED_GROUP_COUNT,
             environment,

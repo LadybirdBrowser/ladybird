@@ -1014,6 +1014,24 @@ impl StyleEngine {
         self.state.answer_record_demand(node, demand, &mut self.counters)
     }
 
+    /// The record of an element no rule reaches, from its own declarations alone.
+    #[inline]
+    pub(super) fn declared_only_record(
+        &mut self,
+        subject: StyleNodeID,
+        facts: u32,
+        declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
+        declares_custom_properties: bool,
+    ) -> publication::Drive<computed::FinalStyleRecordID> {
+        self.state.declared_only_record(
+            subject,
+            facts,
+            declarations,
+            declares_custom_properties,
+            &mut self.counters,
+        )
+    }
+
     /// Settle the pseudo-element records of an element whose record C++ just installed.
     #[inline]
     pub(crate) fn settle_pseudo_records_after_host_record(
