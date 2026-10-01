@@ -380,16 +380,6 @@ void rust_invalidate_scroll_state(DOM::Document& document)
     Layout::RustFFI::layout_arena_invalidate_scroll_state(layout_arena_handle(document));
 }
 
-void mirror_rust_invalidate_paint_cache(Layout::Node const& node)
-{
-    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), false);
-}
-
-void rust_invalidate_propagated_text_decoration_caches(Layout::Node const& node)
-{
-    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), true);
-}
-
 Utf16String serialize_painting_dump(DOM::Document const& document, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayList const& display_list, Compositing::DisplayListResourceStorage const& resource_storage)
 {
     struct DumpContext {

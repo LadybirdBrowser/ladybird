@@ -40,6 +40,7 @@ public:
     void note_needs_repaint(NodeIdentity, InvalidateDisplayList);
     void note_needs_repaint_in_subtree(NodeIdentity);
     void note_dom_paint_facts(NodeIdentity, u8 facts);
+    void note_propagated_text_decoration_caches_invalidation(NodeIdentity);
     // The node's facts of these families are stale. The drain reads them from the node.
     void note_paint_facts(NodeIdentity, Painting::PaintFactsFamily);
 
@@ -60,6 +61,7 @@ private:
         bool needs_layout_update { false };
         bool needs_repaint { false };
         bool needs_subtree_repaint { false };
+        bool invalidate_propagated_text_decoration_caches { false };
         bool has_dom_paint_facts { false };
         u8 dom_paint_facts { 0 };
         Painting::PaintFactsFamily stale_paint_facts {};

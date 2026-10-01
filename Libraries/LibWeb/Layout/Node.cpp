@@ -206,7 +206,8 @@ void Node::pin_style_record_for_detachment()
 void Node::prepare_for_detach_from_layout_tree()
 {
     pin_style_record_for_detachment();
-    Painting::invalidate_paint_cache(*this);
+    // NB: A journal entry would resolve to whatever box replaces this one, so this box is cleaned now.
+    Painting::apply_paint_cache_invalidation(*this, Painting::PaintCacheInvalidation::PaintAndHitTest);
     if (auto* node_with_style = as_if<NodeWithStyle>(*this))
         node_with_style->clear_image_observers();
     if (kind() == RustFFI::NodeKind::ImageBox)

@@ -43,8 +43,6 @@ enum class ForceScrollStateRefresh {
 // the refresh was not forced.
 WEB_API bool rust_refresh_scroll_state(DOM::Document&, Compositing::ScrollStateSnapshot&, ForceScrollStateRefresh = ForceScrollStateRefresh::No);
 WEB_API void rust_invalidate_scroll_state(DOM::Document&);
-WEB_API void mirror_rust_invalidate_paint_cache(Layout::Node const&);
-WEB_API void rust_invalidate_propagated_text_decoration_caches(Layout::Node const&);
 struct InspectorOverlayInputs {
     Layout::Node const* highlighted_layout_node { nullptr };
     Color tooltip_color;

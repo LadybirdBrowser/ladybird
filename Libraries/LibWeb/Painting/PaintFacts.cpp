@@ -73,7 +73,7 @@ static void push_canvas_paint_facts_onto(HTML::HTMLCanvasElement const& canvas, 
     }
     bool changed = Layout::RustFFI::layout_arena_set_canvas_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), facts);
     if (changed && has_committed_box(layout_node))
-        invalidate_paint_cache(layout_node);
+        apply_paint_cache_invalidation(layout_node, PaintCacheInvalidation::PaintAndHitTest);
 }
 
 void push_canvas_paint_facts(HTML::HTMLCanvasElement const& canvas)
@@ -118,7 +118,7 @@ void reconcile_navigable_container_paint_facts(DOM::Document const& document)
         }
         bool changed = Layout::RustFFI::layout_arena_set_navigable_container_paint_facts(layout_node->arena_handle(), Layout::Node::slot_id(layout_node), facts);
         if (changed)
-            invalidate_paint_cache(*layout_node);
+            apply_paint_cache_invalidation(*layout_node, PaintCacheInvalidation::PaintAndHitTest);
     }
 }
 
