@@ -30,6 +30,7 @@ pub(crate) mod identity;
 pub(crate) mod intrinsic;
 pub(crate) mod low_ir;
 pub mod metadata;
+pub mod runtime_interface;
 pub(crate) mod ssa;
 pub(crate) mod target;
 pub(crate) mod types;
@@ -633,6 +634,16 @@ impl Compiler {
         let allocated = self.allocate(selected)?;
         let machine = self.finalize(allocated)?;
         self.emit_program(&machine)
+    }
+
+    /// List the runtime functions the assembly compiled from `prepared` calls,
+    /// ordered by symbol and classified for this compiler's target. Fails if
+    /// one symbol is called in two ways that need different definitions.
+    pub fn runtime_functions(
+        &self,
+        prepared: &PreparedProgram,
+    ) -> Result<Vec<runtime_interface::RuntimeFunction>, CompileError> {
+        runtime_interface::runtime_functions(prepared, self.options.target)
     }
 
     fn architecture(&self) -> Architecture {

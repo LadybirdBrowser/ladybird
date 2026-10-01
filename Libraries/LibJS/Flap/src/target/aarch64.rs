@@ -23,6 +23,7 @@ use super::ir::{
 use super::machine_verify::{define_machine_opcodes, operands_match};
 use super::registers::{PhysicalRegister, aarch64 as registers};
 use crate::frontend::layout::KnownLayoutConstant;
+use crate::runtime_interface::{BREAKPOINT_CHECK, FALLBACK_HANDLER};
 use crate::{Architecture, CompileOptions, ObjectFormat};
 use std::fmt::Write;
 
@@ -901,7 +902,7 @@ fn generate_fallback_handler(out: &mut String, program: &Program, object_format:
     w!(out, "    mov x0, x20");
     w!(out, "    sub w1, w21, w26");
     emit_sync_pc_to_execution_context(out, program);
-    w!(out, "    bl CSYM(asm_debugger_check_breakpoint)");
+    w!(out, "    bl CSYM({BREAKPOINT_CHECK})");
     emit_state_reload(out, program);
     // The reload may have picked up a different bytecode base, which would leave the absolute
     // instruction pointer in x21 stale, so recompute it from the synced program counter.
@@ -921,7 +922,7 @@ fn generate_fallback_handler(out: &mut String, program: &Program, object_format:
     w!(out, "    sub w1, w21, w26");
     emit_sync_pc_to_execution_context(out, program);
     w!(out, "    mov x2, x21");
-    w!(out, "    bl CSYM(asm_fallback_handler)");
+    w!(out, "    bl CSYM({FALLBACK_HANDLER})");
     // Check for exit (return < 0)
     emit_branch_bit_set_to_exit(out, registers::X0, 63);
     // Reload exec_ctx, pb, and values

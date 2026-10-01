@@ -24,6 +24,7 @@ use super::ir::{
 };
 use super::machine_verify::{define_machine_opcodes, operands_match};
 use crate::frontend::layout::KnownLayoutConstant;
+use crate::runtime_interface::{BREAKPOINT_CHECK, FALLBACK_HANDLER};
 use crate::{Architecture, CompileOptions, ObjectFormat};
 use std::fmt::Write;
 
@@ -619,7 +620,7 @@ fn generate_fallback_handler(out: &mut String, program: &Program, abi: X86_64Abi
     w!(out, "asm_debugger_trampoline:");
     emit_sync_pc_to_execution_context(out, program);
     emit_vm_pc_args(out, abi);
-    w!(out, "    call CSYM(asm_debugger_check_breakpoint)");
+    w!(out, "    call CSYM({BREAKPOINT_CHECK})");
     emit_state_reload(out, program, abi);
     // The reload may have picked up a different execution context, so reload its program counter
     // instead of dispatching from the value that r13 held across the C++ call.
@@ -641,7 +642,7 @@ fn generate_fallback_handler(out: &mut String, program: &Program, abi: X86_64Abi
     w!(out, "asm_handler_fallback:");
     emit_sync_pc_to_execution_context(out, program);
     emit_vm_pc_instruction_args(out, abi);
-    w!(out, "    call CSYM(asm_fallback_handler)");
+    w!(out, "    call CSYM({FALLBACK_HANDLER})");
     // Check for exit (return < 0)
     w!(out, "    test rax, rax");
     w!(out, "    js .Lexit");

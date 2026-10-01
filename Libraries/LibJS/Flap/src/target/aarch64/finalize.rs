@@ -8,9 +8,9 @@
 
 use super::Opcode;
 use super::{AddSubtractOperation, AddressIndexShift, ConditionFlags, FlagUpdate, MemoryAddressing};
-use crate::CompileError;
 use crate::frontend::layout::KnownLayoutConstant;
 use crate::low_ir::Label;
+use crate::runtime_interface::{RawNativeReturnConvention, raw_native_return_convention};
 use crate::target::backend::{Aarch64Backend, Backend};
 use crate::target::description::ArchitectureOpcode;
 use crate::target::description::{
@@ -32,6 +32,7 @@ use crate::target::registers::{
     PhysicalRegister,
     aarch64::{X21, X22, X23, X24, X25, X26, XZR},
 };
+use crate::{Architecture, CompileError, Target};
 
 fn machine_instruction(opcode: Opcode, operands: Vec<MachineOperand>) -> MachineInstruction {
     MachineInstruction {
@@ -994,7 +995,7 @@ fn call_with_values(
     kind: crate::target::backend::HelperCallKind,
 ) -> Result<(), CompileError> {
     use super::Condition;
-    use crate::metadata::ParameterMode;
+    use crate::metadata::{ParameterMode, SlowPathAbi, SlowPathArray};
     use crate::target::description::ShiftOperation;
     use crate::target::registers::aarch64::{
         SP, X0, X3, X4, X5, X6, X7, X9, X10, X11, X12, X13, X14, X20, X21, X27, X28,
@@ -1005,15 +1006,14 @@ fn call_with_values(
         direct_call(emit, function);
         return Ok(());
     };
-    if kind == crate::target::backend::HelperCallKind::SlowPath
-        && emit.object_format != crate::ObjectFormat::Coff
-        && layout.uses_scalar_arguments()
-    {
+    let abi = match kind {
+        crate::target::backend::HelperCallKind::SlowPath => layout.abi(emit.object_format == crate::ObjectFormat::Coff),
+        crate::target::backend::HelperCallKind::Try => SlowPathAbi::Record,
+    };
+    if abi == SlowPathAbi::Scalar {
         return call_with_scalar_values(emit, function, &layout);
     }
-    let scalar_inputs = kind == crate::target::backend::HelperCallKind::SlowPath
-        && emit.object_format != crate::ObjectFormat::Coff
-        && layout.array.is_none();
+    let scalar_inputs = abi == SlowPathAbi::Mixed;
     let input_registers = [X4, X5, X6, X7];
     let input_count = layout
         .fields
@@ -1029,7 +1029,7 @@ fn call_with_values(
     let fixed_size = values_offset + layout.fields.len() as i64 * 8;
     let empty = emit.constant(KnownLayoutConstant::EmptyValue)?;
     let done = emit.unique_label("values_call_done");
-    if let Some((_, count_offset, _)) = layout.array {
+    if let Some(SlowPathArray { count_offset, .. }) = layout.array {
         call_values_add(emit, X9, SP, 0);
         let allocate = emit.unique_label("values_allocate");
         let probe = emit.unique_label("values_probe");
@@ -1067,7 +1067,7 @@ fn call_with_values(
             direct_call(
                 emit,
                 crate::low_ir::Relocation::function_call(crate::identity::ExternalSymbol::new(
-                    "asm_slow_path_stack_overflow",
+                    crate::runtime_interface::STACK_OVERFLOW_SLOW_PATH,
                 )),
             );
         } else {
@@ -1149,7 +1149,13 @@ fn call_with_values(
         }
         input_index += 1;
     }
-    if let Some((array_offset, count_offset, optional)) = layout.array {
+    if let Some(SlowPathArray {
+        instruction_offset: array_offset,
+        count_offset,
+        optional,
+        ..
+    }) = layout.array
+    {
         let next = emit.unique_label("array_value_next");
         let ready = emit.unique_label("array_value_ready");
         let end = emit.unique_label("array_values_end");
@@ -1669,7 +1675,11 @@ impl Backend for Aarch64Backend {
 
         emit!(emit.output, Aarch64; Opcode::MoveRegister(IntegerWidth::U64) => [register scratch, register function];);
 
-        if emit.object_format == crate::ObjectFormat::Coff {
+        let target = Target {
+            architecture: Architecture::Aarch64,
+            object_format: emit.object_format,
+        };
+        if raw_native_return_convention(target) == RawNativeReturnConvention::OutPointer {
             emit!(emit.output, Aarch64;
                 Opcode::AddSubtractImmediate {
                     operation: AddSubtractOperation::Add,
