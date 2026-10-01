@@ -865,6 +865,11 @@ pub struct RetainedState {
     /// change among the node's siblings drives a record that reads it again in full, and C++ notes
     /// the node as reading it when it installs the engine's records.
     nodes_with_tree_counting_records: HashMap<StyleNodeID, u16>,
+    /// The nodes whose last winner store, for the element or for one of its pseudo-elements (a
+    /// bit each, see `rolled_back_bit`), rolled a property back below a revert keyword a
+    /// substitution produced: what it rolled back to is a declaration the winners do not name, so
+    /// the node's records are its alone and are computed again whatever its winners say.
+    nodes_with_rolled_back_records: HashMap<StyleNodeID, u64>,
     /// The custom-property environment each element holds, for the elements that hold one. This is
     /// the only copy: the element reads its environment from here.
     element_custom_property_data: HashMap<StyleNodeID, inputs::HeldCustomPropertyEnvironment>,

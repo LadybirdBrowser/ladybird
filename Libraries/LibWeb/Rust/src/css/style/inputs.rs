@@ -1472,6 +1472,7 @@ impl StyleEngineState {
                 nodes_with_substituted_records: HashSet::default(),
                 custom_declaration_reads: HashMap::default(),
                 nodes_with_tree_counting_records: HashMap::default(),
+                nodes_with_rolled_back_records: HashMap::default(),
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
                 environment_move_recompute_nodes: HashSet::default(),
@@ -2954,6 +2955,7 @@ impl RetainedState {
             nodes_with_substituted_records,
             custom_declaration_reads,
             nodes_with_tree_counting_records,
+            nodes_with_rolled_back_records,
             element_custom_property_data,
             pseudo_element_custom_property_data,
             environment_move_recompute_nodes,
@@ -3051,6 +3053,7 @@ impl RetainedState {
         nodes_with_substituted_records.remove(&node);
         custom_declaration_reads.remove(&node);
         nodes_with_tree_counting_records.remove(&node);
+        nodes_with_rolled_back_records.remove(&node);
         element_custom_property_data.remove(&node);
         pseudo_element_custom_property_data.remove(&node);
         environment_move_recompute_nodes.remove(&node);

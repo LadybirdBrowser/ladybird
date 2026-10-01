@@ -623,13 +623,15 @@ impl RetainedState {
         // element's place among its siblings to where it stands now, and one written with a
         // container-relative length to what its containers measure now, which no winner delta
         // shows. Such a record is driven again in full, as is one holding no current cascade
-        // state or one under a moved document environment.
+        // state, one under a moved document environment, and one that rolled a property back
+        // below a substituted revert keyword, to declarations no winner names.
         let drive_in_full = holds_no_current_cascade_state
             || scratch.document_environment_moved
             || ((environment.is_some() || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
             || self.state_reads_beyond_environment(node, state)
-            || self.record_reads_sibling_position(node, state);
+            || self.record_reads_sibling_position(node, state)
+            || self.record_rolls_back_substitution(node);
         if delta.is_empty() {
             // The winners the record was computed from are the winners now. When everything else
             // the record was computed from is as it was too - the document environment, the rules
@@ -912,7 +914,7 @@ impl RetainedState {
                     counters,
                 )?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
-                if !element_alone {
+                if !element_alone && !self.record_rolls_back_substitution(node) {
                     scratch.stores.insert((state, current_environment), store.clone());
                 }
                 if substituted {
@@ -1058,6 +1060,7 @@ impl RetainedState {
         // for no element of another scope, and the key names no scope.
         if !driver_input_moved
             && counter_style_registry == 0
+            && !self.record_rolls_back_substitution(node)
             && let Some(cohort) = cohort
         {
             scratch
@@ -1373,7 +1376,7 @@ impl RetainedState {
                 );
                 let store = std::sync::Arc::new(store?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
-                if !element_alone {
+                if !element_alone && !self.record_rolls_back_substitution(node) {
                     scratch.stores.insert((state, environment), store.clone());
                 }
                 if substituted {
@@ -1505,10 +1508,13 @@ impl RetainedState {
                 );
                 // The key names the parent's environment: a record whose own declarations
                 // resolved another is no answer for an element declaring none. Nor is one naming
-                // its tree scope's counter-style registry for an element of another scope.
-                if let Some(cache_key) =
-                    cache_key.filter(|key| key.environment == environment && counter_style_registry == 0)
-                {
+                // its tree scope's counter-style registry for an element of another scope, or one
+                // that rolled a property back to a declaration no winner names.
+                if let Some(cache_key) = cache_key.filter(|key| {
+                    key.environment == environment
+                        && counter_style_registry == 0
+                        && !self.record_rolls_back_substitution(node)
+                }) {
                     let record = ColdRecord {
                         record: assembly.delta.1,
                         swap_eligible: self.computed_group_sets.node_inherited_group_swap_eligible(node),
@@ -1604,8 +1610,12 @@ impl RetainedState {
         // The publication itself kept the record for later transactions; alike elements in this
         // one take it from the cohort. The key names the parent's environment, so a record whose
         // own declarations resolved another is kept for no one, and it names no tree scope, so
-        // neither is a record naming its scope's counter-style registry.
-        if let Some(cache_key) = cache_key.filter(|key| key.environment == environment && counter_style_registry == 0) {
+        // neither is a record naming its scope's counter-style registry. Nor does it name the
+        // declarations below the winners, which a record rolled back below a substituted revert
+        // keyword read.
+        if let Some(cache_key) = cache_key.filter(|key| {
+            key.environment == environment && counter_style_registry == 0 && !self.record_rolls_back_substitution(node)
+        }) {
             let record = ColdRecord {
                 record: delta.1,
                 swap_eligible,
@@ -2476,8 +2486,9 @@ impl RetainedState {
         // The element holds the record whether or not a later element takes it, and a change
         // among its siblings has to drive one reading its place again in full.
         self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
-        // A record whose winners read beyond its environment is the element's alone.
-        if self.state_reads_beyond_environment(node, cascade_state.1) {
+        // A record whose winners read beyond its environment is the element's alone, as is one
+        // that rolled a property back below a substituted revert keyword.
+        if self.state_reads_beyond_environment(node, cascade_state.1) || self.record_rolls_back_substitution(node) {
             return;
         }
         let Some(parent) = self.cold_record_parent(node, parent, parent_record, cascade_state.1) else {
@@ -2761,6 +2772,13 @@ impl RetainedState {
             != 0
     }
 
+    /// Whether a record of the node rolled a property back below a revert keyword a substitution
+    /// produced, to a declaration its winners do not name: its records are the node's alone, and
+    /// are computed again whatever its winners say.
+    pub(super) fn record_rolls_back_substitution(&self, node: StyleNodeID) -> bool {
+        self.nodes_with_rolled_back_records.contains_key(&node)
+    }
+
     /// The element whose attributes `attr()` reads for a node's record or one of its
     /// pseudo-elements': an element standing for its shadow host's pseudo-element is computed as
     /// that pseudo-element, so it reads the host's, as C++ does for all but its ::first-letter.
@@ -2940,9 +2958,12 @@ impl RetainedState {
         let mut style_query = None;
         let style_query_references = std::cell::RefCell::new(None);
         let mut functions: Option<custom_property_cascade::PreparedCustomFunctions> = None;
-        for winner in self.winner_groups.winners_in_state(state) {
+        // Whether a property rolled back below a substituted revert keyword: what it rolled back to
+        // is decided by declarations the winners do not name.
+        let mut rolled_back = false;
+        'winners: for winner in self.winner_groups.winners_in_state(state) {
             // A revert whose continuation resumes at nothing leaves the property undeclared.
-            let Some(winner) = self.winner_groups.resolved_winner(winner) else {
+            let Some(mut winner) = self.winner_groups.resolved_winner(winner) else {
                 continue;
             };
             if winner.key.animation_relevance != 0 {
@@ -2966,152 +2987,187 @@ impl RetainedState {
             if winner.property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID {
                 continue;
             }
-            // A winner's declaration is written in its source. One the engine cannot find again is
-            // invalid at computed-value time, and the property is left undeclared: it computes as
-            // `unset`.
-            let (index, value, checks) = match self.written_winner_value(node, &winner) {
-                Ok(Some(written)) => written,
-                Ok(None) => {
-                    unwritten(counters, "a winner's declaration is written in its source")?;
-                    continue;
-                }
-                Err(counter) => {
-                    counters.bump(counter);
-                    return Err(Unanswered::Refused);
-                }
-            };
-            // A longhand declared through a shorthand keeps the whole shorthand as its written
-            // value; the store takes the longhand's own part of it.
-            let location = WinnerValue::Written {
-                node,
-                source: winner.source,
-                index,
-            };
-            let calls_functions = custom_property_cascade::value_calls_custom_functions(value.data());
-            if calls_functions && functions.is_none() {
-                let Some(prepared) = self.prepare_custom_functions(node, pseudo_kind) else {
-                    counters.bump(Counter::EngineComputedRecordBailSubstitution);
-                    return Err(Unanswered::Refused);
-                };
-                functions = Some(prepared);
-            }
-            // A function's declarations may hold an `if()` as well.
-            if style_query.is_none()
-                && (calls_functions || custom_property_cascade::value_reads_conditions(value.data()))
-            {
-                style_query = Some(
-                    self.style_query_inputs(computed::ComputedStyleTarget::new(node, pseudo_kind.unwrap_or(u8::MAX))),
-                );
-            }
-            let (value, borrowed) = match value.data() {
-                crate::css::style_value::StyleValueData::Shorthand { .. } => {
-                    let Some(value) = shorthand_longhand_data(winner.property, value.data()) else {
-                        unwritten(
-                            counters,
-                            "a shorthand written for a longhand winner carries that longhand",
-                        )?;
-                        continue;
-                    };
-                    (location, Some(value))
-                }
-                // A value with var() references substitutes under the node's environment, as the
-                // C++ cascade substitutes it; a value invalid at computed-value time is unset.
-                crate::css::style_value::StyleValueData::Unresolved { presence_attr, .. } => {
-                    *substituted = true;
-                    let value = value.clone_retained();
-                    // A function's declarations may substitute `attr()` as well.
-                    let reads_attributes = *presence_attr
-                        || (calls_functions && functions.as_ref().is_some_and(|functions| functions.reads_attributes));
-                    if reads_attributes && attributes.is_none() {
-                        attributes = Some(
-                            custom_property_cascade::SubstitutionAttributes::of(
-                                &self.facts,
-                                attribute_element,
-                                self.html_element_namespace,
-                            )
-                            .or_refused()?,
-                        );
+            // A substitution that produces `revert` or `revert-layer` rolls the property back below
+            // the declaration that held it, to a lower declaration that is substituted in turn,
+            // as the C++ cascade does. The declarations it rolled back, with the keyword each
+            // substituted to.
+            let mut reverted = Vec::new();
+            let (index, checks, value, borrowed) = loop {
+                // A winner's declaration is written in its source. One the engine cannot find again
+                // is invalid at computed-value time, and the property is left undeclared: it
+                // computes as `unset`.
+                let (index, value, checks) = match self.written_winner_value(node, &winner) {
+                    Ok(Some(written)) => written,
+                    Ok(None) => {
+                        unwritten(counters, "a winner's declaration is written in its source")?;
+                        continue 'winners;
                     }
-                    let inputs = custom_property_cascade::SubstitutionInputs {
-                        document: &self.document_style_computation_inputs,
-                        media: &self.document_media,
-                        environment,
-                        attributes: attributes.as_ref().filter(|_| reads_attributes),
-                        style_query: style_query.as_ref().and_then(Option::as_ref),
-                        style_query_references: Some(&style_query_references),
-                        functions: functions.as_ref(),
+                    Err(counter) => {
+                        counters.bump(counter);
+                        return Err(Unanswered::Refused);
+                    }
+                };
+                // A longhand declared through a shorthand keeps the whole shorthand as its
+                // written value; the store takes the longhand's own part of it.
+                let location = WinnerValue::Written {
+                    node,
+                    source: winner.source,
+                    index,
+                };
+                let calls_functions = custom_property_cascade::value_calls_custom_functions(value.data());
+                if calls_functions && functions.is_none() {
+                    let Some(prepared) = self.prepare_custom_functions(node, pseudo_kind) else {
+                        counters.bump(Counter::EngineComputedRecordBailSubstitution);
+                        return Err(Unanswered::Refused);
                     };
-                    let value = Self::substitute_written_value(
-                        &mut self.custom_property_environments,
-                        &inputs,
-                        winner.property,
-                        value,
-                        counters,
-                    )?;
-                    (
-                        WinnerValue::Substituted {
-                            value: invalid_as_unset(value),
-                            source: winner.source,
-                        },
-                        None,
-                    )
+                    functions = Some(prepared);
                 }
-                // A longhand pending its shorthand's substitution takes its part of the
-                // substituted shorthand.
-                crate::css::style_value::StyleValueData::PendingSubstitution {
-                    original_shorthand_value,
-                } => {
-                    *substituted = true;
-                    let Some((shorthand, written)) =
-                        self.shorthand_declaration_written_as(node, winner.source, original_shorthand_value.pointer())
-                    else {
-                        unwritten(counters, "a pending longhand's shorthand is written in its source")?;
-                        continue;
-                    };
-                    // The store caches do not key a shorthand's `attr()` on the attributes it read.
-                    let inputs = custom_property_cascade::SubstitutionInputs {
-                        document: &self.document_style_computation_inputs,
-                        media: &self.document_media,
-                        environment,
-                        attributes: None,
-                        style_query: style_query.as_ref().and_then(Option::as_ref),
-                        style_query_references: Some(&style_query_references),
-                        functions: functions.as_ref(),
-                    };
-                    let resolved = Self::substitute_written_value(
-                        &mut self.custom_property_environments,
-                        &inputs,
-                        shorthand,
-                        written,
-                        counters,
-                    )?;
-                    let value = match resolved.data() {
-                        crate::css::style_value::StyleValueData::GuaranteedInvalid => unset_value(),
-                        _ => expanded_longhand_value(shorthand, winner.property, &resolved).unwrap_or_else(unset_value),
-                    };
-                    (
-                        WinnerValue::Substituted {
+                // A function's declarations may hold an `if()` as well.
+                if style_query.is_none()
+                    && (calls_functions || custom_property_cascade::value_reads_conditions(value.data()))
+                {
+                    style_query =
+                        Some(self.style_query_inputs(computed::ComputedStyleTarget::new(
+                            node,
+                            pseudo_kind.unwrap_or(u8::MAX),
+                        )));
+                }
+                let (value, borrowed) = match value.data() {
+                    crate::css::style_value::StyleValueData::Shorthand { .. } => {
+                        let Some(value) = shorthand_longhand_data(winner.property, value.data()) else {
+                            unwritten(
+                                counters,
+                                "a shorthand written for a longhand winner carries that longhand",
+                            )?;
+                            continue 'winners;
+                        };
+                        (location, Some(value))
+                    }
+                    // A value with var() references substitutes under the node's environment, as
+                    // the C++ cascade substitutes it; a value invalid at computed-value time is
+                    // unset.
+                    crate::css::style_value::StyleValueData::Unresolved { presence_attr, .. } => {
+                        *substituted = true;
+                        let value = value.clone_retained();
+                        // A function's declarations may substitute `attr()` as well.
+                        let reads_attributes = *presence_attr
+                            || (calls_functions
+                                && functions.as_ref().is_some_and(|functions| functions.reads_attributes));
+                        if reads_attributes && attributes.is_none() {
+                            attributes = Some(
+                                custom_property_cascade::SubstitutionAttributes::of(
+                                    &self.facts,
+                                    attribute_element,
+                                    self.html_element_namespace,
+                                )
+                                .or_refused()?,
+                            );
+                        }
+                        let inputs = custom_property_cascade::SubstitutionInputs {
+                            document: &self.document_style_computation_inputs,
+                            media: &self.document_media,
+                            environment,
+                            attributes: attributes.as_ref().filter(|_| reads_attributes),
+                            style_query: style_query.as_ref().and_then(Option::as_ref),
+                            style_query_references: Some(&style_query_references),
+                            functions: functions.as_ref(),
+                        };
+                        let value = Self::substitute_written_value(
+                            &mut self.custom_property_environments,
+                            &inputs,
+                            winner.property,
                             value,
-                            source: winner.source,
-                        },
-                        None,
-                    )
+                            counters,
+                        )?;
+                        (
+                            WinnerValue::Substituted {
+                                value: invalid_as_unset(value),
+                                source: winner.source,
+                            },
+                            None,
+                        )
+                    }
+                    // A longhand pending its shorthand's substitution takes its part of the
+                    // substituted shorthand.
+                    crate::css::style_value::StyleValueData::PendingSubstitution {
+                        original_shorthand_value,
+                    } => {
+                        *substituted = true;
+                        let Some((shorthand, written)) = self.shorthand_declaration_written_as(
+                            node,
+                            winner.source,
+                            original_shorthand_value.pointer(),
+                        ) else {
+                            unwritten(counters, "a pending longhand's shorthand is written in its source")?;
+                            continue 'winners;
+                        };
+                        // The store caches do not key a shorthand's `attr()` on the attributes it
+                        // read.
+                        let inputs = custom_property_cascade::SubstitutionInputs {
+                            document: &self.document_style_computation_inputs,
+                            media: &self.document_media,
+                            environment,
+                            attributes: None,
+                            style_query: style_query.as_ref().and_then(Option::as_ref),
+                            style_query_references: Some(&style_query_references),
+                            functions: functions.as_ref(),
+                        };
+                        let resolved = Self::substitute_written_value(
+                            &mut self.custom_property_environments,
+                            &inputs,
+                            shorthand,
+                            written,
+                            counters,
+                        )?;
+                        let value = match resolved.data() {
+                            crate::css::style_value::StyleValueData::GuaranteedInvalid => unset_value(),
+                            _ => expanded_longhand_value(shorthand, winner.property, &resolved)
+                                .unwrap_or_else(unset_value),
+                        };
+                        (
+                            WinnerValue::Substituted {
+                                value,
+                                source: winner.source,
+                            },
+                            None,
+                        )
+                    }
+                    _ => (location, Some(value.data())),
+                };
+                if let WinnerValue::Substituted {
+                    value: substituted_value,
+                    ..
+                } = &value
+                    && let operator @ (CascadeOperator::Revert | CascadeOperator::RevertLayer) =
+                        super::program_updates::declaration_operator(substituted_value.data())
+                {
+                    reverted.push((winner.priority, operator));
+                    // An element standing for its host's pseudo-element is cascaded from the host's
+                    // rules, which its own answer does not hold.
+                    let below = match self.backed_host_pseudo_element(node) {
+                        Some(_) => Err(()),
+                        None => self.winner_below_substitution(node, pseudo_kind, winner.property, &reverted),
+                    };
+                    rolled_back = true;
+                    match below {
+                        Ok(Some(lower)) => {
+                            winner = lower;
+                            continue;
+                        }
+                        // Nothing below declares the property: it is undeclared.
+                        Ok(None) => continue 'winners,
+                        Err(()) => {
+                            counters.bump(Counter::EngineComputedRecordBailSubstitution);
+                            return Err(Unanswered::Refused);
+                        }
+                    }
                 }
-                _ => (location, Some(value.data())),
+                break (index, checks, value, borrowed);
             };
             let data = match &value {
                 WinnerValue::Substituted { value, .. } => value.data(),
                 WinnerValue::Written { .. } => borrowed.expect("written declaration is borrowed"),
             };
-            if matches!(value, WinnerValue::Substituted { .. })
-                && matches!(
-                    super::program_updates::declaration_operator(data),
-                    CascadeOperator::Revert | CascadeOperator::RevertLayer
-                )
-            {
-                counters.bump(Counter::EngineComputedRecordBailSubstitution);
-                return Err(Unanswered::Refused);
-            }
             // A `url()` resolves against the sheet its rule came from, written or substituted, or
             // the document's base URL for an element's own declaration.
             let resources_are_known = match &value {
@@ -3178,6 +3234,19 @@ impl RetainedState {
                 .map(|(_, _, declaration)| declaration)
                 .collect(),
         );
+        // A store built to drive a record says whether that record rolls back; one built to admit a
+        // row only adds to what the node's records are known to do.
+        let bit = rolled_back_bit(pseudo_kind);
+        if rolled_back {
+            *self.nodes_with_rolled_back_records.entry(node).or_default() |= bit;
+        } else if store_use == StoreUse::Drive
+            && let Some(bits) = self.nodes_with_rolled_back_records.get_mut(&node)
+        {
+            *bits &= !bit;
+            if *bits == 0 {
+                self.nodes_with_rolled_back_records.remove(&node);
+            }
+        }
         // The custom properties its `style()` queries read are the element's style query
         // references, which the host records with its record.
         if store_use == StoreUse::Drive
@@ -4469,6 +4538,18 @@ impl StyleEngineState {
         }
         counters.set(Counter::LiveAnimationOverlayRecords, publication.live_records as u64);
         Some(publication)
+    }
+}
+
+/// The bit of `nodes_with_rolled_back_records` that stands for a node's element record, or for one
+/// of its pseudo-element records.
+fn rolled_back_bit(pseudo_kind: Option<u8>) -> u64 {
+    match pseudo_kind {
+        Some(kind) => {
+            debug_assert!(kind < 63, "a pseudo-element kind leaves the element's bit free");
+            1 << kind
+        }
+        None => 1 << 63,
     }
 }
 
