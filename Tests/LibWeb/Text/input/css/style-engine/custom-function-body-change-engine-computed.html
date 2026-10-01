@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="definitions">@function --size() { result: 10px; }</style>
+<style>
+    #target { width: --size(); height: 1px; }
+    #target::before { content: ""; display: inline-block; width: --size(); }
+</style>
+<div id="target"></div>
+<script>
+    // An element and its ::before call a custom function whose body changes. Count who computes the
+    // element's record again, and check both take the new result.
+    test(() => {
+        internals.updateStyle();
+        const sheet = document.getElementById("definitions").sheet;
+        const before = internals.getStyleInvalidationCounters();
+        sheet.deleteRule(0);
+        sheet.insertRule("@function --size() { result: 20px; }");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`engine records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords}`);
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`element width: ${getComputedStyle(target).width}`);
+        println(`::before width: ${getComputedStyle(target, "::before").width}`);
+    });
+</script>
