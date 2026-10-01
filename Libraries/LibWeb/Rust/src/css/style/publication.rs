@@ -4471,6 +4471,10 @@ pub(super) struct EngineComputedRecordScratch {
 pub(super) struct DerivedChildInputs {
     /// Whether the node's record settled this flush: what its descendants inherit from is in place.
     pub(super) settled: bool,
+    /// Whether the node is a row of this flush whose record the engine left to the host: the
+    /// record, and the container inputs it publishes, are installed after the flush. A row the
+    /// walk keeps only for its chain is no such row.
+    pub(super) declined: bool,
     /// Whether the node took an inherited-style reaction and resolved no record of its own, so
     /// its immediate children cannot take the direct inherited-group path. Deliberately separate
     /// from the chain proof: that is the accumulated confinement argument, this is the immediate

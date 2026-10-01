@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #outer { --flag: on; --length: 20px; }
+    @container style(--flag: on) { .on { width: 10px; } }
+    @container style(--length > 1em) { .on { height: 7px; } }
+</style>
+<div id="outer"><div id="container"><div id="target"></div></div></div>
+<script>
+    // A rule gated by @container style() conditions is answered by the style engine: the
+    // conditions read the custom properties the container's record holds, and a change to them
+    // reaches the subject again.
+    test(() => {
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+        target.classList.add("on");
+        internals.updateStyle();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations}`);
+        println(`width: ${getComputedStyle(target).width}, height: ${getComputedStyle(target).height}`);
+
+        container.style.setProperty("--flag", "off");
+        internals.updateStyle();
+        println(`after the container's custom property changes: width ${getComputedStyle(target).width}, height ${getComputedStyle(target).height}`);
+    });
+</script>

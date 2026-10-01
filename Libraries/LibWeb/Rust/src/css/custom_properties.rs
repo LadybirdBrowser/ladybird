@@ -575,13 +575,19 @@ impl ASFResolutionContext<'_> {
 
 /// The custom properties style queries read in one resolution, which the host records as the
 /// element's style query references.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct StyleQueryDependencies(Vec<Vec<u16>>);
 
 impl StyleQueryDependencies {
     fn note(&mut self, name: &[u16]) {
         if !self.0.iter().any(|noted| noted == name) {
             self.0.push(name.to_vec());
+        }
+    }
+
+    pub(crate) fn extend(&mut self, other: &Self) {
+        for name in other.names() {
+            self.note(name);
         }
     }
 
@@ -1877,6 +1883,19 @@ fn evaluate_style_feature(
     else {
         return ConditionEvaluation::Invalid;
     };
+    let query = colon.map(|colon| &tokens[colon + 1..]);
+    evaluate_named_style_feature(store, registry, name, query, context, recursion_depth)
+}
+
+/// A `style()` feature naming a property, `name` or `name: query`.
+fn evaluate_named_style_feature(
+    store: Option<&CustomPropertyStore>,
+    registry: Option<&CustomPropertyRegistry>,
+    name: &[u16],
+    query: Option<&[OwnedToken]>,
+    context: &mut ASFResolutionContext,
+    recursion_depth: u32,
+) -> ConditionEvaluation {
     if !name.starts_with_ascii("--") {
         return ConditionEvaluation::Match(false);
     }
@@ -1898,7 +1917,7 @@ fn evaluate_style_feature(
         TokenResolution::Invalid | TokenResolution::Cyclic => None,
         TokenResolution::NotHandled => return ConditionEvaluation::NotHandled,
     };
-    let Some(colon) = colon else {
+    let Some(query) = query else {
         // A <style-feature-boolean> is true if the computed value differs from the property's initial value.
         // NB: A function parameter's initial value is its argument, but a parameter holding one still matches.
         let (Some(registry), Some(registration), Some(computed)) = (registry, registration, &computed) else {
@@ -1916,7 +1935,7 @@ fn evaluate_style_feature(
             context.style_query_color_resolution_input.as_ref(),
         ));
     };
-    let query = trim_whitespace(&tokens[colon + 1..]);
+    let query = trim_whitespace(query);
 
     if let Some(keyword) = single_css_wide_keyword(query) {
         if keyword.eq_ignore_ascii_case("revert") || keyword.eq_ignore_ascii_case("revert-layer") {
@@ -1987,6 +2006,45 @@ fn evaluate_style_feature(
         ));
     }
     ConditionEvaluation::Match(serialize_tokens(trim_whitespace(&computed)) == serialize_tokens(query))
+}
+
+/// Evaluate a container query's style feature against a container's retained style: its
+/// custom-property environment, and lengths and colors as its record computes them. The custom
+/// properties the feature reads are noted in `dependencies`.
+pub(crate) fn evaluate_retained_container_style_feature(
+    store: Option<&CustomPropertyStore>,
+    registry: &CustomPropertyRegistry,
+    feature: &StyleFeature,
+    length_resolution_context: &crate::css::style_compute::FfiLengthResolutionContext,
+    color_resolution_input: crate::css::color_resolution::ColorResolutionInput<'_>,
+    dependencies: &mut Option<Box<StyleQueryDependencies>>,
+) -> MatchResult {
+    let mut context = ASFResolutionContext {
+        inheritance_store: store.and_then(|store| store.inheritance_parent.as_deref()),
+        style_query_length_resolution_context: Some(length_resolution_context),
+        style_query_color_resolution_input: Some(color_resolution_input),
+        style_query_dependencies: Some(dependencies),
+        ..Default::default()
+    };
+    let registry = Some(registry);
+    let result = match feature {
+        StyleFeature::Boolean(name) => evaluate_named_style_feature(store, registry, name, None, &mut context, 0),
+        StyleFeature::Plain { name, value, .. } => {
+            let query = tokenize_owned(&serialize_component_values_to_utf16(
+                value,
+                ComponentSerializationMode::Normalized,
+            ));
+            evaluate_named_style_feature(store, registry, name, Some(&query), &mut context, 0)
+        }
+        StyleFeature::Range { .. } => evaluate_style_range(store, registry, feature, &mut context, 0),
+    };
+    match result {
+        ConditionEvaluation::Match(true) => MatchResult::True,
+        ConditionEvaluation::Match(false) => MatchResult::False,
+        ConditionEvaluation::Invalid | ConditionEvaluation::NotHandled | ConditionEvaluation::Cyclic => {
+            MatchResult::Unknown
+        }
+    }
 }
 
 fn evaluate_style_query(

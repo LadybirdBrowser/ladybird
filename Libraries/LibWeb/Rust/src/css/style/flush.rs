@@ -2212,6 +2212,7 @@ impl StyleEngineState {
                             index as usize,
                             publication::DerivedChildInputs {
                                 settled,
+                                declined: !settled,
                                 inheritance_unresolved: !settled
                                     && reaction == transaction::STYLE_REACTION_INHERITED_STYLE,
                                 // A child folds the chain when it asks; this node's own facts

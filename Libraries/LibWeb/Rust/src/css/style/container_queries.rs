@@ -13,6 +13,7 @@ use super::bridge::FfiContainerEffectKind;
 use super::tree::StyleNodeID;
 use super::*;
 use crate::css::computed_longhand_table::FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS;
+use crate::css::custom_properties::StyleQueryDependencies;
 use crate::css::parser::query_parser::{
     CONTAINER_QUERY_HAS_UNKNOWN_FEATURE, CONTAINER_QUERY_REQUIRES_BLOCK_SIZE, CONTAINER_QUERY_REQUIRES_HEIGHT,
     CONTAINER_QUERY_REQUIRES_INLINE_SIZE, CONTAINER_QUERY_REQUIRES_SCROLL_STATE, CONTAINER_QUERY_REQUIRES_STYLE,
@@ -21,39 +22,49 @@ use crate::css::parser::query_parser::{
 };
 
 /// What a rule's container conditions say for one subject: whether they hold, whether they ask
-/// about a container's size or scroll state, and what the evaluation read of the containers, for
-/// the host to record.
+/// about a container's size, scroll state or style, and what the evaluation read of the
+/// containers, for the host to record.
 #[derive(Clone, Default)]
 pub(crate) struct ContainerVerdict {
     pub(crate) matches: bool,
     pub(crate) depends_on_size: bool,
+    pub(crate) depends_on_style: bool,
     pub(crate) effects: Vec<(StyleNodeID, FfiContainerEffectKind)>,
+    /// The custom properties the conditions' `style()` features read of the containers, which
+    /// the host records as the subject's style query references.
+    pub(crate) style_query_references: Option<Box<StyleQueryDependencies>>,
 }
 
-/// A `style()` feature is decided by the host: the engine has no evaluator for one yet.
-unsafe extern "C" fn undecided_container_style_feature(_: *mut c_void, _: FfiContainerStyleFeature) -> u8 {
+/// What a `style()` feature reads of the container it asks about: the custom-property
+/// environment of its record, and lengths and colors as the record computes them.
+struct RetainedContainerStyleContext<'a> {
+    store: Option<&'a crate::css::custom_properties::CustomPropertyStore>,
+    registry: &'a crate::css::custom_properties::CustomPropertyRegistry,
+    color: crate::css::color_resolution::ColorResolutionInput<'a>,
+}
+
+/// The engine answers `style()` features in Rust, never through the facts' callback.
+unsafe extern "C" fn no_style_feature_callback(_: *mut c_void, _: FfiContainerStyleFeature) -> u8 {
     MatchResult::Unknown as u8
 }
 
 impl RetainedState {
     /// Evaluate a rule's container conditions for a subject, as the host evaluates them. `None`
-    /// when the engine cannot decide them: the rule has no target, a condition asks a `style()`
-    /// question, or a container it asks about holds no record to read.
+    /// when the engine cannot decide them: the rule has no target, or a container it asks about
+    /// holds no record or custom-property environment to read.
     pub(crate) fn rule_container_verdict(
         &self,
         rule: RuleID,
         subject: StyleNodeID,
         subject_is_pseudo_element: bool,
     ) -> Option<ContainerVerdict> {
-        if self.rule_asks_container_style(rule) {
-            return None;
-        }
         let containers = self.native_rules.targets.get(&rule)?.containers();
         let mut verdict = ContainerVerdict {
             matches: true,
             // A dependency is marked even where an inner condition then fails to match.
             depends_on_size: containers.iter().any(|conditions| conditions.contains_size_feature()),
-            effects: Vec::new(),
+            depends_on_style: self.rule_asks_container_style(rule),
+            ..Default::default()
         };
         // Every group holds when one of its conditions does, and the evaluation stops where the
         // host's does, so it reads no more of the containers than the host records.
@@ -66,7 +77,7 @@ impl RetainedState {
                     subject_is_pseudo_element,
                     condition.query.as_deref(),
                     name,
-                    &mut verdict.effects,
+                    &mut verdict,
                 )? {
                     group_matches = true;
                     break;
@@ -89,7 +100,7 @@ impl RetainedState {
         subject_is_pseudo_element: bool,
         query: Option<&FfiQueryHandle>,
         name: &[u16],
-        effects: &mut Vec<(StyleNodeID, FfiContainerEffectKind)>,
+        verdict: &mut ContainerVerdict,
     ) -> Option<bool> {
         let requirements = query.map_or(0, FfiQueryHandle::container_requirements);
         if requirements & CONTAINER_QUERY_HAS_UNKNOWN_FEATURE != 0 {
@@ -100,10 +111,32 @@ impl RetainedState {
         } else {
             self.tree.flat_tree_parent(subject)
         };
+        // A query asking only about style, by no name, may ask any element.
+        let asks_only_style = name.is_empty()
+            && requirements
+                & (CONTAINER_QUERY_REQUIRES_WIDTH
+                    | CONTAINER_QUERY_REQUIRES_HEIGHT
+                    | CONTAINER_QUERY_REQUIRES_INLINE_SIZE
+                    | CONTAINER_QUERY_REQUIRES_BLOCK_SIZE
+                    | CONTAINER_QUERY_REQUIRES_SCROLL_STATE)
+                == 0;
+        let mut any_element_row;
         while let Some(candidate) = container {
             container = self.tree.flat_tree_parent(candidate);
-            let Some(inputs) = self.container_query_inputs(candidate) else {
-                continue;
+            let inputs = match self.container_query_inputs(candidate) {
+                Some(inputs) => inputs,
+                // Every element is a style container, so the nearest one is the container; one
+                // holding no record yet is one the host styles in this update, which decides it.
+                None if asks_only_style => {
+                    let style_record = self.held_style_records.get(&candidate).copied().or_else(|| {
+                        self.computed_group_sets
+                            .assigned_style_record(candidate)
+                            .map(|record| record.raw())
+                    })?;
+                    any_element_row = self.container_query_input_row(style_record, true);
+                    any_element_row.as_ref()?
+                }
+                None => continue,
             };
             if !name.is_empty() && !inputs.names.iter().any(|candidate| candidate == name) {
                 continue;
@@ -228,6 +261,35 @@ impl RetainedState {
             if inputs.direction == crate::css::css_enums::direction::RTL {
                 inline_start_side = opposite(inline_start_side);
             }
+            // A `style()` feature reads the container's custom properties, and its values compute
+            // as the container's record computes them.
+            let mut style_context = None;
+            if requirements & CONTAINER_QUERY_REQUIRES_STYLE != 0 {
+                let store = match self
+                    .computed_group_sets
+                    .style_record_custom_property_environment(inputs.style_record)
+                    .unwrap_or_default()
+                {
+                    0 => None,
+                    // SAFETY: The store is live while the container's record names its environment.
+                    identity => Some(unsafe { &*self.custom_property_environments.store(identity)?.cast() }),
+                };
+                let values = crate::css::computed_value_views::ComputedValuesView::new(
+                    crate::css::host_shared::SharedPayload::as_pointer_slice(view.payloads),
+                );
+                let inherited_text = values.inherited_text();
+                style_context = Some(RetainedContainerStyleContext {
+                    store,
+                    registry: document.custom_property_registry(),
+                    color: crate::css::color_resolution::ColorResolutionInput {
+                        scheme: Some(values.inherited_ui().color_scheme),
+                        current_color: Some(crate::css::color_resolution::Rgba::from_packed(inherited_text.color)),
+                        current_color_value: inherited_text.color_style_value.data(),
+                        length: Some(&length),
+                        channels: None,
+                    },
+                });
+            }
             let facts = FfiContainerFacts {
                 container_available: true,
                 size_available: snapshot.has_committed_box,
@@ -238,7 +300,7 @@ impl RetainedState {
                 inline_axis_horizontal,
                 length_resolution_context: std::ptr::from_ref(&length).cast(),
                 style_context: std::ptr::null_mut(),
-                evaluate_style_feature: undecided_container_style_feature,
+                evaluate_style_feature: no_style_feature_callback,
                 scroll_state_available: requirements & CONTAINER_QUERY_REQUIRES_SCROLL_STATE != 0,
                 stuck: snapshot.stuck,
                 snapped: snapshot.snapped,
@@ -258,28 +320,60 @@ impl RetainedState {
                     | CONTAINER_QUERY_REQUIRES_SCROLL_STATE)
                 != 0
             {
-                effects.push((candidate, FfiContainerEffectKind::SizeContainerUsage));
+                verdict
+                    .effects
+                    .push((candidate, FfiContainerEffectKind::SizeContainerUsage));
             }
             for basis in [width_basis_node, height_basis_node].into_iter().flatten() {
-                effects.push((basis, FfiContainerEffectKind::SizeContainerUsage));
+                verdict
+                    .effects
+                    .push((basis, FfiContainerEffectKind::SizeContainerUsage));
                 // A container-relative length against a container without a box resolved to
                 // zero, as it does for the host, which evaluates it again after layout.
                 if !self.layout_style_snapshot(basis).unwrap_or_default().has_committed_box {
-                    effects.push((basis, FfiContainerEffectKind::NeedsEvaluationAfterLayout));
+                    verdict
+                        .effects
+                        .push((basis, FfiContainerEffectKind::NeedsEvaluationAfterLayout));
                 }
             }
+            if requirements & CONTAINER_QUERY_REQUIRES_STYLE != 0 {
+                verdict
+                    .effects
+                    .push((candidate, FfiContainerEffectKind::StyleContainerUsage));
+            }
             if requirements & CONTAINER_QUERY_REQUIRES_SCROLL_STATE != 0 {
-                effects.push((candidate, FfiContainerEffectKind::ScrollStateContainerUsage));
+                verdict
+                    .effects
+                    .push((candidate, FfiContainerEffectKind::ScrollStateContainerUsage));
             }
             if !snapshot.has_committed_box {
-                effects.push((candidate, FfiContainerEffectKind::NeedsEvaluationAfterLayout));
+                verdict
+                    .effects
+                    .push((candidate, FfiContainerEffectKind::NeedsEvaluationAfterLayout));
             }
-            // SAFETY: The query and every pointer in the facts are live for the call.
-            let result = unsafe { crate::css::parser::query_parser::css_query_evaluate_container(query, facts) };
+            let references = &mut verdict.style_query_references;
+            // SAFETY: The facts' length context is live for the call.
+            let result = unsafe {
+                crate::css::parser::query_parser::evaluate_container_query(query, &facts, &mut |feature| {
+                    let Some(context) = &style_context else {
+                        return MatchResult::Unknown;
+                    };
+                    crate::css::custom_properties::evaluate_retained_container_style_feature(
+                        context.store,
+                        context.registry,
+                        feature,
+                        &length,
+                        context.color,
+                        references,
+                    )
+                })
+            };
             if resolved_viewport_relative_length {
-                effects.push((subject, FfiContainerEffectKind::SubjectViewportDependency));
+                verdict
+                    .effects
+                    .push((subject, FfiContainerEffectKind::SubjectViewportDependency));
             }
-            return Some(result == MatchResult::True as u8);
+            return Some(result == MatchResult::True);
         }
         Some(false)
     }
@@ -289,7 +383,14 @@ impl RetainedState {
     fn note_container_effects_for_host(&mut self, node: StyleNodeID, verdict: ContainerVerdict) {
         let noted = self.container_effects_for_host.entry(node).or_default();
         noted.depends_on_size |= verdict.depends_on_size;
+        noted.depends_on_style |= verdict.depends_on_style;
         noted.effects.extend(verdict.effects);
+        if let Some(references) = verdict.style_query_references {
+            match &mut noted.style_query_references {
+                Some(noted) => noted.extend(&references),
+                noted => *noted = Some(references),
+            }
+        }
     }
 
     /// What the rows the host installs read of their containers, taken as it installs each.
@@ -303,13 +404,11 @@ impl RetainedState {
     /// stay the host's.
     pub(crate) fn container_gate_is_held(&self, node: Option<StyleNodeID>, rule: RuleID, pseudo: bool) -> bool {
         !self.program.rule_is_gated_by_container_query(rule)
-            || (!pseudo
-                && node.is_some_and(|node| !self.container_gates_unheld.contains(&node))
-                && !self.rule_asks_container_style(rule))
+            || (!pseudo && node.is_some_and(|node| !self.container_gates_unheld.contains(&node)))
     }
 
-    /// Whether one of a rule's container conditions asks a `style()` question, which only the host
-    /// decides: the rule's gate is never held.
+    /// Whether one of a rule's container conditions asks a `style()` question, which every
+    /// element above the subject may answer.
     fn rule_asks_container_style(&self, rule: RuleID) -> bool {
         self.native_rules.targets.get(&rule).is_some_and(|target| {
             target.containers().iter().any(|conditions| {
@@ -415,20 +514,24 @@ impl RetainedState {
     /// Whether a flat-tree ancestor of the node the conditions can ask about was declined in this
     /// batch: the record the host computes for it is installed after the batch, and so are the
     /// container inputs it publishes. A size or scroll-state query asks only about an ancestor that
-    /// is such a container, or whose winners may make it one.
+    /// is such a container, or whose winners may make it one; a style query about any.
     pub(super) fn container_ancestor_is_unsettled(
         &self,
         node: StyleNodeID,
         scratch: &super::publication::EngineComputedRecordScratch,
     ) -> bool {
+        let asks_about_style = self
+            .published_container_verdicts
+            .get(&node)
+            .is_some_and(|verdicts| verdicts.iter().any(|&(rule, _)| self.rule_asks_container_style(rule)));
         let mut ancestor = self.tree.flat_tree_parent(node);
         while let Some(current) = ancestor {
             if let Some(index) = current.element_index()
                 && scratch
                     .derived_child_inputs
                     .get(index as usize)
-                    .is_some_and(|row| !row.settled)
-                && self.may_be_a_query_container(current)
+                    .is_some_and(|row| row.declined)
+                && (asks_about_style || self.may_be_a_query_container(current))
             {
                 return true;
             }

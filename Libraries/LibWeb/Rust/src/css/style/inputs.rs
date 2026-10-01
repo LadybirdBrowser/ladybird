@@ -971,24 +971,34 @@ impl RetainedState {
     /// with. A record without its box group makes it none, and so does one naming no container
     /// type or name: such an element holds no row.
     pub(super) fn set_element_container_query_inputs(&mut self, node: StyleNodeID, style_record: u64) {
-        let Some(payloads) = self
+        match self.container_query_input_row(style_record, false) {
+            Some(row) => self.container_query_inputs.set(node, row),
+            None => self.container_query_inputs.clear(node),
+        }
+    }
+
+    /// What a record says of its element as a query container: none for a record without its box
+    /// group, nor, unless `any_element` asks for every element's, for one naming no container type
+    /// or name.
+    pub(super) fn container_query_input_row(
+        &self,
+        style_record: u64,
+        any_element: bool,
+    ) -> Option<tree::ContainerQueryInputRow> {
+        let payloads = self
             .computed_group_sets
             .style_record_payloads(style_record)
-            .filter(|payloads| payloads.len() > crate::css::computed_value_types::STYLE_GROUP_INDEX_BOX)
-        else {
-            self.container_query_inputs.clear(node);
-            return;
-        };
+            .filter(|payloads| payloads.len() > crate::css::computed_value_types::STYLE_GROUP_INDEX_BOX)?;
         let values =
             crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(payloads));
         let box_values = values.box_values();
-        if !box_values.is_size_container
+        if !any_element
+            && !box_values.is_size_container
             && !box_values.is_inline_size_container
             && !box_values.is_scroll_state_container
             && box_values.container_name.raws().is_empty()
         {
-            self.container_query_inputs.clear(node);
-            return;
+            return None;
         }
         let names = box_values
             .container_name
@@ -999,18 +1009,15 @@ impl RetainedState {
                 ak::Utf16StringUnits::Utf16(units) => units.to_vec(),
             })
             .collect();
-        self.container_query_inputs.set(
-            node,
-            tree::ContainerQueryInputRow {
-                style_record,
-                names,
-                is_size_container: box_values.is_size_container,
-                is_inline_size_container: box_values.is_inline_size_container,
-                is_scroll_state_container: box_values.is_scroll_state_container,
-                writing_mode: values.writing_mode(),
-                direction: values.direction(),
-            },
-        );
+        Some(tree::ContainerQueryInputRow {
+            style_record,
+            names,
+            is_size_container: box_values.is_size_container,
+            is_inline_size_container: box_values.is_inline_size_container,
+            is_scroll_state_container: box_values.is_scroll_state_container,
+            writing_mode: values.writing_mode(),
+            direction: values.direction(),
+        })
     }
 
     /// Record what the style C++ computed for an element reads through `var()`: nothing held when
@@ -1554,7 +1561,6 @@ impl StyleEngineState {
                 deferred_element_style_inputs_are_pending: false,
                 environment_move_changed_names: Default::default(),
                 environment_move_actions: Vec::new(),
-                container_effects: Vec::new(),
                 externally_recorded_style_input_nodes: HashSet::default(),
                 deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
                 initial_tree_batch_applied: false,
