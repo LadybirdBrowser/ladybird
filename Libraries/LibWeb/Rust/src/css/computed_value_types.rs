@@ -952,6 +952,7 @@ pub const STYLE_GROUP_INDEX_ANCHOR: usize = 10;
 pub const STYLE_GROUP_INDEX_EFFECTS: usize = 11;
 pub const STYLE_GROUP_INDEX_MASK: usize = 12;
 pub const STYLE_GROUP_INDEX_TEXT_RESET: usize = 13;
+pub const STYLE_GROUP_INDEX_CONTENT: usize = 14;
 pub const STYLE_GROUP_INDEX_TRANSFORM: usize = 15;
 pub const STYLE_GROUP_INDEX_BACKGROUND: usize = 16;
 pub const STYLE_GROUP_INDEX_BORDER: usize = 17;

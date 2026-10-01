@@ -51,6 +51,7 @@ namespace Web::Layout {
 
 static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP_COUNT);
 static_assert(to_underlying(CSS::StyleGroupIndex::GridValues) == RustFFI::STYLE_GROUP_INDEX_GRID);
+static_assert(to_underlying(CSS::StyleGroupIndex::ContentValues) == RustFFI::STYLE_GROUP_INDEX_CONTENT);
 static_assert(to_underlying(CSS::StyleGroupIndex::AnchorValues) == RustFFI::STYLE_GROUP_INDEX_ANCHOR);
 static_assert(to_underlying(CSS::StyleGroupIndex::InheritedTableValues) == RustFFI::STYLE_GROUP_INDEX_INHERITED_TABLE);
 static_assert(to_underlying(CSS::StyleGroupIndex::InheritedTextValues) == RustFFI::STYLE_GROUP_INDEX_INHERITED_TEXT);

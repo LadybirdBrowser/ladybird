@@ -2146,6 +2146,16 @@ impl RetainedState {
         self.pseudo_style_mask(node).unwrap_or(0)
     }
 
+    /// Whether the node's published style holds a `::first-letter` record. The tree build asks a
+    /// block this before it goes looking for the letter to style, and again of each block it
+    /// descends into, which stops the search where a nested block styles its own first letter.
+    #[must_use]
+    pub(crate) fn has_published_first_letter_style(&self, node: StyleNodeID) -> bool {
+        self.computed_group_sets
+            .pseudo_style_record(node, pseudo_kind::FIRST_LETTER)
+            .is_some()
+    }
+
     /// The value a winner's declaration was written with, and the declaration's index in its
     /// block: the drive computes from the spelling the declaration was written in, which the
     /// cascade's canonical identity may have rewritten. A rule keeps its written values beside its

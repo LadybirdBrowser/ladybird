@@ -18,7 +18,7 @@ use super::used_values::UsedValues;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::{
-    StyleEngine,
+    PublishedBoxFacts, StyleEngine,
     layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle},
 };
 use crate::layout::ComputedValuesView;
@@ -1522,6 +1522,43 @@ impl LayoutNodeArena {
     pub(crate) fn element_adjustment_facts(&self, style_node: Option<StyleNodeID>) -> u32 {
         style_node.map_or(0, |style_node| {
             self.with_style_store(|engine| engine.element_adjustment_facts(style_node))
+        })
+    }
+
+    /// The box facts the element's published style record holds. A text node, an anonymous row and
+    /// the document have no record and answer nothing.
+    pub(crate) fn published_box_facts(&self, style_node: Option<StyleNodeID>) -> Option<PublishedBoxFacts> {
+        let style_node = style_node?;
+        self.with_style_store(|engine| engine.element_published_box_facts(style_node))
+    }
+
+    /// Whether the element's published style record holds a `::first-letter`. A text node, an
+    /// anonymous row that names no element and the document have no record and answer no.
+    pub(crate) fn has_published_first_letter_style(&self, style_node: Option<StyleNodeID>) -> bool {
+        style_node.is_some_and(|style_node| {
+            self.with_style_store(|engine| engine.has_published_first_letter_style(style_node))
+        })
+    }
+
+    /// Whether the element's published style record replaces its contents with a single image,
+    /// which is what makes its box a replaced box rather than a container for its children.
+    pub(crate) fn published_content_is_single_image(&self, style_node: Option<StyleNodeID>) -> bool {
+        style_node.is_some_and(|style_node| {
+            self.with_style_store(|engine| engine.element_content_is_single_image(style_node))
+        })
+    }
+
+    /// The node above `style_node` that DOM code calls its flat-tree parent: the slot it is
+    /// assigned to, else its parent, where a shadow root stands for its host. The document is not
+    /// in the element relations, so the document element has none.
+    pub(crate) fn flat_tree_parent(&self, style_node: StyleNodeID) -> Option<StyleNodeID> {
+        self.with_style_store(|engine| {
+            let tree = engine.tree();
+            if let Some(slot) = tree.assigned_slot_of(style_node) {
+                return Some(slot);
+            }
+            let parent = tree.parent(style_node)?;
+            Some(tree.host_of(parent).unwrap_or(parent))
         })
     }
 

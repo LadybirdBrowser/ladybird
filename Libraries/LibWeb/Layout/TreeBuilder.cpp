@@ -91,7 +91,6 @@ void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& el
     element.set_synthetic_pseudo_element_node({}, pseudo_element, layout_node);
 }
 
-static RustFFI::FfiPrincipalDisplayFacts ffi_principal_display_facts(CSS::Display);
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
 struct PrincipalNodeFrame;
 static Compositing::RustFFI::NodeSlotId create_layout_node_for_text(PrincipalNodeFrame&, DOM::Text&);
@@ -1069,18 +1068,6 @@ LayoutTreeBuildBridge::~LayoutTreeBuildBridge()
 {
 }
 
-static RustFFI::FfiPrincipalDisplayFacts ffi_principal_display_facts(CSS::Display display)
-{
-    return {
-        .display_is_none = display.is_none(),
-        .display_is_contents = display.is_contents(),
-        .display_is_table_inside = display.is_table_inside(),
-        .display_is_block_outside = display.is_block_outside(),
-        .display_is_internal_table = display.is_internal_table(),
-        .display_is_table_caption = display.is_table_caption(),
-    };
-}
-
 RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_builder_callbacks()
 {
     return {
@@ -1114,7 +1101,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto* slot_element = as_if<HTML::HTMLSlotElement>(element);
             auto shadow_root = element.shadow_root();
             return {
-                .content_visibility_hidden = element.style_group<CSS::ComputedValues::InheritedBoxValues>()->content_visibility_value() == CSS::ContentVisibility::Hidden,
                 .child_needs_layout_tree_update = element.child_needs_layout_tree_update(),
                 .dom_children_parent = static_cast<DOM::ParentNode*>(&element),
                 .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
@@ -1168,7 +1154,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             }
             return {
                 .is_element = element != nullptr,
-                .content_visibility_hidden = element && element->style_group<CSS::ComputedValues::InheritedBoxValues>()->content_visibility_value() == CSS::ContentVisibility::Hidden,
                 .child_needs_layout_tree_update = node.child_needs_layout_tree_update(),
                 .is_document = node.is_document(),
                 .dom_children_parent = parent_node,
@@ -1180,10 +1165,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .svg_fill_pattern = identified_dom_node(fill_pattern.ptr()),
                 .svg_stroke_pattern = identified_dom_node(stroke_pattern.ptr()),
             }; },
-        .layout_node_has_first_letter_style = [](void* layout_node_pointer) {
-            VERIFY(layout_node_pointer);
-            auto* element = as_if<DOM::Element>(static_cast<Node*>(layout_node_pointer)->dom_node());
-            return element && element->has_style(CSS::PseudoElement::FirstLetter); },
         .create_first_letter_nodes = [](void*, void* element_pointer, RustFFI::FfiFirstLetterTarget target) -> RustFFI::FfiFirstLetterNodes {
             VERIFY(element_pointer);
             return create_first_letter_nodes(*static_cast<DOM::Element*>(element_pointer), target); },
@@ -1198,18 +1179,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             size_t index = 0;
             for (auto const& element : elements)
                 output[index++] = identified_dom_node(element.ptr()); },
-        .flat_tree_parent = [](void* node_pointer) -> void* {
-            VERIFY(node_pointer);
-            return static_cast<DOM::Node*>(node_pointer)->flat_tree_parent(); },
-        .flat_tree_render_facts = [](void* node_pointer) -> RustFFI::FfiFlatTreeRenderFacts {
-            VERIFY(node_pointer);
-            auto* element = as_if<DOM::Element>(*static_cast<DOM::Node*>(node_pointer));
-            auto const* box_values = element ? element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
-            return {
-                .is_element = element != nullptr,
-                .has_computed_style = box_values != nullptr,
-                .display_is_none = box_values && box_values->display_value().is_none(),
-            }; },
         .svg_pattern_content_element = [](void* pattern_pointer) -> RustFFI::FfiIdentifiedDomNode {
             VERIFY(pattern_pointer);
             return identified_dom_node(static_cast<SVG::SVGPatternElement*>(pattern_pointer)->pattern_content_element().ptr()); },
@@ -1273,7 +1242,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             frame.anonymous_computed_values = nullptr;
             frame.style_record_identity = 0;
             --storage.active_frame_count; },
-        .prepare_principal_element = [](void* builder_pointer, void* frame_pointer, void* element_pointer, bool should_create_layout_node) -> RustFFI::FfiPreparedPrincipalElementFacts {
+        .prepare_principal_element = [](void* builder_pointer, void* frame_pointer, void* element_pointer, bool should_create_layout_node) {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
@@ -1302,21 +1271,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             frame.style_record_identity = element.style_record_identity();
             VERIFY(frame.style_record_identity);
             frame.style_record_owner = &element.document().style_computer();
-            frame.style_record_owner->pin_style_record(frame.style_record_identity);
-            auto const* box_values = element.style_group<CSS::ComputedValues::BoxValues>();
-            VERIFY(box_values);
-            return {
-                .display = ffi_principal_display_facts(box_values->display_value()),
-            }; },
-        .principal_element_layout_facts = [](void* frame_pointer, void* element_pointer) -> RustFFI::FfiElementLayoutFacts {
-            VERIFY(frame_pointer);
-            VERIFY(element_pointer);
-            auto& element = *static_cast<DOM::Element*>(element_pointer);
-            auto const* content_values = element.style_group<CSS::ComputedValues::ContentValues>();
-            VERIFY(content_values);
-            return {
-                .has_content_replacement = content_replacement_image(content_values->computed_content_value()) != nullptr,
-            }; },
+            frame.style_record_owner->pin_style_record(frame.style_record_identity); },
         .create_principal_element_layout = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiElementLayoutKind kind) -> Compositing::RustFFI::NodeSlotId {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
