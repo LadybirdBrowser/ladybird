@@ -827,6 +827,8 @@ pub struct RetainedState {
     document_style_computation_inputs: bridge::FfiDocumentStyleComputationInputs,
     /// The base URLs a `url()` resolves against, copied at the transaction boundary with the inputs.
     document_resource_contexts: resource_contexts::DocumentResourceContexts,
+    /// The document's media features, copied from each transaction's inputs.
+    document_media: custom_property_cascade::DocumentMediaSnapshot,
     /// Every font resolution this document has been given. An evaluation step reads it; only a
     /// host round between passes adds to it.
     font_resolution: Option<font_resolution::FontResolutionCache>,

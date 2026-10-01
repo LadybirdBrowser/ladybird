@@ -53,6 +53,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         next_style_transaction_version,
         document_style_computation_inputs,
         document_resource_contexts,
+        document_media,
         font_resolution,
         monospace_font_family,
         layer_topology_version,
@@ -158,6 +159,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(next_style_transaction_version);
     assert_member_is_sync(document_style_computation_inputs);
     assert_member_is_sync(document_resource_contexts);
+    assert_member_is_sync(document_media);
     assert_member_is_sync(layer_topology_version);
     assert_member_is_sync(sheet_order_version);
     assert_member_is_sync(monospace_font_family);

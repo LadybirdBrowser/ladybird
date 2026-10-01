@@ -733,6 +733,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
             });
         }
         auto const viewport_rect = m_style_computer->viewport_rect_for_style_environment();
+        auto const& media_environment = *m_style_computer->ensure_media_environment_for_style_update();
         auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
         auto const& initial_font = m_style_computer->document().font_computer().initial_font();
         Length::FontMetrics const initial_font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font.pixel_metrics(), InitialValues::line_height() };
@@ -764,6 +765,9 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
             .document_base_url_length = document_base_url.bytes().size(),
             .style_sheet_resource_contexts = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(resource_contexts.data()),
             .style_sheet_resource_context_count = resource_contexts.size(),
+            .media_feature_values = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(media_environment.values),
+            .media_feature_value_count = media_environment.value_count,
+            .media_length_resolution_context = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(media_environment.length_resolution_context),
         };
         if (auto supported = m_style_computer->document().supported_color_schemes(); supported.has_value()) {
             computation_inputs.has_document_supported_schemes = true;

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { --n: 1in; width: if(style(--n: 96px): 10px; else: 20px); }
+</style>
+<div id="target"></div>
+<script>
+    // A style() query in an if() compares an unregistered value as written, and a registered one
+    // as computed: registering the name it reads restyles the element that queries it.
+    test(() => {
+        const target = document.getElementById("target");
+        println(`unregistered: ${getComputedStyle(target).width}`);
+        const registration = document.createElement("style");
+        registration.textContent = '@property --n { syntax: "<length>"; inherits: false; initial-value: 0px; }';
+        document.head.appendChild(registration);
+        println(`registered: ${getComputedStyle(target).width}`);
+    });
+</script>

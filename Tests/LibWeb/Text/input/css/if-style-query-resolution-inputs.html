@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --c { syntax: "<color>"; inherits: false; initial-value: black; }
+    @property --l { syntax: "<length>"; inherits: false; initial-value: 0px; }
+    #parent { color: rgb(0, 128, 0); }
+    #color { --c: currentcolor; width: if(style(--c: rgb(0, 128, 0)): 10px; else: 20px); }
+    #pseudo { font-size: 10px; }
+    #pseudo::before { content: "x"; display: block; font-size: 20px; --l: 20px; width: if(style(--l: 1em): 10px; else: 20px); }
+    #pseudo.restyled::before { color: blue; }
+</style>
+<div id="parent"><div id="color"></div><div id="pseudo"></div></div>
+<script>
+    // A style() query compares a registered value as the queried element computes it: colors with its
+    // currentcolor, and a pseudo-element's lengths with its own font.
+    test(() => {
+        const color = document.getElementById("color");
+        const pseudo = document.getElementById("pseudo");
+        println(`currentcolor feature: ${getComputedStyle(color).width}`);
+        getComputedStyle(pseudo, "::before").width;
+        pseudo.classList.add("restyled");
+        println(`pseudo-element em feature: ${getComputedStyle(pseudo, "::before").width}`);
+    });
+</script>

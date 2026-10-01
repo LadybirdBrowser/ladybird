@@ -1392,6 +1392,9 @@ pub(super) const STATE_READS_ATTRIBUTES: u8 = 1 << 0;
 pub(super) const STATE_READS_SIBLING_POSITION: u8 = 1 << 1;
 /// A state's winners substitute `inherit()`, which reads the parent's custom-property environment.
 pub(super) const STATE_READS_INHERIT_FUNCTION: u8 = 1 << 2;
+/// A state's winners substitute `if()`, whose conditions read the document's media features and
+/// the element's lengths.
+pub(super) const STATE_READS_IF_FUNCTION: u8 = 1 << 3;
 /// What a state's winners read has been decided.
 const STATE_READS_DECIDED: u8 = 1 << 7;
 

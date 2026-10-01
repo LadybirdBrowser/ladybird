@@ -72,6 +72,72 @@ unsafe extern "C" fn finalize_engine_custom_property_component(
     }
 }
 
+/// The document's media features as the style update a transaction belongs to saw them, which
+/// `media()` conditions in `if()` read. Copied rather than borrowed: the host's snapshot ends with
+/// the style update, and a record demanded after it still resolves against these.
+#[derive(Default)]
+pub(super) struct DocumentMediaSnapshot {
+    values: Vec<crate::css::parser::query_parser::FfiMediaFeatureValue>,
+    /// Lent no output flag: `take_in` clears the one the host's context points to.
+    length: Option<crate::css::style_compute::FfiLengthResolutionContext>,
+}
+
+// SAFETY: The only pointer the snapshot holds is the length context's output flag, which `take_in`
+// clears before keeping the context.
+unsafe impl Send for DocumentMediaSnapshot {}
+unsafe impl Sync for DocumentMediaSnapshot {}
+
+impl DocumentMediaSnapshot {
+    /// Take in what the host lent with the inputs, and clear the borrowed fields so the inputs
+    /// compare by value from here on.
+    ///
+    /// # Safety
+    /// The borrowed fields must name a live array of their stated length and a live length
+    /// context, or nothing, for this call.
+    pub(super) unsafe fn take_in(&mut self, inputs: &mut bridge::FfiDocumentStyleComputationInputs) {
+        self.values.clear();
+        if !inputs.media_feature_values.is_none() && inputs.media_feature_value_count != 0 {
+            self.values.extend_from_slice(unsafe {
+                std::slice::from_raw_parts(
+                    inputs.media_feature_values.as_pointer().cast(),
+                    inputs.media_feature_value_count,
+                )
+            });
+        }
+        self.length = unsafe {
+            inputs
+                .media_length_resolution_context
+                .as_pointer()
+                .cast::<crate::css::style_compute::FfiLengthResolutionContext>()
+                .as_ref()
+        }
+        .map(|&context| crate::css::style_compute::FfiLengthResolutionContext {
+            resolved_viewport_relative_length: std::ptr::null_mut(),
+            ..context
+        });
+        inputs.media_feature_values = bridge::FfiHostHandle::default();
+        inputs.media_feature_value_count = 0;
+        inputs.media_length_resolution_context = bridge::FfiHostHandle::default();
+    }
+
+    /// The snapshot as the resolver reads a media environment, borrowing from it.
+    fn environment(&self) -> crate::css::parser::query_parser::FfiMediaEnvironment {
+        crate::css::parser::query_parser::FfiMediaEnvironment {
+            values: self.values.as_ptr(),
+            value_count: self.values.len(),
+            length_resolution_context: self
+                .length
+                .as_ref()
+                .map_or(std::ptr::null(), |length| std::ptr::from_ref(length).cast()),
+        }
+    }
+
+    /// What lengths resolve against for a document without styled elements.
+    pub(super) fn length(&self) -> Option<&crate::css::style_compute::FfiLengthResolutionContext> {
+        self.length.as_ref()
+    }
+}
+
 /// The resolution context the engine substitutes under: the stores alone, with no callback into
 /// C++ - what the engine cannot resolve without one is left to C++ before this is built.
 fn engine_resolution_context(
@@ -80,11 +146,14 @@ fn engine_resolution_context(
     inheritance_store: *const c_void,
     registry: *const c_void,
     attributes: Option<&SubstitutionAttributes<'_>>,
+    media_environment: &crate::css::parser::query_parser::FfiMediaEnvironment,
+    style_query: Option<&crate::css::cascaded_properties::FfiStyleQueryInputs>,
+    style_query_references: Option<&mut Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
 ) -> FfiCascadeResolutionContext {
     let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
     FfiCascadeResolutionContext {
         parse_context: std::ptr::from_ref(parse_context).cast(),
-        media_environment: std::ptr::null(),
+        media_environment: std::ptr::from_ref(media_environment).cast(),
         load_media_environment: None,
         custom_property_store: store,
         inheritance_custom_property_store: inheritance_store,
@@ -104,21 +173,22 @@ fn engine_resolution_context(
         callback_context: std::ptr::null_mut(),
         install_custom_properties: None,
         resolve_custom_function: None,
-        style_query_inputs: std::ptr::null(),
+        style_query_inputs: style_query.map_or(std::ptr::null(), std::ptr::from_ref),
         load_style_query_inputs: None,
-        style_query_dependencies: std::ptr::null_mut(),
+        style_query_dependencies: style_query_references
+            .map_or(std::ptr::null_mut(), |references| std::ptr::from_mut(references).cast()),
         note_substitution: None,
     }
 }
 
 /// Whether a token stream is a substitution the engine resolves itself: one whose only
-/// substitution functions are `var()` and `inherit()` references.
+/// substitution functions are `var()`, `inherit()` and `if()`.
 pub(super) fn value_is_engine_resolvable_substitution(value: &StyleValueData) -> bool {
     matches!(value, StyleValueData::Unresolved { .. }) && custom_property_value_is_engine_resolvable(value)
 }
 
 /// Whether a cascaded custom-property value is one the engine resolves: a plain value, or a
-/// token stream whose only substitutions are `var()` and `inherit()` references.
+/// token stream whose only substitutions are `var()`, `inherit()` and `if()`.
 fn custom_property_value_is_engine_resolvable(value: &StyleValueData) -> bool {
     !value_reads_attributes(value) && substitutions_but_attr_are_engine_resolvable(value)
 }
@@ -157,10 +227,22 @@ pub(super) fn value_reads_inherited_values(value: &StyleValueData) -> bool {
     )
 }
 
+/// Whether a written value substitutes `if()`, whose conditions read the document's media
+/// features and the element's lengths beside its custom-property environment.
+pub(super) fn value_reads_conditions(value: &StyleValueData) -> bool {
+    matches!(
+        substituted_tokens(value),
+        StyleValueData::Unresolved { presence_if: true, .. }
+    )
+}
+
 /// What a written value's substitutions read beyond the element's custom-property environment,
 /// as `FfiNodeRecordReads` bits.
 fn substitution_reads(value: &StyleValueData) -> u8 {
     let mut reads = 0;
+    if value_reads_conditions(value) {
+        reads |= bridge::FfiNodeRecordReads::IfFunction as u8;
+    }
     if value_reads_attributes(value) {
         reads |= bridge::FfiNodeRecordReads::Attributes as u8;
     }
@@ -179,7 +261,6 @@ fn substitutions_but_attr_are_engine_resolvable(value: &StyleValueData) -> bool 
             presence_dashed_function: true,
             ..
         } | StyleValueData::Unresolved { presence_env: true, .. }
-            | StyleValueData::Unresolved { presence_if: true, .. }
     )
 }
 
@@ -190,6 +271,21 @@ fn substitutions_but_attr_are_engine_resolvable(value: &StyleValueData) -> bool 
 pub(super) struct SubstitutionEnvironment {
     pub own: u64,
     pub inherited: u64,
+}
+
+/// What a node's winners substitute against beside their written values: the document's inputs
+/// and media features, the custom-property environments, and what is read of the element itself,
+/// where a winner reads it - its attributes for `attr()`, and the lengths and colors a `style()`
+/// query in `if()` resolves against.
+pub(super) struct SubstitutionInputs<'a> {
+    pub document: &'a bridge::FfiDocumentStyleComputationInputs,
+    pub media: &'a DocumentMediaSnapshot,
+    pub environment: SubstitutionEnvironment,
+    pub attributes: Option<&'a SubstitutionAttributes<'a>>,
+    pub style_query: Option<&'a crate::css::cascaded_properties::FfiStyleQueryInputs>,
+    /// Where the custom properties a `style()` query reads are noted.
+    pub style_query_references:
+        Option<&'a std::cell::RefCell<Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>>,
 }
 
 /// What an `attr()` reads of an element, as the resolution takes it: each of the element's
@@ -712,10 +808,10 @@ impl RetainedState {
         if cascaded.is_empty() {
             return;
         }
-        if cascaded
-            .iter()
-            .any(|(_, written)| !custom_property_value_is_engine_resolvable(written.data()))
-        {
+        // What an `if()` resolves to is the element's alone, which no memo hands to another.
+        if cascaded.iter().any(|(_, written)| {
+            !custom_property_value_is_engine_resolvable(written.data()) || value_reads_conditions(written.data())
+        }) {
             return;
         }
         let parent_environment = match self.tree.inheritance_parent(node) {
@@ -735,6 +831,48 @@ impl RetainedState {
             self.custom_property_environments
                 .remember(key, environment, written_values);
         }
+    }
+
+    /// What a `style()` query of an `if()` resolves against for a node or one of its
+    /// pseudo-elements, as the host takes it: the style the target holds, else the one its parent
+    /// holds, which for a pseudo-element is its originating element's, else the document's initial
+    /// font, preferred color scheme and initial color.
+    pub(super) fn style_query_inputs(
+        &self,
+        target: computed::ComputedStyleTarget,
+    ) -> Option<crate::css::cascaded_properties::FfiStyleQueryInputs> {
+        let node = target.node();
+        let parent_record = || {
+            if target.pseudo_kind() == u8::MAX {
+                self.computed_group_sets
+                    .assigned_style_record(self.tree.inheritance_parent(node)?)
+            } else {
+                self.computed_group_sets.assigned_style_record(node)
+            }
+        };
+        let held = self
+            .computed_group_sets
+            .assigned_final_style_record(target)
+            .or_else(parent_record)
+            .and_then(|record| self.computed_group_sets.style_record_view(record.raw()));
+        if let Some(view) = held
+            && let Some(length) = self.record_length_resolution_context(&view)
+        {
+            let values = crate::css::computed_value_views::ComputedValuesView::new(
+                crate::css::host_shared::SharedPayload::as_pointer_slice(view.payloads),
+            );
+            return Some(crate::css::cascaded_properties::FfiStyleQueryInputs {
+                length,
+                color_scheme: values.inherited_ui().color_scheme,
+                current_color: values.inherited_text().color,
+            });
+        }
+        Some(crate::css::cascaded_properties::FfiStyleQueryInputs {
+            length: *self.document_media.length()?,
+            color_scheme: self.document_style_computation_inputs.preferred_color_scheme,
+            // Opaque black, the initial color.
+            current_color: 0xff00_0000,
+        })
     }
 
     /// The name a cascaded custom declaration names, as its store entry keys it. A block's
@@ -867,6 +1005,10 @@ impl RetainedState {
         // An `attr()` among the declarations reads the element's attributes, so what they resolve
         // to is the element's alone and takes no memo.
         let reads_attributes = cascaded.iter().any(|(_, value)| value_reads_attributes(value.data()));
+        // So does an `if()`, whose conditions read the document's media features and the
+        // element's lengths.
+        let reads_conditions = cascaded.iter().any(|(_, value)| value_reads_conditions(value.data()));
+        let memoizes = !reads_attributes && !reads_conditions;
         let key = Self::environment_inputs(
             parent_environment,
             inputs.custom_property_registration_generation,
@@ -881,7 +1023,7 @@ impl RetainedState {
             identity != parent_environment
                 && identity & custom_property_environments::ENGINE_ENVIRONMENT_IDENTITY_BIT == 0
         });
-        if !reads_attributes && let Some(identity) = memoized.filter(|_| !keeps_cpp_environment) {
+        if memoizes && let Some(identity) = memoized.filter(|_| !keeps_cpp_environment) {
             counters.bump(Counter::EngineCustomPropertyEnvironmentMemoHits);
             return Ok(identity);
         }
@@ -911,7 +1053,7 @@ impl RetainedState {
             ));
         }
         if values.is_empty() {
-            if !reads_attributes && !keeps_cpp_environment {
+            if memoizes && !keeps_cpp_environment {
                 let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
                 self.custom_property_environments
                     .remember(key, parent_environment, written_values);
@@ -933,13 +1075,24 @@ impl RetainedState {
         // values are the program's interned values, live for the call.
         let cascaded_store = unsafe { CustomPropertyStore::cascaded_child(parent_store, values) };
         let mut random_function_index = 0_usize;
-        let parse_context = registry_ref.parse_context(&mut random_function_index);
+        let mut parse_context = registry_ref.parse_context(&mut random_function_index);
+        parse_context.in_quirks_mode = inputs.in_quirks_mode;
+        let media_environment = self.document_media.environment();
+        let style_query = reads_conditions
+            .then(|| self.style_query_inputs(computed::ComputedStyleTarget::new(node, u8::MAX)))
+            .flatten();
+        // The custom properties a `style()` query reads are the element's style query references,
+        // which the host records with its record.
+        let mut style_query_references = None;
         let resolution_context = engine_resolution_context(
             &parse_context,
             cascaded_store,
             parent_store,
             std::ptr::from_ref(registry_ref).cast(),
             attributes.as_ref(),
+            &media_environment,
+            style_query.as_ref(),
+            Some(&mut style_query_references),
         );
         let mut finalizer = EngineFinalizer { parent_store };
         let drive = FfiCustomPropertyDriveInput {
@@ -964,6 +1117,15 @@ impl RetainedState {
         unsafe { destroy_resolved_custom_properties(resolved.storage, resolved.count) };
         unsafe { Arc::decrement_strong_count(cascaded_store.cast::<CustomPropertyStore>()) };
         counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
+        if style_query_references.is_some() {
+            self.note_container_effects_for_host(
+                node,
+                super::container_queries::ContainerVerdict {
+                    style_query_references,
+                    ..Default::default()
+                },
+            );
+        }
         let identity = if resolved.rust_store.is_null() {
             parent_environment
         } else {
@@ -972,7 +1134,7 @@ impl RetainedState {
                     .adopt_engine_environment(resolved.rust_store, parent_environment)
             }
         };
-        if !reads_attributes && !keeps_cpp_environment {
+        if memoizes && !keeps_cpp_environment {
             let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
             self.custom_property_environments
                 .remember(key, identity, written_values);
@@ -981,7 +1143,7 @@ impl RetainedState {
     }
 
     /// What a node's records read beyond their cascade, as `FfiNodeRecordReads` bits, for the row
-    /// that installs them: an `attr()` or `inherit()` in the element's winners, in its
+    /// that installs them: an `attr()`, `inherit()` or `if()` in the element's winners, in its
     /// pseudo-elements' (which read the originating element's attributes), or in the custom
     /// properties either declares, as their resolution found; a tree-counting function in the
     /// records the engine derived for the element or its pseudo-elements, written or substituted,
@@ -1004,6 +1166,9 @@ impl RetainedState {
             if state_reads & cascade::STATE_READS_INHERIT_FUNCTION != 0 {
                 reads |= bridge::FfiNodeRecordReads::InheritFunction as u8;
             }
+            if state_reads & cascade::STATE_READS_IF_FUNCTION != 0 {
+                reads |= bridge::FfiNodeRecordReads::IfFunction as u8;
+            }
         }
         if self.nodes_with_tree_counting_records.contains_key(&node) {
             reads |= bridge::FfiNodeRecordReads::SiblingPosition as u8;
@@ -1013,20 +1178,19 @@ impl RetainedState {
 
     /// What a written value with `var()` references substitutes to for a property under an
     /// environment, parsed as the property's value: what the C++ cascade computes for the
-    /// declaration, memoized by the written value. An `attr()` reads the element's `attributes`
-    /// and an `inherit()` the environment the element inherits, so either value is the element's
-    /// alone and takes no memo. Refused when the value holds a substitution the engine does not
-    /// resolve, or an environment is one the engine holds no store for.
+    /// declaration, memoized by the written value. An `attr()` reads the element's attributes, an
+    /// `inherit()` the environment the element inherits and an `if()` the document's media
+    /// features and the element's lengths, so any of these values is the element's alone and
+    /// takes no memo. Refused when the value holds a substitution the engine does not resolve, or
+    /// an environment is one the engine holds no store for.
     pub(super) fn substitute_written_value(
         environments: &mut custom_property_environments::CustomPropertyEnvironments,
-        inputs: &bridge::FfiDocumentStyleComputationInputs,
-        environment: SubstitutionEnvironment,
+        inputs: &SubstitutionInputs<'_>,
         property: u16,
         written: RetainedStyleValueData,
-        attributes: Option<&SubstitutionAttributes<'_>>,
         counters: &mut Counters,
     ) -> Drive<RetainedStyleValueData> {
-        let attributes = attributes.filter(|_| value_reads_attributes(written.data()));
+        let attributes = inputs.attributes.filter(|_| value_reads_attributes(written.data()));
         if (attributes.is_none() && !custom_property_value_is_engine_resolvable(written.data()))
             || !substitutions_but_attr_are_engine_resolvable(written.data())
         {
@@ -1034,7 +1198,8 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         }
         let reads_inherited_values = value_reads_inherited_values(written.data());
-        let memoizes = attributes.is_none() && !reads_inherited_values;
+        let memoizes = attributes.is_none() && !reads_inherited_values && !value_reads_conditions(written.data());
+        let environment = inputs.environment;
         if memoizes && let Some(value) = environments.substitution(&written, property, environment.own) {
             counters.bump(Counter::EngineComputedRecordSubstitutionMemoHits);
             return Ok(value);
@@ -1056,10 +1221,11 @@ impl RetainedState {
         } else {
             std::ptr::null()
         };
-        let registry_ref = inputs.custom_property_registry();
+        let registry_ref = inputs.document.custom_property_registry();
         let mut random_function_index = 0_usize;
         let mut parse_context = registry_ref.parse_context(&mut random_function_index);
-        parse_context.in_quirks_mode = inputs.in_quirks_mode;
+        parse_context.in_quirks_mode = inputs.document.in_quirks_mode;
+        let media_environment = inputs.media.environment();
         let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
         let Some(mut resolution_environment) = (unsafe {
             prepare_var_resolution_environment(
@@ -1073,6 +1239,7 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return Err(Unanswered::Refused);
         };
+        let mut style_query_references = inputs.style_query_references.map(std::cell::RefCell::borrow_mut);
         // SAFETY: The store is live while a record names its environment, and the written value
         // is retained by the declaration that carries it.
         let resolution = unsafe {
@@ -1081,7 +1248,7 @@ impl RetainedState {
                 inheritance_store,
                 std::ptr::from_ref(registry_ref).cast(),
                 Some(&parse_context),
-                None,
+                Some(&media_environment),
                 None,
                 property,
                 FfiUtf16View {
@@ -1094,9 +1261,9 @@ impl RetainedState {
                 attributes.is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
                 None,
                 std::ptr::null_mut(),
+                inputs.style_query,
                 None,
-                None,
-                None,
+                style_query_references.as_deref_mut(),
                 None,
             )
         };

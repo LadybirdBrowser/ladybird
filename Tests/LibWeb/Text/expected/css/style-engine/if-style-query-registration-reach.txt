@@ -1,0 +1,2 @@
+unregistered: 20px
+registered: 10px
