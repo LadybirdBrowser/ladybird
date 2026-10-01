@@ -956,11 +956,6 @@ public:
     Color text_decoration_color() const { return Color::from_bgra(m_noninherited.text_reset->text_decoration_color); }
     ReadonlySpan<ShadowData> text_shadow() const { return m_inherited.text->text_shadow_span(); }
     Positioning position() const { return static_cast<Positioning>(m_noninherited.box->position); }
-    Vector<Optional<Utf16FlyString>> transition_properties() const { return m_noninherited.animation->transition_properties_value(); }
-    Vector<Time> transition_durations() const { return m_noninherited.animation->transition_durations_value(); }
-    Vector<EasingFunction> transition_timing_functions() const { return m_noninherited.animation->transition_timing_functions_value(); }
-    Vector<Time> transition_delays() const { return m_noninherited.animation->transition_delays_value(); }
-    Vector<TransitionBehavior> transition_behaviors() const { return m_noninherited.animation->transition_behaviors_value(); }
     bool transition_delay_and_duration_are_single_zero() const { return m_noninherited.animation->transition_delay_and_duration_are_single_zero_value(); }
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.text->white_space_collapse_value(); }
     FlexDirection flex_direction() const { return static_cast<FlexDirection>(m_noninherited.alignment->flex_direction); }
@@ -1355,11 +1350,6 @@ public:
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Animation;
 
         Vector<ComputedAnimationName> animation_names_value() const;
-        Vector<Optional<Utf16FlyString>> transition_properties_value() const;
-        Vector<Time> transition_durations_value() const;
-        Vector<EasingFunction> transition_timing_functions_value() const;
-        Vector<Time> transition_delays_value() const;
-        Vector<TransitionBehavior> transition_behaviors_value() const;
         bool transition_delay_and_duration_are_single_zero_value() const { return transition_delay_and_duration_are_single_zero; }
 
         bool operator==(AnimationValues const& other) const

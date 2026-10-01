@@ -16,14 +16,6 @@
 
 namespace Web::CSS {
 
-struct TransitionProperties {
-    Vector<PropertyID> properties;
-    double duration;
-    EasingFunction timing_function;
-    double delay;
-    TransitionBehavior transition_behavior;
-};
-
 // The timeline an animation definition asks for. A scroll timeline is a GC object, and a definition
 // is built for every animation on every style recomputation while the timeline it names almost
 // never changes, so the definition carries the description and the object is materialized only

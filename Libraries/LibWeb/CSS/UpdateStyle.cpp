@@ -188,7 +188,7 @@ static bool element_style_depends_on_more_than_the_inherited_groups(DOM::Element
     if (element.has_relevant_animations()
         || element.has_css_defined_animations()
         || !element.property_ids_with_existing_transitions({}).is_empty()
-        || !element.property_ids_with_matching_transition_property_entry({}).is_empty())
+        || element.has_matching_transition_property_entry({}))
         return true;
     // The swapped groups are the parent's base values; a child of an animating parent inherits
     // the animated ones, which the engine never sees.

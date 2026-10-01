@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibWeb/Animations/Animation.h>
+#include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
@@ -33,6 +34,7 @@ public:
         NonnullRefPtr<StyleValue const> end_value,
         NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
         double reversing_shortening_factor,
+        EasingFunction timing_function,
         Publication = Publication::Committed);
 
     void commit_provisional_transition();
@@ -75,6 +77,7 @@ private:
         NonnullRefPtr<StyleValue const> end_value,
         NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
         double reversing_shortening_factor,
+        EasingFunction timing_function,
         Publication);
 
     virtual void visit_edges(Cell::Visitor&) override;

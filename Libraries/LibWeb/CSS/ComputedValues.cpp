@@ -1475,35 +1475,6 @@ Vector<BackgroundLayerData> ComputedValues::MaskValues::mask_layers_value() cons
     return layers;
 }
 
-template<typename T, typename Mapper>
-static Vector<T> animation_keyword_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle, Mapper mapper)
-{
-    Vector<T> result;
-    for (auto const& item : animation_items(handle))
-        result.append(mapper(item->to_keyword()).release_value());
-    return result;
-}
-
-static Vector<Time> animation_time_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-{
-    Vector<Time> result;
-    for (auto const& item : animation_items(handle))
-        result.append(Time::from_style_value(item, {}));
-    return result;
-}
-
-static Vector<Optional<Utf16FlyString>> animation_optional_name_items(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
-{
-    Vector<Optional<Utf16FlyString>> result;
-    for (auto const& item : animation_items(handle)) {
-        if (item->is_custom_ident())
-            result.append(item->as_custom_ident().custom_ident());
-        else
-            result.empend();
-    }
-    return result;
-}
-
 Vector<ComputedAnimationName> ComputedValues::AnimationValues::animation_names_value() const
 {
     auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(animation_name.pointer);
@@ -1535,34 +1506,6 @@ Vector<ComputedAnimationName> ComputedValues::AnimationValues::animation_names_v
         }
     }
     return result;
-}
-
-Vector<Optional<Utf16FlyString>> ComputedValues::AnimationValues::transition_properties_value() const
-{
-    return animation_optional_name_items(transition_property);
-}
-
-Vector<Time> ComputedValues::AnimationValues::transition_durations_value() const
-{
-    return animation_time_items(transition_duration);
-}
-
-Vector<EasingFunction> ComputedValues::AnimationValues::transition_timing_functions_value() const
-{
-    Vector<EasingFunction> result;
-    for (auto const& item : animation_items(transition_timing_function))
-        result.append(EasingFunction::from_style_value(item));
-    return result;
-}
-
-Vector<Time> ComputedValues::AnimationValues::transition_delays_value() const
-{
-    return animation_time_items(transition_delay);
-}
-
-Vector<TransitionBehavior> ComputedValues::AnimationValues::transition_behaviors_value() const
-{
-    return animation_keyword_items<TransitionBehavior>(transition_behavior, keyword_to_transition_behavior);
 }
 
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedStyleWorkingSet const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
