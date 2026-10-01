@@ -57,7 +57,6 @@ class WebWorkerClient;
 class WebUI;
 
 struct DownloadRecord;
-struct AutocompleteEngine;
 struct BookmarkItem;
 struct BrowserOptions;
 struct CookieStorageKey;

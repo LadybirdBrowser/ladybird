@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
@@ -13,12 +14,24 @@
 
 namespace WebView {
 
+enum class SearchSuggestionsFormat : u8 {
+    OpenSearch,
+    DuckDuckGo,
+    Yahoo,
+};
+
+struct SearchSuggestions {
+    String query_url;
+    SearchSuggestionsFormat response_format { SearchSuggestionsFormat::OpenSearch };
+};
+
 struct SearchEngine {
     WEBVIEW_API String format_search_query_for_display(StringView query) const;
     WEBVIEW_API String format_search_query_for_navigation(StringView query) const;
 
     String name;
     String query_url;
+    Optional<SearchSuggestions> suggestions {};
 };
 
 WEBVIEW_API ReadonlySpan<SearchEngine> builtin_search_engines();

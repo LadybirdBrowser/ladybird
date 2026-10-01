@@ -62,7 +62,7 @@ private:
     virtual void mouseReleaseEvent(QMouseEvent* event) override;
     virtual void resizeEvent(QResizeEvent* event) override;
 
-    virtual void search_engine_changed() override;
+    virtual void search_engine_settings_changed() override;
 
     void show_full_url_preserving_display_selection();
     int serialized_url_position_for_display_position(int) const;

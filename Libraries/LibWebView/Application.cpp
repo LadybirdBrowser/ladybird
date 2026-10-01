@@ -3031,7 +3031,7 @@ void Application::navigate_tab(DevTools::TabDescription const& description, Stri
     if (!view.has_value())
         return;
 
-    auto parsed_url = sanitize_url(url, Application::settings().search_engine());
+    auto parsed_url = sanitize_url(url, Application::settings().search_engine_settings().engine);
     if (!parsed_url.has_value())
         return;
 
