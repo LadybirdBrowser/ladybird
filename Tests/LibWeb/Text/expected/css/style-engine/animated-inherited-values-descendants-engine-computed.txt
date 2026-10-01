@@ -1,0 +1,3 @@
+engine records: 0
+C++ recomputations: 3
+grandchild: width 30px, color rgb(0, 0, 100)
