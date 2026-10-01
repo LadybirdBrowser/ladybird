@@ -23,9 +23,11 @@
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS {
 
@@ -1052,6 +1054,66 @@ u64 StyleScope::counter_style_environment_identity() const
     if (m_needs_counter_style_cache_update && !m_is_doing_counter_style_cache_update)
         const_cast<StyleScope*>(this)->build_counter_style_cache();
     return m_counter_style_environment_identity;
+}
+
+// The scope a counter style name this scope does not register is looked for in next, which is the chain
+// `dereference_global_tree_scoped_reference` walks.
+StyleScope* StyleScope::parent_counter_style_scope() const
+{
+    auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node);
+    if (!shadow_root)
+        return nullptr;
+    auto* host = shadow_root->host();
+    if (!host)
+        return nullptr;
+    auto& root = host->root();
+    if (auto* host_shadow_root = as_if<DOM::ShadowRoot>(root)) {
+        if (host_shadow_root->uses_document_style_sheets())
+            return &root.document().style_scope();
+        return &host_shadow_root->style_scope();
+    }
+    if (auto* document = as_if<DOM::Document>(root))
+        return &document->style_scope();
+    // A detached host's node tree is rooted at an ordinary element, which carries no tree-scoped names of its own.
+    return nullptr;
+}
+
+// Settles every scope a counter style name used in this scope may be looked up in, and publishes what each registers
+// to the layout node arena, so that the arena answers every lookup the way get_registered_counter_style() would.
+void StyleScope::publish_counter_style_lookup_chain() const
+{
+    for (auto const* scope = this; scope; scope = scope->parent_counter_style_scope()) {
+        if (scope->m_needs_counter_style_cache_update && !scope->m_is_doing_counter_style_cache_update)
+            const_cast<StyleScope*>(scope)->build_counter_style_cache();
+        scope->publish_counter_styles_if_changed();
+    }
+}
+
+void StyleScope::publish_counter_styles_if_changed() const
+{
+    auto const* parent = parent_counter_style_scope();
+    auto parent_tree_scope = parent ? parent->style_engine_tree_scope() : Optional<TreeScopeID> {};
+    if (m_published_counter_style_environment_identity == m_counter_style_environment_identity && m_published_parent_counter_style_scope == parent_tree_scope)
+        return;
+
+    Vector<size_t> names;
+    Vector<Parser::ValueParserFFI::FfiRegisteredCounterStyle const*> counter_styles;
+    names.ensure_capacity(m_registered_counter_styles.size());
+    counter_styles.ensure_capacity(m_registered_counter_styles.size());
+    for (auto const& [name, counter_style] : m_registered_counter_styles) {
+        names.unchecked_append(name.to_raw_leaked());
+        counter_styles.unchecked_append(counter_style->rust_counter_style());
+    }
+    Parser::ValueParserFFI::rust_publish_counter_styles(
+        document().layout_node_arena().handle(),
+        style_engine_tree_scope().value(),
+        parent_tree_scope.has_value() ? parent_tree_scope->value() : 0,
+        parent_tree_scope.has_value(),
+        names.data(),
+        counter_styles.data(),
+        names.size());
+    m_published_counter_style_environment_identity = m_counter_style_environment_identity;
+    m_published_parent_counter_style_scope = parent_tree_scope;
 }
 
 DOM::Document& StyleScope::document() const
