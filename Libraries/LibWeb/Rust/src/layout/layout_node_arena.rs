@@ -660,6 +660,8 @@ pub(crate) struct LayoutNodeArena {
     /// element that draws nothing itself has no row, and a mask, clip or pattern has one row per
     /// element that references it.
     svg_attribute_facts: HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>,
+    /// The `points` list each <polyline> and <polygon> published beside its facts.
+    svg_points: HashMap<StyleNodeID, Box<[super::svg_formatting_context::FfiFloatPoint]>>,
     owner_thread: thread::ThreadId,
 }
 
@@ -749,6 +751,7 @@ impl LayoutNodeArena {
             counters_sets: RefCell::default(),
             generated_content: RefCell::default(),
             svg_attribute_facts: HashMap::default(),
+            svg_points: HashMap::default(),
             owner_thread: thread::current().id(),
         }
     }
@@ -1605,18 +1608,30 @@ impl LayoutNodeArena {
         self.svg_attribute_facts.get(&style_node).copied().unwrap_or_default()
     }
 
+    /// The `points` list a <polyline> or <polygon> parsed.
+    pub(crate) fn svg_points(&self, id: NodeSlotId) -> Option<&[super::svg_formatting_context::FfiFloatPoint]> {
+        self.svg_points.get(&self.node_style_node(id)?).map(|points| &**points)
+    }
+
     pub(crate) fn set_style_node_svg_attribute_facts(
         &mut self,
         style_node: StyleNodeID,
         facts: super::svg_formatting_context::FfiSvgAttributeFacts,
+        points: &[super::svg_formatting_context::FfiFloatPoint],
     ) {
         self.assert_owner_thread();
         self.svg_attribute_facts.insert(style_node, facts);
+        if points.is_empty() {
+            self.svg_points.remove(&style_node);
+        } else {
+            self.svg_points.insert(style_node, points.into());
+        }
     }
 
     pub(crate) fn clear_style_node_svg_attribute_facts(&mut self, style_node: StyleNodeID) {
         self.assert_owner_thread();
         self.svg_attribute_facts.remove(&style_node);
+        self.svg_points.remove(&style_node);
     }
 
     pub(crate) fn with_counter_style_registry<T>(

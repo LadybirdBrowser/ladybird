@@ -43,6 +43,9 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     //     separately from the layout update above since it may have been skipped if the element was display: none.
     document().update_style_for_element(*this);
 
+    // FIXME: Layout builds each shape's geometry in Rust (svg_geometry_path_of() in svg_formatting_context.rs), while
+    //        this reads the get_path() implementations, which duplicate it. Answer from the Rust builders instead, so
+    //        a fix to one copy cannot miss the other.
     if (auto computed_values = computed_style())
         return get_path({ viewport_size.width(), viewport_size.height() }, *computed_values).length();
 

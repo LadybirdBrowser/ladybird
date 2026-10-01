@@ -142,6 +142,13 @@ impl ComputedStyleValueHandle {
             value: unsafe { &*self.pointer.cast::<StyleValueData>() },
         })
     }
+
+    /// The retained style value itself, for the properties whose computed value is not a
+    /// length-percentage.
+    pub(crate) fn style_value<'a>(&self) -> Option<&'a StyleValueData> {
+        // SAFETY: As above.
+        unsafe { self.pointer.cast::<StyleValueData>().as_ref() }
+    }
 }
 
 impl ComputedSize {

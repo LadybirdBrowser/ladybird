@@ -21,6 +21,7 @@ void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const* values, si
 void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count);
 void* ladybird_gfx_path_copy_transformed(void const*, float const* affine_values);
 bool ladybird_gfx_path_contains(void const*, float, float, int);
+void ladybird_gfx_path_set_fill_type(void*, int);
 }
 
 namespace Gfx {
@@ -67,6 +68,11 @@ extern "C" void ladybird_gfx_path_append_svg_string(void const* path, void (*app
 {
     auto string = static_cast<Gfx::Path const*>(path)->to_svg_string();
     append(context, reinterpret_cast<char const*>(string.bytes().data()), string.bytes().size());
+}
+
+extern "C" void ladybird_gfx_path_set_fill_type(void* path, int winding_rule)
+{
+    static_cast<Gfx::Path*>(path)->set_fill_type(static_cast<Gfx::WindingRule>(winding_rule));
 }
 
 extern "C" void ladybird_gfx_path_bounding_box(void const* path, float* out_x_y_width_height)

@@ -17,6 +17,7 @@ unsafe extern "C" {
         context: *mut c_void,
     );
     fn ladybird_gfx_path_bounding_box(path: *const c_void, out_x_y_width_height: *mut f32);
+    fn ladybird_gfx_path_set_fill_type(path: *mut c_void, winding_rule: i32);
     fn ladybird_gfx_path_serialize(
         path: *const c_void,
         append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
@@ -208,6 +209,11 @@ impl OwnedPath {
     #[inline]
     pub fn identity(&self) -> u64 {
         self.identity
+    }
+
+    pub fn set_fill_type(&mut self, winding_rule: i32) {
+        // SAFETY: The path is live and owned by this handle.
+        unsafe { ladybird_gfx_path_set_fill_type(self.as_raw(), winding_rule) };
     }
 
     pub fn bounding_box(&self) -> [f32; 4] {
