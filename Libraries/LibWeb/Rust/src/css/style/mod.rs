@@ -839,13 +839,20 @@ pub struct RetainedState {
     custom_declarations_reading_attributes: HashSet<StyleNodeID>,
     /// The custom-property environment each element holds, for the elements that hold one. This is
     /// the only copy: the element reads its environment from here.
-    element_custom_property_data: HashMap<StyleNodeID, inputs::RetainedCustomPropertyData>,
+    element_custom_property_data: HashMap<StyleNodeID, inputs::HeldCustomPropertyEnvironment>,
     /// The custom-property environments of each element's synthetic pseudo-elements, by
     /// pseudo-element kind, for the elements with a pseudo-element that holds one.
-    pseudo_element_custom_property_data: HashMap<StyleNodeID, Vec<(u8, inputs::RetainedCustomPropertyData)>>,
+    pseudo_element_custom_property_data: HashMap<StyleNodeID, Vec<(u8, inputs::HeldCustomPropertyEnvironment)>>,
     /// The elements whose style reads their custom-property environment other than through `var()`,
     /// which a moved environment computes again.
     environment_move_recompute_nodes: HashSet<StyleNodeID>,
+    /// The style record each element holds, for the elements that hold one, as the host reports
+    /// every record it installs or clears.
+    held_style_records: HashMap<StyleNodeID, u64>,
+    /// What the style C++ computed for an element reads through `var()`, for the elements that
+    /// hold the input record of such a computation. An element without one holds a record the
+    /// engine computed, whose reads the engine knows.
+    host_var_reads: HashMap<StyleNodeID, inputs::HostVarReads>,
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
     css_defined_animations: animations::CssDefinedAnimations,

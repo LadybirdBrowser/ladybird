@@ -793,7 +793,11 @@ bool StyleEngine::counter(size_t index, StringView& out_name, u64& out_value) co
 
 void StyleEngine::set_element_custom_property_data(StyleNodeID node, CustomPropertyData const* data)
 {
-    StyleEngineFFI::style_engine_set_element_custom_property_data(m_impl, node.value(), data);
+    // A move of the environment the element inherits reads whether this is its animation overlay, and
+    // whether what the element's style resolves to declares custom properties of its own.
+    bool const is_animation_overlay = data && data->is_animation_overlay();
+    auto const* base = is_animation_overlay ? data->parent().ptr() : data;
+    StyleEngineFFI::style_engine_set_element_custom_property_data(m_impl, node.value(), data, data ? data->identity() : 0, is_animation_overlay, base && base->declared_count() > 0);
 }
 
 CustomPropertyData const* StyleEngine::element_custom_property_data(StyleNodeID node) const
@@ -805,7 +809,7 @@ static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= 64);
 
 void StyleEngine::set_pseudo_element_custom_property_data(StyleNodeID node, PseudoElement pseudo_element, CustomPropertyData const* data)
 {
-    StyleEngineFFI::style_engine_set_pseudo_element_custom_property_data(m_impl, node.value(), to_underlying(pseudo_element), data);
+    StyleEngineFFI::style_engine_set_pseudo_element_custom_property_data(m_impl, node.value(), to_underlying(pseudo_element), data, data ? data->identity() : 0);
 }
 
 CustomPropertyData const* StyleEngine::pseudo_element_custom_property_data(StyleNodeID node, PseudoElement pseudo_element) const

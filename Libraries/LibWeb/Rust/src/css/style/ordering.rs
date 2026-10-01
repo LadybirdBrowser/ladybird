@@ -1924,6 +1924,12 @@ impl StyleEngineState {
         visited += self.retained.facts.collect_atoms(&mut atoms);
         visited += self.retained.program.collect_atoms(&mut atoms);
         visited += self.retained.programs.collect_atoms(&mut atoms);
+        for reads in self.retained.host_var_reads.values() {
+            if let inputs::HostVarReads::Names(names) = reads {
+                atoms.extend(names.iter().copied());
+                visited += names.len() as u64;
+            }
+        }
         if !self.retained.html_element_namespace.is_none() {
             atoms.insert(self.retained.html_element_namespace);
         }
