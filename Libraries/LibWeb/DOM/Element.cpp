@@ -3685,6 +3685,8 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
         style_engine.set_held_style_record(style_node_id, m_style_record_identity);
         publish_var_reads();
     }
+    if (style_node_id != 0)
+        publish_children_explicitly_inherit_mark();
 }
 
 // The top layer is one of the few element facts the tree build reads that moves during the element's lifetime, so the

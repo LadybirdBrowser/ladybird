@@ -962,6 +962,12 @@ impl RetainedState {
         self.set_element_container_query_inputs(node, style_record);
     }
 
+    /// Record that a child of an element or shadow root explicitly inherits a non-inherited
+    /// property, as the host marks the node. The mark lasts as long as the node's identity.
+    pub fn note_children_explicitly_inherit(&mut self, node: StyleNodeID) {
+        self.children_explicitly_inherit_marks.insert(node);
+    }
+
     /// Whether, and as what, an element is a query container.
     pub(super) fn container_query_inputs(&self, node: StyleNodeID) -> Option<&tree::ContainerQueryInputRow> {
         self.container_query_inputs.get(node)
@@ -1486,6 +1492,7 @@ impl StyleEngineState {
                 size_container_queries: Default::default(),
                 counter_style_environment_identities: HashMap::default(),
                 held_style_records: HashMap::default(),
+                children_explicitly_inherit_marks: HashSet::default(),
                 host_var_reads: HashMap::default(),
                 css_defined_animations: Default::default(),
                 random_base_values: Default::default(),
@@ -2994,6 +3001,7 @@ impl RetainedState {
             size_container_queries,
             counter_style_environment_identities: _,
             held_style_records,
+            children_explicitly_inherit_marks,
             host_var_reads,
             css_defined_animations,
             random_base_values,
@@ -3100,6 +3108,7 @@ impl RetainedState {
         if let Some(style_record) = held_style_records.remove(&node) {
             computed_group_sets.unpin_style_record(style_record);
         }
+        children_explicitly_inherit_marks.remove(&node);
         host_var_reads.remove(&node);
         css_defined_animations.retire(node);
         random_base_values.retire(node);
