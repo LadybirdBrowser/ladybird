@@ -3311,6 +3311,65 @@ pub(crate) fn own_color_from_table(
     to_color(values.value(property_id::COLOR)?, &input).map(packed_color)
 }
 
+/// The used color scheme and the element's own resolved `color` a record assembled from a
+/// driven table builds its groups with. A drive always computes both; a table that somehow holds
+/// neither assembles against the browser's default light scheme and opaque black rather than
+/// publishing no record.
+pub(crate) fn assembly_color_inputs(
+    table: &ComputedLonghandTable,
+    length: &crate::css::style_compute::FfiLengthResolutionContext,
+) -> (u8, u32) {
+    const LIGHT: u8 = 2;
+    let used_color_scheme = u8::try_from(table.effective_color_scheme()).unwrap_or_else(|_| {
+        debug_assert!(false, "a driven table without a used color scheme");
+        LIGHT
+    });
+    let current_color = own_color_from_table(table, used_color_scheme, Some(length)).unwrap_or_else(|| {
+        debug_assert!(false, "a driven table whose color does not resolve");
+        0xff00_0000
+    });
+    (used_color_scheme, current_color)
+}
+
+/// One group's payload for a record assembled from a driven table: the font group from the
+/// resolved font, which only a font group assembly needs, every other group from the table, the element's own color and its used color
+/// scheme. A driven table holds a value every builder encodes; a group whose builder declines one
+/// anyway publishes the group's defaults rather than no record.
+///
+/// # Safety
+/// `table` must be a valid frozen table and `parent_payload` a valid payload of the group or null.
+pub(crate) unsafe fn assemble_group_from_table(
+    table: &ComputedLonghandTable,
+    group: usize,
+    font: Option<&FfiFontGroupBuildInputs>,
+    parent_payload: *const c_void,
+    (used_color_scheme, current_color): (u8, u32),
+    length: &crate::css::style_compute::FfiLengthResolutionContext,
+) -> *const c_void {
+    let payload = unsafe {
+        if group == group_index::FONT {
+            rebuild_font_group_from_table(
+                table,
+                font.expect("a font group assembly carries the resolved font"),
+                parent_payload,
+            )
+        } else {
+            rebuild_group_from_table(
+                table,
+                group,
+                parent_payload,
+                current_color,
+                used_color_scheme,
+                Some(length),
+            )
+        }
+    };
+    payload.unwrap_or_else(|| {
+        debug_assert!(false, "style group {group} declined a driven table");
+        crate::css::computed_values::default_group_payload(group)
+    })
+}
+
 /// Rebuilds one non-inherited group whose specified values read the newly
 /// inherited `color`. These groups need no DOM, layout, or font input.
 pub(crate) unsafe fn rebuild_group_for_inherited_current_color(

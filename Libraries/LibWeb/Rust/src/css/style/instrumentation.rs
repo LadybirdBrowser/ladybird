@@ -180,7 +180,6 @@ define_counters! {
     EngineComputedRecordBailRecordParent => "engineComputedRecordBailRecordParent",
     EngineComputedRecordBailDrive => "engineComputedRecordBailDrive",
     EngineComputedRecordBailValue => "engineComputedRecordBailValue",
-    EngineComputedRecordBailAssemble => "engineComputedRecordBailAssemble",
     EngineComputedRecordBailRecordOverlay => "engineComputedRecordBailRecordOverlay",
     PrefixDeadDeltaBailMatched => "prefixDeadDeltaBailMatched",
     PrefixDeadDeltaBailOwnAdditions => "prefixDeadDeltaBailOwnAdditions",
