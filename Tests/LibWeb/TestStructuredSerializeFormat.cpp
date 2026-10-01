@@ -7,6 +7,7 @@
 #include "StructuredSerializeTestHelpers.h"
 #include <AK/NumericLimits.h>
 #include <AK/ScopeGuard.h>
+#include <LibCore/System.h>
 #include <LibIPC/Limits.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -728,6 +729,16 @@ TEST_CASE(any_number_of_transferred_image_bitmaps_share_one_attachment)
     transfer.append(buffer);
     transfer.append(Web::Bindings::message_port(realm, port));
 
+#if !defined(AK_OS_WINDOWS)
+    // Receiving the batch must not retain one descriptor per bitmap, even with a small descriptor limit.
+    rlimit original_limit {};
+    VERIFY(getrlimit(RLIMIT_NOFILE, &original_limit) == 0);
+    auto limit = original_limit;
+    limit.rlim_cur = min<rlim_t>(original_limit.rlim_cur, 256);
+    VERIFY(setrlimit(RLIMIT_NOFILE, &limit) == 0);
+    ScopeGuard restore_limit = [&] { VERIFY(setrlimit(RLIMIT_NOFILE, &original_limit) == 0); };
+#endif
+
     auto result = transfer_through_ipc(realm, JS::Array::create_from(realm, values), transfer);
     EXPECT_EQ(result.attachment_count, 1u);
     EXPECT_EQ(result.transferred_values.size(), count + 2);
@@ -844,7 +855,7 @@ TEST_CASE(image_bitmap_transfer_rejects_invalid_shared_pixels)
 {
     auto& realm = test_realm();
     Vector<Core::AnonymousBuffer> shared_buffers;
-    shared_buffers.append(MUST(Core::AnonymousBuffer::create_with_size(64)));
+    shared_buffers.append(MUST(Core::AnonymousBuffer::create_with_size(64, Core::AnonymousBuffer::Sealability::Sealable)));
     auto receive = [&](Vector<Core::AnonymousBuffer> const* buffers, u32 buffer_index, u64 offset, Gfx::BitmapFormat format, int width) {
         Web::HTML::TransferDataEncoder holder;
         MUST(holder.encode(true));
@@ -868,6 +879,72 @@ TEST_CASE(image_bitmap_transfer_rejects_invalid_shared_pixels)
     EXPECT(receive(&shared_buffers, 0, NumericLimits<u64>::max() - 1, Gfx::BitmapFormat::BGRA8888, 1).is_error());
     EXPECT(receive(&shared_buffers, 0, 0, Gfx::BitmapFormat::Invalid, 1).is_error());
 }
+
+#if !defined(AK_OS_WINDOWS)
+TEST_CASE(image_bitmap_transfer_protects_against_backing_truncation)
+{
+    auto& realm = test_realm();
+    auto source = create_image_bitmap(MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 16, 1 })));
+    source->bitmap()->set_pixel(0, 0, Gfx::Color::Red);
+    auto wrapper = wrap_image_bitmap(realm, source);
+    Array<GC::Ref<JS::Object>, 1> transfer { wrapper };
+    auto record = MUST(Web::HTML::structured_serialize_with_transfer(realm, wrapper, transfer));
+    EXPECT_EQ(record.shared_buffers.size(), 1u);
+#    if !defined(AK_OS_LINUX)
+    // Use a resizable file to model a hostile sender rather than relying on platform shm resize behavior.
+    char path[] = "/tmp/ladybird-image-bitmap-XXXXXX";
+    auto fd = MUST(Core::System::mkstemp(path));
+    MUST(Core::System::unlink(StringView { path, sizeof(path) - 1 }));
+    VERIFY(ftruncate(fd, static_cast<off_t>(record.shared_buffers[0].size())) == 0);
+    auto backing = MUST(Core::AnonymousBuffer::create_from_anon_fd(fd, record.shared_buffers[0].size()));
+    record.shared_buffers[0].bytes().copy_to({ backing.data<u8>(), backing.size() });
+    record.shared_buffers[0] = move(backing);
+#    endif
+    auto const& buffer = record.shared_buffers[0];
+    Web::HTML::TransferDataDecoder decoder { move(record.transfer_data_holders[0]) };
+    EXPECT_EQ(MUST(decoder.decode<Web::HTML::TransferType>()), Web::HTML::TransferType::ImageBitmap);
+    decoder.set_shared_buffers(record.shared_buffers);
+    auto receiver = Web::HTML::ImageBitmap::create();
+    MUST(receiver->transfer_receiving_steps(realm, decoder));
+#    if defined(AK_OS_LINUX)
+    auto const seals = fcntl(buffer.fd(), F_GET_SEALS);
+    EXPECT(seals >= 0);
+    EXPECT_EQ(seals & (F_SEAL_SHRINK | F_SEAL_GROW), F_SEAL_SHRINK | F_SEAL_GROW);
+    EXPECT_EQ(ftruncate(buffer.fd(), 0), -1);
+    EXPECT_EQ(errno, EPERM);
+    EXPECT_EQ(ftruncate(buffer.fd(), 128), -1);
+    EXPECT_EQ(errno, EPERM);
+#    else
+    EXPECT_EQ(ftruncate(buffer.fd(), 0), 0);
+#    endif
+    EXPECT_EQ(receiver->bitmap()->get_pixel(0, 0), Gfx::Color::Red);
+    receiver->close();
+}
+#endif
+
+#if defined(AK_OS_LINUX)
+TEST_CASE(image_bitmap_transfer_rejects_unsealed_backing)
+{
+    auto& realm = test_realm();
+    // Even a correctly sized descriptor with sealing permanently disabled must be rejected.
+    Vector<Core::AnonymousBuffer> shared_buffers;
+    shared_buffers.append(MUST(Core::AnonymousBuffer::create_with_size(64)));
+    Web::HTML::TransferDataEncoder holder;
+    MUST(holder.encode(true));
+    MUST(holder.encode(0u));
+    MUST(holder.encode(static_cast<u64>(0)));
+    MUST(holder.encode(16));
+    MUST(holder.encode(1));
+    MUST(holder.encode(Gfx::BitmapFormat::BGRA8888));
+    MUST(holder.encode(Gfx::AlphaType::Premultiplied));
+    Web::HTML::TransferDataDecoder decoder { move(holder) };
+    decoder.set_shared_buffers(shared_buffers);
+    auto receiver = Web::HTML::ImageBitmap::create();
+    EXPECT(receiver->transfer_receiving_steps(realm, decoder).is_error());
+    EXPECT_EQ(receiver->bitmap(), nullptr);
+    EXPECT_EQ(ftruncate(shared_buffers[0].fd(), 0), 0);
+}
+#endif
 
 TEST_CASE(image_bitmap_transfer_rejects_invalid_inline_pixels)
 {

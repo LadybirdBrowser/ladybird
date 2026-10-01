@@ -2270,7 +2270,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
             image_bitmap_pixels_size += ImageBitmap::shared_pixels_size(*image_bitmap->bitmap());
     }
     if (!image_bitmap_pixels_size.has_overflow() && image_bitmap_pixels_size.value() > 0) {
-        if (auto buffer = Core::AnonymousBuffer::create_with_size(image_bitmap_pixels_size.value()); !buffer.is_error()) {
+        if (auto buffer = Core::AnonymousBuffer::create_with_size(image_bitmap_pixels_size.value(), Core::AnonymousBuffer::Sealability::Sealable); !buffer.is_error()) {
             image_bitmap_pixels = ImageBitmap::SharedPixels { .buffer = buffer.release_value(), .buffer_index = static_cast<u32>(serialized_writer.shared_buffers().size()) };
             serialized_writer.shared_buffers().append(image_bitmap_pixels->buffer);
         }
