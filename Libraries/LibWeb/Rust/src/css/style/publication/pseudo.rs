@@ -292,9 +292,11 @@ impl RetainedState {
                     .computed_group_sets
                     .cascade_state(target)
                     .or_else(|| self.computed_group_sets.pseudo_retained_cascade_state(node, kind));
+                // Custom declarations resolve against registrations that move without the state.
                 let unchanged = match (state, bound) {
                     (Some(state), Some((bound_generation, bound_state))) => {
                         bound_generation == generation
+                            && self.winner_groups.custom_declarations_of(state) == Default::default()
                             && !(self.custom_property_registrations_changed
                                 && self.state_has_substitutions(node, state))
                             && !self.state_reads_attributes(node, state)
@@ -437,11 +439,16 @@ impl RetainedState {
                         length,
                         longhand_evaluations,
                         font,
-                        ..
+                        explicitly_inherited_groups,
                     }) = driven?
                     else {
                         unreachable!("only the root-input probe answers with root inputs");
                     };
+                    // C++ marks the originating element's parent when a pseudo-element explicitly
+                    // inherits a non-inherited property, as it does for the element itself.
+                    if kind != SELECTION {
+                        scratch.element_explicitly_inherited_groups |= explicitly_inherited_groups;
+                    }
                     let font = font.expect("a full drive resolves the font");
                     // A marker renders its list-style-type through the counter style a registry
                     // defines, so C++ stamps the marker's record with its tree scope's registry,
@@ -775,6 +782,7 @@ impl StyleEngineState {
             return (settled, false);
         };
         settled.style_record = record.raw();
+        settled.explicitly_inherited_groups = scratch.element_explicitly_inherited_groups;
         for delta in &scratch.pseudo_deltas {
             let kind = usize::from(delta.kind);
             if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {

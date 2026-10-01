@@ -302,8 +302,7 @@ impl RetainedState {
 
     /// Whether the node's winner inventory is complete once custom properties are set aside: the
     /// engine computes an environment from those itself, and a rule declaring them is otherwise as
-    /// complete as any. A pseudo-element's rules keep the strict reading, since a pseudo-element's
-    /// environment is still C++'s to compute.
+    /// complete as any, for the element and for each of its pseudo-elements alike.
     pub(super) fn cascade_winners_are_complete_but_for_custom_properties(&self, node: StyleNodeID) -> bool {
         if !ElementDeclarationKind::ALL.iter().all(|&kind| {
             self.facts
@@ -313,13 +312,9 @@ impl RetainedState {
         }
         // A rule deciding from another tree scope orders by its context like any other; the
         // record path reads the winners the cascade holds for it, whichever scope it decided from.
-        let rule_is_complete = |rule: RuleID, _tree_scope: TreeScopeID, pseudo: bool| {
+        let rule_is_complete = |rule: RuleID, _tree_scope: TreeScopeID, _pseudo: bool| {
             !self.program.rule_is_gated_by_container_query(rule)
-                && if pseudo {
-                    self.program.declarations_are_complete_for(rule)
-                } else {
-                    self.program.declarations_are_complete_but_for_custom_properties(rule)
-                }
+                && self.program.declarations_are_complete_but_for_custom_properties(rule)
         };
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
@@ -624,7 +619,9 @@ impl RetainedState {
         counters: &mut Counters,
     ) -> Drive<u64> {
         if !self.any_custom_property_is_declared() {
-            self.custom_declarations_reading_attributes.remove(&node);
+            if pseudo.is_none() {
+                self.custom_declarations_reading_attributes.remove(&node);
+            }
             return Ok(parent_environment);
         }
         // A node the engine drives has the match answer its winners came from, and a published
@@ -636,12 +633,13 @@ impl RetainedState {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         };
-        // Whether the declarations read the node's attributes, whatever environment they resolve
-        // to: the host notes it beside the node's record.
+        // Whether the declarations read the element's attributes, whatever environment they
+        // resolve to: the host notes it beside the element's record. The element's own resolve
+        // first, and its pseudo-elements' only add to what they found.
         let reads_attributes = cascaded.iter().any(|(_, value)| value_reads_attributes(value.data()));
         if reads_attributes {
             self.custom_declarations_reading_attributes.insert(node);
-        } else {
+        } else if pseudo.is_none() {
             self.custom_declarations_reading_attributes.remove(&node);
         }
         if cascaded.is_empty() {
@@ -776,8 +774,8 @@ impl RetainedState {
 
     /// What a node's records read beyond their cascade, as `FfiNodeRecordReads` bits, for the row
     /// that installs them: an `attr()` in the element's winners, in its pseudo-elements' (which
-    /// read the originating element's attributes), or in the custom properties it declares, as
-    /// their resolution found.
+    /// read the originating element's attributes), or in the custom properties either declares,
+    /// as their resolution found.
     pub(super) fn node_record_reads(&self, node: StyleNodeID) -> u8 {
         let groups = self.current_winner_groups();
         let reads_attributes = matches!(

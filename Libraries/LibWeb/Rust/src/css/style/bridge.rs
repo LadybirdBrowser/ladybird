@@ -3274,7 +3274,7 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
             } else {
                 0
             },
-            explicitly_inherited_groups: 0,
+            explicitly_inherited_groups: settled.explicitly_inherited_groups,
             pseudo_records_present: settled.pseudo_records_present,
             pseudo_records: settled.pseudo_records,
         };

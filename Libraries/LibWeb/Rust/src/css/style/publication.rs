@@ -4184,7 +4184,8 @@ pub(super) struct EngineComputedRecordScratch {
     /// retained set.
     pub(super) element_uses_substitution: bool,
     /// The non-inherited style groups the element being derived read straight from its parent
-    /// through an explicit `inherit`, which the row carries for C++ to mark the parent with.
+    /// through an explicit `inherit`, and those its pseudo-elements read from it, which the row
+    /// carries for C++ to mark the parent with.
     pub(super) element_explicitly_inherited_groups: u32,
     /// The nodes whose substituted-record fact the step decided, in the order it decided them.
     /// The boundary that installs the record applies them.
