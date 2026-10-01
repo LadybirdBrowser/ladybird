@@ -149,7 +149,8 @@
     [153, "SetTextIsInUserAgentShadowTree"],
     [154, "SetTextData"],
     [155, "SetTextIsPasswordInput"],
-    [156, "SetElementBoxKind"]
+    [156, "SetElementBoxKind"],
+    [157, "SetElementReplacedContentInput"]
   ],
   "operations": [
     {"event": "TakeSharedComputationContext", "ffi": "style_engine_take_shared_computation_context", "cpp": "take_shared_computation_context", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["pseudo_elements", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.take_shared_computation_context(node, parent_record, environment, shape, pseudo_elements).unwrap_or(0);"},
@@ -219,6 +220,7 @@
     { "event": "SetElementAdjustmentFacts", "ffi": "style_engine_set_element_adjustment_facts", "cpp": "set_element_adjustment_facts", "return": "void", "args": [["node", "style_node"], ["facts", "u32"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_adjustment_facts(node, facts);" },
     { "event": "SetElementConstructionFacts", "ffi": "style_engine_set_element_construction_facts", "cpp": "set_element_construction_facts", "return": "void", "args": [["node", "style_node"], ["facts", "u32"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_construction_facts(node, facts);" },
     { "event": "SetElementBoxKind", "ffi": "style_engine_set_element_box_kind", "cpp": "set_element_box_kind", "return": "void", "args": [["node", "style_node"], ["box_kind", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_box_kind(node, crate::css::style::bridge::ElementBoxKind::from_raw(box_kind));" },
+    { "event": "SetElementReplacedContentInput", "ffi": "style_engine_set_element_replaced_content_input", "cpp": "set_element_replaced_content_input", "return": "void", "args": [["node", "style_node"], ["kind", "u8"], ["present", "u8"], ["values", "u32_slice"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; let values = values.try_into().expect(\"a replaced content input has four values\"); engine.set_element_replaced_content_input(node, crate::css::style::ReplacedContentInput::from_raw(kind, present, values));" },
     { "event": "SetElementHeadingLevel", "ffi": "style_engine_set_element_heading_level", "cpp": "set_element_heading_level", "return": "void", "args": [["node", "style_node"], ["level", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_heading_level(node, level);" },
     { "event": "NodeDeclaresCustomProperties", "ffi": "style_engine_node_declares_custom_properties", "cpp": "node_declares_custom_properties", "return": "bool", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return false; }; let result = engine.node_declares_custom_properties(node);" },
     { "event": "PrepareSharedExactCascadeState", "ffi": "style_engine_prepare_shared_exact_cascade_state", "cpp": "prepare_shared_exact_cascade_state", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.prepare_shared_exact_cascade_state(node);" },

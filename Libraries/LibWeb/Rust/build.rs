@@ -3018,6 +3018,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut style_engine_config = base_config.clone();
     style_engine_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleEngineFFI".to_string()]);
     style_engine_config.export.include = vec![
+        // Named by no exported signature: a replaced content input crosses as its raw values.
+        "FfiReplacedContentInputKind".to_string(),
+        "FfiReplacedContentInputPresent".to_string(),
         "FfiStyleInvalidationField".to_string(),
         "FfiNodeRecordReads".to_string(),
         "FfiStyleSheetResourceContextEntry".to_string(),

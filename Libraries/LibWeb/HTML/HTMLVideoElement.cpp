@@ -14,6 +14,7 @@
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoSurface.h>
 #include <LibWeb/CSS/ElementBoxKind.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -155,6 +156,7 @@ void HTMLVideoElement::update_natural_dimensions()
 
     set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementNaturalDimensionsChanged);
     m_natural_dimensions = natural_dimensions;
+    CSS::record_element_replaced_content_input(*this);
     Painting::push_video_paint_facts(*this);
 }
 

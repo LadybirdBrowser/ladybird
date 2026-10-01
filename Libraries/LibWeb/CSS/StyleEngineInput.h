@@ -168,6 +168,8 @@ WEB_API void record_element_adjustment_facts(DOM::Element&);
 WEB_API void record_element_construction_facts(DOM::Element&);
 // Called where which box an element asks for may have moved without its type or an attribute's presence moving.
 WEB_API void record_element_box_kind(DOM::Element&);
+// Called where what an element gives the natural size of its replaced content moves.
+WEB_API void record_element_replaced_content_input(DOM::Element&);
 WEB_API bool record_element_presentational_hint_properties(DOM::Element&, ReadonlySpan<StyleProperty>);
 // Publish the element's hints again, after something they are mapped from beside its own attributes moved.
 WEB_API void republish_presentational_hints(DOM::Element&);

@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::css::style::{NaturalSize, ReplacedContentInput};
 
 pub(crate) fn node_may_have_replaced_content_facts(data: &NodeData) -> bool {
     kind_is_replaced_box(data.kind.get())
@@ -29,6 +30,222 @@ pub(crate) fn node_may_have_replaced_content_facts_including_size_containment(da
         return false;
     };
     style.has_size_containment() || style.is_size_container()
+}
+
+// https://drafts.csswg.org/css-contain-2/#containment-size
+fn style_has_size_containment(style: ComputedValuesView<'_>) -> bool {
+    // Giving an element size containment has no effect if its inner display type is 'table', or if its principal box
+    // is an internal table box.
+    let display = style.display();
+    if display.is_table_inside() || display.is_internal_table() {
+        return false;
+    }
+    style.has_size_containment() || style.is_size_container()
+}
+
+/// Whether the node's replaced content facts still come from its layout node, because what it
+/// shows is not published: an image, an SVG image, an SVG root, or a navigable container.
+pub(crate) fn replaced_content_facts_need_host(data: &NodeData) -> bool {
+    match data.kind.get() {
+        // An SVG <image> reports its image's sizes whether or not it is size-contained.
+        NodeKind::SVGImageBox => true,
+        NodeKind::ImageBox | NodeKind::SVGSVGBox | NodeKind::NavigableContainerViewport => {
+            !node_style_view(data).is_some_and(style_has_size_containment)
+        }
+        _ => false,
+    }
+}
+
+/// The replaced content facts of an enrolled node, from its kind, its computed style and what its
+/// element published as the input of its replaced content.
+pub(crate) fn derived_replaced_content_facts(data: &NodeData, input: ReplacedContentInput) -> FfiReplacedContentFacts {
+    debug_assert!(!replaced_content_facts_need_host(data));
+    node_style_view(data).map_or_else(Default::default, |style| {
+        replaced_content_facts(data.kind.get(), ReplacedContentStyle::of(style), input)
+    })
+}
+
+/// What a replaced box's facts read of its computed style.
+#[derive(Clone, Copy)]
+struct ReplacedContentStyle {
+    /// The explicit intrinsic inner size that stands for the natural size of a size-contained box,
+    /// zero in an axis that has none.
+    size_contained: Option<(CssPixels, CssPixels)>,
+    /// The `ch` unit.
+    zero_advance: CssPixels,
+    line_height: CssPixels,
+    is_horizontal: bool,
+    appearance_is_none: bool,
+}
+
+impl ReplacedContentStyle {
+    fn of(style: ComputedValuesView<'_>) -> Self {
+        // https://drafts.csswg.org/css-contain-2/#containment-size
+        // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect ratio.
+        // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
+        // If an element has an explicit intrinsic inner size in an axis, [...] the size of the contents in that axis
+        // are instead treated as being the explicit intrinsic inner size.
+        let explicit_size = |has_length: bool, length_px: f64| {
+            if has_length {
+                CssPixels::nearest_value_for(length_px)
+            } else {
+                CssPixels::default()
+            }
+        };
+        Self {
+            size_contained: style_has_size_containment(style).then(|| {
+                (
+                    explicit_size(
+                        style.contain_intrinsic_width_has_length(),
+                        style.contain_intrinsic_width_px(),
+                    ),
+                    explicit_size(
+                        style.contain_intrinsic_height_has_length(),
+                        style.contain_intrinsic_height_px(),
+                    ),
+                )
+            }),
+            zero_advance: CssPixels::nearest_value_for_f32(style.font_zero_advance()),
+            line_height: style.line_height(),
+            is_horizontal: style.writing_mode() == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+            appearance_is_none: style.appearance() == crate::css::css_enums::appearance::NONE,
+        }
+    }
+
+    /// `count` characters, the `ch` unit.
+    fn characters(self, count: u32) -> CssPixels {
+        CssPixels::nearest_value_for(f64::from(count) * self.zero_advance.to_double())
+    }
+
+    /// An inline size and a block size as a width and a height.
+    fn in_writing_mode(self, inline_size: CssPixels, block_size: CssPixels) -> (CssPixels, CssPixels) {
+        if self.is_horizontal {
+            (inline_size, block_size)
+        } else {
+            (block_size, inline_size)
+        }
+    }
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-text-entry-widget
+    fn text_control_default_preferred_size(self, size: u32) -> (CssPixels, CssPixels) {
+        // [...] If the element has a size attribute, and parsing that attribute's value using the rules for parsing
+        // non-negative integers doesn't generate an error, return the value obtained from applying the converting a
+        // character width to pixels algorithm to the value of the attribute. Otherwise, return the value obtained from
+        // applying the converting a character width to pixels algorithm to the number 20.
+        // FIXME: Implement the specified "converting a character width to pixels" algorithm.
+        // FIXME: HTML does not yet detail the primitive appearance of text inputs. Use one line for the default
+        //        preferred block size, matching the native appearance described by HTML and the behavior of other
+        //        engines.
+        self.in_writing_mode(self.characters(size), self.line_height)
+    }
+}
+
+fn replaced_content_facts(
+    kind: NodeKind,
+    style: ReplacedContentStyle,
+    input: ReplacedContentInput,
+) -> FfiReplacedContentFacts {
+    let mut facts = FfiReplacedContentFacts::default();
+    let auto_content_size = auto_content_size(kind, style, input);
+    if let Some(width) = auto_content_size.width {
+        facts.has_auto_content_width = true;
+        facts.auto_content_width = width;
+    }
+    if let Some(height) = auto_content_size.height {
+        facts.has_auto_content_height = true;
+        facts.auto_content_height = height;
+    }
+    if let Some((numerator, denominator)) = auto_content_size.aspect_ratio {
+        facts.auto_content_aspect_ratio_numerator = numerator;
+        facts.auto_content_aspect_ratio_denominator = denominator;
+    }
+    if style.appearance_is_none
+        && let ReplacedContentInput::Input {
+            size,
+            is_text_entry: true,
+        } = input
+    {
+        let (width, height) = style.text_control_default_preferred_size(size);
+        facts.has_default_preferred_width = true;
+        facts.default_preferred_width = width;
+        facts.has_default_preferred_height = true;
+        facts.default_preferred_height = height;
+    }
+    facts
+}
+
+/// A replaced box's natural size and aspect ratio, any of which it can lack.
+#[derive(Default)]
+struct AutoContentSize {
+    width: Option<CssPixels>,
+    height: Option<CssPixels>,
+    aspect_ratio: Option<(CssPixels, CssPixels)>,
+}
+
+impl AutoContentSize {
+    fn of_size((width, height): (CssPixels, CssPixels)) -> Self {
+        Self {
+            width: Some(width),
+            height: Some(height),
+            aspect_ratio: None,
+        }
+    }
+
+    fn natural(natural_size: NaturalSize) -> Self {
+        Self {
+            width: natural_size.width.map(CssPixels::from_raw),
+            height: natural_size.height.map(CssPixels::from_raw),
+            aspect_ratio: natural_size
+                .aspect_ratio
+                .map(|(numerator, denominator)| (CssPixels::from_raw(numerator), CssPixels::from_raw(denominator))),
+        }
+    }
+}
+
+fn auto_content_size(kind: NodeKind, style: ReplacedContentStyle, input: ReplacedContentInput) -> AutoContentSize {
+    if let Some(explicit_size) = style.size_contained {
+        return AutoContentSize::of_size(explicit_size);
+    }
+    match kind {
+        NodeKind::CheckBox => AutoContentSize::of_size((CssPixels::from_integer(13), CssPixels::from_integer(13))),
+        NodeKind::RadioButton => AutoContentSize::of_size((CssPixels::from_integer(12), CssPixels::from_integer(12))),
+        // AD-HOC: A slider has no in-flow content to size itself from, so provide a default content-box size for when
+        //         its `width` or `height` is `auto`: 20ch by 16px.
+        NodeKind::RangeInputBox => AutoContentSize::of_size((style.characters(20), CssPixels::from_integer(16))),
+        NodeKind::TextAreaBox => {
+            let ReplacedContentInput::TextArea { cols, rows } = input else {
+                panic!("a textarea publishes its cols and rows as it arrives");
+            };
+            let block_size = CssPixels::nearest_value_for(f64::from(rows) * style.line_height.to_double());
+            AutoContentSize::of_size(style.in_writing_mode(style.characters(cols), block_size))
+        }
+        NodeKind::CanvasBox => {
+            let ReplacedContentInput::Canvas { width, height } = input else {
+                panic!("a canvas publishes its width and height as it arrives");
+            };
+            let width = CssPixels::from_integer(i64::from(width));
+            let height = CssPixels::from_integer(i64::from(height));
+            AutoContentSize {
+                width: Some(width),
+                height: Some(height),
+                aspect_ratio: (width != CssPixels::default() && height != CssPixels::default())
+                    .then_some((width, height)),
+            }
+        }
+        NodeKind::TextInputBox => {
+            let ReplacedContentInput::Input { size, .. } = input else {
+                panic!("an input publishes its size as it arrives");
+            };
+            AutoContentSize::of_size(style.text_control_default_preferred_size(size))
+        }
+        NodeKind::VideoBox => {
+            let ReplacedContentInput::NaturalSize(natural_size) = input else {
+                panic!("a video publishes its natural size as it arrives");
+            };
+            AutoContentSize::natural(natural_size)
+        }
+        _ => AutoContentSize::default(),
+    }
 }
 
 /// The node's own computed style, read off the style container the node data points at. Callers inside a layout pass go
@@ -795,12 +1012,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn node_has_size_containment(&self) -> bool {
-        let display = self.display();
-        if display.is_table_inside() || display.is_internal_table() {
-            return false;
-        }
-        let style = self.style();
-        style.has_size_containment() || style.is_size_container()
+        node_style_view(self.data()).is_some_and(style_has_size_containment)
     }
 
     // https://drafts.csswg.org/css-contain-2/#containment-inline-size
@@ -942,6 +1154,8 @@ impl<'pass> NodeFacts<'pass> {
 
 #[cfg(test)]
 mod node_facts_tests {
+    use crate::css::style::{NaturalSize, ReplacedContentInput};
+    use crate::layout::CssPixels;
     use crate::layout::node_data::{NodeData, NodeFlag, NodeKind};
     use std::cell::Cell;
 
@@ -974,5 +1188,104 @@ mod node_facts_tests {
         assert!(super::node_can_have_children(&media));
         media.kind.set(NodeKind::VideoBox);
         assert!(super::node_can_have_children(&media));
+    }
+    fn horizontal_style() -> super::ReplacedContentStyle {
+        super::ReplacedContentStyle {
+            size_contained: None,
+            zero_advance: CssPixels::from_integer(8),
+            line_height: CssPixels::from_integer(16),
+            is_horizontal: true,
+            appearance_is_none: false,
+        }
+    }
+
+    fn auto_content_size(facts: crate::layout::FfiReplacedContentFacts) -> Option<(i64, i64)> {
+        (facts.has_auto_content_width && facts.has_auto_content_height).then(|| {
+            (
+                i64::from(facts.auto_content_width.to_int()),
+                i64::from(facts.auto_content_height.to_int()),
+            )
+        })
+    }
+
+    #[test]
+    fn a_vertical_textarea_takes_its_columns_in_the_block_axis() {
+        let input = ReplacedContentInput::TextArea { cols: 10, rows: 3 };
+        let horizontal = super::replaced_content_facts(NodeKind::TextAreaBox, horizontal_style(), input);
+        assert_eq!(auto_content_size(horizontal), Some((80, 48)));
+        let vertical_style = super::ReplacedContentStyle {
+            is_horizontal: false,
+            ..horizontal_style()
+        };
+        let vertical = super::replaced_content_facts(NodeKind::TextAreaBox, vertical_style, input);
+        assert_eq!(auto_content_size(vertical), Some((48, 80)));
+    }
+
+    #[test]
+    fn a_text_entry_input_without_appearance_gets_a_default_preferred_size() {
+        let input = ReplacedContentInput::Input {
+            size: 20,
+            is_text_entry: true,
+        };
+        let text_input = super::replaced_content_facts(NodeKind::TextInputBox, horizontal_style(), input);
+        assert_eq!(auto_content_size(text_input), Some((160, 16)));
+        assert!(!text_input.has_default_preferred_width);
+
+        let primitive_style = super::ReplacedContentStyle {
+            appearance_is_none: true,
+            ..horizontal_style()
+        };
+        let primitive = super::replaced_content_facts(NodeKind::BlockContainer, primitive_style, input);
+        assert_eq!(auto_content_size(primitive), None);
+        assert!(primitive.has_default_preferred_width && primitive.has_default_preferred_height);
+        assert_eq!(primitive.default_preferred_width.to_int(), 160);
+
+        let checkbox_input = ReplacedContentInput::Input {
+            size: 20,
+            is_text_entry: false,
+        };
+        let checkbox = super::replaced_content_facts(NodeKind::BlockContainer, primitive_style, checkbox_input);
+        assert!(!checkbox.has_default_preferred_width);
+    }
+
+    #[test]
+    fn an_empty_canvas_has_no_aspect_ratio() {
+        let empty = super::replaced_content_facts(
+            NodeKind::CanvasBox,
+            horizontal_style(),
+            ReplacedContentInput::Canvas { width: 0, height: 150 },
+        );
+        assert_eq!(auto_content_size(empty), Some((0, 150)));
+        assert_eq!(empty.auto_content_aspect_ratio_denominator, CssPixels::default());
+        let sized = super::replaced_content_facts(
+            NodeKind::CanvasBox,
+            horizontal_style(),
+            ReplacedContentInput::Canvas {
+                width: 300,
+                height: 150,
+            },
+        );
+        assert_eq!(sized.auto_content_aspect_ratio_numerator.to_int(), 300);
+        assert_eq!(sized.auto_content_aspect_ratio_denominator.to_int(), 150);
+    }
+
+    #[test]
+    fn a_video_without_a_size_has_no_natural_size_and_containment_overrides_any() {
+        let without_size = super::replaced_content_facts(
+            NodeKind::VideoBox,
+            horizontal_style(),
+            ReplacedContentInput::NaturalSize(NaturalSize::default()),
+        );
+        assert!(!without_size.has_auto_content_width && !without_size.has_auto_content_height);
+        let contained_style = super::ReplacedContentStyle {
+            size_contained: Some((CssPixels::from_integer(5), CssPixels::default())),
+            ..horizontal_style()
+        };
+        let contained = super::replaced_content_facts(
+            NodeKind::VideoBox,
+            contained_style,
+            ReplacedContentInput::NaturalSize(NaturalSize::default()),
+        );
+        assert_eq!(auto_content_size(contained), Some((5, 0)));
     }
 }

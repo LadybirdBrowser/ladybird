@@ -395,6 +395,9 @@ scalar_accessors! {
         is_inline_size_container: bool => is_inline_size_container,
         aspect_ratio_uses_natural_when_available: bool => aspect_ratio.use_natural_aspect_ratio_if_available,
     }
+    misc_reset: {
+        appearance: u8 => appearance,
+    }
     border_facts: {
         border_top_width: CssPixels => border_top.width,
         border_right_width: CssPixels => border_right.width,
@@ -439,6 +442,7 @@ scalar_accessors! {
         font_ascent: f32 => font_ascent,
         font_descent: f32 => font_descent,
         font_x_height: f32 => font_x_height,
+        font_zero_advance: f32 => font_zero_advance,
     }
     alignment: {
         webkit_box_orient: u8 => webkit_box_orient,

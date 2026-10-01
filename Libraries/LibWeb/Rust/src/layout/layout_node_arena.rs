@@ -1983,6 +1983,15 @@ impl LayoutNodeArena {
         })
     }
 
+    /// What the element a row is built for gives the natural size of its replaced content, as the
+    /// style mirror publishes it.
+    pub(crate) fn replaced_content_input(&self, id: NodeSlotId) -> crate::css::style::ReplacedContentInput {
+        self.dom_node_style_node(id)
+            .map_or_else(Default::default, |style_node| {
+                self.with_style_store(|engine| engine.element_replaced_content_input(style_node))
+            })
+    }
+
     /// Which principal box the element asks for, as the style mirror publishes it.
     pub(crate) fn element_box_kind(&self, style_node: Option<StyleNodeID>) -> ElementBoxKind {
         style_node.map_or(ElementBoxKind::FromDisplay, |style_node| {
@@ -5032,14 +5041,22 @@ pub(crate) unsafe fn sync_enrolled_content_for_layout(arena: *mut c_void) {
         .clone();
     let mut live_replaced_nodes = Vec::with_capacity(enrolled_replaced_nodes.len());
     for node in enrolled_replaced_nodes {
-        let shell = unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_if_live(node);
-        if shell.is_null() {
+        let shared = unsafe { &*arena.cast::<LayoutNodeArena>() };
+        if !shared.slot_is_live(node) {
             continue;
         }
         live_replaced_nodes.push(node);
-        let mut facts = FfiReplacedContentFacts::default();
-        // SAFETY: The callback receives a live shell and a valid out-pointer.
-        unsafe { (host.build_replaced_content_facts)(host.context, shell, &raw mut facts) };
+        let data = shared.data(node);
+        let facts = if super::node_facts::replaced_content_facts_need_host(data) {
+            let shell = shared.node_shell(node);
+            let mut facts = FfiReplacedContentFacts::default();
+            // SAFETY: The callback receives a live shell and a valid out-pointer, and no arena
+            // borrow is used across it.
+            unsafe { (host.build_replaced_content_facts)(host.context, shell, &raw mut facts) };
+            facts
+        } else {
+            super::node_facts::derived_replaced_content_facts(data, shared.replaced_content_input(node))
+        };
         // Changed facts invalidate cached formatting-context runs regardless of which
         // channel produced the change, including sources with no invalidation of their own.
         // SAFETY: As above; the shared borrows ended with their statements.

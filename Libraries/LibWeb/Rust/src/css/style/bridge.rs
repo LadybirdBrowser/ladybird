@@ -856,6 +856,35 @@ impl ElementBoxKind {
     }
 }
 
+/// Which element the values of a replaced content input are of. See
+/// `inputs::ReplacedContentInput`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiReplacedContentInputKind {
+    None = 0,
+    /// A `<textarea>`: `first` is its `cols`, and `second` its `rows`.
+    TextArea = 1,
+    /// An `<input>` whose type makes it no text entry widget: `first` is its `size`.
+    Input = 2,
+    /// An `<input>` whose type makes it a text entry widget: `first` is its `size`.
+    TextEntryInput = 3,
+    /// A `<canvas>`: `first` is its `width`, and `second` its `height`.
+    Canvas = 4,
+    /// The natural size of what an element has loaded, such as a video's, in raw fixed-point CSS
+    /// pixels: `first` is its width, `second` its height, and `third` and `fourth` the numerator
+    /// and denominator of its aspect ratio. `present` says which of them it has.
+    NaturalSize = 5,
+}
+
+/// The bits of a replaced content input's `present`, for the kinds whose values can be missing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiReplacedContentInputPresent {
+    First = 1 << 0,
+    Second = 1 << 1,
+    ThirdAndFourth = 1 << 2,
+}
+
 /// Which local fact a feature delta describes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
