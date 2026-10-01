@@ -1,0 +1,5 @@
+poster: ready
+frame starts on its initial about:blank: about:blank
+frame is still on its initial about:blank: about:blank
+poster: posted
+frame's origin: same as this page's

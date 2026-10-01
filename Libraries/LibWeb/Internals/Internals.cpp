@@ -65,6 +65,7 @@
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HistoryExecutor.h>
@@ -1363,6 +1364,14 @@ bool Internals::register_session_store_tab()
 Utf16String Internals::dump_session_store_tab_state()
 {
     return dump_string_to_utf16(window().associated_document().page().client().page_did_request_session_store_tab_state_for_testing());
+}
+
+bool Internals::has_populated_document(HTML::HTMLIFrameElement& iframe)
+{
+    auto navigable = iframe.content_navigable();
+    if (!navigable)
+        return false;
+    return window().associated_document().page().client().page_did_request_has_populated_document_for_testing(navigable->id());
 }
 
 Utf16String Internals::dump_site_isolation_process_tree()

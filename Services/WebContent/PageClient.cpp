@@ -1627,6 +1627,13 @@ String PageClient::page_did_request_ui_process_session_history_for_testing()
     return "{}"_string;
 }
 
+bool PageClient::page_did_request_has_populated_document_for_testing(Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_has_populated_document_for_testing(m_id, navigable_id);
+    return false;
+}
+
 String PageClient::dump_site_isolation_process_tree_for_testing()
 {
     if (auto* test_connection = client().test_connection())

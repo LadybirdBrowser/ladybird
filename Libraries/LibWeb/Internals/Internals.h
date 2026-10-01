@@ -189,6 +189,7 @@ public:
     bool register_session_store_tab();
     Utf16String dump_session_store_tab_state();
     Utf16String dump_site_isolation_process_tree();
+    bool has_populated_document(HTML::HTMLIFrameElement&);
     void crash_remote_frame_processes();
     void stop_loading_through_ui_process();
     void reload_through_ui_process();

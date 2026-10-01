@@ -173,6 +173,8 @@ interface Internals {
     boolean registerSessionStoreTab();
     DOMString dumpSessionStoreTabState();
     DOMString dumpSiteIsolationProcessTree();
+    // Reports if the browser process has created a document for the iframe that it hasn't made active yet.
+    boolean hasPopulatedDocument(HTMLIFrameElement iframe);
     undefined crashRemoteFrameProcesses();
     // Stops loading and reloads as the browser's Stop and Reload buttons do.
     undefined stopLoadingThroughUIProcess();
