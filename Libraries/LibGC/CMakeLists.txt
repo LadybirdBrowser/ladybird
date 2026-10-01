@@ -1,5 +1,6 @@
 set(SOURCES
     BlockAllocator.cpp
+    CAPI.cpp
     Cell.cpp
     CellAllocator.cpp
     ConservativeHashMap.cpp

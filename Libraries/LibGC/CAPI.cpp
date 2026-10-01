@@ -1,0 +1,306 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <AK/StdLibExtras.h>
+#include <LibGC/BlockAllocator.h>
+#include <LibGC/CAPI.h>
+#include <LibGC/Heap.h>
+#include <LibGC/HeapBlock.h>
+#include <LibGC/HeapRegion.h>
+#include <LibGC/PrimitiveStorage.h>
+#include <LibGC/Root.h>
+#include <LibGC/Weak.h>
+
+namespace GC {
+
+static_assert(sizeof(GCCellTypeInfo) == sizeof(CellTypeInfo));
+static_assert(alignof(GCCellTypeInfo) == alignof(CellTypeInfo));
+static_assert(offsetof(GCCellTypeInfo, cell_size) == offsetof(CellTypeInfo, cell_size));
+static_assert(offsetof(GCCellTypeInfo, alignment) == offsetof(CellTypeInfo, alignment));
+static_assert(offsetof(GCCellTypeInfo, kind) == offsetof(CellTypeInfo, kind));
+static_assert(offsetof(GCCellTypeInfo, visit_edges) == offsetof(CellTypeInfo, visit_edges));
+static_assert(offsetof(GCCellTypeInfo, finalize) == offsetof(CellTypeInfo, finalize));
+static_assert(offsetof(GCCellTypeInfo, destroy) == offsetof(CellTypeInfo, destroy));
+static_assert(offsetof(GCCellTypeInfo, external_memory_size) == offsetof(CellTypeInfo, external_memory_size));
+static_assert(offsetof(GCCellTypeInfo, class_name) == offsetof(CellTypeInfo, class_name));
+static_assert(sizeof(CellKind) == sizeof(uint8_t));
+
+static_assert(GC_CELL_KIND_OTHER == to_underlying(CellKind::Other));
+static_assert(GC_CELL_KIND_OBJECT == to_underlying(CellKind::Object));
+static_assert(GC_CELL_KIND_PRIMITIVE_STRING == to_underlying(CellKind::PrimitiveString));
+static_assert(GC_CELL_KIND_SYMBOL == to_underlying(CellKind::Symbol));
+static_assert(GC_CELL_KIND_BIGINT == to_underlying(CellKind::BigInt));
+static_assert(GC_CELL_KIND_ACCESSOR == to_underlying(CellKind::Accessor));
+
+static_assert(GC_CELL_STATE_LIVE == to_underlying(Cell::State::Live));
+static_assert(GC_CELL_STATE_DEAD == to_underlying(Cell::State::Dead));
+
+static_assert(sizeof(NanBoxedValue) == sizeof(uint64_t));
+
+class CAPICellAllocator final : public CellAllocatorDescriptorBase {
+public:
+    CAPICellAllocator(CellTypeInfo const& type_info, StringView class_name)
+        : CellAllocatorDescriptorBase(type_info, class_name)
+    {
+    }
+};
+
+class RootGatheringVisitor final : public Cell::Visitor {
+public:
+    explicit RootGatheringVisitor(HashMap<Cell*, HeapRoot>& roots)
+        : m_roots(roots)
+    {
+    }
+
+    virtual void visit_possible_values(ReadonlyBytes) override
+    {
+        // NB: Roots are gathered precisely; a conservative range belongs in a ConservativeRangeProvider.
+        VERIFY_NOT_REACHED();
+    }
+
+private:
+    virtual void visit_impl(Cell& cell) override
+    {
+        m_roots.set(&cell, HeapRoot { .type = HeapRoot::Type::VM });
+    }
+
+    virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
+    {
+        for (auto const& value : values) {
+            if (value.is_cell())
+                visit_impl(value.as_cell());
+        }
+    }
+
+    HashMap<Cell*, HeapRoot>& m_roots;
+};
+
+struct CAPI {
+    static void get_layout(GCLayout& layout)
+    {
+        layout = {
+            .cell_mark_offset = offsetof(Cell, m_mark),
+            .cell_state_offset = offsetof(Cell, m_state),
+            .cell_kind_offset = offsetof(Cell, m_cell_kind),
+            .min_cell_size = HeapBlock::min_possible_cell_size,
+            .max_cell_size = HeapBlock::BLOCK_SIZE - sizeof(HeapBlock),
+            .max_cell_alignment = __BIGGEST_ALIGNMENT__,
+            .cell_type_info_size = sizeof(CellTypeInfo),
+            .weak_impl_pointer_offset = WeakImpl::value_offset(),
+            .heap_region_offset_mask = HEAP_REGION_OFFSET_MASK,
+            .primitive_storage_cage_offset_mask = PrimitiveStorage::cage_offset_mask,
+        };
+    }
+
+    static Cell* allocate_cell(Heap& heap, CellAllocatorDescriptorBase& descriptor, bool& must_mark)
+    {
+        auto* cell = heap.allocate_cell(descriptor);
+        must_mark = heap.mark_if_allocated_during_incremental_sweep(*cell);
+        return cell;
+    }
+
+    static void defer_gc(Heap& heap) { heap.defer_gc(); }
+    static void undefer_gc(Heap& heap) { heap.undefer_gc(); }
+    static StackInfo const& stack_info(Heap const& heap) { return heap.m_stack_info; }
+};
+
+}
+
+using namespace GC;
+
+static Heap& as_heap(GCHeap* heap) { return *reinterpret_cast<Heap*>(heap); }
+static Heap const& as_heap(GCHeap const* heap) { return *reinterpret_cast<Heap const*>(heap); }
+static Cell* as_cell(GCCell* cell) { return reinterpret_cast<Cell*>(cell); }
+static GCCell* as_gc_cell(Cell* cell) { return reinterpret_cast<GCCell*>(cell); }
+static Cell::Visitor& as_visitor(GCVisitor* visitor) { return *reinterpret_cast<Cell::Visitor*>(visitor); }
+static WeakImpl* as_weak_impl(GCWeakImpl* impl) { return reinterpret_cast<WeakImpl*>(impl); }
+static GCWeakImpl* as_gc_weak_impl(WeakImpl* impl) { return reinterpret_cast<GCWeakImpl*>(impl); }
+
+extern "C" {
+
+void gc_get_layout(GCLayout* layout)
+{
+    CAPI::get_layout(*layout);
+}
+
+uintptr_t gc_heap_region_base(void)
+{
+    return BlockAllocator::heap_region_start();
+}
+
+uintptr_t gc_primitive_storage_cage_base(void)
+{
+    MUST(PrimitiveStorage::the().ensure_cage());
+    return js_primitive_storage_cage_base;
+}
+
+GCHeap* gc_heap_create(GCGatherRootsCallback gather_roots, void* context, bool become_process_default)
+{
+    auto* heap = new Heap(
+        [gather_roots, context](HashMap<Cell*, HeapRoot>& roots) {
+            RootGatheringVisitor visitor { roots };
+            gather_roots(context, reinterpret_cast<GCVisitor*>(static_cast<Cell::Visitor*>(&visitor)));
+        },
+        become_process_default ? Heap::BecomeProcessDefault::Yes : Heap::BecomeProcessDefault::No);
+    return reinterpret_cast<GCHeap*>(heap);
+}
+
+void gc_heap_destroy(GCHeap* heap)
+{
+    delete &as_heap(heap);
+}
+
+void gc_heap_collect_garbage(GCHeap* heap, int collection_type, bool print_report)
+{
+    VERIFY(collection_type == GC_COLLECTION_TYPE_COLLECT_GARBAGE || collection_type == GC_COLLECTION_TYPE_COLLECT_EVERYTHING);
+    auto type = collection_type == GC_COLLECTION_TYPE_COLLECT_EVERYTHING ? Heap::CollectionType::CollectEverything : Heap::CollectionType::CollectGarbage;
+    as_heap(heap).collect_garbage(type, print_report);
+}
+
+bool gc_heap_is_collecting_everything(GCHeap const* heap)
+{
+    return as_heap(heap).is_collecting_everything();
+}
+
+void gc_heap_defer_gc(GCHeap* heap)
+{
+    CAPI::defer_gc(as_heap(heap));
+}
+
+void gc_heap_undefer_gc(GCHeap* heap)
+{
+    CAPI::undefer_gc(as_heap(heap));
+}
+
+void gc_heap_set_should_collect_on_every_allocation(GCHeap* heap, bool should_collect)
+{
+    as_heap(heap).set_should_collect_on_every_allocation(should_collect);
+}
+
+void gc_heap_set_incremental_sweep_enabled(GCHeap* heap, bool enabled)
+{
+    as_heap(heap).set_incremental_sweep_enabled(enabled);
+}
+
+void gc_heap_uproot_cell(GCHeap* heap, GCCell* cell)
+{
+    as_heap(heap).uproot_cell(as_cell(cell));
+}
+
+void gc_heap_stack_bounds(GCHeap const* heap, uintptr_t* base, uintptr_t* top)
+{
+    auto const& stack_info = CAPI::stack_info(as_heap(heap));
+    *base = stack_info.base();
+    *top = stack_info.top();
+}
+
+void gc_heap_enqueue_post_gc_task(GCHeap* heap, GCCallback callback, void* context)
+{
+    as_heap(heap).enqueue_post_gc_task([callback, context] { callback(context); });
+}
+
+void gc_heap_register_sweep_callback(GCHeap* heap, GCCallback callback, void* context)
+{
+    as_heap(heap).register_sweep_callback([callback, context] { callback(context); });
+}
+
+void gc_heap_did_allocate_external_memory(GCHeap* heap, size_t size)
+{
+    as_heap(heap).did_allocate_external_memory(size);
+}
+
+void gc_heap_did_free_external_memory(GCHeap* heap, size_t size)
+{
+    as_heap(heap).did_free_external_memory(size);
+}
+
+GCAllocator* gc_allocator_create(GCCellTypeInfo const* type_info, char const* name, size_t name_length)
+{
+    VERIFY(type_info->visit_edges);
+    VERIFY(type_info->cell_size >= HeapBlock::min_possible_cell_size);
+    VERIFY(type_info->cell_size <= HeapBlock::BLOCK_SIZE - sizeof(HeapBlock));
+    VERIFY(type_info->alignment <= __BIGGEST_ALIGNMENT__);
+    auto* allocator = new CAPICellAllocator(*reinterpret_cast<CellTypeInfo const*>(type_info), StringView { name, name_length });
+    return reinterpret_cast<GCAllocator*>(allocator);
+}
+
+void gc_allocator_destroy(GCAllocator* allocator)
+{
+    delete reinterpret_cast<CAPICellAllocator*>(allocator);
+}
+
+GCCell* gc_heap_allocate_cell(GCHeap* heap, GCAllocator* allocator, bool* must_mark)
+{
+    auto& descriptor = *reinterpret_cast<CAPICellAllocator*>(allocator);
+    return as_gc_cell(CAPI::allocate_cell(as_heap(heap), descriptor, *must_mark));
+}
+
+GCCellTypeInfo const* gc_cell_type_info(GCCell const* cell)
+{
+    return reinterpret_cast<GCCellTypeInfo const*>(&reinterpret_cast<Cell const*>(cell)->type_info());
+}
+
+GCRoot* gc_root_create(GCCell* cell)
+{
+    return reinterpret_cast<GCRoot*>(new Root<Cell>(as_cell(cell)));
+}
+
+void gc_root_destroy(GCRoot* root)
+{
+    delete reinterpret_cast<Root<Cell>*>(root);
+}
+
+GCCell* gc_root_cell(GCRoot const* root)
+{
+    return as_gc_cell(reinterpret_cast<Root<Cell> const*>(root)->cell());
+}
+
+GCWeakImpl* gc_heap_create_weak_impl(GCHeap* heap, GCCell* cell)
+{
+    auto* impl = as_heap(heap).create_weak_impl(as_cell(cell));
+    // NB: A weak impl without references is reclaimed by the next weak block sweep.
+    impl->ref();
+    return as_gc_weak_impl(impl);
+}
+
+GCWeakImpl* gc_weak_impl_null(void)
+{
+    WeakImpl::the_null_weak_impl.ref();
+    return as_gc_weak_impl(&WeakImpl::the_null_weak_impl);
+}
+
+void gc_weak_impl_ref(GCWeakImpl* impl)
+{
+    as_weak_impl(impl)->ref();
+}
+
+void gc_weak_impl_unref(GCWeakImpl* impl)
+{
+    as_weak_impl(impl)->unref();
+}
+
+void gc_visitor_visit_cell(GCVisitor* visitor, GCCell* cell)
+{
+    as_visitor(visitor).visit(as_cell(cell));
+}
+
+void gc_visitor_visit_cells(GCVisitor* visitor, GCCell* const* cells, size_t count)
+{
+    auto& cell_visitor = as_visitor(visitor);
+    for (size_t i = 0; i < count; ++i)
+        cell_visitor.visit(as_cell(cells[i]));
+}
+
+void gc_visitor_visit_values(GCVisitor* visitor, uint64_t const* values, size_t count)
+{
+    as_visitor(visitor).visit(ReadonlySpan<NanBoxedValue> { reinterpret_cast<NanBoxedValue const*>(values), count });
+}
+
+void gc_visitor_visit_possible_values(GCVisitor* visitor, uint8_t const* data, size_t size)
+{
+    as_visitor(visitor).visit_possible_values(ReadonlyBytes { data, size });
+}
+}

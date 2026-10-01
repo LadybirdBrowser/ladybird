@@ -273,6 +273,7 @@ protected:
 
 private:
     friend class Heap;
+    friend struct CAPI;
 
     void set_cell_kind(CellKind kind) { m_cell_kind = kind; }
 
