@@ -9,8 +9,11 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/HTML/DecodedImageData.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -273,8 +276,63 @@ void push_video_paint_facts(HTML::HTMLVideoElement const& video_element)
     note_paint_facts(video_element, PaintFactsFamily::Video);
 }
 
+// The `<area>` elements of the image map an image is associated with, in tree order, each named by its style-tree
+// identity, because that is what a hit hands back. An area is never rendered, so it has no row of its own to carry its
+// shape; the image whose map lists it does.
+static void push_image_map_area_facts_onto(GC::Ptr<HTML::HTMLMapElement> map_element, Layout::Node const& layout_node)
+{
+    // The values AreaShape::from_raw() reads.
+    static_assert(to_underlying(HTML::HTMLAreaElement::ShapeState::Circle) == 0);
+    static_assert(to_underlying(HTML::HTMLAreaElement::ShapeState::Default) == 1);
+    static_assert(to_underlying(HTML::HTMLAreaElement::ShapeState::Polygon) == 2);
+    static_assert(to_underlying(HTML::HTMLAreaElement::ShapeState::Rectangle) == 3);
+
+    Vector<Layout::RustFFI::FfiImageMapArea> areas;
+    Vector<double> coords;
+    if (map_element) {
+        map_element->for_each_in_subtree_of_type<HTML::HTMLAreaElement>([&](HTML::HTMLAreaElement& area_element) {
+            auto area_coords = area_element.shape_coords();
+            areas.append({
+                .style_node = DOM::NodeIdentity::of(area_element).style_node().value(),
+                .shape = to_underlying(area_element.shape_state()),
+                .coords_offset = static_cast<u32>(coords.size()),
+                .coords_count = static_cast<u32>(area_coords.size()),
+            });
+            coords.extend(move(area_coords));
+            return TraversalDecision::Continue;
+        });
+    }
+    Layout::RustFFI::layout_arena_publish_image_map_areas(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), areas.data(), areas.size(), coords.data(), coords.size());
+}
+
+// Which map an image is associated with is a hash-name reference resolved against the image's root, so any map or area
+// of the document can decide any image's areas and there is no smaller funnel than the document. The funnels only mark
+// the document, and this runs before the next hit test, after layout, so the association it reads is current and a
+// map that gains many areas is walked once. Nearly every page has no image map at all, and never marks it.
+void publish_image_map_area_facts_if_needed(DOM::Document& document)
+{
+    if (!document.take_image_map_areas_need_publication())
+        return;
+    document.for_each_shadow_including_descendant([](DOM::Node& node) {
+        auto* image_element = as_if<HTML::HTMLImageElement>(node);
+        if (!image_element)
+            return TraversalDecision::Continue;
+        // NB: Any box an image has answers for its map, including the one it takes when it renders as its alt text.
+        if (auto const* layout_node = image_element->unsafe_layout_node())
+            push_image_map_area_facts_onto(image_element->associated_map_element(), *layout_node);
+        return TraversalDecision::Continue;
+    });
+}
+
 void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, StyleHoldsImageValues style_holds_image_values)
 {
+    // NB: Nothing paints from the image map areas, so they are written at once rather than noted in the journal. An
+    //     image with no map has nothing to write: a row starts out with no areas, and when an image loses its map, the
+    //     document's publication pass clears what its row had.
+    if (auto* image_element = as_if<HTML::HTMLImageElement>(layout_node.dom_node())) {
+        if (auto map_element = image_element->associated_map_element())
+            push_image_map_area_facts_onto(map_element, layout_node);
+    }
     auto families = style_holds_image_values == StyleHoldsImageValues::Yes ? PaintFactsFamily::LayerImages : PaintFactsFamily::NoLayerImages;
     if (paints_form_control_from_facts(layout_node))
         families |= PaintFactsFamily::FormControl;

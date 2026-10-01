@@ -1205,6 +1205,8 @@ public:
         Structure,
     };
     void set_needs_accumulated_visual_contexts_update(bool);
+    void set_image_map_areas_need_publication() { m_image_map_areas_need_publication = true; }
+    [[nodiscard]] bool take_image_map_areas_need_publication() { return exchange(m_image_map_areas_need_publication, false); }
     void note_svg_paint_resources_changed();
     void register_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement&);
     void unregister_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement&);
@@ -1970,6 +1972,7 @@ private:
     bool m_design_mode_enabled { false };
 
     bool m_needs_accumulated_visual_contexts_update { false };
+    bool m_image_map_areas_need_publication { false };
 
     HashMap<Web::AsyncScrollNodeStableID, Compositing::SnappedAreas> m_scroll_container_snapped_areas;
     Vector<Compositing::RustFFI::NodeSlotId> m_scroll_snap_containers;

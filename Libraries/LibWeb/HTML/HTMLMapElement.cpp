@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMapElement.h>
@@ -25,6 +26,27 @@ void HTMLMapElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_areas);
+}
+
+void HTMLMapElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    // NB: A map is named by its name or its id, so either can change which images are associated with it.
+    if (name.is_one_of(HTML::AttributeNames::name, HTML::AttributeNames::id))
+        document().set_image_map_areas_need_publication();
+}
+
+void HTMLMapElement::inserted()
+{
+    Base::inserted();
+    document().set_image_map_areas_need_publication();
+}
+
+void HTMLMapElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* old_ancestor, DOM::Node& old_root)
+{
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
+    document().set_image_map_areas_need_publication();
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model

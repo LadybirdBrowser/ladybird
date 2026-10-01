@@ -42,8 +42,23 @@ void HTMLAreaElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
             m_rel_list->associated_attribute_changed(value.has_value() ? value->utf16_view() : u""sv);
     }
 
-    if (is_focused() && name.is_one_of(HTML::AttributeNames::coords, HTML::AttributeNames::shape))
-        repaint_associated_images();
+    if (name.is_one_of(HTML::AttributeNames::coords, HTML::AttributeNames::shape)) {
+        if (is_focused())
+            repaint_associated_images();
+        document().set_image_map_areas_need_publication();
+    }
+}
+
+void HTMLAreaElement::inserted()
+{
+    Base::inserted();
+    document().set_image_map_areas_need_publication();
+}
+
+void HTMLAreaElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* old_ancestor, DOM::Node& old_root)
+{
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
+    document().set_image_map_areas_need_publication();
 }
 
 bool HTMLAreaElement::has_activation_behavior() const
@@ -79,6 +94,20 @@ HTMLAreaElement::ShapeState HTMLAreaElement::shape_state() const
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
+Vector<double> HTMLAreaElement::shape_coords() const
+{
+    // 2. Use the rules for parsing a list of floating-point numbers to parse the element's coords attribute, if it
+    //    is present, and let the coords list be the result. If the attribute is absent, let the coords list be the
+    //    empty list.
+    auto coords_attribute = attribute(HTML::AttributeNames::coords);
+    if (!coords_attribute.has_value())
+        return {};
+    return parse_list_of_floating_point_numbers(coords_attribute->utf16_view());
+}
+
+// https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
+// FIXME: The Rust image map area column builds the same shape for hit testing. Paint a focused area's outline from
+//        that one too, so the two cannot disagree.
 Optional<Gfx::Path> HTMLAreaElement::shape_path(CSSPixelSize image_size) const
 {
     // Each area element in areas must be processed as follows to obtain a shape to layer onto the image:
@@ -89,9 +118,7 @@ Optional<Gfx::Path> HTMLAreaElement::shape_path(CSSPixelSize image_size) const
     // 2. Use the rules for parsing a list of floating-point numbers to parse the element's coords attribute, if it
     //    is present, and let the coords list be the result. If the attribute is absent, let the coords list be the
     //    empty list.
-    Vector<double> coords;
-    if (auto coords_attribute = attribute(HTML::AttributeNames::coords); coords_attribute.has_value())
-        coords = parse_list_of_floating_point_numbers(coords_attribute->utf16_view());
+    auto coords = shape_coords();
 
     auto vertex = [&](size_t index) {
         return Gfx::FloatPoint { static_cast<float>(coords[2 * index]), static_cast<float>(coords[2 * index + 1]) };

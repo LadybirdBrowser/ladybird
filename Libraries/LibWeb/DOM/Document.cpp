@@ -2527,6 +2527,7 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
     drain_invalidation_journal();
 
     prepare_for_rendering();
+    Painting::publish_image_map_area_facts_if_needed(*this);
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
         if (has_committed_viewport_box())

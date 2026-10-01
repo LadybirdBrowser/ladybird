@@ -1478,6 +1478,73 @@ pub unsafe extern "C" fn layout_arena_set_replaced_image_paint_facts(
     )
 }
 
+/// One `<area>` of an image map, as the document hands it over: the style-tree identity to name as
+/// the hit target, the state of its `shape` attribute, and where its parsed `coords` sit in the
+/// flat array published beside it.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiImageMapArea {
+    pub style_node: u32,
+    pub shape: u8,
+    pub coords_offset: u32,
+    pub coords_count: u32,
+}
+
+/// Publishes the `<area>` elements of the image map an image is associated with, in tree order.
+/// Publishing no area is how an image with no image map is named.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`. `areas` must point at `area_count`
+/// areas and `coords` at `coords_count` values, and every area's coordinate range must lie within
+/// them.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_publish_image_map_areas(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    areas: *const FfiImageMapArea,
+    area_count: usize,
+    coords: *const f64,
+    coords_count: usize,
+) {
+    use crate::painting::image_map_areas::{AreaCoverage, AreaShape, PublishedImageMapArea};
+    let arena = unsafe { arena_from_handle(arena) };
+    let areas = unsafe { ffi_slice(areas, area_count) };
+    let coords = unsafe { ffi_slice(coords, coords_count) };
+    let published = areas
+        .iter()
+        .map(|area| {
+            let start = area.coords_offset as usize;
+            PublishedImageMapArea {
+                style_node: area.style_node,
+                coverage: AreaCoverage::new(
+                    AreaShape::from_raw(area.shape),
+                    &coords[start..start + area.coords_count as usize],
+                ),
+            }
+        })
+        .collect();
+    arena.image_map_areas().publish(slot, published);
+}
+
+/// The style-tree identity of the first `<area>` of the image's map, in tree order, whose shape
+/// covers the point. Zero when the image has no map, or when no shape covers the point.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_image_map_area_for_point(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    x: f32,
+    y: f32,
+) -> u32 {
+    unsafe { arena_from_handle(arena) }
+        .image_map_areas()
+        .area_for_point(slot, x, y)
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
