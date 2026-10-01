@@ -1,0 +1,4 @@
+marker color: rgb(0, 128, 0)
+sibling color: rgb(0, 0, 255)
+backdrop color: rgb(255, 0, 0)
+sibling marker display: inline
