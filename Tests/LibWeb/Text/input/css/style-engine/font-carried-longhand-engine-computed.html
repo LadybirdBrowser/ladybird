@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .on.feature-settings { font-feature-settings: "liga" 0; }
+    .on.text-rendering { text-rendering: optimizeLegibility; }
+</style>
+<div class="feature-settings" id="feature-settings">text</div>
+<div class="text-rendering" id="text-rendering">text</div>
+<script>
+    // A longhand the font group carries, switched on in an element that already has a record. Each
+    // line prints how many records the style engine computed, how many elements C++ computed, and
+    // the value.
+    const cases = [
+        ["font-feature-settings", "feature-settings", "font-feature-settings"],
+        ["text-rendering", "text-rendering", "text-rendering"],
+    ];
+
+    test(() => {
+        for (const [name, id, property] of cases) {
+            const target = document.getElementById(id);
+            internals.updateStyle();
+            internals.resetStyleInvalidationCounters();
+            target.classList.add("on");
+            internals.updateStyle();
+            const counters = internals.getStyleInvalidationCounters();
+            println(`${name}: engine records ${counters.engineComputedStyleRecords}, C++ recomputations ${counters.elementStyleRecomputations}, value ${getComputedStyle(target).getPropertyValue(property)}`);
+        }
+    });
+</script>

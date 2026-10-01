@@ -1,0 +1,2 @@
+font-feature-settings: engine records 1, C++ recomputations 0, value "liga" 0
+text-rendering: engine records 1, C++ recomputations 0, value optimizelegibility
