@@ -11,6 +11,7 @@ use std::ffi::c_void;
 pub use super::node_slot_id::INVALID_NODE_SLOT_INDEX;
 pub const GENERATED_FOR_AFTER: u8 = 1;
 pub const GENERATED_FOR_BACKDROP: u8 = 2;
+pub const GENERATED_FOR_BEFORE: u8 = 3;
 pub const GENERATED_FOR_FIRST_LETTER: u8 = 4;
 pub const GENERATED_FOR_MARKER: u8 = 6;
 

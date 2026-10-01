@@ -1096,6 +1096,16 @@ impl LayoutNodeArena {
         }
     }
 
+    /// Whether `style_node` itself holds a layout tree update mark.
+    pub(crate) fn needs_layout_tree_update(&self, style_node: StyleNodeID) -> bool {
+        self.layout_tree_update_marks.borrow().needs(style_node)
+    }
+
+    /// Which narrower rebuilds the layout tree update marks `style_node` collected still permit.
+    pub(crate) fn layout_tree_update_reuse_reasons(&self, style_node: StyleNodeID) -> u8 {
+        self.layout_tree_update_marks.borrow().reuse_reasons(style_node)
+    }
+
     /// Whether a flat-tree descendant of `style_node` holds a layout tree update mark.
     pub(crate) fn child_needs_layout_tree_update(&self, style_node: Option<StyleNodeID>) -> bool {
         style_node.is_some_and(|style_node| self.layout_tree_update_marks.borrow().child_needs(style_node))

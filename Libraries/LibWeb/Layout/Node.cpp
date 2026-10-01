@@ -827,6 +827,7 @@ void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
 {
     static_assert(encode_generated_for(CSS::PseudoElement::After) == RustFFI::GENERATED_FOR_AFTER);
     static_assert(encode_generated_for(CSS::PseudoElement::Backdrop) == RustFFI::GENERATED_FOR_BACKDROP);
+    static_assert(encode_generated_for(CSS::PseudoElement::Before) == RustFFI::GENERATED_FOR_BEFORE);
     static_assert(encode_generated_for(CSS::PseudoElement::FirstLetter) == RustFFI::GENERATED_FOR_FIRST_LETTER);
     static_assert(encode_generated_for(CSS::PseudoElement::Marker) == RustFFI::GENERATED_FOR_MARKER);
     RustFFI::layout_arena_set_node_generated_for(arena_handle(), slot_id(this), encode_generated_for(type), element.style_node_id().value());

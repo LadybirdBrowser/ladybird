@@ -2146,6 +2146,38 @@ impl RetainedState {
         self.pseudo_style_mask(node).unwrap_or(0)
     }
 
+    /// Whether the style record answers for a counter or a quote: the two things whose state runs
+    /// along the whole tree rather than staying inside one box.
+    fn style_record_affects_generated_content_state(&self, style_record: Option<computed::FinalStyleRecordID>) -> bool {
+        self.published_style_record_view(style_record)
+            .is_some_and(crate::css::computed_value_views::ComputedValuesView::affects_generated_content_state)
+    }
+
+    /// Whether the node or any of its DOM descendants styles a counter or a quote, itself or
+    /// through a `::before`, `::after` or `::marker`. Inserting such a subtree renumbers what
+    /// follows it, so the layout tree build has to rebuild rather than splice it in.
+    #[must_use]
+    pub fn subtree_affects_generated_content_state(&self, node: StyleNodeID) -> bool {
+        let mut pending = vec![node];
+        while let Some(node) = pending.pop() {
+            if node.element_index().is_some()
+                && (self
+                    .style_record_affects_generated_content_state(self.computed_group_sets.assigned_style_record(node))
+                    || [pseudo_kind::BEFORE, pseudo_kind::AFTER, pseudo_kind::MARKER]
+                        .into_iter()
+                        .any(|kind| {
+                            self.style_record_affects_generated_content_state(
+                                self.computed_group_sets.pseudo_style_record(node, kind),
+                            )
+                        }))
+            {
+                return true;
+            }
+            pending.extend(self.tree.dom_children(node));
+        }
+        false
+    }
+
     /// Whether the node's published style holds a `::first-letter` record. The tree build asks a
     /// block this before it goes looking for the letter to style, and again of each block it
     /// descends into, which stops the search where a nested block styles its own first letter.
