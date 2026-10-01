@@ -16,6 +16,9 @@ pub enum FfiCommitMessageKind {
     NavigableContainerViewportCommitted,
     /// The node is an inline box that reached atomic inline layout without line box fragments.
     UnexpectedFragmentedInline,
+    /// The node is the element a box escaped its rebuild root under, so its layout tree has to be
+    /// built again.
+    LayoutTreeRebuildRequested,
 }
 
 /// One thing layout has to tell the document. The node it is about is named by the style node the

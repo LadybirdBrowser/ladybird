@@ -820,6 +820,11 @@ impl LayoutNodeArena {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_style_node_for_test(&self, slot: NodeSlotId, style_node: Option<StyleNodeID>) {
+        self.set_node_style_node(slot, style_node);
+    }
+
     pub(crate) fn enroll_node_for_replaced_content_facts_sync_if_eligible(&self, node: NodeSlotId) {
         let data = self.data(node);
         if !super::node_facts::node_may_have_replaced_content_facts_including_size_containment(data) {
