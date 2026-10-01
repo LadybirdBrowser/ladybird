@@ -334,17 +334,14 @@ impl RetainedState {
                     Some(store) => store.clone(),
                     None => {
                         let mut substituted = false;
-                        let store = std::sync::Arc::new(
-                            self.cascaded_store_for_state(
-                                node,
-                                state,
-                                Some(kind),
-                                environment,
-                                &mut substituted,
-                                counters,
-                            )
-                            .or_refused()?,
-                        );
+                        let store = std::sync::Arc::new(self.cascaded_store_for_state(
+                            node,
+                            state,
+                            Some(kind),
+                            environment,
+                            &mut substituted,
+                            counters,
+                        )?);
                         if substituted {
                             scratch.substituted_states.insert((state, environment));
                         }
@@ -444,20 +441,18 @@ impl RetainedState {
                         unreachable!("only the root-input probe answers with root inputs");
                     };
                     let font = font.expect("a full drive resolves the font");
-                    let (record, _) = self
-                        .assemble_and_publish_engine_record(
-                            target,
-                            Some(new_element_record),
-                            table,
-                            &length,
-                            &font,
-                            environment,
-                            0,
-                            cascade_state,
-                            &mut scratch.computability,
-                            counters,
-                        )
-                        .or_refused()?;
+                    let (record, _) = self.assemble_and_publish_engine_record(
+                        target,
+                        Some(new_element_record),
+                        table,
+                        &length,
+                        &font,
+                        environment,
+                        0,
+                        cascade_state,
+                        &mut scratch.computability,
+                        counters,
+                    )?;
                     if let Some(key) = key {
                         scratch.pseudo_cohorts.insert(key, record);
                         if self.engine_pseudo_record_cache.len() >= COLD_RECORD_CACHE_LIMIT {

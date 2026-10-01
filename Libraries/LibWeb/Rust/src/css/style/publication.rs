@@ -493,8 +493,7 @@ impl RetainedState {
                 }
                 None => 0,
             };
-            let Some(environment) =
-                self.engine_custom_property_environment(node, parent_environment, &inputs, counters)
+            let Ok(environment) = self.engine_custom_property_environment(node, parent_environment, &inputs, counters)
             else {
                 counters.bump(Counter::EngineComputedRecordBailCustomProperties);
                 return Err(Unanswered::Refused);
@@ -757,10 +756,14 @@ impl RetainedState {
             Some(store) => store.clone(),
             None => {
                 let mut substituted = false;
-                let store = std::sync::Arc::new(
-                    self.cascaded_store_for_state(node, state, None, current_environment, &mut substituted, counters)
-                        .or_refused()?,
-                );
+                let store = std::sync::Arc::new(self.cascaded_store_for_state(
+                    node,
+                    state,
+                    None,
+                    current_environment,
+                    &mut substituted,
+                    counters,
+                )?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
                 scratch.stores.insert((state, current_environment), store.clone());
                 if substituted {
@@ -784,7 +787,7 @@ impl RetainedState {
                 if driver_input_moved {
                     groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
                 }
-                let subject = self.element_drive_subject(node, counters).or_refused()?;
+                let subject = self.element_drive_subject(node, counters)?;
                 match self.engine_full_drive(
                     subject,
                     Some(old_style_record),
@@ -1064,7 +1067,7 @@ impl RetainedState {
                 return Err(Unanswered::Refused);
             }
         }
-        let Some(environment) = self.engine_custom_property_environment(node, parent_environment, &inputs, counters)
+        let Ok(environment) = self.engine_custom_property_environment(node, parent_environment, &inputs, counters)
         else {
             counters.bump(Counter::EngineComputedRecordBailCustomProperties);
             return Err(Unanswered::Refused);
@@ -1086,9 +1089,9 @@ impl RetainedState {
                         environment,
                         inputs.custom_property_registration_generation,
                     ),
-                    store.is_some(),
+                    store.is_ok(),
                 );
-                let store = std::sync::Arc::new(store.or_refused()?);
+                let store = std::sync::Arc::new(store?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
                 scratch.stores.insert((state, environment), store.clone());
                 if substituted {
@@ -1210,20 +1213,18 @@ impl RetainedState {
                 FullDrive::RootInputs(root_inputs) => return Ok(ElementAnswer::RootInputs(Some(root_inputs))),
             };
         let font = font.expect("a full drive resolves the font");
-        let (new_style_record, swap_eligible) = self
-            .assemble_and_publish_engine_record(
-                target,
-                parent_record,
-                table,
-                &length,
-                &font,
-                environment,
-                pseudo_styles,
-                Some(cascade_state),
-                &mut scratch.computability,
-                counters,
-            )
-            .or_refused()?;
+        let (new_style_record, swap_eligible) = self.assemble_and_publish_engine_record(
+            target,
+            parent_record,
+            table,
+            &length,
+            &font,
+            environment,
+            pseudo_styles,
+            Some(cascade_state),
+            &mut scratch.computability,
+            counters,
+        )?;
         let delta = (computed::FinalStyleRecordID::NONE, new_style_record);
         // The publication itself kept the record for later transactions; alike elements in this
         // one take it from the cohort. The key names the parent's environment, so a record whose
@@ -1603,7 +1604,7 @@ impl RetainedState {
         cascade_state: Option<(u64, CascadeStateID)>,
         scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
-    ) -> Option<(computed::FinalStyleRecordID, bool)> {
+    ) -> Drive<(computed::FinalStyleRecordID, bool)> {
         use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
         use crate::css::table_group_builder::group_index;
 
@@ -1612,7 +1613,7 @@ impl RetainedState {
             Some(parent_record) => {
                 let Some(parent_view) = self.computed_group_sets.style_record_view(parent_record.raw()) else {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                    return None;
+                    return Err(Unanswered::Refused);
                 };
                 (parent_view.payloads, parent_view.dependency_flags & (1 << 2) != 0)
             }
@@ -1620,7 +1621,7 @@ impl RetainedState {
         };
         let Ok(used_color_scheme) = u8::try_from(table.effective_color_scheme()) else {
             counters.bump(Counter::EngineComputedRecordBailDrive);
-            return None;
+            return Err(Unanswered::Refused);
         };
         let display_is_none = crate::css::style_compute::effective_display(&table, None).is_none();
         table.set_in_display_none_subtree(parent_in_display_none_subtree || display_is_none);
@@ -1637,7 +1638,7 @@ impl RetainedState {
         else {
             release_table(table);
             counters.bump(Counter::EngineComputedRecordBailAssemble);
-            return None;
+            return Err(Unanswered::Refused);
         };
         let mut payloads = Vec::with_capacity(group_index::COUNT);
         for (group, &parent_payload) in parent_payloads.iter().enumerate().take(group_index::COUNT) {
@@ -1667,7 +1668,7 @@ impl RetainedState {
                 }
                 release_table(table);
                 counters.bump(Counter::EngineComputedRecordBailAssemble);
-                return None;
+                return Err(Unanswered::Refused);
             };
             payloads.push(payload);
         }
@@ -1715,7 +1716,7 @@ impl RetainedState {
         if !transferred.table {
             release_table(table);
         }
-        Some((publication.style_record_identity, swap_eligible))
+        Ok((publication.style_record_identity, swap_eligible))
     }
 
     /// A derivation that could not be completed: everything derived for `node` this flush goes
@@ -1837,19 +1838,19 @@ impl RetainedState {
         root_inputs.apply_to(inputs);
     }
 
-    fn element_drive_subject(&mut self, node: StyleNodeID, counters: &mut Counters) -> Option<DriveSubject> {
+    fn element_drive_subject(&mut self, node: StyleNodeID, counters: &mut Counters) -> Drive<DriveSubject> {
         let facts = self.computed_group_sets.adjustment_facts(node);
         let parent = self.tree.flat_tree_parent(node);
         // Only the document element is styled without a flat-tree parent.
         if parent.is_none() && facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT == 0 {
             counters.bump(Counter::EngineComputedRecordBailRecordParent);
-            return None;
+            return Err(Unanswered::Refused);
         }
         if self.parent_composes_animations(node) {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-            return None;
+            return Err(Unanswered::Refused);
         }
-        Some(DriveSubject { parent, facts })
+        Ok(DriveSubject { parent, facts })
     }
 
     /// Whether a node inherits values its parent's animations sample, which C++ composes over the
@@ -1927,7 +1928,7 @@ impl RetainedState {
         let mut substituted = false;
         let admitted = self
             .cascaded_store_for_state(node, cascade_state.1, None, environment, &mut substituted, counters)
-            .is_some();
+            .is_ok();
         scratch.remember(key, admitted);
         admitted
     }
@@ -2368,7 +2369,7 @@ impl RetainedState {
         environment: u64,
         substituted: &mut bool,
         counters: &mut Counters,
-    ) -> Option<WinnerStore> {
+    ) -> Drive<WinnerStore> {
         use crate::css::property_metadata::property_id as prop;
         crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreBuilds);
         // Seeded in cascade order, and within one rule in declaration order, since a logical
@@ -2381,7 +2382,7 @@ impl RetainedState {
             };
             if winner.key.animation_relevance != 0 {
                 counters.bump(Counter::EngineComputedRecordBailWinnerAnimated);
-                return None;
+                return Err(Unanswered::Refused);
             }
             // A pseudo-element's cascade keeps the properties its kind supports; its `content`
             // computes in the drive when the value needs no element or counter environment.
@@ -2391,7 +2392,7 @@ impl RetainedState {
                 }
                 if winner.property != prop::CONTENT && self.pseudo_winner_needs_cpp(&winner) {
                     counters.bump(Counter::EngineComputedRecordBailProperty);
-                    return None;
+                    return Err(Unanswered::Refused);
                 }
             }
             // A shorthand written with a substitution is declared beside the longhands it
@@ -2408,7 +2409,7 @@ impl RetainedState {
             };
             let Some((index, value, checks)) = written else {
                 counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
-                return None;
+                return Err(Unanswered::Refused);
             };
             // A longhand declared through a shorthand keeps the whole shorthand as its written
             // value; the store takes the longhand's own part of it.
@@ -2421,7 +2422,7 @@ impl RetainedState {
                 crate::css::style_value::StyleValueData::Shorthand { .. } => {
                     let Some(value) = shorthand_longhand_data(winner.property, value.data()) else {
                         counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
-                        return None;
+                        return Err(Unanswered::Refused);
                     };
                     (location, Some(value))
                 }
@@ -2450,7 +2451,7 @@ impl RetainedState {
                         self.shorthand_declaration_written_as(node, winner.source, original_shorthand_value.pointer())
                     else {
                         counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
-                        return None;
+                        return Err(Unanswered::Refused);
                     };
                     let resolved = Self::substitute_written_value(
                         &mut self.custom_property_environments,
@@ -2479,7 +2480,7 @@ impl RetainedState {
                 )
             {
                 counters.bump(Counter::EngineComputedRecordBailSubstitution);
-                return None;
+                return Err(Unanswered::Refused);
             }
             if !checks
                 .longhand_context_free
@@ -2489,7 +2490,7 @@ impl RetainedState {
                     && !content_value_is_engine_computable(data))
             {
                 counters.bump(Counter::EngineComputedRecordBailValue);
-                return None;
+                return Err(Unanswered::Refused);
             }
             if matches!(value, WinnerValue::Substituted(_)) {
                 crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreValueRetains);
@@ -2501,7 +2502,7 @@ impl RetainedState {
             ));
         }
         declarations.sort_by_key(|(priority, index, ..)| (*priority, *index));
-        Some(WinnerStore::new(
+        Ok(WinnerStore::new(
             declarations
                 .into_iter()
                 .map(|(_, _, declaration)| declaration)
