@@ -8,7 +8,7 @@ use core::cell::Cell;
 
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{Class, GcCell, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -73,8 +73,13 @@ fn as_array(object: &Object) -> &Array {
 
 impl Array {
     fn new(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) -> Self {
+        Self::new_with_class(vm, Self::CLASS, realm, prototype)
+    }
+
+    /// Array(Realm&, Object& prototype), for `class`, which is Array or a class that extends it.
+    pub fn new_with_class(vm: &Vm, class: &'static Class, realm: Gc<Realm>, prototype: Gc<Object>) -> Self {
         let array = Self {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
             realm: Cell::new(realm),
             length_writable: Cell::new(true),
             is_proxy_target: Cell::new(false),
@@ -96,7 +101,7 @@ impl Array {
         }
 
         // 2. If proto is not present, set proto to %Array.prototype%.
-        let prototype = prototype.unwrap_or_else(|| realm.array_prototype());
+        let prototype = prototype.unwrap_or_else(|| realm.intrinsics().array_prototype(vm));
 
         // 3. Let A be MakeBasicObject(« [[Prototype]], [[Extensible]] »).
         // 4. Set A.[[Prototype]] to proto.

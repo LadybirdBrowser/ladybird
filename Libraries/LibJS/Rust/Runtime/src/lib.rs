@@ -28,6 +28,7 @@ pub mod parser_error;
 pub mod runtime;
 pub mod script;
 pub mod source_code;
+pub mod source_range;
 pub mod utf16;
 pub mod utilities;
 

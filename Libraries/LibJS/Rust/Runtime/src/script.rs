@@ -92,8 +92,19 @@ impl Script {
 
     /// Compiles a script the caller parsed without errors from `source`.
     pub fn compile_parsed_program(vm: &Vm, parsed: ParsedProgram, source: &[u16], realm: Gc<Realm>) -> Gc<Script> {
+        Self::compile_parsed_program_with_filename(vm, parsed, source, realm, ak::Utf16String::default())
+    }
+
+    /// Compiles a script the caller parsed without errors from `source`, which came from `filename`.
+    pub fn compile_parsed_program_with_filename(
+        vm: &Vm,
+        parsed: ParsedProgram,
+        source: &[u16],
+        realm: Gc<Realm>,
+        filename: ak::Utf16String,
+    ) -> Gc<Script> {
         assert!(parsed.program_type() == ProgramType::Script && !parsed.has_errors());
-        let source_code = SourceCode::create(ak::Utf16String::default(), ak::Utf16String::from_utf16(source));
+        let source_code = SourceCode::create(filename, ak::Utf16String::from_utf16(source));
         Self::create(vm, realm, compile_script(parsed, source.len()), source_code)
     }
 

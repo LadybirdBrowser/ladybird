@@ -500,6 +500,44 @@ impl Deref for CapturingNativeFunction {
     }
 }
 
+/// Defines the class of a NativeFunction subclass that is a constructor, as the C++ classes of the built-in
+/// constructors override NativeFunction::call(), construct() and has_constructor(). The type keeps its NativeFunction in
+/// a field named `base` and derefs to it.
+macro_rules! define_native_function_class {
+    ($type:ident, initialize: $initialize:expr, call: $call:expr, construct: $construct:expr) => {
+        const _: () = {
+            static VIRTUAL_METHODS: $crate::runtime::native_function::NativeFunctionMethods =
+                $crate::runtime::native_function::NativeFunctionMethods {
+                    call: $call,
+                    construct: $construct,
+                    ..$crate::runtime::native_function::NATIVE_FUNCTION_VIRTUAL_METHODS
+                };
+            static METHODS: $crate::runtime::object::ObjectMethods = $crate::runtime::object::ObjectMethods {
+                initialize: $initialize,
+                has_constructor: |_| true,
+                native_function: Some(&VIRTUAL_METHODS),
+                ..$crate::runtime::native_function::NATIVE_FUNCTION_METHODS
+            };
+            define_cell!(
+                $type,
+                Object,
+                extends: [NativeFunction, FunctionObject, Object],
+                methods: METHODS
+            );
+        };
+
+        impl core::ops::Deref for $type {
+            type Target = $crate::runtime::native_function::NativeFunction;
+
+            fn deref(&self) -> &$crate::runtime::native_function::NativeFunction {
+                &self.base
+            }
+        }
+    };
+}
+
+pub(crate) use define_native_function_class;
+
 impl RawNativeFunctionResult {
     pub fn from_completion(completion: ThrowCompletionOr<Value>) -> Self {
         match completion {
@@ -544,10 +582,6 @@ pub fn call_raw_native_function(function: RawNativeFunctionPointer, vm: &Vm) -> 
 
 /// Turns a `fn(&Vm) -> ThrowCompletionOr<Value>` into the RawNativeFunctionPointer the interpreter calls a raw native
 /// function through, with the calling convention of the C++ runtime's NativeFunctionPointer on the target.
-#[allow(
-    unused_macros,
-    reason = "the builtins that define raw native functions come with later units"
-)]
 macro_rules! raw_native {
     ($function:expr) => {{
         #[cfg(not(any(all(target_arch = "x86_64", target_vendor = "apple"), target_os = "windows")))]
@@ -585,10 +619,6 @@ macro_rules! raw_native {
     }};
 }
 
-#[allow(
-    unused_imports,
-    reason = "the builtins that define raw native functions come with later units"
-)]
 pub(crate) use raw_native;
 
 pub static RAW_NATIVE_FUNCTION_VIRTUAL_METHODS: NativeFunctionMethods = NativeFunctionMethods {

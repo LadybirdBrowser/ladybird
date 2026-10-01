@@ -10,13 +10,17 @@ use core::ffi::{c_char, c_int};
 use std::ffi::CStr;
 use std::io::{IsTerminal, Write};
 
+use ak::Utf16String;
+
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::parser_error::ParserError;
+use crate::runtime::error::Error;
+use crate::runtime::error_data::CompactTraceback;
 use crate::runtime::print::{PrintContext, print_value};
 use crate::script::Script;
-use crate::utf16::utf16_from_wtf8;
-use crate::utilities::initialize_realm_without_intrinsics;
+use crate::utf16::{Utf16View, utf16_from_wtf8};
+use crate::utilities::initialize_realm;
 use libjs_rust::ast::ProgramType;
 use libjs_rust::compile::parse;
 
@@ -109,11 +113,14 @@ fn run(options: &Options, output: &mut impl Write) -> c_int {
         unimplemented_runtime_function("running modules", 0);
     }
     let vm = Vm::create();
+    let root_execution_context = initialize_realm(&vm);
+    let realm = root_execution_context.realm();
     if options.gc_on_every_allocation {
         vm.heap().set_should_collect_on_every_allocation(true);
     }
-    let realm = initialize_realm_without_intrinsics(&vm);
-    let script = Script::compile_parsed_program(&vm, parsed, &source, realm);
+    let source_name = options.script_paths.first().map_or("eval", String::as_str);
+    let script =
+        Script::compile_parsed_program_with_filename(&vm, parsed, &source, realm, Utf16String::from_utf8(source_name));
 
     let print_context = PrintContext {
         strip_ansi: options.disable_ansi_colors,
@@ -133,6 +140,14 @@ fn run(options: &Options, output: &mut impl Write) -> c_int {
             let mut text = String::new();
             print_value(&mut text, &print_context, exception.value());
             eprintln!("Uncaught exception: \n{text}");
+            if exception.value().is_object()
+                && let Some(error) = exception.value().as_object().downcast::<Error>()
+            {
+                eprintln!(
+                    "{}",
+                    Utf16View::of_string(&error.stack_string(CompactTraceback::Yes)).to_utf8()
+                );
+            }
             1
         }
     }

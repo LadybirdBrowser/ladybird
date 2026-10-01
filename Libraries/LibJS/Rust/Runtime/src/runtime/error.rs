@@ -5,11 +5,23 @@
  */
 
 use core::fmt;
+use core::ops::Deref;
 
-use super::completion::ThrowCompletionOr;
+use ak::Utf16String;
+use libjs_runtime_macros::Trace;
+
+use super::completion::{Throw, ThrowCompletionOr};
 use super::error_types::ErrorType;
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
+use crate::gc::class::{Class, GcCell, define_cell};
 use crate::interpreter::vm::Vm;
+use crate::layout::cell::Gc;
+use crate::layout::object::Object;
+use crate::layout::value::Value;
+use crate::runtime::error_data::{CompactTraceback, ErrorData};
+use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
+use crate::runtime::primitive_string::PrimitiveString;
+use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
+use crate::runtime::realm::Realm;
 
 /// The constructors of the errors the runtime throws: %Error% and the NativeError constructors, as the C++ Error
 /// subclasses.
@@ -23,6 +35,23 @@ pub enum ErrorKind {
     SyntaxError,
     TypeError,
     URIError,
+}
+
+impl ErrorKind {
+    /// T::create(realm, message) for the error class T this kind names: a new error of this kind in `realm`, whose
+    /// "message" is `message`.
+    pub fn create(self, vm: &Vm, realm: Gc<Realm>, message: Utf16String) -> Gc<Error> {
+        match self {
+            Self::Error => Error::create_with_message(vm, realm, message),
+            Self::EvalError => EvalError::create_with_message(vm, realm, message).upcast(),
+            Self::InternalError => InternalError::create_with_message(vm, realm, message).upcast(),
+            Self::RangeError => RangeError::create_with_message(vm, realm, message).upcast(),
+            Self::ReferenceError => ReferenceError::create_with_message(vm, realm, message).upcast(),
+            Self::SyntaxError => SyntaxError::create_with_message(vm, realm, message).upcast(),
+            Self::TypeError => TypeError::create_with_message(vm, realm, message).upcast(),
+            Self::URIError => URIError::create_with_message(vm, realm, message).upcast(),
+        }
+    }
 }
 
 impl Vm {
@@ -40,6 +69,149 @@ impl Vm {
     /// Throws a new error of `kind` with `message`.
     #[cold]
     pub fn throw_completion_with_message<T>(&self, kind: ErrorKind, message: String) -> ThrowCompletionOr<T> {
-        unimplemented_runtime_function(&format!("creating a {kind:?} with the message \"{message}\""), 0)
+        let realm = if kind == ErrorKind::TypeError {
+            self.type_error_realm()
+        } else {
+            self.current_realm()
+        };
+        let realm = realm.expect("an error is thrown in an execution context with a realm");
+        let completion = kind.create(self, realm, Utf16String::from_utf8(&message));
+        Err(Throw::new(Value::from_object(completion)))
     }
+}
+
+/// The Error objects, which have an [[ErrorData]] internal slot. The NativeError objects extend it.
+#[repr(C)]
+#[derive(Trace)]
+pub struct Error {
+    base: Object,
+    error_data: ErrorData,
+}
+
+define_cell!(Error, Object, extends: [Object]);
+
+impl Deref for Error {
+    type Target = Object;
+
+    fn deref(&self) -> &Object {
+        &self.base
+    }
+}
+
+impl Object {
+    /// Whether the object has an [[ErrorData]] internal slot.
+    pub fn has_error_data(&self) -> bool {
+        self.error_data().is_some()
+    }
+
+    pub fn error_data(&self) -> Option<&ErrorData> {
+        if !self.is::<Error>() {
+            return None;
+        }
+        // SAFETY: The object is an Error, which starts with its Object.
+        let error = unsafe { &*core::ptr::from_ref(self).cast::<Error>() };
+        Some(&error.error_data)
+    }
+}
+
+impl Error {
+    /// Error(Object& prototype), for `class`, which is Error or a class that extends it.
+    pub fn new(vm: &Vm, class: &'static Class, prototype: Gc<Object>) -> Error {
+        Error {
+            base: Object::new_with_prototype(vm, class, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            error_data: ErrorData::new(vm),
+        }
+    }
+
+    pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<Error> {
+        realm.create_object(vm, Error::new(vm, Error::CLASS, realm.intrinsics().error_prototype(vm)))
+    }
+
+    pub fn create_with_message(vm: &Vm, realm: Gc<Realm>, message: Utf16String) -> Gc<Error> {
+        let error = Error::create(vm, realm);
+        error.set_message(vm, message);
+        error
+    }
+
+    pub fn stack_string(&self, compact: CompactTraceback) -> Utf16String {
+        self.error_data.stack_string(compact)
+    }
+
+    // 20.5.8.1 InstallErrorCause ( O, options ), https://tc39.es/ecma262/#sec-installerrorcause
+    pub fn install_error_cause(&self, vm: &Vm, options: Value) -> ThrowCompletionOr<()> {
+        // 1. If Type(options) is Object and ? HasProperty(options, "cause") is true, then
+        if options.is_object() && options.as_object().has_property(vm, &vm.names.cause)? {
+            // a. Let cause be ? Get(options, "cause").
+            let cause = options.as_object().get(vm, &vm.names.cause)?;
+
+            // b. Perform CreateNonEnumerableDataPropertyOrThrow(O, "cause", cause).
+            self.create_non_enumerable_data_property_or_throw(vm, &vm.names.cause, cause);
+        }
+
+        // 2. Return unused.
+        Ok(())
+    }
+
+    pub fn set_message(&self, vm: &Vm, message: Utf16String) {
+        let attributes = PropertyAttributes::new(Attribute::WRITABLE | Attribute::CONFIGURABLE);
+        self.define_direct_property(
+            vm,
+            &vm.names.message,
+            Value::from_string(PrimitiveString::create(vm, message)),
+            attributes,
+        );
+    }
+}
+
+// NOTE: Making these inherit from Error is not required by the spec but
+//       our way of implementing the [[ErrorData]] internal slot, which is
+//       used in Object.prototype.toString().
+macro_rules! define_native_errors {
+    ($($class:ident: $prototype:ident;)*) => {
+        $(
+            #[repr(C)]
+            #[derive(Trace)]
+            pub struct $class {
+                base: Error,
+            }
+
+            define_cell!($class, Object, extends: [Error, Object]);
+
+            impl Deref for $class {
+                type Target = Error;
+
+                fn deref(&self) -> &Error {
+                    &self.base
+                }
+            }
+
+            impl $class {
+                pub fn new(vm: &Vm, prototype: Gc<Object>) -> $class {
+                    $class {
+                        base: Error::new(vm, Self::CLASS, prototype),
+                    }
+                }
+
+                pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<$class> {
+                    realm.create_object(vm, $class::new(vm, realm.intrinsics().$prototype(vm)))
+                }
+
+                pub fn create_with_message(vm: &Vm, realm: Gc<Realm>, message: Utf16String) -> Gc<$class> {
+                    let error = $class::create(vm, realm);
+                    error.set_message(vm, message);
+                    error
+                }
+            }
+        )*
+    };
+}
+
+define_native_errors! {
+    EvalError: eval_error_prototype;
+    InternalError: internal_error_prototype;
+    RangeError: range_error_prototype;
+    ReferenceError: reference_error_prototype;
+    SyntaxError: syntax_error_prototype;
+    TypeError: type_error_prototype;
+    URIError: uri_error_prototype;
 }

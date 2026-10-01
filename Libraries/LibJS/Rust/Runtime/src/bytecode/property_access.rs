@@ -236,19 +236,19 @@ pub fn base_object_for_get_impl(vm: &Vm, base_value: Value) -> Option<Gc<Object>
         .current_realm()
         .expect("there is a current realm to find the prototype of a primitive in");
     if base_value.is_string() {
-        return Some(realm.string_prototype());
+        return Some(realm.string_prototype(vm));
     }
     if base_value.is_number() {
-        return Some(realm.number_prototype());
+        return Some(realm.number_prototype(vm));
     }
     if base_value.is_boolean() {
-        return Some(realm.boolean_prototype());
+        return Some(realm.boolean_prototype(vm));
     }
     if base_value.is_bigint() {
-        return Some(realm.bigint_prototype());
+        return Some(realm.bigint_prototype(vm));
     }
     if base_value.is_symbol() {
-        return Some(realm.symbol_prototype());
+        return Some(realm.symbol_prototype(vm));
     }
 
     None

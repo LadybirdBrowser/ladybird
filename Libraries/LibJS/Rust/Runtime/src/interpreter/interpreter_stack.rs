@@ -9,10 +9,9 @@ use std::alloc::{Layout, alloc, dealloc};
 use core::cell::Cell;
 use core::ptr::NonNull;
 
-use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
+use crate::layout::execution_context::ExecutionContext;
 use crate::layout::value::Value;
 use crate::layout::vm::InterpreterStack;
-use libjs_abi::register::RESERVED_REGISTER_COUNT;
 
 /// The memory execution contexts are bump-allocated from, by the runtime and by the interpreter itself.
 pub struct InterpreterStackMemory {
@@ -80,41 +79,15 @@ impl InterpreterStack {
         let context = top.cast::<ExecutionContext>();
         // SAFETY: The frame fits between top and limit, and nothing else uses that memory.
         unsafe {
-            context.write(ExecutionContext {
-                function: Cell::new(None),
-                realm: Cell::new(None),
-                script_or_module: Cell::new(ScriptOrModule::Empty),
-                lexical_environment: Cell::new(None),
-                variable_environment: Cell::new(None),
-                private_environment: Cell::new(None),
-                frame_id: Cell::new(frame_id),
-                program_counter: Cell::new(0),
-                skip_when_determining_incumbent_counter: Cell::new(0),
-                yield_continuation: Cell::new(ExecutionContext::NO_YIELD_CONTINUATION),
-                yield_is_await: Cell::new(false),
-                yield_value_is_iterator_result: Cell::new(false),
-                caller_is_construct: Cell::new(false),
-                frame_initialized: Cell::new(false),
-                this_value: Cell::new(Value::EMPTY),
-                executable: Cell::new(None),
-                caller_frame: Cell::new(core::ptr::null_mut()),
-                passed_argument_count: Cell::new(0),
-                caller_return_pc: Cell::new(0),
-                caller_dst_raw: Cell::new(0),
-                registers_and_constants_and_locals_and_arguments_count: Cell::new(slot_count),
-                argument_count: Cell::new(argument_count),
-            });
+            ExecutionContext::initialize_at(
+                context,
+                registers_and_locals_count,
+                slot_count,
+                argument_count,
+                frame_id,
+            );
             self.top.set(top.add(size));
-            let context = NonNull::new_unchecked(context);
-            for slot in context
-                .as_ref()
-                .slots()
-                .iter()
-                .take(registers_and_locals_count.min(RESERVED_REGISTER_COUNT) as usize)
-            {
-                slot.set(Value::EMPTY);
-            }
-            Some(context)
+            Some(NonNull::new_unchecked(context))
         }
     }
 

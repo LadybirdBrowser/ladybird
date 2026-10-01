@@ -41,11 +41,13 @@ use crate::runtime::environment_coordinate::EnvironmentCoordinate;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
+use crate::runtime::object::IntrinsicAccessor;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::{BaseType, Reference};
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::symbol::{self, Symbol, enumerate_well_known_symbols};
+use crate::source_range::SourceRange;
 
 /// HostEnsureCanAddPrivateElement, which hosts that are web browsers may override.
 pub type HostEnsureCanAddPrivateElement = fn(&Vm, &Object) -> ThrowCompletionOr<()>;
@@ -156,6 +158,14 @@ pub struct Vm {
     /// The id the next PrivateEnvironment gives its names, the C++ static PrivateEnvironment::s_next_id. It starts
     /// at one such that 0 can be invalid / default initialized.
     next_private_environment_id: Cell<u64>,
+    /// The properties defined with Object::define_intrinsic_accessor that have not been read yet, by the address of
+    /// their object, the C++ static intrinsic_accessor_map(). The objects are weak: the sweep callback forgets the
+    /// ones that die.
+    intrinsic_accessors: RefCell<HashMap<usize, HashMap<Utf16FlyString, IntrinsicAccessor>>>,
+    /// The realm TypeErrors are created in while a TypeErrorRealmScope is active, at the execution context stack
+    /// depth it was created at.
+    type_error_realm_override: Cell<Option<Gc<Realm>>>,
+    type_error_realm_override_depth: Cell<usize>,
 }
 
 const _: () = assert!(core::mem::offset_of!(Vm, head) == 0);
@@ -206,6 +216,9 @@ impl Vm {
             keyed_property_lookup_cache: KeyedPropertyLookupCache::new(),
             host_ensure_can_add_private_element: Cell::new(default_host_ensure_can_add_private_element),
             next_private_environment_id: Cell::new(1),
+            intrinsic_accessors: RefCell::new(HashMap::new()),
+            type_error_realm_override: Cell::new(None),
+            type_error_realm_override_depth: Cell::new(0),
         });
         let context = core::ptr::from_ref::<Vm>(&vm).cast_mut().cast();
         // SAFETY: The VM is boxed, so its address is stable, and it destroys the heap before anything else.
@@ -345,6 +358,62 @@ impl Vm {
         self.large_numeric_string_cache.trace(visitor);
         self.cached_strings.trace(visitor);
         self.well_known_symbols.trace(visitor);
+        self.type_error_realm_override.trace(visitor);
+    }
+
+    /// Forgets the intrinsic accessors of objects that died in this collection, as JS::Object::~Object does.
+    fn remove_dead_objects_from_intrinsic_accessors(&self) {
+        self.intrinsic_accessors.borrow_mut().retain(|&object, _| {
+            // SAFETY: The map only holds objects that were live when their accessors were defined, and a dead object
+            //         is intact until the sweep that follows this callback.
+            let object = unsafe { Gc::from_non_null(NonNull::new_unchecked(object as *mut Object)) };
+            !cell_is_dead(object)
+        });
+    }
+
+    pub fn intrinsic_accessors(&self) -> &RefCell<HashMap<usize, HashMap<Utf16FlyString, IntrinsicAccessor>>> {
+        &self.intrinsic_accessors
+    }
+
+    /// The realm vm.throw_completion() creates a TypeError in.
+    pub(crate) fn type_error_realm(&self) -> Option<Gc<Realm>> {
+        if let Some(realm) = self.type_error_realm_override.get()
+            && self.execution_context_stack.borrow().len() == self.type_error_realm_override_depth.get()
+        {
+            return Some(realm);
+        }
+        self.current_realm()
+    }
+
+    /// Has TypeErrors thrown at the current execution context stack depth created in `realm` until the scope ends.
+    /// The override only applies at the depth the scope was created at, so callees pushed while it is alive are
+    /// unaffected.
+    pub fn type_error_realm_scope(&self, realm: Gc<Realm>) -> TypeErrorRealmScope<'_> {
+        let scope = TypeErrorRealmScope {
+            vm: self,
+            previous_realm: self.type_error_realm_override.get(),
+            previous_depth: self.type_error_realm_override_depth.get(),
+        };
+        self.type_error_realm_override.set(Some(realm));
+        self.type_error_realm_override_depth
+            .set(self.execution_context_stack.borrow().len());
+        scope
+    }
+
+    /// The frames of every execution context, from the running one down, with where each is in its executable.
+    pub fn stack_trace(&self) -> Vec<StackTraceElement> {
+        let mut stack_trace = Vec::new();
+        self.for_each_execution_context_top_to_bottom(|context| {
+            let source_range = context
+                .executable
+                .get()
+                .map(|executable| Executable::from_head(executable).get_source_range(context.program_counter.get()));
+            stack_trace.push(StackTraceElement {
+                execution_context: NonNull::from(context),
+                source_range,
+            });
+        });
+        stack_trace
     }
 
     /// Drops the weak cache entries of strings that died in this collection, as JS::PrimitiveString::finalize does.
@@ -687,4 +756,25 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     let vm = unsafe { &*context.cast::<Vm>() };
     vm.remove_dead_strings_from_weak_caches();
     vm.remove_dead_cells_from_property_lookup_caches();
+    vm.remove_dead_objects_from_intrinsic_accessors();
+}
+
+/// VM::TypeErrorRealmScope.
+pub struct TypeErrorRealmScope<'vm> {
+    vm: &'vm Vm,
+    previous_realm: Option<Gc<Realm>>,
+    previous_depth: usize,
+}
+
+impl Drop for TypeErrorRealmScope<'_> {
+    fn drop(&mut self) {
+        self.vm.type_error_realm_override.set(self.previous_realm);
+        self.vm.type_error_realm_override_depth.set(self.previous_depth);
+    }
+}
+
+/// An element of VM::stack_trace(): an execution context and where it is in its executable, if it runs one.
+pub struct StackTraceElement {
+    pub execution_context: NonNull<ExecutionContext>,
+    pub source_range: Option<SourceRange>,
 }

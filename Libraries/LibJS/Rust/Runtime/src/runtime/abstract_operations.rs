@@ -33,6 +33,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::indexed_properties::ValueAndAttributes;
+use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, StackFrameInfo, allocate_object};
 use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment};
 use crate::runtime::private_environment::PrivateEnvironment;
@@ -494,7 +495,7 @@ pub fn validate_and_apply_property_descriptor(
 }
 
 /// A realm's intrinsic object, the C++ pointer to an Intrinsics member function.
-pub type IntrinsicDefaultPrototype = fn(&Realm) -> Gc<Object>;
+pub type IntrinsicDefaultPrototype = fn(&Intrinsics, &Vm) -> Gc<Object>;
 
 // 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
 /// The form of OrdinaryCreateFromConstructor that creates an ordinary object.
@@ -532,7 +533,7 @@ pub fn get_prototype_from_constructor(
         let realm = get_function_realm(vm, constructor)?;
 
         // b. Set proto to realm's intrinsic object named intrinsicDefaultProto.
-        prototype = Value::from_object(intrinsic_default_prototype(&realm));
+        prototype = Value::from_object(intrinsic_default_prototype(&realm.intrinsics(), vm));
     }
 
     // 4. Return proto.
