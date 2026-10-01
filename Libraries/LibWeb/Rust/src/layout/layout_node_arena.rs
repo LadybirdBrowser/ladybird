@@ -654,6 +654,10 @@ pub(crate) struct LayoutNodeArena {
     counters_sets: RefCell<super::counters::CountersSets>,
     /// What the tree build recorded about the generated content of each pseudo-element it built.
     generated_content: RefCell<super::generated_content::GeneratedContent>,
+    /// The parsed SVG attributes each SVG element published, keyed by its style node: an
+    /// element that draws nothing itself has no row, and a mask, clip or pattern has one row per
+    /// element that references it.
+    svg_attribute_facts: HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>,
     owner_thread: thread::ThreadId,
 }
 
@@ -741,6 +745,7 @@ impl LayoutNodeArena {
             counter_styles: RefCell::default(),
             counters_sets: RefCell::default(),
             generated_content: RefCell::default(),
+            svg_attribute_facts: HashMap::default(),
             owner_thread: thread::current().id(),
         }
     }
@@ -1570,6 +1575,37 @@ impl LayoutNodeArena {
 
     pub(crate) fn generated_content(&self) -> &RefCell<super::generated_content::GeneratedContent> {
         &self.generated_content
+    }
+
+    pub(crate) fn svg_attribute_facts(&self, id: NodeSlotId) -> super::svg_formatting_context::FfiSvgAttributeFacts {
+        match self.node_style_node(id) {
+            Some(style_node) => self.style_node_svg_attribute_facts(style_node),
+            None => Default::default(),
+        }
+    }
+
+    /// The parsed SVG attributes an element published, named by its style node. An element
+    /// the document never published for, anything that is not an SVG element, answers with the
+    /// default facts.
+    pub(crate) fn style_node_svg_attribute_facts(
+        &self,
+        style_node: StyleNodeID,
+    ) -> super::svg_formatting_context::FfiSvgAttributeFacts {
+        self.svg_attribute_facts.get(&style_node).copied().unwrap_or_default()
+    }
+
+    pub(crate) fn set_style_node_svg_attribute_facts(
+        &mut self,
+        style_node: StyleNodeID,
+        facts: super::svg_formatting_context::FfiSvgAttributeFacts,
+    ) {
+        self.assert_owner_thread();
+        self.svg_attribute_facts.insert(style_node, facts);
+    }
+
+    pub(crate) fn clear_style_node_svg_attribute_facts(&mut self, style_node: StyleNodeID) {
+        self.assert_owner_thread();
+        self.svg_attribute_facts.remove(&style_node);
     }
 
     pub(crate) fn with_counter_style_registry<T>(

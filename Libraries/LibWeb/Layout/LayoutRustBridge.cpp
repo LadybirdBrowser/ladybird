@@ -86,17 +86,16 @@ static RustFFI::FfiSvgViewBox to_ffi_svg_view_box(SVG::ViewBox const& view_box)
     };
 }
 
-static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& node)
+// The SVG attributes an element parses, as the layout stage reads them.
+static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element const& dom_node)
 {
-    auto const* dom_node = node.dom_node();
-    if (!dom_node)
+    auto const* svg_element = as_if<SVG::SVGElement>(dom_node);
+    if (!svg_element)
         return {};
-
-    auto const* svg_element = as_if<SVG::SVGElement>(*dom_node);
-    auto const* fit_to_view_box = svg_element ? svg_element->fit_to_view_box() : nullptr;
+    auto const* fit_to_view_box = svg_element->fit_to_view_box();
 
     Optional<SVG::ViewBox> active_view_box;
-    if (auto const* svg_graphics_element = as_if<SVG::SVGGraphicsElement>(*dom_node))
+    if (auto const* svg_graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node))
         active_view_box = svg_graphics_element->active_view_box();
     else if (fit_to_view_box)
         active_view_box = fit_to_view_box->view_box();
@@ -104,8 +103,74 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
     SVG::PreserveAspectRatio preserve_aspect_ratio {};
     if (fit_to_view_box)
         preserve_aspect_ratio = fit_to_view_box->preserve_aspect_ratio().value_or(SVG::PreserveAspectRatio {});
-    else if (is<SVG::SVGMaskElement>(*dom_node) || is<SVG::SVGClipPathElement>(*dom_node))
+    else if (is<SVG::SVGMaskElement>(dom_node) || is<SVG::SVGClipPathElement>(dom_node))
         preserve_aspect_ratio = { SVG::PreserveAspectRatio::Align::None, {} };
+
+    SVG::SVGUnits content_units {};
+    SVG::SVGUnits pattern_units {};
+    SVG::SVGUnits mask_units {};
+    SVG::NumberPercentage mask_x = SVG::NumberPercentage::create_number(0);
+    SVG::NumberPercentage mask_y = SVG::NumberPercentage::create_number(0);
+    SVG::NumberPercentage mask_width = SVG::NumberPercentage::create_number(0);
+    SVG::NumberPercentage mask_height = SVG::NumberPercentage::create_number(0);
+    SVG::NumberPercentage pattern_width = SVG::NumberPercentage::create_number(0);
+    SVG::NumberPercentage pattern_height = SVG::NumberPercentage::create_number(0);
+    if (auto const* mask_element = as_if<SVG::SVGMaskElement>(dom_node)) {
+        content_units = mask_element->mask_content_units();
+        mask_units = mask_element->mask_units();
+        mask_x = mask_element->mask_x();
+        mask_y = mask_element->mask_y();
+        mask_width = mask_element->mask_width();
+        mask_height = mask_element->mask_height();
+    } else if (auto const* clip_path_element = as_if<SVG::SVGClipPathElement>(dom_node))
+        content_units = clip_path_element->clip_path_units();
+    else if (auto const* pattern_element = as_if<SVG::SVGPatternElement>(dom_node)) {
+        content_units = pattern_element->pattern_content_units();
+        pattern_units = pattern_element->pattern_units();
+        pattern_width = pattern_element->pattern_width();
+        pattern_height = pattern_element->pattern_height();
+    }
+
+    return {
+        .is_fit_to_view_box = fit_to_view_box != nullptr,
+        .has_active_view_box = active_view_box.has_value(),
+        .active_view_box = active_view_box.has_value() ? to_ffi_svg_view_box(*active_view_box) : RustFFI::FfiSvgViewBox {},
+        .preserve_aspect_ratio_align = static_cast<u8>(to_underlying(preserve_aspect_ratio.align)),
+        .preserve_aspect_ratio_meet_or_slice = static_cast<u8>(to_underlying(preserve_aspect_ratio.meet_or_slice)),
+        .content_units = static_cast<u8>(to_underlying(content_units)),
+        .pattern_units = static_cast<u8>(to_underlying(pattern_units)),
+        .pattern_width = to_ffi_number_percentage(pattern_width),
+        .pattern_height = to_ffi_number_percentage(pattern_height),
+        .mask_units = static_cast<u8>(to_underlying(mask_units)),
+        .mask_x = to_ffi_number_percentage(mask_x),
+        .mask_y = to_ffi_number_percentage(mask_y),
+        .mask_width = to_ffi_number_percentage(mask_width),
+        .mask_height = to_ffi_number_percentage(mask_height),
+    };
+}
+
+// The publication is keyed by the element's style node rather than by a row, because an element that draws nothing
+// itself has no row at all, while a mask, a clip or a pattern has one row per referencing element.
+void publish_svg_attribute_facts(DOM::Element& element)
+{
+    VERIFY(element.style_node_id() != 0);
+    RustFFI::layout_arena_set_style_node_svg_attribute_facts(
+        element.document().layout_node_arena().handle(),
+        element.style_node_id().value(),
+        build_svg_attribute_facts(element));
+}
+
+void clear_svg_attribute_facts(DOM::Document& document, CSS::StyleNodeID style_node)
+{
+    if (auto* arena = document.layout_node_arena_if_created())
+        RustFFI::layout_arena_clear_style_node_svg_attribute_facts(arena->handle(), style_node.value());
+}
+
+static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& node)
+{
+    auto const* dom_node = node.dom_node();
+    if (!dom_node)
+        return {};
 
     Gfx::AffineTransform element_transform;
     Gfx::AffineTransform additional_element_transform;
@@ -118,54 +183,13 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
         viewport_percentage_basis = graphics_element->viewport_percentage_basis();
     }
 
-    SVG::SVGUnits content_units {};
-    SVG::SVGUnits pattern_units {};
-    SVG::SVGUnits mask_units {};
-    SVG::NumberPercentage mask_x = SVG::NumberPercentage::create_number(0);
-    SVG::NumberPercentage mask_y = SVG::NumberPercentage::create_number(0);
-    SVG::NumberPercentage mask_width = SVG::NumberPercentage::create_number(0);
-    SVG::NumberPercentage mask_height = SVG::NumberPercentage::create_number(0);
-    SVG::NumberPercentage pattern_width = SVG::NumberPercentage::create_number(0);
-    SVG::NumberPercentage pattern_height = SVG::NumberPercentage::create_number(0);
-    if (node.is_svg_mask_box()) {
-        auto const& mask_element = as<SVG::SVGMaskElement>(*node.dom_node());
-        content_units = mask_element.mask_content_units();
-        mask_units = mask_element.mask_units();
-        mask_x = mask_element.mask_x();
-        mask_y = mask_element.mask_y();
-        mask_width = mask_element.mask_width();
-        mask_height = mask_element.mask_height();
-    } else if (node.is_svg_clip_box())
-        content_units = as<SVG::SVGClipPathElement>(*node.dom_node()).clip_path_units();
-    else if (node.is_svg_pattern_box()) {
-        auto const& pattern_element = as<SVG::SVGPatternElement>(*node.dom_node());
-        content_units = pattern_element.pattern_content_units();
-        pattern_units = pattern_element.pattern_units();
-        pattern_width = pattern_element.pattern_width();
-        pattern_height = pattern_element.pattern_height();
-    }
-
     return {
         .is_document_element = node.document().document_element() == dom_node,
         .document_is_decoded_svg = node.document().is_decoded_svg(),
-        .is_fit_to_view_box = fit_to_view_box != nullptr,
-        .has_active_view_box = active_view_box.has_value(),
-        .active_view_box = active_view_box.has_value() ? to_ffi_svg_view_box(*active_view_box) : RustFFI::FfiSvgViewBox {},
-        .preserve_aspect_ratio_align = static_cast<u8>(to_underlying(preserve_aspect_ratio.align)),
-        .preserve_aspect_ratio_meet_or_slice = static_cast<u8>(to_underlying(preserve_aspect_ratio.meet_or_slice)),
         .element_transform = to_ffi_affine_transform(element_transform),
         .additional_element_transform = to_ffi_affine_transform(additional_element_transform),
         .visible_stroke_width = visible_stroke_width,
         .viewport_percentage_basis = viewport_percentage_basis,
-        .content_units = static_cast<u8>(to_underlying(content_units)),
-        .pattern_units = static_cast<u8>(to_underlying(pattern_units)),
-        .pattern_width = to_ffi_number_percentage(pattern_width),
-        .pattern_height = to_ffi_number_percentage(pattern_height),
-        .mask_units = static_cast<u8>(to_underlying(mask_units)),
-        .mask_x = to_ffi_number_percentage(mask_x),
-        .mask_y = to_ffi_number_percentage(mask_y),
-        .mask_width = to_ffi_number_percentage(mask_width),
-        .mask_height = to_ffi_number_percentage(mask_height),
     };
 }
 

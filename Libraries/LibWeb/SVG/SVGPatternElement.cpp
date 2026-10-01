@@ -61,12 +61,65 @@ void SVGPatternElement::attribute_changed(Utf16FlyString const& name, Optional<U
     } else if (name == AttributeNames::height) {
         m_height = parse_number_percentage(value.value_or({}));
     }
+
+    // A pattern that names this one inherits the attributes it does not carry, so a change here is a change to every
+    // pattern whose chain passes through this one.
+    if (auto id = this->id(); id.has_value() && m_list_node.is_in_list())
+        document().republish_svg_patterns_inheriting_from(*id);
 }
 
-GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
+void SVGPatternElement::inserted()
+{
+    Base::inserted();
+    update_document_pattern_list_membership();
+}
+
+void SVGPatternElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
+{
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
+    update_document_pattern_list_membership();
+}
+
+void SVGPatternElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
+{
+    Base::moved_from(is_subtree_root, old_ancestor);
+    update_document_pattern_list_membership();
+}
+
+void SVGPatternElement::finalize()
+{
+    Base::finalize();
+
+    // A collected pattern may never run its removal steps, so unlink it here rather than leave the document's list
+    // holding a destroyed node. Nothing is republished: this runs during a collection, which may already have finalized
+    // the other patterns and the document.
+    if (m_list_node.is_in_list())
+        m_list_node.remove();
+}
+
+// Every connected pattern takes part, shadow trees included: a pattern's `href` resolves in the document scope, so a
+// pattern inside a <use> shadow tree can still inherit from a template in the document.
+void SVGPatternElement::update_document_pattern_list_membership()
+{
+    if (is_connected() == m_list_node.is_in_list())
+        return;
+    if (is_connected())
+        document().register_svg_pattern_element({}, *this);
+    else
+        document().unregister_svg_pattern_element({}, *this);
+}
+
+Optional<Utf16String> SVGPatternElement::href_attribute_value() const
+{
+    if (has_attribute(AttributeNames::href))
+        return get_attribute(AttributeNames::href);
+    return get_attribute(AttributeNames::xlink_href);
+}
+
+Optional<Utf16String> SVGPatternElement::linked_id() const
 {
     // FIXME: This can only resolve same-document references. The spec allows cross-document references.
-    auto link = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute(AttributeNames::xlink_href);
+    auto link = href_attribute_value();
     if (!link.has_value() || link->is_empty())
         return {};
 
@@ -78,7 +131,16 @@ GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(GC::RootHashT
     if (!id.has_value() || id->is_empty())
         return {};
 
-    auto element = document().get_element_by_id(decode_fragment_identifier(id.value()));
+    return decode_fragment_identifier(id.value());
+}
+
+GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(GC::RootHashTable<SVGPatternElement const*>& seen_patterns) const
+{
+    auto id = linked_id();
+    if (!id.has_value())
+        return {};
+
+    auto element = document().get_element_by_id(*id);
     if (!element)
         return {};
 

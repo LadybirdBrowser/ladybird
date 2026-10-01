@@ -67,15 +67,24 @@ pub struct FfiSvgNumberPercentage {
 pub struct FfiSvgElementFacts {
     pub is_document_element: bool,
     pub document_is_decoded_svg: bool,
+    pub element_transform: FfiAffineTransform,
+    pub additional_element_transform: FfiAffineTransform,
+    pub visible_stroke_width: f32,
+    pub viewport_percentage_basis: CssPixels,
+}
+
+/// The SVG attributes one element parses, as the document last published them under
+/// its style node. They are element data, not layout output: the document writes them when the
+/// style tree names the element and whenever an attribute changes, so a running pass reads the
+/// published copy instead of asking.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct FfiSvgAttributeFacts {
     pub is_fit_to_view_box: bool,
     pub has_active_view_box: bool,
     pub active_view_box: FfiSvgViewBox,
     pub preserve_aspect_ratio_align: u8,
     pub preserve_aspect_ratio_meet_or_slice: u8,
-    pub element_transform: FfiAffineTransform,
-    pub additional_element_transform: FfiAffineTransform,
-    pub visible_stroke_width: f32,
-    pub viewport_percentage_basis: CssPixels,
     pub content_units: u8,
     pub pattern_units: u8,
     pub pattern_width: FfiSvgNumberPercentage,
@@ -85,6 +94,42 @@ pub struct FfiSvgElementFacts {
     pub mask_y: FfiSvgNumberPercentage,
     pub mask_width: FfiSvgNumberPercentage,
     pub mask_height: FfiSvgNumberPercentage,
+}
+
+/// Publishes what the SVG element `style_node` names parses to.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread outside
+/// any layout pass.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_style_node_svg_attribute_facts(
+    arena: *mut c_void,
+    style_node: u32,
+    facts: FfiSvgAttributeFacts,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let arena = unsafe { LayoutNodeArena::from_handle_mut(arena) };
+    let Some(style_node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
+        return;
+    };
+    arena.set_style_node_svg_attribute_facts(style_node, facts);
+}
+
+/// Retires what the SVG element `style_node` named published, once that identity is retired.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread outside
+/// any layout pass.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_clear_style_node_svg_attribute_facts(arena: *mut c_void, style_node: u32) {
+    // SAFETY: Guaranteed by the caller.
+    let arena = unsafe { LayoutNodeArena::from_handle_mut(arena) };
+    let Some(style_node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
+        return;
+    };
+    arena.clear_style_node_svg_attribute_facts(style_node);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -421,6 +466,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.callbacks.node_data(node).kind.get()
     }
 
+    fn svg_attributes(&self, node: Node) -> FfiSvgAttributeFacts {
+        self.callbacks.arena().svg_attribute_facts(node)
+    }
+
     fn svg_facts(&self, node: Node) -> FfiSvgElementFacts {
         // SAFETY: The callback snapshots plain data from a live node and
         // returns no borrowed storage.
@@ -452,22 +501,23 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.used_values(node).rare_data_mut().svg.viewport_size = Some(viewport_size);
     }
 
-    fn commit_svg_element_facts(&self, node: Node, facts: FfiSvgElementFacts) {
+    fn commit_svg_element_facts(&self, node: Node, facts: FfiSvgElementFacts, attributes: FfiSvgAttributeFacts) {
         let used = self.used_values(node);
         let mut rare = used.rare_data_mut();
-        rare.svg.view_box = facts.has_active_view_box.then_some(facts.active_view_box);
+        rare.svg.view_box = attributes.has_active_view_box.then_some(attributes.active_view_box);
         rare.svg.element_transform = (!facts.element_transform.is_identity()).then_some(facts.element_transform);
         rare.svg.additional_element_transform =
             (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform);
         rare.svg.mask_area_facts = (self.node_kind(node) == NodeKind::SVGMaskBox).then_some(SvgMaskAreaFacts {
-            units_are_object_bounding_box: facts.mask_units == SVG_UNITS_OBJECT_BOUNDING_BOX,
-            x: facts.mask_x,
-            y: facts.mask_y,
-            width: facts.mask_width,
-            height: facts.mask_height,
+            units_are_object_bounding_box: attributes.mask_units == SVG_UNITS_OBJECT_BOUNDING_BOX,
+            x: attributes.mask_x,
+            y: attributes.mask_y,
+            width: attributes.mask_width,
+            height: attributes.mask_height,
         });
         rare.svg.viewport_percentage_basis = facts.viewport_percentage_basis;
-        rare.svg.resource_content_units_are_object_bounding_box = facts.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX;
+        rare.svg.resource_content_units_are_object_bounding_box =
+            attributes.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX;
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
@@ -498,9 +548,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         //       obvious way to drive SVG layout in our engine at the moment.
         let kind = self.node_kind(self.box_);
         let facts = self.svg_facts(self.box_);
+        let attributes = self.svg_attributes(self.box_);
         let used_pointer = self.used_values(self.box_);
         let used = &used_pointer;
-        self.commit_svg_element_facts(self.box_, facts);
+        self.commit_svg_element_facts(self.box_, facts, attributes);
 
         if facts.is_document_element && !facts.document_is_decoded_svg && !used.has_content_offset.get() {
             // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
@@ -543,10 +594,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         // pattern's used size is its tile size, so the same computation maps its viewBox onto the
         // tile.
         let box_establishes_viewport = kind == NodeKind::SVGSVGBox
-            || (kind_is_svg_graphics_box(kind) && facts.is_fit_to_view_box)
-            || (kind == NodeKind::SVGPatternBox && facts.is_fit_to_view_box);
+            || (kind_is_svg_graphics_box(kind) && attributes.is_fit_to_view_box)
+            || (kind == NodeKind::SVGPatternBox && attributes.is_fit_to_view_box);
 
-        let mut active_view_box = facts.has_active_view_box.then_some(facts.active_view_box);
+        let mut active_view_box = attributes.has_active_view_box.then_some(attributes.active_view_box);
         // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
         if let Some(view_box) = active_view_box {
             if view_box.width < 0.0 || view_box.height < 0.0 {
@@ -578,8 +629,8 @@ impl<'pass> SvgFormattingContext<'pass> {
                 };
                 // The initial value for preserveAspectRatio is xMidYMid meet.
                 let transform = scale_and_align_viewbox_content(
-                    facts.preserve_aspect_ratio_align,
-                    facts.preserve_aspect_ratio_meet_or_slice,
+                    attributes.preserve_aspect_ratio_align,
+                    attributes.preserve_aspect_ratio_meet_or_slice,
                     view_box,
                     scale_width as f32,
                     scale_height as f32,
@@ -634,8 +685,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn layout_svg_element(&mut self, run: &FormattingContextRun<'pass>, child: Node, input: LayoutInput) {
         let kind = self.node_kind(child);
-        let facts = self.svg_facts(child);
-        if facts.is_fit_to_view_box {
+        if self.svg_attributes(child).is_fit_to_view_box {
             self.layout_nested_viewport(run, child);
         } else if kind == NodeKind::SVGForeignObjectBox {
             let child_used_pointer = self.create_used_values(child);
@@ -724,7 +774,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn layout_graphics_element(&mut self, run: &FormattingContextRun<'pass>, graphics_box: Node, input: LayoutInput) {
         self.create_used_values(graphics_box);
         let facts = self.svg_facts(graphics_box);
-        self.commit_svg_element_facts(graphics_box, facts);
+        self.commit_svg_element_facts(graphics_box, facts, self.svg_attributes(graphics_box));
         let kind = self.node_kind(graphics_box);
 
         // https://svgwg.org/svg2-draft/struct.html#GroupsOverview
@@ -830,22 +880,23 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn layout_mask_or_clip(&mut self, run: &FormattingContextRun<'pass>, resource: Node) {
         let kind = self.node_kind(resource);
         let facts = self.svg_facts(resource);
+        let attributes = self.svg_attributes(resource);
         assert!(kind_is_svg_resource_box(kind));
         // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
         let used_pointer = self.create_used_values(resource);
-        self.commit_svg_element_facts(resource, facts);
+        self.commit_svg_element_facts(resource, facts, attributes);
 
-        if kind == NodeKind::SVGPatternBox && facts.has_active_view_box {
-            if facts.pattern_units == SVG_UNITS_USER_SPACE_ON_USE {
-                let width = if facts.pattern_width.is_percentage {
-                    facts.pattern_width.value * (self.viewport_width.raw_value() as f32 / 64.0)
+        if kind == NodeKind::SVGPatternBox && attributes.has_active_view_box {
+            if attributes.pattern_units == SVG_UNITS_USER_SPACE_ON_USE {
+                let width = if attributes.pattern_width.is_percentage {
+                    attributes.pattern_width.value * (self.viewport_width.raw_value() as f32 / 64.0)
                 } else {
-                    facts.pattern_width.value
+                    attributes.pattern_width.value
                 };
-                let height = if facts.pattern_height.is_percentage {
-                    facts.pattern_height.value * (self.viewport_height.raw_value() as f32 / 64.0)
+                let height = if attributes.pattern_height.is_percentage {
+                    attributes.pattern_height.value * (self.viewport_height.raw_value() as f32 / 64.0)
                 } else {
-                    facts.pattern_height.value
+                    attributes.pattern_height.value
                 };
                 let used = &used_pointer;
                 used.set_content_inline_size(CssPixels::nearest_value_for_f32(width));
@@ -857,13 +908,13 @@ impl<'pass> SvgFormattingContext<'pass> {
                 let parent_used = parent_used_pointer;
                 let used = &used_pointer;
                 used.set_content_inline_size(CssPixels::nearest_value_for(
-                    facts.pattern_width.value as f64 * parent_used.content_inline_size.get().to_double(),
+                    attributes.pattern_width.value as f64 * parent_used.content_inline_size.get().to_double(),
                 ));
                 used.set_content_block_size(CssPixels::nearest_value_for(
-                    facts.pattern_height.value as f64 * parent_used.content_block_size.get().to_double(),
+                    attributes.pattern_height.value as f64 * parent_used.content_block_size.get().to_double(),
                 ));
             }
-        } else if facts.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX {
+        } else if attributes.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX {
             let parent = self.parent(resource);
             assert!(!parent.is_invalid());
             let parent_used_pointer = self.used_values(parent);

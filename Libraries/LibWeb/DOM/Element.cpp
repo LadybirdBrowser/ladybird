@@ -1399,6 +1399,11 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
         CSS::record_element_attribute_changed(*this, local_name, namespace_, old_value, value);
 
     if (old_value != value) {
+        // An SVG element's parsed attributes are layout input, published under its style node. Published here,
+        // after the change steps, rather than from SVGElement's: each SVG element runs its base class's steps before it
+        // parses the new value itself.
+        if (auto* svg_element = as_if<SVG::SVGElement>(*this))
+            svg_element->publish_svg_attribute_facts();
         if (local_name.is_one_of(HTML::AttributeNames::colspan, HTML::AttributeNames::rowspan, HTML::AttributeNames::span)) {
             if (auto* layout_node = unsafe_layout_node()) {
                 if (layout_node->synchronize_table_span_data())
