@@ -1339,7 +1339,7 @@ void StyleComputer::invalidate_animated_custom_property_readers(DOM::AbstractEle
     // Which custom properties the element's own declarations read is not recorded: an element
     // whose custom properties animate recomputes.
     auto& style_engine = element.document().style_computer().style_engine();
-    style_engine.record_element_style_input_change(element.style_node_id());
+    style_engine.record_derived_element_style_input_change(element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
 
     auto any_animated_custom_property_inherits = [&] {
         if (animated_values.is_empty())
