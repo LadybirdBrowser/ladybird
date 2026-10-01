@@ -22,3 +22,8 @@ add_custom_command(
 add_dependencies(test-js test-js-runtime test-js-script js)
 add_test(NAME test-js COMMAND test-js)
 set_tests_properties(test-js PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}")
+
+if (ENABLE_LIBJS_RUST_RUNTIME)
+    add_test(NAME js-rust-ast COMMAND test-js --suite ast --js $<TARGET_FILE:js-rust>)
+    set_tests_properties(js-rust-ast PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}")
+endif()

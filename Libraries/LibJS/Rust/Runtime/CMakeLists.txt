@@ -7,3 +7,12 @@ if (ENABLE_THREAD_SANITIZER)
 endif()
 
 import_rust_crate(MANIFEST_PATH Cargo.toml CRATE_NAME libjs_runtime_rust FEATURES ${LIBJS_RUNTIME_RUST_FEATURES})
+
+# The runtime allocates its cells from LibGC, and the regex engine it shares with the C++ runtime reads Unicode
+# properties from LibUnicode.
+target_link_libraries(libjs_runtime_rust INTERFACE LibGC LibUnicode)
+if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
+    # The staticlib carries its own copy of the Rust standard library and of the Rust crates it shares with
+    # LibUnicode, whose exported symbols then appear twice in static ELF links.
+    target_link_options(libjs_runtime_rust INTERFACE LINKER:--allow-multiple-definition)
+endif()

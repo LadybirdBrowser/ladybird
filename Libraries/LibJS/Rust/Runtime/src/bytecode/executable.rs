@@ -6,8 +6,10 @@
 
 use core::cell::Cell;
 
+use crate::frontend_host::rust_free_compiled_regex;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::visitor::{Trace, Visitor};
+use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::CellHeader;
 use crate::layout::executable::ExecutableHead;
@@ -16,6 +18,8 @@ use crate::layout::property_lookup_cache::{
     PropertyLookupCacheEntryType,
 };
 use crate::layout::value::Value;
+use libjs_rust::bytecode::executable::ExecutableData;
+use libjs_rust::bytecode::generator::ConstantValue;
 
 /// A unit of bytecode: a script, a module, a function body or an eval, with what the interpreter needs to run it.
 #[repr(C)]
@@ -29,6 +33,9 @@ pub struct Executable {
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict_mode: bool,
+    pub identifier_table: Vec<ak::Utf16FlyString>,
+    pub property_key_table: Vec<ak::Utf16FlyString>,
+    pub string_table: Vec<ak::Utf16FlyString>,
 }
 
 define_cell!(Executable, Other);
@@ -117,7 +124,45 @@ impl Executable {
             number_of_registers,
             number_of_arguments,
             is_strict_mode,
+            identifier_table: Vec::new(),
+            property_key_table: Vec::new(),
+            string_table: Vec::new(),
         }
+    }
+
+    /// Builds the executable for what the frontend compiled.
+    pub fn from_executable_data(data: ExecutableData) -> Self {
+        if !data.shared_function_data.is_empty() {
+            unimplemented_runtime_function("creating the functions an executable declares", 0);
+        }
+        if !data.class_blueprints.is_empty() {
+            unimplemented_runtime_function("creating the classes an executable declares", 0);
+        }
+        // The regexes were only compiled to report early errors; the runtime compiles them again when it runs.
+        for regex in data.compiled_regexes {
+            // SAFETY: Each handle came from rust_compile_regex and is freed once.
+            unsafe { rust_free_compiled_regex(regex) };
+        }
+        let constants: Box<[Value]> = data.constants.iter().map(constant_value).collect();
+        let counts = ExecutableCacheCounts {
+            property_lookup_caches: data.cache_counts.property_lookup,
+            global_variable_caches: data.cache_counts.global_variable,
+            environment_coordinate_caches: data.cache_counts.environment_coordinate,
+        };
+        let number_of_locals = u32::try_from(data.local_variables.len()).expect("local count fits in u32");
+        let mut executable = Self::new(
+            data.bytecode.into_boxed_slice(),
+            data.number_of_registers,
+            number_of_locals,
+            data.number_of_arguments,
+            constants,
+            &counts,
+            data.is_strict,
+        );
+        executable.identifier_table = data.identifier_table;
+        executable.property_key_table = data.property_key_table;
+        executable.string_table = data.string_table;
+        executable
     }
 
     pub fn bytecode(&self) -> &[u8] {
@@ -130,6 +175,20 @@ impl Executable {
 
     pub fn registers_and_locals_count(&self) -> u32 {
         self.head.registers_and_locals_count.get()
+    }
+}
+
+fn constant_value(constant: &ConstantValue) -> Value {
+    match constant {
+        ConstantValue::Number(number) => Value::from_f64(*number),
+        ConstantValue::Boolean(boolean) => Value::from_bool(*boolean),
+        ConstantValue::Null => Value::NULL,
+        ConstantValue::Undefined => Value::UNDEFINED,
+        ConstantValue::Empty => Value::EMPTY,
+        ConstantValue::String(_) => unimplemented_runtime_function("string constants", 0),
+        ConstantValue::BigInt(_) => unimplemented_runtime_function("BigInt constants", 0),
+        ConstantValue::WellKnownSymbol(_) => unimplemented_runtime_function("well-known symbol constants", 0),
+        ConstantValue::AbstractOperation(_) => unimplemented_runtime_function("abstract operation constants", 0),
     }
 }
 

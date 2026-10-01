@@ -101,6 +101,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/layout");
     println!("cargo:rerun-if-changed={}", interpreter_source.display());
     println!("cargo:rerun-if-changed={}", layout_fixture.display());
+    println!("cargo:rerun-if-env-changed=MACOSX_DEPLOYMENT_TARGET");
 
     let target = target();
     let address_sanitizer = env::var_os("CARGO_FEATURE_ADDRESS_SANITIZER").is_some();
@@ -194,9 +195,33 @@ fn interpreter_compiler(target: &Target) -> flapc::Compiler {
     })
 }
 
+/// The minimum macOS version rustc builds the crate's own code for, which the assembled interpreter has to match.
+fn rust_macos_deployment_target() -> Option<String> {
+    if let Ok(target) = env::var("MACOSX_DEPLOYMENT_TARGET") {
+        return Some(target);
+    }
+    let rustc = env::var("RUSTC").unwrap_or_else(|_| "rustc".to_string());
+    let target = env::var("TARGET").ok()?;
+    let output = std::process::Command::new(rustc)
+        .args(["--print", "deployment-target", "--target", &target])
+        .output()
+        .ok()?;
+    String::from_utf8(output.stdout)
+        .ok()?
+        .trim()
+        .strip_prefix("MACOSX_DEPLOYMENT_TARGET=")
+        .map(str::to_string)
+}
+
 fn assemble_interpreter(target: &Target, assembly_path: &Path) {
     let mut build = cc::Build::new();
     build.file(assembly_path);
+    if target.is_apple
+        && env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos")
+        && let Some(deployment_target) = rust_macos_deployment_target()
+    {
+        build.flag(format!("-mmacosx-version-min={deployment_target}"));
+    }
     if matches!(target.architecture, flapc::Architecture::X86_64) {
         build.flag_if_supported("-malign-branch-boundary=32");
         build.flag_if_supported("-malign-branch=fused,jcc");
