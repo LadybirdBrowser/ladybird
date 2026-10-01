@@ -1,0 +1,2 @@
+staying root's animation: 0.5
+adopted root's animation: 0.25
