@@ -257,7 +257,6 @@ class CounterStyle;
 class CounterStyleStyleValue;
 class CounterStyleSystemStyleValue;
 class CounterStyleValue;
-class CountersSet;
 class CSSAnimation;
 class CSSConditionRule;
 class CSSContainerRule;

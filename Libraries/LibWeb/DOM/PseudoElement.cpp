@@ -43,8 +43,6 @@ void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
 
     visitor.visit(m_originating_element);
-    if (m_counters_set)
-        m_counters_set->visit_edges(visitor);
 }
 
 Layout::NodeWithStyle* SyntheticPseudoElement::unsafe_layout_node() const
@@ -139,25 +137,6 @@ void SyntheticPseudoElement::set_custom_property_data(RefPtr<CSS::CustomProperty
     if (!m_custom_property_data)
         m_custom_property_data = make<CustomPropertyDataStorage>();
     m_custom_property_data->data = move(value);
-}
-
-Optional<CSS::CountersSet const&> SyntheticPseudoElement::counters_set() const
-{
-    if (!m_counters_set)
-        return {};
-    return *m_counters_set;
-}
-
-CSS::CountersSet& SyntheticPseudoElement::ensure_counters_set()
-{
-    if (!m_counters_set)
-        m_counters_set = make<CSS::CountersSet>();
-    return *m_counters_set;
-}
-
-void SyntheticPseudoElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
-{
-    m_counters_set = move(counters_set);
 }
 
 SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode(CSS::PseudoElement type)

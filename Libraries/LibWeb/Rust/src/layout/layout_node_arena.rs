@@ -4029,22 +4029,6 @@ pub unsafe extern "C" fn layout_arena_innermost_list_item_counter_is_own_forward
         .innermost_list_item_counter_is_own_forward_counter(element)
 }
 
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `start` must name a live node
-/// in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_previous_dom_backed_or_generated_node(
-    arena: *mut c_void,
-    start: NodeSlotId,
-    previous_sibling_only: bool,
-) -> NodeSlotId {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.previous_dom_backed_or_generated_node(start, previous_sibling_only)
-}
-
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_live_slot_count(arena: *mut c_void) -> u32 {
     assert!(!arena.is_null(), "layout node arena handle is null");

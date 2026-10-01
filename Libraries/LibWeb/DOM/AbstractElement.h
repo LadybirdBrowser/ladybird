@@ -42,10 +42,7 @@ public:
     Element* flat_tree_parent_element() const;
     Optional<AbstractElement> element_to_inherit_style_from() const;
     Optional<AbstractElement> highlight_inheritance_parent() const;
-    Optional<AbstractElement> previous_in_tree_order() { return walk_layout_tree(WalkMethod::Previous); }
-    Optional<AbstractElement> previous_sibling_in_tree_order() { return walk_layout_tree(WalkMethod::PreviousSibling); }
     GC::Ptr<Node> root();
-    bool is_before(AbstractElement const&) const;
 
     void set_inheritance_override(GC::Ref<Element> element) { m_inheritance_override = element; }
 
@@ -70,11 +67,6 @@ public:
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data() const;
     RefPtr<CSS::StyleValue const> get_custom_property(Utf16FlyString const& name) const;
 
-    bool has_non_empty_counters_set() const;
-    Optional<CSS::CountersSet const&> counters_set() const;
-    CSS::CountersSet& ensure_counters_set();
-    void set_counters_set(OwnPtr<CSS::CountersSet>&&);
-
     Vector<GC::Ref<CSS::CSSAnimation>> const* css_defined_animations() const;
     void set_css_defined_animations(Vector<GC::Ref<CSS::CSSAnimation>>&&);
 
@@ -86,12 +78,6 @@ public:
     CSS::StyleScope const& style_scope() const;
 
 private:
-    enum class WalkMethod : u8 {
-        Previous,
-        PreviousSibling,
-    };
-    Optional<AbstractElement> walk_layout_tree(WalkMethod);
-
     GC::Ref<Element> m_element;
     Optional<CSS::PseudoElement> m_pseudo_element;
 

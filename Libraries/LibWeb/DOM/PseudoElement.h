@@ -68,11 +68,6 @@ public:
     RefPtr<CSS::CustomPropertyData const> custom_property_data() const override;
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value) override;
 
-    bool has_non_empty_counters_set() const { return m_counters_set; }
-    Optional<CSS::CountersSet const&> counters_set() const;
-    CSS::CountersSet& ensure_counters_set();
-    void set_counters_set(OwnPtr<CSS::CountersSet>&&);
-
     CSSPixelPoint scroll_offset() const { return m_scroll_offset; }
     void set_scroll_offset(CSSPixelPoint value) { m_scroll_offset = value; }
 
@@ -89,7 +84,6 @@ private:
     // computed-values view rather than retaining one complete style per pseudo-element.
     CSS::StyleRecordID m_style_record_identity;
     OwnPtr<CustomPropertyDataStorage> m_custom_property_data;
-    OwnPtr<CSS::CountersSet> m_counters_set;
     CSSPixelPoint m_scroll_offset {};
 };
 

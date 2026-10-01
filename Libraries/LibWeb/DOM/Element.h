@@ -781,11 +781,6 @@ public:
     void set_rendered_in_top_layer(bool rendered_in_top_layer);
     bool rendered_in_top_layer() const { return m_rendered_in_top_layer; }
 
-    bool has_non_empty_counters_set() const;
-    Optional<CSS::CountersSet const&> counters_set() const;
-    CSS::CountersSet& ensure_counters_set();
-    void set_counters_set(OwnPtr<CSS::CountersSet>&&);
-
     ProximityToTheViewport proximity_to_the_viewport() const;
     void determine_proximity_to_the_viewport();
     bool is_relevant_to_the_user();
