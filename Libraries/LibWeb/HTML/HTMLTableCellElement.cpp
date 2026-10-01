@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -101,26 +100,12 @@ void HTMLTableCellElement::apply_presentational_hints(Vector<CSS::StyleProperty>
 
     if (!border)
         return;
+    // INTEROP: Like Chromium, a bordered table's cells inherit their border colour, which the
+    //          table's sections and rows inherit from the table in turn.
     auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property, CSS::PropertyID color_property) {
-        auto const& border_values = *table_element->style_group<CSS::ComputedValues::BorderValues>();
-        auto const* color = [&] {
-            switch (color_property) {
-            case CSS::PropertyID::BorderLeftColor:
-                return static_cast<CSS::StyleValueFFI::StyleValueData const*>(border_values.border_left_color_style_value.pointer);
-            case CSS::PropertyID::BorderTopColor:
-                return static_cast<CSS::StyleValueFFI::StyleValueData const*>(border_values.border_top_color_style_value.pointer);
-            case CSS::PropertyID::BorderRightColor:
-                return static_cast<CSS::StyleValueFFI::StyleValueData const*>(border_values.border_right_color_style_value.pointer);
-            case CSS::PropertyID::BorderBottomColor:
-                return static_cast<CSS::StyleValueFFI::StyleValueData const*>(border_values.border_bottom_color_style_value.pointer);
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }();
-        VERIFY(color);
         properties.append({ .property_id = style_property, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Inset) });
         properties.append({ .property_id = width_property, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(1)) });
-        properties.append({ .property_id = color_property, .value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(color)) });
+        properties.append({ .property_id = color_property, .value = CSS::KeywordStyleValue::create(CSS::Keyword::Inherit) });
     };
     apply_border_style(CSS::PropertyID::BorderLeftStyle, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor);
     apply_border_style(CSS::PropertyID::BorderTopStyle, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor);
