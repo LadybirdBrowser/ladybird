@@ -149,6 +149,12 @@ impl CssDefinedAnimations {
             .map_or(&[], |(_, animations)| animations)
     }
 
+    /// Whether the host holds a CSS animation for the element or any of its pseudo-elements.
+    #[must_use]
+    pub(crate) fn node_runs_a_css_animation(&self, node: StyleNodeID) -> bool {
+        self.rows.contains_key(&node)
+    }
+
     /// Give up the lists of an identity that retires. An identity can be minted again for another
     /// element, so a list left behind would be read as that element's.
     pub(crate) fn retire(&mut self, node: StyleNodeID) {
@@ -265,6 +271,14 @@ impl AnimationKeyframes {
             })
             .collect();
         self.scopes.insert(tree_scope, sets);
+    }
+
+    /// Whether no scope but the document's defines any `@keyframes`. The chain `resolve` walks ends
+    /// at the document's scope, so then a name runs the document's rule for it whatever scope the
+    /// winning `animation-name` was declared in and whatever scope the element is in.
+    #[must_use]
+    pub(crate) fn only_the_document_scope_defines_keyframes(&self) -> bool {
+        self.scopes.keys().all(|&scope| scope == TreeScopeID::DOCUMENT)
     }
 
     /// The host's keyframe set an animation of this name runs, or `None` where no scope in its chain

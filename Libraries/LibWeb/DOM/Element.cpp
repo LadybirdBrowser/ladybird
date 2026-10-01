@@ -2388,6 +2388,24 @@ static void record_engine_container_query_effects(Element& element)
     });
 }
 
+// Which animations an element references is an index StyleEngine keeps, in the same shape as the anchor-name registry:
+// nothing about selector matching can say it, and without it a `@keyframes` rule cannot find the elements running the
+// animation it describes.
+static void update_animation_name_index(Element& element, CSS::ComputedValues const* old_style, CSS::ComputedValues const& new_style)
+{
+    auto indexable_animation_names = [](CSS::ComputedValues const& style) {
+        Vector<Utf16FlyString> animation_names;
+        for (auto const& animation_name : style.animation_names()) {
+            if (animation_name.syntax != CSS::ComputedAnimationNameSyntax::None)
+                animation_names.append(animation_name.name);
+        }
+        return animation_names;
+    };
+    auto animation_names = indexable_animation_names(new_style);
+    if (old_style ? indexable_animation_names(*old_style) != animation_names : !animation_names.is_empty())
+        CSS::record_element_animation_names(element, animation_names);
+}
+
 CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, EngineRecordDamages const* engine_record_damages)
 {
     VERIFY(parent());
@@ -2455,6 +2473,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         install_custom_property_environment();
         set_computed_style({}, new_style_record);
         update_anchor_name_registry(nullptr, *computed_style());
+        update_animation_name_index(*this, nullptr, *computed_style());
         if (is_document_element())
             style_computer.update_root_element_font_metrics(*computed_style());
         counters.element_computed_style_changes++;
@@ -2470,9 +2489,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     if (old_style_record != new_style_record
         && (AbstractElement { *this }.style_scope().rule_cache().has_size_container_queries || document().is_in_style_stabilization_feedback_epoch()))
         style_computer.record_transition_stabilization_baseline(AbstractElement { *this });
-    // The engine derives records this way only when the element's animation names are exactly what
-    // they were; what is left to decide is what the layout tree and paint need, and the anchor names
-    // the record registers. The record itself may be the one the element holds, when the reaction
+    // What is left to decide is what the layout tree and paint need, and the anchor and animation
+    // names the record registers; the animation plan the record decides is the host's to apply once
+    // the batch is installed. The record itself may be the one the element holds, when the reaction
     // moved only its pseudo-elements. Its custom properties may have moved with it: the engine
     // resolves the element's own declarations, and a moved environment is what its descendants
     // react to.
@@ -2509,6 +2528,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         set_style_input_record(nullptr);
         set_computed_style({}, new_style_record);
         update_anchor_name_registry(&*old_computed_values, *new_computed_values);
+        update_animation_name_index(*this, &*old_computed_values, *new_computed_values);
         if (is_document_element()) {
             // Root-relative units read document-global font metrics rather than inherited style.
             // Every descendant must recompute when they move.
@@ -2734,20 +2754,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
 
     update_anchor_name_registry(old_computed_values ? &*old_computed_values : nullptr, *new_style);
 
-    // Which animations an element references is an index StyleEngine keeps, in the same shape as the
-    // anchor-name registry above: nothing about selector matching can say it, and without it a
-    // `@keyframes` rule cannot find the elements running the animation it describes.
-    auto indexable_animation_names = [](CSS::ComputedValues const& style) {
-        Vector<Utf16FlyString> animation_names;
-        for (auto const& animation_name : style.animation_names()) {
-            if (animation_name.syntax != CSS::ComputedAnimationNameSyntax::None)
-                animation_names.append(animation_name.name);
-        }
-        return animation_names;
-    };
-    auto animation_names = indexable_animation_names(*new_style);
-    if (old_computed_values ? indexable_animation_names(*old_computed_values) != animation_names : !animation_names.is_empty())
-        CSS::record_element_animation_names(*this, animation_names);
+    update_animation_name_index(*this, old_computed_values ? &*old_computed_values : nullptr, *new_style);
     auto old_non_animated_display_is_none = old_computed_values ? old_computed_values->base_values().display().is_none() : true;
     auto new_non_animated_display_is_none = new_style->base_values().display().is_none();
 

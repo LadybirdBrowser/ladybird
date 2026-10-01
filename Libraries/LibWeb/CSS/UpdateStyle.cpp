@@ -177,6 +177,7 @@ static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID s
         .record_reads = 0,
         .explicitly_inherited_groups = 0,
         .record_damage = 0,
+        .owes_an_animation_plan = false,
     };
 }
 
@@ -377,6 +378,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
     // any animation is associated with it, relevant or not: a timeline can make one relevant later,
     // and the style engine keeps the same rows.
     HashTable<StyleNodeID> required_in_hidden_subtrees;
+    // The elements whose engine-settled records owe them the animation plans those records decide,
+    // in the order the batch applied them.
+    Vector<StyleNodeID> rows_owing_an_animation_plan;
     for (auto const& reaction : reactions) {
         auto element = document.style_computer().element_for_style_node(reaction.style_node);
         if (!element || (!element->is_svg_element() && !element->has_associated_animations()))
@@ -421,6 +425,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     reaction.uses_substitution = retried.uses_substitution;
                     reaction.record_reads = retried.record_reads;
                     reaction.explicitly_inherited_groups = retried.explicitly_inherited_groups;
+                    reaction.owes_an_animation_plan = retried.owes_an_animation_plan;
                     reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::Full;
                     reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Computed;
                     DOM::Element::EnginePseudoElementRecords pseudo_element_records {};
@@ -674,6 +679,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     invalidation = element->apply_style_engine_reaction(did_change_custom_properties);
                 } else {
                     apply_engine_computed_records(pseudo_element_records, true);
+                    if (reaction.owes_an_animation_plan)
+                        rows_owing_an_animation_plan.append(StyleNodeID { reaction.style_node });
                 }
             } else if (needs_regular_style_recompute || needs_inherited_style_recompute || needs_full_custom_property_recompute) {
                 if (needs_regular_style_recompute)
@@ -742,6 +749,21 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             style_engine.note_style_reaction_applied(reaction.style_node, reaction.reaction, invalidation.inherited_style_groups_changed(), facts);
         }
     }
+
+    // A C++ computation applies the animation plan it decides beside the record it computes, and
+    // samples what it starts into that record. The plan of a record the engine settled is decided
+    // from the record now that every row of the batch is installed, and what it starts is sampled
+    // here, so the values it composes reach the element's descendants as the next transaction of
+    // this style update.
+    for (auto style_node : rows_owing_an_animation_plan) {
+        auto element = document.style_computer().element_for_style_node(style_node);
+        if (!element || !element->has_style())
+            continue;
+        DOM::AbstractElement abstract_element { *element };
+        document.style_computer().apply_settled_animation_plan(abstract_element);
+    }
+    if (!rows_owing_an_animation_plan.is_empty())
+        document.sample_animation_effects_needing_style_update();
 
     return transaction_invalidation;
 }

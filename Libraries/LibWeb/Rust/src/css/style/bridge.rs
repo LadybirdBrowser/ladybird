@@ -154,6 +154,10 @@ pub struct FfiStyleDelta {
     /// as an `FfiStyleInvalidationField` word. Only a word with `EngineComputed` set holds an answer;
     /// the host asks for the damage of any other move.
     pub record_damage: u32,
+    /// Whether the new record of an element the engine settled moves the `animation-*` longhands
+    /// declaring its CSS animations, so that the host owes it the animation plan the record
+    /// decides once the batch is installed.
+    pub owes_an_animation_plan: bool,
 }
 
 /// A retried engine record and the metadata needed to install it.
@@ -166,6 +170,8 @@ pub struct FfiEngineComputedRecord {
     pub record_reads: u8,
     /// As [`FfiStyleDelta::explicitly_inherited_groups`].
     pub explicitly_inherited_groups: u32,
+    /// As [`FfiStyleDelta::owes_an_animation_plan`].
+    pub owes_an_animation_plan: bool,
     /// The synthetic pseudo-element kinds whose records the engine settled beside the
     /// element's, as a bit per kind; a present slot holding zero is a removal.
     pub pseudo_records_present: u8,
@@ -3460,6 +3466,7 @@ pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
                 0
             },
             explicitly_inherited_groups: retried.explicitly_inherited_groups,
+            owes_an_animation_plan: retried.owes_an_animation_plan,
             pseudo_records_present: retried.pseudo_records_present,
             pseudo_records: retried.pseudo_records,
         };
@@ -3528,6 +3535,7 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
                         0
                     },
                     explicitly_inherited_groups: record.explicitly_inherited_groups,
+                    owes_an_animation_plan: false,
                     pseudo_records_present: record.pseudo_records_present,
                     pseudo_records: record.pseudo_records,
                 },
@@ -3635,6 +3643,7 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
                 0
             },
             explicitly_inherited_groups: settled.explicitly_inherited_groups,
+            owes_an_animation_plan: false,
             pseudo_records_present: settled.pseudo_records_present,
             pseudo_records: settled.pseudo_records,
         };

@@ -22,6 +22,7 @@ impl EngineComputedRecordScratch {
             viewport_moved: moves.viewport,
             root_font_inputs_changed: moves.root_font_inputs,
             installed_ancestors: Some(InstalledAncestors(())),
+            host_applies_animation_plans: true,
             ..Self::default()
         }
     }
@@ -206,6 +207,10 @@ impl StyleEngineState {
         };
         if style_record != 0 {
             retried.explicitly_inherited_groups = scratch.element_explicitly_inherited_groups;
+            retried.owes_an_animation_plan = self.retained.record_moves_animation_declarations(
+                self.retained.held_style_records.get(&node).copied().unwrap_or(0),
+                style_record,
+            );
             for delta in &scratch.pseudo_deltas {
                 let kind = usize::from(delta.kind);
                 if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {

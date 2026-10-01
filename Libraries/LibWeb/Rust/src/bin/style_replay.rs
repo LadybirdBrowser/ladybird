@@ -2274,11 +2274,13 @@ fn read_style_transaction_outputs(
                     tag => return Err(format!("unknown style delta gap tag {tag}").into()),
                 },
                 uses_substitution: format_version >= 16 && payload.read_bool()?,
-                // NB: The recording does not carry the record reads, the explicit-inheritance marks
-                //     or the record damage, and replay does not compare them.
+                // NB: The recording does not carry the record reads, the explicit-inheritance marks,
+                //     the record damage or the animation plan a row owes, and replay does not compare
+                //     them.
                 record_reads: 0,
                 explicitly_inherited_groups: 0,
                 record_damage: 0,
+                owes_an_animation_plan: false,
             });
         }
         emissions.push(StyleTransactionEmission {
@@ -3042,6 +3044,7 @@ mod tests {
                     record_reads: 0,
                     explicitly_inherited_groups: 0,
                     record_damage: 0,
+                    owes_an_animation_plan: false,
                 }],
             }],
             style_atoms_swept: false,

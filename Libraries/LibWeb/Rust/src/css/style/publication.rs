@@ -865,8 +865,11 @@ impl RetainedState {
             }
         };
         for &property in delta.properties() {
-            // Animations and transitions start from the C++ computation.
-            if property_starts_animation(property) {
+            // Transitions start from the C++ computation, and so does any animation the engine
+            // cannot hand the host a plan for.
+            if property_starts_animation(property)
+                && !(property_declares_css_animations(property) && self.may_plan_css_animations(node, scratch))
+            {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
                 return Err(Unanswered::Refused);
             }
@@ -1859,6 +1862,32 @@ impl RetainedState {
             // it is left to C++.
             Some(drive::MonospaceRecascade::AwaitsFont(_)) | None => i32::MIN,
         }
+    }
+
+    /// Whether the host can be handed the animation plan of a record the engine derives for `node`,
+    /// decided from that record once it is installed: the host applies it, the element holds no CSS
+    /// animation, so the plan can only start what its definitions name, and no scope but the
+    /// document's defines `@keyframes`, so the scope the winning `animation-name` was declared in,
+    /// which the winners do not record, cannot change what a name runs.
+    fn may_plan_css_animations(&self, node: StyleNodeID, scratch: &EngineComputedRecordScratch) -> bool {
+        scratch.host_applies_animation_plans
+            && !self.css_defined_animations.node_runs_a_css_animation(node)
+            && self.animation_keyframes.only_the_document_scope_defines_keyframes()
+    }
+
+    /// Whether moving an element from the `old` record the host holds to the `new` one the engine
+    /// derived moves the `animation-*` longhands declaring its CSS animations, so that installing
+    /// it owes the host the plan the new record decides. Every such longhand is in the animation
+    /// group; a group that moved with only transitions in it decides a plan that changes nothing.
+    pub(super) fn record_moves_animation_declarations(&self, old: u64, new: u64) -> bool {
+        use crate::css::table_group_builder::group_index::ANIMATION;
+        let animation_group = |record| {
+            self.computed_group_sets
+                .style_record_payloads(record)
+                .and_then(|payloads| payloads.get(ANIMATION))
+                .map(|payload| payload.as_ptr())
+        };
+        old != 0 && old != new && animation_group(old) != animation_group(new)
     }
 
     fn record_requires_cpp_animation(&self, record: computed::FinalStyleRecordID) -> bool {
@@ -4881,6 +4910,9 @@ pub(super) struct EngineComputedRecordScratch {
     /// through an explicit `inherit`, and those its pseudo-elements read from it, which the row
     /// carries for C++ to mark the parent with.
     pub(super) element_explicitly_inherited_groups: u32,
+    /// Whether the host applies the animation plan of a record this scratch derives once it has
+    /// installed it: a style update's batch and its retries do, a record demand does not.
+    pub(super) host_applies_animation_plans: bool,
     /// The nodes whose substituted-record fact the step decided, in the order it decided them.
     /// The boundary that installs the record applies them.
     substitution_effects: Vec<(StyleNodeID, bool)>,
@@ -5049,6 +5081,7 @@ pub(super) struct DriveSubject {
 pub(crate) struct RetriedEngineRecord {
     pub(crate) style_record: u64,
     pub(crate) explicitly_inherited_groups: u32,
+    pub(crate) owes_an_animation_plan: bool,
     pub(crate) pseudo_records_present: u8,
     pub(crate) pseudo_records: [u64; bridge::RETRY_PSEUDO_RECORD_SLOTS],
 }
@@ -5287,6 +5320,25 @@ fn counter_style_name_is_non_overridable(name: &[u16]) -> bool {
 enum StoreUse {
     Admission,
     Drive,
+}
+
+/// Whether the property is one of the `animation-*` longhands that declare an element's CSS
+/// animations, which the plan a record decides starts, retimes and cancels.
+fn property_declares_css_animations(property: u16) -> bool {
+    use crate::css::property_metadata::property_id as prop;
+    matches!(
+        property,
+        prop::ANIMATION_COMPOSITION
+            | prop::ANIMATION_DELAY
+            | prop::ANIMATION_DIRECTION
+            | prop::ANIMATION_DURATION
+            | prop::ANIMATION_FILL_MODE
+            | prop::ANIMATION_ITERATION_COUNT
+            | prop::ANIMATION_NAME
+            | prop::ANIMATION_PLAY_STATE
+            | prop::ANIMATION_TIMELINE
+            | prop::ANIMATION_TIMING_FUNCTION
+    )
 }
 
 /// Whether a winner of the property keeps its record in C++, which starts animations and
