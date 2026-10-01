@@ -135,13 +135,14 @@ impl RetainedState {
             || (moved.counter_styles && self.node_reads_counter_styles(node))
     }
 
-    /// Why the row's reaction and the moved named rule contexts drive its record again in full
-    /// without its winners showing it, if they do.
+    /// Why the row's reaction, the moved named rule contexts and its moved containers drive its
+    /// record again in full without its winners showing it, if they do.
     fn full_drive_reason(
         &self,
         node: StyleNodeID,
         reaction: u8,
         named_rules_moved: NamedRuleContextsMoved,
+        containers_moved: bool,
     ) -> Option<publication::FullDriveReason> {
         use super::publication::FullDriveReason;
         // A descendant recompute stands for inputs no winner shows: the root's font metrics, an
@@ -156,6 +157,11 @@ impl RetainedState {
         }
         if self.named_rule_contexts_drive_in_full(node, named_rules_moved) {
             return Some(FullDriveReason::NamedRuleContext);
+        }
+        // The verdicts of the node's gated rules are decided again where the record is driven;
+        // what a value measures of the containers is not.
+        if containers_moved && self.container_input_drives_in_full(node) {
+            return Some(FullDriveReason::ContainerMoved);
         }
         // The element's font environment moved, or the published feature-value table every font
         // resolution of the font-environment generation reads.
@@ -289,7 +295,6 @@ impl StyleEngineState {
         self.retained.winner_groups.begin_quota_period();
         self.retained.flush_stamp += 1;
         self.retained.winner_groups.begin_flush(self.retained.flush_stamp);
-        self.retained.drop_winners_whose_container_verdicts_moved();
         self.retained.relational_witnesses.set_admitting(true);
         self.retained
             .route_pruning_states
@@ -303,6 +308,14 @@ impl StyleEngineState {
         }
         self.discard_prepared_batch_matching_traversal();
         self.discard_published_match_answers(counters);
+        // Winners whose container verdicts moved since they were published are published again
+        // from the nodes' retained answers, or dropped under a changing rule program: an answer
+        // can name a rule this transaction removes or replaces.
+        self.retained.refresh_winners_whose_container_verdicts_moved(
+            self.host.program_staging.is_dirty() || self.host.sheet_rule_replacement.is_some(),
+            publication::WinnerRepublication::for_flush(),
+            counters,
+        );
         // A transaction made of derived child reactions alone continues the style change whose
         // reactions C++ applied last, one tree generation further.
         self.retained.last_transaction_only_derived_child_reactions =
@@ -320,6 +333,9 @@ impl StyleEngineState {
         self.host.externally_recorded_style_input_nodes.clear();
         // The nodes whose style input the C++ computation has to settle this transaction.
         let style_input_nodes_for_cpp = std::mem::take(&mut self.retained.style_input_nodes_for_cpp);
+        // The nodes whose containers moved under what their queries or container-relative lengths
+        // read of them.
+        let container_input_nodes = std::mem::take(&mut self.retained.container_input_nodes);
         let parent_inputs_moved_nodes = std::mem::take(&mut self.retained.parent_inputs_moved_nodes);
         self.host
             .deferred_element_style_input_memory
@@ -1929,7 +1945,12 @@ impl StyleEngineState {
                     engine_computed_record_scratch.pseudo_inputs_alone = reaction
                         == transaction::STYLE_REACTION_PUBLISHED_STYLE
                             | transaction::STYLE_REACTION_PSEUDO_INPUTS_MAY_HAVE_CHANGED;
-                    let full_drive_reason = self.full_drive_reason(root, reaction, named_rules_moved);
+                    let full_drive_reason = self.full_drive_reason(
+                        root,
+                        reaction,
+                        named_rules_moved,
+                        container_input_nodes.contains(&root),
+                    );
                     self.prepare_root_font_inputs(
                         root,
                         answer.cascade_winners_are_complete,
@@ -2238,7 +2259,12 @@ impl StyleEngineState {
                         engine_computed_record_scratch.pseudo_inputs_alone = reaction
                             == transaction::STYLE_REACTION_PUBLISHED_STYLE
                                 | transaction::STYLE_REACTION_PSEUDO_INPUTS_MAY_HAVE_CHANGED;
-                        let full_drive_reason = self.full_drive_reason(node, reaction, named_rules_moved);
+                        let full_drive_reason = self.full_drive_reason(
+                            node,
+                            reaction,
+                            named_rules_moved,
+                            container_input_nodes.contains(&node),
+                        );
                         self.engine_computed_record_delta(
                             node,
                             answer.cascade_winners_are_complete,

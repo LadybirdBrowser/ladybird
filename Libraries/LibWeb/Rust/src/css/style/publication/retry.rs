@@ -62,6 +62,18 @@ impl RetainedState {
                 )
                 .map(|(_, record)| record.raw());
         }
+        // Winners published while an ancestor was moving, or whose container verdicts the
+        // records installed since move, are published again from the node's retained answer
+        // before anything is derived from them.
+        let republished_complete = if self.container_winners_are_stale(node) {
+            let republication = scratch.winner_republication().or_refused()?;
+            Some(
+                self.republish_winners_from_answer(node, republication, counters)
+                    .ok_or(Unanswered::Refused)?,
+            )
+        } else {
+            None
+        };
         let Lookup::Known(cascade_state) = self
             .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))
@@ -141,9 +153,10 @@ impl RetainedState {
         if !scratch.font_drive.is_pending_for(node) && self.computed_group_sets.node_answer_is_incomplete(node) {
             return Err(Unanswered::Refused);
         }
-        let cascade_winners_are_complete = self
-            .current_published_answer(node)
-            .is_some_and(|answer| answer.cascade_winners_are_complete);
+        let cascade_winners_are_complete = republished_complete.unwrap_or_else(|| {
+            self.current_published_answer(node)
+                .is_some_and(|answer| answer.cascade_winners_are_complete)
+        });
         let (_, record) = self.engine_computed_record_delta(
             node,
             cascade_winners_are_complete,

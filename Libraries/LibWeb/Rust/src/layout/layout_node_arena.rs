@@ -4589,6 +4589,7 @@ pub unsafe extern "C" fn layout_arena_set_node_style(
     if arena.set_node_style(id, style_record, payloads) {
         arena.refresh_style_flags(id);
     }
+    arena.publish_new_size_container_geometry(id);
     arena.enroll_node_for_svg_paint_resources_sync(id);
 }
 

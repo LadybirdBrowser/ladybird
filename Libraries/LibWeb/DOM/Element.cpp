@@ -2547,6 +2547,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         apply_computed_style_to_layout_node_if_needed(invalidation);
         return invalidation;
     }
+    // A later pass of this style update may start the element's transitions in C++, against the
+    // style the element held before the update rather than this record, as a C++ computation of
+    // this pass would have recorded.
+    if (old_style_record != new_style_record
+        && (AbstractElement { *this }.style_scope().rule_cache().has_size_container_queries || document().is_in_style_stabilization_feedback_epoch()))
+        style_computer.record_transition_stabilization_baseline(AbstractElement { *this });
     // The engine derives records this way only when the element's animation names are exactly what
     // they were; what is left to decide is what the layout tree and paint need, and the anchor names
     // the record registers. The record itself may be the one the element holds, when the reaction
@@ -2943,7 +2949,7 @@ void Element::invalidate_descendant_styles_depending_on_style_container_query()
         auto* element = as_if<Element>(node);
         if (!element || !element->style_depends_on_style_container_query())
             return TraversalDecision::Continue;
-        element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
+        element->document().style_computer().style_engine().record_container_query_input_change(element->style_node_id());
         return TraversalDecision::Continue;
     });
 }

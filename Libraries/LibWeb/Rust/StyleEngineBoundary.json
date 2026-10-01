@@ -143,7 +143,8 @@
     [146, "AnswerRecordDemand"],
     [147, "AbandonDemandedRecords"],
     [148, "EnsureRandomBaseValue"],
-    [149, "SetElementRandomBaseValues"]
+    [149, "SetElementRandomBaseValues"],
+    [150, "RecordContainerQueryInput"]
   ],
   "operations": [
     {"event": "TakeSharedComputationContext", "ffi": "style_engine_take_shared_computation_context", "cpp": "take_shared_computation_context", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["pseudo_elements", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.take_shared_computation_context(node, parent_record, environment, shape, pseudo_elements).unwrap_or(0);"},
@@ -200,6 +201,7 @@
     { "event": "LayerIndex", "ffi": "style_engine_layer_index", "cpp": "layer_index", "return": "u32", "receiver": "const", "args": [["tree_scope", "tree_scope_id"], ["layer", "u32"]], "body": "let result = engine.layer_index(TreeScopeID(tree_scope), CascadeLayerID(layer));" },
     { "event": "SetElementIsSlot", "ffi": "style_engine_set_element_is_slot", "cpp": "set_element_is_slot", "return": "void", "args": [["node", "style_node"], ["is_slot", "bool"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_is_slot(node, is_slot);" },
     { "event": "RecordElementStyleInput", "ffi": "style_engine_record_element_style_input", "cpp": "record_element_style_input", "return": "void", "args": [["node", "style_node"], ["reaction", "u8"], ["inherited_style_groups", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.record_element_style_input(node, reaction, inherited_style_groups);" },
+    { "event": "RecordContainerQueryInput", "ffi": "style_engine_record_container_query_input", "cpp": "record_container_query_input", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.record_container_query_input(node);" },
     { "event": "RecordDerivedElementStyleInput", "ffi": "style_engine_record_derived_element_style_input", "cpp": "record_derived_element_style_input", "return": "void", "args": [["node", "style_node"], ["reaction", "u8"], ["inherited_style_groups", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.record_derived_element_style_input(node, reaction, inherited_style_groups);" },
     { "event": "RecordFlatTreeDescendantStyleInputs", "ffi": "style_engine_record_flat_tree_descendant_style_inputs", "cpp": "record_flat_tree_descendant_style_inputs", "return": "void", "args": [["root", "style_node"], ["reaction", "u8"], ["inherited_style_groups", "u8"]], "body": "let Some(root) = StyleNodeID::from_raw(root) else { return; }; engine.record_flat_tree_descendant_style_inputs(root, reaction, inherited_style_groups);" },
     { "event": "ConsumeElementStyleInput", "ffi": "style_engine_consume_element_style_input", "cpp": "consume_recorded_element_style_input_change", "return": "void", "args": [["node", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.consume_element_style_input(node);" },

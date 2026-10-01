@@ -4192,16 +4192,14 @@ impl RetainedState {
         _: publication::WinnerRepublication,
         counters: &mut Counters,
     ) -> bool {
+        // Winners published on their own decide the node's gated rules over its containers as
+        // they stand, which the record loop checks again once the node's ancestors are settled.
+        self.container_gates_unheld.remove(&node);
         let complete = self.cascade_winner_inventory_is_complete(&matches, Some(node));
         let complete_but_for_custom_properties = self.element_declarations_are_complete_but_for_custom_properties(node)
-            && matches.iter().all(|entry| {
-                self.match_is_complete_but_for_custom_properties(
-                    node,
-                    entry.rule,
-                    entry.tree_scope,
-                    entry.pseudo_element.is_some(),
-                )
-            });
+            && matches
+                .iter()
+                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope));
         let mut effects = AnswerEffects::default();
         // The answer's pseudo-element inventory, and the matches its custom-property cascade runs
         // over where a record loop reads this transaction's.
