@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    span::before { content: "a"; }
+    .flip span::before { color: green; }
+</style>
+<div id="container"></div>
+<script>
+    let rules = "";
+    for (let i = 0; i < 30; ++i) {
+        rules += `.c${i} { padding-left: ${i}px; }\n`;
+        container.innerHTML += `<div><span class="c${i}"></span></div>`;
+    }
+    const style = document.createElement("style");
+    style.textContent = rules;
+    document.head.appendChild(style);
+</script>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.styleEngineCounters().cascadeMatchesBeforeCompaction;
+        for (const child of container.children)
+            child.classList.add("flip");
+        internals.updateStyle();
+        const matches = internals.styleEngineCounters().cascadeMatchesBeforeCompaction - before;
+        println(`cascade matches: ${matches}`);
+        const span = container.firstElementChild.firstElementChild;
+        println(`::before color: ${getComputedStyle(span, "::before").color}`);
+        println(`padding: ${getComputedStyle(container.lastElementChild.firstElementChild).paddingLeft}`);
+    });
+</script>
