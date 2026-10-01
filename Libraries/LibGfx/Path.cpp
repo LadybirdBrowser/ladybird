@@ -6,9 +6,17 @@
 
 #include <LibGfx/Path.h>
 #include <LibGfx/PathSkia.h>
+#include <LibGfx/TextLayout.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <core/SkPath.h>
+
+// A shaped run as Rust holds one: a font and the glyphs it placed, without the C++ GlyphRun object.
+struct LadybirdGfxGlyphRun {
+    void const* font;
+    Gfx::DrawGlyph const* glyphs;
+    size_t glyph_count;
+};
 
 extern "C" {
 void ladybird_gfx_path_destroy(void*);
@@ -22,6 +30,8 @@ void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t cou
 void* ladybird_gfx_path_copy_transformed(void const*, float const* affine_values);
 bool ladybird_gfx_path_contains(void const*, float, float, int);
 void ladybird_gfx_path_set_fill_type(void*, int);
+void* ladybird_gfx_path_create_from_glyph_runs(LadybirdGfxGlyphRun const* runs, size_t run_count);
+void* ladybird_gfx_path_place_glyph_runs_along(void const* path, LadybirdGfxGlyphRun const* runs, size_t run_count, float offset);
 }
 
 namespace Gfx {
@@ -137,6 +147,33 @@ extern "C" void* ladybird_gfx_path_create_from_ops(u8 const* kinds, float const*
         }
     }
     return path;
+}
+
+static Vector<NonnullRefPtr<Gfx::GlyphRun>> adopt_glyph_runs(LadybirdGfxGlyphRun const* runs, size_t run_count)
+{
+    Vector<NonnullRefPtr<Gfx::GlyphRun>> glyph_runs;
+    glyph_runs.ensure_capacity(run_count);
+    for (size_t i = 0; i < run_count; ++i) {
+        Vector<Gfx::DrawGlyph> glyphs;
+        glyphs.append(runs[i].glyphs, runs[i].glyph_count);
+        // The text type and width only matter to a caller that slices or measures the run, which neither of the two
+        // path operations below does.
+        glyph_runs.unchecked_append(adopt_ref(*new Gfx::GlyphRun(move(glyphs), *static_cast<Gfx::Font const*>(runs[i].font), Gfx::GlyphRun::TextType::Common, 0)));
+    }
+    return glyph_runs;
+}
+
+extern "C" void* ladybird_gfx_path_create_from_glyph_runs(LadybirdGfxGlyphRun const* runs, size_t run_count)
+{
+    auto* path = new Gfx::Path;
+    for (auto const& glyph_run : adopt_glyph_runs(runs, run_count))
+        path->glyph_run(glyph_run);
+    return path;
+}
+
+extern "C" void* ladybird_gfx_path_place_glyph_runs_along(void const* path, LadybirdGfxGlyphRun const* runs, size_t run_count, float offset)
+{
+    return new Gfx::Path(static_cast<Gfx::Path const*>(path)->place_glyph_runs_along(adopt_glyph_runs(runs, run_count), offset));
 }
 
 extern "C" void* ladybird_gfx_path_create_from_serialized_bytes(u8 const* bytes, size_t count)
