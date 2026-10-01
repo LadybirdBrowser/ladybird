@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/TemporaryChange.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/Layout/Node.h>
@@ -38,6 +39,16 @@ void InvalidationJournal::note_needs_layout_update(NodeIdentity identity, SetNee
     } else if (propagation == Layout::LayoutUpdatePropagation::ThroughAncestors) {
         // Marking the ancestors as well covers marking only the node, so the wider mark wins.
         entry.layout_propagation = propagation;
+    }
+    drain_if_layout_is_reading();
+}
+
+void InvalidationJournal::note_needs_layout_tree_update(NodeIdentity identity, SetNeedsLayoutTreeUpdateReason reason)
+{
+    auto& entry = entry_for(identity);
+    if (!entry.needs_layout_tree_update) {
+        entry.needs_layout_tree_update = true;
+        entry.layout_tree_update_reason = reason;
     }
     drain_if_layout_is_reading();
 }
@@ -95,6 +106,9 @@ void InvalidationJournal::note_paint_facts(NodeIdentity identity, Painting::Pain
 
 void InvalidationJournal::forget(CSS::StyleNodeID style_node)
 {
+    // A drain holds the generation it writes through outside the index, where forgetting cannot reach it, so an
+    // identity retired mid-drain could still have its entry land on the node it is handed to next.
+    VERIFY(!m_draining);
     auto index = m_entry_index_by_identity.take(NodeIdentity::of_style_node(style_node));
     if (!index.has_value())
         return;
@@ -113,6 +127,12 @@ void InvalidationJournal::drain_if_layout_is_reading()
 
 void InvalidationJournal::drain()
 {
+    // What the drain writes can mark more, and those marks land in the next generation of entries, which the loop below
+    // drains in turn.
+    if (m_draining)
+        return;
+    TemporaryChange draining { m_draining, true };
+
     while (!m_entries.is_empty()) {
         auto entries = move(m_entries);
         m_entry_index_by_identity.clear_with_capacity();
@@ -123,6 +143,10 @@ void InvalidationJournal::drain()
                 auto* layout_node = entry.identity.bound_layout_node(*arena);
                 if (!layout_node)
                     continue;
+                // The tree update goes first, so that a rebuild it escalates to an ancestor is known before the
+                // node's other marks.
+                if (entry.needs_layout_tree_update)
+                    layout_node->dom_node()->apply_layout_tree_update_mark(*layout_node, entry.layout_tree_update_reason);
                 if (entry.needs_layout_update)
                     layout_node->set_needs_layout_update(entry.layout_reason, entry.layout_propagation);
                 auto needs_repaint = entry.needs_repaint;

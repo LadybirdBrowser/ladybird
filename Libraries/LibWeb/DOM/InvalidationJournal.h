@@ -37,6 +37,7 @@ public:
     void visit_edges(GC::Cell::Visitor&);
 
     void note_needs_layout_update(NodeIdentity, SetNeedsLayoutReason, Layout::LayoutUpdatePropagation);
+    void note_needs_layout_tree_update(NodeIdentity, SetNeedsLayoutTreeUpdateReason);
     void note_needs_repaint(NodeIdentity, InvalidateDisplayList);
     void note_needs_repaint_in_subtree(NodeIdentity);
     void note_dom_paint_facts(NodeIdentity, u8 facts);
@@ -45,7 +46,7 @@ public:
     void note_paint_facts(NodeIdentity, Painting::PaintFactsFamily);
 
     // The identity is retired and may name another node once it is handed out again, so what was noted for the node
-    // that had it must not land on that one.
+    // that had it must not land on that one. Nothing may retire an identity while the journal drains.
     void forget(CSS::StyleNodeID);
 
     // Writes every entry through to the layout and paint state and empties the journal.
@@ -57,8 +58,12 @@ private:
         // The reason of the first layout mark. Only the layout update trace reads it.
         SetNeedsLayoutReason layout_reason { SetNeedsLayoutReason::StyleChange };
         Layout::LayoutUpdatePropagation layout_propagation {};
+        // The reason of the tree update mark that made the node dirty. A later mark on a node that is already dirty
+        // changes nothing about the build, so only the first one's reason is kept.
+        SetNeedsLayoutTreeUpdateReason layout_tree_update_reason { SetNeedsLayoutTreeUpdateReason::None };
         InvalidateDisplayList invalidate_display_list { InvalidateDisplayList::No };
         bool needs_layout_update { false };
+        bool needs_layout_tree_update { false };
         bool needs_repaint { false };
         bool needs_subtree_repaint { false };
         bool invalidate_propagated_text_decoration_caches { false };
@@ -73,6 +78,7 @@ private:
     GC::Ref<Document> m_document;
     Vector<Entry> m_entries;
     HashMap<NodeIdentity, size_t> m_entry_index_by_identity;
+    bool m_draining { false };
 };
 
 }
