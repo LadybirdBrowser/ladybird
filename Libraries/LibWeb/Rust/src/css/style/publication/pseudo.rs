@@ -102,7 +102,8 @@ impl RetainedState {
     /// record; one that generates no box any more is removed; one whose cascade state did not
     /// move keeps its record. A refusal is a pseudo-element the engine cannot settle.
     /// `old_is_list_item` says whether the element was a list item when the record it held before
-    /// is not `old_element_record`: C++ computed the new one over it.
+    /// is not `old_element_record`: C++ computed the new one over it. `full_drive_reason` is the
+    /// element's: a record driven again in full has its pseudo-elements derived afresh too.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn engine_pseudo_records(
         &mut self,
@@ -111,6 +112,7 @@ impl RetainedState {
         old_is_list_item: Option<bool>,
         new_element_record: computed::FinalStyleRecordID,
         generation: u64,
+        full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<()> {
@@ -123,6 +125,7 @@ impl RetainedState {
             new_element_record,
             generation,
             PseudoSettlement::Generated,
+            full_drive_reason,
             scratch,
             counters,
         )
@@ -138,6 +141,7 @@ impl RetainedState {
         new_element_record: computed::FinalStyleRecordID,
         generation: u64,
         settlement: PseudoSettlement,
+        full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<()> {
@@ -207,13 +211,13 @@ impl RetainedState {
             None => false,
         };
         let facts = self.computed_group_sets.adjustment_facts(node) & PSEUDO_ELEMENT_ADJUSTMENT_FACTS;
-        // A read-only read derives its record afresh, as does a reaction that recomputes its
-        // element in full: an element revealed from display:none holds no pseudo-element styles.
+        // A read-only read derives its record afresh, as does a reaction that drives its element
+        // in full: an element revealed from display:none holds no pseudo-element styles, and a
+        // pseudo-element resolves a font cascade and named rules of its own.
         let originating_inputs_unchanged = !matches!(settlement, PseudoSettlement::Computed(_))
             && inherited_inputs_unchanged
-            && !scratch.recompute_in_full
+            && full_drive_reason.is_none()
             && !scratch.root_font_inputs_changed
-            && !scratch.font_environment_moved
             && !scratch.document_environment_moved
             && old_element_record.is_some_and(|old| {
                 let Some(old_view) = self.computed_group_sets.style_record_view(old.raw()) else {
@@ -1119,6 +1123,7 @@ impl RetainedState {
             Some(old_is_list_item),
             record,
             generation,
+            None,
             scratch,
             counters,
         ) {

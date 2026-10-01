@@ -374,7 +374,8 @@ impl StyleEngineState {
         };
         let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
         let (_, record) = loop {
-            match self.engine_computed_record_delta(node, complete, None, parent_inputs_moved, scratch, counters) {
+            match self.engine_computed_record_delta(node, complete, None, parent_inputs_moved, None, scratch, counters)
+            {
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
                     suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
@@ -463,6 +464,7 @@ impl StyleEngineState {
                 element,
                 generation,
                 settlement,
+                None,
                 scratch,
                 counters,
             ) {
