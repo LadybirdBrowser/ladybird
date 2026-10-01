@@ -7,16 +7,21 @@
 //! Mirrors Libraries/LibJS/Bytecode/PropertyAccess.h: the property gets and puts that consult and fill the inline
 //! caches the interpreter's fast paths read.
 
+use core::fmt::Display;
+
 use ak::Utf16FlyString;
 use libjs_abi::PutKind;
 
-use crate::bytecode::executable::{PropertyLookupCache, PropertyLookupCacheEntryType};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
+use crate::bytecode::executable::{
+    KeyedPropertyLookupCache, KeyedPropertyLookupCacheEntry, PropertyLookupCache, PropertyLookupCacheEntryType,
+};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::call_function_object;
+use crate::runtime::class_field_definition::ClassElementName;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
+use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::object::{
@@ -73,6 +78,107 @@ pub fn property_addition_is_cacheable(vm: &Vm, object: &Object, property_key: &P
     }
     object_can_cache_property_additions(object)
         && !(object.has_magical_length_property() && property_key.as_string() == vm.names.length.as_string())
+}
+
+pub fn get_by_value_with_keyed_cache(
+    vm: &Vm,
+    base_object: Gc<Object>,
+    this_value: Value,
+    property_key: &PropertyKey,
+) -> ThrowCompletionOr<Value> {
+    if !property_key.is_string() {
+        return base_object.internal_get(vm, property_key, this_value, None, PropertyLookupPhase::OwnProperty);
+    }
+
+    let property_name = property_key.as_string();
+    let shape = base_object.shape();
+    let keyed_property_lookup_cache = vm.keyed_property_lookup_cache();
+    let entry_index = KeyedPropertyLookupCache::entry_index_for(shape, property_name);
+    let entry = keyed_property_lookup_cache.entry(entry_index);
+    if entry.shape == Some(shape)
+        && entry.property_name.as_ref() == Some(property_name)
+        && (!shape.is_dictionary() || shape.dictionary_generation() == entry.shape_dictionary_generation)
+    {
+        let prototype_chain_validity_is_valid = entry
+            .prototype_chain_validity
+            .is_some_and(|validity| validity.is_valid());
+        match entry.entry_type {
+            PropertyLookupCacheEntryType::GetOwnProperty => {
+                return get_cached_property_value(vm, base_object.get_direct(entry.property_offset), this_value);
+            }
+            PropertyLookupCacheEntryType::GetPropertyInPrototypeChain => {
+                if prototype_chain_validity_is_valid {
+                    let prototype = entry.prototype.expect("an inherited property has a holder");
+                    return get_cached_property_value(vm, prototype.get_direct(entry.property_offset), this_value);
+                }
+            }
+            PropertyLookupCacheEntryType::GetMissingProperty
+                if base_object.is_cacheable_for_property_absence()
+                    && (shape.prototype().is_none() || prototype_chain_validity_is_valid) =>
+            {
+                return Ok(Value::UNDEFINED);
+            }
+            _ => {}
+        }
+    }
+
+    let prototype_chain_validity = shape
+        .prototype()
+        .and_then(|prototype| prototype.shape().prototype_chain_validity());
+
+    let dictionary_generation = shape.dictionary_generation();
+    let mut cacheable_metadata = CacheableGetPropertyMetadata {
+        property_absence_is_cacheable: base_object.is_cacheable_for_property_absence(),
+        ..Default::default()
+    };
+    let value = base_object.internal_get(
+        vm,
+        property_key,
+        this_value,
+        Some(&mut cacheable_metadata),
+        PropertyLookupPhase::OwnProperty,
+    )?;
+
+    // A getter may have changed the object's shape or the property storage of a dictionary shape, which
+    // leaves the metadata describing a lookup that no longer applies.
+    if shape != base_object.shape()
+        || shape.dictionary_generation() != dictionary_generation
+        || cacheable_metadata.r#type == CacheableGetPropertyMetadataType::NotCacheable
+    {
+        return Ok(value);
+    }
+
+    let mut entry = KeyedPropertyLookupCacheEntry {
+        shape: Some(shape),
+        property_name: Some(property_name.clone()),
+        ..Default::default()
+    };
+    if shape.is_dictionary() {
+        entry.shape_dictionary_generation = shape.dictionary_generation();
+    }
+    match cacheable_metadata.r#type {
+        CacheableGetPropertyMetadataType::GetOwnProperty => {
+            entry.entry_type = PropertyLookupCacheEntryType::GetOwnProperty;
+            entry.property_offset = cacheable_metadata
+                .property_offset
+                .expect("cacheable metadata has an offset");
+        }
+        CacheableGetPropertyMetadataType::GetPropertyInPrototypeChain => {
+            entry.entry_type = PropertyLookupCacheEntryType::GetPropertyInPrototypeChain;
+            entry.property_offset = cacheable_metadata
+                .property_offset
+                .expect("cacheable metadata has an offset");
+            entry.prototype = cacheable_metadata.prototype;
+            entry.prototype_chain_validity = prototype_chain_validity;
+        }
+        CacheableGetPropertyMetadataType::GetMissingProperty => {
+            entry.entry_type = PropertyLookupCacheEntryType::GetMissingProperty;
+            entry.prototype_chain_validity = prototype_chain_validity;
+        }
+        CacheableGetPropertyMetadataType::NotCacheable => unreachable!("an uncacheable lookup returned above"),
+    }
+    keyed_property_lookup_cache.set_entry(entry_index, entry);
+    Ok(value)
 }
 
 // Non-standard
@@ -153,7 +259,7 @@ fn throw_null_or_undefined_property_get<T>(
     vm: &Vm,
     base_value: Value,
     get_base_identifier: impl FnOnce() -> Option<Utf16FlyString>,
-    property_name: &PropertyKey,
+    property_name: &dyn Display,
 ) -> ThrowCompletionOr<T> {
     assert!(base_value.is_nullish());
 
@@ -171,11 +277,13 @@ fn throw_null_or_undefined_property_get<T>(
     )
 }
 
+/// The object a property get on `base_value` looks the property up in. `property_name` is the property as the error
+/// for a null or undefined base names it: a key, or the value a key has yet to be computed from.
 pub fn base_object_for_get(
     vm: &Vm,
     base_value: Value,
     get_base_identifier: impl FnOnce() -> Option<Utf16FlyString>,
-    property_name: &PropertyKey,
+    property_name: &dyn Display,
 ) -> ThrowCompletionOr<Gc<Object>> {
     if let Some(base_object) = base_object_for_get_impl(vm, base_value) {
         return Ok(base_object);
@@ -397,11 +505,11 @@ pub fn put_by_property_key(
     match kind {
         PutKind::Getter | PutKind::Setter => {
             let function = value.as_function();
-            if value.as_object().is_ecmascript_function_object() {
-                unimplemented_runtime_function(
-                    "ECMAScriptFunctionObject::name and set_inferred_name for an accessor defined by name",
-                    0,
-                );
+            if let Some(ecmascript_function) = as_ecmascript_function_object(function)
+                && ecmascript_function.name().is_empty()
+            {
+                let prefix = if kind == PutKind::Getter { "get" } else { "set" };
+                ecmascript_function.set_inferred_name(vm, &ClassElementName::PropertyKey(name.clone()), Some(prefix));
             }
             let attributes = PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::ENUMERABLE);
             if kind == PutKind::Getter {

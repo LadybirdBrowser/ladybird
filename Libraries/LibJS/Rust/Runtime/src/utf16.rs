@@ -130,6 +130,22 @@ impl<'a> Utf16View<'a> {
             Self::Utf16(units) => String::from_utf16_lossy(units),
         }
     }
+
+    /// Mirrors AK::Utf16View::is_code_unit_less_than: compares the code units in order, and a proper prefix is less.
+    pub fn is_code_unit_less_than(self, other: Utf16View<'_>) -> bool {
+        let common_length = self.length_in_code_units().min(other.length_in_code_units());
+
+        for position in 0..common_length {
+            let this_code_unit = self.code_unit_at(position);
+            let other_code_unit = other.code_unit_at(position);
+
+            if this_code_unit != other_code_unit {
+                return this_code_unit < other_code_unit;
+            }
+        }
+
+        self.length_in_code_units() < other.length_in_code_units()
+    }
 }
 
 impl PartialEq for Utf16View<'_> {

@@ -15,7 +15,8 @@ use libjs_runtime_macros::Trace;
 use super::interpreter_stack::InterpreterStackMemory;
 use crate::build_configuration::VM_STACK_SPACE_LIMIT;
 use crate::bytecode::executable::{
-    Executable, PropertyLookupCache, StaticPropertyLookupCacheSite, StaticPropertyLookupCaches,
+    Executable, KeyedPropertyLookupCache, PropertyLookupCache, StaticPropertyLookupCacheSite,
+    StaticPropertyLookupCaches,
 };
 use crate::bytecode::property_access::Strict;
 use crate::gc::capi::{self, GCVisitor};
@@ -150,6 +151,7 @@ pub struct Vm {
     /// executables that die.
     executables: RefCell<Vec<Gc<Executable>>>,
     static_property_lookup_caches: StaticPropertyLookupCaches,
+    keyed_property_lookup_cache: KeyedPropertyLookupCache,
     host_ensure_can_add_private_element: Cell<HostEnsureCanAddPrivateElement>,
     /// The id the next PrivateEnvironment gives its names, the C++ static PrivateEnvironment::s_next_id. It starts
     /// at one such that 0 can be invalid / default initialized.
@@ -201,6 +203,7 @@ impl Vm {
             well_known_symbols: OnceCell::new(),
             executables: RefCell::new(Vec::new()),
             static_property_lookup_caches: StaticPropertyLookupCaches::new(),
+            keyed_property_lookup_cache: KeyedPropertyLookupCache::new(),
             host_ensure_can_add_private_element: Cell::new(default_host_ensure_can_add_private_element),
             next_private_environment_id: Cell::new(1),
         });
@@ -370,6 +373,7 @@ impl Vm {
             true
         });
         self.static_property_lookup_caches.remove_dead_entries();
+        self.keyed_property_lookup_cache.remove_dead_entries();
     }
 
     pub fn register_executable(&self, executable: Gc<Executable>) {
@@ -378,6 +382,24 @@ impl Vm {
 
     pub fn static_property_lookup_cache(&self, site: StaticPropertyLookupCacheSite) -> &PropertyLookupCache {
         self.static_property_lookup_caches.get(site)
+    }
+
+    pub fn keyed_property_lookup_cache(&self) -> &KeyedPropertyLookupCache {
+        &self.keyed_property_lookup_cache
+    }
+
+    /// The executable of the running execution context.
+    pub fn current_executable(&self) -> Gc<Executable> {
+        let context = self
+            .running_execution_context()
+            .expect("there is a running execution context");
+        // SAFETY: The running execution context is live.
+        let executable = unsafe { context.as_ref() }
+            .executable
+            .get()
+            .expect("the running execution context runs an executable");
+        // SAFETY: An Executable starts with its head.
+        unsafe { Gc::from_non_null(executable.as_non_null().cast()) }
     }
 
     pub fn host_ensure_can_add_private_element(&self) -> HostEnsureCanAddPrivateElement {

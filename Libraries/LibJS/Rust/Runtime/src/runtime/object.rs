@@ -50,7 +50,7 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::shape::Shape;
 use crate::runtime::symbol::Symbol;
-use crate::runtime::value::PreferredType;
+use crate::runtime::value::{PreferredType, same_value};
 use crate::utf16::to_utf16_fly_string;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1026,6 +1026,173 @@ impl Object {
 
         // 4. Return properties.
         Ok(properties)
+    }
+
+    // 7.3.26 CopyDataProperties ( target, source, excludedItems ), https://tc39.es/ecma262/#sec-copydataproperties
+    // 14.6 CopyDataProperties ( target, source, excludedItems, excludedKeys [ , excludedValues ] ), https://tc39.es/proposal-temporal/#sec-copydataproperties
+    pub fn copy_data_properties(
+        &self,
+        vm: &Vm,
+        source: Value,
+        excluded_keys: &MarkedVec<'_, PropertyKey>,
+        excluded_values: &MarkedVec<'_, Value>,
+    ) -> ThrowCompletionOr<()> {
+        let is_excluded_key = |property_key: &PropertyKey| {
+            (0..excluded_keys.len()).any(|index| excluded_keys.get(index).as_ref() == Some(property_key))
+        };
+
+        // 1. If source is either undefined or null, return unused.
+        if source.is_nullish() {
+            return Ok(());
+        }
+
+        // 2. Let from be ! ToObject(source).
+        let from = source.to_object(vm).must();
+
+        // OPTIMIZATION: An empty ordinary object can reuse the shape of a compatible ordinary source
+        //               and copy its property storage directly. This is equivalent to defining each
+        //               property because all source properties already have the default attributes.
+        let current_realm = || vm.current_realm().expect("there is a current realm");
+        if from != self.as_gc()
+            && excluded_keys.is_empty()
+            && excluded_values.is_empty()
+            && self.shape() == current_realm().new_object_shape()
+            && self.indexed_storage_kind() == IndexedStorageKind::None
+            && self.extensible()
+            && self.eligible_for_own_property_enumeration_fast_path()
+            && !self.has_intrinsic_accessors()
+            && !self.may_interfere_with_indexed_property_access()
+            && !self.requires_slow_add_own_property()
+            && from.indexed_storage_kind() == IndexedStorageKind::None
+            && from.eligible_for_own_property_enumeration_fast_path()
+            && !from.has_intrinsic_accessors()
+            && !from.may_interfere_with_indexed_property_access()
+            && !from.requires_slow_add_own_property()
+            && !from.shape().is_dictionary()
+            && !from.shape().is_prototype_shape()
+            && from.shape().realm() == current_realm()
+            && from.shape().prototype() == self.shape().prototype()
+        {
+            let mut has_only_default_data_properties = true;
+            from.shape().for_each_property_in_insertion_order(|_, metadata| {
+                if metadata.attributes != DEFAULT_ATTRIBUTES || from.get_direct(metadata.offset).is_accessor() {
+                    has_only_default_data_properties = false;
+                    return ControlFlow::Break(());
+                }
+                ControlFlow::Continue(())
+            });
+
+            if has_only_default_data_properties {
+                self.unsafe_set_shape(from.shape());
+                from.shape().for_each_property_in_insertion_order(|_, metadata| {
+                    self.put_direct(metadata.offset, from.get_direct(metadata.offset));
+                    ControlFlow::Continue(())
+                });
+                return Ok(());
+            }
+        }
+
+        // OPTIMIZATION: For ordinary objects we can iterate the shape directly and read values by storage
+        //               offset, avoiding repeated property lookups through DescriptorArray::find.
+        if from.eligible_for_own_property_enumeration_fast_path()
+            && !from.has_intrinsic_accessors()
+            && !from.may_interfere_with_indexed_property_access()
+            && excluded_values.is_empty()
+            && matches!(
+                from.indexed_storage_kind(),
+                IndexedStorageKind::None | IndexedStorageKind::Packed
+            )
+        {
+            let mut has_accessors = false;
+            from.shape().for_each_property_in_insertion_order(|_, metadata| {
+                if metadata.attributes.is_enumerable() && from.get_direct(metadata.offset).is_accessor() {
+                    has_accessors = true;
+                    return ControlFlow::Break(());
+                }
+                ControlFlow::Continue(())
+            });
+
+            if !has_accessors {
+                let available_elements = from.indexed_packed_element_count();
+                for index in 0..available_elements {
+                    let property_key = PropertyKey::from(index);
+                    if !excluded_keys.is_empty() && is_excluded_key(&property_key) {
+                        continue;
+                    }
+                    self.create_data_property_or_throw(vm, &property_key, from.indexed_element(index))
+                        .must();
+                }
+
+                // Defining the properties can allocate, which must not happen while the shape is borrowed, so the
+                // properties are read out first. Reading them has no side effects.
+                let properties = MarkedVec::with_capacity(vm, from.shape().property_count() as usize);
+                from.shape()
+                    .for_each_property_in_insertion_order(|property_key, metadata| {
+                        if !metadata.attributes.is_enumerable() {
+                            return ControlFlow::Continue(());
+                        }
+                        if !excluded_keys.is_empty() && is_excluded_key(property_key) {
+                            return ControlFlow::Continue(());
+                        }
+                        properties.push((property_key.clone(), from.get_direct(metadata.offset)));
+                        ControlFlow::Continue(())
+                    });
+                for index in 0..properties.len() {
+                    let (property_key, value) = properties.get(index).expect("the index is in bounds");
+                    self.create_data_property_or_throw(vm, &property_key, value).must();
+                }
+
+                return Ok(());
+            }
+        }
+
+        // 3. Let keys be ? from.[[OwnPropertyKeys]]().
+        let keys = from.internal_own_property_keys(vm)?;
+
+        // 4. For each element nextKey of keys, do
+        for index in 0..keys.len() {
+            let next_key_value = keys.get(index).expect("the index is in bounds");
+            let next_key = PropertyKey::from_value(vm, next_key_value).must();
+
+            // a. Let excluded be false.
+            // b. For each element e of excludedKeys, do
+            //    i. If SameValue(e, nextKey) is true, then
+            //        1. Set excluded to true.
+            if is_excluded_key(&next_key) {
+                continue;
+            }
+
+            // c. If excluded is false, then
+
+            // i. Let desc be ? from.[[GetOwnProperty]](nextKey).
+            let descriptor = from.internal_get_own_property(vm, &next_key)?;
+
+            // ii. If desc is not undefined and desc.[[Enumerable]] is true, then
+            if let Some(descriptor) = descriptor
+                && descriptor.attributes().is_enumerable()
+            {
+                // 1. Let propValue be ? Get(from, nextKey).
+                let property_value = from.get(vm, &next_key)?;
+
+                // 2. If excludedValues is present, then
+                //     a. For each element e of excludedValues, do
+                //         i. If SameValue(e, propValue) is true, then
+                //             i. Set excluded to true.
+                // 3. If excluded is false, Perform ! CreateDataPropertyOrThrow(target, nextKey, propValue).
+                let is_excluded_value = (0..excluded_values.len()).any(|index| {
+                    same_value(
+                        excluded_values.get(index).expect("the index is in bounds"),
+                        property_value,
+                    )
+                });
+                if !is_excluded_value {
+                    self.create_data_property_or_throw(vm, &next_key, property_value).must();
+                }
+            }
+        }
+
+        // 5. Return unused.
+        Ok(())
     }
 
     // 7.3.27 PrivateElementFind ( O, P ), https://tc39.es/ecma262/#sec-privateelementfind

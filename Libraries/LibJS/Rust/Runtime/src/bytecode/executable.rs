@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use std::rc::Rc;
 
+use ak::Utf16FlyString;
+
 use crate::bytecode::class_blueprint::ClassBlueprint;
+use crate::bytecode::operand::{IdentifierTableIndex, PropertyKeyTableIndex};
 use crate::frontend_host::rust_free_compiled_regex;
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
@@ -20,8 +23,9 @@ use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::executable::ExecutableHead;
 use crate::layout::object::Object;
 pub use crate::layout::property_lookup_cache::{
-    EnvironmentCoordinate, GlobalVariableCache, PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK, PropertyLookupCache,
-    PropertyLookupCacheEntry, PropertyLookupCacheEntryType,
+    EnvironmentCoordinate, GlobalVariableCache, ObjectPropertyIteratorCache, ObjectPropertyIteratorCacheData,
+    ObjectPropertyIteratorFastPath, PROPERTY_LOOKUP_CACHE_DATA_TAG_MASK, PropertyLookupCache, PropertyLookupCacheEntry,
+    PropertyLookupCacheEntryType,
 };
 use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
@@ -29,6 +33,7 @@ use crate::runtime::big_int::{BigInt, SignedBigInteger};
 use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::primitive_string::u64_hash;
+use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::source_code::SourceCode;
 use libjs_rust::bytecode::constant::WellKnownSymbolKind;
@@ -274,14 +279,20 @@ impl PropertyLookupCache {
     }
 
     pub fn first_entry(&self) -> Option<PropertyLookupCacheEntryData> {
+        self.first_entry_slot().map(PropertyLookupCacheEntry::get)
+    }
+
+    /// The entry the interpreter consults, for updating it in place. The reference must not be held across anything
+    /// that may update the cache.
+    pub fn first_entry_slot(&self) -> Option<&PropertyLookupCacheEntry> {
         if let Some(data) = self.monomorphic_data() {
-            return Some(data.entry.get());
+            return Some(&data.entry);
         }
         if let Some(data) = self.polymorphic_data() {
-            return Some(data.entries[0].get());
+            return Some(&data.entries[0]);
         }
         if let Some(data) = self.megamorphic_data() {
-            return Some(data.entry.get());
+            return Some(&data.entry);
         }
         None
     }
@@ -566,6 +577,9 @@ define_static_property_lookup_cache_sites! {
     SpeciesConstructorSpecies,
     ValueToPrimitive,
     GetPrototypeFromConstructorPrototype,
+    ValueIsRegExp,
+    InstanceOfHasInstance,
+    OrdinaryHasInstancePrototype,
 }
 
 /// The caches of the static call sites, one set per VM, which prunes them like the caches of executables.
@@ -597,6 +611,245 @@ impl Default for StaticPropertyLookupCaches {
     }
 }
 
+pub const KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_COUNT: usize = 2048;
+
+const _: () = assert!(KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_COUNT.is_power_of_two());
+
+/// One remembered lookup of a property by name on a shape. Like the entries of a PropertyLookupCache, it does not keep
+/// its cells alive; the VM's sweep callback clears the entries whose cells died.
+#[derive(Clone)]
+pub struct KeyedPropertyLookupCacheEntry {
+    pub entry_type: PropertyLookupCacheEntryType,
+    pub property_offset: u32,
+    pub shape_dictionary_generation: u32,
+    pub shape: Option<Gc<Shape>>,
+    pub prototype: Option<Gc<Object>>,
+    pub prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+    pub property_name: Option<Utf16FlyString>,
+}
+
+impl Default for KeyedPropertyLookupCacheEntry {
+    fn default() -> Self {
+        Self {
+            entry_type: PropertyLookupCacheEntryType::Empty,
+            property_offset: 0,
+            shape_dictionary_generation: 0,
+            shape: None,
+            prototype: None,
+            prototype_chain_validity: None,
+            property_name: None,
+        }
+    }
+}
+
+/// The VM-wide cache of string-keyed GetByValue lookups. Entries are copied in and out, so that none is borrowed
+/// while the lookup it caches runs.
+pub struct KeyedPropertyLookupCache {
+    entries: RefCell<Box<[KeyedPropertyLookupCacheEntry]>>,
+}
+
+/// Mirrors AK::pair_int_hash.
+fn pair_int_hash(key1: u32, key2: u32) -> u32 {
+    u64_hash((u64::from(key1) << 32) | u64::from(key2))
+}
+
+impl KeyedPropertyLookupCache {
+    pub fn new() -> Self {
+        Self {
+            entries: RefCell::new(
+                (0..KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_COUNT)
+                    .map(|_| KeyedPropertyLookupCacheEntry::default())
+                    .collect(),
+            ),
+        }
+    }
+
+    /// The index of the one entry that may hold the lookup of `property_name` on `shape`. Fly strings are interned,
+    /// so the identity of the name stands in for the hash of its contents.
+    pub fn entry_index_for(shape: Gc<Shape>, property_name: &Utf16FlyString) -> usize {
+        let shape_hash = u64_hash(shape.as_ptr().addr() as u64);
+        let property_name_hash = u64_hash(property_name.raw_identity() as u64);
+        pair_int_hash(shape_hash, property_name_hash) as usize & (KEYED_PROPERTY_LOOKUP_CACHE_ENTRY_COUNT - 1)
+    }
+
+    pub fn entry(&self, index: usize) -> KeyedPropertyLookupCacheEntry {
+        self.entries.borrow()[index].clone()
+    }
+
+    pub fn set_entry(&self, index: usize, entry: KeyedPropertyLookupCacheEntry) {
+        self.entries.borrow_mut()[index] = entry;
+    }
+
+    /// Forgets the entries with a cell that died in this collection. Only the VM's sweep callback calls this.
+    pub fn remove_dead_entries(&self) {
+        for entry in self.entries.borrow_mut().iter_mut() {
+            if entry.entry_type == PropertyLookupCacheEntryType::Empty {
+                continue;
+            }
+            if entry.shape.is_some_and(cell_is_dead)
+                || entry.prototype.is_some_and(cell_is_dead)
+                || entry.prototype_chain_validity.is_some_and(cell_is_dead)
+            {
+                *entry = KeyedPropertyLookupCacheEntry::default();
+            }
+        }
+    }
+}
+
+impl Default for KeyedPropertyLookupCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Cache for object literal shapes.
+// When an object literal like {a: 1, b: 2} is instantiated, we cache the final shape
+// so that subsequent instantiations can allocate the object with the correct shape directly,
+// avoiding repeated shape transitions.
+// We also cache the property offsets so that subsequent property writes can bypass
+// shape lookups and write directly to the correct storage slot.
+/// The shape is not kept alive; the VM's sweep callback forgets it when it dies.
+#[derive(Default)]
+pub struct ObjectShapeCache {
+    pub shape: Cell<Option<Gc<Shape>>>,
+    pub property_offsets: RefCell<Vec<u32>>,
+}
+
+/// The parts of an ObjectPropertyIteratorCacheData the interpreter does not read.
+#[derive(Default)]
+pub struct ObjectPropertyIteratorCacheDataStorage {
+    properties: Box<[PropertyKey]>,
+}
+
+define_cell!(ObjectPropertyIteratorCacheData, Other, finalize: finalize);
+
+// SAFETY: Visits the shape, the validity, the materialized key values and the keys.
+unsafe impl Trace for ObjectPropertyIteratorCacheData {
+    fn trace(&self, visitor: &mut Visitor) {
+        self.shape.trace(visitor);
+        self.prototype_chain_validity.trace(visitor);
+        self.property_values.trace(visitor);
+        self.storage.properties.trace(visitor);
+    }
+}
+
+impl Finalize for ObjectPropertyIteratorCacheData {
+    fn finalize(&self) {
+        self.property_values.clear();
+    }
+}
+
+impl ObjectPropertyIteratorCacheData {
+    /// Fast-path snapshot: a cached, revalidatable key list for one shape, shared by every site that enumerates it.
+    pub fn create_with_fast_path(
+        vm: &Vm,
+        properties: &MarkedVec<'_, PropertyKey>,
+        fast_path: ObjectPropertyIteratorFastPath,
+        indexed_property_count: u32,
+        receiver_has_magical_length_property: bool,
+        shape: Gc<Shape>,
+        prototype_chain_validity: Option<Gc<PrototypeChainValidity>>,
+    ) -> Gc<ObjectPropertyIteratorCacheData> {
+        let (shape_is_dictionary, shape_dictionary_generation) = if shape.is_dictionary() {
+            (true, shape.dictionary_generation())
+        } else {
+            (false, 0)
+        };
+        let cache_data = vm.heap().allocate(Self {
+            header: CellHeader::for_class(Self::CLASS),
+            shape_is_dictionary: Cell::new(shape_is_dictionary),
+            fast_path: Cell::new(fast_path),
+            receiver_has_magical_length: Cell::new(receiver_has_magical_length_property),
+            indexed_property_count: Cell::new(indexed_property_count),
+            shape_dictionary_generation: Cell::new(shape_dictionary_generation),
+            shape: Cell::new(Some(shape)),
+            prototype_chain_validity: Cell::new(prototype_chain_validity),
+            property_values: InterpreterBuffer::new(),
+            storage: ObjectPropertyIteratorCacheDataStorage {
+                properties: properties.to_vec().into_boxed_slice(),
+            },
+        });
+
+        // The iterator fast path returns JS Values directly, so materialize the
+        // cached key list once up front instead of converting PropertyKeys during
+        // every ObjectPropertyIteratorNext.
+        cache_data
+            .property_values
+            .ensure_capacity(indexed_property_count as usize + properties.len());
+        for index in 0..indexed_property_count {
+            let value = PropertyKey::from(index).to_value(vm);
+            cache_data.property_values.append(value);
+        }
+        for index in 0..properties.len() {
+            let value = properties.get(index).expect("the index is in bounds").to_value(vm);
+            cache_data.property_values.append(value);
+        }
+        cache_data
+    }
+
+    /// Slow-path snapshot: a plain key list with no fast path. Enumeration filters deleted keys with has_property() at
+    /// each step, so there is no shape to revalidate against.
+    pub fn create(vm: &Vm, properties: &MarkedVec<'_, PropertyKey>) -> Gc<ObjectPropertyIteratorCacheData> {
+        // The slow path keeps only the key list. Values are converted lazily during enumeration,
+        // because deleted keys have to be filtered with has_property() at each step anyway.
+        vm.heap().allocate(Self {
+            header: CellHeader::for_class(Self::CLASS),
+            shape_is_dictionary: Cell::new(false),
+            fast_path: Cell::new(ObjectPropertyIteratorFastPath::None),
+            receiver_has_magical_length: Cell::new(false),
+            indexed_property_count: Cell::new(0),
+            shape_dictionary_generation: Cell::new(0),
+            shape: Cell::new(None),
+            prototype_chain_validity: Cell::new(None),
+            property_values: InterpreterBuffer::new(),
+            storage: ObjectPropertyIteratorCacheDataStorage {
+                properties: properties.to_vec().into_boxed_slice(),
+            },
+        })
+    }
+
+    pub fn property_count(&self) -> usize {
+        self.storage.properties.len()
+    }
+
+    pub fn property(&self, index: usize) -> PropertyKey {
+        self.storage.properties[index].clone()
+    }
+
+    pub fn fast_path(&self) -> ObjectPropertyIteratorFastPath {
+        self.fast_path.get()
+    }
+
+    pub fn indexed_property_count(&self) -> u32 {
+        self.indexed_property_count.get()
+    }
+
+    pub fn receiver_has_magical_length_property(&self) -> bool {
+        self.receiver_has_magical_length.get()
+    }
+
+    pub fn shape(&self) -> Option<Gc<Shape>> {
+        self.shape.get()
+    }
+
+    pub fn prototype_chain_validity(&self) -> Option<Gc<PrototypeChainValidity>> {
+        self.prototype_chain_validity.get()
+    }
+
+    pub fn shape_dictionary_generation(&self) -> u32 {
+        self.shape_dictionary_generation.get()
+    }
+
+    /// The key values the interpreter's fast path hands out, one per indexed and named key.
+    pub fn property_value(&self, index: usize) -> Value {
+        self.property_values.get(index)
+    }
+
+    pub fn property_value_count(&self) -> usize {
+        self.property_values.size()
+    }
+}
+
 /// A unit of bytecode: a script, a module, a function body or an eval, with what the interpreter needs to run it.
 #[repr(C)]
 pub struct Executable {
@@ -607,6 +860,8 @@ pub struct Executable {
     global_variable_caches: Box<[GlobalVariableCache]>,
     environment_coordinate_caches: Box<[Cell<EnvironmentCoordinate>]>,
     environment_shape_caches: Box<[Cell<Option<Gc<EnvironmentShape>>>]>,
+    object_shape_caches: Box<[ObjectShapeCache]>,
+    object_property_iterator_caches: Box<[ObjectPropertyIteratorCache]>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict_mode: bool,
@@ -618,6 +873,7 @@ pub struct Executable {
     /// The functions the bytecode creates, which NewFunction and NewClass refer to by index.
     shared_function_data: Box<[Gc<SharedFunctionInstanceData>]>,
     class_blueprints: Box<[ClassBlueprint]>,
+    pub length_identifier: Option<PropertyKeyTableIndex>,
 }
 
 define_cell!(Executable, Other);
@@ -653,6 +909,22 @@ impl Executable {
         &self.property_lookup_caches[index]
     }
 
+    pub fn object_shape_cache(&self, index: u32) -> &ObjectShapeCache {
+        &self.object_shape_caches[index as usize]
+    }
+
+    pub fn object_property_iterator_cache(&self, index: u32) -> &ObjectPropertyIteratorCache {
+        &self.object_property_iterator_caches[index as usize]
+    }
+
+    pub fn get_identifier(&self, index: IdentifierTableIndex) -> &Utf16FlyString {
+        &self.identifier_table[index.0 as usize]
+    }
+
+    pub fn get_property_key(&self, index: PropertyKeyTableIndex) -> PropertyKey {
+        PropertyKey::from(self.property_key_table[index.0 as usize].clone())
+    }
+
     /// Forgets the cells the inline caches remember that died in this collection.
     pub fn remove_dead_cells(&self) {
         for cache in &self.property_lookup_caches {
@@ -660,6 +932,11 @@ impl Executable {
         }
         for cache in &self.global_variable_caches {
             cache.entry.clear_if_it_has_a_dead_cell();
+        }
+        for cache in &self.object_shape_caches {
+            if cache.shape.get().is_some_and(cell_is_dead) {
+                cache.shape.set(None);
+            }
         }
     }
 
@@ -718,6 +995,8 @@ impl Executable {
             global_variable_caches,
             environment_coordinate_caches,
             environment_shape_caches,
+            object_shape_caches: Box::new([]),
+            object_property_iterator_caches: Box::new([]),
             number_of_registers,
             number_of_arguments,
             is_strict_mode,
@@ -727,7 +1006,16 @@ impl Executable {
             exception_handlers: Box::new([]),
             shared_function_data: Box::new([]),
             class_blueprints: Box::new([]),
+            length_identifier: None,
         }
+    }
+
+    /// Gives the executable the object literal shape caches and for-in key snapshot caches its bytecode refers to.
+    pub fn allocate_object_caches(&mut self, object_shape_caches: u32, object_property_iterator_caches: u32) {
+        self.object_shape_caches = (0..object_shape_caches).map(|_| ObjectShapeCache::default()).collect();
+        self.object_property_iterator_caches = (0..object_property_iterator_caches)
+            .map(|_| ObjectPropertyIteratorCache { data: Cell::new(None) })
+            .collect();
     }
 
     /// Creates the executable for what the frontend compiled from code it does not know the source of.
@@ -796,6 +1084,11 @@ impl Executable {
         executable.exception_handlers = data.exception_handlers.into_boxed_slice();
         executable.shared_function_data = shared_function_data;
         executable.class_blueprints = class_blueprints;
+        executable.allocate_object_caches(
+            data.cache_counts.object_shape,
+            data.cache_counts.object_property_iterator,
+        );
+        executable.length_identifier = data.length_identifier.map(|index| PropertyKeyTableIndex(index.0));
         let executable = Self::create_from_parts(vm, executable);
         drop(rooted_constants);
         drop(rooted_literal_values);
@@ -902,12 +1195,15 @@ fn parse_big_int_literal(literal: &str) -> SignedBigInteger {
     SignedBigInteger::parse_bytes(digits, radix).expect("the frontend only emits valid BigInt literals")
 }
 
-// SAFETY: Visits the constants, the environment shapes, the functions the bytecode creates and the literal values of
-// its classes, which are all the cells an executable keeps alive so far. The inline caches do not keep the shapes and
-// objects they remember alive.
+// SAFETY: Visits the constants, the for-in key snapshots, the environment shapes, the functions the bytecode
+// creates and the literal values of its classes, which are all the cells an executable keeps alive so far. The inline
+// caches do not keep the shapes and objects they remember alive.
 unsafe impl Trace for Executable {
     fn trace(&self, visitor: &mut Visitor) {
         visitor.visit_values(&self.constants);
+        for cache in &self.object_property_iterator_caches {
+            cache.data.trace(visitor);
+        }
         self.environment_shape_caches.trace(visitor);
         self.shared_function_data.trace(visitor);
         self.class_blueprints.trace(visitor);

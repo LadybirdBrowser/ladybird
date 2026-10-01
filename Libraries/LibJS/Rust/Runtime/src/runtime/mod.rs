@@ -13,6 +13,7 @@ pub mod array;
 pub mod big_int;
 pub mod big_int_algorithms;
 pub mod bound_function;
+pub mod canonical_index;
 pub mod class_construction;
 pub mod class_field_definition;
 pub mod common_property_names;

@@ -12,7 +12,6 @@ use core::ptr::NonNull;
 use ak::{Utf16FlyString, Utf16String};
 
 use crate::gc::visitor::{Trace, Visitor};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::value::Value;
@@ -53,7 +52,7 @@ impl PropertyKey {
         if value.is_integral_number() && value.as_f64() >= 0.0 && value.as_f64() < f64::from(u32::MAX) {
             return Ok(PropertyKey::from_number(value.as_f64() as u64));
         }
-        Ok(PropertyKey::from_utf16_string(&value_to_utf16_string(vm, value)?))
+        Ok(PropertyKey::from_utf16_string(&value.to_utf16_string(vm)?))
     }
 
     pub fn is_string(&self) -> bool {
@@ -191,13 +190,6 @@ fn array_index_of_canonical_string(string: Utf16View<'_>) -> Option<u32> {
             .checked_add(u32::from(code_unit - u16::from(b'0')))?;
     }
     (property_index < u32::MAX).then_some(property_index)
-}
-
-fn value_to_utf16_string(_vm: &Vm, value: Value) -> ThrowCompletionOr<Utf16String> {
-    if value.is_string() {
-        return Ok(value.as_string().utf16_string());
-    }
-    unimplemented_runtime_function("PropertyKey::from_value: Value::to_utf16_string of a non-string", 0)
 }
 
 impl From<u32> for PropertyKey {

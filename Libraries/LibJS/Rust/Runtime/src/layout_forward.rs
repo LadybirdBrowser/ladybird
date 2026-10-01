@@ -63,8 +63,7 @@ pub type RawNativeFunctionPointer = Option<unsafe extern "C" fn(vm: *mut c_void)
 #[cfg(any(all(target_arch = "x86_64", target_vendor = "apple"), target_os = "windows"))]
 pub type RawNativeFunctionPointer = Option<unsafe extern "C" fn(result: *mut RawNativeFunctionResult, vm: *mut c_void)>;
 
-#[derive(Default)]
-pub struct ObjectPropertyIteratorCacheDataStorage {}
+pub use crate::bytecode::executable::ObjectPropertyIteratorCacheDataStorage;
 
 pub use crate::runtime::declarative_environment::DeclarativeEnvironmentRareDataStorage;
 pub use crate::runtime::environment_shape::EnvironmentShapeStorage;
