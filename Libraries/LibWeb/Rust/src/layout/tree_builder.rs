@@ -97,21 +97,15 @@ pub struct FfiDomTreeBuilderCallbacks {
     /// The second identity is the root of the subtree being cleared, or 0 when the clear is not
     /// bounded to one; only an SVG resource box reads it.
     pub clear_stale_layout_node: unsafe extern "C" fn(*mut c_void, u32, u32) -> bool,
-    pub principal_descendant_facts:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
-    pub create_first_letter_nodes:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiFirstLetterTarget) -> FfiFirstLetterNodes,
+    pub principal_descendant_facts: unsafe extern "C" fn(*mut c_void, u32, *mut c_void) -> FfiPrincipalDescendantFacts,
+    pub create_first_letter_nodes: unsafe extern "C" fn(*mut c_void, u32, FfiFirstLetterTarget) -> FfiFirstLetterNodes,
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut FfiIdentifiedDomNode, usize),
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
-    /// The DOM node the walk's identity names. The walk navigates by identity and resolves the
-    /// node once per visit rather than once per payload callback.
-    pub principal_dom_node: unsafe extern "C" fn(*mut c_void, u32) -> *mut c_void,
-    pub prepare_principal_element: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
-    pub create_principal_element_layout:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiElementLayoutKind) -> NodeSlotId,
-    pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
+    pub prepare_principal_element: unsafe extern "C" fn(*mut c_void, u32, bool),
+    pub create_principal_element_layout: unsafe extern "C" fn(*mut c_void, u32, FfiElementLayoutKind) -> NodeSlotId,
+    pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
+    pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, u32) -> NodeSlotId,
     /// Attaches the image observers a box's style asks for. Principal and pseudo-element boxes
     /// both go through this; nothing about it depends on which the box is.
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void, NodeSlotId),
@@ -1509,18 +1503,16 @@ fn update_layout_tree_for_svg_switch_children(
 ///
 /// # Safety
 ///
-/// The callback table, element, and context must remain valid for the duration of the call.
+/// The callback table and context must remain valid for the duration of the call.
 unsafe fn update_layout_tree_for_display_contents(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
-    element: *mut c_void,
     style_node: StyleNodeID,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
     should_create_layout_node: bool,
 ) {
     abort_on_panic(|| {
-        assert!(!element.is_null());
         let (has_assigned_nodes, lays_out_dom_children) = dom_child_layout_plan(host, style_node);
         let content_visibility_hidden = host.content_visibility_is_hidden(Some(style_node));
 
@@ -1541,7 +1533,6 @@ unsafe fn update_layout_tree_for_display_contents(
             let placed = create_pseudo_element(
                 host,
                 state,
-                element,
                 style_node,
                 FfiPseudoElement::Before,
                 Some(FfiInsertionMode::Append),
@@ -1584,7 +1575,6 @@ unsafe fn update_layout_tree_for_display_contents(
             let placed = create_pseudo_element(
                 host,
                 state,
-                element,
                 style_node,
                 FfiPseudoElement::After,
                 Some(FfiInsertionMode::Append),
@@ -1703,25 +1693,23 @@ struct PrincipalDescendantUpdate {
 ///
 /// # Safety
 ///
-/// The callback table, DOM node, layout node, and context must remain valid for the duration of the call.
+/// The callback table, layout node, and context must remain valid for the duration of the call.
 unsafe fn update_principal_node_descendants(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
-    dom_node: *mut c_void,
     layout_node: LayoutNode,
     context: &mut TreeBuilderContext,
     update: PrincipalDescendantUpdate,
 ) {
     abort_on_panic(|| {
         let should_create_layout_node = update.should_create_layout_node;
-        assert!(!dom_node.is_null());
         assert!(!layout_node.is_invalid());
         let layout_host = host.layout();
         // SAFETY: All pointers remain live throughout the call.
         let facts = unsafe {
             (host.callbacks.principal_descendant_facts)(
                 host.callbacks.builder,
-                dom_node,
+                update.mirror_identity.raw(),
                 layout_host.shell(layout_node),
             )
         };
@@ -1758,7 +1746,6 @@ unsafe fn update_principal_node_descendants(
                 let placed = create_pseudo_element(
                     host,
                     state,
-                    dom_node,
                     update.mirror_identity,
                     FfiPseudoElement::Before,
                     Some(FfiInsertionMode::Prepend),
@@ -1836,7 +1823,7 @@ unsafe fn update_principal_node_descendants(
                 let prior_layout_top_layer = context.layout_top_layer;
                 context.layout_top_layer = true;
                 // SAFETY: The DOM document remains live and owns a stable top-layer list during this pass.
-                let count = unsafe { (host.callbacks.top_layer_element_count)(dom_node) };
+                let count = unsafe { (host.callbacks.top_layer_element_count)(host.callbacks.builder) };
                 let mut top_layer_elements = vec![
                     FfiIdentifiedDomNode {
                         node: std::ptr::null_mut(),
@@ -1846,7 +1833,11 @@ unsafe fn update_principal_node_descendants(
                 ];
                 // SAFETY: The output slice has room for the stable top-layer list reported above.
                 unsafe {
-                    (host.callbacks.copy_top_layer_elements)(dom_node, top_layer_elements.as_mut_ptr(), count);
+                    (host.callbacks.copy_top_layer_elements)(
+                        host.callbacks.builder,
+                        top_layer_elements.as_mut_ptr(),
+                        count,
+                    );
                 }
                 for FfiIdentifiedDomNode {
                     node: element,
@@ -1947,7 +1938,6 @@ unsafe fn update_principal_node_descendants(
                     let placed = create_pseudo_element(
                         host,
                         state,
-                        dom_node,
                         update.mirror_identity,
                         FfiPseudoElement::Marker,
                         Some(FfiInsertionMode::Prepend),
@@ -1957,7 +1947,6 @@ unsafe fn update_principal_node_descendants(
                 let placed = create_pseudo_element(
                     host,
                     state,
-                    dom_node,
                     update.mirror_identity,
                     FfiPseudoElement::After,
                     Some(FfiInsertionMode::Append),
@@ -1970,7 +1959,7 @@ unsafe fn update_principal_node_descendants(
                 {
                     let target = find_first_letter_in_block(host, layout_node);
                     if target.found {
-                        create_first_letter_boxes(host, dom_node, target);
+                        create_first_letter_boxes(host, update.mirror_identity, target);
                     }
                 }
             }
@@ -1985,7 +1974,6 @@ unsafe fn update_principal_node_descendants(
             let placed = create_pseudo_element(
                 host,
                 state,
-                dom_node,
                 update.mirror_identity,
                 FfiPseudoElement::After,
                 Some(FfiInsertionMode::Append),
@@ -2016,7 +2004,6 @@ struct PrincipalNodeUpdate<'host, 'callbacks, 'state, 'context> {
     host: &'host DomTreeBuilderHost<'callbacks>,
     state: &'state mut TreeBuilderState,
     old_layout_node: LayoutNode,
-    dom_node: *mut c_void,
     /// The node's identity in the style mirror, the document's own for the document.
     identity: StyleNodeID,
     /// The node's style node, which only an element or a text node has.
@@ -2072,7 +2059,6 @@ fn construct_principal_layout_node(
     // The box this visit leaves the node with: the one it entered with when the node keeps it,
     // otherwise the one the host just built. Nothing between the entry and here rebinds the node.
     let mut layout_node = NodeSlotId::INVALID;
-    let dom_node = update.dom_node;
     let old_layout_node = update.old_layout_node;
     let must_create_subtree = update.must_create_subtree;
     let context = &mut *update.context;
@@ -2096,9 +2082,13 @@ fn construct_principal_layout_node(
                 layout_host.free_subtree(old_backdrop);
             }
         }
-        // SAFETY: The builder and DOM element remain live throughout the call.
+        // SAFETY: The builder remains live, and the identity names a live element.
         unsafe {
-            (host.callbacks.prepare_principal_element)(host.callbacks.builder, dom_node, should_create_layout_node);
+            (host.callbacks.prepare_principal_element)(
+                host.callbacks.builder,
+                update.identity.raw(),
+                should_create_layout_node,
+            );
         }
         let display = host.published_display(update.style_node);
         let generation = principal_box_generation_decision(
@@ -2115,7 +2105,6 @@ fn construct_principal_layout_node(
                 update_layout_tree_for_display_contents(
                     host,
                     update.state,
-                    dom_node,
                     update.identity,
                     context,
                     must_create_subtree,
@@ -2136,9 +2125,13 @@ fn construct_principal_layout_node(
                 context.layout_svg_mask_or_clip_path,
                 context.layout_svg_pattern,
             );
-            // SAFETY: The builder and element remain live throughout construction.
+            // SAFETY: The builder remains live, and the identity names a live element.
             let created = unsafe {
-                (host.callbacks.create_principal_element_layout)(host.callbacks.builder, dom_node, layout_kind)
+                (host.callbacks.create_principal_element_layout)(
+                    host.callbacks.builder,
+                    update.identity.raw(),
+                    layout_kind,
+                )
             };
             layout_node = created;
             if !created.is_invalid() {
@@ -2159,9 +2152,8 @@ fn construct_principal_layout_node(
         }
     } else if should_create_layout_node {
         if update.kind.is_document() {
-            // SAFETY: The builder and DOM document remain live throughout construction.
-            let created =
-                unsafe { (host.callbacks.create_principal_document_layout)(host.callbacks.builder, dom_node) };
+            // SAFETY: The builder and its document remain live throughout construction.
+            let created = unsafe { (host.callbacks.create_principal_document_layout)(host.callbacks.builder) };
             layout_node = created;
             created_box = Some(host.layout().created(created));
         } else if update.kind.is_text() {
@@ -2173,8 +2165,9 @@ fn construct_principal_layout_node(
                 layout_host.arena().text_is_ascii_whitespace(update.style_node),
                 facts.parent_collapses_whitespace,
             );
-            // SAFETY: The DOM text node remains live throughout construction.
-            let text_layout_node = unsafe { (host.callbacks.create_principal_text_layout)(dom_node) };
+            // SAFETY: The builder remains live, and the identity names a live text node.
+            let text_layout_node =
+                unsafe { (host.callbacks.create_principal_text_layout)(host.callbacks.builder, update.identity.raw()) };
             if needs_style_wrapper {
                 let wrapper = layout_host.create_anonymous_box_from_style_record(
                     facts.style_record,
@@ -2230,7 +2223,6 @@ fn update_principal_node_after_entry(
     entry_decision: PrincipalNodeEntryDecision,
 ) {
     let host = update.host;
-    let dom_node = update.dom_node;
 
     let prior_has_svg_root = update.context.has_svg_root;
     match entry_decision.svg {
@@ -2310,7 +2302,6 @@ fn update_principal_node_after_entry(
             let unplaced_backdrop = create_pseudo_element(
                 host,
                 update.state,
-                dom_node,
                 update.identity,
                 FfiPseudoElement::Backdrop,
                 insertion_mode,
@@ -2399,12 +2390,11 @@ fn update_principal_node_after_entry(
             }
             FfiPrincipalBoxPlacement::None => assert!(created_box.is_none()),
         }
-        // SAFETY: The callback table, DOM node, layout node, and context remain live throughout the call.
+        // SAFETY: The callback table, layout node, and context remain live throughout the call.
         unsafe {
             update_principal_node_descendants(
                 host,
                 update.state,
-                dom_node,
                 construction.layout_node,
                 context,
                 PrincipalDescendantUpdate {
@@ -2488,9 +2478,6 @@ fn update_layout_tree_from(
         // The document's identity only roots the style mirror's child sequence; it has no style.
         let style_node = (!kind.is_document()).then_some(identity);
 
-        // SAFETY: The builder remains live and the identity names a live DOM node.
-        let dom_node = unsafe { (host.callbacks.principal_dom_node)(host.callbacks.builder, identity.raw()) };
-        assert!(!dom_node.is_null());
         // The box the node already has is the row the arena binds to its identity; the document is
         // bound through the viewport row instead.
         let old_layout_node = if kind.is_document() {
@@ -2528,7 +2515,6 @@ fn update_layout_tree_from(
             host,
             state,
             old_layout_node,
-            dom_node,
             identity,
             style_node,
             element_type_facts,
@@ -2777,22 +2763,17 @@ pub struct FfiGeneratedContentItem {
 #[repr(C)]
 pub struct FfiPseudoTreeBuilderCallbacks {
     pub builder: *mut c_void,
-    pub initialize: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement) -> FfiPseudoElementFacts,
+    pub initialize: unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement) -> FfiPseudoElementFacts,
     /// The last argument is the list-item box a `::marker` belongs to, or an invalid slot when the
     /// pseudo-element is not a marker.
-    pub create_layout_node: unsafe extern "C" fn(
-        *mut c_void,
-        *mut c_void,
-        FfiPseudoElement,
-        FfiPseudoElementDecision,
-        NodeSlotId,
-    ) -> NodeSlotId,
+    pub create_layout_node:
+        unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, FfiPseudoElementDecision, NodeSlotId) -> NodeSlotId,
     /// The last argument of each of these is the pseudo-element's own box, which the build tracks
     /// by slot.
-    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, FfiPseudoElement, NodeSlotId) -> NodeSlotId,
-    pub configure_layout_node: unsafe extern "C" fn(*mut c_void, FfiPseudoElement, NodeSlotId),
+    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, NodeSlotId) -> NodeSlotId,
+    pub configure_layout_node: unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, NodeSlotId),
     pub create_content_item:
-        unsafe extern "C" fn(*mut c_void, FfiPseudoElement, FfiGeneratedContentItem, NodeSlotId) -> NodeSlotId,
+        unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, FfiGeneratedContentItem, NodeSlotId) -> NodeSlotId,
 }
 
 pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
@@ -2938,21 +2919,20 @@ fn generated_content_item(
 fn create_pseudo_element(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
-    element: *mut c_void,
     element_identity: StyleNodeID,
     pseudo_element: FfiPseudoElement,
     insertion_mode: Option<FfiInsertionMode>,
 ) -> Option<UnplacedLayoutNode> {
-    assert!(!element.is_null());
     let callbacks = &host.callbacks.pseudo;
-    // SAFETY: The builder and element remain live throughout initialization.
+    let element = element_identity.raw();
+    // SAFETY: The builder remains live, and the identity names a live element.
     let facts = unsafe { (callbacks.initialize)(callbacks.builder, element, pseudo_element) };
     let decision = pseudo_element_decision(facts);
     if decision == FfiPseudoElementDecision::None {
         return None;
     }
 
-    // SAFETY: The builder and element remain live throughout construction.
+    // SAFETY: The builder remains live, and the identity names a live element.
     let layout_node = unsafe {
         (callbacks.create_layout_node)(
             callbacks.builder,
@@ -2991,8 +2971,9 @@ fn create_pseudo_element(
     }
 
     let initial_quote_nesting_level = state.quote_nesting_level;
-    // SAFETY: The element remains live, and the box the host just built is a live NodeWithStyle.
-    unsafe { (callbacks.configure_layout_node)(element, pseudo_element, layout_node) };
+    // SAFETY: The builder remains live, the identity names a live element, and the box the host just
+    // built is a live NodeWithStyle.
+    unsafe { (callbacks.configure_layout_node)(callbacks.builder, element, pseudo_element, layout_node) };
     let layout_node_kind = layout_host.data(layout_node).kind.get();
     let is_outside_marker = layout_node_kind == NodeKind::ListItemMarkerBox && !facts.marker_position_is_inside;
     if let Some(insertion_mode) = insertion_mode
@@ -3014,9 +2995,11 @@ fn create_pseudo_element(
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
     if layout_node_kind == NodeKind::ListItemBox {
-        // SAFETY: The element remains live, and the box the host just built is a live BlockContainer.
-        let marker =
-            layout_host.created(unsafe { (callbacks.create_nested_list_marker)(element, pseudo_element, layout_node) });
+        // SAFETY: The builder remains live, the identity names a live element, and the box the host just
+        // built is a live BlockContainer.
+        let marker = layout_host.created(unsafe {
+            (callbacks.create_nested_list_marker)(callbacks.builder, element, pseudo_element, layout_node)
+        });
         let marker_slot = marker.slot();
         let first_child = layout_host.first_child(layout_node);
         layout_host.attach_child(layout_node, marker, first_child);
@@ -3027,9 +3010,10 @@ fn create_pseudo_element(
             layout_node,
         );
         report_list_item_counter_rendering(state, owner, marker_content.renders_list_item_counter_value);
-        // SAFETY: The element remains live throughout content creation.
+        // SAFETY: The builder remains live, and the identity names a live element.
         let content = unsafe {
             (callbacks.create_content_item)(
+                callbacks.builder,
                 element,
                 pseudo_element,
                 generated_content_item(marker_content.item, marker_slot),
@@ -3072,9 +3056,10 @@ fn create_pseudo_element(
             {
                 continue;
             }
-            // SAFETY: The element remains live throughout content creation.
+            // SAFETY: The builder remains live, and the identity names a live element.
             let content_item = unsafe {
                 (callbacks.create_content_item)(
+                    callbacks.builder,
                     element,
                     pseudo_element,
                     generated_content_item(item, NodeSlotId::INVALID),
@@ -4151,10 +4136,10 @@ fn find_first_letter_in_layout_text(host: &TreeBuilderHost<'_>, node: LayoutNode
     target
 }
 
-fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: *mut c_void, target: FfiFirstLetterTarget) {
+fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID, target: FfiFirstLetterTarget) {
     let layout_host = host.layout();
-    // SAFETY: `element` is a live Element and `target` identifies a live descendant text node.
-    let nodes = unsafe { (host.callbacks.create_first_letter_nodes)(host.callbacks.builder, element, target) };
+    // SAFETY: `element` names a live Element and `target` identifies a live descendant text node.
+    let nodes = unsafe { (host.callbacks.create_first_letter_nodes)(host.callbacks.builder, element.raw(), target) };
     let first_letter_slice = layout_host.created(nodes.first_letter_slice);
     let remainder_slice = layout_host.created(nodes.remainder_slice);
     if nodes.wrapper.is_invalid() {
