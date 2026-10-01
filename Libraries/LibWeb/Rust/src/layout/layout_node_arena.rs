@@ -1498,6 +1498,32 @@ impl LayoutNodeArena {
             .expect("layout node arena has no style record host")
     }
 
+    /// Reads the style mirror. As with `with_style_engine`, no host callback runs while the borrow
+    /// is active.
+    pub(crate) fn with_style_store<T>(&self, query: impl FnOnce(&StyleEngine) -> T) -> T {
+        let host = self.style_record_host();
+        assert!(!host.style_engine.is_null());
+        query(unsafe { &*host.style_engine.cast::<StyleEngine>() })
+    }
+
+    /// Whether the style mirror's DOM child sequence holds a child for `style_node`. Only an
+    /// element, a shadow root and the document own a sequence; a text node owns none. Nodes that
+    /// can never have a box (a comment, a doctype, a processing instruction) hold no place in it,
+    /// so a parent whose children are all of those answers no.
+    pub(crate) fn has_dom_children(&self, style_node: Option<StyleNodeID>) -> bool {
+        style_node.is_some_and(|style_node| {
+            self.with_style_store(|engine| engine.tree().dom_children(style_node).next().is_some())
+        })
+    }
+
+    /// How many nodes the style mirror holds assigned to the slot `style_node` names. Anything that
+    /// is not a slot with assigned nodes answers zero.
+    pub(crate) fn assigned_node_count(&self, style_node: Option<StyleNodeID>) -> usize {
+        style_node.map_or(0, |style_node| {
+            self.with_style_store(|engine| engine.tree().assigned_nodes_of(style_node).len())
+        })
+    }
+
     // The engine outlives the arena's live nodes. No host callback runs while this
     // native style-store borrow is active; shell notifications follow publication.
     fn with_style_engine<T>(&self, callback: impl FnOnce(&mut StyleEngine) -> T) -> T {

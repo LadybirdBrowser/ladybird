@@ -216,9 +216,12 @@ impl RetainedState {
             .reserve_required(MemoryCategory::BatchScratch, charged_bytes as u64);
 
         while let Some(node) = pending.pop() {
-            if node.element_index().is_some() {
-                visit(node);
+            // A text node holds a place among a slot's assigned nodes, but it has no style of its
+            // own and owns no child sequence the flat tree descends into.
+            if node.element_index().is_none() {
+                continue;
             }
+            visit(node);
 
             let previous_capacity = pending.capacity();
             pending.extend(self.tree.flat_tree_children(node));

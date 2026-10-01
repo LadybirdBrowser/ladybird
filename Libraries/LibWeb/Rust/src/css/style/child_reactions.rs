@@ -64,6 +64,10 @@ impl StyleEngineState {
         {
             for index in 0..self.retained.tree.assigned_nodes_of(node).len() {
                 let assigned = self.retained.tree.assigned_nodes_of(node)[index];
+                // A text slottable holds a place in the list but has no style of its own to recompute.
+                if assigned.text_index().is_some() {
+                    continue;
+                }
                 self.record_derived_element_style_input(assigned, STYLE_REACTION_RECOMPUTE_STYLE, 0);
             }
         }

@@ -296,6 +296,11 @@ void assign_slottables(GC::Ref<HTML::HTMLSlotElement> slot)
     // NOTE: We do this step last so that we can move the slottables list.
     slot->set_assigned_nodes(move(slottables));
 
+    // AD-HOC: Publish the whole ordered list to the style engine. The per-slottable records above carry each
+    //         slottable's own slot; only the list says in what order the slot projects them, and only the list names
+    //         the text nodes among them.
+    CSS::record_slot_assignment_changed(slot);
+
     if (assignment_changed) {
         slot->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::SlotAssignmentChange);
         CSS::Invalidation::invalidate_style_after_slot_assignment_change(slot);
