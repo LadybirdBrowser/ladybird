@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes size { from { width: 100px; } to { width: 100px; } }
+    .box { width: 1px; height: 1px; }
+    .box.animating { animation: size 1000s linear paused both; }
+</style>
+<div class="box" id="light"></div>
+<div id="host-with-own-keyframes"></div>
+<div id="host-styled-by-host-rule" style="width: 1px; height: 1px"></div>
+<div id="first-adopter"></div>
+<div id="second-adopter"></div>
+<script>
+    test(() => {
+        // Each shadow tree defines its own `size`, so the scope an animation-name was declared in
+        // decides which of them it runs.
+        const ownKeyframes = document.getElementById("host-with-own-keyframes").attachShadow({ mode: "open" });
+        ownKeyframes.innerHTML = `
+            <style>
+                @keyframes size { from { width: 7px; } to { width: 7px; } }
+                .box { width: 1px; height: 1px; }
+                .box.animating { animation: size 1000s linear paused both; }
+            </style>
+            <div class="box" id="inner"></div>`;
+
+        const hostRule = document.getElementById("host-styled-by-host-rule").attachShadow({ mode: "open" });
+        hostRule.innerHTML = `
+            <style>
+                @keyframes size { from { width: 9px; } to { width: 9px; } }
+                :host(.animating) { animation: size 1000s linear paused both; }
+            </style>`;
+
+        const adopted = new CSSStyleSheet();
+        adopted.replaceSync(`
+            @keyframes size { from { width: 13px; } to { width: 13px; } }
+            .box { width: 1px; height: 1px; }
+            .box.animating { animation: size 1000s linear paused both; }`);
+        for (const id of ["first-adopter", "second-adopter"]) {
+            const root = document.getElementById(id).attachShadow({ mode: "open" });
+            root.adoptedStyleSheets = [adopted];
+            root.innerHTML = `<div class="box"></div>`;
+        }
+
+        const cases = [
+            ["document element", document.getElementById("light")],
+            ["shadow tree element", ownKeyframes.getElementById("inner")],
+            [":host rule", document.getElementById("host-styled-by-host-rule")],
+            ["adopted sheet element", document.getElementById("second-adopter").shadowRoot.querySelector(".box")],
+        ];
+        internals.updateStyle();
+        for (const [label, element] of cases) {
+            const before = internals.getStyleInvalidationCounters();
+            element.classList.add("animating");
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label}: C++ recomputations ${after.elementStyleRecomputations - before.elementStyleRecomputations}, width ${getComputedStyle(element).width}, animations ${element.getAnimations().length}`);
+        }
+    });
+</script>
