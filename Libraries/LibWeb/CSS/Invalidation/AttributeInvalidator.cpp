@@ -109,12 +109,17 @@ void invalidate_style_after_attribute_change(
     } else if (element.style_uses_attr_css_function()) {
         // An attr() substitutes the attribute's value, which the engine holds beside the element's
         // other facts: the element's record is driven again there, like any derived recompute. A
-        // shadow host's element-backed pseudo-elements read its attributes too, and C++ refreshes
-        // them with the host.
-        if (element.is_shadow_host())
-            record_element_declarations_changed(element, ElementDeclarationKind::PresentationalHint, true, true);
-        else
-            element.document().style_computer().style_engine().record_derived_element_style_input_change(element.style_node_id(), StyleEngine::RecomputeStyle);
+        // shadow host's element-backed pseudo-elements read its attributes too, and are driven
+        // again with it.
+        auto& style_engine = element.document().style_computer().style_engine();
+        style_engine.record_derived_element_style_input_change(element.style_node_id(), StyleEngine::RecomputeStyle);
+        if (auto shadow_root = element.shadow_root()) {
+            shadow_root->for_each_in_subtree_of_type<DOM::Element>([&](DOM::Element& shadow_element) {
+                if (shadow_element.associated_shadow_host_pseudo_element().has_value())
+                    style_engine.record_derived_element_style_input_change(shadow_element.style_node_id(), StyleEngine::RecomputeStyle);
+                return TraversalDecision::Continue;
+            });
+        }
     }
     if (attribute_name != HTML::AttributeNames::style
         && (element.is_presentational_hint(attribute_name)
