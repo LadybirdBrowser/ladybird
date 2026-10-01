@@ -375,6 +375,17 @@ pub struct CascadeCandidate {
     pub stratum: CascadeStratum,
 }
 
+/// The index of the greatest of `candidates`, which are in cascade order, that every ceiling a
+/// `revert` or `revert-layer` set leaves standing.
+pub(super) fn highest_candidate_below(
+    candidates: &[CascadeCandidate],
+    ceilings: &[CascadeContinuationCeiling],
+) -> Option<usize> {
+    candidates
+        .iter()
+        .rposition(|candidate| ceilings.iter().all(|&ceiling| candidate.stratum.is_below(ceiling)))
+}
+
 /// The semantic winner rows which changed between two cascade states.
 ///
 /// Priority and provenance are deliberately absent. They explain why a declaration won, but a
@@ -1583,9 +1594,7 @@ impl WinnerGroups {
         candidates: &[CascadeCandidate],
         ceilings: &mut Vec<CascadeContinuationCeiling>,
     ) -> Option<PropertyWinner> {
-        let index = candidates
-            .iter()
-            .rposition(|candidate| ceilings.iter().all(|&ceiling| candidate.stratum.is_below(ceiling)))?;
+        let index = highest_candidate_below(candidates, ceilings)?;
         let candidate = candidates[index];
         let mut winner = candidate.winner;
         let Some(ceiling) = candidate.stratum.ceiling(candidate.winner.key.operator) else {

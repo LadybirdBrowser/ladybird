@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="sheet">
+    @layer low {
+        .on #toggled { margin-left: 9px; }
+        #edited { margin-left: 7px; }
+        #pseudo::before { margin-left: 5px; }
+        .on #pseudo::before { margin-left: 6px; }
+    }
+    @layer top {
+        #toggled, #edited { margin-left: var(--missing, revert-layer); }
+        #pseudo::before { content: "x"; margin-left: var(--missing, revert-layer); }
+    }
+</style>
+<div id="parent"><div id="toggled"></div><div id="edited"></div><div id="pseudo"></div></div>
+<script>
+    // Each record rolls margin-left back below a substituted revert-layer, to a declaration its
+    // cascade winners do not name. A change among those declarations must still reach it.
+    test(() => {
+        const parent = document.getElementById("parent");
+        const values = () => {
+            const toggled = getComputedStyle(document.getElementById("toggled")).marginLeft;
+            const edited = getComputedStyle(document.getElementById("edited")).marginLeft;
+            const pseudo = getComputedStyle(document.getElementById("pseudo"), "::before").marginLeft;
+            return `toggled=${toggled} edited=${edited} ::before=${pseudo}`;
+        };
+        println(`initial: ${values()}`);
+        parent.classList.add("on");
+        println(`ancestor class added: ${values()}`);
+        parent.classList.remove("on");
+        println(`ancestor class removed: ${values()}`);
+        const lowLayer = document.getElementById("sheet").sheet.cssRules[0];
+        lowLayer.cssRules[1].style.marginLeft = "11px";
+        println(`lower layer edited: ${values()}`);
+    });
+</script>

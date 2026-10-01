@@ -103,7 +103,7 @@ fn component_values_without_whitespace(mut values: &[ComponentValue]) -> &[Compo
     values
 }
 
-fn utf16_equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
+pub(crate) fn utf16_equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
     value.len() == expected.len()
         && value
             .iter()

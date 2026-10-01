@@ -2984,6 +2984,9 @@ impl RetainedState {
                 if !has_active_change {
                     continue;
                 }
+                // A record rolled back below a substituted revert keyword holds a declaration its
+                // winners do not name, which a losing rule may be.
+                may_change_cascade |= self.record_rolls_back_substitution(*node);
                 record_match_set_difference(
                     &mut self.selector_truth_changes,
                     self.selector_truth_changes_active,

@@ -2717,6 +2717,7 @@ impl RetainedState {
         // An edit to a matched rule's custom declarations moves no winner; the node reacts to it
         // all the same, since its environment is computed from those declarations.
         let emit = !delta.is_empty()
+            || self.record_rolls_back_substitution(node)
             || patch.has_non_selector_inputs
             || patch.always_emit_nodes.binary_search(&node).is_ok()
             || exact_answer.iter().any(|entry| {
@@ -2748,6 +2749,11 @@ impl RetainedState {
         retained: &[RetainedRuleMatch],
         deltas: &[SelectorTruthDelta],
     ) -> bool {
+        // A record rolled back below a substituted revert keyword holds a declaration its winners
+        // do not name, which any delta may move.
+        if self.record_rolls_back_substitution(node) {
+            return false;
+        }
         let Some((_, previous)) = effects
             .winners
             .view(&self.winner_groups)
@@ -2991,7 +2997,8 @@ impl RetainedState {
             && self.set_pending_answer_identity(effects, node, transition.new_answer)
         {
             counters.bump(Counter::RetainedMatchAnswerDeltaMemoHits);
-            let stopped = transition.new_cascade_input == old_cascade_input;
+            let stopped =
+                transition.new_cascade_input == old_cascade_input && !self.record_rolls_back_substitution(node);
             if let Some((state, version)) = transition.winner_state {
                 let _ = effects
                     .winners
@@ -3120,7 +3127,8 @@ impl RetainedState {
         self.publish_cascade_input_with_effects(effects, node, new_cascade_input);
         counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
         counters.add(Counter::RetainedMatchAnswerDeltaEntries, applied);
-        let emit = patch.always_emit_for(node) || changed || orders_shifted;
+        let emit =
+            patch.always_emit_for(node) || changed || orders_shifted || self.record_rolls_back_substitution(node);
         if !emit {
             counters.bump(Counter::RetainedMatchAnswerPatchStops);
         }
@@ -3471,7 +3479,8 @@ impl RetainedState {
         }
         self.publish_cascade_input_with_effects(effects, node, new_cascade_input);
         counters.bump(Counter::RetainedMatchAnswerPatches);
-        let emit = patch.always_emit_for(node) || changed || orders_shifted;
+        let emit =
+            patch.always_emit_for(node) || changed || orders_shifted || self.record_rolls_back_substitution(node);
         if !emit {
             counters.bump(Counter::RetainedMatchAnswerPatchStops);
         }
@@ -3848,8 +3857,9 @@ impl RetainedState {
         current_input: MatchAnswerID,
         counters: &mut Counters,
     ) -> bool {
-        // Identity equality is NOT a proof: a stale retained answer compares equal to itself.
-        if previous_input == current_input {
+        // Identity equality is NOT a proof: a stale retained answer compares equal to itself. Nor
+        // is an added losing rule harmless to a record that rolled back below its winners.
+        if previous_input == current_input || self.record_rolls_back_substitution(node) {
             return false;
         }
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
@@ -4049,6 +4059,10 @@ impl RetainedState {
     /// selector transaction. Pseudo-element rows are compared independently before the caller
     /// stops the reaction.
     pub(super) fn exact_cascade_output_is_unchanged(&self, effects: &AnswerEffects, node: StyleNodeID) -> bool {
+        // A record that rolled back below its winners holds declarations they do not name.
+        if self.record_rolls_back_substitution(node) {
+            return false;
+        }
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
         let Some((previous_generation, previous)) = self.computed_group_sets.cascade_state(target) else {
             return false;
@@ -4499,6 +4513,11 @@ impl RetainedState {
         node: StyleNodeID,
         winner_groups: super::cascade::WinnerView<'_>,
     ) -> bool {
+        // A pseudo-element record that rolled back below its winners holds declarations they do
+        // not name.
+        if self.record_rolls_back_substitution(node) {
+            return false;
+        }
         let generation = winner_groups.generation();
         // A held pseudo style the engine has no record of cannot be vouched for: winner rows and
         // computed cascade records are the only witnesses the two arms below can judge, and a

@@ -56,6 +56,7 @@ struct PrivateDemandSaves {
     container_verdicts: Option<Vec<(RuleID, Option<bool>)>>,
     container_gate_unheld: bool,
     tree_counting: Option<u16>,
+    rolled_back: Option<u64>,
 }
 
 fn set_contains(set: &mut HashSet<StyleNodeID>, node: StyleNodeID, contains: bool) {
@@ -75,6 +76,7 @@ impl RetainedState {
             container_verdicts: self.published_container_verdicts.get(&node).cloned(),
             container_gate_unheld: self.container_gates_unheld.contains(&node),
             tree_counting: self.nodes_with_tree_counting_records.get(&node).copied(),
+            rolled_back: self.nodes_with_rolled_back_records.get(&node).copied(),
         }
     }
 
@@ -120,6 +122,14 @@ impl RetainedState {
             }
             None => {
                 self.nodes_with_tree_counting_records.remove(&node);
+            }
+        }
+        match saves.rolled_back {
+            Some(bits) => {
+                self.nodes_with_rolled_back_records.insert(node, bits);
+            }
+            None => {
+                self.nodes_with_rolled_back_records.remove(&node);
             }
         }
         self.discard_private_record_demand_matching_batch();

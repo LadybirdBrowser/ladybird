@@ -29,9 +29,12 @@ use crate::css::custom_properties::{
     FfiSubstitutionFunctionVisibility, NativeVarResolution, prepare_var_resolution_environment,
 };
 use crate::css::ffi_support::FfiUtf16View;
+use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::value_parser::ParseOutcome;
 use crate::css::rule::CompiledFunction;
-use crate::css::style_value::{RetainedStyleValueData, StyleValueData, release_style_value};
+use crate::css::style_value::{
+    RetainedStyleValueData, StyleValueData, release_style_value, utf16_equals_ascii_case_insensitive,
+};
 use custom_property_environments::{CascadedCustomProperty, CustomPropertyName};
 
 /// The document's media features as the style update a transaction belongs to saw them, which
@@ -412,6 +415,45 @@ pub(super) fn value_calls_custom_functions(value: &StyleValueData) -> bool {
     )
 }
 
+/// Whether a written value's substitution can come out as `revert` or `revert-layer`, which roll
+/// its property back to the declarations it beat. A custom property never computes to a CSS-wide
+/// keyword, so `var()` and `inherit()` substitute one only from a fallback written in the value,
+/// as `env()` and the branches of `if()` do. A custom function's result is not written in the
+/// value, so it may be one, and so may an attribute's text that an `attr()` parses with the
+/// universal syntax; any other `attr()` parses it as a string or with a syntax no CSS-wide
+/// keyword matches.
+pub(super) fn value_may_substitute_revert(value: &StyleValueData) -> bool {
+    fn is_universally_typed_attr(name: &[u16], arguments: &[ComponentValue]) -> bool {
+        utf16_equals_ascii_case_insensitive(name, b"attr")
+            && arguments.iter().any(|argument| {
+                argument.function().is_some_and(|(name, syntax)| {
+                    utf16_equals_ascii_case_insensitive(name, b"type")
+                        && syntax.iter().any(|component| component.is_delim(b'*'))
+                })
+            })
+    }
+    fn may_yield_revert_keyword(values: &[ComponentValue]) -> bool {
+        values.iter().any(|value| match &value.kind {
+            ComponentKind::Function { name, values } => {
+                is_universally_typed_attr(name, values) || may_yield_revert_keyword(values)
+            }
+            ComponentKind::SimpleBlock { values, .. } => may_yield_revert_keyword(values),
+            ComponentKind::Token(_) => value.ident().is_some_and(|ident| {
+                utf16_equals_ascii_case_insensitive(ident, b"revert")
+                    || utf16_equals_ascii_case_insensitive(ident, b"revert-layer")
+            }),
+        })
+    }
+    match substituted_tokens(value) {
+        StyleValueData::Unresolved {
+            components,
+            presence_dashed_function,
+            ..
+        } => *presence_dashed_function || may_yield_revert_keyword(components.as_slice()),
+        _ => false,
+    }
+}
+
 /// What a written value's substitutions read beyond the element's custom-property environment,
 /// as `FfiNodeRecordReads` bits.
 fn substitution_reads(value: &StyleValueData) -> u8 {
@@ -558,14 +600,13 @@ impl RetainedState {
     }
 
     /// The element's matches when `pseudo` is `None`, else the matches for that pseudo-element.
+    /// In a batch, those declaring custom properties alone.
     fn try_for_each_match(
         &self,
         node: StyleNodeID,
         pseudo: Option<u8>,
         mut visit: impl FnMut(RuleID, TreeScopeID, Specificity, u32) -> ControlFlow<()>,
     ) -> Option<ControlFlow<()>> {
-        let wanted =
-            |target: Option<tree::PseudoElementTarget>| target.map(|target| target.kind.0) == pseudo.map(u16::from);
         if let Some(matches) = self.batch_custom_property_matches.get(&node) {
             for entry in matches.iter().filter(|entry| entry.pseudo == pseudo.map(u16::from)) {
                 if visit(entry.rule, entry.tree_scope, entry.specificity, entry.scope_proximity).is_break() {
@@ -574,6 +615,19 @@ impl RetainedState {
             }
             return Some(ControlFlow::Continue(()));
         }
+        self.try_for_each_answer_match(node, pseudo, visit)
+    }
+
+    /// Every match of the node's answer for the element when `pseudo` is `None`, else for that
+    /// pseudo-element: the answer its transaction publishes, else the one it retains.
+    pub(super) fn try_for_each_answer_match(
+        &self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+        mut visit: impl FnMut(RuleID, TreeScopeID, Specificity, u32) -> ControlFlow<()>,
+    ) -> Option<ControlFlow<()>> {
+        let wanted =
+            |target: Option<tree::PseudoElementTarget>| target.map(|target| target.kind.0) == pseudo.map(u16::from);
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
             self.batch_matching_traversal.as_deref(),
