@@ -1,6 +1,6 @@
-font refusals: 20
+font refusals: 0
 engine answered: true
-C++ recomputations: 20
+C++ recomputations: 19
 discarded records: 0
 font size: 24px
 font family: serif

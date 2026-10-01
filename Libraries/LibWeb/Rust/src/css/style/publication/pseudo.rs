@@ -72,32 +72,6 @@ impl RetainedState {
         true
     }
 
-    pub(super) fn engine_marker_font_supported(&mut self, node: StyleNodeID, counters: &mut Counters) -> bool {
-        // Reject unsupported existing marker fonts before computing the originating element.
-        // A later change to supported settings still computes correctly through C++ and makes
-        // the next attempt eligible. The default marker's tabular numerals are not supported by
-        // the engine font resolver yet.
-        if let Some(marker) = self.computed_group_sets.pseudo_style_record(node, pseudo_kind::MARKER)
-            && let Some(view) = self.computed_group_sets.style_record_view(marker.raw())
-            && let Some(table) = unsafe { view.longhand_table.as_ref() }
-        {
-            let value = table
-                .effective_value(
-                    None,
-                    crate::css::property_metadata::property_id::FONT_VARIANT_NUMERIC,
-                    true,
-                )
-                .value;
-            if !matches!(unsafe { value.cast::<StyleValueData>().as_ref() },
-                Some(StyleValueData::Keyword { keyword }) if *keyword == crate::css::style_compute::keyword::NORMAL)
-            {
-                counters.bump(Counter::EngineComputedRecordBailFontPhase);
-                return false;
-            }
-        }
-        true
-    }
-
     /// Settle the synthetic pseudo-elements of an element the engine derived a record for, the
     /// way the C++ computation refreshes them after the element's own: each kind the element has
     /// rules for, and the marker a list item generates, is driven against the element's new
@@ -440,13 +414,27 @@ impl RetainedState {
                         unreachable!("only the root-input probe answers with root inputs");
                     };
                     let font = font.expect("a full drive resolves the font");
-                    // A marker renders its list-style-type through a counter style, and C++ stamps
-                    // its record with the registry of the tree scope that defines it. The engine
-                    // names no registry, so such a marker stays with C++.
-                    if kind == MARKER && table_names_a_counter_style(&table) {
-                        counters.bump(Counter::EngineComputedRecordBailProperty);
-                        return Err(Unanswered::Refused);
-                    }
+                    // A marker renders its list-style-type through the counter style a registry
+                    // defines, so C++ stamps the marker's record with its tree scope's registry,
+                    // and a new registry makes a new record. An @counter-style rule joining or
+                    // leaving the program, by its sheet's activation or attachment too, closes the
+                    // flush's named-rule gate to every node whose records name a registry, and C++
+                    // computes them: the registry the marker's own record names is the current one
+                    // whenever the engine settles the element. It is the only one the engine can
+                    // name.
+                    let registry = if kind == MARKER && table_names_a_counter_style(&table) {
+                        match old.and_then(|old| self.computed_group_sets.style_record_view(old.raw())) {
+                            Some(view) if view.counter_style_environment_identity != 0 => {
+                                view.counter_style_environment_identity
+                            }
+                            _ => {
+                                counters.bump(Counter::EngineComputedRecordBailProperty);
+                                return Err(Unanswered::Refused);
+                            }
+                        }
+                    } else {
+                        0
+                    };
                     let (record, _) = self.assemble_and_publish_engine_record(
                         target,
                         Some(new_element_record),
@@ -455,11 +443,14 @@ impl RetainedState {
                         &font,
                         environment,
                         0,
+                        registry,
                         cascade_state,
                         &mut scratch.computability,
                         counters,
                     )?;
-                    if let Some(key) = key {
+                    // Another element's marker may sit in another tree scope, so a record naming a
+                    // registry answers for this one alone.
+                    if let Some(key) = key.filter(|_| registry == 0) {
                         scratch.pseudo_cohorts.insert(key, record);
                         if self.engine_pseudo_record_cache.len() >= COLD_RECORD_CACHE_LIMIT {
                             self.engine_pseudo_record_cache.clear();

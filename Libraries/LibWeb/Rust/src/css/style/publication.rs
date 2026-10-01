@@ -365,9 +365,6 @@ impl RetainedState {
             scratch.pseudo_uses_substitution = false;
             scratch.noted_substitution = None;
             scratch.flipped_pseudo_rules = exact_flipped_rules.map_or(0, |flipped| flipped.pseudos);
-            if parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters) {
-                return Err(Unanswered::Refused);
-            }
             if !self.engine_pseudo_inputs_available(
                 node,
                 self.computed_group_sets.assigned_style_record(node),
@@ -1274,6 +1271,7 @@ impl RetainedState {
             &font,
             environment,
             pseudo_styles,
+            0,
             Some(cascade_state),
             &mut scratch.computability,
             counters,
@@ -1553,6 +1551,7 @@ impl RetainedState {
         font: &crate::css::table_group_builder::FfiFontGroupBuildInputs,
         environment: u64,
         pseudo_styles: u64,
+        counter_style_registry: u64,
         cascade_state: Option<(u64, CascadeStateID)>,
         scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
@@ -1634,7 +1633,7 @@ impl RetainedState {
         let metadata_input = computed::ComputedMetadataInput {
             pseudo_element_styles: pseudo_styles,
             dependency_flags,
-            counter_style_environment_identity: 0,
+            counter_style_environment_identity: counter_style_registry,
             animation_overlay_identity: 0,
             animated_overlay: HostShared::null(),
             animation_overlay_payloads: &[],
@@ -4653,9 +4652,7 @@ impl StyleEngineState {
     ) {
         let inputs = self.document_style_computation_inputs;
         let assigned_style_record = self.computed_group_sets.assigned_style_record(node);
-        if (parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters))
-            || !self.engine_pseudo_inputs_available(node, assigned_style_record, counters)
-        {
+        if !self.engine_pseudo_inputs_available(node, assigned_style_record, counters) {
             counters.bump(Counter::RootFontInputsUnprovenFallbacks);
             return;
         }
