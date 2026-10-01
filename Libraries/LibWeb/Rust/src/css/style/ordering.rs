@@ -1906,6 +1906,7 @@ impl StyleEngineState {
             .resize_required_to(&mut self.retained.memory, 0);
         self.retained.facts.release_staging(&mut self.retained.memory);
         self.host.program_staging.clear();
+        self.host.environment_move_changed_names.clear();
         self.sweep_selector_programs();
         self.shed_routing_for_detached_sheets();
     }

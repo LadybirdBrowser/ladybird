@@ -50,7 +50,7 @@ pub(crate) struct RetainedCustomPropertyData {
 impl RetainedCustomPropertyData {
     /// # Safety
     /// `data` must be a live `Web::CSS::CustomPropertyData`.
-    unsafe fn retain(data: *const std::ffi::c_void) -> Self {
+    pub(super) unsafe fn retain(data: *const std::ffi::c_void) -> Self {
         unsafe { web_css_custom_property_data_reference(data) };
         Self {
             data: crate::css::host_shared::HostShared::new(data),
@@ -1427,6 +1427,8 @@ impl StyleEngineState {
                 flushing_deferred_geometry_journal: false,
                 deferred_element_style_inputs: Vec::new(),
                 deferred_element_style_inputs_are_pending: false,
+                environment_move_changed_names: Default::default(),
+                environment_move_actions: Vec::new(),
                 externally_recorded_style_input_nodes: HashSet::default(),
                 deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
                 initial_tree_batch_applied: false,
