@@ -10,8 +10,8 @@ impl RetainedState {
     /// The pseudo winner rows a settlement reads, republished from the node's answer wherever one
     /// predates it, is missing, or predates the rules that flipped for its kind: settling then
     /// reads a current row for every kind it generates. The kinds are those the answer has rules
-    /// for that the engine settles, less a deferred kind and a marker no list item generates,
-    /// which generate no box whatever their rows say.
+    /// for that the engine settles, less a deferred kind, a backdrop outside the top layer and a
+    /// marker no list item generates, which generate no box whatever their rows say.
     fn refresh_pseudo_winner_rows(
         &mut self,
         node: StyleNodeID,
@@ -23,11 +23,15 @@ impl RetainedState {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
         let mut required = self.pseudo_style_mask_or_rematch(node, counters)
-            & [BEFORE, AFTER, FIRST_LETTER, SELECTION, MARKER]
+            & [BEFORE, AFTER, FIRST_LETTER, SELECTION, BACKDROP, MARKER]
                 .into_iter()
                 .fold(0_u64, |kinds, kind| kinds | (1 << kind));
         if let Some(deferred) = self.deferred_pseudo_element {
             required &= !(1_u64 << deferred.0);
+        }
+        if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER == 0
+        {
+            required &= !(1_u64 << BACKDROP);
         }
         let marker_is_live = new_is_list_item
             || old_is_list_item
@@ -97,15 +101,9 @@ impl RetainedState {
                 .or_refused()?
                 .apply_to(&mut inputs);
         }
-        // An element holding a backdrop style is in the top layer: its backdrop is C++'s.
-        if self
-            .computed_group_sets
-            .assigned_pseudo_kinds(node)
-            .any(|kind| kind == BACKDROP)
-        {
-            counters.bump(Counter::EngineComputedRecordBailPseudoBackdrop);
-            return Err(Unanswered::Refused);
-        }
+        let in_top_layer = self.computed_group_sets.adjustment_facts(node)
+            & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
+            != 0;
         // Every installed record has a view. One without, or one holding no table, is read as a
         // list item, so its marker is considered rather than dropped.
         let display_is_list_item = |engine: &Self, record: computed::FinalStyleRecordID| -> bool {
@@ -194,13 +192,30 @@ impl RetainedState {
         // the engine cascaded itself, and a kind with rules but no row is not decided.
         let kinds_with_rules = self.pseudo_style_mask_or_rematch(node, counters);
         let mut pseudo_uses_substitution = scratch.pseudo_uses_substitution;
-        for (pseudo_index, kind) in [BEFORE, AFTER, FIRST_LETTER, SELECTION, MARKER]
+        for (pseudo_index, kind) in [BEFORE, AFTER, FIRST_LETTER, SELECTION, BACKDROP, MARKER]
             .into_iter()
             .enumerate()
             .skip(scratch.next_pseudo)
         {
             scratch.next_pseudo = pseudo_index + 1;
             if self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind))) {
+                continue;
+            }
+            // The backdrop of a node outside the top layer generates no box, whatever its rules.
+            // The host holds the record it installed until it installs the removal.
+            if kind == BACKDROP && !in_top_layer {
+                if let Some(old) = self.computed_group_sets.pseudo_style_record(node, kind) {
+                    self.note_engine_computed_pseudo_record(
+                        node,
+                        kind,
+                        old,
+                        computed::FinalStyleRecordID::NONE,
+                        None,
+                        0,
+                        scratch,
+                        counters,
+                    );
+                }
                 continue;
             }
             let target = computed::ComputedStyleTarget::new(node, kind);
@@ -344,6 +359,7 @@ impl RetainedState {
                 .map(|(inherited_groups, parent_display)| PseudoCohortKey {
                     monospace_recascaded_font_size: state.map_or(0, |state| self.monospace_cohort_key(target, state)),
                     parent_record: if kind == SELECTION
+                        || kind == BACKDROP
                         || state.is_some_and(|state| self.state_explicitly_inherits_non_inherited_property(node, state))
                     {
                         new_element_record.raw()
