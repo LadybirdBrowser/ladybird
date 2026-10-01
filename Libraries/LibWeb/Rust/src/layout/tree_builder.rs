@@ -4133,11 +4133,10 @@ pub(crate) fn find_first_letter_in_text(
 }
 
 fn find_first_letter_in_layout_text(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FfiFirstLetterTarget {
-    // SAFETY: Tree building owns the arena, and no borrow crosses the source callback.
-    let source = unsafe { super::rendered_text::text_source_for_node(host.arena, node) };
-    // SAFETY: Copy the raw source before any further host call. First-letter
-    // matching determines source ranges before text transforms are applied.
-    let text = unsafe { source.text.to_utf16() }.expect("first-letter source carries no storage");
+    // First-letter matching determines source ranges before text transforms are applied, so it reads
+    // the published characters rather than the rendered ones.
+    let source = host.arena().published_text_source(node, false);
+    let text = source.data.to_utf16();
     let segmenter = GraphemeSegmenter::new(&text);
     let preserves_segment_breaks = matches!(
         host.style(host.parent(node))

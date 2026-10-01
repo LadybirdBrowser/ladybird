@@ -4586,6 +4586,13 @@ impl ElementFactStore {
             .map_or(StyleAtomID::NONE, |row| self.rows.language_of(row))
     }
 
+    /// The element's resolved language tag, empty when it has none. A tag is recorded once per
+    /// language atom, so its casing is the one the first element spelling that language used.
+    #[must_use]
+    pub fn language_tag_of(&self, node: StyleNodeID) -> &[u16] {
+        self.rows.row_of(node).map_or(&[], |row| self.rows.language_tag_of(row))
+    }
+
     #[must_use]
     pub fn namespace_of(&self, node: StyleNodeID) -> StyleAtomID {
         self.rows

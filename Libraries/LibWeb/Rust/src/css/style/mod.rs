@@ -205,7 +205,7 @@ use exact_matcher::ExactMatchContext;
 use exact_matcher::ExactMatcher;
 
 pub use counter_context::StyleEngine;
-pub use inputs::{PublishedBoxFacts, TextStyleParentFacts};
+pub use inputs::{PublishedBoxFacts, PublishedTextSource, TextStyleParentFacts};
 
 use batch_matcher::AncestorRequirements;
 use batch_matcher::AncestorRequirementsCache;

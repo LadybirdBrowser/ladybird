@@ -57,16 +57,6 @@ bool TextNode::update_produces_line_box_fragment_when_empty_flag()
 
 TextNode::~TextNode() = default;
 
-GC::Ptr<DOM::Element const> TextNode::parent_element_for_text_transform() const
-{
-    return dom_node().parent_element();
-}
-
-bool TextNode::is_password_input() const
-{
-    return dom_node().is_password_input();
-}
-
 GeneratedTextNode::GeneratedTextNode(DOM::Document& document, Utf16String text)
     : TextNode(document, RustFFI::NodeKind::GeneratedTextNode)
     , m_text(move(text))
@@ -76,15 +66,6 @@ GeneratedTextNode::GeneratedTextNode(DOM::Document& document, Utf16String text)
 }
 
 GeneratedTextNode::~GeneratedTextNode() = default;
-
-GC::Ptr<DOM::Element const> GeneratedTextNode::parent_element_for_text_transform() const
-{
-    if (is_generated_for_pseudo_element())
-        return pseudo_element_generator();
-    if (auto const* parent = this->parent(); parent && parent->is_generated_for_pseudo_element())
-        return parent->pseudo_element_generator();
-    return nullptr;
-}
 
 Utf16String TextNode::rendered_text_for_dom(bool collapse_whitespace) const
 {
@@ -110,26 +91,6 @@ Utf16View TextNode::text_for_rendering() const
 {
     auto view = RustFFI::layout_arena_text_for_rendering(arena_handle(), slot_id(this));
     return Utf16View { reinterpret_cast<char16_t const*>(view.text), view.length_in_code_units };
-}
-
-RustFFI::FfiTextSource TextNode::text_source() const
-{
-    Optional<Utf16View> lang;
-    if (auto element = parent_element_for_text_transform())
-        lang = element->lang_view();
-    auto view_for = [](Utf16View view) -> RustFFI::FfiUtf16View {
-        return {
-            .ascii = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
-            .utf16 = view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
-            .length = view.length_in_code_units(),
-        };
-    };
-    return {
-        .text = view_for(text()),
-        .locale = lang.has_value() ? view_for(*lang) : RustFFI::FfiUtf16View {},
-        .has_locale = lang.has_value(),
-        .is_password_input = is_password_input(),
-    };
 }
 
 Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
