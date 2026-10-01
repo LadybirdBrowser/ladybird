@@ -16,8 +16,8 @@ use std::rc::Rc;
 
 use super::basic_block::BasicBlock;
 use super::basic_block::SourceMapEntry;
-use super::ffi::AbstractOperationKind;
-use super::ffi::WellKnownSymbolKind;
+use super::constant::AbstractOperationKind;
+use super::constant::WellKnownSymbolKind;
 use super::instruction::{Instruction, specialize_instruction_sequence};
 use super::operand::*;
 use crate::ast::AstArena;

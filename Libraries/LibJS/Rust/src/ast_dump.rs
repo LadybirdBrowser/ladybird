@@ -219,7 +219,7 @@ fn utf16_to_string(s: &[u16]) -> String {
 
 /// Format f64 matching the C++ Number::toString output exactly.
 fn format_f64(value: f64) -> String {
-    utf16_to_string(&crate::bytecode::ffi::js_number_to_utf16(value))
+    utf16_to_string(&crate::host::js_number_to_utf16(value))
 }
 
 op_to_string!(binary_op_to_string, BinaryOp, {

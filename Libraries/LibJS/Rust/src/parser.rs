@@ -765,7 +765,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(crate) fn eval_referenced_private_names(&self) -> &[Utf16String] {
+    pub fn eval_referenced_private_names(&self) -> &[Utf16String] {
         &self.eval_referenced_private_names
     }
 

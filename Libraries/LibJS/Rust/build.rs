@@ -1427,6 +1427,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
+    #[cfg(feature = "cpp-runtime")]
     cbindgen::generate(manifest_dir).map_or_else(
         |error| match error {
             cbindgen::Error::ParseSyntaxError { .. } => {}

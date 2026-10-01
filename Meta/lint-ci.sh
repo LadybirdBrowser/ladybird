@@ -84,6 +84,14 @@ if (( should_lint_rust )); then
         echo -e "[${BOLD_RED}FAIL${NC}]: cargo clippy -- -D clippy::all"
         ((FAILURES+=1))
     fi
+
+    # Runtimes other than the C++ one build the JS frontend without its C++ glue.
+    if cargo clippy --release --target "${rust_target_triple}" -p libjs_rust --no-default-features -- -D clippy::all ; then
+        echo -e "[${GREEN}OK${NC}]: cargo clippy -p libjs_rust --no-default-features -- -D clippy::all"
+    else
+        echo -e "[${BOLD_RED}FAIL${NC}]: cargo clippy -p libjs_rust --no-default-features -- -D clippy::all"
+        ((FAILURES+=1))
+    fi
 else
     echo "No Rust files to check."
 fi

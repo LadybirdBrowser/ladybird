@@ -15,16 +15,15 @@ use std::ffi::c_void;
 use std::ops::Range;
 use std::rc::Rc;
 
-use crate::CompiledProgram;
-use crate::CompiledProgramBytecode;
-use crate::ModuleCallbacks;
+use super::entry_points::ModuleCallbacks;
+use super::entry_points::ModuleExportEntryCallback;
+use super::ffi::ConstantTag;
+use super::ffi::FFISharedFunctionData;
+use super::ffi::FFIUtf16Slice;
 use crate::ast;
 use crate::bytecode::basic_block::SourceMapEntry;
-use crate::bytecode::ffi::AbstractOperationKind;
-use crate::bytecode::ffi::ConstantTag;
-use crate::bytecode::ffi::FFISharedFunctionData;
-use crate::bytecode::ffi::FFIUtf16Slice;
-use crate::bytecode::ffi::WellKnownSymbolKind;
+use crate::bytecode::constant::AbstractOperationKind;
+use crate::bytecode::constant::WellKnownSymbolKind;
 use crate::bytecode::generator::AssembledBytecode;
 use crate::bytecode::generator::ConstantValue;
 use crate::bytecode::generator::ExceptionHandler;
@@ -39,6 +38,8 @@ use crate::bytecode::validator::FFIExceptionHandlerOffsets;
 use crate::bytecode::validator::FFIValidatorBounds;
 use crate::bytecode::validator::ValidationErrorKind;
 use crate::bytecode::validator::validate_bytecode;
+use crate::compile::CompiledProgram;
+use crate::compile::CompiledProgramBytecode;
 use crate::u32_from_usize;
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
@@ -769,8 +770,7 @@ impl DecodedCacheBlob {
                 return std::ptr::null_mut();
             }
 
-            let shared_function_data_owner =
-                crate::bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr);
+            let shared_function_data_owner = super::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr);
             if !materialize_script_declaration_metadata(
                 metadata,
                 declaration_functions,
@@ -821,8 +821,7 @@ impl DecodedCacheBlob {
                 return std::ptr::null_mut();
             }
 
-            let shared_function_data_owner =
-                crate::bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr);
+            let shared_function_data_owner = super::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr);
             (cb.set_has_top_level_await)(module_context, self.has_top_level_await);
             if !materialize_module_declaration_metadata(
                 metadata,
@@ -909,7 +908,7 @@ impl DecodedCacheBlob {
             let executable_ptr = materialize_executable_for_install(
                 &self.program.executable,
                 Some(&mut existing_shared_function_data),
-                crate::bytecode::ffi::SharedFunctionDataOwner::None,
+                super::ffi::SharedFunctionDataOwner::None,
                 vm_ptr,
                 source_code_ptr,
                 &mut pending_function_installs,
@@ -971,7 +970,7 @@ impl DecodedCacheBlob {
                     let exec_ptr = materialize_executable_for_install(
                         &self.program.executable,
                         Some(&mut existing_shared_function_data),
-                        crate::bytecode::ffi::SharedFunctionDataOwner::None,
+                        super::ffi::SharedFunctionDataOwner::None,
                         vm_ptr,
                         source_code_ptr,
                         &mut pending_function_installs,
@@ -1001,7 +1000,7 @@ impl DecodedCacheBlob {
                     let executable_ptr = materialize_executable_for_install(
                         &self.program.executable,
                         Some(&mut existing_shared_function_data),
-                        crate::bytecode::ffi::SharedFunctionDataOwner::None,
+                        super::ffi::SharedFunctionDataOwner::None,
                         vm_ptr,
                         source_code_ptr,
                         &mut pending_function_installs,
@@ -1063,16 +1062,16 @@ unsafe fn materialize_script_declaration_metadata(
     is_strict_mode: bool,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
-    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
+    shared_function_data_owner: super::ffi::SharedFunctionDataOwner,
     gdi_context: *mut c_void,
 ) -> bool {
     unsafe {
-        use crate::bytecode::ffi::script_gdi_push_annex_b_name;
-        use crate::bytecode::ffi::script_gdi_push_function;
-        use crate::bytecode::ffi::script_gdi_push_lexical_binding;
-        use crate::bytecode::ffi::script_gdi_push_lexical_name;
-        use crate::bytecode::ffi::script_gdi_push_var_name;
-        use crate::bytecode::ffi::script_gdi_push_var_scoped_name;
+        use super::ffi::script_gdi_push_annex_b_name;
+        use super::ffi::script_gdi_push_function;
+        use super::ffi::script_gdi_push_lexical_binding;
+        use super::ffi::script_gdi_push_lexical_name;
+        use super::ffi::script_gdi_push_var_name;
+        use super::ffi::script_gdi_push_var_scoped_name;
 
         for name in &metadata.lexical_names {
             script_gdi_push_lexical_name(gdi_context, name.as_ptr(), name.len());
@@ -1118,7 +1117,7 @@ unsafe fn materialize_module_declaration_metadata(
     declaration_functions: &[DecodedFunctionRecord],
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
-    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
+    shared_function_data_owner: super::ffi::SharedFunctionDataOwner,
     module_context: *mut c_void,
     cb: &ModuleCallbacks,
 ) -> bool {
@@ -1219,7 +1218,7 @@ fn import_attributes_to_ffi(attributes: &[ast::ImportAttribute]) -> ImportAttrib
 
 unsafe fn push_module_export_entry(
     module_context: *mut c_void,
-    callback: crate::ModuleExportEntryCallback,
+    callback: ModuleExportEntryCallback,
     entry: &ModuleExportEntryRecord,
 ) {
     unsafe {
@@ -1292,7 +1291,7 @@ impl<'a> ExistingSharedFunctionData<'a> {
                 if self.matched[index] || ptr.is_null() {
                     continue;
                 }
-                if crate::bytecode::ffi::rust_sfd_matches_bytecode_cache_function(ptr, data) {
+                if super::ffi::rust_sfd_matches_bytecode_cache_function(ptr, data) {
                     self.matched[index] = true;
                     return ptr;
                 }
@@ -1319,7 +1318,7 @@ impl PendingFunctionInstall {
                 PendingFunctionInstallReplacement::CachedBytecode(cached_executable) => {
                     cached_executable.verify_has_been_validated_for_materialization();
                     let cached_executable_ptr = Box::into_raw(Box::new(cached_executable)) as *mut c_void;
-                    crate::bytecode::ffi::rust_sfd_install_cached_bytecode_executable(
+                    super::ffi::rust_sfd_install_cached_bytecode_executable(
                         self.existing_sfd_ptr,
                         cached_executable_ptr,
                         self.metadata.uses_this,
@@ -1332,7 +1331,7 @@ impl PendingFunctionInstall {
                     );
                 }
                 PendingFunctionInstallReplacement::Executable(executable_ptr) => {
-                    crate::bytecode::ffi::rust_sfd_install_bytecode_cache_executable(
+                    super::ffi::rust_sfd_install_bytecode_cache_executable(
                         self.existing_sfd_ptr,
                         executable_ptr,
                         self.metadata.uses_this,
@@ -1354,7 +1353,7 @@ unsafe fn materialize_function(
     outer_strict: bool,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
-    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
+    shared_function_data_owner: super::ffi::SharedFunctionDataOwner,
     validation: CachedBytecodeValidation,
 ) -> *mut c_void {
     unsafe {
@@ -1394,12 +1393,12 @@ unsafe fn materialize_function(
         };
 
         let sfd_ptr = match shared_function_data_owner {
-            crate::bytecode::ffi::SharedFunctionDataOwner::None => {
-                crate::bytecode::ffi::rust_create_sfd(vm_ptr, source_code_ptr, &raw const data)
+            super::ffi::SharedFunctionDataOwner::None => {
+                super::ffi::rust_create_sfd(vm_ptr, source_code_ptr, &raw const data)
             }
-            crate::bytecode::ffi::SharedFunctionDataOwner::List(list_ptr) => {
+            super::ffi::SharedFunctionDataOwner::List(list_ptr) => {
                 assert!(!list_ptr.is_null(), "SharedFunctionDataOwner::List must not be null");
-                crate::bytecode::ffi::rust_create_sfd_in_list(vm_ptr, source_code_ptr, list_ptr, &raw const data)
+                super::ffi::rust_create_sfd_in_list(vm_ptr, source_code_ptr, list_ptr, &raw const data)
             }
         };
         if sfd_ptr.is_null() {
@@ -1409,12 +1408,12 @@ unsafe fn materialize_function(
         if let Some((name, is_private)) = &function.class_field_initializer_name {
             let name_storage = PreparedUtf16Slice::new(name);
             let (name, name_len) = name_storage.as_ptr_len();
-            crate::bytecode::ffi::rust_sfd_set_class_field_initializer_name(sfd_ptr, name, name_len, *is_private);
+            super::ffi::rust_sfd_set_class_field_initializer_name(sfd_ptr, name, name_len, *is_private);
         }
 
         let cached_executable_ptr =
             Box::into_raw(Box::new(function.precompiled.validated_copy(validation))) as *mut c_void;
-        crate::bytecode::ffi::rust_sfd_set_cached_bytecode_executable(
+        super::ffi::rust_sfd_set_cached_bytecode_executable(
             sfd_ptr,
             cached_executable_ptr,
             function.metadata.uses_this,
@@ -1480,7 +1479,7 @@ unsafe fn prepare_function_install(
             return std::ptr::null_mut();
         }
 
-        if crate::bytecode::ffi::rust_sfd_executable(existing_sfd_ptr).is_null() {
+        if super::ffi::rust_sfd_executable(existing_sfd_ptr).is_null() {
             pending_function_installs.push(PendingFunctionInstall {
                 existing_sfd_ptr,
                 replacement: PendingFunctionInstallReplacement::CachedBytecode(
@@ -1497,7 +1496,7 @@ unsafe fn prepare_function_install(
         let executable_ptr = materialize_executable_for_install(
             &executable,
             Some(existing_shared_function_data),
-            crate::bytecode::ffi::SharedFunctionDataOwner::None,
+            super::ffi::SharedFunctionDataOwner::None,
             vm_ptr,
             source_code_ptr,
             pending_function_installs,
@@ -1532,9 +1531,9 @@ pub(crate) unsafe fn materialize_cached_function(
             return std::ptr::null_mut();
         };
         let shared_function_data_owner = if shared_function_data_list_ptr.is_null() {
-            crate::bytecode::ffi::SharedFunctionDataOwner::None
+            super::ffi::SharedFunctionDataOwner::None
         } else {
-            crate::bytecode::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr)
+            super::ffi::SharedFunctionDataOwner::List(shared_function_data_list_ptr)
         };
         materialize_executable(
             &executable,
@@ -1560,7 +1559,7 @@ unsafe fn materialize_executable(
     executable: &DecodedExecutableRecord,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
-    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
+    shared_function_data_owner: super::ffi::SharedFunctionDataOwner,
     validation: CachedBytecodeValidation,
 ) -> *mut c_void {
     unsafe {
@@ -1580,7 +1579,7 @@ unsafe fn materialize_executable(
 unsafe fn materialize_executable_for_install(
     executable: &DecodedExecutableRecord,
     mut existing_shared_function_data: Option<&mut ExistingSharedFunctionData<'_>>,
-    shared_function_data_owner: crate::bytecode::ffi::SharedFunctionDataOwner,
+    shared_function_data_owner: super::ffi::SharedFunctionDataOwner,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
     pending_function_installs: &mut Vec<PendingFunctionInstall>,
@@ -1610,10 +1609,10 @@ unsafe fn materialize_executable_for_install(
             let _ = local_variable.is_initialized_during_declaration_instantiation;
             &local_variable.name
         }));
-        let local_variable_metadata: Vec<crate::bytecode::ffi::FFILocalVariableMetadata> = local_variables
+        let local_variable_metadata: Vec<super::ffi::FFILocalVariableMetadata> = local_variables
             .iter()
             .zip(&local_variable_names)
-            .map(|(variable, name)| crate::bytecode::ffi::FFILocalVariableMetadata {
+            .map(|(variable, name)| super::ffi::FFILocalVariableMetadata {
                 name: name.raw_identity(),
                 is_mutable: variable.is_mutable,
                 has_scope_range: variable.scope_range.is_some(),
@@ -1666,7 +1665,7 @@ unsafe fn materialize_executable_for_install(
             class_blueprints.iter().map(PendingClassBlueprint::from).collect();
         let bp_ptrs: Vec<*mut c_void> = class_blueprints
             .iter()
-            .map(|blueprint| crate::bytecode::ffi::materialize_class_blueprint(blueprint, vm_ptr, source_code_ptr))
+            .map(|blueprint| super::ffi::materialize_class_blueprint(blueprint, vm_ptr, source_code_ptr))
             .collect();
         if bp_ptrs.iter().any(|ptr| ptr.is_null()) {
             return std::ptr::null_mut();
@@ -1678,8 +1677,8 @@ unsafe fn materialize_executable_for_install(
             return std::ptr::null_mut();
         };
 
-        crate::bytecode::ffi::create_executable_from_slices(
-            crate::bytecode::ffi::ExecutableParts {
+        super::ffi::create_executable_from_slices(
+            super::ffi::ExecutableParts {
                 bytecode: executable.bytecode.as_slice(),
                 bytecode_owner: executable.bytecode.owner_for_ffi(),
                 exception_handlers: &exception_handlers,
@@ -1688,7 +1687,7 @@ unsafe fn materialize_executable_for_install(
                 number_of_registers: executable.number_of_registers,
                 number_of_arguments: executable.number_of_arguments,
             },
-            crate::bytecode::ffi::ExecutableMetadata {
+            super::ffi::ExecutableMetadata {
                 property_lookup_cache_count: executable.cache_counters.property_lookup_cache_count,
                 global_variable_cache_count: executable.cache_counters.global_variable_cache_count,
                 environment_coordinate_cache_count: executable.cache_counters.environment_coordinate_cache_count,
@@ -1699,7 +1698,7 @@ unsafe fn materialize_executable_for_install(
                 is_strict: executable.strict,
                 length_identifier: executable.length_identifier,
             },
-            crate::bytecode::ffi::ExecutableSlices {
+            super::ffi::ExecutableSlices {
                 identifier_table: &native_identifiers,
                 property_key_table: &native_property_keys,
                 string_table: &native_strings,

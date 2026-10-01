@@ -15,7 +15,6 @@
 //!   metadata into a C++ `Bytecode::Executable` via `rust_create_executable()`
 //! - `create_shared_function_data()` -- creates a C++ `SharedFunctionInstanceData`
 //!   for a parsed function, transferring ownership of the AST
-//! - `compile_regex()` -- delegates regex compilation to the C++ regex engine
 //!
 //! ## FFI types
 //!
@@ -24,15 +23,15 @@
 use std::ffi::c_void;
 use std::mem::align_of;
 
-use super::generator::AssembledBytecode;
-use super::generator::ConstantValue;
-use super::generator::ExceptionHandler;
-use super::generator::Generator;
-use super::generator::PendingClassBlueprint;
-use super::generator::PendingClassElement;
-use super::generator::PendingLiteralValueKind;
 use crate::ast::Utf16String;
 use crate::bytecode::basic_block::SourceMapEntry;
+use crate::bytecode::generator::AssembledBytecode;
+use crate::bytecode::generator::ConstantValue;
+use crate::bytecode::generator::ExceptionHandler;
+use crate::bytecode::generator::Generator;
+use crate::bytecode::generator::PendingClassBlueprint;
+use crate::bytecode::generator::PendingClassElement;
+use crate::bytecode::generator::PendingLiteralValueKind;
 use crate::u32_from_usize;
 
 /// Opaque pointer returned from rust_create_executable.
@@ -158,25 +157,6 @@ fn literal_value_kind_to_ffi(kind: PendingLiteralValueKind) -> LiteralValueKind 
     }
 }
 
-/// Well-known symbol IDs resolved by C++ when materializing an Executable.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy)]
-pub enum WellKnownSymbolKind {
-    SymbolIterator = 0,
-    SymbolAsyncIterator = 1,
-}
-
-/// NativeJavaScriptBackedFunction intrinsic IDs resolved by C++ when materializing an Executable.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy)]
-pub enum AbstractOperationKind {
-    AsyncIteratorClose = 0,
-    GetMethod = 1,
-    GetIteratorDirect = 2,
-    GetIteratorFromMethod = 3,
-    IteratorComplete = 4,
-}
-
 /// Class element descriptor for ClassBlueprint creation
 /// (C++ `BytecodeFactory::ClassElementData`).
 #[repr(C)]
@@ -290,6 +270,7 @@ unsafe extern "C" {
         is_private: bool,
     );
 
+    #[expect(dead_code, reason = "declared only so that RustFFI.h declares the C++ definition")]
     pub fn rust_sfd_set_precompiled_executable(
         sfd_ptr: *mut c_void,
         executable_ptr: *mut c_void,
@@ -326,7 +307,9 @@ unsafe extern "C" {
         contains_direct_call_to_eval: bool,
     );
 
+    #[expect(dead_code, reason = "declared only so that RustFFI.h declares the C++ definition")]
     pub fn rust_executable_shared_function_data_count(executable_ptr: *const c_void) -> usize;
+    #[expect(dead_code, reason = "declared only so that RustFFI.h declares the C++ definition")]
     pub fn rust_executable_shared_function_data_at(executable_ptr: *const c_void, index: usize) -> *mut c_void;
     pub fn rust_sfd_executable(sfd_ptr: *const c_void) -> *mut c_void;
     pub fn rust_sfd_matches_bytecode_cache_function(sfd_ptr: *const c_void, data: *const FFISharedFunctionData)
@@ -384,20 +367,6 @@ unsafe extern "C" {
     pub fn eval_gdi_push_annex_b_name(ctx: *mut c_void, name: *const u16, len: usize);
     pub fn eval_gdi_push_lexical_binding(ctx: *mut c_void, name: *const u16, len: usize, is_constant: bool);
     pub fn eval_gdi_push_private_name(ctx: *mut c_void, name: *const u16, len: usize);
-
-    pub fn rust_compile_regex(
-        pattern_data: *const u16,
-        pattern_len: usize,
-        flags_data: *const u16,
-        flags_len: usize,
-        error_out: *mut *const u16,
-        error_len_out: *mut usize,
-    ) -> *mut c_void;
-
-    pub fn rust_free_error_string(str: *const u16);
-
-    pub fn rust_number_to_utf16(value: f64, buffer: *mut u16, buffer_len: usize) -> usize;
-
 }
 
 /// Create a SharedFunctionInstanceData from a FunctionData.
@@ -420,7 +389,7 @@ pub unsafe fn create_shared_function_data(
     is_strict: bool,
     name_override: Option<&[u16]>,
     arena: std::sync::Arc<crate::ast::AstArena>,
-    enclosing_environment_scope: Option<std::sync::Arc<super::generator::EnclosingEnvironmentScope>>,
+    enclosing_environment_scope: Option<std::sync::Arc<crate::bytecode::generator::EnclosingEnvironmentScope>>,
 ) -> *mut c_void {
     unsafe {
         use crate::ast::FunctionParameterBinding;
@@ -956,39 +925,5 @@ pub unsafe fn create_executable_with_dependencies_from_parts(
         };
 
         create_executable_from_slices(parts, metadata, slices, vm_ptr, source_code_ptr, sfd_ptrs, bp_ptrs)
-    }
-}
-
-/// Convert a JS number to its UTF-16 string representation using the
-/// ECMA-262 Number::toString algorithm (via C++ runtime).
-pub fn js_number_to_utf16(value: f64) -> Utf16String {
-    let mut buffer = [0u16; 64];
-    let len = unsafe { rust_number_to_utf16(value, buffer.as_mut_ptr(), buffer.len()) };
-    Utf16String(buffer[..len].to_vec())
-}
-
-/// Compile a regex pattern+flags using the C++ regex engine.
-///
-/// On success, returns an opaque handle to the compiled regex (a C++
-/// RustCompiledRegex*). On failure, returns the error message.
-pub fn compile_regex(pattern: &[u16], flags: &[u16]) -> Result<*mut c_void, Utf16String> {
-    unsafe {
-        let mut error: *const u16 = std::ptr::null();
-        let mut error_len = 0usize;
-        let handle = rust_compile_regex(
-            pattern.as_ptr(),
-            pattern.len(),
-            flags.as_ptr(),
-            flags.len(),
-            &raw mut error,
-            &raw mut error_len,
-        );
-        if error.is_null() {
-            Ok(handle)
-        } else {
-            let msg = Utf16String(std::slice::from_raw_parts(error, error_len).to_vec());
-            rust_free_error_string(error);
-            Err(msg)
-        }
     }
 }

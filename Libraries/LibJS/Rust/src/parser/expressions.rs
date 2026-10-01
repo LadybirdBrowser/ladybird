@@ -660,7 +660,7 @@ impl Parser<'_> {
             Vec::new()
         };
         self.validate_regex_flags(&flags);
-        let compiled_regex = match crate::bytecode::ffi::compile_regex(&pattern, &flags) {
+        let compiled_regex = match crate::host::compile_regex(&pattern, &flags) {
             Ok(handle) => Arc::new(CompiledRegex::new(handle)),
             Err(msg) => {
                 self.syntax_error_at_position(&String::from_utf16_lossy(&msg), start);

@@ -60,8 +60,8 @@ use crate::ast::*;
 use crate::lexer::ch;
 use crate::u32_from_usize;
 
-use super::ffi::AbstractOperationKind;
-use super::ffi::WellKnownSymbolKind;
+use super::constant::AbstractOperationKind;
+use super::constant::WellKnownSymbolKind;
 use super::generator::BindingLocation;
 use super::generator::BlockBoundaryType;
 use super::generator::ConstantValue;
@@ -6418,7 +6418,7 @@ fn generate_class_expression(
                             ExpressionKind::Identifier(ident) => arena.name_of(*ident).clone(),
                             ExpressionKind::StringLiteral(s) => (**s).clone(),
                             ExpressionKind::PrivateIdentifier(p) => p.name.clone(),
-                            ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
+                            ExpressionKind::NumericLiteral(n) => crate::host::js_number_to_utf16(*n),
                             ExpressionKind::BigIntLiteral(s) => {
                                 let digits = bigint_literal_digits(s);
                                 Utf16String(digits.to_vec())
@@ -6465,7 +6465,7 @@ fn generate_class_expression(
                             ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
                             ExpressionKind::Identifier(ident) => arena.name_of(*ident).clone(),
                             ExpressionKind::StringLiteral(s) => (**s).clone(),
-                            ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
+                            ExpressionKind::NumericLiteral(n) => crate::host::js_number_to_utf16(*n),
                             _ => Utf16String::new(),
                         };
                         if !key_name.is_empty() {
@@ -9743,7 +9743,7 @@ fn constant_to_number(val: &ConstantValue) -> Option<f64> {
 fn constant_to_string(val: &ConstantValue) -> Option<Utf16String> {
     match val {
         ConstantValue::String(s) => Some(s.clone()),
-        ConstantValue::Number(n) => Some(super::ffi::js_number_to_utf16(*n)),
+        ConstantValue::Number(n) => Some(crate::host::js_number_to_utf16(*n)),
         ConstantValue::Boolean(b) => Some(if *b {
             Utf16String(utf16!("true").to_vec())
         } else {
@@ -10045,7 +10045,7 @@ fn expression_identifier(expression: &Expression, arena: &crate::ast::AstArena) 
             result.0.extend_from_slice(utf16!("'"));
             Some(result)
         }
-        ExpressionKind::NumericLiteral(n) => Some(super::ffi::js_number_to_utf16(*n)),
+        ExpressionKind::NumericLiteral(n) => Some(crate::host::js_number_to_utf16(*n)),
         ExpressionKind::This => Some(Utf16String(utf16!("this").to_vec())),
         ExpressionKind::Member(data) => {
             let mut s = Utf16String::new();
@@ -10101,7 +10101,7 @@ fn member_to_string_approximation(expression: &Expression, arena: &crate::ast::A
             result.0.extend_from_slice(utf16!("'"));
             result
         }
-        ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
+        ExpressionKind::NumericLiteral(n) => crate::host::js_number_to_utf16(*n),
         ExpressionKind::This => Utf16String(utf16!("this").to_vec()),
         ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
         _ => Utf16String(utf16!("<object>").to_vec()),
