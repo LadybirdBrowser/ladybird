@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/selection-highlight-beside-another-change-ref.html">
+<style>
+    p {
+        font-size: 20px;
+        line-height: 1.5;
+        margin: 10px 0;
+    }
+    .sel::selection {
+        background-color: transparent;
+        color: green;
+    }
+    .moved {
+        color: blue;
+    }
+</style>
+<p id="plain">Changed beside the selection</p>
+<p id="styled" class="sel">Selected beside another change</p>
+<script>
+    // The first selection makes ::selection observable while another element's style changes in the
+    // same update. The selected text paints with the highlight style installed with its element.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const range = document.createRange();
+            range.selectNodeContents(document.getElementById("styled").firstChild);
+            getSelection().addRange(range);
+            document.getElementById("plain").className = "moved";
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

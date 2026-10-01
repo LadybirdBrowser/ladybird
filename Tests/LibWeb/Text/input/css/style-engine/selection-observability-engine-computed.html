@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .sel::selection { color: rgb(1, 2, 3); background-color: rgb(4, 5, 6); }
+    .moved { color: rgb(0, 128, 0); }
+</style>
+<p id="plain">plain text</p>
+<p id="styled" class="sel">styled <span id="inner">inner</span> text</p>
+<script>
+    // Once a selection makes ::selection styles observable, every element in the selection is
+    // told its pseudo-element inputs may have changed. An unrelated change rides in the same
+    // update. Count who computes the elements' records, and check the highlight pseudo-elements
+    // are recomputed as each record installs.
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        getSelection().selectAllChildren(document.body);
+        document.getElementById("plain").classList.add("moved");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`engine computed records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords > 0}`);
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        const styled = getComputedStyle(document.getElementById("styled"), "::selection");
+        println(`styled ::selection: ${styled.color} on ${styled.backgroundColor}`);
+        const inner = getComputedStyle(document.getElementById("inner"), "::selection");
+        println(`inner ::selection inherits: ${inner.color} on ${inner.backgroundColor}`);
+        println(`plain color: ${getComputedStyle(document.getElementById("plain")).color}`);
+    });
+</script>
