@@ -583,7 +583,7 @@ impl RetainedState {
         // The environment the node's own custom declarations resolve to over the parent's. A node
         // declaring none keeps its record's, which is the parent's; a moved environment
         // republishes the record under the new one.
-        let (environment, current_environment) = {
+        let (environment, current_environment, parent_environment) = {
             let parent = self
                 .record_inheritance_parent(node, scratch.installed_ancestors.as_ref())
                 .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
@@ -610,11 +610,13 @@ impl RetainedState {
             (
                 (old_environment != Some(environment)).then_some(environment),
                 environment,
+                parent_environment,
             )
         };
         // A moved environment reaches every winner written with a substitution, and so does a
         // moved custom-property registry. A winner written with `attr()` computes to what the
-        // element's attributes hold now, and one reading the element's place among its siblings
+        // element's attributes hold now, one written with `inherit()` to what the parent's
+        // environment holds now, and one reading the element's place among its siblings
         // to where it stands now, which no winner delta shows. Such a record is driven again in
         // full, as is one holding no current cascade state or one under a moved document
         // environment.
@@ -622,7 +624,7 @@ impl RetainedState {
             || scratch.document_environment_moved
             || ((environment.is_some() || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
-            || self.state_reads_attributes(node, state)
+            || self.state_reads_beyond_environment(node, state)
             || self.record_reads_sibling_position(node, state);
         if delta.is_empty() {
             // The winners the record was computed from are the winners now. When everything else
@@ -721,8 +723,8 @@ impl RetainedState {
         {
             cohort_parent = RecordDeltaParent::Inputs(inputs);
         }
-        // A record whose winners read the element's attributes is the element's alone.
-        let cohort = (!self.state_reads_attributes(node, state)).then(|| {
+        // A record whose winners read beyond its environment is the element's alone.
+        let cohort = (!self.state_reads_beyond_environment(node, state)).then(|| {
             (
                 old_style_record.raw(),
                 state,
@@ -885,13 +887,13 @@ impl RetainedState {
             groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
         }
 
-        // A store whose values substitute `attr()` holds this element's attributes, and is the
-        // element's alone.
-        let reads_attributes = self.state_reads_attributes(node, state);
+        // A store whose values substitute `attr()` or `inherit()` holds this element's attributes
+        // or its parent's values, and is the element's alone.
+        let element_alone = self.state_reads_beyond_environment(node, state);
         let store = match scratch
             .stores
             .get(&(state, current_environment))
-            .filter(|_| !reads_attributes)
+            .filter(|_| !element_alone)
         {
             Some(store) => store.clone(),
             None => {
@@ -900,12 +902,15 @@ impl RetainedState {
                     node,
                     state,
                     None,
-                    current_environment,
+                    custom_property_cascade::SubstitutionEnvironment {
+                        own: current_environment,
+                        inherited: parent_environment,
+                    },
                     &mut substituted,
                     counters,
                 )?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
-                if !reads_attributes {
+                if !element_alone {
                     scratch.stores.insert((state, current_environment), store.clone());
                 }
                 if substituted {
@@ -1194,10 +1199,10 @@ impl RetainedState {
             None => 0,
         };
         let pseudo_styles = self.pseudo_style_mask_or_rematch(node, counters);
-        // A record whose winners read the element's attributes is the element's alone.
+        // A record whose winners read beyond its environment is the element's alone.
         let cache_key = parent
             .zip(parent_record)
-            .filter(|_| !self.state_reads_attributes(node, state))
+            .filter(|_| !self.state_reads_beyond_environment(node, state))
             .and_then(|(parent, parent_record)| self.cold_record_parent(node, parent, parent_record, state))
             .map(|parent| ColdRecordKey {
                 monospace_recascaded_font_size: self
@@ -1249,12 +1254,22 @@ impl RetainedState {
         // it: a record C++ computed for a per-element value, such as a `random()` draw, is that
         // element's alone. A store with substituted values is the environment's as well as the
         // state's, and admits nothing for the state alone.
-        let reads_attributes = self.state_reads_attributes(node, state);
-        let store = match scratch.stores.get(&(state, environment)).filter(|_| !reads_attributes) {
+        let element_alone = self.state_reads_beyond_environment(node, state);
+        let store = match scratch.stores.get(&(state, environment)).filter(|_| !element_alone) {
             Some(store) => store.clone(),
             None => {
                 let mut substituted = false;
-                let store = self.cascaded_store_for_state(node, state, None, environment, &mut substituted, counters);
+                let store = self.cascaded_store_for_state(
+                    node,
+                    state,
+                    None,
+                    custom_property_cascade::SubstitutionEnvironment {
+                        own: environment,
+                        inherited: parent_environment,
+                    },
+                    &mut substituted,
+                    counters,
+                );
                 scratch.computability.remember(
                     (
                         node,
@@ -1267,7 +1282,7 @@ impl RetainedState {
                 );
                 let store = std::sync::Arc::new(store?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
-                if !reads_attributes {
+                if !element_alone {
                     scratch.stores.insert((state, environment), store.clone());
                 }
                 if substituted {
@@ -1277,10 +1292,10 @@ impl RetainedState {
             }
         };
         self.note_node_substitution(node, scratch, state, environment);
-        // A record whose winners read the element's attributes is the element's alone.
+        // A record whose winners read beyond its environment is the element's alone.
         let cache_key = parent
             .zip(parent_record)
-            .filter(|_| !self.state_reads_attributes(node, state))
+            .filter(|_| !self.state_reads_beyond_environment(node, state))
             .and_then(|(parent, parent_record)| self.cold_record_parent(node, parent, parent_record, state))
             .map(|parent| ColdRecordKey {
                 monospace_recascaded_font_size: self
@@ -2086,13 +2101,21 @@ impl RetainedState {
         if let Some(&admitted) = scratch.states.get(&key) {
             return admitted;
         }
+        let inherited = self
+            .tree
+            .inheritance_parent(node)
+            .and_then(|parent| self.computed_group_sets.custom_property_environment_identity(parent))
+            .unwrap_or(0);
         let mut substituted = false;
         let admitted = self
             .cascaded_store_for_state_in(
                 node,
                 cascade_state.1,
                 None,
-                environment,
+                custom_property_cascade::SubstitutionEnvironment {
+                    own: environment,
+                    inherited,
+                },
                 &mut substituted,
                 StoreUse::Admission,
                 counters,
@@ -2314,8 +2337,8 @@ impl RetainedState {
         // The element holds the record whether or not a later element takes it, and a change
         // among its siblings has to drive one reading its place again in full.
         self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
-        // A record whose winners read the element's attributes is the element's alone.
-        if self.state_reads_attributes(node, cascade_state.1) {
+        // A record whose winners read beyond its environment is the element's alone.
+        if self.state_reads_beyond_environment(node, cascade_state.1) {
             return;
         }
         let Some(parent) = self.cold_record_parent(node, parent, parent_record, cascade_state.1) else {
@@ -2529,16 +2552,18 @@ impl RetainedState {
 
     /// What a state's winners read beyond the cascade, as `cascade::STATE_READS_*` bits, decided
     /// once for each state.
-    fn state_reads(&self, node: StyleNodeID, state: CascadeStateID) -> u8 {
+    pub(super) fn state_reads(&self, node: StyleNodeID, state: CascadeStateID) -> u8 {
         if let Some(reads) = self.winner_groups.state_reads(state) {
             return reads;
         }
         let mut reads = 0;
-        if self
-            .state_substitution_values(node, state)
-            .any(|value| custom_property_cascade::value_reads_attributes(value.data()))
-        {
-            reads |= cascade::STATE_READS_ATTRIBUTES;
+        for value in self.state_substitution_values(node, state) {
+            if custom_property_cascade::value_reads_attributes(value.data()) {
+                reads |= cascade::STATE_READS_ATTRIBUTES;
+            }
+            if custom_property_cascade::value_reads_inherited_values(value.data()) {
+                reads |= cascade::STATE_READS_INHERIT_FUNCTION;
+            }
         }
         if self
             .winner_groups
@@ -2555,10 +2580,12 @@ impl RetainedState {
         reads
     }
 
-    /// Whether any of a state's longhand winners is written with `attr()`, itself or through the
-    /// shorthand it is pending.
-    pub(super) fn state_reads_attributes(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
-        self.state_reads(node, state) & cascade::STATE_READS_ATTRIBUTES != 0
+    /// Whether any of a state's longhand winners, itself or through the shorthand it is pending,
+    /// substitutes what the node's own custom-property environment does not decide: the element's
+    /// attributes through `attr()`, or the parent's environment through `inherit()`. What such a
+    /// state substitutes to is the element's alone.
+    pub(super) fn state_reads_beyond_environment(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
+        self.state_reads(node, state) & (cascade::STATE_READS_ATTRIBUTES | cascade::STATE_READS_INHERIT_FUNCTION) != 0
     }
 
     /// The element whose attributes `attr()` reads for a node's record or one of its
@@ -2689,7 +2716,7 @@ impl RetainedState {
         node: StyleNodeID,
         state: CascadeStateID,
         pseudo_kind: Option<u8>,
-        environment: u64,
+        environment: custom_property_cascade::SubstitutionEnvironment,
         substituted: &mut bool,
         counters: &mut Counters,
     ) -> Drive<WinnerStore> {
@@ -2713,7 +2740,7 @@ impl RetainedState {
         node: StyleNodeID,
         state: CascadeStateID,
         pseudo_kind: Option<u8>,
-        environment: u64,
+        environment: custom_property_cascade::SubstitutionEnvironment,
         substituted: &mut bool,
         store_use: StoreUse,
         counters: &mut Counters,

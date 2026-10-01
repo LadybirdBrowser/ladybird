@@ -1468,7 +1468,7 @@ impl StyleEngineState {
                 computed_group_sets: ComputedGroupSets::default(),
                 custom_property_environments: Default::default(),
                 nodes_with_substituted_records: HashSet::default(),
-                custom_declarations_reading_attributes: HashSet::default(),
+                custom_declaration_reads: HashMap::default(),
                 nodes_with_tree_counting_records: HashMap::default(),
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
@@ -2947,7 +2947,7 @@ impl RetainedState {
             computed_group_sets,
             custom_property_environments: _,
             nodes_with_substituted_records,
-            custom_declarations_reading_attributes,
+            custom_declaration_reads,
             nodes_with_tree_counting_records,
             element_custom_property_data,
             pseudo_element_custom_property_data,
@@ -3043,7 +3043,7 @@ impl RetainedState {
         winner_groups.remove(node);
         computed_group_sets.remove(node);
         nodes_with_substituted_records.remove(&node);
-        custom_declarations_reading_attributes.remove(&node);
+        custom_declaration_reads.remove(&node);
         nodes_with_tree_counting_records.remove(&node);
         element_custom_property_data.remove(&node);
         pseudo_element_custom_property_data.remove(&node);

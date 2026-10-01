@@ -51,7 +51,7 @@ impl EngineComputedRecordScratch {
 /// a private answer leaves what the next style update reads as it found it.
 struct PrivateDemandSaves {
     uses_substitution: bool,
-    custom_declarations_read_attributes: bool,
+    custom_declaration_reads: Option<u8>,
     container_effects: Option<container_queries::ContainerVerdict>,
     container_verdicts: Option<Vec<(RuleID, Option<bool>)>>,
     container_gate_unheld: bool,
@@ -70,7 +70,7 @@ impl RetainedState {
     fn save_for_private_demand(&self, node: StyleNodeID) -> PrivateDemandSaves {
         PrivateDemandSaves {
             uses_substitution: self.nodes_with_substituted_records.contains(&node),
-            custom_declarations_read_attributes: self.custom_declarations_reading_attributes.contains(&node),
+            custom_declaration_reads: self.custom_declaration_reads.get(&node).copied(),
             container_effects: self.container_effects_for_host.get(&node).cloned(),
             container_verdicts: self.published_container_verdicts.get(&node).cloned(),
             container_gate_unheld: self.container_gates_unheld.contains(&node),
@@ -89,11 +89,14 @@ impl RetainedState {
     ) {
         self.put_back_engine_computed_records(node, scratch, counters);
         set_contains(&mut self.nodes_with_substituted_records, node, saves.uses_substitution);
-        set_contains(
-            &mut self.custom_declarations_reading_attributes,
-            node,
-            saves.custom_declarations_read_attributes,
-        );
+        match saves.custom_declaration_reads {
+            Some(reads) => {
+                self.custom_declaration_reads.insert(node, reads);
+            }
+            None => {
+                self.custom_declaration_reads.remove(&node);
+            }
+        }
         match saves.container_effects {
             Some(effects) => {
                 self.container_effects_for_host.insert(node, effects);

@@ -1668,6 +1668,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             set_style_uses_attr_css_function();
         if (settled.record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::SiblingPosition))
             set_style_uses_tree_counting_function();
+        if (settled.record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::InheritFunction))
+            set_style_uses_inherit_css_function();
         // What C++ marks the parent with when a pseudo-element it computes explicitly inherits a
         // non-inherited property.
         if (settled.explicitly_inherited_groups != 0 && parent())
@@ -2434,6 +2436,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     // siblings, so a change among them has to reach the element again.
     if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::SiblingPosition))
         set_style_uses_tree_counting_function();
+    // An inherit() reads the parent's custom-property environment, so a move of it has to reach
+    // the element again.
+    if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::InheritFunction))
+        set_style_uses_inherit_css_function();
     // An attr() in the record's winners, or in the custom properties the element declares, reads
     // the element's attributes, so an attribute change has to reach the element again. An engine
     // record only ever sets the flag: one that stops reading attributes leaves it set, and the

@@ -112,27 +112,62 @@ fn engine_resolution_context(
 }
 
 /// Whether a token stream is a substitution the engine resolves itself: one whose only
-/// substitution functions are `var()` references.
+/// substitution functions are `var()` and `inherit()` references.
 pub(super) fn value_is_engine_resolvable_substitution(value: &StyleValueData) -> bool {
     matches!(value, StyleValueData::Unresolved { .. }) && custom_property_value_is_engine_resolvable(value)
 }
 
 /// Whether a cascaded custom-property value is one the engine resolves: a plain value, or a
-/// token stream whose only substitutions are `var()` references.
+/// token stream whose only substitutions are `var()` and `inherit()` references.
 fn custom_property_value_is_engine_resolvable(value: &StyleValueData) -> bool {
     !value_reads_attributes(value) && substitutions_but_attr_are_engine_resolvable(value)
 }
 
-/// Whether a written value substitutes `attr()`: itself, or the shorthand a longhand pending its
+/// The token stream a written value substitutes: itself, or the shorthand a longhand pending its
 /// substitution takes its part of.
-pub(super) fn value_reads_attributes(value: &StyleValueData) -> bool {
+fn substituted_tokens(value: &StyleValueData) -> &StyleValueData {
     match value {
-        StyleValueData::Unresolved { presence_attr, .. } => *presence_attr,
         StyleValueData::PendingSubstitution {
             original_shorthand_value,
-        } => value_reads_attributes(original_shorthand_value.data()),
-        _ => false,
+        } => substituted_tokens(original_shorthand_value.data()),
+        value => value,
     }
+}
+
+/// Whether a written value substitutes `attr()`, which reads the element's attributes.
+pub(super) fn value_reads_attributes(value: &StyleValueData) -> bool {
+    matches!(
+        substituted_tokens(value),
+        StyleValueData::Unresolved {
+            presence_attr: true,
+            ..
+        }
+    )
+}
+
+/// Whether a written value substitutes `inherit()`, which reads the custom-property environment
+/// of the parent rather than the element's own.
+pub(super) fn value_reads_inherited_values(value: &StyleValueData) -> bool {
+    matches!(
+        substituted_tokens(value),
+        StyleValueData::Unresolved {
+            presence_inherit: true,
+            ..
+        }
+    )
+}
+
+/// What a written value's substitutions read beyond the element's custom-property environment,
+/// as `FfiNodeRecordReads` bits.
+fn substitution_reads(value: &StyleValueData) -> u8 {
+    let mut reads = 0;
+    if value_reads_attributes(value) {
+        reads |= bridge::FfiNodeRecordReads::Attributes as u8;
+    }
+    if value_reads_inherited_values(value) {
+        reads |= bridge::FfiNodeRecordReads::InheritFunction as u8;
+    }
+    reads
 }
 
 /// Whether the engine resolves every substitution a value holds but `attr()`, which it resolves
@@ -145,11 +180,16 @@ fn substitutions_but_attr_are_engine_resolvable(value: &StyleValueData) -> bool 
             ..
         } | StyleValueData::Unresolved { presence_env: true, .. }
             | StyleValueData::Unresolved { presence_if: true, .. }
-            | StyleValueData::Unresolved {
-                presence_inherit: true,
-                ..
-            }
     )
+}
+
+/// The custom-property environments a node's winners substitute under: its own, which `var()`
+/// reads, and the one it inherits, which `inherit()` reads - the parent's, or the originating
+/// element's for a pseudo-element.
+#[derive(Clone, Copy)]
+pub(super) struct SubstitutionEnvironment {
+    pub own: u64,
+    pub inherited: u64,
 }
 
 /// What an `attr()` reads of an element, as the resolution takes it: each of the element's
@@ -756,7 +796,7 @@ impl RetainedState {
     ) -> Drive<u64> {
         if !self.any_custom_property_is_declared() {
             if pseudo.is_none() {
-                self.custom_declarations_reading_attributes.remove(&node);
+                self.custom_declaration_reads.remove(&node);
             }
             return Ok(parent_environment);
         }
@@ -769,24 +809,32 @@ impl RetainedState {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         };
-        self.note_custom_declarations_reading_attributes(node, pseudo, &cascaded);
+        self.note_custom_declaration_reads(node, pseudo, &cascaded);
         self.engine_custom_property_environment_over(node, cascaded, parent_environment, inputs, counters)
     }
 
-    /// Note whether the custom declarations cascaded for an element or one of its pseudo-elements
-    /// read the element's attributes, whatever environment they resolve to: the host notes it
+    /// Note what the custom declarations cascaded for an element or one of its pseudo-elements
+    /// read beyond the environment they resolve over, whatever they resolve to: the host notes it
     /// beside the element's record. The element's own resolve first, and its pseudo-elements'
     /// only add to what they found.
-    pub(super) fn note_custom_declarations_reading_attributes(
+    pub(super) fn note_custom_declaration_reads(
         &mut self,
         node: StyleNodeID,
         pseudo: Option<u8>,
         cascaded: &[(CustomDeclaration, RetainedStyleValueData)],
     ) {
-        if cascaded.iter().any(|(_, value)| value_reads_attributes(value.data())) {
-            self.custom_declarations_reading_attributes.insert(node);
-        } else if pseudo.is_none() {
-            self.custom_declarations_reading_attributes.remove(&node);
+        let reads = cascaded
+            .iter()
+            .fold(0, |reads, (_, value)| reads | substitution_reads(value.data()));
+        match (reads, pseudo) {
+            (0, None) => {
+                self.custom_declaration_reads.remove(&node);
+            }
+            (0, Some(_)) => {}
+            (reads, None) => {
+                self.custom_declaration_reads.insert(node, reads);
+            }
+            (reads, Some(_)) => *self.custom_declaration_reads.entry(node).or_default() |= reads,
         }
     }
 
@@ -933,24 +981,29 @@ impl RetainedState {
     }
 
     /// What a node's records read beyond their cascade, as `FfiNodeRecordReads` bits, for the row
-    /// that installs them: an `attr()` in the element's winners, in its pseudo-elements' (which
-    /// read the originating element's attributes), or in the custom properties either declares,
-    /// as their resolution found; a tree-counting function in the records the engine derived for
-    /// the element or its pseudo-elements, written or substituted, as their installation noted.
+    /// that installs them: an `attr()` or `inherit()` in the element's winners, in its
+    /// pseudo-elements' (which read the originating element's attributes), or in the custom
+    /// properties either declares, as their resolution found; a tree-counting function in the
+    /// records the engine derived for the element or its pseudo-elements, written or substituted,
+    /// as their installation noted.
     pub(super) fn node_record_reads(&self, node: StyleNodeID) -> u8 {
         let groups = self.current_winner_groups();
         let state = match groups.token_for(WinnerGroupKey::current(node, self.program.version())) {
             Lookup::Known((_, state)) => Some(state),
             _ => None,
         };
-        let mut reads = 0;
-        if state.is_some_and(|state| self.state_reads_attributes(node, state))
-            || groups
-                .pseudo_states(node)
-                .any(|(_, _, state, _)| self.state_reads_attributes(node, state))
-            || self.custom_declarations_reading_attributes.contains(&node)
+        let mut reads = self.custom_declaration_reads.get(&node).copied().unwrap_or(0);
+        for state in state
+            .into_iter()
+            .chain(groups.pseudo_states(node).map(|(_, _, state, _)| state))
         {
-            reads |= bridge::FfiNodeRecordReads::Attributes as u8;
+            let state_reads = self.state_reads(node, state);
+            if state_reads & cascade::STATE_READS_ATTRIBUTES != 0 {
+                reads |= bridge::FfiNodeRecordReads::Attributes as u8;
+            }
+            if state_reads & cascade::STATE_READS_INHERIT_FUNCTION != 0 {
+                reads |= bridge::FfiNodeRecordReads::InheritFunction as u8;
+            }
         }
         if self.nodes_with_tree_counting_records.contains_key(&node) {
             reads |= bridge::FfiNodeRecordReads::SiblingPosition as u8;
@@ -960,14 +1013,14 @@ impl RetainedState {
 
     /// What a written value with `var()` references substitutes to for a property under an
     /// environment, parsed as the property's value: what the C++ cascade computes for the
-    /// declaration, memoized by the written value. An `attr()` reads the element's `attributes`,
-    /// so its value is the element's alone and takes no memo. Refused when the value holds a
-    /// substitution the engine does not resolve, or the environment is one the engine holds no
-    /// store for.
+    /// declaration, memoized by the written value. An `attr()` reads the element's `attributes`
+    /// and an `inherit()` the environment the element inherits, so either value is the element's
+    /// alone and takes no memo. Refused when the value holds a substitution the engine does not
+    /// resolve, or an environment is one the engine holds no store for.
     pub(super) fn substitute_written_value(
         environments: &mut custom_property_environments::CustomPropertyEnvironments,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
-        environment: u64,
+        environment: SubstitutionEnvironment,
         property: u16,
         written: RetainedStyleValueData,
         attributes: Option<&SubstitutionAttributes<'_>>,
@@ -980,21 +1033,28 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return Err(Unanswered::Refused);
         }
-        if attributes.is_none()
-            && let Some(value) = environments.substitution(&written, property, environment)
-        {
+        let reads_inherited_values = value_reads_inherited_values(written.data());
+        let memoizes = attributes.is_none() && !reads_inherited_values;
+        if memoizes && let Some(value) = environments.substitution(&written, property, environment.own) {
             counters.bump(Counter::EngineComputedRecordSubstitutionMemoHits);
             return Ok(value);
         }
-        let store = match environment {
-            0 => std::ptr::null(),
-            identity => {
-                let Some(store) = environments.store(identity) else {
-                    counters.bump(Counter::EngineComputedRecordBailSubstitution);
-                    return Err(Unanswered::Refused);
-                };
-                store
-            }
+        let store_of = |identity| match identity {
+            0 => Some(std::ptr::null()),
+            identity => environments.store(identity),
+        };
+        let Some(store) = store_of(environment.own) else {
+            counters.bump(Counter::EngineComputedRecordBailSubstitution);
+            return Err(Unanswered::Refused);
+        };
+        let inheritance_store = if reads_inherited_values {
+            let Some(store) = store_of(environment.inherited) else {
+                counters.bump(Counter::EngineComputedRecordBailSubstitution);
+                return Err(Unanswered::Refused);
+            };
+            store
+        } else {
+            std::ptr::null()
         };
         let registry_ref = inputs.custom_property_registry();
         let mut random_function_index = 0_usize;
@@ -1018,7 +1078,7 @@ impl RetainedState {
         let resolution = unsafe {
             crate::css::custom_properties::resolve_vars(
                 store,
-                std::ptr::null(),
+                inheritance_store,
                 std::ptr::from_ref(registry_ref).cast(),
                 Some(&parse_context),
                 None,
@@ -1074,8 +1134,8 @@ impl RetainedState {
             }
         };
         counters.bump(Counter::EngineComputedRecordSubstitutions);
-        if attributes.is_none() {
-            environments.remember_substitution(written, property, environment, value.clone_retained());
+        if memoizes {
+            environments.remember_substitution(written, property, environment.own, value.clone_retained());
         }
         Ok(value)
     }
