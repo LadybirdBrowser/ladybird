@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    #generated::before { content: url("400.png") url("../../Assets/120.png"); }
+    #generated.swapped::before { content: url("../../Assets/120.png") url("400.png"); }
+</style>
+<img id="image" src="400.png">
+<div id="generated"></div>
+<script>
+    window.onload = () => {
+        document.body.offsetWidth;
+        const image = document.getElementById("image");
+        image.onload = () => {
+            document.getElementById("generated").classList.add("swapped");
+            document.documentElement.classList.remove("reftest-wait");
+        };
+        image.src = "../../Assets/120.png";
+    };
+</script>
+</html>
