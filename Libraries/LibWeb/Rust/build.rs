@@ -2989,6 +2989,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/style_rule.rs"),
             manifest_dir.join("src/css/scope_selectors.rs"),
             manifest_dir.join("src/css/media_list.rs"),
+            manifest_dir.join("src/css/counter_representation.rs"),
             manifest_dir.join("src/css/counter_style.rs"),
             manifest_dir.join("src/css/namespace_rule.rs"),
             manifest_dir.join("src/css/property_rule.rs"),

@@ -1,0 +1,711 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! Generating a counter representation: the pure function from a resolved counter style and an
+//! integer to the text a marker or a `counter()` shows.
+//!
+//! The descriptors a `@counter-style` rule settles on are resolved by C++ - `extends` chains,
+//! `auto` ranges and the cascade between origins and layers all belong to the rule cache - and
+//! handed over here.
+
+/// A counter symbol. The `<image>` half of `<symbol>` is not implemented, so every symbol is text.
+pub(crate) type Symbol = Box<[u16]>;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum GenericSystem {
+    Cyclic,
+    Numeric,
+    Alphabetic,
+    Symbolic,
+}
+
+/// https://drafts.csswg.org/css-counter-styles-3/#complex-predefined-counters
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExtendedCjkStyle {
+    SimpChineseInformal,
+    SimpChineseFormal,
+    TradChineseInformal,
+    TradChineseFormal,
+    JapaneseInformal,
+    JapaneseFormal,
+    KoreanHangulFormal,
+    KoreanHanjaInformal,
+    KoreanHanjaFormal,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Algorithm {
+    Additive(Vec<(i32, Symbol)>),
+    Fixed {
+        first_symbol: i32,
+        symbols: Vec<Symbol>,
+    },
+    Generic {
+        system: GenericSystem,
+        symbols: Vec<Symbol>,
+    },
+    EthiopicNumeric,
+    ExtendedCjk(ExtendedCjkStyle),
+}
+
+/// A counter style with every descriptor resolved: what `CounterStyle::create` produces C++-side.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct CounterStyle {
+    pub algorithm: Algorithm,
+}
+
+// C++ computes `value % symbol_list.size()` and `value - 1 % ...` in the unsigned type the size
+// brings to the expression, so a negative value wraps rather than indexing backwards. Only the
+// cyclic system reaches these with a negative value - every other one takes the absolute value
+// first - but the wrap is observable there, so it is reproduced exactly.
+fn wrapping_index(value: i64, modulus: usize) -> usize {
+    ((value as u64) % (modulus as u64)) as usize
+}
+
+impl CounterStyle {
+    /// The representation before the pad and the negative sign are applied, or nothing when this
+    /// style cannot represent the value and the fallback style must.
+    fn generate_an_initial_representation_for_the_counter_value(&self, mut value: i64) -> Option<Vec<u16>> {
+        match &self.algorithm {
+            // https://drafts.csswg.org/css-counter-styles-3/#additive-system
+            Algorithm::Additive(symbol_list) => {
+                // 1. Let value initially be the counter value, S initially be the empty string, and
+                //    symbol list initially be the list of additive tuples.
+
+                // 2. If value is zero:
+                if value == 0 {
+                    // 1. If symbol list contains a tuple with a weight of zero, append that tuple's
+                    //    counter symbol to S and return S.
+                    if let Some((_, symbol)) = symbol_list.iter().find(|(weight, _)| *weight == 0) {
+                        return Some(symbol.to_vec());
+                    }
+
+                    // 2. Otherwise, the given counter value cannot be represented by this counter
+                    //    style, and must instead be represented by the fallback counter style.
+                    return None;
+                }
+
+                let mut representation = Vec::new();
+
+                // 3. For each tuple in symbol list:
+                for (weight, symbol) in symbol_list {
+                    // 1. Let symbol and weight be tuple's counter symbol and weight, respectively.
+
+                    // 2. If weight is zero, or weight is greater than value, continue.
+                    let weight = i64::from(*weight);
+                    if weight == 0 || weight > value {
+                        continue;
+                    }
+
+                    // 3. Let reps be floor( value / weight ).
+                    let reps = value / weight;
+
+                    // 4. Append symbol to S reps times.
+                    for _ in 0..reps {
+                        representation.extend_from_slice(symbol);
+                    }
+
+                    // 5. Decrement value by weight * reps.
+                    value -= weight * reps;
+
+                    // 6. If value is zero, return S.
+                    if value == 0 {
+                        return Some(representation);
+                    }
+                }
+
+                // The given counter value cannot be represented by this counter style, and must
+                // instead be represented by the fallback counter style.
+                None
+            }
+            // https://drafts.csswg.org/css-counter-styles-3/#fixed-system
+            // The first counter symbol is the representation for the first symbol value, and
+            // subsequent counter values are represented by subsequent counter symbols. Once the
+            // list of counter symbols is exhausted, further values cannot be represented by this
+            // counter style, and must instead be represented by the fallback counter style.
+            Algorithm::Fixed { first_symbol, symbols } => {
+                let index = value - i64::from(*first_symbol);
+                if index < 0 || index >= symbols.len() as i64 {
+                    return None;
+                }
+                Some(symbols[index as usize].to_vec())
+            }
+            Algorithm::Generic { system, symbols } => {
+                // A system with no symbols parses as invalid, so the list is never empty; answering
+                // with the fallback rather than dividing by zero keeps that assumption harmless.
+                if symbols.is_empty() {
+                    return None;
+                }
+                match system {
+                    // https://drafts.csswg.org/css-counter-styles-3/#cyclic-system
+                    // If there are N counter symbols and a representation is being constructed for
+                    // the integer value, the representation is the counter symbol at index
+                    // ( (value-1) mod N) of the list of counter symbols (0-indexed).
+                    GenericSystem::Cyclic => Some(symbols[wrapping_index(value - 1, symbols.len())].to_vec()),
+                    // https://drafts.csswg.org/css-counter-styles-3/#numeric-system
+                    // If there are N counter symbols, the representation is a base N number using
+                    // the counter symbols as digits.
+                    GenericSystem::Numeric => {
+                        // 1. If value is 0, append symbol(0) to S and return S.
+                        if value == 0 {
+                            return Some(symbols[0].to_vec());
+                        }
+
+                        let mut digits = Vec::new();
+
+                        // 2. While value is not equal to 0:
+                        while value != 0 {
+                            // 1. Prepend symbol( value mod N ) to S.
+                            digits.push(&symbols[wrapping_index(value, symbols.len())]);
+
+                            // 2. Set value to floor( value / N ).
+                            value /= symbols.len() as i64;
+                        }
+
+                        // 3. Return S.
+                        Some(join_symbols_in_reverse(&digits))
+                    }
+                    // https://drafts.csswg.org/css-counter-styles-3/#alphabetic-system
+                    // If there are N counter symbols, the representation is a base N alphabetic
+                    // number using the counter symbols as digits.
+                    GenericSystem::Alphabetic => {
+                        let mut digits = Vec::new();
+
+                        // While value is not equal to 0:
+                        while value != 0 {
+                            // 1. Set value to value - 1.
+                            value -= 1;
+
+                            // 2. Prepend symbol( value mod N ) to S.
+                            digits.push(&symbols[wrapping_index(value, symbols.len())]);
+
+                            // 3. Set value to floor( value / N ).
+                            value /= symbols.len() as i64;
+                        }
+
+                        // Finally, return S.
+                        Some(join_symbols_in_reverse(&digits))
+                    }
+                    // https://drafts.csswg.org/css-counter-styles-3/#symbolic-system
+                    GenericSystem::Symbolic => {
+                        // 1. Let the chosen symbol be symbol( (value - 1) mod N).
+                        let chosen = &symbols[wrapping_index(value - 1, symbols.len())];
+
+                        // 2. Let the representation length be ceil( value / N ).
+                        let representation_length = (value as u64).div_ceil(symbols.len() as u64);
+
+                        // 3. Append the chosen symbol to S a number of times equal to the
+                        //    representation length. Finally, return S.
+                        let mut representation = Vec::with_capacity(chosen.len() * representation_length as usize);
+                        for _ in 0..representation_length {
+                            representation.extend_from_slice(chosen);
+                        }
+                        Some(representation)
+                    }
+                }
+            }
+            Algorithm::EthiopicNumeric => Some(generate_an_ethiopic_numeric_representation(value)),
+            Algorithm::ExtendedCjk(style) => Some(generate_an_extended_cjk_representation(value, *style)),
+        }
+    }
+}
+
+fn join_symbols_in_reverse(symbols: &[&Symbol]) -> Vec<u16> {
+    let mut representation = Vec::with_capacity(symbols.iter().map(|symbol| symbol.len()).sum());
+    for symbol in symbols.iter().rev() {
+        representation.extend_from_slice(symbol);
+    }
+    representation
+}
+
+/// https://drafts.csswg.org/css-counter-styles-3/#ethiopic-numeric-counter-style
+/// The following algorithm converts decimal digits to ethiopic numbers.
+fn generate_an_ethiopic_numeric_representation(mut value: i64) -> Vec<u16> {
+    // 1. If the number is 1, return "፩" (U+1369).
+    if value == 1 {
+        return vec![0x1369];
+    }
+
+    // 2. Split the number into groups of two digits, starting with the least significant decimal digit.
+    let mut groups = Vec::new();
+    while value != 0 {
+        groups.push((value % 100) as u8);
+        value /= 100;
+    }
+
+    let mut representation = Vec::new();
+
+    // 3. Index each group sequentially, starting from the least significant as group number zero.
+    // NB: We iterate in descending order of significance, so we can append in order.
+    for index in (0..groups.len()).rev() {
+        let group_value = groups[index];
+
+        // 4. If the group has the value zero, or if the group is the most significant one and has
+        //    the value 1, or if the group has an odd index (as given in the previous step) and has
+        //    the value 1, then remove the digits (but leave the group, so it still has a separator
+        //    appended below).
+        if group_value != 0 && !(index == groups.len() - 1 && group_value == 1) && !(index % 2 == 1 && group_value == 1)
+        {
+            // 5. For each remaining digit, substitute the relevant ethiopic character.
+            // Tens: 10 ፲ U+1372 .. 90 ፺ U+137A
+            let tens = group_value / 10;
+            if tens != 0 {
+                representation.push(0x1372 + u16::from(tens) - 1);
+            }
+
+            // Units: 1 ፩ U+1369 .. 9 ፱ U+1371
+            let units = group_value % 10;
+            if units != 0 {
+                representation.push(0x1369 + u16::from(units) - 1);
+            }
+        }
+
+        // 6. For each group with an odd index, except groups which originally had a value of zero,
+        //    append ፻ U+137B.
+        if index % 2 == 1 && group_value != 0 {
+            representation.push(0x137B);
+        }
+        // 7. For each group with an even index, except the group with index 0, append ፼ U+137C.
+        else if index % 2 == 0 && index != 0 {
+            representation.push(0x137C);
+        }
+    }
+
+    // 8. Concatenate the groups into one string, and return it.
+    representation
+}
+
+/// The characters one extended CJK style spells its digits, digit markers and group markers with.
+struct ExtendedCjkCharacters {
+    digits: [&'static [u16]; 10],
+    digit_markers: [&'static [u16]; 3],
+    group_markers: [&'static [u16]; 3],
+}
+
+// https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
+// The tables below define the characters used in these styles.
+fn extended_cjk_characters(style: ExtendedCjkStyle) -> ExtendedCjkCharacters {
+    // | Values                | simp-chinese-informal | simp-chinese-formal | trad-chinese-informal | trad-chinese-formal
+    // | Digit 0               | 零 U+96F6             | 零 U+96F6           | 零 U+96F6             | 零 U+96F6
+    // | Digit 1               | 一 U+4E00             | 壹 U+58F9           | 一 U+4E00             | 壹 U+58F9
+    // | Digit 2               | 二 U+4E8C             | 贰 U+8D30           | 二 U+4E8C             | 貳 U+8CB3
+    // | Digit 3               | 三 U+4E09             | 叁 U+53C1           | 三 U+4E09             | 參 U+53C3
+    // | Digit 4               | 四 U+56DB             | 肆 U+8086           | 四 U+56DB             | 肆 U+8086
+    // | Digit 5               | 五 U+4E94             | 伍 U+4F0D           | 五 U+4E94             | 伍 U+4F0D
+    // | Digit 6               | 六 U+516D             | 陆 U+9646           | 六 U+516D             | 陸 U+9678
+    // | Digit 7               | 七 U+4E03             | 柒 U+67D2           | 七 U+4E03             | 柒 U+67D2
+    // | Digit 8               | 八 U+516B             | 捌 U+634C           | 八 U+516B             | 捌 U+634C
+    // | Digit 9               | 九 U+4E5D             | 玖 U+7396           | 九 U+4E5D             | 玖 U+7396
+    // | Second Digit Marker   | 十 U+5341             | 拾 U+62FE           | 十 U+5341             | 拾 U+62FE
+    // | Third Digit Marker    | 百 U+767E             | 佰 U+4F70           | 百 U+767E             | 佰 U+4F70
+    // | Fourth Digit Marker   | 千 U+5343             | 仟 U+4EDF           | 千 U+5343             | 仟 U+4EDF
+    // | Second Group Marker   | 万 U+4E07             | 万 U+4E07           | 萬 U+842C             | 萬 U+842C
+    // | Third Group Marker    | 亿 U+4EBF             | 亿 U+4EBF           | 億 U+5104             | 億 U+5104
+    // | Fourth Group Marker   | 万亿 U+4E07 U+4EBF    | 万亿 U+4E07 U+4EBF  | 兆 U+5146             | 兆 U+5146
+    //
+    // | Values                | japanese-informal | japanese-formal | korean-hangul-formal | korean-hanja-informal | korean-hanja-formal
+    // | Digit 0               | 〇 U+3007         | 零 U+96F6       | 영 U+C601            | 零 U+96F6             | 零 U+96F6
+    // | Digit 1               | 一 U+4E00         | 壱 U+58F1       | 일 U+C77C            | 一 U+4E00             | 壹 U+58F9
+    // | Digit 2               | 二 U+4E8C         | 弐 U+5F10       | 이 U+C774            | 二 U+4E8C             | 貳 U+8CB3
+    // | Digit 3               | 三 U+4E09         | 参 U+53C2       | 삼 U+C0BC            | 三 U+4E09             | 參 U+53C3
+    // | Digit 4               | 四 U+56DB         | 四 U+56DB       | 사 U+C0AC            | 四 U+56DB             | 四 U+56DB
+    // | Digit 5               | 五 U+4E94         | 伍 U+4F0D       | 오 U+C624            | 五 U+4E94             | 五 U+4E94
+    // | Digit 6               | 六 U+516D         | 六 U+516D       | 육 U+C721            | 六 U+516D             | 六 U+516D
+    // | Digit 7               | 七 U+4E03         | 七 U+4E03       | 칠 U+CE60            | 七 U+4E03             | 七 U+4E03
+    // | Digit 8               | 八 U+516B         | 八 U+516B       | 팔 U+D314            | 八 U+516B             | 八 U+516B
+    // | Digit 9               | 九 U+4E5D         | 九 U+4E5D       | 구 U+AD6C            | 九 U+4E5D             | 九 U+4E5D
+    // | Second Digit Marker   | 十 U+5341         | 拾 U+62FE       | 십 U+C2ED            | 十 U+5341             | 拾 U+62FE
+    // | Third Digit Marker    | 百 U+767E         | 百 U+767E       | 백 U+BC31            | 百 U+767E             | 百 U+767E
+    // | Fourth Digit Marker   | 千 U+5343         | 阡 U+9621       | 천 U+CC9C            | 千 U+5343             | 仟 U+4EDF
+    // | Second Group Marker   | 万 U+4E07         | 萬 U+842C       | 만 U+B9CC            | 萬 U+842C             | 萬 U+842C
+    // | Third Group Marker    | 億 U+5104         | 億 U+5104       | 억 U+C5B5            | 億 U+5104             | 億 U+5104
+    // | Fourth Group Marker   | 兆 U+5146         | 兆 U+5146       | 조 U+C870            | 兆 U+5146             | 兆 U+5146
+    const SIMP_INFORMAL_DIGITS: [&[u16]; 10] = [
+        &[0x96F6],
+        &[0x4E00],
+        &[0x4E8C],
+        &[0x4E09],
+        &[0x56DB],
+        &[0x4E94],
+        &[0x516D],
+        &[0x4E03],
+        &[0x516B],
+        &[0x4E5D],
+    ];
+    const FORMAL_CHINESE_DIGIT_MARKERS: [&[u16]; 3] = [&[0x62FE], &[0x4F70], &[0x4EDF]];
+    const INFORMAL_CHINESE_DIGIT_MARKERS: [&[u16]; 3] = [&[0x5341], &[0x767E], &[0x5343]];
+    const SIMP_GROUP_MARKERS: [&[u16]; 3] = [&[0x4E07], &[0x4EBF], &[0x4E07, 0x4EBF]];
+    const TRAD_GROUP_MARKERS: [&[u16]; 3] = [&[0x842C], &[0x5104], &[0x5146]];
+
+    match style {
+        ExtendedCjkStyle::SimpChineseInformal => ExtendedCjkCharacters {
+            digits: SIMP_INFORMAL_DIGITS,
+            digit_markers: INFORMAL_CHINESE_DIGIT_MARKERS,
+            group_markers: SIMP_GROUP_MARKERS,
+        },
+        ExtendedCjkStyle::SimpChineseFormal => ExtendedCjkCharacters {
+            digits: [
+                &[0x96F6],
+                &[0x58F9],
+                &[0x8D30],
+                &[0x53C1],
+                &[0x8086],
+                &[0x4F0D],
+                &[0x9646],
+                &[0x67D2],
+                &[0x634C],
+                &[0x7396],
+            ],
+            digit_markers: FORMAL_CHINESE_DIGIT_MARKERS,
+            group_markers: SIMP_GROUP_MARKERS,
+        },
+        ExtendedCjkStyle::TradChineseInformal => ExtendedCjkCharacters {
+            digits: SIMP_INFORMAL_DIGITS,
+            digit_markers: INFORMAL_CHINESE_DIGIT_MARKERS,
+            group_markers: TRAD_GROUP_MARKERS,
+        },
+        ExtendedCjkStyle::TradChineseFormal => ExtendedCjkCharacters {
+            digits: [
+                &[0x96F6],
+                &[0x58F9],
+                &[0x8CB3],
+                &[0x53C3],
+                &[0x8086],
+                &[0x4F0D],
+                &[0x9678],
+                &[0x67D2],
+                &[0x634C],
+                &[0x7396],
+            ],
+            digit_markers: FORMAL_CHINESE_DIGIT_MARKERS,
+            group_markers: TRAD_GROUP_MARKERS,
+        },
+        ExtendedCjkStyle::JapaneseInformal => ExtendedCjkCharacters {
+            digits: [
+                &[0x3007],
+                &[0x4E00],
+                &[0x4E8C],
+                &[0x4E09],
+                &[0x56DB],
+                &[0x4E94],
+                &[0x516D],
+                &[0x4E03],
+                &[0x516B],
+                &[0x4E5D],
+            ],
+            digit_markers: INFORMAL_CHINESE_DIGIT_MARKERS,
+            group_markers: [&[0x4E07], &[0x5104], &[0x5146]],
+        },
+        ExtendedCjkStyle::JapaneseFormal => ExtendedCjkCharacters {
+            digits: [
+                &[0x96F6],
+                &[0x58F1],
+                &[0x5F10],
+                &[0x53C2],
+                &[0x56DB],
+                &[0x4F0D],
+                &[0x516D],
+                &[0x4E03],
+                &[0x516B],
+                &[0x4E5D],
+            ],
+            digit_markers: [&[0x62FE], &[0x767E], &[0x9621]],
+            group_markers: TRAD_GROUP_MARKERS,
+        },
+        ExtendedCjkStyle::KoreanHangulFormal => ExtendedCjkCharacters {
+            digits: [
+                &[0xC601],
+                &[0xC77C],
+                &[0xC774],
+                &[0xC0BC],
+                &[0xC0AC],
+                &[0xC624],
+                &[0xC721],
+                &[0xCE60],
+                &[0xD314],
+                &[0xAD6C],
+            ],
+            digit_markers: [&[0xC2ED], &[0xBC31], &[0xCC9C]],
+            group_markers: [&[0xB9CC], &[0xC5B5], &[0xC870]],
+        },
+        ExtendedCjkStyle::KoreanHanjaInformal => ExtendedCjkCharacters {
+            digits: SIMP_INFORMAL_DIGITS,
+            digit_markers: INFORMAL_CHINESE_DIGIT_MARKERS,
+            group_markers: TRAD_GROUP_MARKERS,
+        },
+        ExtendedCjkStyle::KoreanHanjaFormal => ExtendedCjkCharacters {
+            digits: [
+                &[0x96F6],
+                &[0x58F9],
+                &[0x8CB3],
+                &[0x53C3],
+                &[0x56DB],
+                &[0x4E94],
+                &[0x516D],
+                &[0x4E03],
+                &[0x516B],
+                &[0x4E5D],
+            ],
+            // NB: The third digit marker is 百 U+767E here, not the 佰 U+4F70 the formal Chinese
+            //     styles use.
+            digit_markers: [&[0x62FE], &[0x767E], &[0x4EDF]],
+            group_markers: TRAD_GROUP_MARKERS,
+        },
+    }
+}
+
+/// https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
+/// All of the styles are defined by almost identical algorithms (specified as a single algorithm
+/// here, with the differences called out when relevant), but use different sets of characters.
+fn generate_an_extended_cjk_representation(mut value: i64, style: ExtendedCjkStyle) -> Vec<u16> {
+    use ExtendedCjkStyle::*;
+
+    let characters = extended_cjk_characters(style);
+
+    // 1. If the counter value is 0, the representation is the character for 0 specified for the
+    //    given counter style. Skip the rest of this algorithm.
+    if value == 0 {
+        return characters.digits[0].to_vec();
+    }
+
+    // 2. If the counter value is negative, instead use the absolute value of the counter value for
+    //    the remaining steps of this algorithm.
+    // NB: This is handled by the caller.
+
+    // 3. Initially represent the counter value as a decimal number. Starting from the right (ones
+    //    place), split the decimal number into groups of four digits.
+    let mut groups = Vec::new();
+    while value > 0 {
+        groups.push((value % 10000) as u16);
+        value /= 10000;
+    }
+
+    let mut representation = Vec::new();
+
+    for group_index in (0..groups.len()).rev() {
+        let group_value = groups[group_index];
+
+        let mut digits = Vec::new();
+        let mut remaining = group_value;
+        while remaining > 0 {
+            digits.push((remaining % 10) as u8);
+            remaining /= 10;
+        }
+
+        // NB: Pad the group with zeroes up to four digits, unless this is the most significant group.
+        if group_index != groups.len() - 1 {
+            while digits.len() < 4 {
+                digits.push(0);
+            }
+        }
+
+        // NB: We move around the order of spec steps to work with a string builder rather than
+        //     replacing characters in a string.
+        for digit_index in (0..digits.len()).rev() {
+            let digit_value = digits[digit_index];
+
+            let mut should_drop_digit = false;
+            // 6. Drop ones:
+            //  - For the Chinese informal styles, for any group with a value between ten and
+            //    nineteen, remove the tens digit (leave the digit marker).
+            if matches!(style, SimpChineseInformal | TradChineseInformal) {
+                should_drop_digit |= (10..20).contains(&group_value) && digit_index == 1;
+            }
+
+            //  - For the Japanese informal and Korean informal styles, if any of the digit markers
+            //    are preceded by the digit 1, and that digit is not the first digit of the group,
+            //    remove the digit (leave the digit marker).
+            if matches!(style, JapaneseInformal | KoreanHanjaInformal) {
+                should_drop_digit |= digit_value == 1 && digit_index != 0;
+            }
+
+            //  - For Korean informal styles, if the value of the ten-thousands group is 1, drop the
+            //    digit (leave the digit marker).
+            if style == KoreanHanjaInformal {
+                should_drop_digit |= group_index == 1 && group_value == 1 && digit_index == 0;
+            }
+
+            // 7. Drop zeros:
+            //  - For the Japanese and Korean styles, drop all zero digits.
+            if matches!(
+                style,
+                JapaneseInformal | JapaneseFormal | KoreanHangulFormal | KoreanHanjaInformal | KoreanHanjaFormal
+            ) {
+                should_drop_digit |= digit_value == 0;
+            }
+
+            //  - For the Chinese styles, drop any trailing zeros for all non-zero groups and
+            //    collapse (across groups) each remaining consecutive group of zeros into a single
+            //    zero digit.
+            if matches!(
+                style,
+                SimpChineseInformal | SimpChineseFormal | TradChineseInformal | TradChineseFormal
+            ) {
+                let is_trailing_zero = digits[..=digit_index].iter().all(|digit| *digit == 0);
+                should_drop_digit |= is_trailing_zero;
+
+                // NB: We don't need to worry about collapsing across groups since dropping trailing
+                //     zeroes above means that a run of zeroes can't occur at the end of a group.
+                should_drop_digit |= digit_value == 0 && digit_index != 3 && digits[digit_index + 1] == 0;
+            }
+
+            // 9. Replace the digits 0-9 with the appropriate character for the given counter style.
+            if !should_drop_digit {
+                representation.extend_from_slice(characters.digits[usize::from(digit_value)]);
+            }
+
+            // 5. Within each group, for each digit that is not 0, append the appropriate digit
+            //    marker to the digit. The ones digit of each group has no marker.
+            if digit_value != 0 && digit_index != 0 {
+                representation.extend_from_slice(characters.digit_markers[digit_index - 1]);
+            }
+        }
+
+        // 4. For each group with a non-zero value, append the appropriate group marker to the
+        //    group. The ones group has no marker.
+        if group_value != 0 && group_index != 0 {
+            representation.extend_from_slice(characters.group_markers[group_index - 1]);
+        }
+
+        // 8. For the Korean styles, insert a space (" " U+0020) between each group.
+        if matches!(style, KoreanHangulFormal | KoreanHanjaInformal | KoreanHanjaFormal) && group_index != 0 {
+            representation.push(u16::from(b' '));
+        }
+    }
+
+    // 10. If the counter value was negative, prepend the appropriate negative sign character.
+    // NB: This is handled by the caller.
+
+    // 11. Return the resultant string as the representation of the counter value.
+    representation
+}
+
+// The FFI half: the resolved descriptors arrive from C++, which owns `@counter-style` parsing and
+// the cascade that picks one definition per name.
+
+/// A counter style C++ holds a handle to.
+pub struct FfiRegisteredCounterStyle(CounterStyle);
+
+/// One resolved counter style, as flat rows of `AK::Utf16FlyString` raw words. Every string word
+/// carries one leaked reference, which this side gives up.
+#[repr(C)]
+pub struct FfiCounterStyleDescriptors {
+    /// 0 additive, 1 fixed, 2 generic, 3 ethiopic-numeric, 4 extended CJK.
+    pub algorithm_kind: u8,
+    /// `CounterStyleSystem`, for the generic algorithms.
+    pub generic_system: u8,
+    /// `ExtendedCjkStyle`, for the extended CJK algorithms.
+    pub extended_cjk_style: u8,
+    pub fixed_first_symbol: i32,
+    pub symbols: *const usize,
+    pub symbol_count: usize,
+    /// Parallel with `symbols` for the additive algorithm, and null otherwise.
+    pub additive_weights: *const i32,
+}
+
+/// Adopts one leaked `AK::Utf16FlyString` reference and copies out its code units.
+///
+/// # Safety
+/// `raw` must be zero, or a raw representation the caller owns one reference to.
+unsafe fn adopt_symbol(raw: usize) -> Symbol {
+    if raw == 0 {
+        return Symbol::default();
+    }
+    // SAFETY: The caller transfers one reference, which the owner releases on drop.
+    let string = unsafe { ak::Utf16FlyString::from_raw_owned(raw) };
+    string.to_utf16().into_owned().into_boxed_slice()
+}
+
+/// Builds the counter style C++ resolved, taking ownership of every string reference in it.
+///
+/// # Safety
+///
+/// The pointer columns must address their stated number of elements for the duration of the call,
+/// and every string word must carry one leaked reference.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_counter_style_create(
+    descriptors: FfiCounterStyleDescriptors,
+) -> *mut FfiRegisteredCounterStyle {
+    let symbol_words = if descriptors.symbol_count == 0 {
+        &[][..]
+    } else {
+        // SAFETY: The caller keeps the column alive for this synchronous call.
+        unsafe { std::slice::from_raw_parts(descriptors.symbols, descriptors.symbol_count) }
+    };
+    let symbols: Vec<Symbol> = symbol_words.iter().map(|raw| unsafe { adopt_symbol(*raw) }).collect();
+
+    let algorithm = match descriptors.algorithm_kind {
+        0 => {
+            let weights = if descriptors.symbol_count == 0 {
+                &[][..]
+            } else {
+                // SAFETY: The additive column is as long as the symbol column.
+                unsafe { std::slice::from_raw_parts(descriptors.additive_weights, descriptors.symbol_count) }
+            };
+            Algorithm::Additive(weights.iter().copied().zip(symbols).collect())
+        }
+        1 => Algorithm::Fixed {
+            first_symbol: descriptors.fixed_first_symbol,
+            symbols,
+        },
+        2 => Algorithm::Generic {
+            system: match descriptors.generic_system {
+                0 => GenericSystem::Cyclic,
+                1 => GenericSystem::Numeric,
+                2 => GenericSystem::Alphabetic,
+                _ => GenericSystem::Symbolic,
+            },
+            symbols,
+        },
+        3 => Algorithm::EthiopicNumeric,
+        _ => Algorithm::ExtendedCjk(match descriptors.extended_cjk_style {
+            0 => ExtendedCjkStyle::SimpChineseInformal,
+            1 => ExtendedCjkStyle::SimpChineseFormal,
+            2 => ExtendedCjkStyle::TradChineseInformal,
+            3 => ExtendedCjkStyle::TradChineseFormal,
+            4 => ExtendedCjkStyle::JapaneseInformal,
+            5 => ExtendedCjkStyle::JapaneseFormal,
+            6 => ExtendedCjkStyle::KoreanHangulFormal,
+            7 => ExtendedCjkStyle::KoreanHanjaInformal,
+            _ => ExtendedCjkStyle::KoreanHanjaFormal,
+        }),
+    };
+
+    Box::into_raw(Box::new(FfiRegisteredCounterStyle(CounterStyle { algorithm })))
+}
+
+/// # Safety
+///
+/// `style` must be a handle from `rust_counter_style_create` that has not been released.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_counter_style_release(style: *mut FfiRegisteredCounterStyle) {
+    if style.is_null() {
+        return;
+    }
+    // SAFETY: The caller gives up the one owner the constructor handed out.
+    drop(unsafe { Box::from_raw(style) });
+}
+
+/// Whether the first three values this counter style represents are not all the same text: a
+/// marker whose text never changes (disc, circle, square, ...) reveals no renumbering.
+///
+/// # Safety
+///
+/// `style` must be a live handle from `rust_counter_style_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_counter_style_representation_depends_on_value(
+    style: *const FfiRegisteredCounterStyle,
+) -> bool {
+    // SAFETY: The handle is live for the duration of the call.
+    let style = &unsafe { &*style }.0;
+    let first = style.generate_an_initial_representation_for_the_counter_value(1);
+    let second = style.generate_an_initial_representation_for_the_counter_value(2);
+    let third = style.generate_an_initial_representation_for_the_counter_value(3);
+    first != second || second != third
+}
+
+#[cfg(test)]
+mod tests;
