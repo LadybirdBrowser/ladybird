@@ -381,6 +381,8 @@ struct PublishedComputedColumns {
     /// The element facts the style computation's adjustments read; see
     /// `bridge::element_adjustment_fact`.
     adjustment_facts: Vec<u32>,
+    /// One plus the element-backed pseudo-element kind the element stands for, or zero.
+    associated_pseudo_kinds: Vec<u8>,
     /// The synthetic pseudo-elements the node's last published match answer has rules for, one
     /// bit per kind; held while `HAS_PSEUDO_STYLE_MASK` is set.
     pseudo_style_masks: Vec<u64>,
@@ -394,6 +396,8 @@ impl PublishedComputedColumns {
     const INCOMPLETE_ANSWER: u8 = 1 << 3;
     /// `pseudo_style_masks` holds the node's mask.
     const HAS_PSEUDO_STYLE_MASK: u8 = 1 << 4;
+    /// What the node's last published match answer said, which outlives any record.
+    const ANSWER_FLAGS: u8 = Self::INCOMPLETE_ANSWER | Self::HAS_PSEUDO_STYLE_MASK;
 
     fn ensure(&mut self, index: usize) {
         if self.flags.len() > index {
@@ -411,6 +415,7 @@ impl PublishedComputedColumns {
         self.cascade_states.resize(len, 0);
         self.flags.resize(len, 0);
         self.adjustment_facts.resize(len, 0);
+        self.associated_pseudo_kinds.resize(len, 0);
         self.pseudo_style_masks.resize(len, 0);
     }
 
@@ -520,14 +525,25 @@ impl PublishedComputedColumns {
             };
     }
 
-    fn remove(&mut self, index: usize) -> Option<u32> {
+    /// Drop the record at `index`, keeping what the host and the node's match answer published
+    /// for it: its element facts, the pseudo-element it backs and the answer's flags.
+    fn unassign(&mut self, index: usize) -> Option<u32> {
         let overlay = self.animation_overlay_slot(index);
         if let Some(flags) = self.flags.get_mut(index) {
-            *flags = 0;
+            *flags &= Self::ANSWER_FLAGS;
             self.animation_overlay_slots[index] = 0;
+        }
+        overlay
+    }
+
+    fn remove(&mut self, index: usize) -> Option<u32> {
+        let overlay = self.unassign(index);
+        if let Some(flags) = self.flags.get_mut(index) {
+            *flags = 0;
             // The index may be handed to a shadow root or the document next, which publish no facts
             // of their own, so a retired element's facts must not stay behind for them.
             self.adjustment_facts[index] = 0;
+            self.associated_pseudo_kinds[index] = 0;
         }
         overlay
     }
@@ -1646,12 +1662,11 @@ impl ComputedGroupSets {
         if self.final_base_style_record(current) != derived_style_record {
             return;
         }
-        // A first record never installed leaves the node the way it was: unassigned, with the
-        // element facts the host published for it, which the layout tree reads.
+        // A first record never installed leaves the node the way it was: unassigned, with what
+        // the host and its match answer published for it, which the layout tree and the next
+        // derivation read.
         if previous_style_record == FinalStyleRecordID::NONE {
-            let adjustment_facts = self.columns.adjustment_facts[index];
-            self.remove(node);
-            self.columns.adjustment_facts[index] = adjustment_facts;
+            self.unassign(node);
             return;
         }
         let Some(previous_base) = previous_style_record.base_record() else {
@@ -2832,6 +2847,16 @@ impl ComputedGroupSets {
         }
     }
 
+    /// Record the element-backed pseudo-element kind the element stands for, one plus the kind,
+    /// or zero for none.
+    pub fn set_associated_pseudo_kind(&mut self, node: StyleNodeID, pseudo_kind_plus_one: u8) {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return;
+        };
+        self.columns.ensure(index);
+        self.columns.associated_pseudo_kinds[index] = pseudo_kind_plus_one;
+    }
+
     /// The synthetic pseudo-elements the node's last published match answer has rules for.
     pub(super) fn node_pseudo_style_mask(&self, node: StyleNodeID) -> Option<u64> {
         let index = node.element_index()? as usize;
@@ -2916,6 +2941,20 @@ impl ComputedGroupSets {
     }
 
     pub fn remove(&mut self, node: StyleNodeID) {
+        self.remove_assignments(node, PublishedComputedColumns::remove);
+    }
+
+    /// Drop everything assigned to the node, keeping what the host and its match answer published
+    /// for it.
+    fn unassign(&mut self, node: StyleNodeID) {
+        self.remove_assignments(node, PublishedComputedColumns::unassign);
+    }
+
+    fn remove_assignments(
+        &mut self,
+        node: StyleNodeID,
+        clear_columns: fn(&mut PublishedComputedColumns, usize) -> Option<u32>,
+    ) {
         self.take_shared_computation_context(node);
         let Some(index) = node.element_index().map(|index| index as usize) else {
             return;
@@ -2923,7 +2962,7 @@ impl ComputedGroupSets {
         if let Some(slot) = self.style_record_column.get_mut(index) {
             *slot = None;
         }
-        if let Some(slot) = self.columns.remove(index) {
+        if let Some(slot) = clear_columns(&mut self.columns, index) {
             self.release_animation_overlay_assignment(slot);
         }
         self.pending_cascade_states.remove(&node);
@@ -4188,6 +4227,43 @@ mod tests {
         );
         sets.remove(node);
         assert_eq!(sets.live_animation_overlay_records(), 0);
+    }
+
+    #[test]
+    fn a_dropped_first_record_keeps_what_the_host_and_the_answer_published() {
+        let mut sets = ComputedGroupSets::default();
+        let node = StyleNodeID::element(1);
+        sets.set_adjustment_facts(node, 1 << 29);
+        sets.set_associated_pseudo_kind(node, 3);
+        sets.set_node_answer_incomplete(node, true);
+        sets.set_node_pseudo_style_mask(node, Some(1 << 2));
+        let derived = sets.publish_unowned(
+            Some(ComputedStyleTarget::new(node, u8::MAX)),
+            &[],
+            0,
+            0,
+            metadata(0, 0, 0),
+        );
+
+        sets.revert_engine_computed_record(node, derived.style_record_identity, FinalStyleRecordID::NONE);
+        assert!(sets.assigned_style_record(node).is_none());
+        assert_eq!(sets.adjustment_facts(node), 1 << 29);
+        assert_eq!(
+            node.element_index()
+                .map(|index| sets.columns.associated_pseudo_kinds[index as usize]),
+            Some(3)
+        );
+        assert!(sets.node_answer_is_incomplete(node));
+        assert_eq!(sets.node_pseudo_style_mask(node), Some(1 << 2));
+        // An answer that cannot say which pseudo-elements it styles leaves no earlier mask behind.
+        sets.set_node_pseudo_style_mask(node, None);
+        assert_eq!(sets.node_pseudo_style_mask(node), None);
+        sets.set_node_pseudo_style_mask(node, Some(1 << 2));
+
+        sets.remove(node);
+        assert_eq!(sets.adjustment_facts(node), 0);
+        assert!(!sets.node_answer_is_incomplete(node));
+        assert_eq!(sets.node_pseudo_style_mask(node), None);
     }
 
     #[test]

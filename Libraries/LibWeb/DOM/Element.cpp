@@ -5597,6 +5597,7 @@ void Element::set_associated_shadow_host_pseudo_element(CSS::PseudoElement type)
     shadow_root.host()->register_element_reference_pseudo_element(type, *this);
 
     ensure_element_rare_data().associated_shadow_host_pseudo_element = type;
+    CSS::record_element_adjustment_facts(*this);
 }
 
 Optional<CSS::PseudoElement> Element::associated_shadow_host_pseudo_element() const
