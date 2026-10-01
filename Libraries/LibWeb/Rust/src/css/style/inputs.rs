@@ -943,13 +943,60 @@ impl RetainedState {
     }
 
     /// Record the style record an element holds; zero is none. Only elements that hold one have an
-    /// entry.
+    /// entry. Whether the element is a query container is what that record says.
     pub fn set_held_style_record(&mut self, node: StyleNodeID, style_record: u64) {
         if style_record == 0 {
             self.held_style_records.remove(&node);
         } else {
             self.held_style_records.insert(node, style_record);
         }
+        self.set_element_container_query_inputs(node, style_record);
+    }
+
+    /// Refresh whether, and as what, an element is a query container from a record it is published
+    /// with. A record without its box group makes it none, and so does one naming no container
+    /// type or name: such an element holds no row.
+    pub(super) fn set_element_container_query_inputs(&mut self, node: StyleNodeID, style_record: u64) {
+        let Some(payloads) = self
+            .computed_group_sets
+            .style_record_payloads(style_record)
+            .filter(|payloads| payloads.len() > crate::css::computed_value_types::STYLE_GROUP_INDEX_BOX)
+        else {
+            self.container_query_inputs.clear(node);
+            return;
+        };
+        let values =
+            crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(payloads));
+        let box_values = values.box_values();
+        if !box_values.is_size_container
+            && !box_values.is_inline_size_container
+            && !box_values.is_scroll_state_container
+            && box_values.container_name.raws().is_empty()
+        {
+            self.container_query_inputs.clear(node);
+            return;
+        }
+        let names = box_values
+            .container_name
+            .raws()
+            .iter()
+            .map(|raw| match unsafe { ak::utf16_string_units(raw) } {
+                ak::Utf16StringUnits::Ascii(units) => units.iter().copied().map(u16::from).collect(),
+                ak::Utf16StringUnits::Utf16(units) => units.to_vec(),
+            })
+            .collect();
+        self.container_query_inputs.set(
+            node,
+            tree::ContainerQueryInputRow {
+                style_record,
+                names,
+                is_size_container: box_values.is_size_container,
+                is_inline_size_container: box_values.is_inline_size_container,
+                is_scroll_state_container: box_values.is_scroll_state_container,
+                writing_mode: values.writing_mode(),
+                direction: values.direction(),
+            },
+        );
     }
 
     /// Record what the style C++ computed for an element reads through `var()`: nothing held when
@@ -1404,6 +1451,7 @@ impl StyleEngineState {
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
                 environment_move_recompute_nodes: HashSet::default(),
+                container_query_inputs: Default::default(),
                 layout_style_snapshots: HashMap::default(),
                 counter_style_environment_identities: HashMap::default(),
                 held_style_records: HashMap::default(),
@@ -2876,6 +2924,7 @@ impl RetainedState {
             element_custom_property_data,
             pseudo_element_custom_property_data,
             environment_move_recompute_nodes,
+            container_query_inputs,
             layout_style_snapshots,
             counter_style_environment_identities: _,
             held_style_records,
@@ -2965,6 +3014,7 @@ impl RetainedState {
         element_custom_property_data.remove(&node);
         pseudo_element_custom_property_data.remove(&node);
         environment_move_recompute_nodes.remove(&node);
+        container_query_inputs.clear(node);
         layout_style_snapshots.remove(&node);
         held_style_records.remove(&node);
         host_var_reads.remove(&node);

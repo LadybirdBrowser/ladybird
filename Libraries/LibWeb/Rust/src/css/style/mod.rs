@@ -861,6 +861,8 @@ pub struct RetainedState {
     /// The elements whose style reads their custom-property environment other than through `var()`,
     /// which a moved environment computes again.
     environment_move_recompute_nodes: HashSet<StyleNodeID>,
+    /// Whether, and as what, each element's published record makes it a query container.
+    container_query_inputs: tree::ContainerQueryInputColumns,
     /// What the last layout commit and scroll state say of each container's box, for the
     /// container queries that ask about it: a size container's, and a scroll-state container's.
     layout_style_snapshots: HashMap<StyleNodeID, crate::layout::style_snapshot::LayoutStyleSnapshotRow>,
