@@ -83,13 +83,18 @@ impl NamedRuleContextsMoved {
 }
 
 impl RetainedState {
-    /// Whether a moved named rule context reaches the node's record: a counter style reaches only
-    /// a record that resolved one, a `@function` only an element whose style called one, and
-    /// `@font-feature-values` reaches values a record does not say it read.
+    /// Whether a moved named rule context reaches the node's record where the engine cannot follow:
+    /// a counter style reaches only a record that resolved one, and `@font-feature-values` reaches
+    /// values a record does not say it read.
     fn named_rule_contexts_reach(&self, node: StyleNodeID, moved: NamedRuleContextsMoved) -> bool {
-        moved.font_feature_values
-            || (moved.custom_functions && self.facts.uses_custom_functions(node))
-            || (moved.counter_styles && self.node_reads_counter_styles(node))
+        moved.font_feature_values || (moved.counter_styles && self.node_reads_counter_styles(node))
+    }
+
+    /// Whether a moved named rule context drives the node's record again in full, its winners
+    /// standing as they were: a `@function` reaches an element whose style called one, which the
+    /// engine resolves against the published definitions.
+    fn named_rule_contexts_drive_in_full(&self, node: StyleNodeID, moved: NamedRuleContextsMoved) -> bool {
+        moved.custom_functions && self.facts.uses_custom_functions(node)
     }
 
     /// Whether the node's record, or the record of one of its pseudo-elements, resolved a counter
@@ -1871,6 +1876,8 @@ impl StyleEngineState {
                     engine_computed_record_scratch.answer_or_declarations_moved = rule_declarations_edited
                         || !flipped_rules.is_empty()
                         || !selector_truth_changes.refreshes_for(root).is_empty();
+                    engine_computed_record_scratch.recompute_in_full =
+                        self.named_rule_contexts_drive_in_full(root, named_rules_moved);
                     self.prepare_root_font_inputs(
                         root,
                         answer.cascade_winners_are_complete,
@@ -1879,6 +1886,7 @@ impl StyleEngineState {
                         &mut engine_computed_record_scratch,
                         counters,
                     );
+                    engine_computed_record_scratch.recompute_in_full = false;
                 } else {
                     counters.bump(Counter::RootFontInputsUnprovenFallbacks);
                 }
@@ -2203,7 +2211,8 @@ impl StyleEngineState {
                         engine_computed_record_scratch.recompute_in_full = reaction
                             & (transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
                                 | transaction::STYLE_REACTION_ANCESTOR_BECAME_VISIBLE)
-                            != 0;
+                            != 0
+                            || self.named_rule_contexts_drive_in_full(node, named_rules_moved);
                         let record_answer = self.engine_computed_record_delta(
                             node,
                             answer.cascade_winners_are_complete,
