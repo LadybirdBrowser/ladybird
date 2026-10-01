@@ -436,7 +436,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#create-a-link-request
-GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTMLLinkElement::LinkProcessingOptions const& options)
+RefPtr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTMLLinkElement::LinkProcessingOptions const& options)
 {
     // 1. Assert: options's href is not the empty string.
     VERIFY(!options.href.is_empty());

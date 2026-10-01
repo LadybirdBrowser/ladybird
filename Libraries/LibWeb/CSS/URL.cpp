@@ -81,7 +81,7 @@ RequestURLModifier::RequestURLModifier(Type type, Value value)
 {
 }
 
-void RequestURLModifier::modify_request(GC::Ref<Fetch::Infrastructure::Request> request) const
+void RequestURLModifier::modify_request(NonnullRefPtr<Fetch::Infrastructure::Request> request) const
 {
     switch (m_type) {
     case Type::CrossOrigin: {

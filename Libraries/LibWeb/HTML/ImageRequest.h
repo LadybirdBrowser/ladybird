@@ -57,7 +57,7 @@ public:
     // https://html.spec.whatwg.org/multipage/images.html#prepare-an-image-for-presentation
     void prepare_for_presentation(HTMLImageElement&);
 
-    void fetch_image(GC::Ref<Fetch::Infrastructure::Request>);
+    void fetch_image(NonnullRefPtr<Fetch::Infrastructure::Request>);
     void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {});
 
     GC::Ptr<SharedResourceRequest const> shared_resource_request() const { return m_shared_resource_request; }

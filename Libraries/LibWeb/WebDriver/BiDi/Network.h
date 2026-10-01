@@ -10,9 +10,10 @@
 #include <AK/HashTable.h>
 #include <AK/JsonObject.h>
 #include <AK/Optional.h>
+#include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
-#include <LibJS/Heap/Cell.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 
@@ -20,11 +21,12 @@ namespace Web::WebDriver::BiDi {
 
 // https://w3c.github.io/webdriver-bidi/#request-id
 // NB: Fetch's internal request clones and redirects share this identity.
-class NetworkRequest final : public JS::Cell {
-    GC_CELL(NetworkRequest, JS::Cell);
-    GC_DECLARE_ALLOCATOR(NetworkRequest);
+class NetworkRequest final : public RefCounted<NetworkRequest> {
+    AK_ALLOC_WITH_KMALLOC;
 
 public:
+    static NonnullRefPtr<NetworkRequest> create() { return adopt_ref(*new NetworkRequest); }
+
     String id;
     // The navigable the request's events go to.
     Optional<HTML::CrossProcessId> navigable_id;

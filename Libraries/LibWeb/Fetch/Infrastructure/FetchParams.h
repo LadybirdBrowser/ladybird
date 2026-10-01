@@ -29,11 +29,11 @@ public:
     struct PreloadedResponseCandidatePendingTag { };
     using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, GC::Ref<Response>>;
 
-    [[nodiscard]] static GC::Ref<FetchParams> create(GC::Ref<Request>, GC::Ref<FetchAlgorithms const>, NonnullRefPtr<FetchTimingInfo>);
+    [[nodiscard]] static GC::Ref<FetchParams> create(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, NonnullRefPtr<FetchTimingInfo>);
     [[nodiscard]] static GC::Ref<FetchParams> copy(FetchParams const&);
 
-    [[nodiscard]] GC::Ref<Request> request() const { return m_request; }
-    void set_request(GC::Ref<Request> request) { m_request = request; }
+    [[nodiscard]] NonnullRefPtr<Request> request() const { return m_request; }
+    void set_request(NonnullRefPtr<Request> request) { m_request = move(request); }
     [[nodiscard]] GC::Ref<FetchController> controller() const { return m_controller; }
     [[nodiscard]] NonnullRefPtr<FetchTimingInfo> timing_info() const { return m_timing_info; }
 
@@ -64,7 +64,7 @@ public:
     void set_blob_url_entry(Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry) { m_blob_url_entry = move(blob_url_entry); }
 
 private:
-    FetchParams(GC::Ref<Request>, GC::Ref<FetchAlgorithms const>, GC::Ref<FetchController>, NonnullRefPtr<FetchTimingInfo>);
+    FetchParams(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, GC::Ref<FetchController>, NonnullRefPtr<FetchTimingInfo>);
     FetchParams(FetchParams const&);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -72,7 +72,7 @@ private:
     // https://fetch.spec.whatwg.org/#fetch-params-request
     // request
     //     A request.
-    GC::Ref<Request> m_request;
+    NonnullRefPtr<Request> m_request;
 
     // https://fetch.spec.whatwg.org/#fetch-params-process-request-body
     // process request body chunk length (default null)

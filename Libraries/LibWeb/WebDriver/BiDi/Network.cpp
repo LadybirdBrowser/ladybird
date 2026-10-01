@@ -10,7 +10,6 @@
 #include <AK/Random.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
-#include <LibGC/Heap.h>
 #include <LibRequests/Request.h>
 #include <LibWeb/Fetch/Infrastructure/ClientContextSnapshot.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -26,8 +25,6 @@ namespace Web::WebDriver::BiDi {
 
 using namespace Fetch::Infrastructure;
 
-GC_DEFINE_ALLOCATOR(NetworkRequest);
-
 bool g_network_events_enabled { false };
 
 NetworkRequest::NetworkRequest()
@@ -39,7 +36,7 @@ void initialize_network_request(Request& request, GC::Ptr<HTML::Navigable> navig
 {
     if (!g_network_events_enabled || request.webdriver_bidi_network_request())
         return;
-    auto state = GC::Heap::the().allocate<NetworkRequest>();
+    auto state = NetworkRequest::create();
     if (navigable)
         state->navigable_id = navigable->id();
     else if (auto const& client = request.client_snapshot())

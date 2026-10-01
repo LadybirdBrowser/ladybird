@@ -49,7 +49,7 @@ public:
     [[nodiscard]] GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller();
     void set_fetch_controller(GC::Ptr<Fetch::Infrastructure::FetchController>);
 
-    void fetch_resource(GC::Ref<Fetch::Infrastructure::Request>);
+    void fetch_resource(NonnullRefPtr<Fetch::Infrastructure::Request>);
 
     void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {});
 

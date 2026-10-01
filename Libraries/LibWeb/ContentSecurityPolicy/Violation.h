@@ -42,7 +42,7 @@ public:
     virtual ~Violation() = default;
 
     [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_global_policy_and_directive(GC::Ptr<JS::Object> global_object, NonnullRefPtr<Policy const> policy, String directive);
-    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_request_and_policy(GC::Ref<Fetch::Infrastructure::Request> request, NonnullRefPtr<Policy const>);
+    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_request_and_policy(NonnullRefPtr<Fetch::Infrastructure::Request> request, NonnullRefPtr<Policy const>);
 
     // https://w3c.github.io/webappsec-csp/#violation-url
     [[nodiscard]] URL::URL url() const;

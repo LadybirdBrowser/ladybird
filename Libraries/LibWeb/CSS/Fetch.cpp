@@ -83,7 +83,7 @@ Optional<::URL::URL> resolve_a_style_resource_url(StyleResourceURL const& url_va
 }
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource
-static GC::Ptr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(StyleResourceURL const& url_value, RuleOrDeclaration css_rule_or_declaration, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode)
+static RefPtr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(StyleResourceURL const& url_value, RuleOrDeclaration css_rule_or_declaration, Fetch::Infrastructure::Request::Destination destination, CorsMode cors_mode)
 {
     // 1. Let parsedUrl be the result of resolving urlValue given cssRuleOrDeclaration. If that failed, return.
     auto parsed_url = resolve_a_style_resource_url(url_value, css_rule_or_declaration);
@@ -187,7 +187,7 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
 }
 
 // https://drafts.csswg.org/css-values-5/#apply-request-modifiers-from-url-value
-void apply_request_modifiers_from_url_value(URL const& url, GC::Ref<Fetch::Infrastructure::Request> request)
+void apply_request_modifiers_from_url_value(URL const& url, NonnullRefPtr<Fetch::Infrastructure::Request> request)
 {
     // To apply request modifiers from URL value given a request req and a <url> url, call the URL request modifier
     // steps for url’s <request-url-modifier>s in sequence given req.

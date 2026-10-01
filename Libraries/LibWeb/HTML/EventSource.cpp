@@ -226,7 +226,6 @@ void EventSource::finalize()
 void EventSource::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_request);
     visitor.visit(m_fetch_algorithms);
     visitor.visit(m_fetch_controller);
     visitor.visit(m_reconnection_timer);
@@ -358,7 +357,7 @@ void EventSource::reestablish_the_connection()
                 return;
 
             // 2. Let request be the EventSource object's request.
-            GC::Ref request { *m_request };
+            NonnullRefPtr request { *m_request };
 
             // 3. If the EventSource object's last event ID string is not the empty string, then:
             if (!m_last_event_id.is_empty()) {

@@ -346,7 +346,7 @@ OnFetchScriptComplete create_on_fetch_script_complete(GC::Heap& heap, Function<v
     return GC::create_function(heap, move(function));
 }
 
-PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<WebIDL::ExceptionOr<void>(GC::Ref<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function)
+PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<WebIDL::ExceptionOr<void>(NonnullRefPtr<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function)
 {
     return GC::create_function(heap, move(function));
 }

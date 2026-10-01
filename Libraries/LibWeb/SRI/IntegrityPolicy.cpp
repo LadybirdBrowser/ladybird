@@ -13,7 +13,7 @@
 namespace Web::SRI {
 
 // https://w3c.github.io/webappsec-subresource-integrity/#should-request-be-blocked-by-integrity-policy
-ContentSecurityPolicy::Directives::Directive::Result should_request_be_blocked_by_integrity_policy(GC::Ref<Fetch::Infrastructure::Request> request)
+ContentSecurityPolicy::Directives::Directive::Result should_request_be_blocked_by_integrity_policy(NonnullRefPtr<Fetch::Infrastructure::Request> request)
 {
     VERIFY(request->policy_container().has<NonnullRefPtr<HTML::PolicyContainer const>>());
 

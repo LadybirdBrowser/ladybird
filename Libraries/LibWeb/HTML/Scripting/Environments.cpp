@@ -102,7 +102,7 @@ void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
     // it's finalized.
     for (auto& fetch_record : m_fetch_group) {
         auto controller = fetch_record.fetch_controller();
-        if (fetch_record.request()->done())
+        if (fetch_record.request().done())
             continue;
         if (controller && controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
             continue;

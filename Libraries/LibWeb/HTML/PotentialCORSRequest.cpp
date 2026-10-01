@@ -10,7 +10,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#create-a-potential-cors-request
-GC::Ref<Fetch::Infrastructure::Request>
+NonnullRefPtr<Fetch::Infrastructure::Request>
 create_potential_CORS_request(URL::URL const& url, Optional<Fetch::Infrastructure::Request::Destination> destination, CORSSettingAttribute cors_attribute_state, SameOriginFallbackFlag same_origin_fallback_flag)
 {
     // 1. Let mode be "no-cors" if corsAttributeState is No CORS, and "cors" otherwise.

@@ -44,7 +44,7 @@ static bool may_report_violations_for(GC::Ptr<HTML::EnvironmentSettingsObject co
     return !snapshot || snapshot->report_violation();
 }
 
-ViolationReporter violation_reporter_for_request(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
+ViolationReporter violation_reporter_for_request(JS::Realm& realm, NonnullRefPtr<Fetch::Infrastructure::Request> request)
 {
     return [&realm, request](NonnullRefPtr<Policy const> policy) {
         if (!may_report_violations_for(Fetch::Fetching::resolve_client(request)))
@@ -55,7 +55,7 @@ ViolationReporter violation_reporter_for_request(JS::Realm& realm, GC::Ref<Fetch
 }
 
 // https://w3c.github.io/webappsec-csp/#should-block-navigation-request
-Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_content_security_policy(GC::Ref<Fetch::Infrastructure::Request> navigation_request, Directives::Directive::NavigationType navigation_type)
+Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_content_security_policy(NonnullRefPtr<Fetch::Infrastructure::Request> navigation_request, Directives::Directive::NavigationType navigation_type)
 {
     // 1. Let result be "Allowed".
     auto result = Directives::Directive::Result::Allowed;
@@ -145,7 +145,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
 
 // https://w3c.github.io/webappsec-csp/#should-block-navigation-response
 Directives::Directive::Result should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(
-    GC::Ptr<Fetch::Infrastructure::Request> navigation_request,
+    RefPtr<Fetch::Infrastructure::Request> navigation_request,
     GC::Ref<Fetch::Infrastructure::Response> navigation_response,
     PolicyList const& response_csp_list,
     Directives::Directive::NavigationType navigation_type,

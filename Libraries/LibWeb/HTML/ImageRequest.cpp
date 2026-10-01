@@ -120,7 +120,7 @@ void ImageRequest::prepare_for_presentation(HTMLImageElement&)
     // FIXME: 9. Update req's img element's presentation appropriately.
 }
 
-void ImageRequest::fetch_image(GC::Ref<Fetch::Infrastructure::Request> request)
+void ImageRequest::fetch_image(NonnullRefPtr<Fetch::Infrastructure::Request> request)
 {
     VERIFY(m_shared_resource_request);
     if (m_shared_resource_request->needs_fetching())

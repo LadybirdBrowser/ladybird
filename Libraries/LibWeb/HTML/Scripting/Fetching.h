@@ -25,10 +25,10 @@ enum class TopLevelModule {
 };
 
 using OnFetchScriptComplete = GC::Ref<GC::Function<void(GC::Ptr<Script>)>>;
-using PerformTheFetchHook = GC::Ptr<GC::Function<WebIDL::ExceptionOr<void>(GC::Ref<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)>>;
+using PerformTheFetchHook = GC::Ptr<GC::Function<WebIDL::ExceptionOr<void>(NonnullRefPtr<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)>>;
 
 WEB_API OnFetchScriptComplete create_on_fetch_script_complete(GC::Heap& heap, Function<void(GC::Ptr<Script>)> function);
-WEB_API PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<WebIDL::ExceptionOr<void>(GC::Ref<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function);
+WEB_API PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<WebIDL::ExceptionOr<void>(NonnullRefPtr<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function);
 
 class FetchContext : public JS::Cell {
     GC_CELL(FetchContext, JS::Cell);

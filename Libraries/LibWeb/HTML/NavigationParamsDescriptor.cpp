@@ -232,12 +232,12 @@ void create_navigation_params_descriptor(JS::Realm& realm, NavigationParamsVaria
         GC::Ref { realm.global_object() });
 }
 
-static GC::Ptr<Fetch::Infrastructure::Request> create_navigation_request_from_descriptor(JS::Realm& realm, LocalNavigable& navigable, Optional<NavigationRequestDescriptor> const& descriptor)
+static RefPtr<Fetch::Infrastructure::Request> create_navigation_request_from_descriptor(LocalNavigable& navigable, Optional<NavigationRequestDescriptor> const& descriptor)
 {
     if (!descriptor.has_value())
         return nullptr;
 
-    auto request = Fetch::Infrastructure::Request::create(realm.vm());
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url_list(descriptor->url_list);
     request->set_method(descriptor->method);
     if (!descriptor->client_is_null)
@@ -386,7 +386,7 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
 
     auto params = descriptor.get<NavigationParamsDescriptor>();
     VERIFY(params.navigable_id == navigable.id());
-    auto request = create_navigation_request_from_descriptor(realm, navigable, params.request);
+    auto request = create_navigation_request_from_descriptor(navigable, params.request);
     RefPtr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info;
     if (params.fetch_timing_info.has_value())
         fetch_timing_info = create_navigation_fetch_timing_info_from_descriptor(*params.fetch_timing_info);

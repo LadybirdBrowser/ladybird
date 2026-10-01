@@ -31,7 +31,7 @@ public:
     static RequestURLModifier create_referrer_policy(ReferrerPolicyModifierValue);
 
     ~RequestURLModifier() = default;
-    void modify_request(GC::Ref<Fetch::Infrastructure::Request>) const;
+    void modify_request(NonnullRefPtr<Fetch::Infrastructure::Request>) const;
     Type type() const { return m_type; }
     using Value = Variant<CrossOriginModifierValue, ReferrerPolicyModifierValue, Utf16FlyString>;
     Value const& value() const { return m_value; }

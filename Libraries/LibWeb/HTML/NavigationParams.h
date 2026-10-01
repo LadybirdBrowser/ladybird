@@ -53,7 +53,7 @@ struct NavigationParams : GC::Cell {
     GC::Ptr<LocalNavigable> navigable;
 
     // null or a request that started the navigation
-    GC::Ptr<Fetch::Infrastructure::Request> request;
+    RefPtr<Fetch::Infrastructure::Request> request;
 
     // a response that ultimately was navigated to (potentially a network error)
     GC::Ptr<Fetch::Infrastructure::Response> response;
@@ -93,7 +93,7 @@ struct NavigationParams : GC::Cell {
     OpenerPolicyEnforcementResult coop_enforcement_result;
 
     // null or an environment reserved for the new Document
-    Fetch::Infrastructure::Request::ReservedClientType reserved_environment;
+    GC::Ptr<Environment> reserved_environment;
 
     // an origin to use for the new Document
     URL::Origin origin;
@@ -125,12 +125,12 @@ protected:
     NavigationParams(
         Optional<Utf16String> id,
         GC::Ptr<LocalNavigable> navigable,
-        GC::Ptr<Fetch::Infrastructure::Request> request,
+        RefPtr<Fetch::Infrastructure::Request> request,
         GC::Ptr<Fetch::Infrastructure::Response> response,
         GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller,
         GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints,
         OpenerPolicyEnforcementResult coop_enforcement_result,
-        Fetch::Infrastructure::Request::ReservedClientType reserved_environment,
+        GC::Ptr<Environment> reserved_environment,
         URL::Origin origin,
         RefPtr<PolicyContainer> policy_container,
         SandboxingFlagSet final_sandboxing_flag_set,
