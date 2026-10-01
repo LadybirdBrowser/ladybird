@@ -108,7 +108,58 @@ static CSS::StyleAtomID svg_reference_fragment_atom(DOM::Element& element, Optio
     if (!url.has_value() || !url->fragment().has_value())
         return {};
     auto fragment = SVG::decode_fragment_identifier(*url->fragment());
+    // `#` alone names no element, as no element answers to an empty id.
+    if (fragment.is_empty())
+        return {};
     return element.document().style_computer().style_engine().intern_atom(Utf16FlyString::from_utf16(fragment.utf16_view()));
+}
+
+// The same, for a reference a graphics element's style carries rather than its `href`.
+// `SVGGraphicsElement::resolve_url_to_element(CSS::URL const&)` takes the text after the first `#` of the URL as
+// written, with no base-URL resolution, so `url(other.svg#shape)` names `#shape` in this document. Reproduced here as
+// written.
+// FIXME: Complete and use the entire URL, not just the fragment.
+static CSS::StyleAtomID svg_style_reference_fragment_atom(DOM::Element& element, Optional<CSS::URL> const& url)
+{
+    if (!url.has_value())
+        return {};
+    auto fragment_offset = Utf16View { url->url() }.find_code_unit_offset('#');
+    if (!fragment_offset.has_value())
+        return {};
+    auto fragment = SVG::decode_fragment_identifier(url->url().substring_view(fragment_offset.value() + 1));
+    if (fragment.is_empty())
+        return {};
+    return element.document().style_computer().style_engine().intern_atom(Utf16FlyString::from_utf16(fragment.utf16_view()));
+}
+
+static Optional<CSS::URL> svg_paint_url(Optional<CSS::SVGPaint> const& paint)
+{
+    if (!paint.has_value() || !paint->is_url())
+        return {};
+    return paint->as_url();
+}
+
+// The four resources `mask`, `clip-path`, `fill` and `stroke` name. Read from the record's group payloads rather than
+// through a materialized view: this runs for every SVG graphics element whose style record is replaced, and pinning a
+// record to look at four properties is most of the cost of looking at them.
+static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& element)
+{
+    if (!is<SVG::SVGGraphicsElement>(element))
+        return {};
+    auto const* payloads = static_cast<void const* const*>(element.style_record_payloads());
+    if (!payloads)
+        return {};
+    auto const* mask_payload = static_cast<CSS::ComputedValues::MaskValues const*>(payloads[CSS::ComputedValues::MaskValues::style_group_index]);
+    auto const* svg_payload = static_cast<CSS::ComputedValues::InheritedSVGValues const*>(payloads[CSS::ComputedValues::InheritedSVGValues::style_group_index]);
+    if (!mask_payload || !svg_payload)
+        return {};
+    auto const& mask = mask_payload->mask_value();
+    return {
+        svg_style_reference_fragment_atom(element, mask.has_value() ? Optional<CSS::URL> { mask->url() } : OptionalNone {}),
+        svg_style_reference_fragment_atom(element, mask_payload->clip_path_value()),
+        svg_style_reference_fragment_atom(element, svg_paint_url(svg_payload->fill_value())),
+        svg_style_reference_fragment_atom(element, svg_paint_url(svg_payload->stroke_value())),
+    };
 }
 
 // The SVG attributes an element parses, as the layout stage reads them.
@@ -191,7 +242,18 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
     if (auto const* text_path_element = as_if<SVG::SVGTextPathElement>(dom_node)) {
         reference_fragment = svg_reference_fragment_atom(dom_node, text_path_element->href_attribute_value());
         start_offset = text_path_element->parsed_start_offset().value_or(start_offset);
+    } else if (auto const* pattern_element = as_if<SVG::SVGPatternElement>(dom_node)) {
+        // The pattern a <pattern> inherits its content and attributes from. An empty href names nothing, rather than
+        // naming the document's own fragment.
+        auto link = pattern_element->href_attribute_value();
+        if (link.has_value() && !link->is_empty())
+            reference_fragment = svg_reference_fragment_atom(dom_node, link);
     }
+
+    // The resources an element's style names. They live with the presentation attributes because both are read as a
+    // box is built, but they change with the element's style rather than with an attribute, so they have a
+    // republication of their own.
+    auto style_references = svg_style_reference_atoms(dom_node);
 
     return {
         .is_graphics_element = is<SVG::SVGGraphicsElement>(dom_node),
@@ -223,6 +285,10 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
         .text_dx = to_ffi_svg_length_value(text_positioning.dx),
         .text_dy = to_ffi_svg_length_value(text_positioning.dy),
         .reference_fragment_atom = reference_fragment.value(),
+        .mask_reference_atom = style_references[0].value(),
+        .clip_path_reference_atom = style_references[1].value(),
+        .fill_reference_atom = style_references[2].value(),
+        .stroke_reference_atom = style_references[3].value(),
         .text_path_start_offset = to_ffi_number_percentage(start_offset),
     };
 }
@@ -244,6 +310,22 @@ void publish_svg_attribute_facts(DOM::Element& element)
         build_svg_attribute_facts(element),
         reinterpret_cast<RustFFI::FfiFloatPoint const*>(points.data()),
         points.size());
+}
+
+// Republished on its own when an element's style record is replaced: the presentation attributes it sits beside are
+// unchanged, and parsing all of them again for four names would make every style change on every SVG element pay for
+// it.
+void publish_svg_style_references(DOM::Element& element)
+{
+    VERIFY(element.style_node_id() != 0);
+    auto references = svg_style_reference_atoms(element);
+    RustFFI::layout_arena_set_style_node_svg_style_references(
+        element.document().layout_node_arena().handle(),
+        element.style_node_id().value(),
+        references[0].value(),
+        references[1].value(),
+        references[2].value(),
+        references[3].value());
 }
 
 void clear_svg_attribute_facts(DOM::Document& document, CSS::StyleNodeID style_node)

@@ -133,6 +133,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TreeBuilder.h>
@@ -5426,6 +5427,10 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
     m_style_record_identity = style_record_identity;
     if (auto* layout_node = unsafe_layout_node())
         layout_node->set_style_record_identity(style_record_identity);
+    // The resources an SVG graphics element's `mask`, `clip-path`, `fill` and `stroke` name are published beside its
+    // attributes for the layout tree build to resolve, so they follow every record the element takes.
+    if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity)
+        Layout::publish_svg_style_references(*this);
 }
 
 void Element::set_computed_style(Optional<CSS::PseudoElement> pseudo_element_type, CSS::StyleRecordID style_record_identity)

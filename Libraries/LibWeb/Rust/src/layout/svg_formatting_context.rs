@@ -149,6 +149,13 @@ pub struct FfiSvgAttributeFacts {
     /// URL's decoded fragment, interned as the atom an element's id is indexed under. Zero when
     /// the element names nothing, or names a URL with no fragment.
     pub reference_fragment_atom: u32,
+    /// The resources this element's style names, in the same form. These come from `mask`,
+    /// `clip-path`, `fill` and `stroke`, so they are republished whenever the element's style
+    /// record is replaced rather than when an attribute changes.
+    pub mask_reference_atom: u32,
+    pub clip_path_reference_atom: u32,
+    pub fill_reference_atom: u32,
+    pub stroke_reference_atom: u32,
     /// The `startOffset` of a `<textPath>`, against the length of the path it follows.
     pub text_path_start_offset: FfiSvgNumberPercentage,
 }
@@ -168,8 +175,8 @@ pub const SVG_GEOMETRY_KIND_POLYGON: u8 = 7;
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread outside
-/// any layout pass, and `points` must address `count` points for the duration of the call.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `points` must address `count` points for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_style_node_svg_attribute_facts(
     arena: *mut c_void,
@@ -179,7 +186,7 @@ pub unsafe extern "C" fn layout_arena_set_style_node_svg_attribute_facts(
     count: usize,
 ) {
     // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { LayoutNodeArena::from_handle_mut(arena) };
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
     let Some(style_node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
         return;
     };
@@ -192,16 +199,40 @@ pub unsafe extern "C" fn layout_arena_set_style_node_svg_attribute_facts(
     arena.set_style_node_svg_attribute_facts(style_node, facts, points);
 }
 
+/// Publishes only the resources a graphics element's style names, leaving what its attributes
+/// parse to alone. Style records are replaced far more often than an SVG attribute changes, and
+/// parsing every presentation attribute again to carry four names would make every style change pay
+/// for it.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_style_node_svg_style_references(
+    arena: *mut c_void,
+    style_node: u32,
+    mask: u32,
+    clip_path: u32,
+    fill: u32,
+    stroke: u32,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    let Some(style_node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
+        return;
+    };
+    arena.set_style_node_svg_style_references(style_node, [mask, clip_path, fill, stroke]);
+}
+
 /// Retires what the SVG element `style_node` named published, once that identity is retired.
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread outside
-/// any layout pass.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_clear_style_node_svg_attribute_facts(arena: *mut c_void, style_node: u32) {
     // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { LayoutNodeArena::from_handle_mut(arena) };
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
     let Some(style_node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
         return;
     };
@@ -856,7 +887,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     /// The geometry a shape element draws, in the user units of the viewport it sits in.
     fn svg_geometry_path(&self, node: Node) -> libgfx_rust::path::OwnedPath {
         let points = self.callbacks.arena().svg_points(node);
-        self.svg_geometry_path_of(self.svg_attributes(node), self.style(node), points)
+        self.svg_geometry_path_of(self.svg_attributes(node), self.style(node), points.as_deref())
     }
 
     /// As above, from an element's published attributes and computed style rather than from its
@@ -1339,7 +1370,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
         let payloads = arena.style_node_style_payloads(shape)?;
         let points = arena.style_node_svg_points(shape);
-        Some(self.svg_geometry_path_of(attributes, StyleValues::new(&payloads), points))
+        Some(self.svg_geometry_path_of(attributes, StyleValues::new(&payloads), points.as_deref()))
     }
 
     fn svg_attributes(&self, node: Node) -> FfiSvgAttributeFacts {

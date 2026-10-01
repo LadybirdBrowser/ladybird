@@ -532,6 +532,9 @@ pub(crate) struct StaleWalkFacts {
     pub(crate) next_dom_sibling: Option<StyleNodeID>,
 }
 
+/// How many interned names one SVG element's attribute publication can name.
+const PUBLISHED_REFERENCE_ATOM_COUNT: usize = 5;
+
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     chunks_by_address: Vec<ChunkAddress>,
@@ -659,9 +662,13 @@ pub(crate) struct LayoutNodeArena {
     /// The parsed SVG attributes each SVG element published, keyed by its style node: an
     /// element that draws nothing itself has no row, and a mask, clip or pattern has one row per
     /// element that references it.
-    svg_attribute_facts: HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>,
+    ///
+    /// The maps are borrowed for writing only by the publication entry points, which can run while a
+    /// tree build is under way: an element styled on the build's behalf replaces its style record,
+    /// which republishes the resources its style names. No reader holds a borrow across a host call.
+    svg_attribute_facts: RefCell<HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>>,
     /// The `points` list each <polyline> and <polygon> published beside its facts.
-    svg_points: HashMap<StyleNodeID, Box<[super::svg_formatting_context::FfiFloatPoint]>>,
+    svg_points: RefCell<HashMap<StyleNodeID, std::rc::Rc<[super::svg_formatting_context::FfiFloatPoint]>>>,
     owner_thread: thread::ThreadId,
 }
 
@@ -750,8 +757,8 @@ impl LayoutNodeArena {
             counter_styles: RefCell::default(),
             counters_sets: RefCell::default(),
             generated_content: RefCell::default(),
-            svg_attribute_facts: HashMap::default(),
-            svg_points: HashMap::default(),
+            svg_attribute_facts: RefCell::default(),
+            svg_points: RefCell::default(),
             owner_thread: thread::current().id(),
         }
     }
@@ -1605,19 +1612,27 @@ impl LayoutNodeArena {
         &self,
         style_node: StyleNodeID,
     ) -> super::svg_formatting_context::FfiSvgAttributeFacts {
-        self.svg_attribute_facts.get(&style_node).copied().unwrap_or_default()
+        self.svg_attribute_facts
+            .borrow()
+            .get(&style_node)
+            .copied()
+            .unwrap_or_default()
     }
 
-    /// The `points` list a <polyline> or <polygon> parsed.
-    pub(crate) fn svg_points(&self, id: NodeSlotId) -> Option<&[super::svg_formatting_context::FfiFloatPoint]> {
+    /// The `points` list a <polyline> or <polygon> parsed, shared rather than borrowed: a
+    /// publication can replace it while a reader still uses it.
+    pub(crate) fn svg_points(
+        &self,
+        id: NodeSlotId,
+    ) -> Option<std::rc::Rc<[super::svg_formatting_context::FfiFloatPoint]>> {
         self.style_node_svg_points(self.node_style_node(id)?)
     }
 
     pub(crate) fn style_node_svg_points(
         &self,
         style_node: StyleNodeID,
-    ) -> Option<&[super::svg_formatting_context::FfiFloatPoint]> {
-        self.svg_points.get(&style_node).map(|points| &**points)
+    ) -> Option<std::rc::Rc<[super::svg_formatting_context::FfiFloatPoint]>> {
+        self.svg_points.borrow().get(&style_node).cloned()
     }
 
     /// The element an SVG reference resolves to, named by the atom its URL fragment interned to.
@@ -1655,38 +1670,103 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn set_style_node_svg_attribute_facts(
-        &mut self,
+        &self,
         style_node: StyleNodeID,
         facts: super::svg_formatting_context::FfiSvgAttributeFacts,
         points: &[super::svg_formatting_context::FfiFloatPoint],
     ) {
         self.assert_owner_thread();
-        let retained = facts.reference_fragment_atom;
+        let retained = Self::published_reference_atoms(&facts);
         let replaced = self
             .svg_attribute_facts
+            .borrow_mut()
             .insert(style_node, facts)
-            .map_or(0, |published| published.reference_fragment_atom);
-        self.retain_published_reference_atom(retained, replaced);
+            .map_or([0; PUBLISHED_REFERENCE_ATOM_COUNT], |published| {
+                Self::published_reference_atoms(&published)
+            });
+        self.retain_published_reference_atoms(retained, replaced);
+        let mut published_points = self.svg_points.borrow_mut();
         if points.is_empty() {
-            self.svg_points.remove(&style_node);
+            published_points.remove(&style_node);
         } else {
-            self.svg_points.insert(style_node, points.into());
+            published_points.insert(style_node, points.into());
         }
     }
 
-    pub(crate) fn clear_style_node_svg_attribute_facts(&mut self, style_node: StyleNodeID) {
+    pub(crate) fn clear_style_node_svg_attribute_facts(&self, style_node: StyleNodeID) {
         self.assert_owner_thread();
-        if let Some(removed) = self.svg_attribute_facts.remove(&style_node) {
-            self.retain_published_reference_atom(0, removed.reference_fragment_atom);
+        let removed = self.svg_attribute_facts.borrow_mut().remove(&style_node);
+        if let Some(removed) = removed {
+            self.retain_published_reference_atoms(
+                [0; PUBLISHED_REFERENCE_ATOM_COUNT],
+                Self::published_reference_atoms(&removed),
+            );
         }
-        self.svg_points.remove(&style_node);
+        self.svg_points.borrow_mut().remove(&style_node);
     }
 
-    /// Hand the retention a published SVG reference holds from the name it used to carry to the
-    /// name it carries now, so the style engine's atom sweep cannot reissue either number while a
-    /// publication still reads it. The atom an id names is otherwise rooted only by the element
-    /// answering to it, and a reference to an id that is in no document has no such element.
-    fn retain_published_reference_atom(&mut self, retained: u32, released: u32) {
+    /// Replace only the four names a graphics element's style carries. An element that has not
+    /// published its attributes yet has no place to put them, and will carry them itself when it
+    /// does: the publication is made when the style tree names the element.
+    pub(crate) fn set_style_node_svg_style_references(&self, style_node: StyleNodeID, references: [u32; 4]) {
+        self.assert_owner_thread();
+        let mut published = self.svg_attribute_facts.borrow_mut();
+        let Some(facts) = published.get_mut(&style_node) else {
+            return;
+        };
+        let replaced = Self::published_reference_atoms(facts);
+        [
+            facts.mask_reference_atom,
+            facts.clip_path_reference_atom,
+            facts.fill_reference_atom,
+            facts.stroke_reference_atom,
+        ] = references;
+        let retained = Self::published_reference_atoms(facts);
+        drop(published);
+        self.retain_published_reference_atoms(retained, replaced);
+    }
+
+    /// The element the document's id index holds for the atom `name`, which is what
+    /// `Document::get_element_by_id` answers with. A reference that resolves in the document scope
+    /// alone, an SVG `href` chain, asks for this rather than for `element_by_svg_reference`.
+    pub(crate) fn element_by_document_id(&self, name: u32) -> Option<StyleNodeID> {
+        let name = crate::css::style::index::StyleAtomID(name);
+        if name.is_none() {
+            return None;
+        }
+        self.with_style_store(|engine| engine.element_by_id(crate::css::style::tree::TreeScopeID::DOCUMENT, name))
+    }
+
+    /// Whether the element has an element child, which is what `childElementCount` counts.
+    pub(crate) fn has_dom_element_children(&self, style_node: StyleNodeID) -> bool {
+        style_node.element_index().is_some()
+            && self.with_style_store(|engine| engine.tree().first_element_child(style_node).is_some())
+    }
+
+    /// The names a publication holds a sweep retention on: the one an `href` names, and the four
+    /// a graphics element's style names.
+    fn published_reference_atoms(
+        facts: &super::svg_formatting_context::FfiSvgAttributeFacts,
+    ) -> [u32; PUBLISHED_REFERENCE_ATOM_COUNT] {
+        [
+            facts.reference_fragment_atom,
+            facts.mask_reference_atom,
+            facts.clip_path_reference_atom,
+            facts.fill_reference_atom,
+            facts.stroke_reference_atom,
+        ]
+    }
+
+    /// Hand the retention a publication's SVG references hold from the names they used to carry to
+    /// the names they carry now, so the style engine's atom sweep cannot reissue either number
+    /// while a publication still reads it. The atom an id names is otherwise rooted only by the
+    /// element answering to it, and a reference to an id that is in no document has no such
+    /// element.
+    fn retain_published_reference_atoms(
+        &self,
+        retained: [u32; PUBLISHED_REFERENCE_ATOM_COUNT],
+        released: [u32; PUBLISHED_REFERENCE_ATOM_COUNT],
+    ) {
         if retained == released {
             return;
         }
@@ -1696,11 +1776,15 @@ impl LayoutNodeArena {
             return;
         };
         assert!(!host.style_engine.is_null());
-        // SAFETY: As with `with_style_store`, the engine outlives the arena's live nodes, and a
-        // publication is written outside any pass, so nothing else borrows the engine meanwhile.
+        // SAFETY: As with `with_style_store`, the engine outlives the arena's live nodes, and no
+        // reader keeps a borrow of the engine across the host call this publication arrives in.
         let engine = unsafe { &mut *host.style_engine.cast::<StyleEngine>() };
-        engine.retain_published_atom(crate::css::style::index::StyleAtomID(retained));
-        engine.release_published_atom(crate::css::style::index::StyleAtomID(released));
+        for atom in retained {
+            engine.retain_published_atom(crate::css::style::index::StyleAtomID(atom));
+        }
+        for atom in released {
+            engine.release_published_atom(crate::css::style::index::StyleAtomID(atom));
+        }
     }
 
     pub(crate) fn with_counter_style_registry<T>(
