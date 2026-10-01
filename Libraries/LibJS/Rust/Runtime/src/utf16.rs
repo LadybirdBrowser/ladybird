@@ -131,6 +131,40 @@ impl<'a> Utf16View<'a> {
         }
     }
 
+    /// Appends the string to `output` as UTF-8 with each unpaired surrogate encoded as a three-byte sequence of its
+    /// own (WTF-8), the bytes AK::StringBuilder produces when it appends a Utf16View.
+    pub fn append_as_wtf8_to(self, output: &mut Vec<u8>) {
+        let units = match self {
+            Self::Ascii(units) => {
+                output.extend_from_slice(units);
+                return;
+            }
+            Self::Utf16(units) => units,
+        };
+        for decoded in char::decode_utf16(units.iter().copied()) {
+            match decoded {
+                Ok(character) => {
+                    let mut buffer = [0; 4];
+                    output.extend_from_slice(character.encode_utf8(&mut buffer).as_bytes());
+                }
+                Err(error) => {
+                    let surrogate = error.unpaired_surrogate();
+                    output.extend_from_slice(&[
+                        0xE0 | (surrogate >> 12) as u8,
+                        0x80 | ((surrogate >> 6) & 0x3F) as u8,
+                        0x80 | (surrogate & 0x3F) as u8,
+                    ]);
+                }
+            }
+        }
+    }
+
+    pub fn to_wtf8(self) -> Vec<u8> {
+        let mut output = Vec::with_capacity(self.length_in_code_units());
+        self.append_as_wtf8_to(&mut output);
+        output
+    }
+
     /// Mirrors AK::Utf16View::is_code_unit_less_than: compares the code units in order, and a proper prefix is less.
     pub fn is_code_unit_less_than(self, other: Utf16View<'_>) -> bool {
         let common_length = self.length_in_code_units().min(other.length_in_code_units());

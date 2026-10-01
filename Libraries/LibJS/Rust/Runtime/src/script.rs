@@ -103,9 +103,21 @@ impl Script {
         realm: Gc<Realm>,
         filename: ak::Utf16String,
     ) -> Gc<Script> {
-        assert!(parsed.program_type() == ProgramType::Script && !parsed.has_errors());
         let source_code = SourceCode::create(filename, ak::Utf16String::from_utf16(source));
-        Self::create(vm, realm, compile_script(parsed, source.len()), source_code)
+        Self::create_from_parsed(vm, parsed, source_code, realm)
+    }
+
+    /// Compiles a script the caller parsed without errors from the code of `source_code`, whose filename the
+    /// script's code reports.
+    pub fn create_from_parsed(
+        vm: &Vm,
+        parsed: ParsedProgram,
+        source_code: Rc<SourceCode>,
+        realm: Gc<Realm>,
+    ) -> Gc<Script> {
+        assert!(parsed.program_type() == ProgramType::Script && !parsed.has_errors());
+        let source_length = source_code.length_in_code_units();
+        Self::create(vm, realm, compile_script(parsed, source_length), source_code)
     }
 
     fn create(vm: &Vm, realm: Gc<Realm>, compiled: CompiledScript, source_code: Rc<SourceCode>) -> Gc<Script> {

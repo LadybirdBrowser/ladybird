@@ -30,7 +30,7 @@ use crate::layout::realm::Realm;
 use crate::layout::value::Value;
 use crate::parser_error::ParserError;
 use crate::script::Script;
-use crate::utf16::{string_from_utf8_with_replacement_character, utf16_from_wtf8};
+use crate::utf16::{Utf16View, string_from_utf8_with_replacement_character, utf16_from_wtf8};
 use crate::utilities::initialize_realm;
 use libjs_rust::ast::ProgramType;
 use libjs_rust::compile::parse;
@@ -533,14 +533,50 @@ fn parse_program(
         .map_err(|errors| TestError::syntax_error(NegativePhase::ParseOrEarly, first_parser_error(&errors), ""))
 }
 
-fn describe_thrown_value(_value: Value) -> TestError {
-    unimplemented_runtime_function("describing a value a test262 test threw", 0)
+fn value_to_utf8_string_without_side_effects(value: Value) -> String {
+    Utf16View::of_string(&value.to_utf16_string_without_side_effects()).to_utf8()
+}
+
+/// The runtime error a test threw: its name, from the error or else from its constructor, and its message.
+fn describe_thrown_value(vm: &Vm, error_value: Value) -> TestError {
+    let mut error = TestError {
+        phase: NegativePhase::Runtime,
+        error_type: String::new(),
+        details: String::new(),
+        harness_file: String::new(),
+    };
+    if error_value.is_object() {
+        let object = error_value.as_object();
+        let name = object.get_without_side_effects(vm, &vm.names.name);
+        if !name.is_undefined() && !name.is_accessor() {
+            error.error_type = value_to_utf8_string_without_side_effects(name);
+        } else {
+            let constructor_value = object.get_without_side_effects(vm, &vm.names.constructor);
+            if constructor_value.is_object() {
+                let name = constructor_value
+                    .as_object()
+                    .get_without_side_effects(vm, &vm.names.name);
+                if !name.is_undefined() {
+                    error.error_type = value_to_utf8_string_without_side_effects(name);
+                }
+            }
+        }
+
+        let message = object.get_without_side_effects(vm, &vm.names.message);
+        if !message.is_undefined() && !message.is_accessor() {
+            error.details = value_to_utf8_string_without_side_effects(message);
+        }
+    }
+    if error.error_type.is_empty() {
+        error.error_type = value_to_utf8_string_without_side_effects(error_value);
+    }
+    error
 }
 
 fn run_program(vm: &Vm, script: Gc<Script>) -> Result<(), TestError> {
     vm.run_script(script, None)
         .map(|_| ())
-        .map_err(|throw| describe_thrown_value(throw.value()))
+        .map_err(|throw| describe_thrown_value(vm, throw.value()))
 }
 
 fn run_test(

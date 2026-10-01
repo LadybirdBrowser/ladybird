@@ -6,6 +6,8 @@
 
 use core::ffi::c_void;
 use core::ptr::NonNull;
+use core::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 
 use ak::ScopeGuard;
 
@@ -27,6 +29,37 @@ use libjs_abi::register;
 unsafe extern "C" {
     /// Defined in the assembly flapc generates from interpreter.flap.
     fn js_interpreter(bytecode: *const u8, entry_point: u32, values: *mut Value, vm: *const c_void);
+}
+
+/// Bytecode::g_dump_bytecode, which js --dump-bytecode sets.
+static DUMP_BYTECODE: AtomicBool = AtomicBool::new(false);
+
+pub fn set_dump_bytecode(dump_bytecode: bool) {
+    DUMP_BYTECODE.store(dump_bytecode, Ordering::Relaxed);
+}
+
+pub fn should_dump_interpreter_assembly() -> bool {
+    static SHOULD_DUMP: OnceLock<bool> = OnceLock::new();
+    *SHOULD_DUMP.get_or_init(|| {
+        let Some(value) = std::env::var_os("LADYBIRD_JS_INTERPRETER_DUMP") else {
+            return false;
+        };
+        if value == "0" {
+            return false;
+        }
+        if value == "1" {
+            return true;
+        }
+        eprintln!(
+            "Ignoring LADYBIRD_JS_INTERPRETER_DUMP value '{}': expected 0 or 1",
+            value.to_string_lossy()
+        );
+        false
+    })
+}
+
+pub fn should_dump_bytecode() -> bool {
+    DUMP_BYTECODE.load(Ordering::Relaxed) || should_dump_interpreter_assembly()
 }
 
 impl Vm {
@@ -106,6 +139,10 @@ impl Vm {
 
         // 11. Let script be scriptRecord.[[ECMAScriptCode]].
         let executable = script_record.cached_executable();
+        if should_dump_bytecode() {
+            executable.dump();
+        }
+
         let registers_and_locals_count = executable.registers_and_locals_count();
         let constant_count = u32::try_from(executable.constants().len()).expect("constant count fits in u32");
 

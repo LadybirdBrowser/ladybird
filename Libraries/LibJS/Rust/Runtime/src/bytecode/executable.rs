@@ -5,13 +5,14 @@
  */
 
 use core::cell::{Cell, RefCell};
+use std::io::Write;
 use std::rc::Rc;
 
 use ak::Utf16FlyString;
 
 use crate::bytecode::class_blueprint::ClassBlueprint;
 use crate::bytecode::operand::{IdentifierTableIndex, PropertyKeyTableIndex, StringTableIndex};
-use crate::frontend_host::rust_free_compiled_regex;
+use crate::frontend_host::{count_bytecode_basic_blocks, dump_bytecode, rust_free_compiled_regex};
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
@@ -29,6 +30,7 @@ pub use crate::layout::property_lookup_cache::{
 };
 use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
+use crate::layout_forward::FlyStringSlot;
 use crate::runtime::array::Array;
 use crate::runtime::big_int::{BigInt, SignedBigInteger};
 use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
@@ -36,8 +38,10 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::primitive_string::u64_hash;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
+use crate::runtime::value::number_to_string;
 use crate::source_code::SourceCode;
 use crate::source_range::{Position, SourceRange};
+use crate::utf16::Utf16View;
 use libjs_runtime_macros::Trace;
 use libjs_rust::bytecode::basic_block::SourceMapEntry;
 use libjs_rust::bytecode::constant::WellKnownSymbolKind;
@@ -916,8 +920,12 @@ pub struct Executable {
     shared_function_data: Box<[Gc<SharedFunctionInstanceData>]>,
     class_blueprints: Box<[ClassBlueprint]>,
     pub length_identifier: Option<PropertyKeyTableIndex>,
+    /// The name of the function the executable is the body of, given when the function is first compiled. Empty for
+    /// other code.
+    name: FlyStringSlot,
     /// Sorted by bytecode offset: where in the source code the instructions from each offset on came from.
     pub source_map: Box<[SourceMapEntry]>,
+    pub local_variable_names: Box<[Utf16FlyString]>,
     pub source_code: Option<Rc<SourceCode>>,
 }
 
@@ -1061,7 +1069,9 @@ impl Executable {
             shared_function_data: Box::new([]),
             class_blueprints: Box::new([]),
             length_identifier: None,
+            name: FlyStringSlot::new(None),
             source_map: Box::new([]),
+            local_variable_names: Box::new([]),
             source_code: None,
         }
     }
@@ -1154,6 +1164,11 @@ impl Executable {
         );
         executable.length_identifier = data.length_identifier.map(|index| PropertyKeyTableIndex(index.0));
         executable.source_map = data.source_map.into_boxed_slice();
+        executable.local_variable_names = data
+            .local_variables
+            .into_iter()
+            .map(|local_variable| local_variable.name)
+            .collect();
         executable.source_code = source_code.cloned();
         let executable = Self::create_from_parts(vm, executable);
         drop(rooted_template_object_caches);
@@ -1259,6 +1274,221 @@ impl Executable {
         // live as long as it does.
         unsafe { EnvironmentShapeCache::new(Gc::from_ref(self), slot) }
     }
+
+    pub fn name(&self) -> Utf16FlyString {
+        self.name.get().unwrap_or_default()
+    }
+
+    pub fn set_name(&self, name: Utf16FlyString) {
+        self.name.set(Some(name));
+    }
+
+    pub fn source_code(&self) -> Option<&Rc<SourceCode>> {
+        self.source_code.as_ref()
+    }
+
+    /// The operand index of the first local, which follows the registers.
+    pub fn local_index_base(&self) -> u32 {
+        self.number_of_registers
+    }
+
+    /// The operand index of the first argument, which follows the registers, the locals and the constants.
+    pub fn argument_index_base(&self) -> u32 {
+        self.head.registers_and_locals_and_constants_count.get()
+    }
+
+    pub fn dump(&self) {
+        let mut output = self.dump_to_builder();
+        // warnln("{}", output.string_view());
+        output.push(b'\n');
+        let _ = std::io::stderr().write_all(&output);
+    }
+
+    /// The StringBuilder dump() builds before it writes it to the standard error.
+    fn dump_to_builder(&self) -> Vec<u8> {
+        let mut output = Vec::new();
+
+        dump_header(&mut output, self);
+        dump_metadata(&mut output, self);
+        output.push(b'\n');
+        dump_bytecode(&mut output, self);
+
+        output.push(b'\n');
+        output
+    }
+}
+
+fn first_real_source_map_entry(executable: &Executable) -> Option<&SourceMapEntry> {
+    let mut first_entry: Option<&SourceMapEntry> = None;
+    for entry in &executable.source_map {
+        if entry.line == 0 && entry.column == 0 {
+            continue;
+        }
+        if first_entry.is_none_or(|first_entry| {
+            entry.line < first_entry.line || (entry.line == first_entry.line && entry.column < first_entry.column)
+        }) {
+            first_entry = Some(entry);
+        }
+    }
+    first_entry
+}
+
+fn dump_header(output: &mut Vec<u8>, executable: &Executable) {
+    const WHITE_BOLD: &str = "\x1b[37;1m";
+    const RESET: &str = "\x1b[0m";
+    let first_source_map_entry = first_real_source_map_entry(executable);
+
+    let mut hash: u32 = 2166136261; // FNV-1a offset basis
+    let update_hash = |hash: &mut u32, value: u32| {
+        for i in 0..u32::BITS / 8 {
+            *hash ^= (value >> (i * 8)) & 0xFF;
+            *hash = hash.wrapping_mul(16777619);
+        }
+    };
+    let update_hash_with_code_unit = |hash: &mut u32, code_unit: u16| {
+        *hash ^= u32::from(code_unit) & 0xFF;
+        *hash = hash.wrapping_mul(16777619);
+        *hash ^= (u32::from(code_unit) >> 8) & 0xFF;
+        *hash = hash.wrapping_mul(16777619);
+    };
+
+    let name = executable.name();
+    let name_view = Utf16View::of_fly_string(&name);
+    for code_unit in name_view.code_units() {
+        update_hash_with_code_unit(&mut hash, code_unit);
+    }
+    if let Some(first_source_map_entry) = first_source_map_entry {
+        update_hash(&mut hash, first_source_map_entry.line);
+        update_hash(&mut hash, first_source_map_entry.column);
+    }
+    update_hash(&mut hash, u32::try_from(executable.bytecode.len()).unwrap_or(u32::MAX));
+
+    output.extend_from_slice(WHITE_BOLD.as_bytes());
+    name_view.append_as_wtf8_to(output);
+    let _ = write!(output, "${hash:08x}{RESET}");
+
+    // Show source location if available.
+    if let Some(first_source_map_entry) = first_source_map_entry {
+        let filename = executable.source_code.as_ref().map_or(Utf16View::EMPTY, |source_code| {
+            Utf16View::of_string(source_code.filename())
+        });
+        if !filename.is_empty() {
+            // Show just the basename to keep output portable across machines.
+            let mut last_slash = None;
+            for (i, code_unit) in filename.code_units().enumerate() {
+                if code_unit == u16::from(b'/') {
+                    last_slash = Some(i);
+                }
+            }
+            let filename = match last_slash {
+                Some(last_slash) => {
+                    filename.substring_view(last_slash + 1, filename.length_in_code_units() - last_slash - 1)
+                }
+                None => filename,
+            };
+            output.push(b' ');
+            filename.append_as_wtf8_to(output);
+            let _ = write!(
+                output,
+                ":{}:{}",
+                first_source_map_entry.line, first_source_map_entry.column
+            );
+        } else {
+            let _ = write!(
+                output,
+                " line {}, column {}",
+                first_source_map_entry.line, first_source_map_entry.column
+            );
+        }
+    }
+    output.push(b'\n');
+}
+
+fn dump_metadata(output: &mut Vec<u8>, executable: &Executable) {
+    const GREEN: &str = "\x1b[32m";
+    const YELLOW: &str = "\x1b[33m";
+    const BLUE: &str = "\x1b[34m";
+    const CYAN: &str = "\x1b[36m";
+    const RESET: &str = "\x1b[0m";
+
+    let _ = writeln!(output, "  {GREEN}Registers{RESET}: {}", executable.number_of_registers);
+    let _ = writeln!(
+        output,
+        "  {GREEN}Blocks{RESET}:    {}",
+        count_bytecode_basic_blocks(executable)
+    );
+
+    if !executable.local_variable_names.is_empty() {
+        let _ = write!(output, "  {GREEN}Locals{RESET}:    ");
+        for (i, local_variable_name) in executable.local_variable_names.iter().enumerate() {
+            if i != 0 {
+                output.extend_from_slice(b", ");
+            }
+            output.extend_from_slice(BLUE.as_bytes());
+            Utf16View::of_fly_string(local_variable_name).append_as_wtf8_to(output);
+            let _ = write!(output, "~{i}{RESET}");
+        }
+        output.push(b'\n');
+    }
+
+    if !executable.constants.is_empty() {
+        let _ = writeln!(output, "  {GREEN}Constants{RESET}:");
+        for (i, &value) in executable.constants.iter().enumerate() {
+            output.extend_from_slice(b"    ");
+            let _ = write!(output, "{YELLOW}[{i}]{RESET} = ");
+            output.extend_from_slice(CYAN.as_bytes());
+            if value.is_empty() {
+                output.extend_from_slice(b"<Empty>");
+            } else if value.is_boolean() {
+                let _ = write!(output, "Bool({})", value.as_bool());
+            } else if value.is_int32() {
+                let _ = write!(output, "Int32({})", value.as_i32());
+            } else if value.is_double() {
+                output.extend_from_slice(b"Double(");
+                append_double_formatted_like_ak(output, value.as_f64());
+                output.push(b')');
+            } else if value.is_bigint() {
+                output.extend_from_slice(b"BigInt(");
+                Utf16View::of_string(&value.as_bigint().to_utf16_string()).append_as_wtf8_to(output);
+                output.push(b')');
+            } else if value.is_string() {
+                output.extend_from_slice(b"String(\"");
+                Utf16View::of_string(&value.as_string().utf16_string()).append_as_wtf8_to(output);
+                output.extend_from_slice(b"\")");
+            } else if value.is_undefined() {
+                output.extend_from_slice(b"Undefined");
+            } else if value.is_null() {
+                output.extend_from_slice(b"Null");
+            } else {
+                output.extend_from_slice(b"Value(");
+                append_value_formatted_like_ak(output, value);
+                output.push(b')');
+            }
+            output.extend_from_slice(RESET.as_bytes());
+            output.push(b'\n');
+        }
+    }
+}
+
+/// What AK's Formatter<double> writes for `value` when no precision is given: the shortest digits that round-trip,
+/// laid out as Number::toString lays them out, except that NaN and the infinities are spelled nan, inf and -inf.
+pub(crate) fn append_double_formatted_like_ak(output: &mut Vec<u8>, value: f64) {
+    if value.is_nan() {
+        output.extend_from_slice(b"nan");
+    } else if value.is_infinite() {
+        output.extend_from_slice(if value < 0.0 { b"-inf" } else { b"inf" });
+    } else {
+        output.extend_from_slice(number_to_string(value).as_bytes());
+    }
+}
+
+/// What Formatter<JS::Value> writes: the value converted to a string without side effects.
+pub(crate) fn append_value_formatted_like_ak(output: &mut Vec<u8>, value: Value) {
+    if value.is_empty() {
+        output.extend_from_slice(b"<empty>");
+        return;
+    }
+    Utf16View::of_string(&value.to_utf16_string_without_side_effects()).append_as_wtf8_to(output);
 }
 
 fn constant_value(vm: &Vm, constant: &ConstantValue) -> Value {

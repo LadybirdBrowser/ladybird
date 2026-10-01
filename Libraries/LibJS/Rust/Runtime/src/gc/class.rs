@@ -85,6 +85,15 @@ impl Class {
         // SAFETY: The kind was stored from a CellKind.
         unsafe { core::mem::transmute::<u8, CellKind>(self.type_info.kind) }
     }
+
+    /// What Cell::class_name() returns for the C++ class this one mirrors, which printing and messages show. It is
+    /// the name of the class unless the Rust type is spelled differently.
+    pub fn class_name(&self) -> &'static str {
+        match self.id {
+            ClassId::EcmascriptFunctionObject => "ECMAScriptFunctionObject",
+            _ => self.name,
+        }
+    }
 }
 
 unsafe extern "C" fn visit_edges<T: Trace>(cell: *mut c_void, visitor: *mut GCVisitor) {
