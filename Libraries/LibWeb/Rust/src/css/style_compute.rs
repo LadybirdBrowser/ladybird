@@ -7097,6 +7097,11 @@ pub(crate) mod ffi_test_stubs {
     ) {
     }
     #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_process_next_structural_epoch() -> u64 {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    }
+    #[unsafe(no_mangle)]
     extern "C" fn unicode_layout_segmenter_destroy(_handle: *mut std::ffi::c_void) {}
 }
 

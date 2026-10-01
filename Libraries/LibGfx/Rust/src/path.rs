@@ -9,6 +9,7 @@ use std::mem::ManuallyDrop;
 use std::ptr::NonNull;
 
 unsafe extern "C" {
+    fn ladybird_gfx_process_next_path_identity() -> u64;
     fn ladybird_gfx_path_destroy(path: *mut c_void);
     fn ladybird_gfx_path_equals(a: *const c_void, b: *const c_void) -> bool;
     fn ladybird_gfx_path_append_svg_string(
@@ -220,10 +221,13 @@ impl OwnedPath {
     /// `Gfx::Path` is owned or destroyed.
     #[inline]
     pub unsafe fn adopt(raw: *mut c_void) -> Self {
-        static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
         Self {
             raw: NonNull::new(raw).expect("Gfx::Path pointer must not be null"),
-            identity: NEXT_IDENTITY.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            // The counter is LibGfx's: this crate is compiled into more than one library, and a
+            // counter here would let each of them hand out the same identities. See
+            // `LibGfx/RustProcessState.cpp`.
+            // SAFETY: The counter is an atomic on the other side of the boundary.
+            identity: unsafe { ladybird_gfx_process_next_path_identity() },
         }
     }
 
