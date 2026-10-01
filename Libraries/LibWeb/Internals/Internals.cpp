@@ -1159,12 +1159,14 @@ bool Internals::headless()
 
 bool Internals::needs_repaint()
 {
+    window().associated_document().drain_invalidation_journal();
     auto local_root = local_root_of(window());
     return local_root && local_root->needs_repaint();
 }
 
 bool Internals::needs_display_list_record()
 {
+    window().associated_document().drain_invalidation_journal();
     auto local_root = local_root_of(window());
     return local_root && local_root->needs_to_record_display_list();
 }

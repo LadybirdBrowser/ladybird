@@ -2519,6 +2519,9 @@ void Document::prepare_for_rendering()
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
     // NB: Called during paint property resolution.
+    // Everything that reads paint state comes through here, so the marks that describe it go through first.
+    drain_invalidation_journal();
+
     prepare_for_rendering();
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;

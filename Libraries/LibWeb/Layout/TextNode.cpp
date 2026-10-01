@@ -10,6 +10,7 @@
 #include <AK/CharacterTypes.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -202,13 +203,10 @@ Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
 
 void TextNode::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list) const
 {
-    if (auto* containing_block = this->containing_block()) {
-        if (Painting::has_committed_box(*containing_block))
-            Painting::set_needs_repaint(*containing_block, should_invalidate_display_list);
-    }
-
-    if (should_invalidate_display_list != InvalidateDisplayList::No)
-        RustFFI::layout_arena_invalidate_nearest_self_painting_inline_paint_cache(arena_handle(), slot_id(this));
+    if (auto identity = Painting::journal_identity_of(*this))
+        const_cast<DOM::Document&>(document()).invalidation_journal().note_needs_repaint(identity, should_invalidate_display_list);
+    else
+        Painting::apply_text_repaint_damage(*this, should_invalidate_display_list);
 }
 
 }

@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/NodeIdentity.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/InvalidateDisplayList.h>
 
 namespace Web::DOM {
 
@@ -35,6 +36,8 @@ public:
     void visit_edges(GC::Cell::Visitor&);
 
     void note_needs_layout_update(NodeIdentity, SetNeedsLayoutReason, Layout::LayoutUpdatePropagation);
+    void note_needs_repaint(NodeIdentity, InvalidateDisplayList);
+    void note_needs_repaint_in_subtree(NodeIdentity);
 
     // The identity is retired and may name another node once it is handed out again, so what was noted for the node
     // that had it must not land on that one.
@@ -49,7 +52,10 @@ private:
         // The reason of the first layout mark. Only the layout update trace reads it.
         SetNeedsLayoutReason layout_reason { SetNeedsLayoutReason::StyleChange };
         Layout::LayoutUpdatePropagation layout_propagation {};
+        InvalidateDisplayList invalidate_display_list { InvalidateDisplayList::No };
         bool needs_layout_update { false };
+        bool needs_repaint { false };
+        bool needs_subtree_repaint { false };
     };
 
     Entry& entry_for(NodeIdentity);

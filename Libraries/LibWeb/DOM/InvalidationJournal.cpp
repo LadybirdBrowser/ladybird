@@ -8,6 +8,8 @@
 #include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
+#include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::DOM {
 
@@ -36,6 +38,26 @@ void InvalidationJournal::note_needs_layout_update(NodeIdentity identity, SetNee
         // Marking the ancestors as well covers marking only the node, so the wider mark wins.
         entry.layout_propagation = propagation;
     }
+    drain_if_layout_is_reading();
+}
+
+void InvalidationJournal::note_needs_repaint(NodeIdentity identity, InvalidateDisplayList invalidate_display_list)
+{
+    auto& entry = entry_for(identity);
+    entry.needs_repaint = true;
+    // Each level of display list invalidation covers the one below it, so the widest mark wins.
+    entry.invalidate_display_list = max(entry.invalidate_display_list, invalidate_display_list);
+    m_document->request_frame_for_pending_repaint({});
+    drain_if_layout_is_reading();
+}
+
+void InvalidationJournal::note_needs_repaint_in_subtree(NodeIdentity identity)
+{
+    auto& entry = entry_for(identity);
+    entry.needs_subtree_repaint = true;
+    entry.needs_repaint = true;
+    entry.invalidate_display_list = InvalidateDisplayList::PaintCommandsAndHitTestList;
+    m_document->request_frame_for_pending_repaint({});
     drain_if_layout_is_reading();
 }
 
@@ -71,6 +93,14 @@ void InvalidationJournal::drain()
                     continue;
                 if (entry.needs_layout_update)
                     layout_node->set_needs_layout_update(entry.layout_reason, entry.layout_propagation);
+                if (entry.needs_subtree_repaint)
+                    Painting::apply_subtree_repaint_damage(*layout_node);
+                if (entry.needs_repaint) {
+                    if (auto* text_node = as_if<Layout::TextNode>(*layout_node))
+                        Painting::apply_text_repaint_damage(*text_node, entry.invalidate_display_list);
+                    else
+                        Painting::apply_repaint_damage(*layout_node, entry.invalidate_display_list);
+                }
             }
         }
 

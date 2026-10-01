@@ -6842,6 +6842,9 @@ void LocalNavigable::paint_next_frame()
 
 bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason)
 {
+    // The marks the document's invalidation journal holds decide what this paint has to redo.
+    if (auto document = active_document())
+        document->drain_invalidation_journal();
     if (!needs_repaint())
         return false;
     // OPTIMIZATION: Don't paint navigables hidden by an ancestor iframe with visibility: hidden.
