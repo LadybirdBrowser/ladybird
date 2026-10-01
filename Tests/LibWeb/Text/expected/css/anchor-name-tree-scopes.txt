@@ -1,0 +1,9 @@
+document target: 70
+shadow target with no name of its own: 70
+shadow target beside a name of its own: 200
+target two shadow trees deep: 130
+shadow target with a slotted anchor: 150
+slotted target with a name only the shadow tree has: 7
+shadow target after its host is reinserted: 200
+shadow target after its own name changes: 70
+document target after its anchor is removed: 7
