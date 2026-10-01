@@ -559,11 +559,18 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 }
             }
 
+            // An element whose style was cleared on entry to display:none computes it here, before its descendants.
+            if (!element->has_style() && reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed && reaction.old_style_record != 0) {
+                reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize;
+                reaction.new_style_record = 0;
+                reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::None;
+                reaction.reaction |= StyleEngine::RecomputeStyle;
+            }
             // An engine-computed first record installs on an element without style; other record
             // deltas assume the style they move.
             if (!element->has_style()
                 && reaction.gap != StyleEngineFFI::FfiStyleDeltaGap::Materialize
-                && !(reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed && reaction.old_style_record == 0))
+                && reaction.gap != StyleEngineFFI::FfiStyleDeltaGap::Computed)
                 continue;
             // An earlier display:none reaction in this batch can clear the style of a materialization gap after the
             // inheritance closure was built. The gap must then rematerialize rather than letting its descendants
