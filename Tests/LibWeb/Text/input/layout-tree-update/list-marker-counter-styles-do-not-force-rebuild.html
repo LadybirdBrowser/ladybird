@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<style>
+    #fixture .item::marker { color: red; }
+    #fixture .item.recoloured::marker { color: blue; }
+</style>
+<div id="fixture"></div>
+<script>
+    // A list marker showing its marker string records the counter style its box was built with.
+    // Re-deriving that set from the marker's `content`, which is `normal`, answers about a value
+    // naming no counter at all, so the two could never agree: every recomputation of the marker's
+    // own style was read as a counter-style change and rebuilt the list item's layout subtree.
+    test(() => {
+        runLayoutTreeInvalidationScopeCases([
+            {
+                name: "recolouring a marker keeps the list item's box",
+                setup: fixture => {
+                    const item = document.createElement("div");
+                    item.className = "item";
+                    item.style.display = "list-item";
+                    item.style.listStyleType = "decimal";
+                    item.textContent = "item";
+                    fixture.append(item);
+                    return {
+                        mutate: () => {
+                            item.classList.add("recoloured");
+                        },
+                        trackedNodes: [{ node: item, label: "list item" }],
+                    };
+                },
+            },
+        ]);
+    });
+</script>
