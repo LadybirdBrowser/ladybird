@@ -1628,7 +1628,9 @@ void EventLoop::perform_a_microtask_checkpoint()
     }
 
     // 4. For each environment settings object settingsObject whose responsible event loop is this event loop, notify about rejected promises given settingsObject's global object.
-    auto environments = GC::RootVector { m_related_environment_settings_objects };
+    GC::RootVector<GC::Ref<EnvironmentSettingsObject>> environments;
+    for (auto const& entry : m_related_environment_settings_objects)
+        environments.append(*entry.value);
     for (auto& environment_settings_object : environments) {
         auto& global_object = environment_settings_object->global_object();
         if (auto* worklet_global_scope = Bindings::impl_from<WorkletGlobalScope>(&global_object)) {
@@ -1769,13 +1771,19 @@ EnvironmentSettingsObject& EventLoop::top_of_backup_incumbent_realm_stack()
 
 void EventLoop::register_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject& environment_settings_object)
 {
-    m_related_environment_settings_objects.append(&environment_settings_object);
+    auto result = m_related_environment_settings_objects.set(environment_settings_object.address(), &environment_settings_object);
+    VERIFY(result == HashSetResult::InsertedNewEntry);
 }
 
 void EventLoop::unregister_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject& environment_settings_object)
 {
-    bool did_remove = m_related_environment_settings_objects.remove_first_matching([&](auto& entry) { return entry == &environment_settings_object; });
+    bool did_remove = m_related_environment_settings_objects.remove(environment_settings_object.address());
     VERIFY(did_remove);
+}
+
+GC::Ptr<EnvironmentSettingsObject> EventLoop::environment_settings_object_at(EnvironmentSettingsObjectAddress address) const
+{
+    return m_related_environment_settings_objects.get(address).value_or(nullptr);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#same-loop-windows
