@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @counter-style thumbs { system: cyclic; symbols: "+"; suffix: " "; }
+    .parent { counter-reset: x 3; }
+    .on.image-content { content: url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22/%3E); }
+    .on.decimal-counter::before { content: counter(x, decimal); }
+    .on.named-counter-style::before { content: counter(x, thumbs); }
+    .content-flip { content: normal; }
+    .on.content-flip { content: none; }
+    .on.list-style-type { list-style-type: thumbs; }
+    .on.anchor-name { anchor-name: --anchor; }
+    .on.pseudo-anchor-name::before { content: ""; anchor-name: --anchor; }
+</style>
+<script>
+    // Each case is switched on once in a new element, whose first record computes it, and once
+    // in an element that already has a record. Each line prints how often the style engine
+    // refused a property or a value and how many elements C++ computed instead.
+    const cases = [
+        ["image content", "image-content", null, "content"],
+        ["counter(x, decimal)", "decimal-counter", "::before", "content"],
+        ["named @counter-style", "named-counter-style", "::before", "content"],
+        ["content flip", "content-flip", null, "content"],
+        ["list-style-type", "list-style-type", null, "list-style-type"],
+        ["anchor-name", "anchor-name", null, "anchor-name"],
+        ["anchor-name on ::before", "pseudo-anchor-name", "::before", "anchor-name"],
+    ];
+
+    function addParent() {
+        const parent = document.createElement("div");
+        parent.className = "parent";
+        document.body.appendChild(parent);
+        return parent;
+    }
+
+    function measure(name, target, pseudo, property, change) {
+        const before = Object.assign({}, internals.styleEngineCounters());
+        internals.resetStyleInvalidationCounters();
+        change();
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        let value = getComputedStyle(target, pseudo).getPropertyValue(property);
+        if (value.startsWith("url("))
+            value = "an image";
+        println(`${name}: property refusals ${after.engineComputedRecordBailProperty - before.engineComputedRecordBailProperty}, value refusals ${after.engineComputedRecordBailValue - before.engineComputedRecordBailValue}, C++ recomputations ${recomputations}, value ${value}`);
+    }
+
+    test(() => {
+        const parents = cases.map(() => addParent());
+        const warmTargets = cases.map(([, className], index) => {
+            const target = document.createElement("div");
+            target.className = className;
+            parents[index].appendChild(target);
+            return target;
+        });
+        internals.updateStyle();
+
+        cases.forEach(([name, className, pseudo, property], index) => {
+            const target = document.createElement("div");
+            target.className = `${className} on`;
+            measure(`${name}, first record`, target, pseudo, property, () => parents[index].appendChild(target));
+        });
+        cases.forEach(([name, , pseudo, property], index) => {
+            const target = warmTargets[index];
+            measure(`${name}, warm record`, target, pseudo, property, () => target.classList.add("on"));
+        });
+    });
+</script>
