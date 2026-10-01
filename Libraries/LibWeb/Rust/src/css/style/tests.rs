@@ -2492,6 +2492,7 @@ fn a_read_only_record_demand_leaves_the_match_state_as_it_was() {
     let demand = bridge::FfiRecordDemand {
         targeted: false,
         read_only: true,
+        exclude_inline_style: false,
     };
     assert!(engine.answer_record_demand(nodes[1], demand).is_err());
     assert_eq!(engine.retained_match_answers.column, retained_answers);

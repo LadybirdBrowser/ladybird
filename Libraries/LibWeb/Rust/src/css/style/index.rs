@@ -3299,6 +3299,17 @@ struct ElementDeclarationRow {
     custom_written_values: Option<Box<[RetainedStyleValueData]>>,
 }
 
+/// An element's inline declaration, taken out of its row while a private demand computes the
+/// element as though it had none.
+pub(super) struct HiddenInlineDeclarations {
+    declared: Option<ElementDeclaredProperties>,
+    written: Option<Box<[RetainedStyleValueData]>>,
+    checks: Box<[super::publication::WrittenValueChecks]>,
+    complete: bool,
+    custom: Option<Box<[CustomDeclaration]>>,
+    custom_written: Option<Box<[RetainedStyleValueData]>>,
+}
+
 impl Default for ElementDeclarationRow {
     fn default() -> Self {
         Self {
@@ -4948,6 +4959,58 @@ impl ElementFactStore {
         self.memory_dirty = true;
         self.element_declared_properties
             .set_custom(node, custom_declarations, custom_written_values);
+    }
+
+    /// Take the node's inline declaration out of its row while a private demand computes the node
+    /// as though it had none. The demand puts it back before it returns.
+    pub(super) fn hide_inline_declarations_for_demand(
+        &mut self,
+        node: StyleNodeID,
+    ) -> Option<HiddenInlineDeclarations> {
+        let index = node.element_index()? as usize;
+        let rows = &mut self.element_declared_properties;
+        let row = rows.rows.get_mut(index)?.as_mut()?;
+        let before = row.storage_bytes();
+        let kind = ElementDeclarationKind::InlineStyle.index();
+        let hidden = HiddenInlineDeclarations {
+            declared: row.by_kind[kind].take(),
+            written: row.written_by_kind[kind].take(),
+            checks: std::mem::take(&mut row.written_checks_by_kind[kind]),
+            complete: std::mem::replace(&mut row.complete[kind], true),
+            custom: row.custom_declarations.take(),
+            custom_written: row.custom_written_values.take(),
+        };
+        if hidden.custom.is_some() {
+            rows.rows_with_custom_declarations -= 1;
+        }
+        rows.payload_bytes = rows.payload_bytes - before + row.storage_bytes();
+        self.memory_dirty = true;
+        Some(hidden)
+    }
+
+    pub(super) fn restore_inline_declarations_after_demand(
+        &mut self,
+        node: StyleNodeID,
+        hidden: HiddenInlineDeclarations,
+    ) {
+        let index = node.element_index().expect("only an element has an inline declaration") as usize;
+        let rows = &mut self.element_declared_properties;
+        let row = rows.rows[index]
+            .as_mut()
+            .expect("a private demand keeps the element's declaration row");
+        let before = row.storage_bytes();
+        let kind = ElementDeclarationKind::InlineStyle.index();
+        row.by_kind[kind] = hidden.declared;
+        row.written_by_kind[kind] = hidden.written;
+        row.written_checks_by_kind[kind] = hidden.checks;
+        row.complete[kind] = hidden.complete;
+        row.custom_declarations = hidden.custom;
+        row.custom_written_values = hidden.custom_written;
+        if row.custom_declarations.is_some() {
+            rows.rows_with_custom_declarations += 1;
+        }
+        rows.payload_bytes = rows.payload_bytes - before + row.storage_bytes();
+        self.memory_dirty = true;
     }
 
     /// The custom properties the node's inline style declares, in declaration order.

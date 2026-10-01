@@ -1,0 +1,6 @@
+<span class="matching" style="font-weight: bold;">Hello</span>
+700
+<span class="matching" style="--x: green; font-style: italic;">Hello</span>
+<span class="matching" style="--x: red; color: var(--x); font-style: italic">Hello</span>
+<span class="matching" style="font-style: italic;">Hello</span>
+<span class="important" style="font-style: italic;">Hello</span>

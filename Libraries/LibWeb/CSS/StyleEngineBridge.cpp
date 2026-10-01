@@ -276,7 +276,7 @@ StyleEngineFFI::FfiEngineComputedRecord StyleEngine::retry_engine_record_after_a
 
 StyleEngineFFI::FfiEngineComputedRecord StyleEngine::answer_record_demand(StyleNodeID node, RecordDemand demand)
 {
-    return StyleEngineFFI::style_engine_answer_record_demand(m_impl, node.value(), { .targeted = demand.targeted, .read_only = demand.read_only });
+    return StyleEngineFFI::style_engine_answer_record_demand(m_impl, node.value(), { .targeted = demand.targeted, .read_only = demand.read_only, .exclude_inline_style = demand.exclude_inline_style });
 }
 
 StyleEngineFFI::FfiEngineComputedRecord StyleEngine::settle_pseudo_records_after_host_record(StyleNodeID node, bool old_is_list_item)

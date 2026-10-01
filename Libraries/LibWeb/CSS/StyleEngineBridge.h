@@ -171,6 +171,8 @@ public:
         // Leave the engine as it was: the record is only for reading. Any other is installed and acknowledged as a
         // style update's would be.
         bool read_only { false };
+        // Compute the element as though it had no inline declaration. Only a read-only demand may.
+        bool exclude_inline_style { false };
     };
     // Answers a record demand: the record the engine derived from the document as it is now, or zero where the read
     // is C++'s.

@@ -171,10 +171,17 @@ impl StyleEngineState {
         demand: bridge::FfiRecordDemand,
         counters: &mut Counters,
     ) -> Drive<RecordDemandAnswer> {
-        let bridge::FfiRecordDemand { targeted, read_only } = demand;
-        if !self
-            .retained
-            .record_demand_reads_current_inputs(node, &self.host, read_only)
+        let bridge::FfiRecordDemand {
+            targeted,
+            read_only,
+            exclude_inline_style,
+        } = demand;
+        // Only a private read may leave the inline style out: the record it answers is no
+        // element's.
+        if (exclude_inline_style && !read_only)
+            || !self
+                .retained
+                .record_demand_reads_current_inputs(node, &self.host, read_only)
         {
             return Err(Unanswered::Refused);
         }
@@ -186,6 +193,11 @@ impl StyleEngineState {
             resolver.prepare(font_environment_generation);
         }
         let private_saves = read_only.then(|| self.retained.save_for_private_demand(node));
+        let hidden_inline_declarations = if exclude_inline_style {
+            self.retained.facts.hide_inline_declarations_for_demand(node)
+        } else {
+            None
+        };
         if !read_only {
             self.retained.forget_node_match_answer_for_demand(node);
         }
@@ -242,6 +254,11 @@ impl StyleEngineState {
             .map_err(|_| Unanswered::Refused)
             .and_then(|answer| self.drive_demanded_record(node, answer, targeted, read_only, &mut scratch, counters));
 
+        if let Some(hidden) = hidden_inline_declarations {
+            self.retained
+                .facts
+                .restore_inline_declarations_after_demand(node, hidden);
+        }
         if let Some((saves, batch_answers)) = private {
             if let Ok(answer) = &result
                 && let Some(record) = computed::FinalStyleRecordID::from_raw(answer.record.style_record)
