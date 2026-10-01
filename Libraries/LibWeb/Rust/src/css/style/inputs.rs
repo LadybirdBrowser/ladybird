@@ -36,6 +36,39 @@ pub struct PublishedContentFacts {
     pub content_is_strings_only: bool,
 }
 
+unsafe extern "C" {
+    fn web_css_custom_property_data_reference(data: *const std::ffi::c_void);
+    fn web_css_custom_property_data_unreference(data: *const std::ffi::c_void);
+}
+
+/// The custom-property environment one element holds, a `Web::CSS::CustomPropertyData` the engine
+/// keeps a reference to. The element keeps no copy of its own.
+pub(crate) struct RetainedCustomPropertyData {
+    data: crate::css::host_shared::HostShared<std::ffi::c_void>,
+}
+
+impl RetainedCustomPropertyData {
+    /// # Safety
+    /// `data` must be a live `Web::CSS::CustomPropertyData`.
+    unsafe fn retain(data: *const std::ffi::c_void) -> Self {
+        unsafe { web_css_custom_property_data_reference(data) };
+        Self {
+            data: crate::css::host_shared::HostShared::new(data),
+        }
+    }
+
+    pub(crate) fn data(&self) -> *const std::ffi::c_void {
+        self.data.as_ptr()
+    }
+}
+
+impl Drop for RetainedCustomPropertyData {
+    fn drop(&mut self) {
+        // SAFETY: The row owns exactly one reference, taken in `retain`.
+        unsafe { web_css_custom_property_data_unreference(self.data.as_ptr()) };
+    }
+}
+
 impl RetainedState {
     pub(super) fn push_pending_region(&mut self, regions: &mut Vec<ImpactRegion>, region: ImpactRegion) {
         let before = regions.capacity();
@@ -661,6 +694,34 @@ impl RetainedState {
         self.facts.set_animation_names(node, names, &mut self.memory);
     }
 
+    /// Keep the custom-property environment an element now holds; a null `data` is none. Only
+    /// elements that hold one have an entry.
+    ///
+    /// # Safety
+    /// `data` must be null or a live `Web::CSS::CustomPropertyData`.
+    pub(crate) unsafe fn set_element_custom_property_data(&mut self, node: StyleNodeID, data: *const std::ffi::c_void) {
+        if data.is_null() {
+            self.element_custom_property_data.remove(&node);
+            return;
+        }
+        if self
+            .element_custom_property_data
+            .get(&node)
+            .is_some_and(|existing| existing.data() == data)
+        {
+            return;
+        }
+        self.element_custom_property_data
+            .insert(node, unsafe { RetainedCustomPropertyData::retain(data) });
+    }
+
+    /// The custom-property environment an element holds, or null.
+    pub(crate) fn element_custom_property_data(&self, node: StyleNodeID) -> *const std::ffi::c_void {
+        self.element_custom_property_data
+            .get(&node)
+            .map_or(std::ptr::null(), RetainedCustomPropertyData::data)
+    }
+
     /// Record the names of the CSS animations the host holds for one of an element's animation
     /// lists, in the order it holds them. The names arrive packed into one buffer because a list is
     /// almost always a single name, and a length per name is cheaper than a handle per name.
@@ -1082,6 +1143,7 @@ impl StyleEngineState {
                 computed_group_sets: ComputedGroupSets::default(),
                 custom_property_environments: Default::default(),
                 nodes_with_substituted_records: HashSet::default(),
+                element_custom_property_data: HashMap::default(),
                 css_defined_animations: Default::default(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
@@ -2535,6 +2597,7 @@ impl RetainedState {
             computed_group_sets,
             custom_property_environments: _,
             nodes_with_substituted_records,
+            element_custom_property_data,
             css_defined_animations,
             transition_baselines,
             custom_property_registrations_changed: _,
@@ -2612,6 +2675,7 @@ impl RetainedState {
         winner_groups.remove(node);
         computed_group_sets.remove(node);
         nodes_with_substituted_records.remove(&node);
+        element_custom_property_data.remove(&node);
         css_defined_animations.retire(node);
         pending_element_style_computation_selections.remove(&node);
         pending_pseudo_style_computation_selections.remove(&node);

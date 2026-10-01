@@ -1144,6 +1144,33 @@ pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> *mut c_vo
     abort_on_panic(|| Box::into_raw(Box::new(StyleEngine::new_for_replay(device_class.decode()))).cast())
 }
 
+/// Keeps the custom-property environment an element now holds. A null `data` is none.
+///
+/// # Safety
+/// `engine` must be live, and `data` must be null or a live `Web::CSS::CustomPropertyData`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
+    engine: *mut c_void,
+    node: u32,
+    data: *const c_void,
+) {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return;
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    unsafe { engine.set_element_custom_property_data(node, data) };
+}
+
+/// The custom-property environment an element holds, or null.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_element_custom_property_data(engine: *const c_void, node: u32) -> *const c_void {
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    StyleNodeID::from_raw(node).map_or(std::ptr::null(), |node| engine.element_custom_property_data(node))
+}
+
 /// Applies the memory policy used while producing a replay recording.
 ///
 /// # Safety

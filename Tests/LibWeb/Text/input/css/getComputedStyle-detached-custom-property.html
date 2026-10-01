@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target { --x: declared; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const style = getComputedStyle(target);
+        println(`connected: "${style.getPropertyValue("--x")}"`);
+        target.remove();
+        println(`detached: "${style.getPropertyValue("--x")}"`);
+        println(`detached, new declaration: "${getComputedStyle(target).getPropertyValue("--x")}"`);
+        document.body.append(target);
+        println(`reconnected: "${style.getPropertyValue("--x")}"`);
+    });
+</script>

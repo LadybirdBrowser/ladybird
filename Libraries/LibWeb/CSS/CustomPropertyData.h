@@ -146,3 +146,7 @@ private:
 };
 
 }
+
+// The style engine keeps the custom-property environment each element holds, with a reference of its own.
+extern "C" WEB_API void web_css_custom_property_data_reference(void const*);
+extern "C" WEB_API void web_css_custom_property_data_unreference(void const*);

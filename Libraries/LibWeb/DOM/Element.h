@@ -954,7 +954,6 @@ private:
     CSS::StyleRecordID m_style_record_identity;
     u64 m_animation_style_generation { 0 };
     u64 m_animation_subtree_style_generation { 0 };
-    RefPtr<CSS::CustomPropertyData const> m_custom_property_data;
     OwnPtr<CSS::StyleInputRecord> m_style_input_record;
     PublishedCustomPropertyNames m_published_custom_property_names;
     Vector<CSS::StyleProperty> m_published_presentational_hint_properties;

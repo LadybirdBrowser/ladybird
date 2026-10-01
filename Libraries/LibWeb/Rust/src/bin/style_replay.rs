@@ -2735,6 +2735,11 @@ extern "C" fn ladybird_utf16_fly_string_from_utf16(_data: *const u16, _length: u
 extern "C" fn ladybird_gfx_font_cascade_list_ref(_list: *const c_void) {}
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_font_cascade_list_unref(_list: *const c_void) {}
+// Replay has no C++ CustomPropertyData to count references on.
+#[unsafe(no_mangle)]
+extern "C" fn web_css_custom_property_data_reference(_data: *const c_void) {}
+#[unsafe(no_mangle)]
+extern "C" fn web_css_custom_property_data_unreference(_data: *const c_void) {}
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn unicode_rust_idna_to_ascii(

@@ -812,4 +812,14 @@ bool StyleEngine::counter(size_t index, StringView& out_name, u64& out_value) co
     return true;
 }
 
+void StyleEngine::set_element_custom_property_data(StyleNodeID node, CustomPropertyData const* data)
+{
+    StyleEngineFFI::style_engine_set_element_custom_property_data(m_impl, node.value(), data);
+}
+
+CustomPropertyData const* StyleEngine::element_custom_property_data(StyleNodeID node) const
+{
+    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_element_custom_property_data(m_impl, node.value()));
+}
+
 }
