@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -25,9 +26,9 @@ HTMLBRElement::HTMLBRElement(DOM::Document& document, DOM::QualifiedName qualifi
 
 HTMLBRElement::~HTMLBRElement() = default;
 
-Layout::Node* HTMLBRElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind HTMLBRElement::box_kind() const
 {
-    return &Layout::allocate_layout_node<Layout::NodeWithStyle>(document(), *this, style, Layout::RustFFI::NodeKind::BreakNode);
+    return CSS::ElementBoxKind::Break;
 }
 
 bool HTMLBRElement::is_presentational_hint(Utf16FlyString const& name) const

@@ -5,9 +5,9 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
-#include <LibWeb/Layout/Box.h>
 
 namespace Web::HTML {
 
@@ -33,9 +33,9 @@ HTMLFormElement* HTMLLegendElement::form()
     return nullptr;
 }
 
-Layout::Node* HTMLLegendElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind HTMLLegendElement::box_kind() const
 {
-    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::LegendBox);
+    return CSS::ElementBoxKind::Legend;
 }
 
 static void refresh_disabled_state_of_form_controls_under_disabled_field_set(DOM::Node* node)

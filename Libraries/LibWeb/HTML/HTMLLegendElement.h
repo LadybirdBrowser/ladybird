@@ -19,7 +19,7 @@ public:
 
     HTMLFormElement* form();
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
     HTMLLegendElement(DOM::Document&, DOM::QualifiedName);

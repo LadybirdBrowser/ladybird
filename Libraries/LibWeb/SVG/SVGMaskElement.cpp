@@ -6,8 +6,8 @@
  */
 
 #include <LibGfx/AffineTransform.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 
@@ -22,10 +22,10 @@ SVGMaskElement::SVGMaskElement(DOM::Document& document, DOM::QualifiedName tag_n
 
 SVGMaskElement::~SVGMaskElement() = default;
 
-Layout::Node* SVGMaskElement::create_layout_node(CSS::LayoutStyle)
+CSS::ElementBoxKind SVGMaskElement::box_kind() const
 {
     // Masks are handled as a special case in the TreeBuilder.
-    return nullptr;
+    return CSS::ElementBoxKind::NoBox;
 }
 
 void SVGMaskElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)

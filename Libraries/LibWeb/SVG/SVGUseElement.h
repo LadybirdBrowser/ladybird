@@ -63,7 +63,7 @@ private:
 
     virtual bool is_svg_use_element() const override { return true; }
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 
     void process_the_url(Optional<Utf16String> const& href);
     Optional<Utf16String> href_value() const;

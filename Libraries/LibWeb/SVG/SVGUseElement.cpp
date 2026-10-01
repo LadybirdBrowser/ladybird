@@ -7,6 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibGC/HeapHashTable.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -395,9 +396,9 @@ GC::Ptr<SVGElement> SVGUseElement::instance_root() const
     return const_cast<DOM::ShadowRoot&>(*shadow_root()).first_child_of_type<SVGElement>();
 }
 
-Layout::Node* SVGUseElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind SVGUseElement::box_kind() const
 {
-    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
+    return CSS::ElementBoxKind::SvgGraphics;
 }
 
 }

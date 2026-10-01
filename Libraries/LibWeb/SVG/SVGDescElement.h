@@ -16,7 +16,7 @@ class SVGDescElement final : public SVGElement {
 
 private:
     SVGDescElement(DOM::Document&, DOM::QualifiedName);
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 };
 
 }

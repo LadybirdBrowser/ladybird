@@ -16,7 +16,7 @@ class SVGTitleElement final : public SVGElement {
 
 private:
     SVGTitleElement(DOM::Document&, DOM::QualifiedName);
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
 };
 

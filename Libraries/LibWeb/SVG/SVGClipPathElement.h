@@ -34,7 +34,7 @@ public:
         return m_clip_path_units.value_or(ClipPathUnits::UserSpaceOnUse);
     }
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
     SVGClipPathElement(DOM::Document&, DOM::QualifiedName);

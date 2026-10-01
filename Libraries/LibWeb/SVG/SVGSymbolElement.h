@@ -29,7 +29,7 @@ private:
     virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 
     bool is_direct_child_of_use_shadow_tree() const;
 

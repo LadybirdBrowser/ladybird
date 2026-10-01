@@ -38,6 +38,7 @@
 #include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/GeneratedContent.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
 #include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
@@ -1265,15 +1266,11 @@ Optional<GC::RootVector<GC::Ref<DOM::Element>>> Element::get_the_attribute_assoc
     return elements;
 }
 
-Layout::Node* Element::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind Element::box_kind() const
 {
     if (local_name() == u"noscript"sv && document().is_scripting_enabled())
-        return nullptr;
-
-    auto computed_style = this->computed_style();
-    VERIFY(computed_style);
-    auto display = computed_style->display();
-    return create_layout_node_for_display_type(document(), display, style, this);
+        return CSS::ElementBoxKind::NoBox;
+    return CSS::ElementBoxKind::FromDisplay;
 }
 
 Layout::NodeWithStyle* Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::LayoutStyle style, Element* element)

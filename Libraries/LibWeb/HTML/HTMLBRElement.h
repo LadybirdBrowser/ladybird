@@ -17,7 +17,7 @@ class HTMLBRElement final : public HTMLElement {
 public:
     virtual ~HTMLBRElement() override;
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
     // Whether this <br> renders an empty line, i.e. nothing else renders between the start of its line and the <br>

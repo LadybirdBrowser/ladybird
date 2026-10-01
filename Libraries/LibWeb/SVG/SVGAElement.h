@@ -25,7 +25,7 @@ public:
 
     GC::Ref<DOM::DOMTokenList> rel_list();
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
     SVGAElement(DOM::Document&, DOM::QualifiedName);

@@ -17,7 +17,7 @@ class SVGGElement final : public SVGGraphicsElement {
 public:
     virtual ~SVGGElement() override = default;
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
     virtual bool is_svg_g_element() const final { return true; }
