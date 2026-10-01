@@ -3496,6 +3496,16 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     Layout::Node::dom_node_style_node_changed(*this, old_style_node_id);
 }
 
+// The top layer is one of the few element facts the tree build reads that moves during the element's lifetime, so the
+// style mirror is told here rather than where the element arrives.
+void Element::set_rendered_in_top_layer(bool rendered_in_top_layer)
+{
+    if (m_rendered_in_top_layer == rendered_in_top_layer)
+        return;
+    m_rendered_in_top_layer = rendered_in_top_layer;
+    CSS::record_element_adjustment_facts(*this);
+}
+
 Layout::NodeWithStyle* Element::pseudo_element_layout_node(CSS::PseudoElement pseudo_element) const
 {
     if (CSS::is_synthetic_pseudo_element(pseudo_element))

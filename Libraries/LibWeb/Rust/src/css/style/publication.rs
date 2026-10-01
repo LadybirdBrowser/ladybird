@@ -1022,7 +1022,7 @@ impl RetainedState {
                 previous_style_record: 0,
                 generation: cascade_state.0,
                 state,
-                facts,
+                facts: cold_record_facts(facts),
                 pseudo_styles,
                 environment: parent_environment,
                 font_environment_generation: inputs.font_environment_generation,
@@ -1097,7 +1097,7 @@ impl RetainedState {
                 previous_style_record: 0,
                 generation: cascade_state.0,
                 state,
-                facts,
+                facts: cold_record_facts(facts),
                 pseudo_styles,
                 environment,
                 font_environment_generation: inputs.font_environment_generation,
@@ -1520,7 +1520,7 @@ impl RetainedState {
                     previous_style_record: old_style_record.raw(),
                     generation: cascade_state.0,
                     state: cascade_state.1,
-                    facts,
+                    facts: cold_record_facts(facts),
                     pseudo_styles,
                     environment,
                     font_environment_generation: inputs.font_environment_generation,
@@ -2125,7 +2125,7 @@ impl RetainedState {
             previous_style_record: previous_style_record.map_or(0, computed::FinalStyleRecordID::raw),
             generation: cascade_state.0,
             state: cascade_state.1,
-            facts,
+            facts: cold_record_facts(facts),
             pseudo_styles,
             environment: custom_property_environment,
             font_environment_generation: inputs.font_environment_generation,
@@ -3736,6 +3736,12 @@ impl StyleEngineState {
         counters.set(Counter::LiveAnimationOverlayRecords, publication.live_records as u64);
         Some(publication)
     }
+}
+
+/// The element facts a cold record is keyed by: every fact but the ones only the layout tree build
+/// reads, which no style depends on.
+fn cold_record_facts(facts: u32) -> u32 {
+    facts & !bridge::element_adjustment_fact::LAYOUT_TREE_FACTS
 }
 
 /// What a first record was derived from: the parent's side of the computation, the winner state

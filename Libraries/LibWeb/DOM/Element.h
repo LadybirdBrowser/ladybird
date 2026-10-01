@@ -778,7 +778,7 @@ public:
 
     // An element el is rendered in the top layer if el is contained in its node document’s top layer,
     // FIXME: and el has overlay: auto.
-    void set_rendered_in_top_layer(bool rendered_in_top_layer) { m_rendered_in_top_layer = rendered_in_top_layer; }
+    void set_rendered_in_top_layer(bool rendered_in_top_layer);
     bool rendered_in_top_layer() const { return m_rendered_in_top_layer; }
 
     bool has_non_empty_counters_set() const;

@@ -44,7 +44,6 @@
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
-#include <LibWeb/SVG/SVGSwitchElement.h>
 
 namespace Web::Layout {
 
@@ -1086,9 +1085,9 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
 {
     return {
         .builder = this,
-        .first_child = [](void* parent_pointer) -> void* {
+        .first_child = [](void* parent_pointer) -> RustFFI::FfiIdentifiedDomNode {
             VERIFY(parent_pointer);
-            return static_cast<DOM::ParentNode*>(parent_pointer)->first_child();
+            return identified_dom_node(static_cast<DOM::ParentNode*>(parent_pointer)->first_child());
         },
         .next_sibling = [](void* node_pointer) -> void* {
             VERIFY(node_pointer);
@@ -1105,9 +1104,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             node.set_child_needs_layout_tree_update(false); },
         .assigned_node_count = ffi_assigned_node_count,
         .assigned_node_at = ffi_assigned_node_at,
-        .is_svg_element = [](void* node_pointer) {
-            VERIFY(node_pointer);
-            return is<SVG::SVGElement>(*static_cast<DOM::Node*>(node_pointer)); },
         .clear_stale_layout_node = [](void* builder_pointer, void* node_pointer) {
             VERIFY(builder_pointer);
             VERIFY(node_pointer);
@@ -1118,7 +1114,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto* slot_element = as_if<HTML::HTMLSlotElement>(element);
             auto shadow_root = element.shadow_root();
             return {
-                .rendered_in_top_layer = element.rendered_in_top_layer(),
                 .content_visibility_hidden = element.style_group<CSS::ComputedValues::InheritedBoxValues>()->content_visibility_value() == CSS::ContentVisibility::Hidden,
                 .child_needs_layout_tree_update = element.child_needs_layout_tree_update(),
                 .dom_children_parent = static_cast<DOM::ParentNode*>(&element),
@@ -1175,7 +1170,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .is_element = element != nullptr,
                 .content_visibility_hidden = element && element->style_group<CSS::ComputedValues::InheritedBoxValues>()->content_visibility_value() == CSS::ContentVisibility::Hidden,
                 .child_needs_layout_tree_update = node.child_needs_layout_tree_update(),
-                .is_svg_switch_element = is<SVG::SVGSwitchElement>(node),
                 .is_document = node.is_document(),
                 .dom_children_parent = parent_node,
                 .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
@@ -1196,17 +1190,14 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .top_layer_element_count = [](void* document_pointer) {
             VERIFY(document_pointer);
             return static_cast<DOM::Document*>(document_pointer)->top_layer_elements().size(); },
-        .copy_top_layer_elements = [](void* document_pointer, void** output, size_t count) {
+        .copy_top_layer_elements = [](void* document_pointer, RustFFI::FfiIdentifiedDomNode* output, size_t count) {
             VERIFY(document_pointer);
             VERIFY(output || count == 0);
             auto const& elements = static_cast<DOM::Document*>(document_pointer)->top_layer_elements();
             VERIFY(count == elements.size());
             size_t index = 0;
             for (auto const& element : elements)
-                output[index++] = element.ptr(); },
-        .rendered_in_top_layer = [](void* element_pointer) {
-            VERIFY(element_pointer);
-            return static_cast<DOM::Element*>(element_pointer)->rendered_in_top_layer(); },
+                output[index++] = identified_dom_node(element.ptr()); },
         .flat_tree_parent = [](void* node_pointer) -> void* {
             VERIFY(node_pointer);
             return static_cast<DOM::Node*>(node_pointer)->flat_tree_parent(); },
@@ -1241,11 +1232,8 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .has_layout_node = existing_layout_node != nullptr,
                 .is_element = element != nullptr,
                 .is_text = is<DOM::Text>(node),
-                .rendered_in_top_layer = element && element->rendered_in_top_layer(),
                 .layout_node_is_attached = existing_layout_node && existing_layout_node->has_parent(),
-                .is_svg_container = node.is_svg_container(),
-                .requires_svg_container = node.requires_svg_container(),
-                .is_svg_foreign_object = node.is_svg_foreign_object_element(),
+                .style_node = Node::style_node_of(&node).value(),
             }; },
         .push_principal_frame = [](void* builder_pointer, void* node_pointer) -> RustFFI::FfiPrincipalNodeFrame {
             VERIFY(builder_pointer);
@@ -1266,7 +1254,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             return {
                 .frame = &frame,
                 .old_layout_node = Node::slot_id(node.unsafe_layout_node()),
-                .style_node = Node::style_node_of(&node).value(),
             }; },
         .pop_principal_frame = [](void* builder_pointer, void* frame_pointer) {
             VERIFY(builder_pointer);
@@ -1329,9 +1316,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(content_values);
             return {
                 .has_content_replacement = content_replacement_image(content_values->computed_content_value()) != nullptr,
-                .is_svg_mask_element = is<SVG::SVGMaskElement>(element),
-                .is_svg_clip_path_element = is<SVG::SVGClipPathElement>(element),
-                .is_svg_pattern_element = is<SVG::SVGPatternElement>(element),
             }; },
         .create_principal_element_layout = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiElementLayoutKind kind) -> Compositing::RustFFI::NodeSlotId {
             VERIFY(builder_pointer);
