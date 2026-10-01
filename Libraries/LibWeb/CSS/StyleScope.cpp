@@ -669,11 +669,16 @@ void StyleScope::invalidate_counter_style_cache()
 {
     m_needs_counter_style_cache_update = true;
 
-    // FIXME: We only need to invalidate this style scope and those belonging to descendant shadow roots (since they may
-    //        include counter styles which extend the ones defined in this scope), not all style scopes in the document.
-    m_node->document().style_scope().m_needs_counter_style_cache_update = true;
+    // Only this style scope and those whose counter style names pass on to it, which may include counter styles that
+    // extend the ones defined in this scope, can resolve differently.
     m_node->document().for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
-        shadow_root.style_scope().m_needs_counter_style_cache_update = true;
+        auto& scope = shadow_root.style_scope();
+        for (auto const* ancestor = scope.parent_counter_style_scope(); ancestor; ancestor = ancestor->parent_counter_style_scope()) {
+            if (ancestor == this) {
+                scope.m_needs_counter_style_cache_update = true;
+                break;
+            }
+        }
     });
 }
 
