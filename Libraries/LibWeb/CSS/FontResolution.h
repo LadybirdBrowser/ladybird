@@ -50,6 +50,13 @@ using FontFeatureValuesProvider = Function<FontFeatureValues const&(Utf16FlyStri
 // load: a web face it selects is only noted, and request_wanted_web_faces() loads it.
 [[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot const&, ComputedFontCacheKey const&, FontFeatureValuesProvider const&);
 
+// The font-family list as font matching wants it: generic families kept apart from names, and a name's syntax kept.
+[[nodiscard]] Vector<ComputedFontFamily> computed_font_families_from_style_value(StyleValue const& font_family);
+
+// Resolve a request against a document's @font-face table, through the cascades it has resolved before. Outside a
+// style update, the web faces the resolution selects start loading here.
+[[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_for_style_values(FontComputer const&, ComputedFontCacheKey);
+
 // The cascades already resolved for a document, by request: a memo of a pure function of the snapshot and the request,
 // which the document forgets entries of when a change to its @font-face table makes them stale.
 class FontCascadeMemo final : public RefCounted<FontCascadeMemo> {

@@ -342,49 +342,6 @@ FontFeatureValues const& FontComputer::font_feature_values_for_family(Utf16FlySt
     return m_font_feature_values_cache.ensure(move(key), [&] { return move(font_feature_values); });
 }
 
-NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(Vector<ComputedFontFamily> font_families, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const
-{
-    if (!font_feature_data.font_variant_alternates.has_value() || font_feature_data.font_variant_alternates->font_feature_value_entries.is_empty())
-        font_feature_values_scope = {};
-    ComputedFontCacheKey cache_key {
-        .font_families = move(font_families),
-        .font_optical_sizing = font_optical_sizing,
-        .font_size = font_size,
-        .font_slope = font_slope,
-        .font_weight = font_weight,
-        .font_width = font_width,
-        .font_variation_settings = font_variation_settings,
-        .font_feature_data = font_feature_data,
-        .font_feature_values_scope = font_feature_values_scope,
-    };
-
-    auto font_list = m_font_cascade_memo->resolve(font_face_snapshot(), cache_key, font_feature_values_provider(font_feature_values_scope));
-    // A cascade this computed may have wanted a web face loaded. Inside a style update the loads wait for its end;
-    // everywhere else, such as canvas, they happen right here.
-    request_wanted_web_faces();
-    return font_list;
-}
-
-NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const
-{
-    Vector<ComputedFontFamily> font_families;
-    auto const& values = font_family.as_value_list().values();
-    font_families.ensure_capacity(values.size());
-    for (auto const& value : values) {
-        if (value->is_keyword()) {
-            auto generic_family = keyword_to_generic_font_family(value->to_keyword());
-            VERIFY(generic_family.has_value());
-            font_families.unchecked_append(generic_family.release_value());
-        } else {
-            font_families.unchecked_append(ComputedFontFamilyName {
-                .name = string_from_style_value(value),
-                .syntax = value->is_string() ? ComputedFontFamilySyntax::String : ComputedFontFamilySyntax::CustomIdent,
-            });
-        }
-    }
-    return compute_font_for_style_values(move(font_families), font_size, font_slope, font_weight, font_width, font_optical_sizing, font_variation_settings, font_feature_data, font_feature_values_scope);
-}
-
 Gfx::Font const& FontComputer::initial_font() const
 {
     // FIXME: This is not correct.
