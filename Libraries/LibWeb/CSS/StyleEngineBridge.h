@@ -42,6 +42,24 @@ class StyleComputer;
 class RustDeclarationBlock;
 struct StyleProperty;
 
+// A style sheet's resource context as a rule's cascaded values read it, keyed by its native
+// sheet: an imported sheet has its own.
+struct CollectedStyleSheetResourceContext {
+    u64 source_identity { 0 };
+    String base_url;
+    bool has_base_url { false };
+    bool origin_clean { false };
+};
+
+// The resource contexts of the document's style sheets as the last transaction was lent them,
+// and what they were collected against. A document can have a shadow root, and a sheet, per
+// element, so they are collected again only once either has moved on.
+struct StyleSheetResourceContexts {
+    Vector<CollectedStyleSheetResourceContext> contexts;
+    u64 style_sheet_set_generation { 0 };
+    String document_api_base_url;
+};
+
 // Owns one document's StyleEngine. The engine itself lives entirely on the Rust side: selector
 // evaluation, cascade, computed values, and every index and identity they are keyed by. C++ keeps
 // what only C++ can own -- DOM and CSSOM object identity, mutation semantics, document lifecycle,
@@ -293,6 +311,8 @@ private:
     bool refresh_attribute_value_text_requirements();
     [[nodiscard]] bool attribute_name_requires_value_text(StyleAtomID);
     void publish_attribute_value_text(StyleAtomID, Utf16View);
+
+    Optional<StyleSheetResourceContexts> m_style_sheet_resource_contexts;
 
     void* m_impl { nullptr };
     u64 m_published_font_environment_generation { 0 };

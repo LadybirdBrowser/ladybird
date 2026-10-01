@@ -1332,6 +1332,7 @@ impl StyleEngineState {
                 cascade_compaction_scratch_memory: MemoryLease::new(MemoryCategory::BatchScratch),
                 next_style_transaction_version: StyleTransactionVersion(1),
                 document_style_computation_inputs: Default::default(),
+                document_resource_contexts: Default::default(),
                 monospace_font_family: RetainedStyleValueData::from_owned(
                     crate::css::parser::value_parser::value_list(
                         vec![StyleValueData::Keyword {
@@ -2802,6 +2803,7 @@ impl RetainedState {
             cascade_compaction_scratch_memory: _,
             next_style_transaction_version: _,
             document_style_computation_inputs: _,
+            document_resource_contexts: _,
             font_resolution: _,
             monospace_font_family: _,
             layer_topology_version: _,

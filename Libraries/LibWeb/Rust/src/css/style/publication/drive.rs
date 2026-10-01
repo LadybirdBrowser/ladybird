@@ -358,6 +358,8 @@ impl RetainedState {
         installed_ancestors: Option<&InstalledAncestors>,
         counters: &mut Counters,
     ) -> Drive<PartialDrive> {
+        let resource_contexts = store.drive_resource_contexts(self);
+        let document_base_url = &self.document_resource_contexts.document_base_url;
         let store = store.view(self);
         use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
         use crate::css::style_compute::{
@@ -469,10 +471,10 @@ impl RetainedState {
             sibling_index: 0,
             random_base_values: std::ptr::null(),
             random_base_value_count: 0,
-            document_base_url: std::ptr::null(),
-            document_base_url_length: 0,
-            style_sheet_resource_contexts: std::ptr::null(),
-            style_sheet_resource_context_count: 0,
+            document_base_url: document_base_url.as_ptr(),
+            document_base_url_length: document_base_url.len(),
+            style_sheet_resource_contexts: resource_contexts.as_ptr(),
+            style_sheet_resource_context_count: resource_contexts.len(),
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             initial_font_size_raw: inputs.initial_font_size_raw,
             default_font_size_raw: inputs.default_font_size_raw,
@@ -585,6 +587,8 @@ impl RetainedState {
         goal: FontDriveGoal,
         counters: &mut Counters,
     ) -> Drive<FullDrive> {
+        let resource_contexts = store.drive_resource_contexts(self);
+        let document_base_url = &self.document_resource_contexts.document_base_url;
         let store = store.view(self);
         use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
         use crate::css::css_pixels::CssPixels;
@@ -814,10 +818,10 @@ impl RetainedState {
             sibling_index: 0,
             random_base_values: std::ptr::null(),
             random_base_value_count: 0,
-            document_base_url: std::ptr::null(),
-            document_base_url_length: 0,
-            style_sheet_resource_contexts: std::ptr::null(),
-            style_sheet_resource_context_count: 0,
+            document_base_url: document_base_url.as_ptr(),
+            document_base_url_length: document_base_url.len(),
+            style_sheet_resource_contexts: resource_contexts.as_ptr(),
+            style_sheet_resource_context_count: resource_contexts.len(),
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             initial_font_size_raw: inputs.initial_font_size_raw,
             default_font_size_raw: inputs.default_font_size_raw,

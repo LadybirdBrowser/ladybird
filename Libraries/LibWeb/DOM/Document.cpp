@@ -9105,11 +9105,13 @@ Optional<Utf16String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier
 void Document::register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& shadow_root)
 {
     m_shadow_roots.append(shadow_root);
+    note_style_sheet_set_change();
 }
 
 void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& shadow_root)
 {
     m_shadow_roots.remove(shadow_root);
+    note_style_sheet_set_change();
 }
 
 // https://drafts.csswg.org/css-position-4/#add-an-element-to-the-top-layer

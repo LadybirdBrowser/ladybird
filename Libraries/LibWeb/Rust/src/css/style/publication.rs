@@ -2612,9 +2612,26 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailSubstitution);
                 return Err(Unanswered::Refused);
             }
-            if !checks
+            // A `url()` resolves against the sheet its rule came from, or the document's base URL
+            // for an element's own declaration; a substituted value has lost its sheet.
+            let resources_are_known = match &value {
+                WinnerValue::Written {
+                    source: WinnerSource::Rule(rule),
+                    ..
+                } => self
+                    .rule_source_identity(*rule)
+                    .is_some_and(|source| self.document_resource_contexts.for_source(source).is_some()),
+                WinnerValue::Written {
+                    source: WinnerSource::Element(_),
+                    ..
+                } => true,
+                _ => false,
+            };
+            let context_free = checks
                 .longhand_context_free
                 .unwrap_or_else(|| value_computes_without_document_context(data))
+                || (resources_are_known && value_computes_without_document_context_but_for_resources(data).is_some());
+            if !context_free
                 || (pseudo_kind.is_some()
                     && winner.property == prop::CONTENT
                     && !content_value_is_engine_computable(data))
@@ -4528,6 +4545,16 @@ fn property_starts_animation_or_counter_environment(property: u16) -> bool {
 /// inputs alone: no custom-property substitution, and none of the element or sheet facts the C++
 /// computation gathers per drive.
 fn value_computes_without_document_context(value: &StyleValueData) -> bool {
+    value_computes_without_document_context_but_for_resources(value).is_some_and(|dependencies| {
+        !dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context
+    })
+}
+
+/// The same question for a value that may read the base URLs a `url()` resolves against, which
+/// the engine holds as published inputs: its dependencies, or `None` when it needs anything else.
+fn value_computes_without_document_context_but_for_resources(
+    value: &StyleValueData,
+) -> Option<crate::css::style_compute::ExternalValueDependencies> {
     // A longhand a shorthand written with a substitution declares holds a pending substitution
     // until the shorthand resolves; both compute in C++.
     if matches!(
@@ -4535,15 +4562,14 @@ fn value_computes_without_document_context(value: &StyleValueData) -> bool {
         StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
     ) || crate::css::style_compute::value_is_computationally_independent(value).is_none()
     {
-        return false;
+        return None;
     }
     let dependencies = crate::css::style_compute::external_value_dependencies(value);
-    !dependencies.uses_tree_counting_function
+    (!dependencies.uses_tree_counting_function
         && dependencies.container_relative_length_unit_mask == 0
         && !dependencies.has_unfixed_random_sharing
-        && !dependencies.uses_random_function
-        && !dependencies.needs_document_base_url
-        && !dependencies.may_need_style_sheet_resource_context
+        && !dependencies.uses_random_function)
+        .then_some(dependencies)
 }
 
 #[cfg(test)]

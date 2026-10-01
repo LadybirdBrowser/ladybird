@@ -132,6 +132,12 @@ impl NativeRuleRegistry {
 }
 
 impl RetainedState {
+    /// The identity of the native sheet a rule was compiled from: an imported sheet's own, not the
+    /// importing sheet's.
+    pub(crate) fn rule_source_identity(&self, id: RuleID) -> Option<u64> {
+        self.native_rules.targets.get(&id).map(|target| target.source_identity)
+    }
+
     pub(crate) fn native_rule_id(&self, identity: u64) -> Option<RuleID> {
         self.native_rules.identities.get(&identity)
     }
