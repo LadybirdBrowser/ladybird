@@ -748,6 +748,27 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         &mut phase_times,
                     );
                 }
+                EventKind::AnswerRecordDemand => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let node = event.payload.read_u32()?;
+                    let demand = bridge::FfiRecordDemand {
+                        targeted: event.payload.read_bool()?,
+                        read_only: event.payload.read_bool()?,
+                    };
+                    let expected = event.payload.read_u64()?;
+                    let expected_uses_substitution = event.payload.read_bool()?;
+                    let expected_present = event.payload.read_u8()?;
+                    let actual = unsafe { bridge::style_engine_answer_record_demand(engine, node, demand) };
+                    if actual.style_record != expected
+                        || actual.uses_substitution != expected_uses_substitution
+                        || actual.pseudo_records_present != expected_present
+                    {
+                        return Err(format!(
+                            "record demand diverged for node {node}: expected {expected} (substitution {expected_uses_substitution}, present {expected_present:#x}), got {actual:?}"
+                        )
+                        .into());
+                    }
+                }
                 EventKind::SettlePseudoRecordsAfterHostRecord => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;

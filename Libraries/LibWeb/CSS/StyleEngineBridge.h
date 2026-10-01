@@ -164,6 +164,17 @@ public:
     // to; the new record's identity, or zero when nothing moved.
     [[nodiscard]] StyleRecordID republish_record_environment(StyleNodeID, u64 environment, void const* store);
     [[nodiscard]] StyleEngineFFI::FfiEngineComputedRecord retry_engine_record_after_ancestor(StyleNodeID);
+    // What a read of an element's style made before the next style update asks of the style engine.
+    struct RecordDemand {
+        // Drive the record in full against the parent as it is now.
+        bool targeted { false };
+        // Leave the engine as it was: the record is only for reading. Any other is installed and acknowledged as a
+        // style update's would be.
+        bool read_only { false };
+    };
+    // Answers a record demand: the record the engine derived from the document as it is now, or zero where the read
+    // is C++'s.
+    [[nodiscard]] StyleEngineFFI::FfiEngineComputedRecord answer_record_demand(StyleNodeID, RecordDemand);
     [[nodiscard]] StyleEngineFFI::FfiEngineComputedRecord settle_pseudo_records_after_host_record(StyleNodeID, bool old_is_list_item);
     // Whether an environment identity is one the engine minted for an environment it resolved.
     [[nodiscard]] static bool is_engine_custom_property_environment(u64 identity) { return (identity & (1ull << 62)) != 0; }

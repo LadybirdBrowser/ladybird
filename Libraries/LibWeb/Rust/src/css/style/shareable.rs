@@ -81,6 +81,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         pending_element_style_computation_selections,
         pending_pseudo_style_computation_selections,
         engine_computed_records_pending,
+        demand_records,
         flush_stamp,
         style_input_nodes_for_cpp,
         parent_inputs_moved_nodes,
@@ -181,6 +182,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(pending_element_style_computation_selections);
     assert_member_is_sync(pending_pseudo_style_computation_selections);
     assert_member_is_sync(engine_computed_records_pending);
+    assert_member_is_sync(demand_records);
     assert_member_is_sync(flush_stamp);
     assert_member_is_sync(style_input_nodes_for_cpp);
     assert_member_is_sync(parent_inputs_moved_nodes);

@@ -2454,6 +2454,57 @@ pub(super) fn linear_document() -> (StyleEngine, Vec<StyleNodeID>) {
     (engine, nodes)
 }
 
+#[test]
+fn a_node_scoped_acknowledgement_leaves_other_inputs_queued() {
+    let (mut engine, nodes) = linear_document();
+    discard_transaction(&mut engine);
+    for &node in &nodes[1..3] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(StyleAtomID(200)));
+    }
+    engine
+        .state
+        .host
+        .journal
+        .acknowledge_node(nodes[1], &mut engine.state.retained.memory);
+    assert_eq!(engine.host.journal.len(), 1);
+    assert_eq!(
+        engine.host.journal.pending_old(InputKey::LocalFeature(
+            nodes[2],
+            LocalFeatureKey::Class(StyleAtomID(200))
+        )),
+        Some(InputValue::Feature(FeatureValue::Absent))
+    );
+}
+
+#[test]
+fn a_read_only_record_demand_leaves_the_match_state_as_it_was() {
+    let (mut engine, nodes) = linear_document();
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    discard_transaction(&mut engine);
+    let retained_answers = engine.retained_match_answers.column.clone();
+    let retained_cascade_inputs = engine.retained_match_answers.cascade_input_column.clone();
+    let winner_generation = engine.winner_groups.generation();
+    let published_count = engine.published_match_answers.entries.len();
+
+    // An engine no document hosts computes no records: the demand matches, then declines.
+    let demand = bridge::FfiRecordDemand {
+        targeted: false,
+        read_only: true,
+    };
+    assert!(engine.answer_record_demand(nodes[1], demand).is_err());
+    assert_eq!(engine.retained_match_answers.column, retained_answers);
+    assert_eq!(
+        engine.retained_match_answers.cascade_input_column,
+        retained_cascade_inputs
+    );
+    assert_eq!(engine.winner_groups.generation(), winner_generation);
+    assert_eq!(engine.published_match_answers.entries.len(), published_count);
+    assert!(engine.batch_matching_traversal.is_none());
+    assert!(engine.demand_records.is_empty());
+}
+
 /// Builds `root -> outer -> inner -> target`.
 fn attach_shadow_tree(
     engine: &mut StyleEngine,

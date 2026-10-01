@@ -3249,6 +3249,61 @@ pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
     })
 }
 
+/// What a read of one element's style the host makes before the next style update asks of the
+/// engine; see `StyleEngineState::answer_record_demand`.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiRecordDemand {
+    /// Drive the record in full against the parent as it is now.
+    pub targeted: bool,
+    /// Leave the engine as it was: the record is only for the host to read.
+    pub read_only: bool,
+}
+
+/// Answer a read of one element's style the host makes before the next style update. A zero
+/// `style_record` leaves the read to C++.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_answer_record_demand(
+    engine: *mut c_void,
+    node: u32,
+    demand: FfiRecordDemand,
+) -> FfiEngineComputedRecord {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        let Some(style_node) = StyleNodeID::from_raw(node) else {
+            return FfiEngineComputedRecord::default();
+        };
+        let result = match engine.answer_record_demand(style_node, demand) {
+            Ok(answer) => FfiEngineComputedRecord {
+                style_record: answer.record.style_record,
+                uses_substitution: answer.uses_substitution,
+                // A read-only answer is the host's to read, never to install.
+                record_reads: if answer.record.style_record != 0 && !demand.read_only {
+                    engine.node_record_reads(style_node)
+                } else {
+                    0
+                },
+                explicitly_inherited_groups: answer.record.explicitly_inherited_groups,
+                pseudo_records_present: answer.record.pseudo_records_present,
+                pseudo_records: answer.record.pseudo_records,
+            },
+            Err(_) => FfiEngineComputedRecord::default(),
+        };
+        engine.record_boundary_call(EventKind::AnswerRecordDemand, |payload| {
+            payload.write_u32(node);
+            payload.write_bool(demand.targeted);
+            payload.write_bool(demand.read_only);
+            payload.write_u64(result.style_record);
+            payload.write_bool(result.uses_substitution);
+            payload.write_u8(result.pseudo_records_present);
+        });
+        result
+    })
+}
+
 /// Settle the synthetic pseudo-element records of an element whose record C++ has just installed.
 /// A zero `style_record` leaves them to C++.
 ///

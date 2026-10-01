@@ -1471,6 +1471,7 @@ impl StyleEngineState {
                 pending_element_style_computation_selections: HashMap::default(),
                 pending_pseudo_style_computation_selections: HashMap::default(),
                 engine_computed_records_pending: HashMap::default(),
+                demand_records: HashMap::default(),
                 flush_stamp: 0,
                 style_input_nodes_for_cpp: HashSet::default(),
                 parent_inputs_moved_nodes: HashSet::default(),
@@ -2951,6 +2952,7 @@ impl RetainedState {
             // Settled or reverted when the transaction's outputs are discarded, before identities are
             // released.
             engine_computed_records_pending: _,
+            demand_records,
             flush_stamp: _,
             // Taken by the transaction that fills them.
             style_input_nodes_for_cpp: _,
@@ -3033,6 +3035,13 @@ impl RetainedState {
         container_gates_unheld.remove(&node);
         container_query_inputs.clear(node);
         layout_style_snapshots.remove(&node);
+        demand_records.retain(|target, record| {
+            let retired = target.node() == node;
+            if retired {
+                computed_group_sets.unpin_style_record(record.raw());
+            }
+            !retired
+        });
         size_container_queries.retire(node);
         held_style_records.remove(&node);
         host_var_reads.remove(&node);

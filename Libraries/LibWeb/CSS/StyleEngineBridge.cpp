@@ -274,6 +274,11 @@ StyleEngineFFI::FfiEngineComputedRecord StyleEngine::retry_engine_record_after_a
     return StyleEngineFFI::style_engine_retry_engine_record_after_ancestor(m_impl, node.value());
 }
 
+StyleEngineFFI::FfiEngineComputedRecord StyleEngine::answer_record_demand(StyleNodeID node, RecordDemand demand)
+{
+    return StyleEngineFFI::style_engine_answer_record_demand(m_impl, node.value(), { .targeted = demand.targeted, .read_only = demand.read_only });
+}
+
 StyleEngineFFI::FfiEngineComputedRecord StyleEngine::settle_pseudo_records_after_host_record(StyleNodeID node, bool old_is_list_item)
 {
     return StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(m_impl, node.value(), old_is_list_item);

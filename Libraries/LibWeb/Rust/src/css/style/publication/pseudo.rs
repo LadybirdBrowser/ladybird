@@ -11,15 +11,17 @@ impl RetainedState {
     /// predates it, is missing, or predates the rules that flipped for its kind: settling then
     /// reads a current row for every kind it generates. The kinds are those the answer has rules
     /// for that the engine settles, less a deferred kind, a backdrop outside the top layer and a
-    /// marker no list item generates, which generate no box whatever their rows say.
+    /// marker no list item generates, which generate no box whatever their rows say. A row a drive
+    /// without the leave to republish would have to refresh leaves the settlement to the host.
     fn refresh_pseudo_winner_rows(
         &mut self,
         node: StyleNodeID,
         new_is_list_item: bool,
         old_is_list_item: bool,
         flipped_pseudo_rules: u64,
+        republication: Option<WinnerRepublication>,
         counters: &mut Counters,
-    ) {
+    ) -> Drive<()> {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
         let mut required = self.pseudo_style_mask_or_rematch(node, counters)
@@ -57,18 +59,20 @@ impl RetainedState {
             }
         }
         if required == 0 {
-            return;
+            return Ok(());
         }
+        let republication = republication.or_refused()?;
         // The element row may already be compared with the record derived from it in this flush:
         // keep it and publish only the pseudo rows. An evicted answer is matched again.
         let republished = self.current_winner_groups().row_stamp(node) == Some(self.flush_stamp)
             && self
-                .republish_pseudo_winners_from_retained_answer(node, counters)
+                .republish_pseudo_winners_from_retained_answer(node, republication, counters)
                 .is_some();
         if !republished {
-            let rematched = self.republish_winners_from_answer(node, counters);
+            let rematched = self.republish_winners_from_answer(node, republication, counters);
             debug_assert!(rematched.is_some(), "a settled node's pseudo winners republish");
         }
+        Ok(())
     }
 
     /// Settle the synthetic pseudo-elements of an element the engine derived a record for, the
@@ -126,8 +130,9 @@ impl RetainedState {
             new_is_list_item,
             old_is_list_item,
             scratch.flipped_pseudo_rules,
+            scratch.winner_republication(),
             counters,
-        );
+        )?;
         let program_version = self.program.version();
         // A row still stale after the refresh is one of a kind that generates no box, or one whose
         // rules the cascade could not order, which is checked where the kind is settled.
@@ -908,7 +913,8 @@ impl RetainedState {
             let winners_are_complete = if self.holds_pseudo_match_answer(node) {
                 self.pseudo_winners_are_complete(node)
             } else {
-                self.republish_winners_from_answer(node, counters) == Some(true)
+                let republication = scratch.winner_republication().or_refused()?;
+                self.republish_winners_from_answer(node, republication, counters) == Some(true)
             };
             if !winners_are_complete {
                 counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
