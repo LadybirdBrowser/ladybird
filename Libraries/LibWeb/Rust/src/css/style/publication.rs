@@ -344,7 +344,9 @@ impl RetainedState {
         {
             match unanswered {
                 Unanswered::Suspended(_) => scratch.pending_element = Some(delta),
-                Unanswered::Refused => self.abandon_engine_computed_record(node, scratch, counters),
+                Unanswered::Refused | Unanswered::AwaitsParent => {
+                    self.abandon_engine_computed_record(node, scratch, counters);
+                }
             }
             return Err(unanswered);
         }
@@ -487,7 +489,7 @@ impl RetainedState {
                         self.computed_group_sets.custom_property_environment_identity(parent)
                     else {
                         counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                        return Err(Unanswered::Refused);
+                        return Err(Unanswered::AwaitsParent);
                     };
                     parent_environment
                 }
@@ -1005,7 +1007,7 @@ impl RetainedState {
                 Some(parent_record) => Some(parent_record),
                 None => {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                    return Err(Unanswered::Refused);
+                    return Err(Unanswered::AwaitsParent);
                 }
             },
             None => None,
@@ -1016,7 +1018,7 @@ impl RetainedState {
             self.computed_group_sets.custom_property_environment_identity(parent)
         }) else {
             counters.bump(Counter::EngineComputedRecordBailRecordParent);
-            return Err(Unanswered::Refused);
+            return Err(Unanswered::AwaitsParent);
         };
         let Some(pseudo_styles) = self.pseudo_style_mask(node) else {
             counters.bump(Counter::EngineComputedRecordBailWinner);
@@ -1551,7 +1553,7 @@ impl RetainedState {
                     // A pseudo-element the engine cannot settle sends the element to C++.
                     match unanswered {
                         Unanswered::Suspended(_) => scratch.pending_element = Some((old_record, record)),
-                        Unanswered::Refused => {
+                        Unanswered::Refused | Unanswered::AwaitsParent => {
                             counters.bump(Counter::RetryAfterAncestorPseudoAbandons);
                             self.abandon_engine_computed_record(node, scratch, counters);
                         }
@@ -4799,7 +4801,7 @@ impl StyleEngineState {
                     }
                     return record;
                 }
-                Err(Unanswered::Refused) => return 0,
+                Err(Unanswered::Refused | Unanswered::AwaitsParent) => return 0,
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
                     suspended_memory.resize_required_to(&mut self.memory, scratch.font_drive.capacity_bytes());
