@@ -1737,6 +1737,8 @@ void record_stylesheet_rules_replaced(StyleSheetState& sheet)
 void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_shadow_root, StyleSheetState* before)
 {
     document_or_shadow_root.document().flush_deferred_style_change_event();
+    // The attachment may compile the sheet's rules into a shared snapshot, whose native sheet they then name.
+    document_or_shadow_root.document().note_style_sheet_set_change();
     publish_document_kind(document_or_shadow_root.document());
     auto& style_computer = document_or_shadow_root.document().style_computer();
     auto& style_engine = style_computer.style_engine();
@@ -1935,6 +1937,7 @@ void record_stylesheet_conditions(StyleSheetState& sheet, DOM::Node& document_or
 void record_stylesheet_detached(StyleSheetState& sheet, DOM::Node& document_or_shadow_root)
 {
     document_or_shadow_root.document().flush_deferred_style_change_event();
+    document_or_shadow_root.document().note_style_sheet_set_change();
     auto& style_computer = document_or_shadow_root.document().style_computer();
     auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
     if (sheet_id == 0)

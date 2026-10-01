@@ -1243,6 +1243,11 @@ public:
     [[nodiscard]] bool has_active_resize_observations();
     [[nodiscard]] bool has_skipped_resize_observations();
 
+    // Moves on whenever a style sheet may have come or gone for the document or one of its shadow roots, as with a
+    // scope's rule cache or the document's shadow roots.
+    u64 style_sheet_set_generation() const { return m_style_sheet_set_generation; }
+    void note_style_sheet_set_change() { ++m_style_sheet_set_generation; }
+
     void register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     template<typename Callback>
@@ -1995,6 +2000,7 @@ private:
     // Document should not visit ShadowRoot list to avoid leaks.
     // It's responsibility of object that allocated ShadowRoot to keep it alive.
     ShadowRoot::DocumentShadowRootList m_shadow_roots;
+    u64 m_style_sheet_set_generation { 0 };
 
     Optional<Utf16String> m_content_blocker_style_sheet;
     // Class/id tokens already covered by the cached content blocker stylesheet.

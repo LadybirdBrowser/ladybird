@@ -9,10 +9,16 @@
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontResolution.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
+#include <LibWeb/CSS/SharedCompiledStyleSheet.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/CSS/StyleSheetImport.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/StyleValueRustFFI.h>
 
@@ -603,12 +609,95 @@ void StyleEngine::discard_style_transaction_outputs()
     StyleEngineFFI::style_engine_discard_style_transaction_outputs(m_impl);
 }
 
+namespace {
+
+struct StyleSheetResourceContextCollection {
+    GC::Ref<DOM::Document> document;
+    // The base URL of the document's sheets that have neither a base URL nor a location of their
+    // own, which StyleSheetState::style_resource_base_url() resolves against the document.
+    String const& document_api_base_url;
+    HashTable<StyleSheetState const*> collected {};
+    Vector<CollectedStyleSheetResourceContext> contexts {};
+};
+
+Optional<String> style_resource_base_url(StyleSheetState const& sheet, StyleSheetResourceContextCollection const& collection)
+{
+    if (!sheet.base_url().has_value() && !sheet.location().has_value() && sheet.owning_document() == collection.document)
+        return collection.document_api_base_url;
+    if (auto base_url = sheet.style_resource_base_url(); base_url.has_value())
+        return base_url->to_string();
+    return {};
+}
+
+void collect_style_sheet_resource_context(StyleSheetState& sheet, StyleSheetResourceContextCollection& collection)
+{
+    // A sheet's context is its own, whichever scope reaches it: a constructed sheet adopted by many
+    // shadow roots is collected once.
+    if (collection.collected.set(&sheet) != AK::HashSetResult::InsertedNewEntry)
+        return;
+    auto base_url = style_resource_base_url(sheet, collection);
+    collection.contexts.append({
+        .source_identity = sheet.native_sheet().identity(),
+        .base_url = base_url.value_or(String {}),
+        .has_base_url = base_url.has_value(),
+        .origin_clean = sheet.is_origin_clean(),
+    });
+    for (auto const& import : sheet.import_rules()) {
+        if (auto* imported = import->loaded_style_sheet())
+            collect_style_sheet_resource_context(*imported, collection);
+    }
+    // A sheet whose rules are compiled from a shared snapshot has those rules name the snapshot's
+    // native sheet, which shares the sheet's base URL.
+    if (auto* shared = sheet.shared_compiled_style_sheet(); shared && &shared->contents() != &sheet)
+        collect_style_sheet_resource_context(shared->contents(), collection);
+}
+
+Vector<CollectedStyleSheetResourceContext> collect_style_sheet_resource_contexts(DOM::Document& document, String const& document_api_base_url)
+{
+    StyleSheetResourceContextCollection collection { .document = document, .document_api_base_url = document_api_base_url };
+    Function<void(StyleSheetState&)> collect = [&](StyleSheetState& sheet) { collect_style_sheet_resource_context(sheet, collection); };
+    for (auto origin : { CascadeOrigin::UserAgent, CascadeOrigin::User, CascadeOrigin::Author })
+        document.style_scope().for_each_stylesheet(origin, collect);
+    document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
+        shadow_root.style_scope().for_each_stylesheet(CascadeOrigin::Author, collect);
+    });
+    return move(collection.contexts);
+}
+
+}
+
 StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(StyleNodeID root)
 {
     auto submission_started_at = MonotonicTime::now();
     submit_recorded_input();
     StyleEngineFFI::FfiDocumentStyleComputationInputs computation_inputs {};
+    // Lent to the engine for the call below, which copies them.
+    String document_base_url;
+    Vector<StyleEngineFFI::FfiStyleSheetResourceContextEntry> resource_contexts;
     if (m_style_computer) {
+        auto& document = m_style_computer->document();
+        document_base_url = document.serialized_base_url();
+        auto document_api_base_url = HTML::relevant_settings_object(document).api_base_url().to_string();
+        if (!m_style_sheet_resource_contexts.has_value()
+            || m_style_sheet_resource_contexts->style_sheet_set_generation != document.style_sheet_set_generation()
+            || m_style_sheet_resource_contexts->document_api_base_url != document_api_base_url) {
+            m_style_sheet_resource_contexts = StyleSheetResourceContexts {
+                .contexts = collect_style_sheet_resource_contexts(document, document_api_base_url),
+                .style_sheet_set_generation = document.style_sheet_set_generation(),
+                .document_api_base_url = move(document_api_base_url),
+            };
+        }
+        auto const& collected_resource_contexts = m_style_sheet_resource_contexts->contexts;
+        resource_contexts.ensure_capacity(collected_resource_contexts.size());
+        for (auto const& context : collected_resource_contexts) {
+            resource_contexts.unchecked_append({
+                .source_identity = context.source_identity,
+                .base_url = context.base_url.bytes().data(),
+                .base_url_length = context.base_url.bytes().size(),
+                .has_base_url = context.has_base_url,
+                .origin_clean = context.origin_clean,
+            });
+        }
         auto const viewport_rect = m_style_computer->viewport_rect_for_style_environment();
         auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
         auto const& initial_font = m_style_computer->document().font_computer().initial_font();
@@ -637,6 +726,10 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
             .document_supported_scheme_codes = {},
             .custom_property_registry = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(m_style_computer->document().rust_custom_property_registry()),
             .custom_property_registration_generation = m_style_computer->document().custom_property_registration_generation(),
+            .document_base_url = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(document_base_url.bytes().data()),
+            .document_base_url_length = document_base_url.bytes().size(),
+            .style_sheet_resource_contexts = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(resource_contexts.data()),
+            .style_sheet_resource_context_count = resource_contexts.size(),
         };
         if (auto supported = m_style_computer->document().supported_color_schemes(); supported.has_value()) {
             computation_inputs.has_document_supported_schemes = true;

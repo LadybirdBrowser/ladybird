@@ -165,26 +165,75 @@ impl WinnerView<'_> {
     }
 }
 
+impl WinnerStore {
+    /// The resource context of each declaration, in cascade order, as the drive reads a winner's
+    /// source slot. Empty, and no allocation, when no declaration may read one.
+    pub(super) fn drive_resource_contexts(
+        &self,
+        engine: &RetainedState,
+    ) -> Vec<crate::css::style_compute::FfiStyleSheetResourceContext> {
+        let view = self.view(engine);
+        if !self
+            .declarations
+            .iter()
+            .any(|declaration| view.dependencies(declaration).may_need_style_sheet_resource_context)
+        {
+            return Vec::new();
+        }
+        self.declarations
+            .iter()
+            .map(|declaration| {
+                view.resource_context(declaration).map_or(
+                    crate::css::style_compute::FfiStyleSheetResourceContext::empty(),
+                    |context| context.as_drive_context(),
+                )
+            })
+            .collect()
+    }
+}
+
+impl<'a> WinnerView<'a> {
+    fn dependencies(&self, declaration: &WinnerDeclaration) -> ExternalValueDependencies {
+        let memoized = declaration.dependencies.load(Ordering::Relaxed);
+        if memoized & DEPENDENCIES_COMPUTED != 0 {
+            return unpack_dependencies(memoized);
+        }
+        let dependencies = external_value_dependencies(self.value(declaration));
+        declaration
+            .dependencies
+            .store(pack_dependencies(dependencies), Ordering::Relaxed);
+        dependencies
+    }
+
+    /// The resource context of the sheet a written rule declaration came from. An element's own
+    /// declarations resolve against the document's base URL, as they do in the host's cascade.
+    fn resource_context(
+        &self,
+        declaration: &WinnerDeclaration,
+    ) -> Option<&'a super::resource_contexts::StyleSheetResourceContext> {
+        let WinnerValue::Written {
+            source: WinnerSource::Rule(rule),
+            ..
+        } = declaration.value
+        else {
+            return None;
+        };
+        let engine: &'a RetainedState = self.engine;
+        engine
+            .document_resource_contexts
+            .for_source(engine.rule_source_identity(rule)?)
+    }
+}
+
 impl CascadedValues for WinnerView<'_> {
     fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration> {
         let (index, declaration) = self.store.declaration(property)?;
-        let value = self.value(declaration);
-        let memoized = declaration.dependencies.load(Ordering::Relaxed);
-        let dependencies = if memoized & DEPENDENCIES_COMPUTED == 0 {
-            let dependencies = external_value_dependencies(value);
-            declaration
-                .dependencies
-                .store(pack_dependencies(dependencies), Ordering::Relaxed);
-            dependencies
-        } else {
-            unpack_dependencies(memoized)
-        };
         Some((
-            std::ptr::from_ref(value).cast(),
+            std::ptr::from_ref(self.value(declaration)).cast(),
             declaration.important,
             u32::try_from(index).unwrap(),
-            false,
-            dependencies,
+            self.resource_context(declaration).is_some(),
+            self.dependencies(declaration),
         ))
     }
 

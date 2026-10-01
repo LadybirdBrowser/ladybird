@@ -92,6 +92,7 @@ mod program_updates;
 mod publication;
 #[cfg(feature = "style-recording")]
 pub mod record_replay;
+mod resource_contexts;
 mod routing;
 mod sorted_merge;
 mod style_invalidation;
@@ -812,6 +813,8 @@ pub struct RetainedState {
     /// Latest document-wide scalar computation facts, copied at the transaction boundary. The host
     /// publishes them with every transaction, before it asks for any row.
     document_style_computation_inputs: bridge::FfiDocumentStyleComputationInputs,
+    /// The base URLs a `url()` resolves against, copied at the transaction boundary with the inputs.
+    document_resource_contexts: resource_contexts::DocumentResourceContexts,
     /// Every font resolution this document has been given. An evaluation step reads it; only a
     /// host round between passes adds to it.
     font_resolution: Option<font_resolution::FontResolutionCache>,
