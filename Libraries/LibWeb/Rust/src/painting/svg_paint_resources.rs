@@ -6,7 +6,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::css::computed_value_types::ComputedResolvedTransform;
 use crate::layout::node_data::NodeSlotId;
@@ -65,14 +65,14 @@ pub(crate) struct PublishedSvgFilter {
 #[derive(Default)]
 struct SvgPaintResourceRow {
     enrolled_kinds: u8,
-    filter: Option<Rc<PublishedSvgFilter>>,
-    backdrop_filter: Option<Rc<PublishedSvgFilter>>,
-    fill: Option<Rc<PublishedSvgPaintServer>>,
-    stroke: Option<Rc<PublishedSvgPaintServer>>,
+    filter: Option<Arc<PublishedSvgFilter>>,
+    backdrop_filter: Option<Arc<PublishedSvgFilter>>,
+    fill: Option<Arc<PublishedSvgPaintServer>>,
+    stroke: Option<Arc<PublishedSvgPaintServer>>,
 }
 
 impl SvgPaintResourceRow {
-    fn published_filter(&self, kind: SvgPaintResourceKind) -> Option<Rc<PublishedSvgFilter>> {
+    fn published_filter(&self, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgFilter>> {
         match kind {
             SvgPaintResourceKind::Filter => self.filter.clone(),
             SvgPaintResourceKind::BackdropFilter => self.backdrop_filter.clone(),
@@ -80,7 +80,7 @@ impl SvgPaintResourceRow {
         }
     }
 
-    fn published_paint_server(&self, kind: SvgPaintResourceKind) -> Option<Rc<PublishedSvgPaintServer>> {
+    fn published_paint_server(&self, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgPaintServer>> {
         match kind {
             SvgPaintResourceKind::Fill => self.fill.clone(),
             SvgPaintResourceKind::Stroke => self.stroke.clone(),
@@ -88,7 +88,7 @@ impl SvgPaintResourceRow {
         }
     }
 
-    fn filter_entry(&mut self, kind: SvgPaintResourceKind) -> &mut Option<Rc<PublishedSvgFilter>> {
+    fn filter_entry(&mut self, kind: SvgPaintResourceKind) -> &mut Option<Arc<PublishedSvgFilter>> {
         match kind {
             SvgPaintResourceKind::Filter => &mut self.filter,
             SvgPaintResourceKind::BackdropFilter => &mut self.backdrop_filter,
@@ -96,7 +96,7 @@ impl SvgPaintResourceRow {
         }
     }
 
-    fn paint_server_entry(&mut self, kind: SvgPaintResourceKind) -> &mut Option<Rc<PublishedSvgPaintServer>> {
+    fn paint_server_entry(&mut self, kind: SvgPaintResourceKind) -> &mut Option<Arc<PublishedSvgPaintServer>> {
         match kind {
             SvgPaintResourceKind::Fill => &mut self.fill,
             SvgPaintResourceKind::Stroke => &mut self.stroke,
@@ -117,11 +117,11 @@ impl SvgPaintResourceRow {
     }
 }
 
-fn publish<T: PartialEq>(entry: &mut Option<Rc<T>>, value: T) -> bool {
+fn publish<T: PartialEq>(entry: &mut Option<Arc<T>>, value: T) -> bool {
     if entry.as_ref().is_some_and(|previous| **previous == value) {
         return false;
     }
-    *entry = Some(Rc::new(value));
+    *entry = Some(Arc::new(value));
     true
 }
 
@@ -193,7 +193,7 @@ impl SvgPaintResources {
         &self,
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
-    ) -> Option<Rc<PublishedSvgFilter>> {
+    ) -> Option<Arc<PublishedSvgFilter>> {
         self.rows.borrow().get(&slot)?.published_filter(kind)
     }
 
@@ -220,7 +220,7 @@ impl SvgPaintResources {
         &self,
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
-    ) -> Option<Rc<PublishedSvgPaintServer>> {
+    ) -> Option<Arc<PublishedSvgPaintServer>> {
         self.rows.borrow().get(&slot)?.published_paint_server(kind)
     }
 

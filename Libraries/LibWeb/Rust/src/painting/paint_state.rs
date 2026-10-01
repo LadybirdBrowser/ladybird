@@ -5,7 +5,7 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub(crate) struct PendingRecording {
     pub(crate) recording: crate::painting::record::RecordingResult,
@@ -26,9 +26,9 @@ pub struct PaintState {
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
     pub(crate) root_background_source: Option<crate::painting::host::FfiRootBackgroundSource>,
     pub(crate) hit_test_list_generation: u64,
-    pub(crate) last_recording: Option<Rc<crate::painting::record::RecordingOutput>>,
-    pub(crate) published_frame: Option<Rc<crate::painting::record::RecordingOutput>>,
-    pub(crate) published_hit_test_items: Option<Rc<crate::painting::record::PublishedHitTestItems>>,
+    pub(crate) last_recording: Option<Arc<crate::painting::record::RecordingOutput>>,
+    pub(crate) published_frame: Option<Arc<crate::painting::record::RecordingOutput>>,
+    pub(crate) published_hit_test_items: Option<Arc<crate::painting::record::PublishedHitTestItems>>,
     // The paint-order tree describing the published frame; a recording appends to it and
     // publication or discarding decides what stays.
     pub(crate) paint_order_tree: std::cell::RefCell<crate::painting::record::order_tree::PaintOrderTree>,

@@ -40,7 +40,6 @@ use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::frame_inputs::FrameInputs;
 use crate::painting::record::svg_resources::SvgResourceWalk;
-use std::rc::Rc;
 use std::sync::Arc;
 
 pub(crate) use inputs::RecordingInputs;
@@ -106,8 +105,8 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) svg_resource_walk: Option<SvgResourceWalk>,
     pub(crate) viewport: NodeSlotId,
     // The published frame whose clean output this recording copies, when its inputs match.
-    pub(crate) source_frame: Option<Rc<RecordingOutput>>,
-    pub(crate) source_items: Option<Rc<PublishedHitTestItems>>,
+    pub(crate) source_frame: Option<Arc<RecordingOutput>>,
+    pub(crate) source_items: Option<Arc<PublishedHitTestItems>>,
     // Set while a producer records output that must record again every frame.
     live_producer: bool,
     // The verification recording plans from current style instead of the prepared per-row
