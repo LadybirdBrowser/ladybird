@@ -51,6 +51,7 @@
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/CompositorFontServiceConnection.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/CrashReportStore.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/FontService.h>
 #include <LibWebView/HSTSStore.h>
@@ -2145,6 +2146,16 @@ void Application::process_did_exit(Process&& process, Optional<int>)
     case ProcessType::WebContent:
         if (auto client = process.client<WebContentClient>()) {
             client->did_lose_process();
+            if (auto const& report_name = process.saved_crash_report_name(); !report_name.is_empty()) {
+                client->did_save_crash_report(report_name);
+
+                // The tab's crash screen is this report's one automatic prompt, so the next launch does not ask about
+                // it again. Other helpers have no crash screen and stay unanswered until then.
+                if (client->has_crashed_views() && !browser_options().headless_mode.has_value()) {
+                    if (auto result = CrashReportStore::the().mark_seen(report_name); result.is_error())
+                        warnln("Could not mark crash report as seen: {}", result.error());
+                }
+            }
             m_web_content_clients.remove(client.release_nonnull());
         }
         break;

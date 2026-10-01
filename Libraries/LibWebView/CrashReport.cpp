@@ -225,7 +225,8 @@ ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path, Optiona
         builder.append("Unavailable: the process exited without a captured native stack.\n"sv);
     builder.append("\nStacks may be partial.\n"sv);
 
-    return CrashReportStore { path }.store_report(m_process_type, builder.string_view(), crashed_time);
+    m_saved_name = TRY(CrashReportStore { path }.store_report(m_process_type, builder.string_view(), crashed_time));
+    return {};
 }
 
 #else

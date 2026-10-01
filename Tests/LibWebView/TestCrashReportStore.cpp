@@ -65,17 +65,15 @@ static Vector<ByteString> directory_entries(StringView subdirectory = {})
     return names;
 }
 
-TEST_CASE(a_stored_report_has_a_recognized_name_and_the_expected_contents)
+TEST_CASE(a_stored_report_is_named_after_the_time_of_the_crash)
 {
     cleanup();
     ScopeGuard guard = cleanup;
 
     auto crashed_at = UnixDateTime::from_seconds_since_epoch(1772000767);
-    MUST(test_store().store_report(WebView::ProcessType::WebContent, "A report\n"sv, crashed_at));
-    auto entries = directory_entries();
-    EXPECT_EQ(entries.size(), 1u);
-    auto const& name = entries[0];
+    auto name = MUST(test_store().store_report(WebView::ProcessType::WebContent, "A report\n"sv, crashed_at));
     EXPECT(name.starts_with("2026-02-25T06-26-07Z-WebContent-"sv));
+    EXPECT(name.ends_with(".txt"sv));
     EXPECT(WebView::CrashReportStore::is_saved_report_name(name));
 
     auto directory = MUST(Core::Directory::create(test_directory(), Core::Directory::CreateDirectories::No));
@@ -188,14 +186,7 @@ TEST_CASE(retention_only_drops_the_oldest_seen_reports)
     auto directory = MUST(Core::Directory::create(test_directory(), Core::Directory::CreateDirectories::Yes));
     auto store_report_modified_at = [&](u32 index, time_t modified) {
         auto crashed_at = UnixDateTime::from_seconds_since_epoch(1772000000 + index);
-        auto before = directory_entries();
-        MUST(store.store_report(WebView::ProcessType::WebContent, "A report\n"sv, crashed_at));
-        ByteString name;
-        for (auto const& entry : directory_entries()) {
-            if (!before.contains_slow(entry))
-                name = entry;
-        }
-        VERIFY(!name.is_empty());
+        auto name = MUST(store.store_report(WebView::ProcessType::WebContent, "A report\n"sv, crashed_at));
         timespec times[2] { { modified, 0 }, { modified, 0 } };
         auto file = MUST(directory.open(name, Core::File::OpenMode::Read));
         VERIFY(futimens(file->fd(), times) == 0);

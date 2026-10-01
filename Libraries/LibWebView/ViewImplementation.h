@@ -151,10 +151,9 @@ public:
     void cancel_uncommitted_top_level_navigation_for_browser_traversal();
 
     bool crash_overlay_active() const { return m_crash_state.has_value(); }
-    static constexpr StringView crash_overlay_title() { return "Ladybird flew off-course!"sv; }
-    static constexpr StringView crash_overlay_message() { return "The web page has crashed.\nYou can reload the page to try again."sv; }
-    static constexpr StringView crash_overlay_reload_button_text() { return "Reload Page"sv; }
     String crash_overlay_failed_url() const;
+    Optional<ByteString> crash_report_name() const;
+    Optional<String> crash_report_website() const;
 
     struct SessionHistoryTraversalMenuItem {
         i32 step { 0 };
@@ -499,6 +498,7 @@ public:
     };
     Function<void(WebContentCrashReason)> on_web_content_crashed;
     Function<void(bool)> on_crash_overlay_state_change;
+    Function<void()> on_crash_report_saved;
     Function<void()> on_web_content_process_change_for_cross_site_navigation;
 
     Menu& page_context_menu() { return *m_page_context_menu; }
@@ -619,6 +619,7 @@ protected:
 
     struct CrashState;
     void handle_web_content_process_crash();
+    void did_save_crash_report(ByteString report_name);
     void respawn_web_content_process_after_crash();
     void prepare_for_navigation_after_crash(Optional<NavigationToRetry> navigation_to_retry = {});
     void set_crash_state(Optional<CrashState>);
@@ -674,6 +675,7 @@ protected:
         URL::URL failed_url;
         Optional<NavigationToRetry> navigation_to_retry;
         bool recovery_started { false };
+        ByteString report_name {};
     };
     Optional<CrashState> m_crash_state;
 

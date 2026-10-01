@@ -13,6 +13,7 @@
 #include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
+#include <UI/Qt/CrashReportDialog.h>
 #if defined(LADYBIRD_QT_HAVE_POSITIONING)
 #    include <UI/Qt/GeolocationProviderQt.h>
 #endif
@@ -139,6 +140,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
         auto& window = app->new_window(browser_options.urls, configuration);
         window.setWindowTitle("Ladybird");
+
+        if (!browser_options.webdriver_browser_endpoint.has_value())
+            Ladybird::CrashReportDialog::open_if_needed(window);
     }
 
     return app->execute();

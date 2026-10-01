@@ -60,6 +60,20 @@ function(deploy_qt_offscreen_platform_plugin target)
     )
 endfunction()
 
+# Crash reports are only saved on macOS and Linux.
+if (APPLE OR LINUX)
+    ladybird_test("TestCrashReportReviewWidget.cpp" UI/Qt
+        CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
+        LIBS LibFileSystem LibURL LibWebView Qt::Core Qt::Gui Qt::Widgets
+    )
+    target_sources(TestCrashReportReviewWidget PRIVATE
+        "${LADYBIRD_SOURCE_DIR}/UI/Qt/ChromeStyle.cpp"
+        "${LADYBIRD_SOURCE_DIR}/UI/Qt/CrashReportReviewWidget.cpp"
+        "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
+    )
+    deploy_qt_offscreen_platform_plugin(TestCrashReportReviewWidget)
+endif()
+
 ladybird_test("TestHiddenPageSizing.cpp" UI/Qt
     CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
     LIBS Qt::Core Qt::Gui Qt::Widgets

@@ -179,6 +179,13 @@ if (BUILD_TESTING AND NOT WIN32)
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-crash-report.py $<TARGET_FILE:WebDriver>
         )
         set_tests_properties(TestWebDriverCrashReport PROPERTIES TIMEOUT 120)
+        add_test(
+            NAME TestWebDriverBrowserCrashRecovery
+            COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-browser-crash-recovery.py
+                $<TARGET_FILE:WebDriver>
+        )
+        set_tests_properties(TestWebDriverBrowserCrashRecovery PROPERTIES TIMEOUT 120)
         set(crash_report_helpers WebWorker RequestServer ImageDecoder Compositor)
         if (ENABLE_CRANELIFT_JIT)
             list(APPEND crash_report_helpers WasmCompiler)

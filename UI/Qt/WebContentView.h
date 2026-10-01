@@ -44,7 +44,9 @@
 #endif
 
 class QKeyEvent;
+class QLabel;
 class QPushButton;
+class QShortcut;
 class QSinglePointEvent;
 class QCursor;
 
@@ -67,6 +69,7 @@ using WebContentViewBase = QWidget;
 #endif
 
 class CrashOverlayUrlLabel;
+class CrashReportReviewWidget;
 class SelectDropdown;
 
 struct WebContentViewInitialState {
@@ -185,6 +188,7 @@ private:
     void update_screen_rects(WebView::WebContentPage&);
 
     void set_crash_overlay_visible(bool);
+    void show_crash_report_review();
 
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;
@@ -201,7 +205,11 @@ private:
 
     QWidget* m_crash_overlay { nullptr };
     CrashOverlayUrlLabel* m_crash_overlay_url { nullptr };
+    QLabel* m_crash_overlay_message { nullptr };
     QPushButton* m_crash_overlay_reload_button { nullptr };
+    QShortcut* m_crash_overlay_reload_shortcut { nullptr };
+    QWidget* m_crash_report_container { nullptr };
+    CrashReportReviewWidget* m_crash_report_review { nullptr };
 
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     bool ensure_iosurface_layer_attached_to_native_view();
