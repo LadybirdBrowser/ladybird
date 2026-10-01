@@ -32,8 +32,10 @@ pub enum ReplacedContentInput {
     Input { size: u32, is_text_entry: bool },
     /// A `<canvas>`'s `width` and `height`, its natural size in CSS pixels.
     Canvas { width: u32, height: u32 },
-    /// The natural size of what an element has loaded, such as a video's.
+    /// The natural size of what an element has loaded, such as a video's or an image's.
     NaturalSize(NaturalSize),
+    /// The natural size of an SVG `<image>`'s image, which has decoded.
+    DecodedSvgImage(NaturalSize),
 }
 
 /// A natural width, height and aspect ratio, any of which can be missing, as raw fixed-point CSS
@@ -51,13 +53,14 @@ impl ReplacedContentInput {
     pub fn from_raw(kind: u8, present: u8, values: [u32; 4]) -> Self {
         use super::bridge::{FfiReplacedContentInputKind as Kind, FfiReplacedContentInputPresent as Present};
         let has = |value: Present| present & value as u8 != 0;
+        let natural_size = || NaturalSize {
+            width: has(Present::First).then_some(values[0].cast_signed()),
+            height: has(Present::Second).then_some(values[1].cast_signed()),
+            aspect_ratio: has(Present::ThirdAndFourth).then_some((values[2].cast_signed(), values[3].cast_signed())),
+        };
         match kind {
-            kind if kind == Kind::NaturalSize as u8 => Self::NaturalSize(NaturalSize {
-                width: has(Present::First).then_some(values[0].cast_signed()),
-                height: has(Present::Second).then_some(values[1].cast_signed()),
-                aspect_ratio: has(Present::ThirdAndFourth)
-                    .then_some((values[2].cast_signed(), values[3].cast_signed())),
-            }),
+            kind if kind == Kind::NaturalSize as u8 => Self::NaturalSize(natural_size()),
+            kind if kind == Kind::DecodedSvgImage as u8 => Self::DecodedSvgImage(natural_size()),
             kind if kind == Kind::TextArea as u8 => Self::TextArea {
                 cols: values[0],
                 rows: values[1],

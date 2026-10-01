@@ -44,22 +44,23 @@ fn style_has_size_containment(style: ComputedValuesView<'_>) -> bool {
 }
 
 /// Whether the node's replaced content facts still come from its layout node, because what it
-/// shows is not published: an image, an SVG image, an SVG root, or a navigable container.
-pub(crate) fn replaced_content_facts_need_host(data: &NodeData) -> bool {
-    match data.kind.get() {
-        // An SVG <image> reports its image's sizes whether or not it is size-contained.
-        NodeKind::SVGImageBox => true,
-        NodeKind::ImageBox | NodeKind::SVGSVGBox | NodeKind::NavigableContainerViewport => {
-            !node_style_view(data).is_some_and(style_has_size_containment)
-        }
+/// shows is not published: an image the box owns the provider of (`content: url(...)`), an SVG
+/// root, or a navigable container.
+pub(crate) fn replaced_content_facts_need_host(data: &NodeData, has_owned_image_provider: bool) -> bool {
+    let needs_host = match data.kind.get() {
+        NodeKind::ImageBox => has_owned_image_provider,
+        NodeKind::SVGSVGBox | NodeKind::NavigableContainerViewport => true,
         _ => false,
-    }
+    };
+    needs_host && !node_style_view(data).is_some_and(style_has_size_containment)
 }
 
 /// The replaced content facts of an enrolled node, from its kind, its computed style and what its
 /// element published as the input of its replaced content.
 pub(crate) fn derived_replaced_content_facts(data: &NodeData, input: ReplacedContentInput) -> FfiReplacedContentFacts {
-    debug_assert!(!replaced_content_facts_need_host(data));
+    if data.kind.get() == NodeKind::SVGImageBox {
+        return svg_image_facts(input);
+    }
     node_style_view(data).map_or_else(Default::default, |style| {
         replaced_content_facts(data.kind.get(), ReplacedContentStyle::of(style), input)
     })
@@ -140,13 +141,26 @@ impl ReplacedContentStyle {
     }
 }
 
-fn replaced_content_facts(
-    kind: NodeKind,
-    style: ReplacedContentStyle,
-    input: ReplacedContentInput,
-) -> FfiReplacedContentFacts {
+// An SVG <image> runs the default sizing algorithm over its own geometry, so it takes the natural size exactly as its
+// image reports it, absent rather than zero while nothing has decoded, together with the default object size that
+// applies once something has. Size containment does not apply to it.
+fn svg_image_facts(input: ReplacedContentInput) -> FfiReplacedContentFacts {
+    let (ReplacedContentInput::NaturalSize(natural_size) | ReplacedContentInput::DecodedSvgImage(natural_size)) = input
+    else {
+        panic!("an SVG image publishes its natural size as it arrives");
+    };
     let mut facts = FfiReplacedContentFacts::default();
-    let auto_content_size = auto_content_size(kind, style, input);
+    set_auto_content_size(&mut facts, AutoContentSize::natural(natural_size));
+    // The SVG formatting context reads the default object size as it is. It is no preferred size the
+    // sizing of an ordinary replaced box would take, so the flags that offer it as one stay clear.
+    if matches!(input, ReplacedContentInput::DecodedSvgImage(_)) {
+        facts.default_preferred_width = CssPixels::from_integer(300);
+        facts.default_preferred_height = CssPixels::from_integer(150);
+    }
+    facts
+}
+
+fn set_auto_content_size(facts: &mut FfiReplacedContentFacts, auto_content_size: AutoContentSize) {
     if let Some(width) = auto_content_size.width {
         facts.has_auto_content_width = true;
         facts.auto_content_width = width;
@@ -159,6 +173,15 @@ fn replaced_content_facts(
         facts.auto_content_aspect_ratio_numerator = numerator;
         facts.auto_content_aspect_ratio_denominator = denominator;
     }
+}
+
+fn replaced_content_facts(
+    kind: NodeKind,
+    style: ReplacedContentStyle,
+    input: ReplacedContentInput,
+) -> FfiReplacedContentFacts {
+    let mut facts = FfiReplacedContentFacts::default();
+    set_auto_content_size(&mut facts, auto_content_size(kind, style, input));
     if style.appearance_is_none
         && let ReplacedContentInput::Input {
             size,
@@ -241,6 +264,12 @@ fn auto_content_size(kind: NodeKind, style: ReplacedContentStyle, input: Replace
         NodeKind::VideoBox => {
             let ReplacedContentInput::NaturalSize(natural_size) = input else {
                 panic!("a video publishes its natural size as it arrives");
+            };
+            AutoContentSize::natural(natural_size)
+        }
+        NodeKind::ImageBox => {
+            let ReplacedContentInput::NaturalSize(natural_size) = input else {
+                panic!("an image box's element publishes its image's natural size as it arrives");
             };
             AutoContentSize::natural(natural_size)
         }

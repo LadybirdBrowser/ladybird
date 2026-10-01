@@ -1852,8 +1852,10 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value
 
     // 4. Fetch request, with processResponseEndOfBody set to the following steps given response response:
     m_resource_request = SharedResourceRequest::get_or_create(document(), request->url());
+    CSS::record_element_replaced_content_input(*this);
     m_resource_request->add_callbacks(
         [this]() {
+            CSS::record_element_replaced_content_input(*this);
             // 1. If the download was successful and the image is available, queue an element task on the user interaction
             //    task source given the input element to fire an event named load at the input element.
             queue_an_element_task(HTML::Task::Source::UserInteraction, [this]() {
@@ -1875,6 +1877,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value
             });
 
             m_load_event_delayer.clear();
+            CSS::record_element_replaced_content_input(*this);
 
             // NB: The element may have been rendering as blank space while the load was pending;
             //     now that the load failed it renders its alt text instead.

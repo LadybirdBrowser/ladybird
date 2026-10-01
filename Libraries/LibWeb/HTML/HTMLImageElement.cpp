@@ -131,6 +131,7 @@ static void reset_intrinsic_size_caches_after_image_data_change(Layout::Box& ima
 
 void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason reason)
 {
+    CSS::record_element_replaced_content_input(*this);
     update_alt_text_shadow_tree();
 
     auto layout_node = unsafe_layout_node();
@@ -1073,6 +1074,7 @@ after_step_7:
             unregister_with_decoded_image_data_if_needed();
             m_current_request = image_request;
             register_with_decoded_image_data_if_needed();
+            CSS::record_element_replaced_content_input(*this);
         } else {
             m_pending_request = image_request;
         }
@@ -1428,6 +1430,7 @@ void HTMLImageElement::upgrade_pending_request_to_current_request()
     unregister_with_decoded_image_data_if_needed();
     m_current_request = m_pending_request;
     register_with_decoded_image_data_if_needed();
+    CSS::record_element_replaced_content_input(*this);
 
     // 2. Set the img element's pending request to null.
     m_pending_request = nullptr;
@@ -1627,6 +1630,13 @@ GC::Ptr<DecodedImageData> HTMLImageElement::decoded_image_data() const
     if (!m_current_request)
         return nullptr;
     return m_current_request->image_data();
+}
+
+void HTMLImageElement::decoded_image_data_did_update()
+{
+    // An SVG image works out its natural size again after it redraws itself or changes color scheme.
+    CSS::record_element_replaced_content_input(*this);
+    image_provider_contents_changed();
 }
 
 bool HTMLImageElement::is_image_pending() const
