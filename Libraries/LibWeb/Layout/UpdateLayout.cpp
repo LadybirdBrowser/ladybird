@@ -102,6 +102,10 @@ void Document::update_style_and_layout_once(UpdateLayoutReason reason, Throttled
         && animation_sampling_scope == ThrottledAnimationSamplingScope::Document)
         flush_throttled_animation_style_update();
 
+    // Every mark the DOM side has made goes through before the update that reads them starts. Marks made from inside
+    // the update write through on their own.
+    drain_invalidation_journal();
+
     auto& arena = layout_node_arena();
     Layout::RustFFI::layout_arena_begin_update_layout(arena.handle());
     ScopeGuard guard = [&] {
