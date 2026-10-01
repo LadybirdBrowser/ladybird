@@ -109,6 +109,18 @@ impl RetainedState {
         }
     }
 
+    /// The custom-property environment of a node the drive reads as an inheritance parent, which
+    /// holds a record. Every record is assigned with its environment, so it holds one; should it
+    /// not, the row waits for the parent as for one without a record.
+    fn held_custom_property_environment(&self, node: StyleNodeID, counters: &mut Counters) -> Drive<u64> {
+        let environment = self.computed_group_sets.custom_property_environment_identity(node);
+        debug_assert!(environment.is_some(), "an inheritance parent without an environment");
+        environment.ok_or_else(|| {
+            counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            Unanswered::AwaitsParent
+        })
+    }
+
     fn shared_style_record_key(
         &self,
         node: StyleNodeID,
@@ -512,15 +524,7 @@ impl RetainedState {
                 .record_inheritance_parent(node, scratch.installed_ancestors.as_ref())
                 .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
             let parent_environment = match parent {
-                Some(parent) => {
-                    let Some(parent_environment) =
-                        self.computed_group_sets.custom_property_environment_identity(parent)
-                    else {
-                        counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                        return Err(Unanswered::AwaitsParent);
-                    };
-                    parent_environment
-                }
+                Some(parent) => self.held_custom_property_environment(parent, counters)?,
                 None => 0,
             };
             let Ok(environment) = self.engine_custom_property_environment(node, parent_environment, &inputs, counters)
@@ -1043,11 +1047,9 @@ impl RetainedState {
         let parent_record = parent.and_then(|parent| self.computed_group_sets.assigned_style_record(parent));
         // The document element's environment is its own, which is nothing without declarations;
         // any other node's is its declarations resolved over the parent's.
-        let Some(parent_environment) = parent.map_or(Some(0), |parent| {
-            self.computed_group_sets.custom_property_environment_identity(parent)
-        }) else {
-            counters.bump(Counter::EngineComputedRecordBailRecordParent);
-            return Err(Unanswered::AwaitsParent);
+        let parent_environment = match parent {
+            Some(parent) => self.held_custom_property_environment(parent, counters)?,
+            None => 0,
         };
         let Some(pseudo_styles) = self.pseudo_style_mask(node) else {
             counters.bump(Counter::EngineComputedRecordBailWinner);
@@ -1545,6 +1547,7 @@ impl RetainedState {
         let (parent_payloads, parent_in_display_none_subtree) = match parent_record {
             Some(parent_record) => {
                 let Some(parent_view) = self.computed_group_sets.style_record_view(parent_record.raw()) else {
+                    debug_assert!(false, "an assigned parent record has a view");
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::Refused);
                 };

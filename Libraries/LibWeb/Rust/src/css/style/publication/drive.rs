@@ -164,11 +164,12 @@ impl RetainedState {
         let snapshot = match parent.and_then(|parent| self.computed_group_sets.assigned_style_record(parent)) {
             None => None,
             Some(record) => {
-                let parent_has_animation_overlay = self
-                    .computed_group_sets
-                    .style_record_view(record.raw())
-                    .is_some_and(|view| !view.animated_overlay.is_null());
-                if parent_has_animation_overlay {
+                let Some(view) = self.computed_group_sets.style_record_view(record.raw()) else {
+                    debug_assert!(false, "an assigned parent record has a view");
+                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    return Err(Unanswered::Refused);
+                };
+                if !view.animated_overlay.is_null() {
                     counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return Err(Unanswered::Refused);
                 }
@@ -411,6 +412,7 @@ impl RetainedState {
                     return Err(Unanswered::AwaitsParent);
                 };
                 let Some(parent_view) = self.computed_group_sets.style_record_view(parent_record.raw()) else {
+                    debug_assert!(false, "an assigned parent record has a view");
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::Refused);
                 };
@@ -486,6 +488,7 @@ impl RetainedState {
         let snapshot = match &parent_view {
             Some(parent_view) => {
                 let Some(parent_table) = (unsafe { parent_view.longhand_table.as_ref() }) else {
+                    debug_assert!(false, "an assigned parent record has a longhand table");
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::Refused);
                 };
