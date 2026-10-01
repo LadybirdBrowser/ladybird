@@ -833,6 +833,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "libjs_abi"
+version = "0.1.0"
+
+[[package]]
 name = "libjs_rust"
 version = "0.1.0"
 dependencies = [
@@ -844,6 +848,7 @@ dependencies = [
  "iced-x86",
  "indexmap",
  "ladybird_allocator",
+ "libjs_abi",
  "libunicode_rust",
  "num-bigint",
  "num-integer",

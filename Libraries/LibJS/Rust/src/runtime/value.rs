@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use libjs_abi::value as nan_box;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum EncodedValueKind {
     Empty,
@@ -22,17 +24,15 @@ pub enum EncodedValueKind {
 pub struct EncodedValue(u64);
 
 impl EncodedValue {
-    const CANON_NAN_BITS: u64 = 0x7ff8_0000_0000_0000;
-    const TAG_SHIFT: u64 = 48;
-    const BASE_TAG: u64 = 0x7ff8;
-    const IS_CELL_BIT: u64 = 0x8000 | Self::BASE_TAG;
-    const STRING_TAG: u64 = 0b010 | Self::IS_CELL_BIT;
-    const BIGINT_TAG: u64 = 0b101 | Self::IS_CELL_BIT;
-    const UNDEFINED_TAG: u64 = 0b110 | Self::BASE_TAG;
-    const NULL_TAG: u64 = 0b111 | Self::BASE_TAG;
-    const BOOLEAN_TAG: u64 = 0b001 | Self::BASE_TAG;
-    const INT32_TAG: u64 = 0b010 | Self::BASE_TAG;
-    const EMPTY_TAG: u64 = 0b011 | Self::BASE_TAG;
+    const CANON_NAN_BITS: u64 = nan_box::CANON_NAN_BITS;
+    const TAG_SHIFT: u64 = nan_box::TAG_SHIFT;
+    const STRING_TAG: u64 = nan_box::STRING_TAG;
+    const BIGINT_TAG: u64 = nan_box::BIGINT_TAG;
+    const UNDEFINED_TAG: u64 = nan_box::UNDEFINED_TAG;
+    const NULL_TAG: u64 = nan_box::NULL_TAG;
+    const BOOLEAN_TAG: u64 = nan_box::BOOLEAN_TAG;
+    const INT32_TAG: u64 = nan_box::INT32_TAG;
+    const EMPTY_TAG: u64 = nan_box::EMPTY_TAG;
 
     pub const fn from_encoded(encoded: u64) -> Self {
         Self(encoded)

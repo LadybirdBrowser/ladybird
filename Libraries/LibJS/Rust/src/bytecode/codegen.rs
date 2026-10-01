@@ -46,6 +46,16 @@ use num_traits::Signed;
 use num_traits::ToPrimitive;
 use num_traits::Zero;
 
+use libjs_abi::ArgumentsKind;
+use libjs_abi::Builtin;
+use libjs_abi::ClassElementKind;
+use libjs_abi::CompletionType;
+use libjs_abi::EnvironmentMode;
+use libjs_abi::FunctionNamePrefix;
+use libjs_abi::IteratorHint;
+use libjs_abi::PutKind;
+use libjs_abi::value as nan_box;
+
 use crate::ast::*;
 use crate::lexer::ch;
 use crate::u32_from_usize;
@@ -1006,7 +1016,7 @@ fn generate_yield_expression(
     let normal_block = generator.make_block();
     let throw_cont = generator.make_block();
     let type_is_normal = generator.allocate_register();
-    let normal_type = generator.add_constant_number(CompletionType::Normal.to_f64());
+    let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u32));
     generator.emit(Instruction::StrictlyEquals {
         dst: type_is_normal.operand(),
         lhs: received_completion_type.operand(),
@@ -1019,7 +1029,7 @@ fn generate_yield_expression(
 
     generator.switch_to_basic_block(throw_cont);
     let type_is_throw = generator.allocate_register();
-    let throw_type = generator.add_constant_number(CompletionType::Throw.to_f64());
+    let throw_type = generator.add_constant_number(f64::from(CompletionType::Throw as u32));
     generator.emit(Instruction::StrictlyEquals {
         dst: type_is_throw.operand(),
         lhs: received_completion_type.operand(),
@@ -1330,59 +1340,6 @@ pub fn generate_statement(
 // Await helper
 // =============================================================================
 
-/// Completion::Type values (ABI-compatible).
-#[derive(Clone, Copy)]
-#[repr(u32)]
-enum CompletionType {
-    Normal = 1,
-    Return = 4,
-    Throw = 5,
-}
-
-impl CompletionType {
-    fn to_f64(self) -> f64 {
-        self as u32 as f64
-    }
-}
-
-/// Environment binding mode.
-#[repr(u32)]
-enum EnvironmentMode {
-    Lexical = 0,
-    Var = 1,
-}
-
-/// Arguments object creation mode.
-#[repr(u32)]
-enum ArgumentsKind {
-    Mapped = 0,
-    Unmapped = 1,
-}
-
-#[repr(u32)]
-enum FunctionNamePrefix {
-    None = 0,
-    Get = 1,
-    Set = 2,
-}
-
-/// Class element kind (ABI-compatible with ClassBlueprint::Element::Kind).
-#[repr(u8)]
-enum ClassElementKind {
-    Method = 0,
-    Getter = 1,
-    Setter = 2,
-    Field = 3,
-    StaticInitializer = 4,
-}
-
-/// Iterator hint (ABI-compatible).
-#[repr(u32)]
-enum IteratorHint {
-    Sync = 0,
-    Async = 1,
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum YieldBehavior {
     Normal,
@@ -1419,7 +1376,7 @@ fn generate_await_with_completions(
     let normal_block = generator.make_block();
     let throw_block = generator.make_block();
     let is_normal = generator.allocate_register();
-    let normal_type = generator.add_constant_number(CompletionType::Normal.to_f64());
+    let normal_type = generator.add_constant_number(f64::from(CompletionType::Normal as u32));
     generator.emit(Instruction::StrictlyEquals {
         dst: is_normal.operand(),
         lhs: received_completion_type.operand(),
@@ -1470,7 +1427,7 @@ fn generate_yield_from(
     });
 
     // 6. Let received be NormalCompletion(undefined).
-    let normal_const = generator.add_constant_number(CompletionType::Normal.to_f64());
+    let normal_const = generator.add_constant_number(f64::from(CompletionType::Normal as u32));
     generator.emit_mov(received_completion_type, &normal_const);
     let undef = generator.add_constant_undefined();
     generator.emit_mov(received_completion_value, &undef);
@@ -1569,7 +1526,7 @@ fn generate_yield_from(
     generator.switch_to_basic_block(is_type_throw_block);
     let type_is_throw_block = generator.make_block();
     let type_is_return_block = generator.make_block();
-    let throw_const = generator.add_constant_number(CompletionType::Throw.to_f64());
+    let throw_const = generator.add_constant_number(f64::from(CompletionType::Throw as u32));
     let is_throw = generator.allocate_register();
     generator.emit(Instruction::StrictlyEquals {
         dst: is_throw.operand(),
@@ -1916,7 +1873,7 @@ fn generate_yield(
     // If resumptionValue.[[Type]] is not return, jump to continuation.
     let return_block = generator.make_block();
     let is_not_return = generator.allocate_register();
-    let return_type = generator.add_constant_number(CompletionType::Return.to_f64());
+    let return_type = generator.add_constant_number(f64::from(CompletionType::Return as u32));
     generator.emit(Instruction::StrictlyInequals {
         dst: is_not_return.operand(),
         lhs: received_completion_type.operand(),
@@ -1937,7 +1894,7 @@ fn generate_yield(
     // If awaited.[[Type]] is throw, jump to continuation.
     let awaited_normal_block = generator.make_block();
     let is_throw = generator.allocate_register();
-    let throw_type = generator.add_constant_number(CompletionType::Throw.to_f64());
+    let throw_type = generator.add_constant_number(f64::from(CompletionType::Throw as u32));
     generator.emit(Instruction::StrictlyEquals {
         dst: is_throw.operand(),
         lhs: received_completion_type.operand(),
@@ -3449,7 +3406,7 @@ fn generate_call_expression(
         && matches!(&data.callee.inner, ExpressionKind::Identifier(ident) if arena.name_slice(*ident) == utf16!("eval"));
 
     // Detect known builtins for member expression callees (e.g. Math.abs).
-    let builtin: Option<u8> = if !is_new {
+    let builtin: Option<Builtin> = if !is_new {
         get_builtin(&data.callee, &generator.arena)
     } else {
         None
@@ -3645,7 +3602,7 @@ fn generate_call_expression(
                 arguments,
             });
         } else if let Some(builtin) = builtin {
-            if builtin_argument_count(builtin) == arguments.len() {
+            if builtin.argument_count() == arguments.len() {
                 emit_builtin_call(
                     generator,
                     builtin,
@@ -3785,7 +3742,7 @@ fn generate_update_expression(
                         src: value.operand(),
                         cache: cache2,
                         base_identifier: None,
-                        kind: 0,
+                        kind: PutKind::Normal as u32,
                     });
                     Some(result)
                 } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &data.property.inner {
@@ -4118,7 +4075,7 @@ fn generate_assignment_expression(
                             src: dst.operand(),
                             cache: cache2,
                             base_identifier: None,
-                            kind: 0,
+                            kind: PutKind::Normal as u32,
                         });
                         generator.emit(Instruction::Jump { target: end_block });
                         generator.switch_to_basic_block(lhs_block);
@@ -4138,7 +4095,7 @@ fn generate_assignment_expression(
                         src: dst.operand(),
                         cache: cache2,
                         base_identifier: None,
-                        kind: 0,
+                        kind: PutKind::Normal as u32,
                     });
                     return Some(dst);
                 } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &member_data.property.inner {
@@ -4275,7 +4232,7 @@ fn emit_super_put(
             property: key,
             src: value.operand(),
             cache,
-            kind: 0,
+            kind: PutKind::Normal as u32,
         });
     }
 }
@@ -4468,7 +4425,7 @@ fn emit_put_normal_by_value(
             src: src.operand(),
             cache,
             base_identifier,
-            kind: 0,
+            kind: PutKind::Normal as u32,
         });
         return;
     }
@@ -4477,7 +4434,7 @@ fn emit_put_normal_by_value(
         property: property.operand(),
         src: src.operand(),
         base_identifier,
-        kind: 0,
+        kind: PutKind::Normal as u32,
     });
 }
 
@@ -4497,7 +4454,7 @@ fn emit_put_normal_by_value_with_this(
             property: key,
             src: src.operand(),
             cache,
-            kind: 0,
+            kind: PutKind::Normal as u32,
         });
         return;
     }
@@ -4506,14 +4463,8 @@ fn emit_put_normal_by_value_with_this(
         property: property.operand(),
         this_value: this_value.operand(),
         src: src.operand(),
-        kind: 0,
+        kind: PutKind::Normal as u32,
     });
-}
-
-enum PutKind {
-    Own,
-    Getter,
-    Setter,
 }
 
 /// Emit a property write by value, optimizing constant string properties to the ById variant.
@@ -4526,69 +4477,23 @@ fn emit_put_by_value(
 ) {
     if let Some(key) = generator.try_constant_string_to_property_key(property) {
         let cache = generator.next_property_lookup_cache();
-        match kind {
-            PutKind::Own => {
-                generator.emit(Instruction::PutById {
-                    base: base.operand(),
-                    property: key,
-                    src: src.operand(),
-                    cache,
-                    base_identifier: None,
-                    kind: 4,
-                });
-            }
-            PutKind::Getter => {
-                generator.emit(Instruction::PutById {
-                    base: base.operand(),
-                    property: key,
-                    src: src.operand(),
-                    cache,
-                    base_identifier: None,
-                    kind: 1,
-                });
-            }
-            PutKind::Setter => {
-                generator.emit(Instruction::PutById {
-                    base: base.operand(),
-                    property: key,
-                    src: src.operand(),
-                    cache,
-                    base_identifier: None,
-                    kind: 2,
-                });
-            }
-        }
+        generator.emit(Instruction::PutById {
+            base: base.operand(),
+            property: key,
+            src: src.operand(),
+            cache,
+            base_identifier: None,
+            kind: kind as u32,
+        });
         return;
     }
-    match kind {
-        PutKind::Own => {
-            generator.emit(Instruction::PutByValue {
-                base: base.operand(),
-                property: property.operand(),
-                src: src.operand(),
-                base_identifier: None,
-                kind: 4,
-            });
-        }
-        PutKind::Getter => {
-            generator.emit(Instruction::PutByValue {
-                base: base.operand(),
-                property: property.operand(),
-                src: src.operand(),
-                base_identifier: None,
-                kind: 1,
-            });
-        }
-        PutKind::Setter => {
-            generator.emit(Instruction::PutByValue {
-                base: base.operand(),
-                property: property.operand(),
-                src: src.operand(),
-                base_identifier: None,
-                kind: 2,
-            });
-        }
-    }
+    generator.emit(Instruction::PutByValue {
+        base: base.operand(),
+        property: property.operand(),
+        src: src.operand(),
+        base_identifier: None,
+        kind: kind as u32,
+    });
 }
 
 /// Emit a ThrowIfTDZ check for a local identifier if needed. This is used
@@ -4679,7 +4584,7 @@ fn emit_put_to_member(
             src: value.operand(),
             cache,
             base_identifier: base_id,
-            kind: 0,
+            kind: PutKind::Normal as u32,
         });
     } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &property.inner {
         let id = generator.intern_identifier(&priv_ident.name);
@@ -4915,7 +4820,7 @@ fn emit_store_to_evaluated_reference(generator: &mut Generator, reference: &Eval
                 src: value.operand(),
                 cache: *cache,
                 base_identifier: *base_identifier,
-                kind: 0,
+                kind: PutKind::Normal as u32,
             });
         }
         EvaluatedReference::PrivateMember { base, property } => {
@@ -4944,7 +4849,7 @@ fn emit_store_to_evaluated_reference(generator: &mut Generator, reference: &Eval
                 property: *property,
                 src: value.operand(),
                 cache: *cache,
-                kind: 0,
+                kind: PutKind::Normal as u32,
             });
         }
     }
@@ -5691,7 +5596,7 @@ fn generate_object_expression(
                         src: value.operand(),
                         cache,
                         base_identifier: None,
-                        kind: 4,
+                        kind: PutKind::Own as u32,
                     });
                 }
             }
@@ -5718,7 +5623,7 @@ fn generate_object_expression(
                     src: value.operand(),
                     cache,
                     base_identifier: None,
-                    kind: 3,
+                    kind: PutKind::Prototype as u32,
                 });
             }
         }
@@ -5751,7 +5656,7 @@ fn emit_object_property_set_by_key(
             property: key_val.operand(),
             src: value.operand(),
             base_identifier: None,
-            kind: 4,
+            kind: PutKind::Own as u32,
         });
         return;
     }
@@ -5784,7 +5689,7 @@ fn emit_object_property_set_by_key(
                 property: key_val.operand(),
                 src: value.operand(),
                 base_identifier: None,
-                kind: 4,
+                kind: PutKind::Own as u32,
             });
         }
         _ => {
@@ -5795,7 +5700,7 @@ fn emit_object_property_set_by_key(
                 property: key_val.operand(),
                 src: value.operand(),
                 base_identifier: None,
-                kind: 4,
+                kind: PutKind::Own as u32,
             });
         }
     }
@@ -5820,7 +5725,7 @@ fn emit_object_accessor_by_key(
                 src: value.operand(),
                 cache,
                 base_identifier: None,
-                kind: 1,
+                kind: PutKind::Getter as u32,
             });
         } else {
             generator.emit(Instruction::PutById {
@@ -5829,7 +5734,7 @@ fn emit_object_accessor_by_key(
                 src: value.operand(),
                 cache,
                 base_identifier: None,
-                kind: 2,
+                kind: PutKind::Setter as u32,
             });
         }
     };
@@ -5842,7 +5747,7 @@ fn emit_object_accessor_by_key(
                 property: key_val.operand(),
                 src: value.operand(),
                 base_identifier: None,
-                kind: 1,
+                kind: PutKind::Getter as u32,
             });
         } else {
             generator.emit(Instruction::PutByValue {
@@ -5850,7 +5755,7 @@ fn emit_object_accessor_by_key(
                 property: key_val.operand(),
                 src: value.operand(),
                 base_identifier: None,
-                kind: 2,
+                kind: PutKind::Setter as u32,
             });
         }
     };
@@ -9201,35 +9106,9 @@ struct FdiParameterName {
     is_local: bool,
 }
 
-// Builtin IDs matching JS_ENUMERATE_BUILTINS in Builtins.h.
-const BUILTIN_MATH_ABS: u8 = 0;
-const BUILTIN_MATH_LOG: u8 = 1;
-const BUILTIN_MATH_POW: u8 = 2;
-const BUILTIN_MATH_EXP: u8 = 3;
-const BUILTIN_MATH_CEIL: u8 = 4;
-const BUILTIN_MATH_FLOOR: u8 = 5;
-const BUILTIN_MATH_IMUL: u8 = 6;
-const BUILTIN_MATH_RANDOM: u8 = 7;
-const BUILTIN_MATH_ROUND: u8 = 8;
-const BUILTIN_MATH_SQRT: u8 = 9;
-const BUILTIN_MATH_SIN: u8 = 10;
-const BUILTIN_MATH_COS: u8 = 11;
-const BUILTIN_MATH_TAN: u8 = 12;
-const BUILTIN_REGEXP_PROTOTYPE_EXEC: u8 = 13;
-const BUILTIN_REGEXP_PROTOTYPE_REPLACE: u8 = 14;
-const BUILTIN_REGEXP_PROTOTYPE_SPLIT: u8 = 15;
-const BUILTIN_ORDINARY_HAS_INSTANCE: u8 = 16;
-const BUILTIN_ARRAY_ITERATOR_PROTOTYPE_NEXT: u8 = 17;
-const BUILTIN_MAP_ITERATOR_PROTOTYPE_NEXT: u8 = 18;
-const BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT: u8 = 19;
-const BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT: u8 = 20;
-const BUILTIN_STRING_FROM_CHAR_CODE: u8 = 21;
-const BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT: u8 = 22;
-const BUILTIN_STRING_PROTOTYPE_CHAR_AT: u8 = 23;
-
 /// Detect known builtin methods from a callee expression (e.g. Math.abs).
-/// Returns the Builtin enum value as u8, matching Builtins.h ordering.
-fn get_builtin(callee: &Expression, arena: &crate::ast::AstArena) -> Option<u8> {
+/// Returns the builtin the callee names, if any.
+fn get_builtin(callee: &Expression, arena: &crate::ast::AstArena) -> Option<Builtin> {
     let ExpressionKind::Member(member_data) = &callee.inner else {
         return None;
     };
@@ -9241,67 +9120,66 @@ fn get_builtin(callee: &Expression, arena: &crate::ast::AstArena) -> Option<u8> 
     };
     let property_name = arena.name_slice(*property_ident);
     if property_name == utf16!("charAt") {
-        return Some(BUILTIN_STRING_PROTOTYPE_CHAR_AT);
+        return Some(Builtin::StringPrototypeCharAt);
     }
     if property_name == utf16!("charCodeAt") {
-        return Some(BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT);
+        return Some(Builtin::StringPrototypeCharCodeAt);
     }
     let ExpressionKind::Identifier(base_ident) = &member_data.object.inner else {
         return None;
     };
     let base_name = arena.name_slice(*base_ident);
-    // Must match JS_ENUMERATE_BUILTINS order in Builtins.h.
-    static BUILTINS: &[(&[u16], &[u16], u8)] = &[
-        (utf16!("Math"), utf16!("abs"), BUILTIN_MATH_ABS),
-        (utf16!("Math"), utf16!("log"), BUILTIN_MATH_LOG),
-        (utf16!("Math"), utf16!("pow"), BUILTIN_MATH_POW),
-        (utf16!("Math"), utf16!("exp"), BUILTIN_MATH_EXP),
-        (utf16!("Math"), utf16!("ceil"), BUILTIN_MATH_CEIL),
-        (utf16!("Math"), utf16!("floor"), BUILTIN_MATH_FLOOR),
-        (utf16!("Math"), utf16!("imul"), BUILTIN_MATH_IMUL),
-        (utf16!("Math"), utf16!("random"), BUILTIN_MATH_RANDOM),
-        (utf16!("Math"), utf16!("round"), BUILTIN_MATH_ROUND),
-        (utf16!("Math"), utf16!("sqrt"), BUILTIN_MATH_SQRT),
-        (utf16!("Math"), utf16!("sin"), BUILTIN_MATH_SIN),
-        (utf16!("Math"), utf16!("cos"), BUILTIN_MATH_COS),
-        (utf16!("Math"), utf16!("tan"), BUILTIN_MATH_TAN),
-        (utf16!("RegExpPrototype"), utf16!("exec"), BUILTIN_REGEXP_PROTOTYPE_EXEC),
+    static BUILTINS: &[(&[u16], &[u16], Builtin)] = &[
+        (utf16!("Math"), utf16!("abs"), Builtin::MathAbs),
+        (utf16!("Math"), utf16!("log"), Builtin::MathLog),
+        (utf16!("Math"), utf16!("pow"), Builtin::MathPow),
+        (utf16!("Math"), utf16!("exp"), Builtin::MathExp),
+        (utf16!("Math"), utf16!("ceil"), Builtin::MathCeil),
+        (utf16!("Math"), utf16!("floor"), Builtin::MathFloor),
+        (utf16!("Math"), utf16!("imul"), Builtin::MathImul),
+        (utf16!("Math"), utf16!("random"), Builtin::MathRandom),
+        (utf16!("Math"), utf16!("round"), Builtin::MathRound),
+        (utf16!("Math"), utf16!("sqrt"), Builtin::MathSqrt),
+        (utf16!("Math"), utf16!("sin"), Builtin::MathSin),
+        (utf16!("Math"), utf16!("cos"), Builtin::MathCos),
+        (utf16!("Math"), utf16!("tan"), Builtin::MathTan),
+        (utf16!("RegExpPrototype"), utf16!("exec"), Builtin::RegExpPrototypeExec),
         (
             utf16!("RegExpPrototype"),
             utf16!("replace"),
-            BUILTIN_REGEXP_PROTOTYPE_REPLACE,
+            Builtin::RegExpPrototypeReplace,
         ),
         (
             utf16!("RegExpPrototype"),
             utf16!("split"),
-            BUILTIN_REGEXP_PROTOTYPE_SPLIT,
+            Builtin::RegExpPrototypeSplit,
         ),
         (
             utf16!("InternalBuiltin"),
             utf16!("ordinary_has_instance"),
-            BUILTIN_ORDINARY_HAS_INSTANCE,
+            Builtin::OrdinaryHasInstance,
         ),
         (
             utf16!("ArrayIteratorPrototype"),
             utf16!("next"),
-            BUILTIN_ARRAY_ITERATOR_PROTOTYPE_NEXT,
+            Builtin::ArrayIteratorPrototypeNext,
         ),
         (
             utf16!("MapIteratorPrototype"),
             utf16!("next"),
-            BUILTIN_MAP_ITERATOR_PROTOTYPE_NEXT,
+            Builtin::MapIteratorPrototypeNext,
         ),
         (
             utf16!("SetIteratorPrototype"),
             utf16!("next"),
-            BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT,
+            Builtin::SetIteratorPrototypeNext,
         ),
         (
             utf16!("StringIteratorPrototype"),
             utf16!("next"),
-            BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT,
+            Builtin::StringIteratorPrototypeNext,
         ),
-        (utf16!("String"), utf16!("fromCharCode"), BUILTIN_STRING_FROM_CHAR_CODE),
+        (utf16!("String"), utf16!("fromCharCode"), Builtin::StringFromCharCode),
     ];
     for &(base, property, id) in BUILTINS {
         if base_name == base && property_name == property {
@@ -9311,40 +9189,9 @@ fn get_builtin(callee: &Expression, arena: &crate::ast::AstArena) -> Option<u8> 
     None
 }
 
-fn builtin_argument_count(builtin: u8) -> usize {
-    // Must match JS_ENUMERATE_BUILTINS argument counts in Builtins.h.
-    match builtin {
-        BUILTIN_MATH_ABS => 1,
-        BUILTIN_MATH_LOG => 1,
-        BUILTIN_MATH_POW => 2,
-        BUILTIN_MATH_EXP => 1,
-        BUILTIN_MATH_CEIL => 1,
-        BUILTIN_MATH_FLOOR => 1,
-        BUILTIN_MATH_IMUL => 2,
-        BUILTIN_MATH_RANDOM => 0,
-        BUILTIN_MATH_ROUND => 1,
-        BUILTIN_MATH_SQRT => 1,
-        BUILTIN_MATH_SIN => 1,
-        BUILTIN_MATH_COS => 1,
-        BUILTIN_MATH_TAN => 1,
-        BUILTIN_REGEXP_PROTOTYPE_EXEC => 1,
-        BUILTIN_REGEXP_PROTOTYPE_REPLACE => 2,
-        BUILTIN_REGEXP_PROTOTYPE_SPLIT => 2,
-        BUILTIN_ORDINARY_HAS_INSTANCE => 1,
-        BUILTIN_ARRAY_ITERATOR_PROTOTYPE_NEXT => 0,
-        BUILTIN_MAP_ITERATOR_PROTOTYPE_NEXT => 0,
-        BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT => 0,
-        BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT => 0,
-        BUILTIN_STRING_FROM_CHAR_CODE => 1,
-        BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT => 1,
-        BUILTIN_STRING_PROTOTYPE_CHAR_AT => 1,
-        _ => usize::MAX,
-    }
-}
-
 fn emit_builtin_call(
     generator: &mut Generator,
-    builtin: u8,
+    builtin: Builtin,
     dst: Operand,
     callee: Operand,
     this_value: Operand,
@@ -9388,53 +9235,52 @@ fn emit_builtin_call(
     }
 
     match builtin {
-        BUILTIN_MATH_ABS => emit_unary_builtin_instruction!(CallBuiltinMathAbs),
-        BUILTIN_MATH_LOG => emit_unary_builtin_instruction!(CallBuiltinMathLog),
-        BUILTIN_MATH_POW => emit_binary_builtin_instruction!(CallBuiltinMathPow),
-        BUILTIN_MATH_EXP => emit_unary_builtin_instruction!(CallBuiltinMathExp),
-        BUILTIN_MATH_CEIL => emit_unary_builtin_instruction!(CallBuiltinMathCeil),
-        BUILTIN_MATH_FLOOR => emit_unary_builtin_instruction!(CallBuiltinMathFloor),
-        BUILTIN_MATH_IMUL => emit_binary_builtin_instruction!(CallBuiltinMathImul),
-        BUILTIN_MATH_RANDOM => emit_nullary_builtin_instruction!(CallBuiltinMathRandom),
-        BUILTIN_MATH_ROUND => emit_unary_builtin_instruction!(CallBuiltinMathRound),
-        BUILTIN_MATH_SQRT => emit_unary_builtin_instruction!(CallBuiltinMathSqrt),
-        BUILTIN_MATH_SIN => emit_unary_builtin_instruction!(CallBuiltinMathSin),
-        BUILTIN_MATH_COS => emit_unary_builtin_instruction!(CallBuiltinMathCos),
-        BUILTIN_MATH_TAN => emit_unary_builtin_instruction!(CallBuiltinMathTan),
-        BUILTIN_REGEXP_PROTOTYPE_EXEC => {
+        Builtin::MathAbs => emit_unary_builtin_instruction!(CallBuiltinMathAbs),
+        Builtin::MathLog => emit_unary_builtin_instruction!(CallBuiltinMathLog),
+        Builtin::MathPow => emit_binary_builtin_instruction!(CallBuiltinMathPow),
+        Builtin::MathExp => emit_unary_builtin_instruction!(CallBuiltinMathExp),
+        Builtin::MathCeil => emit_unary_builtin_instruction!(CallBuiltinMathCeil),
+        Builtin::MathFloor => emit_unary_builtin_instruction!(CallBuiltinMathFloor),
+        Builtin::MathImul => emit_binary_builtin_instruction!(CallBuiltinMathImul),
+        Builtin::MathRandom => emit_nullary_builtin_instruction!(CallBuiltinMathRandom),
+        Builtin::MathRound => emit_unary_builtin_instruction!(CallBuiltinMathRound),
+        Builtin::MathSqrt => emit_unary_builtin_instruction!(CallBuiltinMathSqrt),
+        Builtin::MathSin => emit_unary_builtin_instruction!(CallBuiltinMathSin),
+        Builtin::MathCos => emit_unary_builtin_instruction!(CallBuiltinMathCos),
+        Builtin::MathTan => emit_unary_builtin_instruction!(CallBuiltinMathTan),
+        Builtin::RegExpPrototypeExec => {
             emit_unary_builtin_instruction!(CallBuiltinRegExpPrototypeExec);
         }
-        BUILTIN_REGEXP_PROTOTYPE_REPLACE => {
+        Builtin::RegExpPrototypeReplace => {
             emit_binary_builtin_instruction!(CallBuiltinRegExpPrototypeReplace);
         }
-        BUILTIN_REGEXP_PROTOTYPE_SPLIT => {
+        Builtin::RegExpPrototypeSplit => {
             emit_binary_builtin_instruction!(CallBuiltinRegExpPrototypeSplit);
         }
-        BUILTIN_ORDINARY_HAS_INSTANCE => {
+        Builtin::OrdinaryHasInstance => {
             emit_unary_builtin_instruction!(CallBuiltinOrdinaryHasInstance);
         }
-        BUILTIN_ARRAY_ITERATOR_PROTOTYPE_NEXT => {
+        Builtin::ArrayIteratorPrototypeNext => {
             emit_nullary_builtin_instruction!(CallBuiltinArrayIteratorPrototypeNext);
         }
-        BUILTIN_MAP_ITERATOR_PROTOTYPE_NEXT => {
+        Builtin::MapIteratorPrototypeNext => {
             emit_nullary_builtin_instruction!(CallBuiltinMapIteratorPrototypeNext);
         }
-        BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT => {
+        Builtin::SetIteratorPrototypeNext => {
             emit_nullary_builtin_instruction!(CallBuiltinSetIteratorPrototypeNext);
         }
-        BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT => {
+        Builtin::StringIteratorPrototypeNext => {
             emit_nullary_builtin_instruction!(CallBuiltinStringIteratorPrototypeNext);
         }
-        BUILTIN_STRING_FROM_CHAR_CODE => {
+        Builtin::StringFromCharCode => {
             emit_unary_builtin_instruction!(CallBuiltinStringFromCharCode);
         }
-        BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT => {
+        Builtin::StringPrototypeCharCodeAt => {
             emit_unary_builtin_instruction!(CallBuiltinStringPrototypeCharCodeAt);
         }
-        BUILTIN_STRING_PROTOTYPE_CHAR_AT => {
+        Builtin::StringPrototypeCharAt => {
             emit_unary_builtin_instruction!(CallBuiltinStringPrototypeCharAt);
         }
-        _ => unreachable!(),
     }
 }
 
@@ -10153,36 +9999,28 @@ fn try_constant_fold_binary(
 
 // NanBoxed Value encoding helpers (ABI-compatible with GC::NanBoxedValue).
 // Used by NewPrimitiveArray to encode constant primitive values inline.
-const NANBOX_TAG_SHIFT: u64 = 48;
-const NANBOX_BASE_TAG: u64 = 0x7FF8;
-const NANBOX_INT32_TAG: u64 = 0b010 | NANBOX_BASE_TAG;
-const NANBOX_BOOLEAN_TAG: u64 = 0b001 | NANBOX_BASE_TAG;
-const NANBOX_NULL_TAG: u64 = 0b111 | NANBOX_BASE_TAG;
-const NANBOX_EMPTY_TAG: u64 = 0b011 | NANBOX_BASE_TAG;
-const NEGATIVE_ZERO_BITS: u64 = 1u64 << 63;
 
 fn nanboxed_number(value: f64) -> u64 {
-    let is_negative_zero = value.to_bits() == NEGATIVE_ZERO_BITS;
+    let is_negative_zero = value.to_bits() == nan_box::NEGATIVE_ZERO_BITS;
     if value >= i32::MIN as f64 && value <= i32::MAX as f64 && value.trunc() == value && !is_negative_zero {
-        (NANBOX_INT32_TAG << NANBOX_TAG_SHIFT) | ((value as i32 as u32) as u64)
+        nan_box::SHIFTED_INT32_TAG | ((value as i32 as u32) as u64)
     } else if value.is_nan() {
-        // Canon NaN
-        0x7FF8_0000_0000_0000u64
+        nan_box::CANON_NAN_BITS
     } else {
         value.to_bits()
     }
 }
 
 fn nanboxed_boolean(value: bool) -> u64 {
-    (NANBOX_BOOLEAN_TAG << NANBOX_TAG_SHIFT) | (value as u64)
+    nan_box::SHIFTED_BOOLEAN_TAG | u64::from(value)
 }
 
 fn nanboxed_null() -> u64 {
-    NANBOX_NULL_TAG << NANBOX_TAG_SHIFT
+    nan_box::NULL_VALUE
 }
 
 fn nanboxed_empty() -> u64 {
-    NANBOX_EMPTY_TAG << NANBOX_TAG_SHIFT
+    nan_box::EMPTY_VALUE
 }
 
 // =============================================================================
