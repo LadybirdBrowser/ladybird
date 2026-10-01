@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    div > div { color: blue; }
+    li::marker { color: green; }
+    dialog::backdrop { background-color: rgb(255, 0, 0); }
+</style>
+<ul><li id="item">item</li></ul>
+<dialog id="dialog"></dialog>
+<div id="container"></div>
+<script>
+    container.innerHTML = "<div></div>".repeat(100);
+</script>
+<script>
+    test(() => {
+        // The user agent's ::marker and ::backdrop rules match every element. A structural change
+        // among many alike siblings must leave each element with the styles its own rules give.
+        internals.updateStyle();
+        container.appendChild(document.createElement("div"));
+        internals.updateStyle();
+        container.firstElementChild.remove();
+        internals.updateStyle();
+        dialog.showModal();
+        internals.updateStyle();
+        println(`marker color: ${getComputedStyle(item, "::marker").color}`);
+        println(`sibling color: ${getComputedStyle(container.lastElementChild).color}`);
+        println(`backdrop color: ${getComputedStyle(dialog, "::backdrop").backgroundColor}`);
+        println(`sibling marker display: ${getComputedStyle(container.lastElementChild, "::marker").display}`);
+    });
+</script>
