@@ -822,4 +822,21 @@ CustomPropertyData const* StyleEngine::element_custom_property_data(StyleNodeID 
     return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_element_custom_property_data(m_impl, node.value()));
 }
 
+static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= 64);
+
+void StyleEngine::set_pseudo_element_custom_property_data(StyleNodeID node, PseudoElement pseudo_element, CustomPropertyData const* data)
+{
+    StyleEngineFFI::style_engine_set_pseudo_element_custom_property_data(m_impl, node.value(), to_underlying(pseudo_element), data);
+}
+
+CustomPropertyData const* StyleEngine::pseudo_element_custom_property_data(StyleNodeID node, PseudoElement pseudo_element) const
+{
+    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_pseudo_element_custom_property_data(m_impl, node.value(), to_underlying(pseudo_element)));
+}
+
+u64 StyleEngine::pseudo_elements_with_custom_property_data(StyleNodeID node) const
+{
+    return StyleEngineFFI::style_engine_pseudo_elements_with_custom_property_data(m_impl, node.value());
+}
+
 }

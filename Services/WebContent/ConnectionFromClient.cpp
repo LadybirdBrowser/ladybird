@@ -1089,12 +1089,12 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
                     auto styles = doc->style_computer().materialize_style_record({ *element });
                     dump_style(MUST(String::formatted("Element {}", node->debug_description())), *styles, element->custom_property_data({}));
 
-                    element->for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement pseudo_element_type, Web::DOM::PseudoElement const& pseudo_element) {
+                    element->for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement pseudo_element_type, Web::DOM::PseudoElement const&) {
                         auto computed_values = element->computed_style(pseudo_element_type);
                         if (!computed_values)
                             return;
 
-                        dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *computed_values, pseudo_element.custom_property_data());
+                        dump_style(MUST(String::formatted("PseudoElement {}::{}", node->debug_description(), Web::CSS::pseudo_element_name(pseudo_element_type))), *computed_values, element->custom_property_data(pseudo_element_type));
                     });
                 }
             }

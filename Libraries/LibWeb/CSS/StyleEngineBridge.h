@@ -33,6 +33,7 @@ struct FfiTransitionInput;
 
 namespace Web::CSS {
 
+enum class PseudoElement : u8;
 enum class StyleRecordDependencyFlag : u8;
 
 class CustomPropertyData;
@@ -268,6 +269,10 @@ public:
     // The custom-property environment each element holds is kept here; the element keeps none of its own.
     void set_element_custom_property_data(StyleNodeID, CustomPropertyData const*);
     [[nodiscard]] CustomPropertyData const* element_custom_property_data(StyleNodeID) const;
+    void set_pseudo_element_custom_property_data(StyleNodeID, PseudoElement, CustomPropertyData const*);
+    [[nodiscard]] CustomPropertyData const* pseudo_element_custom_property_data(StyleNodeID, PseudoElement) const;
+    // One bit per kind of the element's synthetic pseudo-elements that hold an environment.
+    [[nodiscard]] u64 pseudo_elements_with_custom_property_data(StyleNodeID) const;
 
     // Enumerates the engine's counters. Returns false once index is past the last counter.
     bool counter(size_t index, StringView& out_name, u64& out_value) const;

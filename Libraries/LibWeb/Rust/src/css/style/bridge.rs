@@ -1171,6 +1171,55 @@ pub unsafe extern "C" fn style_engine_element_custom_property_data(engine: *cons
     StyleNodeID::from_raw(node).map_or(std::ptr::null(), |node| engine.element_custom_property_data(node))
 }
 
+/// Keeps the custom-property environment one of an element's synthetic pseudo-elements now holds.
+/// A null `data` is none.
+///
+/// # Safety
+/// `engine` must be live, and `data` must be null or a live `Web::CSS::CustomPropertyData`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
+    engine: *mut c_void,
+    node: u32,
+    pseudo: u8,
+    data: *const c_void,
+) {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return;
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    unsafe { engine.set_pseudo_element_custom_property_data(node, pseudo, data) };
+}
+
+/// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
+    engine: *const c_void,
+    node: u32,
+    pseudo: u8,
+) -> *const c_void {
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    StyleNodeID::from_raw(node).map_or(std::ptr::null(), |node| {
+        engine.pseudo_element_custom_property_data(node, pseudo)
+    })
+}
+
+/// The kinds of an element's synthetic pseudo-elements that hold a custom-property environment, one
+/// bit per kind, so the host asks for only those.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
+    engine: *const c_void,
+    node: u32,
+) -> u64 {
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    StyleNodeID::from_raw(node).map_or(0, |node| engine.pseudo_elements_with_custom_property_data(node))
+}
+
 /// Applies the memory policy used while producing a replay recording.
 ///
 /// # Safety

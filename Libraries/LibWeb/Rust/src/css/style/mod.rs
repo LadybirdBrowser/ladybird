@@ -832,6 +832,9 @@ pub struct RetainedState {
     /// The custom-property environment each element holds, for the elements that hold one. This is
     /// the only copy: the element reads its environment from here.
     element_custom_property_data: HashMap<StyleNodeID, inputs::RetainedCustomPropertyData>,
+    /// The custom-property environments of each element's synthetic pseudo-elements, by
+    /// pseudo-element kind, for the elements with a pseudo-element that holds one.
+    pseudo_element_custom_property_data: HashMap<StyleNodeID, Vec<(u8, inputs::RetainedCustomPropertyData)>>,
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
     css_defined_animations: animations::CssDefinedAnimations,
