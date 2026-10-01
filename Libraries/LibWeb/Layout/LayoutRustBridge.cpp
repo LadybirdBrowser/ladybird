@@ -375,15 +375,6 @@ static RustFFI::FfiViewportPropagationFacts viewport_propagation_facts(DOM::Docu
     return facts;
 }
 
-static Optional<DOM::AbstractElement> abstract_element_for_abspos_box(Box const& box)
-{
-    if (box.is_generated_for_pseudo_element())
-        return DOM::AbstractElement { *box.pseudo_element_generator(), box.generated_for_pseudo_element() };
-    if (auto const* element = as_if<DOM::Element>(box.dom_node()))
-        return DOM::AbstractElement { *element };
-    return {};
-}
-
 void register_layout_host(NodeArena& arena, DOM::Document& document)
 {
     static_assert(to_underlying(SVG::PreserveAspectRatio::Align::None) == 0);
@@ -402,43 +393,6 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
     static_assert(to_underlying(SVG::SVGUnits::UserSpaceOnUse) == 1);
     RustFFI::FfiLayoutHostCallbacks callbacks {
         .context = &document,
-        .anchor_lookup = [](void*, void* node, size_t anchor_name, void* const* eligible_anchor_boxes, size_t eligible_anchor_box_count) {
-            auto const& box = *static_cast<Box const*>(node);
-            auto abstract_element = abstract_element_for_abspos_box(box);
-            if (!abstract_element.has_value())
-                return Compositing::RustFFI::NodeSlotId_INVALID;
-            auto const* containing_block = box.containing_block();
-            if (!containing_block)
-                return Compositing::RustFFI::NodeSlotId_INVALID;
-            Function<bool(DOM::Element&)> is_acceptable_anchor_element = [&](DOM::Element& candidate) {
-                auto const* anchor_box = as_if<Box>(candidate.unsafe_layout_node());
-                if (!anchor_box || anchor_box == &box)
-                    return false;
-                bool has_used_values = false;
-                for (size_t index = 0; index < eligible_anchor_box_count; ++index) {
-                    if (eligible_anchor_boxes[index] == anchor_box) {
-                        has_used_values = true;
-                        break;
-                    }
-                }
-                if (!has_used_values)
-                    return false;
-                for (auto const* ancestor = anchor_box->containing_block(); ancestor; ancestor = ancestor->containing_block()) {
-                    if (ancestor == containing_block)
-                        return true;
-                }
-                return false;
-            };
-            auto anchor_element = abstract_element->element().document().element_by_anchor_name(
-                Utf16FlyString::from_raw(anchor_name),
-                abstract_element->element(),
-                is_acceptable_anchor_element);
-            if (!anchor_element)
-                return Compositing::RustFFI::NodeSlotId_INVALID;
-            auto const* anchor_box = as_if<Box>(anchor_element->unsafe_layout_node());
-            if (!anchor_box)
-                return Compositing::RustFFI::NodeSlotId_INVALID;
-            return Node::slot_id(anchor_box); },
         .deliver_commit_messages = [](void* context, RustFFI::FfiCommitMessage const* messages, size_t count) {
             auto& commit_messages = static_cast<DOM::Document*>(context)->commit_messages();
             for (size_t index = 0; index < count; ++index)

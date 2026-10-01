@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
@@ -27,7 +26,6 @@ public:
     // of the map's root.
     void register_name(Utf16FlyString const& name, GC::Ref<Element>, Optional<CSS::StyleNodeID> scope_host);
     void unregister_name(Utf16FlyString const& name, GC::Ref<Element>, Optional<CSS::StyleNodeID> scope_host);
-    GC::Ptr<Element> last_element_by_name_matching(Utf16FlyString const& name, Function<bool(Element&)> const& is_acceptable) const;
 
     template<typename Visitor>
     void visit_edges(Visitor& visitor) { visitor.visit(m_map); }

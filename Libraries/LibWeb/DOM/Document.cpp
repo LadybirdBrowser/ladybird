@@ -8519,24 +8519,6 @@ void Document::element_with_name_was_removed(Badge<DOM::Element>, GC::Ref<DOM::E
     }
 }
 
-GC::Ptr<Element> Document::element_by_anchor_name(Utf16FlyString const& name, Node const& querying_node, Function<bool(Element&)> const& is_acceptable) const
-{
-    // https://drafts.csswg.org/css-shadow-1/#tree-scoped-name
-    // If a tree-scoped name is global (such as @font-face names), then when a tree-scoped reference is dereferenced to
-    // find it, first search only the tree-scoped names associated with the same root as the tree-scoped reference. If
-    // no relevant tree-scoped name is found, and the root is a shadow root, then repeat this search in the root's
-    // host's node tree (recursively).
-    auto const* node = &querying_node;
-    while (auto const* shadow_root = as_if<ShadowRoot>(node->root())) {
-        if (auto element = shadow_root->anchor_name_map().last_element_by_name_matching(name, is_acceptable))
-            return element;
-        node = shadow_root->host();
-        if (!node)
-            return {};
-    }
-    return m_anchor_name_map.last_element_by_name_matching(name, is_acceptable);
-}
-
 HTML::RadioButtonGroupRegistry& Document::ensure_radio_button_group_registry()
 {
     if (!m_radio_button_group_registry)

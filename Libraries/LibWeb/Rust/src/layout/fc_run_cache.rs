@@ -581,7 +581,7 @@ impl FcRunCacheAttempt {
         // narrowed: anchor() applies only to absolutely positioned boxes and every abspos
         // box is the root of its own spawned run, so the flag on the run root covers every
         // anchor consumer; anchor eligibility is resolved from used values of the same
-        // pass under the C++ anchor_lookup containing-block guard, never from a previous
+        // pass under the anchor lookup's containing-block guard, never from a previous
         // pass; scroll compensation compares chains that converge at the run root and
         // registers scroll-shift side effects a replay would skip; and anchor-size()
         // resolves to None today, so inset properties are the only anchor dependency a
