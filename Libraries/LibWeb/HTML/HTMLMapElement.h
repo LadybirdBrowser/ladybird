@@ -22,8 +22,6 @@ public:
 
     GC::Ref<DOM::HTMLCollection> areas();
 
-    GC::Ptr<HTMLAreaElement> area_for_point(CSSPixelPoint, CSSPixelSize image_size);
-
     template<typename Callback>
     void for_each_associated_image(Callback callback) const
     {

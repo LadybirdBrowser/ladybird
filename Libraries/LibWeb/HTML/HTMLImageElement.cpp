@@ -699,7 +699,8 @@ GC::Ptr<HTMLMapElement> HTMLImageElement::associated_map_element()
     // 1. Parse the attribute's value using the rules for parsing a hash-name reference to a map element, with the
     //    element as the context node. This will return either an element (the map) or null.
     // 2. If that returned null, then return. The image is not associated with an image map after all.
-    // NB: Step 3 is performed by HTMLMapElement::area_for_point() when a pointing device interacts with the image.
+    // NB: Step 3 is performed when the image's areas are published for hit testing, and the Rust
+    //     ImageMapAreaColumn::area_for_point() answers which of them a pointing device interacts with.
     m_cached_associated_map_element = parse_hash_name_reference_to_map_element(usemap->utf16_view(), *this);
     m_cached_associated_map_element_dom_tree_version = dom_tree_version();
     return m_cached_associated_map_element;

@@ -207,6 +207,11 @@ impl ImageMapAreaColumn {
         let Some(areas) = published.get(&slot) else {
             return 0;
         };
+        // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
+        // Pointing device interaction with an image associated with a set of layered shapes per the above algorithm
+        // must result in the relevant user interaction events being first fired to the top-most shape covering the
+        // point that the pointing device indicated, if any, or to the image element itself, if there is no shape
+        // covering that point.
         // NB: The shapes are layered in reverse tree order, so the top-most shape covering the point belongs to the
         //     first area element in tree order whose shape contains the point.
         areas

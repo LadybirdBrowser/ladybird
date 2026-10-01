@@ -34,7 +34,6 @@ public:
     Vector<double> shape_coords() const;
 
     Optional<Gfx::Path> shape_path(CSSPixelSize image_size) const;
-    bool shape_contains_point(CSSPixelPoint, CSSPixelSize image_size) const;
 
 private:
     HTMLAreaElement(DOM::Document&, DOM::QualifiedName);

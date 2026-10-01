@@ -290,6 +290,9 @@ static void push_image_map_area_facts_onto(GC::Ptr<HTML::HTMLMapElement> map_ele
     Vector<Layout::RustFFI::FfiImageMapArea> areas;
     Vector<double> coords;
     if (map_element) {
+        // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
+        // 3. Otherwise, the user agent must collect all the area elements that are descendants of the map. Let areas
+        //    be that list.
         map_element->for_each_in_subtree_of_type<HTML::HTMLAreaElement>([&](HTML::HTMLAreaElement& area_element) {
             auto area_coords = area_element.shape_coords();
             areas.append({
