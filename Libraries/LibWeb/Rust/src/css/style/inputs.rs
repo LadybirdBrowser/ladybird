@@ -454,6 +454,12 @@ impl RetainedState {
         self.tree.unlink_from_dom_order(node, parent);
     }
 
+    /// Mark an identity that stands in the tree only to be named by relations. The document is one:
+    /// it owns the DOM child sequence its children hang from, and it is never styled or matched.
+    pub fn mark_relation_only_style_node(&mut self, node: StyleNodeID) {
+        self.tree.mark_relation_only(node, &mut self.memory);
+    }
+
     // -- Stylesheet program ------------------------------------------------------------------
     //
     // Every CSSOM mutation maps to a precise typed delta. None of them produces a generic document

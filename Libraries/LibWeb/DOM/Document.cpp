@@ -5857,6 +5857,7 @@ void Document::ensure_style_engine_tracks_tree()
     if (m_style_engine_tracks_tree)
         return;
     m_style_engine_tracks_tree = true;
+    CSS::record_document_tree_tracked(*this);
     for (auto* child = first_child(); child; child = child->next_sibling())
         CSS::record_subtree_connecting(*child);
 }

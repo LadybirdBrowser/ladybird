@@ -1395,12 +1395,12 @@ impl StyleEngineState {
             if !emit_node {
                 return;
             }
-            // A departure can remain in a conservative region while its routing facts survive,
-            // and a live shadow root is a synthetic relation node rather than a style output.
-            // Neither has a C++ element to consume a record; every live element whose style either
-            // can affect is another member of the region.
+            // A departure can remain in a conservative region while its routing facts survive, and
+            // a live shadow root or document is a synthetic relation node rather than a style
+            // output. None has a C++ element to consume a record; every live element whose style
+            // any of them can affect is another member of the region.
             let is_scope_root = self.retained.scope_by_root.get(node).is_some();
-            if !self.retained.tree.is_live(node) || is_scope_root {
+            if !self.retained.tree.is_live(node) || is_scope_root || self.retained.tree.is_relation_only(node) {
                 return;
             }
             if repair_match_identity {

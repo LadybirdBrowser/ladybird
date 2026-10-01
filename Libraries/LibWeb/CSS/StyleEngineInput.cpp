@@ -73,13 +73,15 @@ static StyleNodeID dom_order_identity_of(DOM::Node const& node)
     return no_style_node;
 }
 
-// Only an element or a shadow root owns a child sequence. The document's own children are not one anything reads.
+// An element, a shadow root or the document owns a child sequence. Every other node is only ever a member of one.
 static StyleNodeID dom_order_parent_of(DOM::Node const* parent)
 {
     if (auto const* element = as_if<DOM::Element>(parent))
         return element->style_node_id();
     if (auto const* shadow_root = as_if<DOM::ShadowRoot>(parent))
         return shadow_root->style_node_id();
+    if (auto const* document = as_if<DOM::Document>(parent))
+        return document->style_node_id();
     return no_style_node;
 }
 
@@ -131,6 +133,14 @@ static StyleNodeID identity_of_shadow_root(DOM::ShadowRoot& shadow_root, StyleEn
     if (auto host = shadow_root.host(); host && host->style_node_id() != no_style_node)
         style_engine.set_shadow_root(host->style_node_id(), shadow_root.style_node_id());
     return shadow_root.style_node_id();
+}
+
+// A child taking its place in a shadow root's DOM child sequence needs the root's identity, since the sequence is named
+// by the root. A root that has none yet is named here rather than leaving the child linked under nothing.
+static void ensure_dom_order_parent_identity(DOM::Node* parent, StyleEngine& style_engine)
+{
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(parent); shadow_root && shadow_root->style_node_id() == no_style_node)
+        (void)identity_of_shadow_root(*shadow_root, style_engine);
 }
 
 // The style scope a node belongs to.
@@ -271,6 +281,7 @@ void record_element_connected(DOM::Element& element)
     element.set_style_node_id(style_engine->allocate_style_node());
     element.document().style_computer().register_style_node(element.style_node_id(), element);
     record_element_arrival_delta(element, *style_engine, tree_scope_of(element.root()));
+    ensure_dom_order_parent_identity(element.parent(), *style_engine);
     link_in_dom_order(*style_engine, element);
 }
 
@@ -283,7 +294,22 @@ void record_text_connected(DOM::Text& text)
     style_engine->allocate_text_style_nodes({ &identity, 1 });
     text.set_style_node_id(identity);
     text.document().style_computer().register_style_node(identity, text);
+    ensure_dom_order_parent_identity(text.parent(), *style_engine);
     link_in_dom_order(*style_engine, text);
+}
+
+// The document's identity, minted before anything connects under it.
+//
+// The document is not an element and gets no style, but it is the parent the document element's place in the DOM
+// child sequence names, and so the root the sequence can be walked from. It is deliberately kept out of the
+// element-only relation columns: a selector that reaches for the document element's parent must still find nothing.
+void record_document_tree_tracked(DOM::Document& document)
+{
+    if (document.style_node_id() != no_style_node)
+        return;
+    auto& style_engine = document.style_computer().style_engine();
+    document.set_style_node_id(style_engine.allocate_style_node());
+    style_engine.mark_relation_only_style_node(document.style_node_id());
 }
 
 void record_subtree_connecting(DOM::Node& root)
@@ -315,6 +341,8 @@ void record_subtree_connecting(DOM::Node& root)
         }
     };
     for_each_shadow_including_inclusive_descendant_with_scope(root, tree_scope_of(root.root()), collect);
+    if (!dom_order_arrivals.is_empty())
+        ensure_dom_order_parent_identity(root.parent(), style_engine);
 
     if (!text_arrivals.is_empty()) {
         Vector<StyleNodeID, 64> identities;
@@ -667,6 +695,7 @@ void record_node_moved_in_dom_order(DOM::Node& node, DOM::Node const& old_parent
     if (!style_engine || identity == no_style_node)
         return;
     style_engine->unlink_style_node_from_dom_order(identity, dom_order_parent_of(&old_parent));
+    ensure_dom_order_parent_identity(node.parent(), *style_engine);
     link_in_dom_order(*style_engine, node);
 }
 
