@@ -411,6 +411,8 @@ public:
     }
     void set_computed_style(Optional<CSS::PseudoElement>, CSS::StyleRecordID);
     void refresh_computed_style(Optional<CSS::PseudoElement>, CSS::StyleRecordID);
+    // Install the custom properties beside a pseudo-element record the style engine derived.
+    void install_engine_pseudo_element_custom_property_data(CSS::PseudoElement, CSS::StyleRecordID);
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, Optional<CSS::PseudoElement>, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
     void update_animated_properties_for_abstract_element(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
 

@@ -755,17 +755,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         targeted: event.payload.read_bool()?,
                         read_only: event.payload.read_bool()?,
                         exclude_inline_style: event.payload.read_bool()?,
+                        pseudo_kind_plus_one: event.payload.read_u8()?,
                     };
                     let expected = event.payload.read_u64()?;
+                    let expected_absent = event.payload.read_bool()?;
                     let expected_uses_substitution = event.payload.read_bool()?;
                     let expected_present = event.payload.read_u8()?;
                     let actual = unsafe { bridge::style_engine_answer_record_demand(engine, node, demand) };
-                    if actual.style_record != expected
-                        || actual.uses_substitution != expected_uses_substitution
-                        || actual.pseudo_records_present != expected_present
+                    if actual.record.style_record != expected
+                        || actual.is_absent != expected_absent
+                        || actual.record.uses_substitution != expected_uses_substitution
+                        || actual.record.pseudo_records_present != expected_present
                     {
                         return Err(format!(
-                            "record demand diverged for node {node}: expected {expected} (substitution {expected_uses_substitution}, present {expected_present:#x}), got {actual:?}"
+                            "record demand diverged for node {node}: expected {expected} (absent {expected_absent}, substitution {expected_uses_substitution}, present {expected_present:#x}), got {actual:?}"
                         )
                         .into());
                     }

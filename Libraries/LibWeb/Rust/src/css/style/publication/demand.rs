@@ -4,18 +4,34 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Answering a read of one element's style that the host has to make before the next style
-//! update takes the document's pending changes.
+//! Answering a read of one element's style, or one of its pseudo-elements', that the host has to
+//! make before the next style update takes the document's pending changes.
 
+use super::pseudo::PseudoSettlement;
 use super::*;
 
-/// What a record demand answers: the element's record with the pseudo-element records settled
-/// beside it, and whether it was computed with a substituted winner.
+/// What a record demand answers.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct RecordDemandAnswer {
-    pub(crate) record: RetriedEngineRecord,
-    pub(crate) uses_substitution: bool,
+pub(crate) enum RecordDemandAnswer {
+    /// The element's record with the pseudo-element records settled beside it, or the
+    /// pseudo-element's record, and whether it was computed with a substituted winner.
+    Record {
+        record: RetriedEngineRecord,
+        uses_substitution: bool,
+    },
+    /// The pseudo-element asked for generates no box.
+    Absent,
 }
+
+/// The pseudo-elements a demand may ask for: those the engine settles beside their element in a
+/// style update. A highlight pseudo-element's read is the host's.
+const DEMANDED_PSEUDO_KINDS: [u8; 5] = [
+    pseudo_kind::BEFORE,
+    pseudo_kind::AFTER,
+    pseudo_kind::FIRST_LETTER,
+    pseudo_kind::MARKER,
+    pseudo_kind::BACKDROP,
+];
 
 /// Leave to publish a driven row's winners into the retained groups, outside any matching
 /// traversal, as a style update does. Every drive holds it but a read-only demand's: the rows that
@@ -106,6 +122,18 @@ impl RetainedState {
         self.discard_private_record_demand_matching_batch();
     }
 
+    /// Let go of the records private reads of `node`'s styles were answered with.
+    pub(super) fn release_demand_records(&mut self, node: StyleNodeID) {
+        let computed_group_sets = &mut self.computed_group_sets;
+        self.demand_records.retain(|target, record| {
+            let released = target.node() == node;
+            if released {
+                computed_group_sets.unpin_style_record(record.raw());
+            }
+            !released
+        });
+    }
+
     /// Keep a private answer's record alive for the host, which reads it once the demand has
     /// returned. The record the target's previous demand held is let go.
     fn hold_demand_record(&mut self, target: computed::ComputedStyleTarget, record: computed::FinalStyleRecordID) {
@@ -117,8 +145,23 @@ impl RetainedState {
 
     /// Whether everything a demand for `node` reads is current: the tree, the rules and the node's
     /// own facts hold no change the next transaction has yet to take, and no ancestor the node
-    /// inherits from owes a computation. A read under pending input is the host's.
-    fn record_demand_reads_current_inputs(&self, node: StyleNodeID, host: &HostState, read_only: bool) -> bool {
+    /// inherits from owes a computation. A read under pending input is the host's. A pseudo-element
+    /// is settled against its element's installed record, which nothing may be about to move.
+    fn record_demand_reads_current_inputs(
+        &self,
+        node: StyleNodeID,
+        host: &HostState,
+        read_only: bool,
+        pseudo: bool,
+    ) -> bool {
+        if pseudo
+            && (!host.journal.is_empty()
+                || !host.deferred_element_style_inputs.is_empty()
+                || self.engine_computed_records_pending.contains_key(&node)
+                || self.computed_group_sets.assigned_style_record(node).is_none())
+        {
+            return false;
+        }
         if !self.tree.is_live(node)
             || !host.tree_staging.is_empty()
             || host.program_staging.is_dirty()
@@ -155,10 +198,12 @@ impl RetainedState {
 }
 
 impl StyleEngineState {
-    /// Answer a read of `node`'s style that the host makes before the next style update, from the
-    /// document as it is now and without taking the document's pending transaction. The node is
-    /// matched again, so no winner row an earlier batch published answers inputs that moved since.
-    /// A targeted demand drives the record in full against the parent as it is now.
+    /// Answer a read of `node`'s style, or of one of its pseudo-elements', that the host makes
+    /// before the next style update, from the document as it is now and without taking the
+    /// document's pending transaction. The node is matched again, so no winner row an earlier
+    /// batch published answers inputs that moved since. A targeted demand drives the element's
+    /// record in full against the parent as it is now; a pseudo-element is settled against the
+    /// element's installed record.
     ///
     /// A read-only demand leaves the published rows, the node's records and its pending inputs as
     /// they were: it reuses the node's retained match answer or matches in a private traversal, and
@@ -175,13 +220,16 @@ impl StyleEngineState {
             targeted,
             read_only,
             exclude_inline_style,
+            pseudo_kind_plus_one,
         } = demand;
-        // Only a private read may leave the inline style out: the record it answers is no
-        // element's.
-        if (exclude_inline_style && !read_only)
+        let pseudo = pseudo_kind_plus_one.checked_sub(1);
+        // Only a private read of an element may leave its inline style out: the record it
+        // answers is no element's.
+        if (exclude_inline_style && (!read_only || pseudo.is_some()))
+            || pseudo.is_some_and(|kind| !DEMANDED_PSEUDO_KINDS.contains(&kind))
             || !self
                 .retained
-                .record_demand_reads_current_inputs(node, &self.host, read_only)
+                .record_demand_reads_current_inputs(node, &self.host, read_only, pseudo.is_some())
         {
             return Err(Unanswered::Refused);
         }
@@ -250,9 +298,10 @@ impl StyleEngineState {
             read_only,
             ..EngineComputedRecordScratch::default()
         };
-        let result = answer
-            .map_err(|_| Unanswered::Refused)
-            .and_then(|answer| self.drive_demanded_record(node, answer, targeted, read_only, &mut scratch, counters));
+        let result = answer.map_err(|_| Unanswered::Refused).and_then(|answer| match pseudo {
+            None => self.drive_demanded_record(node, answer, targeted, read_only, &mut scratch, counters),
+            Some(kind) => self.drive_demanded_pseudo_record(node, kind, answer, read_only, &mut scratch, counters),
+        });
 
         if let Some(hidden) = hidden_inline_declarations {
             self.retained
@@ -260,11 +309,11 @@ impl StyleEngineState {
                 .restore_inline_declarations_after_demand(node, hidden);
         }
         if let Some((saves, batch_answers)) = private {
-            if let Ok(answer) = &result
-                && let Some(record) = computed::FinalStyleRecordID::from_raw(answer.record.style_record)
+            if let Ok(RecordDemandAnswer::Record { record, .. }) = &result
+                && let Some(record) = computed::FinalStyleRecordID::from_raw(record.style_record)
             {
-                self.retained
-                    .hold_demand_record(computed::ComputedStyleTarget::new(node, u8::MAX), record);
+                let target = computed::ComputedStyleTarget::new(node, pseudo.unwrap_or(u8::MAX));
+                self.retained.hold_demand_record(target, record);
             }
             self.retained
                 .restore_after_private_demand(node, saves, &mut scratch, counters);
@@ -273,15 +322,15 @@ impl StyleEngineState {
         result
     }
 
-    fn drive_demanded_record(
+    /// Publish the answer a demand matched for `node`, as a batch publishes its rows' answers.
+    /// Whether the node's winners are complete.
+    fn publish_demanded_answer(
         &mut self,
         node: StyleNodeID,
         answer: PublishedMatchAnswer,
-        targeted: bool,
         read_only: bool,
-        scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
-    ) -> Drive<RecordDemandAnswer> {
+    ) -> bool {
         let complete =
             answer.cascade_winners_are_complete || self.cascade_winners_are_complete_but_for_custom_properties(node);
         if !read_only {
@@ -293,6 +342,19 @@ impl StyleEngineState {
                 .push(answer, &mut self.retained.memory, counters);
             self.retained.published_match_answers.sort();
         }
+        complete
+    }
+
+    fn drive_demanded_record(
+        &mut self,
+        node: StyleNodeID,
+        answer: PublishedMatchAnswer,
+        targeted: bool,
+        read_only: bool,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> Drive<RecordDemandAnswer> {
+        let complete = self.publish_demanded_answer(node, answer, read_only, counters);
         let parent_inputs_moved = ParentInputsMoved {
             inherited_style: targeted,
             display: targeted,
@@ -308,19 +370,16 @@ impl StyleEngineState {
                 delta => break delta?,
             }
         };
-        let mut answered = RecordDemandAnswer {
-            record: RetriedEngineRecord {
-                style_record: record.raw(),
-                explicitly_inherited_groups: scratch.element_explicitly_inherited_groups,
-                ..RetriedEngineRecord::default()
-            },
-            uses_substitution: scratch.element_uses_substitution,
+        let mut answered = RetriedEngineRecord {
+            style_record: record.raw(),
+            explicitly_inherited_groups: scratch.element_explicitly_inherited_groups,
+            ..RetriedEngineRecord::default()
         };
         for delta in &scratch.pseudo_deltas {
             let kind = usize::from(delta.kind);
             if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {
-                answered.record.pseudo_records_present |= 1 << kind;
-                answered.record.pseudo_records[kind] = delta.new_style_record.raw();
+                answered.pseudo_records_present |= 1 << kind;
+                answered.pseudo_records[kind] = delta.new_style_record.raw();
             }
         }
         if !read_only {
@@ -328,6 +387,98 @@ impl StyleEngineState {
             self.consume_element_style_input(node);
             self.retained.style_input_nodes_for_cpp.remove(&node);
         }
-        Ok(answered)
+        Ok(RecordDemandAnswer::Record {
+            record: answered,
+            uses_substitution: scratch.element_uses_substitution,
+        })
+    }
+
+    /// Settle the one pseudo-element `kind` of `node` against the element's installed record, as a
+    /// style update settles it: absent where it generates no box. A read-only read is answered with
+    /// what the kind computes to, whether or not it generates a box.
+    fn drive_demanded_pseudo_record(
+        &mut self,
+        node: StyleNodeID,
+        kind: u8,
+        answer: PublishedMatchAnswer,
+        read_only: bool,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> Drive<RecordDemandAnswer> {
+        self.publish_demanded_answer(node, answer, read_only, counters);
+        // A style update removes the backdrop of an element outside the top layer, which a
+        // record installed for a read would outlive.
+        if kind == pseudo_kind::BACKDROP
+            && !read_only
+            && self.retained.computed_group_sets.adjustment_facts(node)
+                & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
+                == 0
+        {
+            return Err(Unanswered::Refused);
+        }
+        let element = self
+            .retained
+            .computed_group_sets
+            .assigned_style_record(node)
+            .or_refused()?;
+        let kinds_with_rules = self.retained.pseudo_style_mask(node).or_refused()?;
+        let element_is_list_item = self
+            .retained
+            .computed_group_sets
+            .style_record_view(element.raw())
+            .and_then(|view| unsafe { view.longhand_table.as_ref() })
+            .is_some_and(|table| table.display_is_list_item());
+        let generated = kinds_with_rules & (1 << kind) != 0 || (kind == pseudo_kind::MARKER && element_is_list_item);
+        if !generated && !read_only {
+            return Ok(RecordDemandAnswer::Absent);
+        }
+        if !self.retained.pseudo_winners_are_complete(node) {
+            return Err(Unanswered::Refused);
+        }
+        let settlement = if read_only {
+            PseudoSettlement::Computed(kind)
+        } else {
+            PseudoSettlement::Read(kind)
+        };
+        let generation = self.retained.winner_groups.generation();
+        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+        loop {
+            match self.retained.settle_pseudo_records(
+                node,
+                Some(element),
+                None,
+                element,
+                generation,
+                settlement,
+                scratch,
+                counters,
+            ) {
+                Ok(()) => break,
+                Err(Unanswered::Suspended(Suspension::Font)) => {
+                    let request = scratch.font_drive.take_suspended_request();
+                    suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
+                    self.refill_font_request(node, request, counters);
+                }
+                Err(unanswered) => {
+                    // Whatever was settled before the refusal goes back.
+                    self.retained.put_back_engine_computed_records(node, scratch, counters);
+                    return Err(unanswered);
+                }
+            }
+        }
+        let record = match scratch.pseudo_deltas.iter().rev().find(|delta| delta.kind == kind) {
+            Some(delta) => Some(delta.new_style_record).filter(|&record| record != computed::FinalStyleRecordID::NONE),
+            None => self.retained.computed_group_sets.pseudo_style_record(node, kind),
+        };
+        Ok(match record {
+            Some(record) => RecordDemandAnswer::Record {
+                record: RetriedEngineRecord {
+                    style_record: record.raw(),
+                    ..RetriedEngineRecord::default()
+                },
+                uses_substitution: scratch.pseudo_uses_substitution,
+            },
+            None => RecordDemandAnswer::Absent,
+        })
     }
 }
