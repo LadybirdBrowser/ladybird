@@ -1,0 +1,5 @@
+engine computed the image records: false
+local: url("image.svg")
+imported: url("support/image.svg")
+attribute: url("support/image.svg")
+other winners update: true

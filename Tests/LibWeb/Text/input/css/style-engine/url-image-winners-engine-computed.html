@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<link rel="stylesheet" href="support/shared-image-style.css">
+<style>
+    .local { background-image: url("image.svg"); }
+    .moved { color: rgb(0, 128, 0); }
+</style>
+<div id="container"></div>
+<script>
+    // An image written in a sheet resolves against that sheet's base URL, and one in a style
+    // attribute against the document's. The engine knows both, so it computes these records.
+    test(() => {
+        const nodes = [];
+        for (const kind of ["local", "imported", "attribute"]) {
+            for (let index = 0; index < 4; ++index) {
+                const node = document.createElement("div");
+                if (kind === "attribute")
+                    node.style.backgroundImage = `url("support/image.svg")`;
+                else
+                    node.className = kind;
+                node.dataset.kind = kind;
+                container.append(node);
+                nodes.push(node);
+            }
+        }
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        for (const node of nodes)
+            node.classList.add("moved");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`engine computed the image records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords >= nodes.length}`);
+        const directory = new URL(".", location.href).href;
+        for (const kind of ["local", "imported", "attribute"]) {
+            const values = new Set(nodes.filter(node => node.dataset.kind === kind).map(node => getComputedStyle(node).backgroundImage.replace(directory, "")));
+            println(`${kind}: ${[...values].join(", ")}`);
+        }
+        println(`other winners update: ${nodes.every(node => getComputedStyle(node).color === "rgb(0, 128, 0)")}`);
+    });
+</script>
