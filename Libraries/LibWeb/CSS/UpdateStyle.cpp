@@ -405,16 +405,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             auto element = document.style_computer().element_for_style_node(published_reaction.style_node);
             if (!element)
                 continue;
-            // A reaction the engine derived for this element while applying an earlier one in
-            // this batch joins the element's own reaction where it covers it.
             auto reaction = published_reaction;
-            if (auto absorbed = document.style_computer().style_engine().absorb_element_style_input(
-                    StyleNodeID { reaction.style_node }, reaction.reaction, reaction.inherited_style_groups,
-                    reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize);
-                absorbed != 0) {
-                reaction.reaction = static_cast<u8>(absorbed & 0xff);
-                reaction.inherited_style_groups = static_cast<u8>(absorbed >> 8);
-            }
 
             if (!element->has_style() && !required_in_hidden_subtrees.contains(element->style_node_id())) {
                 bool hidden = false;
@@ -451,6 +442,17 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 } else {
                     reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize;
                 }
+            }
+
+            // A reaction the engine derived for this element while applying an earlier one in
+            // this batch joins the element's own reaction where it covers it, which a C++
+            // computation of the element, a failed retry's included, always does.
+            if (auto absorbed = document.style_computer().style_engine().absorb_element_style_input(
+                    StyleNodeID { reaction.style_node }, reaction.reaction, reaction.inherited_style_groups,
+                    reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize);
+                absorbed != 0) {
+                reaction.reaction = static_cast<u8>(absorbed & 0xff);
+                reaction.inherited_style_groups = static_cast<u8>(absorbed >> 8);
             }
 
             // An element whose style was cleared on entry to display:none computes it here, before its descendants.
