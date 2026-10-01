@@ -2532,6 +2532,19 @@ Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingRespo
     return { false };
 }
 
+// A document populated for a navigable is one the browser process created for it, and has not made active yet.
+Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse WebContentPage::did_request_has_populated_document_for_testing(Web::HTML::CrossProcessId navigable_id) const
+{
+    auto navigable = traversable().top_level_traversable().find(navigable_id);
+    if (!navigable.has_value())
+        return false;
+    bool has_populated_document = false;
+    navigable->for_each_populated_document([&](auto const&) {
+        has_populated_document = true;
+    });
+    return has_populated_document;
+}
+
 Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse WebContentPage::did_request_session_store_tab_state_for_testing()
 {
     if (displays_tab())

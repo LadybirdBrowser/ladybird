@@ -1,5 +1,6 @@
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibURL/Origin.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/Page/PageId.h>
 
@@ -16,6 +17,7 @@ endpoint WebContentTestClient routed by Web::PageId page_id
 
     [NotRouted] did_request_ui_process_session_history_for_testing(Web::PageId page_id) => (String session_history)
     [NotRouted] did_request_site_isolation_process_tree_for_testing(Web::PageId page_id) => (String process_tree)
+    [NotRouted] did_request_has_populated_document_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) => (bool has_populated_document)
     did_request_crash_of_remote_frame_processes_for_testing(Web::PageId page_id) =|
     did_request_stop_loading_for_testing(Web::PageId page_id) =|
     did_request_reload_for_testing(Web::PageId page_id) =|

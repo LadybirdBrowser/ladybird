@@ -1,0 +1,74 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // A same-origin navigation from an iframe's initial about:blank reuses the about:blank's window for the document
+    // the navigation creates. If the navigation is abandoned before the new document is made active, the about:blank
+    // stays active, and the window's associated Document has to stay the about:blank — since the origin of the window's
+    // relevant settings object is the origin of the window's associated Document. The browser process reads that origin
+    // when, e.g., a page in another process posts a BroadcastChannel message, and the browser process checks every
+    // document this page's process hosts for the message's storage key.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const id = crypto.randomUUID();
+        const sameOrigin = async (path, options) => {
+            const url = new URL(await server.createEcho("GET", `/${path}-${id}`, options));
+            url.hostname = location.hostname;
+            return url.href;
+        };
+
+        // The child's body stalls after its first chunk, so the document the browser process creates for it on the
+        // response's headers waits to be made active until this page abandons it for a navigation that creates none.
+        const child = await sameOrigin("child", {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+            body: "<!DOCTYPE html>" + "<!-- " + "x".repeat(1000) + " -->",
+        });
+        const stalledChild = `${child}?chunks=16&chunk_delay_ms=3000`;
+        const noContent = await sameOrigin("no-content", { status: 204, headers: { "Cache-Control": "no-store" } });
+
+        // The poster is cross-site, so it runs in another process, and posts a BroadcastChannel message on request.
+        const posterURL = new URL(
+            await server.createEcho("GET", `/poster-${id}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", () => {
+                        new BroadcastChannel("channel-${id}").postMessage("hello");
+                        parent.postMessage("posted", "*");
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        posterURL.hostname = uniqueLocalhostHostname("poster");
+
+        const nextMessage = () =>
+            new Promise(resolve => addEventListener("message", e => resolve(e.data), { once: true }));
+        const poster = document.createElement("iframe");
+        poster.src = posterURL.href;
+        let message = nextMessage();
+        document.body.append(poster);
+        println(`poster: ${await message}`);
+
+        const frame = document.createElement("iframe");
+        document.body.append(frame);
+        println(`frame starts on its initial about:blank: ${frame.contentWindow.location.href}`);
+
+        const waitUntil = async condition => {
+            while (!condition()) await new Promise(resolve => setTimeout(resolve, 10));
+        };
+        frame.src = stalledChild;
+        await waitUntil(() => internals.hasPopulatedDocument(frame));
+        frame.src = noContent;
+        await waitUntil(() => !internals.hasPopulatedDocument(frame));
+        println(`frame is still on its initial about:blank: ${frame.contentWindow.location.href}`);
+
+        message = nextMessage();
+        poster.contentWindow.postMessage("post", "*");
+        println(`poster: ${await message}`);
+        println(
+            `frame's origin: ${frame.contentWindow.origin === self.origin ? "same as this page's" : frame.contentWindow.origin}`
+        );
+        done();
+    });
+</script>

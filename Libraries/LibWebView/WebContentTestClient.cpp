@@ -69,6 +69,14 @@ Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResp
     return String {};
 }
 
+Messages::WebContentTestClient::DidRequestHasPopulatedDocumentForTestingResponse WebContentTestClient::did_request_has_populated_document_for_testing(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->did_request_has_populated_document_for_testing(navigable_id);
+
+    return false;
+}
+
 Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse WebContentTestClient::did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id)
 {
     if (auto* page = m_client.page(page_id))
