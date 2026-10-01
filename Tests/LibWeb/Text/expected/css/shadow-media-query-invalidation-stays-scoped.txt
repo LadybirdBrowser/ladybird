@@ -1,2 +1,2 @@
 Target color: rgb(0, 128, 0)
-PASS: shadow media query update stayed scoped (3 recomputations)
+PASS: shadow media query update stayed scoped (0 recomputations)

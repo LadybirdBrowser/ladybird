@@ -1,3 +1,3 @@
 PASS: subject :has() hover skips descendant fanout | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: batched subject-only :has() invalidation upgrades to descendant fanout | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
-PASS: descendant :has(:focus) fanout uses pseudo-class metadata | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant :has(:focus) fanout uses pseudo-class metadata | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
