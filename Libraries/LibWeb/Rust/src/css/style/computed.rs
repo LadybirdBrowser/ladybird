@@ -35,7 +35,8 @@ use super::tree::PseudoElementKind;
 use super::tree::PseudoElementTarget;
 use super::tree::StyleNodeID;
 use crate::css::computed_longhand_table::{
-    ComputedLonghandTable, HIGHLIGHT_COLOR_IS_CURRENT_COLOR, HIGHLIGHT_COLORS_AUTHORED, longhand_slot_hash,
+    ComputedLonghandTable, DEPENDS_ON_VIEWPORT_METRICS, HIGHLIGHT_COLOR_IS_CURRENT_COLOR, HIGHLIGHT_COLORS_AUTHORED,
+    longhand_slot_hash,
 };
 use crate::css::computed_values::computed_group_output_mask;
 use crate::css::computed_values::release_group_payload;
@@ -967,7 +968,7 @@ impl ComputedGroupSets {
 
     pub(super) fn viewport_dependent_nodes(&self) -> Vec<u32> {
         let depends_on_viewport = |fixed_metadata: ComputedFixedMetadataID| {
-            self.computed_fixed_metadata.get(fixed_metadata).dependency_flags & 1 != 0
+            self.computed_fixed_metadata.get(fixed_metadata).dependency_flags & DEPENDS_ON_VIEWPORT_METRICS != 0
         };
         let mut nodes = Vec::new();
         for index in 1..self.columns.flags.len() {

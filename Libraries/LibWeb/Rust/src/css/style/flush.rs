@@ -1877,6 +1877,14 @@ impl StyleEngineState {
             style_delta_memory.resize_required_to(&mut self.retained.memory, style_delta_bytes);
             let mut engine_computed_record_scratch = publication::EngineComputedRecordScratch::default();
             engine_computed_record_scratch.document_environment_moved = environment_changed;
+            // The viewport the records were driven against last, against the one they are driven
+            // against now.
+            let viewport = (
+                self.retained.document_style_computation_inputs.viewport_width,
+                self.retained.document_style_computation_inputs.viewport_height,
+            );
+            engine_computed_record_scratch.viewport_moved =
+                std::mem::replace(&mut self.retained.driven_viewport, viewport) != viewport;
             let reaction_gate = ReactionGate::for_transaction(environment_changed);
             let computation_loop_timer = PassTimer::start();
             computation_scratch_memory.resize_required_to(

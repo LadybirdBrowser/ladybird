@@ -52,6 +52,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         cascade_compaction_scratch_memory,
         next_style_transaction_version,
         document_style_computation_inputs,
+        driven_viewport,
         document_resource_contexts,
         document_media,
         document_functions,
@@ -162,6 +163,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(cascade_compaction_scratch_memory);
     assert_member_is_sync(next_style_transaction_version);
     assert_member_is_sync(document_style_computation_inputs);
+    assert_member_is_sync(driven_viewport);
     assert_member_is_sync(document_resource_contexts);
     assert_member_is_sync(document_media);
     assert_member_is_sync(document_functions);

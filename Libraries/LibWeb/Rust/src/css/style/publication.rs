@@ -14,7 +14,9 @@ mod winner_store;
 use winner_store::{WinnerDeclaration, WinnerStore, WinnerValue, shorthand_longhand_data};
 
 use super::*;
-use crate::css::computed_longhand_table::{ComputedLonghandTable, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS};
+use crate::css::computed_longhand_table::{
+    ComputedLonghandTable, DEPENDS_ON_VIEWPORT_METRICS, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS,
+};
 pub(crate) use demand::RecordDemandAnswer;
 pub(super) use demand::WinnerRepublication;
 pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
@@ -681,6 +683,7 @@ impl RetainedState {
         // to declarations no winner names.
         let drive_in_full = holds_no_current_cascade_state
             || scratch.document_environment_moved
+            || (scratch.viewport_moved && self.record_reads_the_viewport(old_style_record))
             || full_drive_reason.is_some()
             || ((environment.is_some() || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
@@ -2830,6 +2833,16 @@ impl RetainedState {
             != 0
     }
 
+    /// Whether a record holds a value resolved against the viewport, its own or its font's: the
+    /// record's publication flags carry both.
+    pub(super) fn record_reads_the_viewport(&self, record: computed::FinalStyleRecordID) -> bool {
+        self.computed_group_sets
+            .style_record_view(record.raw())
+            .is_some_and(|view| {
+                view.dependency_flags & (DEPENDS_ON_VIEWPORT_METRICS | FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS) != 0
+            })
+    }
+
     /// Whether a record of the node rolled a property back below a revert keyword a substitution
     /// produced, to a declaration its winners do not name: its records are the node's alone, and
     /// are computed again whatever its winners say.
@@ -4828,6 +4841,7 @@ impl EngineComputabilityScratch {
 #[derive(Clone, Copy, Default)]
 pub(super) struct BatchMoves {
     document_environment: bool,
+    viewport: bool,
     root_font_inputs: bool,
 }
 
@@ -4838,6 +4852,9 @@ pub(super) struct EngineComputedRecordScratch {
     /// through one while the values they computed to may not, so such a record is driven again
     /// in full against the document's inputs rather than kept.
     pub(super) document_environment_moved: bool,
+    /// Whether the viewport moved since the last flush drove records. A record holding a value
+    /// resolved against it cannot stand, whatever its winners did.
+    pub(super) viewport_moved: bool,
     /// Whether the row being derived had its selector answer or its declarations move this flush
     /// without its winners necessarily being published again.
     pub(super) answer_or_declarations_moved: bool,
@@ -5750,6 +5767,7 @@ impl EngineComputedRecordScratch {
     pub(super) fn batch_moves(&self) -> BatchMoves {
         BatchMoves {
             document_environment: self.document_environment_moved,
+            viewport: self.viewport_moved,
             root_font_inputs: self.root_font_inputs_changed,
         }
     }
