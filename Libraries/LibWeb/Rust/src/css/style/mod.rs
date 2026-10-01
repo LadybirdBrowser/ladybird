@@ -827,6 +827,11 @@ pub struct RetainedState {
     /// Latest document-wide scalar computation facts, copied at the transaction boundary. The host
     /// publishes them with every transaction, before it asks for any row.
     document_style_computation_inputs: bridge::FfiDocumentStyleComputationInputs,
+    /// The viewport, width and height, the last flush drove records against. A record holding a
+    /// value resolved against the viewport cannot stand once it moved, and the viewport is one of
+    /// the document's inputs, so comparing it is what tells the engine, not the host naming every
+    /// reader.
+    driven_viewport: (f64, f64),
     /// The base URLs a `url()` resolves against, copied at the transaction boundary with the inputs.
     document_resource_contexts: resource_contexts::DocumentResourceContexts,
     /// The document's media features, copied from each transaction's inputs.

@@ -356,6 +356,7 @@ impl RetainedState {
             if kind != SELECTION
                 && old.is_some()
                 && originating_inputs_unchanged
+                && !(scratch.viewport_moved && self.record_reads_the_viewport(old_record))
                 && !state.is_some_and(|state| self.sibling_position_key(node, state).is_some())
                 && (old_element_record == Some(new_element_record)
                     || !state.is_some_and(|state| self.state_explicitly_inherits_non_inherited_property(node, state)))

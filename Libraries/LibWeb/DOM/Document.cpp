@@ -2259,12 +2259,15 @@ void Document::invalidate_style_for_viewport_change()
         return;
     }
 
+    // The viewport is one of the document's published inputs, and the style engine drives a record
+    // that read it again once it moves, so the readers are rows the engine settles. They are still
+    // named here: what moved is in none of their winners.
     auto& style_engine = style_computer().style_engine();
     for (auto style_node : style_engine.viewport_dependent_style_nodes()) {
         auto element = style_computer().element_for_style_node(style_node.value());
         if (!element || !element->is_connected() || &element->document() != this)
             continue;
-        style_engine.record_element_style_input_change(style_node);
+        style_engine.record_derived_element_style_input_change(style_node, CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
     }
 
     // Descendants that inherit changed values are reached by the normal inherited-style reaction path.
@@ -2276,7 +2279,7 @@ void Document::invalidate_style_for_viewport_change()
             continue;
         m_elements_with_viewport_dependent_style.set(element);
         if (element.is_connected())
-            style_engine.record_element_style_input_change(element.style_node_id());
+            style_engine.record_derived_element_style_input_change(element.style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
     }
 }
 

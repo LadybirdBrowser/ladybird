@@ -139,5 +139,7 @@
         // The engine recomputes the descendants itself where it can; C++ recomputes the rest.
         const nonInheritedStyleRecomputations = counters.elementStyleRecomputations + counters.engineComputedStyleRecords;
         println(`root font metrics recompute descendants: ${nonInheritedStyleRecomputations >= elementCount / 2}`);
+        // A record that read the viewport is driven again by the engine once the viewport moves.
+        println(`C++ recomputations: ${counters.elementStyleRecomputations}`);
     });
 </script>

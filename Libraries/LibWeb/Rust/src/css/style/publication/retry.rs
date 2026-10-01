@@ -19,6 +19,7 @@ impl EngineComputedRecordScratch {
     fn for_retry(moves: BatchMoves) -> Self {
         Self {
             document_environment_moved: moves.document_environment,
+            viewport_moved: moves.viewport,
             root_font_inputs_changed: moves.root_font_inputs,
             installed_ancestors: Some(InstalledAncestors(())),
             ..Self::default()
