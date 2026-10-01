@@ -921,6 +921,31 @@ void record_element_animation_names(DOM::Element& element, ReadonlySpan<Utf16Fly
     style_engine->set_element_animation_names(element.style_node_id(), atoms);
 }
 
+// The names of the CSS animations the element owns, in one of its per-pseudo-element lists.
+//
+// This one is an input: the computation of an element's animation definitions matches them
+// against the animations the element already has, and this is what it matches them against.
+void record_element_css_defined_animations(DOM::Element& element, u8 slot, ReadonlySpan<Utf16FlyString> names)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() == no_style_node)
+        return;
+
+    // The names travel as one buffer of code units with a length each, since a list is almost
+    // always a single name and a handle per name would cost more than the names do.
+    Vector<u32> lengths;
+    Vector<u16> units;
+    lengths.ensure_capacity(names.size());
+    for (auto const& name : names) {
+        auto view = name.view();
+        lengths.unchecked_append(static_cast<u32>(view.length_in_code_units()));
+        units.ensure_capacity(units.size() + view.length_in_code_units());
+        for (size_t index = 0; index < view.length_in_code_units(); ++index)
+            units.unchecked_append(view.code_unit_at(index));
+    }
+    style_engine->set_element_css_defined_animations(element.style_node_id(), slot, lengths, units);
+}
+
 // The custom properties an element declares or references.
 //
 // Also an index rather than an input, and for the same reason as the animation names: what it answers

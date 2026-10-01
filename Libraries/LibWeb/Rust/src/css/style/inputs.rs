@@ -661,6 +661,28 @@ impl RetainedState {
         self.facts.set_animation_names(node, names, &mut self.memory);
     }
 
+    /// Record the names of the CSS animations the host holds for one of an element's animation
+    /// lists, in the order it holds them. The names arrive packed into one buffer because a list is
+    /// almost always a single name, and a length per name is cheaper than a handle per name.
+    pub fn set_element_css_defined_animations(
+        &mut self,
+        node: StyleNodeID,
+        slot: animations::AnimationSlot,
+        name_lengths: &[u32],
+        name_units: &[u16],
+    ) {
+        let mut offset = 0;
+        let names = name_lengths
+            .iter()
+            .map(|&length| {
+                let units = &name_units[offset..offset + length as usize];
+                offset += length as usize;
+                crate::css::css_string::CssString::from_utf16(units)
+            })
+            .collect();
+        self.css_defined_animations.set(node, slot, names);
+    }
+
     /// Record the custom properties an element declares or references. Also an index rather than an
     /// input, and for the same reason: it answers which elements an `@property` registration reaches.
     pub fn set_element_custom_property_names(
@@ -1050,6 +1072,7 @@ impl StyleEngineState {
                 computed_group_sets: ComputedGroupSets::default(),
                 custom_property_environments: Default::default(),
                 nodes_with_substituted_records: HashSet::default(),
+                css_defined_animations: Default::default(),
                 custom_property_registrations_changed: false,
                 pending_element_style_computation_selections: HashMap::default(),
                 pending_pseudo_style_computation_selections: HashMap::default(),
@@ -2501,6 +2524,7 @@ impl RetainedState {
             computed_group_sets,
             custom_property_environments: _,
             nodes_with_substituted_records,
+            css_defined_animations,
             custom_property_registrations_changed: _,
             pending_element_style_computation_selections,
             pending_pseudo_style_computation_selections,
@@ -2576,6 +2600,7 @@ impl RetainedState {
         winner_groups.remove(node);
         computed_group_sets.remove(node);
         nodes_with_substituted_records.remove(&node);
+        css_defined_animations.retire(node);
         pending_element_style_computation_selections.remove(&node);
         pending_pseudo_style_computation_selections.remove(&node);
     }

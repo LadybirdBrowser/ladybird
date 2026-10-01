@@ -120,7 +120,8 @@
     [119, "UnlinkStyleNodeFromDomOrder"],
     [120, "MarkRelationOnlyStyleNode"],
     [121, "SetSlotAssignedNodes"],
-    [122, "SetTextIsAsciiWhitespace"]
+    [122, "SetTextIsAsciiWhitespace"],
+    [125, "SetElementCssDefinedAnimations"]
   ],
   "operations": [
     {"event": "TakeSharedComputationContext", "ffi": "style_engine_take_shared_computation_context", "cpp": "take_shared_computation_context", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["pseudo_elements", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.take_shared_computation_context(node, parent_record, environment, shape, pseudo_elements).unwrap_or(0);"},
@@ -211,6 +212,7 @@
     { "event": "AddKeyframesRule", "name": "add_keyframes_rule", "return": "style_rule_id", "args": [["sheet", "sheet_id"], ["before_rule", "style_rule_id"], ["name_atom", "style_atom"]], "body": "let result = if sheet == 0 { 0 } else { let before = (before_rule != 0).then(|| RuleID(before_rule - 1)); engine.add_keyframes_rule(SheetID(sheet - 1), before, StyleAtomID(name_atom)).0 + 1 };" },
     { "event": "SetElementCustomPropertyNames", "ffi": "style_engine_set_element_custom_property_names", "cpp": "set_element_custom_property_names", "return": "void", "args": [["node", "style_node"], ["name_atoms", "style_atom_slice"], ["uses_unnamed", "bool"], ["uses_custom_functions", "bool"]], "record_order": ["node", "uses_unnamed", "uses_custom_functions", "name_atoms"], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; let name_atoms = name_atoms.iter().copied().map(StyleAtomID).collect::<Vec<_>>(); engine.set_element_custom_property_names(node, &name_atoms, uses_unnamed, uses_custom_functions);" },
     { "event": "SetElementAnimationNames", "ffi": "style_engine_set_element_animation_names", "cpp": "set_element_animation_names", "return": "void", "args": [["node", "style_node"], ["name_atoms", "style_atom_slice"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; let name_atoms = name_atoms.iter().copied().map(StyleAtomID).collect::<Vec<_>>(); engine.set_element_animation_names(node, &name_atoms);" },
+    { "event": "SetElementCssDefinedAnimations", "ffi": "style_engine_set_element_css_defined_animations", "cpp": "set_element_css_defined_animations", "return": "void", "args": [["node", "style_node"], ["slot", "u8"], ["name_lengths", "u32_slice"], ["name_units", "u16_slice"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_css_defined_animations(node, slot, name_lengths, name_units);" },
     { "event": "SetTreeScopeRoot", "ffi": "style_engine_set_tree_scope_root", "cpp": "set_tree_scope_root", "return": "void", "args": [["tree_scope", "tree_scope_id"], ["root", "style_node"]], "body": "let Some(root) = StyleNodeID::from_raw(root) else { return; }; engine.set_tree_scope_root(TreeScopeID(tree_scope), root);" },
     { "event": "SetRuleInALayer", "name": "set_rule_in_a_layer", "return": "void", "args": [["rule", "style_rule_id"]], "body": "if rule == 0 { return; } engine.set_rule_in_a_layer(RuleID(rule - 1));" },
     { "event": "SetRuleConditionsHold", "name": "set_rule_conditions_hold", "return": "void", "args": [["rule", "style_rule_id"], ["conditions_hold", "bool"]], "body": "if rule == 0 { return; } engine.set_rule_conditions_hold(RuleID(rule - 1), conditions_hold);" },

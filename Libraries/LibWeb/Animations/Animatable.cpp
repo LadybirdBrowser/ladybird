@@ -254,18 +254,35 @@ void Animatable::on_document_changed(DOM::Document& old_document, DOM::Document&
     }
 }
 
+// The computation of an element's animation definitions matches them against the animations the
+// element already has, so the names of those animations are an input to it.
+static void publish_css_defined_animations(Animatable& animatable, size_t index, Vector<GC::Ref<CSS::CSSAnimation>> const& animations)
+{
+    auto* element = as_if<DOM::Element>(animatable);
+    if (!element)
+        return;
+
+    Vector<Utf16FlyString> names;
+    names.ensure_capacity(animations.size());
+    for (auto const& animation : animations)
+        names.unchecked_append(animation->animation_name());
+    CSS::record_element_css_defined_animations(*element, static_cast<u8>(index), names);
+}
+
 void Animatable::cancel_css_animations_and_transitions()
 {
     if (!m_impl)
         return;
 
     GC::RootVector<GC::Ref<Animation>> animations_to_cancel;
-    for (auto& animations : m_impl->css_defined_animations) {
-        if (!animations)
+    for (size_t index = 0; index < m_impl->css_defined_animations.size(); ++index) {
+        auto& animations = m_impl->css_defined_animations[index];
+        if (!animations || animations->is_empty())
             continue;
         for (auto& animation : *animations)
             animations_to_cancel.append(animation);
         animations->clear();
+        publish_css_defined_animations(*this, index, *animations);
     }
     for (auto& transition : m_impl->transitions) {
         if (!transition)
@@ -449,7 +466,11 @@ void Animatable::set_css_defined_animations(Optional<CSS::PseudoElement> pseudo_
     //     is one flag for all of them.
     if (!animations.is_empty())
         impl.has_css_defined_animations = true;
+    // NB: Every element goes through this step; one that had no animations and still has none has nothing to publish.
+    bool had_animations = impl.css_defined_animations[index] && !impl.css_defined_animations[index]->is_empty();
     impl.css_defined_animations[index] = make<Vector<GC::Ref<CSS::CSSAnimation>>>(move(animations));
+    if (had_animations || !impl.css_defined_animations[index]->is_empty())
+        publish_css_defined_animations(*this, index, *impl.css_defined_animations[index]);
 }
 
 Animatable::Impl& Animatable::ensure_impl() const
