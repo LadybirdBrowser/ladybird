@@ -141,6 +141,9 @@ struct PublishedState {
     bool buffer_full { false };
     AK::Duration highest_presentation_timestamp;
     AK::Duration highest_end_time;
+    u64 buffered_bytes { 0 };
+    u64 capacity_bytes { 0 };
+    u64 evictable_bytes { 0 };
 };
 
 class MEDIA_API SourceBufferProcessor : public AtomicRefCounted<SourceBufferProcessor> {
@@ -173,6 +176,10 @@ public:
     void set_append_error_callback(AppendErrorCallback);
     void set_coded_frame_processing_done_callback(CodedFrameProcessingDoneCallback);
     void set_append_done_callback(AppendDoneCallback);
+
+    // The size of the coded frames that eviction would remove first at the given playback position, which never
+    // exceeds what it would make room for.
+    size_t evictable_bytes(AK::Duration current_time) const;
 
 private:
     void execute(Command&);

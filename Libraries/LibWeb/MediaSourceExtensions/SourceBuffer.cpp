@@ -393,7 +393,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_mode(Bindings::AppendMode bindings_m
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-prepare-append
-WebIDL::ExceptionOr<void> SourceBuffer::prepare_append()
+WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size)
 {
     // 1. If the SourceBuffer has been removed from the sourceBuffers attribute of the parent media source then throw an
     //    InvalidStateError exception and abort these steps.
@@ -438,8 +438,25 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append()
     }
 
     // 6. Run the coded frame eviction algorithm.
-    // NB: The media server runs it as the appended data reaches it, against its own playback position, and reports
-    //     the buffer full flag with the append's outcome. So the flag checked below is the one the last append left.
+    // AD-HOC: Decide whether to run the eviction synchronously. The estimate here errs on the side of synchronous
+    //         eviction, so that the [[buffer full flag]], which we opt to set proactively during an eviction that
+    //         cannot free enough space, will be updated before we decide whether to throw the QuotaExceededError.
+    auto const& state = m_remote_source_buffer->published_state();
+    auto must_wait_for_eviction = [&] {
+        if (state.buffer_full)
+            return true;
+        // NB: Before the first initialization segment, there are no track buffers to fill or evict from.
+        if (state.capacity_bytes == 0)
+            return false;
+        return state.buffered_bytes - state.evictable_bytes + new_data_size > state.capacity_bytes;
+    }();
+    if (must_wait_for_eviction) {
+        dbgln("SourceBuffer: Waiting for coded frame eviction (buffer full: {}, buffered: {}, evictable: {}, new: {}, capacity: {})",
+            state.buffer_full, state.buffered_bytes, state.evictable_bytes, new_data_size, state.capacity_bytes);
+        m_remote_source_buffer->run_coded_frame_eviction_synchronously(new_data_size);
+    } else {
+        m_remote_source_buffer->run_coded_frame_eviction(new_data_size);
+    }
 
     // 7. If the [[buffer full flag]] equals true, then throw a QuotaExceededError exception and abort these steps.
     if (m_remote_source_buffer->published_state().buffer_full)
@@ -454,7 +471,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSourceVarian
     WebIDL::BufferSource buffer_source { data };
 
     // 1. Run the prepare append algorithm.
-    TRY(prepare_append());
+    TRY(prepare_append(buffer_source.byte_length()));
 
     // 2. Add data to the end of the [[input buffer]].
     // NB: The bytes are copied here because the array buffer may be detached before the buffer

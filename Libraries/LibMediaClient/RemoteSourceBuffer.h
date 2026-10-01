@@ -48,6 +48,8 @@ public:
 
     void reset_parser_state();
     void remove_coded_frames(AK::Duration start, AK::Duration end);
+    void run_coded_frame_eviction(size_t new_data_size);
+    void run_coded_frame_eviction_synchronously(size_t new_data_size);
     void set_mode(Media::MediaSourceExtensions::AppendMode);
     void set_timestamp_offset(AK::Duration);
     void set_append_window(AK::Duration start, AK::Duration end);
@@ -63,6 +65,8 @@ public:
     Function<void()> on_removal_completed;
 
     void playback_manager_destroyed(Badge<RemotePlaybackManager>);
+    // The evictable bytes were counted from the playback position before the jump, so they can no longer be relied on.
+    void invalidate_evictable_bytes(Badge<RemotePlaybackManager>) { m_published_state.evictable_bytes = 0; }
     void connection_lost(Badge<RemotePlaybackManager>);
     void duration_received(Badge<RemotePlaybackManager>, double duration);
     void first_initialization_segment_received(Badge<RemotePlaybackManager>, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Vector<Media::Track> text_tracks);
@@ -82,6 +86,7 @@ private:
     u64 m_id { 0 };
 
     void notify_playback_manager_of_state_change();
+    void set_published_state(Media::MediaSourceExtensions::PublishedState);
 
     Media::MediaSourceExtensions::PublishedState m_published_state;
     // Whether the end of the stream has been reached is decided here, so it takes effect on the ranges at once.

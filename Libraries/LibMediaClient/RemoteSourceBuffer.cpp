@@ -52,6 +52,12 @@ Media::DemuxerScanState RemoteSourceBuffer::scan_state() const
     };
 }
 
+void RemoteSourceBuffer::set_published_state(Media::MediaSourceExtensions::PublishedState state)
+{
+    m_published_state = move(state);
+    notify_playback_manager_of_state_change();
+}
+
 void RemoteSourceBuffer::notify_playback_manager_of_state_change()
 {
     if (m_playback_manager)
@@ -107,6 +113,25 @@ void RemoteSourceBuffer::remove_coded_frames(AK::Duration start, AK::Duration en
 {
     if (can_send())
         m_client->async_remove_source_buffer_coded_frames(m_session_id, m_id, start, end);
+}
+
+void RemoteSourceBuffer::run_coded_frame_eviction(size_t new_data_size)
+{
+    if (can_send())
+        m_client->async_run_source_buffer_coded_frame_eviction(m_session_id, m_id, new_data_size);
+}
+
+void RemoteSourceBuffer::run_coded_frame_eviction_synchronously(size_t new_data_size)
+{
+    if (!can_send())
+        return;
+    auto response = m_client->send_sync_but_allow_failure<Messages::MediaServer::RunSourceBufferCodedFrameEvictionSynchronously>(m_session_id, m_id, new_data_size);
+    if (!response)
+        return;
+    auto state = response->take_state();
+    if (!state.has_value())
+        return;
+    set_published_state(state.release_value());
 }
 
 void RemoteSourceBuffer::set_mode(Media::MediaSourceExtensions::AppendMode mode)
@@ -178,8 +203,7 @@ void RemoteSourceBuffer::coded_frames_processed(Badge<RemotePlaybackManager>, AK
 void RemoteSourceBuffer::append_completed(Badge<RemotePlaybackManager>, u64 append_generation, Media::MediaSourceExtensions::PublishedState state)
 {
     m_append_generation_awaiting_outcome.clear();
-    m_published_state = move(state);
-    notify_playback_manager_of_state_change();
+    set_published_state(move(state));
     if (on_append_completed)
         on_append_completed(append_generation);
 }
@@ -187,8 +211,7 @@ void RemoteSourceBuffer::append_completed(Badge<RemotePlaybackManager>, u64 appe
 void RemoteSourceBuffer::append_failed(Badge<RemotePlaybackManager>, u64 append_generation, Media::MediaSourceExtensions::PublishedState state)
 {
     m_append_generation_awaiting_outcome.clear();
-    m_published_state = move(state);
-    notify_playback_manager_of_state_change();
+    set_published_state(move(state));
     if (on_append_failed)
         on_append_failed(append_generation);
 }
@@ -205,8 +228,7 @@ void RemoteSourceBuffer::connection_lost(Badge<RemotePlaybackManager>)
 
 void RemoteSourceBuffer::removal_completed(Badge<RemotePlaybackManager>, Media::MediaSourceExtensions::PublishedState state)
 {
-    m_published_state = move(state);
-    notify_playback_manager_of_state_change();
+    set_published_state(move(state));
     if (on_removal_completed)
         on_removal_completed();
 }

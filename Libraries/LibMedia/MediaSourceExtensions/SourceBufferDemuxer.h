@@ -61,6 +61,7 @@ public:
 
     size_t total_bytes(Media::Track const&) const;
 
+    size_t evictable_bytes_when_taking_all_earliest_frames(Media::Track const&, AK::Duration current_time) const;
     Optional<AK::Duration> earliest_evictable_frame_timestamp(Media::Track const&, AK::Duration current_time) const;
     size_t take_earliest_frame_and_dependants(Media::Track const&);
 

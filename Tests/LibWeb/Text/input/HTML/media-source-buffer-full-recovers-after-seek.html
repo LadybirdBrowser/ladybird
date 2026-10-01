@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<audio id="audio"></audio>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<script src="media-source-generated-opus-include.js"></script>
+<script>
+    // An append that can't fit in a buffer that can't evict anything around the current playback position is rejected,
+    // but once the playback position moves on, the data before it can be evicted, so the append must succeed.
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        const audio = document.getElementById("audio");
+        const mediaSource = new MediaSource();
+        audio.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const sourceBuffer = mediaSource.addSourceBuffer('audio/webm;codecs="opus"');
+                await appendAndWait(sourceBuffer, generatedOpusInitializationSegment());
+
+                // Fill the buffer while playback is at the start, where nothing can be evicted, so that the next
+                // append can't fit.
+                const FRAME_SIZE = 1000;
+                const FRAMES_PER_CLUSTER = 1000;
+                let nextFrame = 0;
+                const appendCluster = async () => {
+                    await appendAndWait(sourceBuffer, generatedOpusCluster(nextFrame, new Array(FRAMES_PER_CLUSTER).fill(FRAME_SIZE)));
+                    nextFrame += FRAMES_PER_CLUSTER;
+                };
+                while ((nextFrame + FRAMES_PER_CLUSTER) * FRAME_SIZE <= AUDIO_SOURCE_BUFFER_CAPACITY)
+                    await appendCluster();
+                println(`filled: ${timeRangesToString(sourceBuffer.buffered, 3)}`);
+
+                try {
+                    await appendCluster();
+                    println("append at the start succeeded");
+                } catch (e) {
+                    println(`append at the start threw ${e.name}`);
+                }
+
+                audio.currentTime = 100;
+                await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+
+                try {
+                    await appendCluster();
+                    println(`append after seeking succeeded: ${timeRangesToString(sourceBuffer.buffered, 3)}`);
+                } catch (e) {
+                    println(`append after seeking threw ${e.name}`);
+                }
+                done();
+            } catch (e) {
+                fail("sourceopen handler", e);
+            }
+        }, { once: true });
+    });
+</script>

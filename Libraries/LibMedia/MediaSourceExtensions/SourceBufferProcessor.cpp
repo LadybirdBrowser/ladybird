@@ -139,6 +139,8 @@ void SourceBufferProcessor::publish()
         .buffer_full = m_buffer_full_flag,
         .highest_presentation_timestamp = highest_presentation_timestamp(),
         .highest_end_time = highest_end_time(),
+        .buffered_bytes = total_buffered_bytes(),
+        .capacity_bytes = capacity_in_bytes(),
     };
 }
 
@@ -172,6 +174,14 @@ size_t SourceBufferProcessor::capacity_in_bytes() const
             break;
         }
     }
+    return total;
+}
+
+size_t SourceBufferProcessor::evictable_bytes(AK::Duration current_time) const
+{
+    size_t total = 0;
+    for (auto const& [track_id, track_buffer] : m_track_buffers)
+        total += track_buffer->demuxer().evictable_bytes_when_taking_all_earliest_frames(track_buffer->track(), current_time);
     return total;
 }
 
@@ -955,6 +965,9 @@ ErrorOr<void> encode(Encoder& encoder, Media::MediaSourceExtensions::PublishedSt
     TRY(encoder.encode(state.buffer_full));
     TRY(encoder.encode(state.highest_presentation_timestamp));
     TRY(encoder.encode(state.highest_end_time));
+    TRY(encoder.encode(state.buffered_bytes));
+    TRY(encoder.encode(state.capacity_bytes));
+    TRY(encoder.encode(state.evictable_bytes));
     return {};
 }
 
@@ -975,6 +988,9 @@ ErrorOr<Media::MediaSourceExtensions::PublishedState> decode(Decoder& decoder)
     state.buffer_full = TRY(decoder.decode<bool>());
     state.highest_presentation_timestamp = TRY(decoder.decode<AK::Duration>());
     state.highest_end_time = TRY(decoder.decode<AK::Duration>());
+    state.buffered_bytes = TRY(decoder.decode<u64>());
+    state.capacity_bytes = TRY(decoder.decode<u64>());
+    state.evictable_bytes = TRY(decoder.decode<u64>());
     return state;
 }
 

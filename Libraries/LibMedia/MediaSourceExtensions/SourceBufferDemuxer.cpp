@@ -409,6 +409,36 @@ bool SourceBufferDemuxer::run_ends_at_last_appended_frame(TrackData const& data,
         && run.frames.last().decode_timestamp() == data.last_appended_decode_timestamp.value();
 }
 
+size_t SourceBufferDemuxer::evictable_bytes_when_taking_all_earliest_frames(Media::Track const& track, AK::Duration current_time) const
+{
+    MutexLocker locker { m_mutex };
+    auto const& data = track_data(track);
+
+    size_t bytes = 0;
+    for (auto const& run : data.runs) {
+        auto const& frames = run.frames;
+        size_t group_start = 0;
+        while (group_start < frames.size()) {
+            size_t group_end = group_start + 1;
+            while (group_end < frames.size() && !frames[group_end].is_keyframe())
+                group_end++;
+
+            size_t group_bytes = 0;
+            for (size_t index = group_start; index < group_end; index++) {
+                if (!is_frame_evictable(data, frames[index], current_time))
+                    return bytes;
+                group_bytes += frames[index].data().size();
+            }
+            if (group_end == frames.size() && run_ends_at_last_appended_frame(data, run))
+                return bytes;
+
+            bytes += group_bytes;
+            group_start = group_end;
+        }
+    }
+    return bytes;
+}
+
 Optional<AK::Duration> SourceBufferDemuxer::earliest_evictable_frame_timestamp(Media::Track const& track, AK::Duration current_time) const
 {
     MutexLocker locker { m_mutex };

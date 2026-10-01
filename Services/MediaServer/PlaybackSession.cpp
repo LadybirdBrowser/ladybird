@@ -144,7 +144,7 @@ void PlaybackSession::finish_source_buffer_track_addition(u64 source_buffer_id, 
         // reported. The renderer's append error algorithm resets the parser.
         auto failed_append_generation = source_buffer->first_initialization_segment_append_generation;
         held_messages.remove_all_matching([&](auto const& message) { return message.append_generation == failed_append_generation; });
-        m_connection.async_source_buffer_append_failed(m_id, source_buffer_id, failed_append_generation, source_buffer->processor->published_state());
+        m_connection.async_source_buffer_append_failed(m_id, source_buffer_id, failed_append_generation, published_state_for_renderer(*source_buffer));
     }
     for (auto& message : held_messages)
         message.send();
@@ -253,10 +253,6 @@ void PlaybackSession::run_source_buffer_append(u64 source_buffer_id, u64 append_
     }
     auto data = move(source_buffer->pending_append_data);
 
-    // The renderer checked the buffer full flag it last saw; eviction runs here so that it uses the current playback
-    // position instead of one the renderer had to ask for.
-    source_buffer->processor->run(Commands::CodedFrameEviction { data.size(), m_manager->current_time() });
-
     source_buffer->append_outcome = AppendOutcome::Pending;
     source_buffer->append_generation = append_generation;
     source_buffer->processor->run(Commands::BufferAppend { move(data) });
@@ -265,7 +261,7 @@ void PlaybackSession::run_source_buffer_append(u64 source_buffer_id, u64 append_
     source_buffer = find_source_buffer(source_buffer_id);
     if (!source_buffer)
         return;
-    auto state = source_buffer->processor->published_state();
+    auto state = published_state_for_renderer(*source_buffer);
     switch (source_buffer->append_outcome) {
     case AppendOutcome::Completed:
         send_or_hold(*source_buffer, append_generation, [this, source_buffer_id, append_generation, state = move(state)] mutable {
@@ -288,9 +284,35 @@ void PlaybackSession::remove_source_buffer_coded_frames(u64 source_buffer_id, AK
     if (!source_buffer)
         return;
     source_buffer->processor->run(Commands::CodedFrameRemoval { start, end });
-    send_or_hold(*source_buffer, {}, [this, source_buffer_id, state = source_buffer->processor->published_state()] mutable {
+    send_or_hold(*source_buffer, {}, [this, source_buffer_id, state = published_state_for_renderer(*source_buffer)] mutable {
         m_connection.async_source_buffer_removal_completed(m_id, source_buffer_id, move(state));
     });
+}
+
+void PlaybackSession::run_source_buffer_coded_frame_eviction(u64 source_buffer_id, size_t new_data_size)
+{
+    auto* source_buffer = find_source_buffer(source_buffer_id);
+    if (!source_buffer)
+        return;
+    // Eviction runs against our own playback position, so that the renderer never needs to ask for it.
+    source_buffer->processor->run(Commands::CodedFrameEviction { new_data_size, m_manager->current_time() });
+}
+
+Optional<Media::MediaSourceExtensions::PublishedState> PlaybackSession::source_buffer_published_state(u64 source_buffer_id)
+{
+    auto* source_buffer = find_source_buffer(source_buffer_id);
+    if (!source_buffer)
+        return {};
+    return published_state_for_renderer(*source_buffer);
+}
+
+// The renderer predicts from the evictable bytes whether an append fits without waiting for eviction, so they are
+// counted against our playback position whenever the state is sent.
+Media::MediaSourceExtensions::PublishedState PlaybackSession::published_state_for_renderer(SourceBuffer const& source_buffer) const
+{
+    auto state = source_buffer.processor->published_state();
+    state.evictable_bytes = source_buffer.processor->evictable_bytes(m_manager->current_time());
+    return state;
 }
 
 void PlaybackSession::run_source_buffer_command(u64 source_buffer_id, Media::MediaSourceExtensions::Command command)
