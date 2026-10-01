@@ -194,8 +194,8 @@ enum EnvironmentCoordinateScopeKind {
     Dynamic,
 }
 
-const ENVIRONMENT_MODE_LEXICAL: u32 = 0;
-const ENVIRONMENT_MODE_VAR: u32 = 1;
+const ENVIRONMENT_MODE_LEXICAL: u32 = libjs_abi::EnvironmentMode::Lexical as u32;
+const ENVIRONMENT_MODE_VAR: u32 = libjs_abi::EnvironmentMode::Var as u32;
 
 fn should_verify_environment_coordinates() -> bool {
     static SHOULD_VERIFY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
