@@ -494,6 +494,10 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
             style_engine.record_state_delta({ .node = node.value(), .fact = *fact, .new_value = true });
     }
 
+    // The tag is computed afresh and not left cached. One cached where the element used to be says nothing about where
+    // it arrives, as a subtree that moves while detached is never reached by the walk a `lang` change runs, and one
+    // read now may not be final, as an XML parser sets attributes after insertion.
+    element.invalidate_lang_value();
     auto const language = element.lang_view();
     auto language_atom = language.has_value() ? style_engine.intern_language_atom(*language) : StyleAtomID {};
     auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"_utf16_fly_string : "ltr"_utf16_fly_string;
