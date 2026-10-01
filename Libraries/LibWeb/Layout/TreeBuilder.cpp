@@ -795,21 +795,8 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .svg_pattern_content_element = [](void* pattern_pointer) -> RustFFI::FfiIdentifiedDomNode {
             VERIFY(pattern_pointer);
             return identified_dom_node(static_cast<SVG::SVGPatternElement*>(pattern_pointer)->pattern_content_element().ptr()); },
-        .principal_node_entry_facts = [](void* builder_pointer, u32 style_node, bool must_create_subtree) -> RustFFI::FfiPrincipalNodeEntryFacts {
+        .push_principal_frame = [](void* builder_pointer, u32 style_node) -> RustFFI::FfiPrincipalNodeFrame {
             VERIFY(builder_pointer);
-            auto& node = static_cast<LayoutTreeBuildBridge*>(builder_pointer)->dom_node_for_style_node(style_node);
-            // NB: Called during layout tree construction.
-            auto* existing_layout_node = node.unsafe_layout_node();
-            return {
-                .dom_node = &node,
-                .must_create_subtree = must_create_subtree,
-                .needs_layout_tree_update = node.needs_layout_tree_update(),
-                .has_layout_node = existing_layout_node != nullptr,
-                .layout_node_is_attached = existing_layout_node && existing_layout_node->has_parent(),
-            }; },
-        .push_principal_frame = [](void* builder_pointer, void* node_pointer) -> RustFFI::FfiPrincipalNodeFrame {
-            VERIFY(builder_pointer);
-            VERIFY(node_pointer);
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
             if (!builder.m_principal_frames)
                 builder.m_principal_frames = make<PrincipalNodeFrameStorage>();
@@ -817,7 +804,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             if (storage.active_frame_count == storage.frames.size())
                 storage.frames.append(make<PrincipalNodeFrame>());
             auto& frame = *storage.frames[storage.active_frame_count++];
-            auto& node = *static_cast<DOM::Node*>(node_pointer);
+            auto& node = builder.dom_node_for_style_node(style_node);
             frame.layout_node = nullptr;
             frame.anonymous_computed_values = nullptr;
             VERIFY(!frame.style_record_owner);
@@ -826,6 +813,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             return {
                 .frame = &frame,
                 .old_layout_node = Node::slot_id(node.unsafe_layout_node()),
+                .dom_node = &node,
             }; },
         .pop_principal_frame = [](void* builder_pointer, void* frame_pointer) {
             VERIFY(builder_pointer);
