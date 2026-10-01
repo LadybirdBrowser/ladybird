@@ -89,8 +89,7 @@ void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& el
 }
 
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
-struct PrincipalNodeFrame;
-static Compositing::RustFFI::NodeSlotId create_layout_node_for_text(PrincipalNodeFrame&, DOM::Text&);
+static Compositing::RustFFI::NodeSlotId create_layout_node_for_text(DOM::Text&);
 
 class GeneratedContentImageProvider final
     : public ImageProvider {
@@ -467,11 +466,6 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 break;
             }
             return Node::slot_id(frame.layout_node); },
-        .attach_style_resources = [](void* frame_pointer) {
-            VERIFY(frame_pointer);
-            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
-            VERIFY(frame.layout_node);
-            frame.layout_node->attach_style_resources(); },
 
         .create_nested_list_marker = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement originating_pseudo) -> Compositing::RustFFI::NodeSlotId {
             VERIFY(frame_pointer);
@@ -669,7 +663,6 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
 struct PrincipalNodeFrame {
     AK_ALLOC_WITH_KMALLOC;
 
-    Layout::Node* layout_node { nullptr };
     RefPtr<CSS::ComputedValues const> anonymous_computed_values;
     CSS::StyleRecordID style_record_identity;
     GC::Ptr<CSS::StyleComputer> style_record_owner;
@@ -755,14 +748,11 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 storage.frames.append(make<PrincipalNodeFrame>());
             auto& frame = *storage.frames[storage.active_frame_count++];
             auto& node = dom_node_for_style_node(*builder.m_document, style_node);
-            frame.layout_node = nullptr;
             frame.anonymous_computed_values = nullptr;
             VERIFY(!frame.style_record_owner);
             frame.style_record_identity = 0;
-            // NB: Called during layout tree construction.
             return {
                 .frame = &frame,
-                .old_layout_node = Node::slot_id(node.unsafe_layout_node()),
                 .dom_node = &node,
             }; },
         .pop_principal_frame = [](void* builder_pointer, void* frame_pointer) {
@@ -779,7 +769,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 frame.style_record_owner->unpin_style_record(frame.style_record_identity);
                 frame.style_record_owner = nullptr;
             }
-            frame.layout_node = nullptr;
             frame.anonymous_computed_values = nullptr;
             frame.style_record_identity = 0;
             --storage.active_frame_count; },
@@ -821,6 +810,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& element = *static_cast<DOM::Element*>(element_pointer);
             VERIFY(frame.style_record_identity);
             CSS::LayoutStyle style { frame.style_record_identity };
+            Layout::Node* layout_node = nullptr;
             switch (kind) {
             case RustFFI::FfiElementLayoutKind::ContentReplacement: {
                 auto const* content_values = element.style_group<CSS::ComputedValues::ContentValues>();
@@ -828,56 +818,39 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 auto computed_content = content_values->computed_content_value();
                 auto replacement_image = content_replacement_image(computed_content);
                 VERIFY(replacement_image);
-                frame.layout_node = &create_content_image_box(element.document(), element, style, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
+                layout_node = &create_content_image_box(element.document(), element, style, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
                 break;
             }
             case RustFFI::FfiElementLayoutKind::SvgMask:
-                frame.layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGMaskBox);
+                layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGMaskBox);
                 break;
             case RustFFI::FfiElementLayoutKind::SvgClipPath:
-                frame.layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGClipBox);
+                layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGClipBox);
                 break;
             case RustFFI::FfiElementLayoutKind::SvgPattern:
-                frame.layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGPatternBox);
+                layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGPatternBox);
                 break;
             case RustFFI::FfiElementLayoutKind::Normal:
-                frame.layout_node = element.create_layout_node(style);
+                layout_node = element.create_layout_node(style);
                 break;
             }
-            return Node::slot_id(frame.layout_node); },
+            return Node::slot_id(layout_node); },
         .create_principal_document_layout = [](void* frame_pointer, void* document_pointer) -> Compositing::RustFFI::NodeSlotId {
             VERIFY(frame_pointer);
             VERIFY(document_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             auto& document = *static_cast<DOM::Document*>(document_pointer);
             frame.anonymous_computed_values = document.style_computer().create_document_style();
-            frame.layout_node = &allocate_layout_node<Layout::Viewport>(document, frame.anonymous_computed_values.release_nonnull());
-            return Node::slot_id(frame.layout_node); },
-        .create_principal_text_layout = [](void* frame_pointer, void* text_pointer) -> Compositing::RustFFI::NodeSlotId {
-            VERIFY(frame_pointer);
+            return Node::slot_id(&allocate_layout_node<Layout::Viewport>(document, frame.anonymous_computed_values.release_nonnull())); },
+        .create_principal_text_layout = [](void* text_pointer) -> Compositing::RustFFI::NodeSlotId {
             VERIFY(text_pointer);
-            return create_layout_node_for_text(*static_cast<PrincipalNodeFrame*>(frame_pointer), *static_cast<DOM::Text*>(text_pointer)); },
-        .set_principal_layout_node = [](void* builder_pointer, void* frame_pointer, Compositing::RustFFI::NodeSlotId slot) {
+            return create_layout_node_for_text(*static_cast<DOM::Text*>(text_pointer)); },
+        .attach_style_resources = [](void* builder_pointer, Compositing::RustFFI::NodeSlotId slot) {
             VERIFY(builder_pointer);
-            VERIFY(frame_pointer);
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            frame.layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(builder.m_document->layout_node_arena().handle(), slot));
-            VERIFY(frame.layout_node); },
-        .principal_layout_node = [](void* frame_pointer) -> Compositing::RustFFI::NodeSlotId {
-            VERIFY(frame_pointer);
-            return Node::slot_id(static_cast<PrincipalNodeFrame*>(frame_pointer)->layout_node); },
-        .attach_principal_style_resources = [](void* frame_pointer) {
-            VERIFY(frame_pointer);
-            auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            VERIFY(frame.layout_node);
-            as<NodeWithStyle>(*frame.layout_node).attach_style_resources(); },
-
-        .document_element_layout_node = [](void* document_pointer) -> Compositing::RustFFI::NodeSlotId {
-            VERIFY(document_pointer);
-            // NB: Called during layout tree construction.
-            auto* document_element = static_cast<DOM::Document*>(document_pointer)->document_element();
-            return Node::slot_id(document_element ? document_element->unsafe_layout_node() : nullptr); },
+            auto* layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(builder.m_document->layout_node_arena().handle(), slot));
+            VERIFY(layout_node);
+            as<NodeWithStyle>(*layout_node).attach_style_resources(); },
         .layout = make_ffi_tree_builder_callbacks(),
         .pseudo = make_ffi_pseudo_tree_builder_callbacks(),
     };
@@ -893,11 +866,10 @@ static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element& ele
         element.document().update_style_for_element({ element });
 }
 
-static Compositing::RustFFI::NodeSlotId create_layout_node_for_text(PrincipalNodeFrame& frame, DOM::Text& text_node)
+static Compositing::RustFFI::NodeSlotId create_layout_node_for_text(DOM::Text& text_node)
 {
     text_node.update_inside_blocking_wheel_event_handler_state();
-    frame.layout_node = &allocate_layout_node<Layout::TextNode>(text_node.document(), text_node);
-    return Node::slot_id(frame.layout_node);
+    return Node::slot_id(&allocate_layout_node<Layout::TextNode>(text_node.document(), text_node));
 }
 
 RustFFI::FfiLayoutTreeBuildOutcome LayoutTreeBuildBridge::build(DOM::Node& dom_node)
