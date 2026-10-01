@@ -24,9 +24,7 @@ use crate::css::cascaded_properties::{
     destroy_resolved_custom_properties, drive_custom_property_resolution, parse_substituted_source,
     parse_substituted_without_callbacks,
 };
-use crate::css::custom_properties::{
-    CustomPropertyRegistry, CustomPropertyStore, NativeVarResolution, prepare_var_resolution_environment,
-};
+use crate::css::custom_properties::{CustomPropertyStore, NativeVarResolution, prepare_var_resolution_environment};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::value_parser::ParseOutcome;
 use crate::css::style_compute::keyword;
@@ -501,12 +499,7 @@ impl RetainedState {
         if cascaded.is_empty() {
             return Ok(parent_environment);
         }
-        let registry = inputs.custom_property_registry;
-        if registry.is_none() {
-            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
-            return Err(Unanswered::Refused);
-        }
-        let registry_ref = unsafe { &*registry.as_pointer().cast::<CustomPropertyRegistry>() };
+        let registry_ref = inputs.custom_property_registry();
         // Before the memo: what C++ resolved for a registered name may depend on the element.
         if registry_ref.has_registrations()
             && (registry_ref.has_non_inheriting_registrations()
@@ -563,8 +556,12 @@ impl RetainedState {
         let cascaded_store = unsafe { CustomPropertyStore::cascaded_child(parent_store, values) };
         let mut random_function_index = 0_usize;
         let parse_context = registry_ref.parse_context(&mut random_function_index);
-        let resolution_context =
-            engine_resolution_context(&parse_context, cascaded_store, parent_store, registry.as_pointer());
+        let resolution_context = engine_resolution_context(
+            &parse_context,
+            cascaded_store,
+            parent_store,
+            std::ptr::from_ref(registry_ref).cast(),
+        );
         let mut finalizer = EngineFinalizer { parent_store };
         let drive = FfiCustomPropertyDriveInput {
             store: cascaded_store,
@@ -618,11 +615,6 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return Err(Unanswered::Refused);
         }
-        let registry = inputs.custom_property_registry;
-        if registry.is_none() {
-            counters.bump(Counter::EngineComputedRecordBailSubstitution);
-            return Err(Unanswered::Refused);
-        }
         if let Some(value) = environments.substitution(&written, property, environment) {
             counters.bump(Counter::EngineComputedRecordSubstitutionMemoHits);
             return Ok(value);
@@ -637,7 +629,7 @@ impl RetainedState {
                 store
             }
         };
-        let registry_ref = unsafe { &*registry.as_pointer().cast::<CustomPropertyRegistry>() };
+        let registry_ref = inputs.custom_property_registry();
         let mut random_function_index = 0_usize;
         let mut parse_context = registry_ref.parse_context(&mut random_function_index);
         parse_context.in_quirks_mode = inputs.in_quirks_mode;
@@ -653,7 +645,7 @@ impl RetainedState {
             crate::css::custom_properties::resolve_vars(
                 store,
                 std::ptr::null(),
-                registry.as_pointer(),
+                std::ptr::from_ref(registry_ref).cast(),
                 Some(&parse_context),
                 None,
                 None,
