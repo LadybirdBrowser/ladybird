@@ -919,7 +919,6 @@ pub(crate) struct FlexLayoutData {
 #[repr(C)]
 pub struct FfiLayoutHostCallbacks {
     pub context: *mut c_void,
-    pub report_unexpected_fragmented_inline: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub build_svg_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> svg_formatting_context::FfiSvgElementFacts,
     pub compute_svg_path: unsafe extern "C" fn(
         *mut c_void,

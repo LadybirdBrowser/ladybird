@@ -632,6 +632,8 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     text_nodes_enrolled_for_content_sync: RefCell<HashSet<NodeSlotId>>,
     nodes_enrolled_for_replaced_content_facts_sync: RefCell<Vec<NodeSlotId>>,
+    /// What the running pass has to tell the document, waiting for the commit that delivers it.
+    messages_reported_during_pass: RefCell<Vec<super::commit::FfiCommitMessage>>,
     owner_thread: thread::ThreadId,
 }
 
@@ -714,6 +716,7 @@ impl LayoutNodeArena {
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
+            messages_reported_during_pass: RefCell::new(Vec::new()),
             owner_thread: thread::current().id(),
         }
     }
@@ -1072,6 +1075,20 @@ impl LayoutNodeArena {
             return Some(0);
         }
         self.node_style_node(id).map(StyleNodeID::raw)
+    }
+
+    /// Leaves a message about `id` for the document, to be delivered with the pass's commit. A row
+    /// that names no DOM node has nothing to tell, and its message is dropped.
+    pub(crate) fn report_to_document(&self, id: NodeSlotId, kind: super::commit::FfiCommitMessageKind) {
+        if let Some(style_node) = self.commit_message_style_node(id) {
+            self.messages_reported_during_pass
+                .borrow_mut()
+                .push(super::commit::FfiCommitMessage { style_node, kind });
+        }
+    }
+
+    pub(crate) fn take_messages_reported_during_pass(&self) -> Vec<super::commit::FfiCommitMessage> {
+        self.messages_reported_during_pass.take()
     }
 
     fn set_node_style_node(&self, id: NodeSlotId, style_node: Option<StyleNodeID>) {

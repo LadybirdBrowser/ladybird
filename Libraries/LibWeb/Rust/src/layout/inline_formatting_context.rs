@@ -1265,14 +1265,9 @@ impl<'context> InlineFormattingContext<'context> {
         let facts = self.facts(node);
         // Any fragmented inline box should have generated line box fragments already.
         if facts.is_fragmented_inline() {
-            // SAFETY: The callback table and layout node remain live for this
-            // synchronous formatting-context run.
-            unsafe {
-                (self.callbacks.host.report_unexpected_fragmented_inline)(
-                    self.callbacks.host.context,
-                    self.callbacks.shell(node),
-                );
-            }
+            self.callbacks
+                .arena()
+                .report_to_document(node, commit::FfiCommitMessageKind::UnexpectedFragmentedInline);
             return DerivedBaselines::default();
         }
 

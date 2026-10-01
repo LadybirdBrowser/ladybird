@@ -41,6 +41,7 @@ private:
     enum class Kind : u8 {
         ContentSizeChangedForContainerQueries,
         NavigableContainerViewportCommitted,
+        UnexpectedFragmentedInline,
     };
 
     struct Message {
