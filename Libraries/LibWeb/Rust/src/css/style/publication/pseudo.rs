@@ -207,9 +207,11 @@ impl RetainedState {
             None => false,
         };
         let facts = self.computed_group_sets.adjustment_facts(node) & PSEUDO_ELEMENT_ADJUSTMENT_FACTS;
-        // A read-only read derives its record afresh.
+        // A read-only read derives its record afresh, as does a reaction that recomputes its
+        // element in full: an element revealed from display:none holds no pseudo-element styles.
         let originating_inputs_unchanged = !matches!(settlement, PseudoSettlement::Computed(_))
             && inherited_inputs_unchanged
+            && !scratch.recompute_in_full
             && !scratch.root_font_inputs_changed
             && !scratch.font_environment_moved
             && !scratch.document_environment_moved

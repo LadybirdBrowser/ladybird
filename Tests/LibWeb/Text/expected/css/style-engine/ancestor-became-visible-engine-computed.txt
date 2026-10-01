@@ -1,5 +1,5 @@
-engine records: 1
-C++ recomputations: 2
+engine records: 3
+C++ recomputations: 0
 grandchild color: rgb(0, 128, 0)
 hit test finds the child: true
 child::before width: 16px

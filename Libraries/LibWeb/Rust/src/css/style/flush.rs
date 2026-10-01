@@ -2069,15 +2069,16 @@ impl StyleEngineState {
                     // reaction (a reaction C++ asked for through a recorded input is C++'s), and a
                     // first record takes any published-style reaction. So is a moved font
                     // environment: the `@font-face` table the record's font cascade resolves
-                    // against is a published input, and the record is driven again in full. So is
-                    // a descendant recompute, which C++ answers with a full recompute, as the
-                    // engine does.
+                    // against is a published input, and the record is driven again in full. So are
+                    // a descendant recompute and an ancestor becoming visible, which C++ answers
+                    // with a full recompute, as the engine does.
                     const DERIVABLE_REACTIONS: u8 = transaction::STYLE_REACTION_RECOMPUTE_STYLE
                         | transaction::STYLE_REACTION_INHERITED_STYLE
                         | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
                     const SETTLEABLE_REACTIONS: u8 = transaction::STYLE_REACTION_PUBLISHED_STYLE
                         | transaction::STYLE_REACTION_FONT_INPUTS_CHANGED
                         | transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
+                        | transaction::STYLE_REACTION_ANCESTOR_BECAME_VISIBLE
                         | DERIVABLE_REACTIONS;
                     let reaction_is_settleable = reaction & !SETTLEABLE_REACTIONS == 0
                         && !(reaction & DERIVABLE_REACTIONS != 0 && style_input_nodes_for_cpp.contains(&node));
@@ -2182,9 +2183,13 @@ impl StyleEngineState {
                         engine_computed_record_scratch.font_environment_moved =
                             reaction & transaction::STYLE_REACTION_FONT_INPUTS_CHANGED != 0;
                         // A descendant recompute stands for inputs no winner shows: the root's font
-                        // metrics, an ancestor's direction, writing mode or container type.
-                        engine_computed_record_scratch.recompute_in_full =
-                            reaction & transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES != 0;
+                        // metrics, an ancestor's direction, writing mode or container type. An
+                        // ancestor becoming visible stands for a record whose style was cleared on
+                        // entry to display:none.
+                        engine_computed_record_scratch.recompute_in_full = reaction
+                            & (transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
+                                | transaction::STYLE_REACTION_ANCESTOR_BECAME_VISIBLE)
+                            != 0;
                         let record_answer = self.engine_computed_record_delta(
                             node,
                             answer.cascade_winners_are_complete,
