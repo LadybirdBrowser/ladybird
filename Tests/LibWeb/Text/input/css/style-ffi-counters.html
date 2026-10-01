@@ -56,8 +56,8 @@
             simple.style.color = "green";
             simple.style.margin = "1px 2px";
             simple.style.listStyleImage = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>")`;
-            // An anchor name keeps the computation in C++, whose entries into Rust this counts.
-            simple.style.anchorName = "--simple";
+            // A transition keeps the computation in C++, whose entries into Rust this counts.
+            simple.style.transitionDelay = "0s";
             document.body.appendChild(simple);
         });
         println(`longhand computation used one Rust entry: ${simpleCounters.longhandDriverEntries === 1}`);
