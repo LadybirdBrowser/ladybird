@@ -2277,7 +2277,7 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_environment_of_en
     return data;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties)
 {
     VERIFY(parent());
     auto old_style_record = style_record_identity();
@@ -2291,16 +2291,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
 
     // The engine substituted custom properties into the record's winners the way a C++
     // computation notes it read them, even if the custom-property environment stayed the same.
-    // An attr() among the substitutions reads the element's attributes, so an attribute change
-    // has to reach the element again. An engine record only ever sets the flag: one that stops
-    // reading attributes leaves it set, and the element's attribute changes keep reaching it until
-    // C++ computes its style and clears the flag.
-    if (uses_substitution) {
+    if (uses_substitution)
         m_style_uses_var_css_function = true;
-        auto const record_reads = CSS::StyleEngineFFI::style_engine_node_record_reads(style_computer.style_engine().rust_handle(), style_node_id().value());
-        if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::Attributes))
-            m_style_uses_attr_css_function = true;
-    }
+    // An attr() in the record's winners, or in the custom properties the element declares, reads
+    // the element's attributes, so an attribute change has to reach the element again. An engine
+    // record only ever sets the flag: one that stops reading attributes leaves it set, and the
+    // element's attribute changes keep reaching it until C++ computes its style and clears the flag.
+    if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::Attributes))
+        m_style_uses_attr_css_function = true;
 
     // The parent's groups the record read through an explicit `inherit`, marked the way a C++
     // computation marks them, so that a later change to them reaches this element again.

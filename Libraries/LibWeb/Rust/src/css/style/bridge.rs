@@ -139,6 +139,9 @@ pub struct FfiStyleDelta {
     pub gap: FfiStyleDeltaGap,
     /// Substitution usage for an engine-computed element, including its pseudo-elements.
     pub uses_substitution: bool,
+    /// What an engine-computed element's records read beyond their cascade, as
+    /// `FfiNodeRecordReads` bits, for the host to note as its own computation notes them.
+    pub record_reads: u8,
     /// The non-inherited style groups an engine-computed element read straight from its parent
     /// through an explicit `inherit`, which the host marks the parent with; all of them when
     /// `u32::MAX`.
@@ -151,6 +154,8 @@ pub struct FfiStyleDelta {
 pub struct FfiEngineComputedRecord {
     pub style_record: u64,
     pub uses_substitution: bool,
+    /// As [`FfiStyleDelta::record_reads`].
+    pub record_reads: u8,
     /// As [`FfiStyleDelta::explicitly_inherited_groups`].
     pub explicitly_inherited_groups: u32,
     /// The synthetic pseudo-element kinds whose records the engine settled beside the
@@ -2731,39 +2736,13 @@ pub unsafe extern "C" fn style_engine_style_record_dependency_flags(engine: *con
 }
 
 /// What the winners a node's records were computed from read beyond their cascade, one bit per
-/// kind, as `style_engine_node_record_reads` answers.
+/// kind, as a row's `record_reads` carries them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiNodeRecordReads {
-    /// An `attr()` substitution, in the element's winners or its pseudo-elements': an attribute
-    /// change reaches the records.
+    /// An `attr()` substitution, in the element's winners, its pseudo-elements' or the custom
+    /// properties it declares: an attribute change reaches the records.
     Attributes = 1 << 0,
-}
-
-/// What the winners the node's records were computed from read beyond their cascade, as
-/// `FfiNodeRecordReads` bits, answered once for the row that installs them.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_node_record_reads(engine: *const c_void, node: u32) -> u8 {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return 0;
-    };
-    // A pseudo-element's winners read its originating element's attributes.
-    let groups = engine.current_winner_groups();
-    let reads_attributes = matches!(
-        groups.token_for(super::cascade::WinnerGroupKey::current(node, engine.program.version())),
-        super::partial_view::Lookup::Known((_, state)) if engine.state_reads_attributes(node, state)
-    ) || groups
-        .pseudo_states(node)
-        .any(|(_, _, state, _)| engine.state_reads_attributes(node, state));
-    if reads_attributes {
-        FfiNodeRecordReads::Attributes as u8
-    } else {
-        0
-    }
 }
 
 /// The raw custom-property environment identity a style record was published with.
@@ -3113,6 +3092,11 @@ pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
         let result = FfiEngineComputedRecord {
             style_record: retried.style_record,
             uses_substitution: retried.style_record != 0 && engine.nodes_with_substituted_records.contains(&style_node),
+            record_reads: if retried.style_record != 0 {
+                engine.node_record_reads(style_node)
+            } else {
+                0
+            },
             explicitly_inherited_groups: retried.explicitly_inherited_groups,
             pseudo_records_present: retried.pseudo_records_present,
             pseudo_records: retried.pseudo_records,

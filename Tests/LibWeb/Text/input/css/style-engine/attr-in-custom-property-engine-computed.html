@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { --chosen: attr(data-color type(<color>)); color: rgb(1, 2, 3); }
+    .attribute .item { color: var(--chosen); }
+    .item > span { color: var(--chosen); }
+    #fallback { --length: attr(data-length type(<length>), 1px); width: var(--length); }
+</style>
+<div id="parent"><div class="item" id="first" data-color="green"><span id="child"></span></div><div class="item" id="second" data-color="purple"></div></div>
+<div id="fallback-parent" style="--length: 1px"></div>
+<script>
+    // A custom property declared with attr() reads the declaring element's attributes: two
+    // elements alike in everything else resolve their own values, a child inherits the resolved
+    // value, and an attribute change reaches the element the engine computes.
+    test(() => {
+        internals.updateStyle();
+        let before = internals.getStyleInvalidationCounters();
+        document.getElementById("parent").classList.add("attribute");
+        internals.updateStyle();
+        let after = internals.getStyleInvalidationCounters();
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`colors: ${getComputedStyle(first).color} ${getComputedStyle(second).color} ${getComputedStyle(child).color}`);
+        before = internals.getStyleInvalidationCounters();
+        first.dataset.color = "red";
+        internals.updateStyle();
+        after = internals.getStyleInvalidationCounters();
+        println(`attribute change C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`colors: ${getComputedStyle(first).color} ${getComputedStyle(second).color} ${getComputedStyle(child).color}`);
+
+        // A declaration whose attr() takes the fallback the parent holds resolves to the parent's
+        // environment, and still reads the attribute; the engine computes the element both times.
+        const fallback = document.createElement("div");
+        fallback.id = "fallback";
+        before = internals.getStyleInvalidationCounters();
+        document.getElementById("fallback-parent").appendChild(fallback);
+        internals.updateStyle();
+        after = internals.getStyleInvalidationCounters();
+        println(`fallback C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`fallback width: ${getComputedStyle(fallback).width}`);
+        before = internals.getStyleInvalidationCounters();
+        fallback.dataset.length = "5px";
+        internals.updateStyle();
+        after = internals.getStyleInvalidationCounters();
+        println(`fallback attribute change C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`attribute width: ${getComputedStyle(fallback).width}`);
+    });
+</script>
