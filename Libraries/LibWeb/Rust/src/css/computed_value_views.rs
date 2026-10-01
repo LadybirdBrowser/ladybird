@@ -300,6 +300,13 @@ pub(crate) fn auto_computed_size() -> &'static ComputedSize {
     &AUTO_COMPUTED_SIZE.0
 }
 
+fn counter_definitions(handle: &ComputedStyleValueHandle) -> &[crate::css::style_value::RetainedCounterDefinition] {
+    match handle.data() {
+        Some(StyleValueData::CounterDefinitions { counter_definitions }) => counter_definitions.as_slice(),
+        _ => &[],
+    }
+}
+
 // https://drafts.csswg.org/css-contain-2/#containment-types
 fn containment_applies_to_principal_box(display: FfiDisplay) -> bool {
     if display.is_internal_table() && !display.is_table_cell() {
@@ -519,6 +526,21 @@ impl<'a> ComputedValuesView<'a> {
                 .any(crate::css::style_value::RetainedCounterDefinition::is_reversed),
             _ => false,
         }
+    }
+
+    /// The `counter-reset` list, empty for `none`.
+    pub(crate) fn counter_reset(self) -> &'a [crate::css::style_value::RetainedCounterDefinition] {
+        counter_definitions(&self.content().counter_reset)
+    }
+
+    /// The `counter-increment` list, empty for `none`.
+    pub(crate) fn counter_increment(self) -> &'a [crate::css::style_value::RetainedCounterDefinition] {
+        counter_definitions(&self.content().counter_increment)
+    }
+
+    /// The `counter-set` list, empty for `none`.
+    pub(crate) fn counter_set(self) -> &'a [crate::css::style_value::RetainedCounterDefinition] {
+        counter_definitions(&self.content().counter_set)
     }
 
     /// Whether none of `counter-reset`, `counter-increment` and `counter-set` names a counter, so

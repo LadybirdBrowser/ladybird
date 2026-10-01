@@ -14,6 +14,7 @@ pub(crate) mod abspos_engine;
 pub(crate) mod abspos_inputs;
 pub(crate) mod block_formatting_context;
 pub mod commit;
+pub(crate) mod counters;
 pub(crate) mod fc_run_cache;
 pub(crate) mod flex_formatting_context;
 pub mod formatting_context;

@@ -532,6 +532,21 @@ impl RetainedState {
             .is_some_and(crate::css::computed_value_views::ComputedValuesView::content_is_single_image)
     }
 
+    /// The element's published style record, or its record for one pseudo-element kind, as a view.
+    /// `None` while there is no such record.
+    #[must_use]
+    pub(crate) fn published_style_view(
+        &self,
+        node: StyleNodeID,
+        pseudo_kind: Option<u8>,
+    ) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
+        let style_record = match pseudo_kind {
+            Some(pseudo_kind) => self.computed_group_sets.pseudo_style_record(node, pseudo_kind),
+            None => self.computed_group_sets.assigned_style_record(node),
+        };
+        self.published_style_record_view(style_record)
+    }
+
     pub(super) fn published_style_record_view(
         &self,
         style_record: Option<computed::FinalStyleRecordID>,

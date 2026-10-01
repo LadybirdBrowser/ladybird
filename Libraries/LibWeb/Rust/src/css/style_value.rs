@@ -1148,6 +1148,19 @@ impl RetainedCounterDefinition {
     pub(crate) fn value(&self) -> &RetainedStyleValueData {
         &self.value
     }
+
+    /// The counter's integer, or none when the definition leaves it out. A computed value only
+    /// ever holds an integer or a calculation that resolves to one.
+    pub(crate) fn integer(&self) -> Option<i32> {
+        match self.value.optional_data()? {
+            StyleValueData::Integer { value } => Some(*value),
+            calculated @ StyleValueData::Calculated { .. } => Some(
+                crate::css::calc::resolve_calculated_integer_without_context(calculated)
+                    .expect("a computed counter value resolves to an integer"),
+            ),
+            _ => panic!("a computed counter value is an integer"),
+        }
+    }
 }
 
 impl RetainedImageSetOption {

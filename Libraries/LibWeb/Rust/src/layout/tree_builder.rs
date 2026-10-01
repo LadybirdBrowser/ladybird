@@ -97,7 +97,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     /// The second identity is the root of the subtree being cleared, or 0 when the clear is not
     /// bounded to one; only an SVG resource box reads it.
     pub clear_stale_layout_node: unsafe extern "C" fn(*mut c_void, u32, u32) -> bool,
-    pub resolve_counters: unsafe extern "C" fn(*mut c_void, FfiPseudoElement),
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
     pub create_first_letter_nodes:
@@ -1535,8 +1534,7 @@ unsafe fn update_layout_tree_for_display_contents(
 
         if should_create_layout_node {
             clear_stale_subtree(host.stale(), style_node, StaleSubtreeClearScope::Inclusive);
-            // SAFETY: The element remains live throughout this call.
-            unsafe { (host.callbacks.resolve_counters)(element, FfiPseudoElement::None) };
+            resolve_counters(host, style_node, FfiPseudoElement::None);
         }
 
         if should_create_layout_node && !content_visibility_hidden && !context.has_svg_root {
@@ -1544,6 +1542,7 @@ unsafe fn update_layout_tree_for_display_contents(
                 host,
                 state,
                 element,
+                style_node,
                 FfiPseudoElement::Before,
                 Some(FfiInsertionMode::Append),
             );
@@ -1586,6 +1585,7 @@ unsafe fn update_layout_tree_for_display_contents(
                 host,
                 state,
                 element,
+                style_node,
                 FfiPseudoElement::After,
                 Some(FfiInsertionMode::Append),
             );
@@ -1745,8 +1745,7 @@ unsafe fn update_principal_node_descendants(
         if should_create_layout_node || update.update_pseudo_elements_in_place {
             // Resolve counters now that we exist in the layout tree.
             if should_create_layout_node && update.kind.is_element() {
-                // SAFETY: `dom_node` is a live Element when this fact is set.
-                unsafe { (host.callbacks.resolve_counters)(dom_node, FfiPseudoElement::None) };
+                resolve_counters(host, update.mirror_identity, FfiPseudoElement::None);
             }
 
             // Add the ::before pseudo-element before walking normal children.
@@ -1760,6 +1759,7 @@ unsafe fn update_principal_node_descendants(
                     host,
                     state,
                     dom_node,
+                    update.mirror_identity,
                     FfiPseudoElement::Before,
                     Some(FfiInsertionMode::Prepend),
                 );
@@ -1948,6 +1948,7 @@ unsafe fn update_principal_node_descendants(
                         host,
                         state,
                         dom_node,
+                        update.mirror_identity,
                         FfiPseudoElement::Marker,
                         Some(FfiInsertionMode::Prepend),
                     );
@@ -1957,6 +1958,7 @@ unsafe fn update_principal_node_descendants(
                     host,
                     state,
                     dom_node,
+                    update.mirror_identity,
                     FfiPseudoElement::After,
                     Some(FfiInsertionMode::Append),
                 );
@@ -1984,6 +1986,7 @@ unsafe fn update_principal_node_descendants(
                 host,
                 state,
                 dom_node,
+                update.mirror_identity,
                 FfiPseudoElement::After,
                 Some(FfiInsertionMode::Append),
             );
@@ -2304,8 +2307,14 @@ fn update_principal_node_after_entry(
             } else {
                 Some(FfiInsertionMode::Append)
             };
-            let unplaced_backdrop =
-                create_pseudo_element(host, update.state, dom_node, FfiPseudoElement::Backdrop, insertion_mode);
+            let unplaced_backdrop = create_pseudo_element(
+                host,
+                update.state,
+                dom_node,
+                update.identity,
+                FfiPseudoElement::Backdrop,
+                insertion_mode,
+            );
             if let Some(backdrop) = unplaced_backdrop {
                 assert!(placement.may_replace_existing_layout_node);
                 let layout_host = host.layout();
@@ -2839,10 +2848,28 @@ pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudo
     })
 }
 
+/// Resolves the CSS counters set of `element`, or of one of its pseudo-elements, now that its box
+/// is in the layout tree.
+fn resolve_counters(host: &DomTreeBuilderHost<'_>, element: StyleNodeID, pseudo_element: FfiPseudoElement) {
+    let generated_for = match pseudo_element {
+        FfiPseudoElement::None => 0,
+        FfiPseudoElement::Before => GENERATED_FOR_BEFORE,
+        FfiPseudoElement::After => GENERATED_FOR_AFTER,
+        FfiPseudoElement::Marker => GENERATED_FOR_MARKER,
+        FfiPseudoElement::Backdrop => GENERATED_FOR_BACKDROP,
+        FfiPseudoElement::Other => unreachable!("only a box-generating pseudo-element resolves counters"),
+    };
+    crate::layout::counters::resolve_counters(
+        host.arena(),
+        crate::layout::counters::CounterOwner { element, generated_for },
+    );
+}
+
 fn create_pseudo_element(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
     element: *mut c_void,
+    element_identity: StyleNodeID,
     pseudo_element: FfiPseudoElement,
     insertion_mode: Option<FfiInsertionMode>,
 ) -> Option<UnplacedLayoutNode> {
@@ -2851,7 +2878,15 @@ fn create_pseudo_element(
     // SAFETY: The builder owns frame storage that remains live throughout the build.
     let frame = unsafe { (callbacks.push_frame)(callbacks.builder) };
     assert!(!frame.is_null());
-    let unplaced_box = create_pseudo_element_with_frame(host, state, frame, element, pseudo_element, insertion_mode);
+    let unplaced_box = create_pseudo_element_with_frame(
+        host,
+        state,
+        frame,
+        element,
+        element_identity,
+        pseudo_element,
+        insertion_mode,
+    );
     // SAFETY: `frame` is the most recently pushed pseudo-element frame and Rust no longer uses it.
     unsafe { (callbacks.pop_frame)(callbacks.builder, frame) };
     unplaced_box
@@ -2862,6 +2897,7 @@ fn create_pseudo_element_with_frame(
     state: &mut TreeBuilderState,
     frame: *mut c_void,
     element: *mut c_void,
+    element_identity: StyleNodeID,
     pseudo_element: FfiPseudoElement,
     insertion_mode: Option<FfiInsertionMode>,
 ) -> Option<UnplacedLayoutNode> {
@@ -2924,8 +2960,7 @@ fn create_pseudo_element_with_frame(
             None,
         );
     }
-    // SAFETY: The element remains live and its pseudo-element layout node is attached when requested.
-    unsafe { (host.callbacks.resolve_counters)(element, pseudo_element) };
+    resolve_counters(host, element_identity, pseudo_element);
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
     if layout_node_kind == NodeKind::ListItemBox {

@@ -106,14 +106,7 @@ static bool final_direct_list_item_does_not_renumber_existing_content(Element co
     if (list_owner->after_pseudo_element_style_depends_on_list_item_counter())
         return false;
 
-    auto counters_set = list_owner->counters_set();
-    if (!counters_set.has_value())
-        return false;
-    for (auto const& counter : counters_set->counters().in_reverse()) {
-        if (counter.name == CSS::list_item_counter_name())
-            return !counter.reversed && counter.originating_element == DOM::AbstractElement(*list_owner);
-    }
-    return false;
+    return CSS::innermost_list_item_counter_is_own_forward_counter(*list_owner);
 }
 
 static UniqueNodeID s_next_unique_id;
