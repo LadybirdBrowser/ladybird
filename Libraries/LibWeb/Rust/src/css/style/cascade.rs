@@ -37,6 +37,7 @@ use super::intern_table::content_hash;
 use smallvec::SmallVec;
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 use crate::css::cascaded_properties::CascadeOrigin;
 
@@ -1314,6 +1315,11 @@ impl std::ops::Deref for WinnerView<'_> {
     }
 }
 
+/// A state's winners substitute `attr()`.
+pub(super) const STATE_READS_ATTRIBUTES: u8 = 1 << 0;
+/// What a state's winners read has been decided.
+const STATE_READS_DECIDED: u8 = 1 << 7;
+
 /// Interned per-node winning declarations.
 ///
 /// Sparse and shared: never one heap object per property per element. A node retains one state
@@ -1325,6 +1331,10 @@ pub struct WinnerGroups {
     state_reference_counts: Vec<u32>,
     state_pending_reference_counts: Vec<u32>,
     state_winning_rules: Vec<Box<[RuleID]>>,
+    /// What each state's winners read beyond the cascade, as `STATE_READS_*` bits, decided the
+    /// first time it is asked and `STATE_READS_DECIDED` from then on. A state's winners never
+    /// change, and neither does what they read.
+    state_reads: Vec<AtomicU8>,
     groups: InternTable<WinnerGroupID, Box<[SemanticPropertyWinner]>>,
     provenance_groups: InternTable<WinnerProvenanceGroupID, Box<[WinnerProvenance]>>,
     priorities: InternTable<CascadePriorityID, CascadePriority>,
@@ -1386,6 +1396,7 @@ impl Default for WinnerGroups {
             state_reference_counts: Vec::new(),
             state_pending_reference_counts: Vec::new(),
             state_winning_rules: Vec::new(),
+            state_reads: Vec::new(),
             groups: InternTable::default(),
             provenance_groups: InternTable::default(),
             priorities: InternTable::default(),
@@ -1429,6 +1440,11 @@ impl WinnerGroups {
             state_reference_counts: self.state_reference_counts.clone(),
             state_pending_reference_counts: self.state_pending_reference_counts.clone(),
             state_winning_rules: self.state_winning_rules.clone(),
+            state_reads: self
+                .state_reads
+                .iter()
+                .map(|reads| AtomicU8::new(reads.load(Ordering::Relaxed)))
+                .collect(),
             groups: self.groups.clone(),
             provenance_groups: self.provenance_groups.clone(),
             priorities: self.priorities.clone(),
@@ -1598,6 +1614,7 @@ impl WinnerGroups {
         self.state_reference_counts.push(0);
         self.state_pending_reference_counts.push(0);
         self.state_winning_rules.push(winning_rules);
+        self.state_reads.push(AtomicU8::new(0));
         id
     }
 
@@ -1854,6 +1871,18 @@ impl WinnerGroups {
                     source: provenance.source,
                 }
             })
+    }
+
+    /// What `state`'s winners read beyond the cascade, as `STATE_READS_*` bits, once decided.
+    pub(super) fn state_reads(&self, state: CascadeStateID) -> Option<u8> {
+        let reads = self.state_reads.get(state.0 as usize)?.load(Ordering::Relaxed);
+        (reads & STATE_READS_DECIDED != 0).then_some(reads & !STATE_READS_DECIDED)
+    }
+
+    pub(super) fn note_state_reads(&self, state: CascadeStateID, reads: u8) {
+        if let Some(slot) = self.state_reads.get(state.0 as usize) {
+            slot.store(reads | STATE_READS_DECIDED, Ordering::Relaxed);
+        }
     }
 
     pub(super) fn winner_count_in_state(&self, state: CascadeStateID) -> usize {
@@ -2386,6 +2415,7 @@ impl WinnerGroups {
         self.state_reference_counts = Vec::new();
         self.state_pending_reference_counts = Vec::new();
         self.state_winning_rules = Vec::new();
+        self.state_reads = Vec::new();
         self.groups = InternTable::default();
         self.provenance_groups = InternTable::default();
         self.priorities = InternTable::default();
@@ -2418,6 +2448,7 @@ impl WinnerGroups {
                 self.state_reference_counts,
                 self.state_pending_reference_counts,
                 self.state_winning_rules,
+                self.state_reads,
                 self.winner_rule_references,
                 self.stamps,
             ];

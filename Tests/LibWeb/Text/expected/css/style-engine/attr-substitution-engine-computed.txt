@@ -1,4 +1,4 @@
-engine computed the readers: false
+engine computed the readers: true
 colors: rgb(0, 128, 0) rgb(128, 0, 128)
-attribute change stays in the engine: false
+attribute change stays in the engine: true
 colors: rgb(255, 0, 0) rgb(128, 0, 128)

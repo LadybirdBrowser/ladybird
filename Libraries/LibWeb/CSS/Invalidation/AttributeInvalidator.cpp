@@ -106,7 +106,7 @@ void invalidate_style_after_attribute_change(
     // declaration input, not a selector one, and StyleEngine reaches the element from it directly.
     if (attribute_name == HTML::AttributeNames::style) {
         record_element_declarations_changed(element, ElementDeclarationKind::InlineStyle, old_value.has_value(), new_value.has_value());
-    } else if (element.is_presentational_hint(attribute_name) || element.style_uses_attr_css_function()
+    } else if (element.is_presentational_hint(attribute_name)
         || (element.supports_dimension_attributes() && attribute_name.is_one_of(HTML::AttributeNames::width, HTML::AttributeNames::height))) {
         // The width and height attributes of an element that supports them map to hints the way
         // the presentational hint attributes do.
@@ -114,6 +114,15 @@ void invalidate_style_after_attribute_change(
             ? ElementDeclarationKind::SvgPresentationAttribute
             : ElementDeclarationKind::PresentationalHint;
         record_element_declarations_changed(element, kind, true, true);
+    } else if (element.style_uses_attr_css_function()) {
+        // An attr() substitutes the attribute's value, which the engine holds beside the element's
+        // other facts: the element's record is driven again there, like any derived recompute. A
+        // shadow host's element-backed pseudo-elements read its attributes too, and C++ refreshes
+        // them with the host.
+        if (element.is_shadow_host())
+            record_element_declarations_changed(element, ElementDeclarationKind::PresentationalHint, true, true);
+        else
+            element.document().style_computer().style_engine().record_derived_element_style_input_change(element.style_node_id(), StyleEngine::RecomputeStyle);
     }
 
     // The pseudo-classes an attribute implies are separate facts about the element, and each is its

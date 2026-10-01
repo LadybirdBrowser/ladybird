@@ -1,0 +1,32 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .item { color: rgb(1, 2, 3); }
+    /* Presence alone needs no value text, so the values cross as atoms only. */
+    [data-late-color] { outline-style: none; }
+</style>
+<div id="parent"><span class="item" id="first" data-late-color="green"></span><span class="item" id="second" data-late-color="purple"></span></div>
+<script>
+    // The attributes exist, and have been styled, before any attr() can read their name. The engine keeps the text of
+    // an attribute value only for names something can read, so once a style sheet names this one it has to find the
+    // values the elements already hold.
+    test(() => {
+        internals.updateStyle();
+        println(`before: ${getComputedStyle(first).color} ${getComputedStyle(second).color}`);
+
+        const style = document.createElement("style");
+        style.textContent = `.attribute .item { color: attr(data-late-color type(<color>)); }`;
+        document.head.appendChild(style);
+        internals.updateStyle();
+        let before = internals.getStyleInvalidationCounters();
+        document.getElementById("parent").classList.add("attribute");
+        internals.updateStyle();
+        let after = internals.getStyleInvalidationCounters();
+        println(`engine computed the readers: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords >= 2}`);
+        println(`sheet: ${getComputedStyle(first).color} ${getComputedStyle(second).color}`);
+
+        first.dataset.lateColor = "red";
+        internals.updateStyle();
+        println(`changed: ${getComputedStyle(first).color} ${getComputedStyle(second).color}`);
+    });
+</script>

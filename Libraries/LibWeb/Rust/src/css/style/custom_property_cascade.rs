@@ -115,12 +115,27 @@ pub(super) fn value_is_engine_resolvable_substitution(value: &StyleValueData) ->
 /// Whether a cascaded custom-property value is one the engine resolves: a plain value, or a
 /// token stream whose only substitutions are `var()` references.
 fn custom_property_value_is_engine_resolvable(value: &StyleValueData) -> bool {
+    !value_reads_attributes(value) && substitutions_but_attr_are_engine_resolvable(value)
+}
+
+/// Whether a written value substitutes `attr()`: itself, or the shorthand a longhand pending its
+/// substitution takes its part of.
+pub(super) fn value_reads_attributes(value: &StyleValueData) -> bool {
+    match value {
+        StyleValueData::Unresolved { presence_attr, .. } => *presence_attr,
+        StyleValueData::PendingSubstitution {
+            original_shorthand_value,
+        } => value_reads_attributes(original_shorthand_value.data()),
+        _ => false,
+    }
+}
+
+/// Whether the engine resolves every substitution a value holds but `attr()`, which it resolves
+/// only where it has the element's attributes.
+fn substitutions_but_attr_are_engine_resolvable(value: &StyleValueData) -> bool {
     !matches!(
         value,
         StyleValueData::Unresolved {
-            presence_attr: true,
-            ..
-        } | StyleValueData::Unresolved {
             presence_dashed_function: true,
             ..
         } | StyleValueData::Unresolved { presence_env: true, .. }
@@ -130,6 +145,47 @@ fn custom_property_value_is_engine_resolvable(value: &StyleValueData) -> bool {
                 ..
             }
     )
+}
+
+/// What an `attr()` reads of an element, as the resolution takes it: each of the element's
+/// attributes in no namespace, by local name, with its value's text, and whether names match ASCII
+/// case-insensitively, as an HTML element's do. It points into the facts it borrows.
+pub(super) struct SubstitutionAttributes<'a> {
+    attributes: Vec<crate::css::custom_properties::FfiSubstitutionAttribute>,
+    names_are_ascii_case_insensitive: bool,
+    facts: std::marker::PhantomData<&'a index::ElementFactStore>,
+}
+
+impl<'a> SubstitutionAttributes<'a> {
+    /// `None` when the facts lack the text of an attribute `attr()` may read: the host publishes
+    /// every one, and an `attr()` that took its fallback for a missing one would be wrong.
+    pub(super) fn of(
+        facts: &'a index::ElementFactStore,
+        node: StyleNodeID,
+        html_namespace: StyleAtomID,
+    ) -> Option<Self> {
+        let view = |text: &[u16]| FfiUtf16View {
+            ascii: std::ptr::null(),
+            utf16: text.as_ptr(),
+            length: text.len(),
+        };
+        let mut attributes = Vec::new();
+        for (name, value) in facts.substitution_attributes(node) {
+            let Some(value) = value else {
+                debug_assert!(false, "the host publishes the text of every attribute attr() reads");
+                return None;
+            };
+            attributes.push(crate::css::custom_properties::FfiSubstitutionAttribute {
+                name: view(name),
+                value: view(value),
+            });
+        }
+        Some(Self {
+            attributes,
+            names_are_ascii_case_insensitive: !html_namespace.is_none() && facts.namespace_of(node) == html_namespace,
+            facts: std::marker::PhantomData,
+        })
+    }
 }
 
 impl RetainedState {
@@ -601,21 +657,29 @@ impl RetainedState {
 
     /// What a written value with `var()` references substitutes to for a property under an
     /// environment, parsed as the property's value: what the C++ cascade computes for the
-    /// declaration, memoized by the written value. Refused when the value holds a substitution
-    /// the engine does not resolve, or the environment is one the engine holds no store for.
+    /// declaration, memoized by the written value. An `attr()` reads the element's `attributes`,
+    /// so its value is the element's alone and takes no memo. Refused when the value holds a
+    /// substitution the engine does not resolve, or the environment is one the engine holds no
+    /// store for.
     pub(super) fn substitute_written_value(
         environments: &mut custom_property_environments::CustomPropertyEnvironments,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         environment: u64,
         property: u16,
         written: RetainedStyleValueData,
+        attributes: Option<&SubstitutionAttributes<'_>>,
         counters: &mut Counters,
     ) -> Drive<RetainedStyleValueData> {
-        if !custom_property_value_is_engine_resolvable(written.data()) {
+        let attributes = attributes.filter(|_| value_reads_attributes(written.data()));
+        if (attributes.is_none() && !custom_property_value_is_engine_resolvable(written.data()))
+            || !substitutions_but_attr_are_engine_resolvable(written.data())
+        {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return Err(Unanswered::Refused);
         }
-        if let Some(value) = environments.substitution(&written, property, environment) {
+        if attributes.is_none()
+            && let Some(value) = environments.substitution(&written, property, environment)
+        {
             counters.bump(Counter::EngineComputedRecordSubstitutionMemoHits);
             return Ok(value);
         }
@@ -633,9 +697,16 @@ impl RetainedState {
         let mut random_function_index = 0_usize;
         let mut parse_context = registry_ref.parse_context(&mut random_function_index);
         parse_context.in_quirks_mode = inputs.in_quirks_mode;
-        let Some(mut resolution_environment) =
-            (unsafe { prepare_var_resolution_environment(std::ptr::null(), 0, std::ptr::null(), 0, 0) })
-        else {
+        let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
+        let Some(mut resolution_environment) = (unsafe {
+            prepare_var_resolution_environment(
+                substitution_attributes.as_ptr(),
+                substitution_attributes.len(),
+                std::ptr::null(),
+                0,
+                0,
+            )
+        }) else {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return Err(Unanswered::Refused);
         };
@@ -657,7 +728,7 @@ impl RetainedState {
                 },
                 written.pointer().cast(),
                 &mut resolution_environment,
-                false,
+                attributes.is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
                 None,
                 std::ptr::null_mut(),
                 None,
@@ -698,7 +769,9 @@ impl RetainedState {
             }
         };
         counters.bump(Counter::EngineComputedRecordSubstitutions);
-        environments.remember_substitution(written, property, environment, value.clone_retained());
+        if attributes.is_none() {
+            environments.remember_substitution(written, property, environment, value.clone_retained());
+        }
         Ok(value)
     }
 }
