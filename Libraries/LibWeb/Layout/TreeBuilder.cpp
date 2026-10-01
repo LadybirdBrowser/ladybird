@@ -94,61 +94,6 @@ static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
 struct PrincipalNodeFrame;
 static Compositing::RustFFI::NodeSlotId create_layout_node_for_text(PrincipalNodeFrame&, DOM::Text&);
 
-static bool may_update_pseudo_elements_in_place(DOM::Node const& node)
-{
-    if (!node.needs_pseudo_element_layout_tree_update())
-        return false;
-    auto const* element = as_if<DOM::Element>(node);
-    auto const* layout_node = as_if<NodeWithStyle>(node.unsafe_layout_node());
-    if (!element || !layout_node || layout_node->kind() != RustFFI::NodeKind::BlockContainer
-        || element->shadow_root() || element->rendered_in_top_layer()
-        || node.first_letter_owner_for_layout_subtree_from(node))
-        return false;
-    auto const* payloads = element->style_record_payloads();
-    if (!payloads)
-        return false;
-    auto const& inherited_box_values = *CSS::style_group_from_payloads<CSS::ComputedValues::InheritedBoxValues>(payloads);
-    auto const display = CSS::style_group_from_payloads<CSS::ComputedValues::BoxValues>(payloads)->display_value();
-    if (inherited_box_values.content_visibility_value() != CSS::ContentVisibility::Visible
-        || (!display.is_flow_inside() && !display.is_flow_root_inside()))
-        return false;
-    if (layout_node->has_children() && !layout_node->children_are_inline())
-        return false;
-    for (auto const* child = layout_node->first_child(); child; child = child->next_sibling()) {
-        if (child->is_anonymous() && !child->is_generated_for_pseudo_element())
-            return false;
-    }
-    for (auto pseudo_element : { CSS::PseudoElement::Before, CSS::PseudoElement::After }) {
-        if (auto const* old_box = element->pseudo_element_unsafe_layout_node(pseudo_element)) {
-            // NB: The old box already holds the new style, including display:none when it is disappearing.
-            if (old_box->parent() != layout_node
-                || (!old_box->display().is_inline_outside() && !old_box->display().is_none())
-                || old_box->is_out_of_flow())
-                return false;
-        }
-        auto const* pseudo_payloads = element->style_record_payloads(pseudo_element);
-        if (!pseudo_payloads)
-            continue;
-        auto const& pseudo_content_values = *CSS::style_group_from_payloads<CSS::ComputedValues::ContentValues>(pseudo_payloads);
-        if (!pseudo_content_values.counter_reset_is_none() || !pseudo_content_values.counter_increment_is_none() || !pseudo_content_values.counter_set_is_none())
-            return false;
-        auto content = pseudo_content_values.computed_content_value();
-        if (!content->is_keyword()
-            && (!content->is_content() || !all_of(content->as_content().content().values(), [](auto const& item) { return item->is_string(); })))
-            return false;
-        auto const& pseudo_box_values = *CSS::style_group_from_payloads<CSS::ComputedValues::BoxValues>(pseudo_payloads);
-        auto const pseudo_display = pseudo_box_values.display_value();
-        if (pseudo_display.is_none() || content->is_keyword())
-            continue;
-        auto const pseudo_position = pseudo_box_values.position_value();
-        if (!pseudo_display.is_inline_outside() || pseudo_display.is_list_item()
-            || pseudo_position == CSS::Positioning::Absolute || pseudo_position == CSS::Positioning::Fixed
-            || pseudo_box_values.float_value() != CSS::Float::None)
-            return false;
-    }
-    return true;
-}
-
 static size_t ffi_assigned_node_count(void* slot_element_pointer)
 {
     VERIFY(slot_element_pointer);
@@ -878,7 +823,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             return {
                 .must_create_subtree = must_create_subtree,
                 .needs_layout_tree_update = node.needs_layout_tree_update(),
-                .pseudo_elements_may_be_updated_in_place = may_update_pseudo_elements_in_place(node),
                 .has_layout_node = existing_layout_node != nullptr,
                 .layout_node_is_attached = existing_layout_node && existing_layout_node->has_parent(),
                 .style_node = Node::style_node_of(&node).value(),

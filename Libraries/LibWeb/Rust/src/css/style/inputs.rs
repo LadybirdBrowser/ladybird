@@ -29,6 +29,13 @@ pub struct PublishedBoxFacts {
     pub float_: u8,
 }
 
+/// What a published record says about the content a box is generated from.
+pub struct PublishedContentFacts {
+    pub counters_are_none: bool,
+    pub content_is_keyword: bool,
+    pub content_is_strings_only: bool,
+}
+
 impl RetainedState {
     pub(super) fn push_pending_region(&mut self, regions: &mut Vec<ImpactRegion>, region: ImpactRegion) {
         let before = regions.capacity();
@@ -444,6 +451,18 @@ impl RetainedState {
     #[must_use]
     pub fn pseudo_published_box_facts(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<PublishedBoxFacts> {
         self.published_box_facts(self.computed_group_sets.pseudo_style_record(node, pseudo_kind))
+    }
+
+    /// What the element's published record for one pseudo-element kind says about its generated
+    /// content. `None` while the element styles no such pseudo-element.
+    #[must_use]
+    pub fn pseudo_published_content_facts(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<PublishedContentFacts> {
+        let view = self.published_style_record_view(self.computed_group_sets.pseudo_style_record(node, pseudo_kind))?;
+        Some(PublishedContentFacts {
+            counters_are_none: view.counter_properties_are_none(),
+            content_is_keyword: view.content_is_keyword(),
+            content_is_strings_only: view.content_is_strings_only(),
+        })
     }
 
     /// Whether the element's published style record counts a counter down from its own last item,

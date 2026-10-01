@@ -7,7 +7,7 @@
 use super::*;
 
 use crate::abort_on_panic;
-use crate::css::css_enums::{float, positioning, white_space_collapse};
+use crate::css::css_enums::{content_visibility, float, positioning, white_space_collapse};
 use crate::css::style::StyleEngine;
 use crate::css::style::bridge::element_adjustment_fact;
 use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides};
@@ -176,9 +176,6 @@ pub struct FfiPrincipalDescendantFacts {
 pub struct FfiPrincipalNodeEntryFacts {
     pub must_create_subtree: bool,
     pub needs_layout_tree_update: bool,
-    /// Whether the element's pseudo-elements could be updated where they stand. The build settles
-    /// this against the child-list answer it works out for itself; see `LayoutNodeReuse`.
-    pub pseudo_elements_may_be_updated_in_place: bool,
     pub has_layout_node: bool,
     pub layout_node_is_attached: bool,
     /// The node's own identity, which names its rows in the arena and its facts in the style mirror.
@@ -591,25 +588,118 @@ pub(crate) struct LayoutNodeReuse {
 fn resolve_layout_node_reuse(
     host: &DomTreeBuilderHost<'_>,
     kind: PrincipalNodeKind,
-    entry_facts: FfiPrincipalNodeEntryFacts,
+    style_node: Option<StyleNodeID>,
 ) -> LayoutNodeReuse {
-    let Some(element) = StyleNodeID::from_raw(entry_facts.style_node) else {
+    let Some(element) = style_node else {
         return LayoutNodeReuse::default();
     };
     let layout = host.layout();
     let reasons = layout.arena().layout_tree_update_reuse_reasons(element);
-    let update_pseudo_elements = entry_facts.pseudo_elements_may_be_updated_in_place;
-    // One borrow of the style store answers the whole test, which walks the child list several times.
-    let insert_children = reasons & layout_tree_update_reuse_reason::CHILD_LIST_INSERTION != 0
-        && layout
-            .arena()
-            .with_style_store(|engine| may_reuse_layout_node_for_child_list_insertion(&layout, engine, kind, element));
+    // One borrow of the style mirror answers both tests; each walks the child list several times.
+    let (insert_children, update_pseudo_elements) = layout.arena().with_style_store(|engine| {
+        (
+            reasons & layout_tree_update_reuse_reason::CHILD_LIST_INSERTION != 0
+                && may_reuse_layout_node_for_child_list_insertion(&layout, engine, kind, element),
+            reasons & layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE != 0
+                && may_update_pseudo_elements_in_place(&layout, engine, kind, element),
+        )
+    });
     let may_reuse = (reasons & layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE == 0 || update_pseudo_elements)
         && (reasons & layout_tree_update_reuse_reason::CHILD_LIST_INSERTION == 0 || insert_children);
     LayoutNodeReuse {
         insert_children: may_reuse && insert_children,
         update_pseudo_elements: may_reuse && update_pseudo_elements,
     }
+}
+
+/// Whether the element's `::before` and `::after` boxes can be regenerated where they sit, rather
+/// than the element's box being rebuilt around them.
+///
+/// The box has to be an ordinary block container holding one inline run, and each pseudo-element
+/// has to be content that says nothing about where it ends up: no counter it moves, and either a
+/// bare keyword or a list of plain strings. Anything else is content whose value depends on the
+/// tree around it, which only a full build resolves.
+fn may_update_pseudo_elements_in_place(
+    layout: &TreeBuilderHost<'_>,
+    engine: &StyleEngine,
+    kind: PrincipalNodeKind,
+    element: StyleNodeID,
+) -> bool {
+    let arena = layout.arena();
+    let layout_node = arena.bound_row(element);
+    if !kind.is_element()
+        || layout_node.is_invalid()
+        || layout.data(layout_node).kind.get() != NodeKind::BlockContainer
+        || engine.tree().shadow_root_of(element).is_some()
+        || engine.element_adjustment_facts(element) & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0
+    {
+        return false;
+    }
+
+    let Some(facts) = engine.element_published_box_facts(element) else {
+        return false;
+    };
+    if facts.content_visibility != content_visibility::VISIBLE
+        || (!facts.display.is_flow_inside() && !facts.display.is_flow_root_inside())
+    {
+        return false;
+    }
+
+    let has_children = !layout.first_child(layout_node).is_invalid();
+    if has_children && !node_has_flag(layout.data(layout_node), NodeFlag::ChildrenAreInline) {
+        return false;
+    }
+    let mut child = layout.first_child(layout_node);
+    while !child.is_invalid() {
+        let data = layout.data(child);
+        if node_has_flag(data, NodeFlag::Anonymous) && !node_is_generated_for_pseudo_element(data) {
+            return false;
+        }
+        child = layout.next_sibling(child);
+    }
+
+    if first_letter_owner_covers_subtree(layout, engine, element, layout_node) {
+        return false;
+    }
+
+    for generated_for in [GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER] {
+        let old_box = arena.bound_pseudo_element_row(element, generated_for);
+        if !old_box.is_invalid() {
+            // NB: The old box already holds the new style, including display:none when it is
+            //     disappearing.
+            let display = layout.display(old_box);
+            if layout.parent(old_box) != layout_node
+                || (!display.is_inline_outside() && !display.is_none())
+                || (node_kind_is_node_with_style(layout.data(old_box).kind.get())
+                    && node_is_out_of_flow(layout, old_box))
+            {
+                return false;
+            }
+        }
+
+        let pseudo_kind = generated_for - 1;
+        let Some(content) = engine.pseudo_published_content_facts(element, pseudo_kind) else {
+            continue;
+        };
+        if !content.counters_are_none || !(content.content_is_keyword || content.content_is_strings_only) {
+            return false;
+        }
+        let Some(pseudo_facts) = engine.pseudo_published_box_facts(element, pseudo_kind) else {
+            continue;
+        };
+        if pseudo_facts.display.is_none() || content.content_is_keyword {
+            continue;
+        }
+        if !pseudo_facts.display.is_inline_outside()
+            || pseudo_facts.display.is_list_item()
+            || pseudo_facts.position == positioning::ABSOLUTE
+            || pseudo_facts.position == positioning::FIXED
+            || pseudo_facts.float_ != float::NONE
+        {
+            return false;
+        }
+    }
+    true
 }
 
 /// Whether a `::first-letter` owner on or above the element styles a letter inside its subtree.
@@ -2457,7 +2547,7 @@ fn update_layout_tree_from(
         };
         let style_node = StyleNodeID::from_raw(entry_facts.style_node);
         let kind = PrincipalNodeKind::of(style_node, is_document_root);
-        let reuse = resolve_layout_node_reuse(host, kind, entry_facts);
+        let reuse = resolve_layout_node_reuse(host, kind, style_node);
         let element_type_facts = host.element_type_facts(style_node);
         let entry_decision = principal_node_entry_decision(entry_facts, reuse, kind, element_type_facts, context);
         if entry_decision.top_layer != TopLayerEntryDecision::Continue {
@@ -5035,7 +5125,6 @@ mod tests {
         let mut facts = FfiPrincipalNodeEntryFacts {
             must_create_subtree: false,
             needs_layout_tree_update: false,
-            pseudo_elements_may_be_updated_in_place: false,
             has_layout_node: true,
             layout_node_is_attached: true,
             style_node: 0,
