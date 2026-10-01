@@ -154,6 +154,7 @@ impl StyleEngineState {
             ..RetriedEngineRecord::default()
         };
         if style_record != 0 {
+            retried.explicitly_inherited_groups = scratch.element_explicitly_inherited_groups;
             for delta in &scratch.pseudo_deltas {
                 let kind = usize::from(delta.kind);
                 if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {

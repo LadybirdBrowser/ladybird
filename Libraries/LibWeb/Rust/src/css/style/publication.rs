@@ -14,7 +14,7 @@ use winner_store::{WinnerDeclaration, WinnerStore, WinnerValue, shorthand_longha
 use super::*;
 use crate::css::computed_longhand_table::{ComputedLonghandTable, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS};
 pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
-use drive::{FontDriveGoal, FullDrive, PartialDrive, drive_font_metric};
+use drive::{DrivenTable, FontDriveGoal, FullDrive, PartialDrive, drive_font_metric};
 use retry::InstalledAncestors;
 
 /// Another element's published style that a first-time computation may build over: the element
@@ -361,6 +361,7 @@ impl RetainedState {
             scratch.next_pseudo = 0;
             scratch.pseudo_uses_substitution = false;
             scratch.noted_substitution = None;
+            scratch.element_explicitly_inherited_groups = 0;
             scratch.flipped_pseudo_rules = exact_flipped_rules.map_or(0, |flipped| flipped.pseudos);
             if !self.engine_pseudo_inputs_available(
                 node,
@@ -674,8 +675,10 @@ impl RetainedState {
             RootFontInputs::from_document(&inputs),
             self.monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), state),
         );
-        if let Some(&new_style_record) = scratch.cohorts.get(&cohort) {
+        if let Some(&(new_style_record, explicitly_inherited_groups)) = scratch.cohorts.get(&cohort) {
             self.note_node_substitution(node, scratch, state, current_environment);
+            // The mark is per node: an element taking the record owes its own parent the mark.
+            scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
             let delta = self
                 .computed_group_sets
                 .assign_engine_computed_record(node, old_style_record, new_style_record)
@@ -838,7 +841,13 @@ impl RetainedState {
             )?)
         };
         let driver_input_moved = matches!(partial, Some(PartialDrive::DriverInputMoved));
-        let (table, length, longhand_evaluations, font) = match partial {
+        let DrivenTable {
+            table,
+            length,
+            longhand_evaluations,
+            font,
+            explicitly_inherited_groups,
+        } = match partial {
             Some(PartialDrive::Driven(partial)) => partial,
             // A partial drive whose driver inputs moved reaches values it did not select, so the
             // record is driven in full and every group is rebuilt.
@@ -901,8 +910,9 @@ impl RetainedState {
         // A record driven in full stands for a cohort keyed by the parent's inherited inputs only
         // when the drive was partial.
         if !driver_input_moved {
-            scratch.cohorts.insert(cohort, delta.1);
+            scratch.cohorts.insert(cohort, (delta.1, explicitly_inherited_groups));
         }
+        scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
         Ok(ElementAnswer::Delta(delta))
     }
 
@@ -1214,7 +1224,13 @@ impl RetainedState {
             let donor_delta = self.winner_groups.semantic_delta(Some(donor.state), state);
             if let Some((groups_to_rebuild, selected)) =
                 self.cold_record_donor_selection(donor, donor_delta.properties())
-                && let Ok(PartialDrive::Driven((table, length, longhand_evaluations, _))) = self.engine_driven_table(
+                && let Ok(PartialDrive::Driven(DrivenTable {
+                    table,
+                    length,
+                    longhand_evaluations,
+                    explicitly_inherited_groups,
+                    ..
+                })) = self.engine_driven_table(
                     node,
                     donor.record.record,
                     &store,
@@ -1256,20 +1272,27 @@ impl RetainedState {
                         let record = ColdRecord {
                             record: assembly.delta.1,
                             swap_eligible: self.computed_group_sets.node_inherited_group_swap_eligible(node),
+                            explicitly_inherited_groups,
                         };
                         scratch.cold_cohorts.insert(cache_key, record);
                         self.remember_cold_record(cache_key, record);
                     }
+                    scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
                     return Ok(ElementAnswer::Delta(assembly.delta));
                 }
             }
         }
         let subject = DriveSubject { target, parent, facts };
-        let (table, length, longhand_evaluations, font) =
-            match self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, goal, counters)? {
-                FullDrive::Driven(driven) => driven,
-                FullDrive::RootInputs(root_inputs) => return Ok(ElementAnswer::RootInputs(Some(root_inputs))),
-            };
+        let DrivenTable {
+            table,
+            length,
+            longhand_evaluations,
+            font,
+            explicitly_inherited_groups,
+        } = match self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, goal, counters)? {
+            FullDrive::Driven(driven) => driven,
+            FullDrive::RootInputs(root_inputs) => return Ok(ElementAnswer::RootInputs(Some(root_inputs))),
+        };
         let font = font.expect("a full drive resolves the font");
         let (new_style_record, swap_eligible) = self.assemble_and_publish_engine_record(
             target,
@@ -1292,10 +1315,12 @@ impl RetainedState {
             let record = ColdRecord {
                 record: delta.1,
                 swap_eligible,
+                explicitly_inherited_groups,
             };
             scratch.cold_cohorts.insert(cache_key, record);
             self.remember_cold_record(cache_key, record);
         }
+        scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
         self.note_engine_computed_record(
             node,
             delta,
@@ -1334,7 +1359,14 @@ impl RetainedState {
                     )
             })
         };
-        let (ColdRecord { record, swap_eligible }, from_cache) = cache_key.and_then(|cache_key| {
+        let (
+            ColdRecord {
+                record,
+                swap_eligible,
+                explicitly_inherited_groups,
+            },
+            from_cache,
+        ) = cache_key.and_then(|cache_key| {
             scratch
                 .cold_cohorts
                 .get(&cache_key)
@@ -1366,6 +1398,7 @@ impl RetainedState {
             counters,
         );
         let delta = (old_style_record, publication.style_record_identity);
+        scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
         self.note_engine_computed_record(node, delta, cascade_state, delta_property_count, 0, counters);
         counters.bump(if from_cache {
             Counter::EngineComputedRecordSharedHits
@@ -1724,7 +1757,7 @@ impl RetainedState {
                 self.computed_group_sets.take_pending_cascade_state(target);
                 self.computed_group_sets
                     .revert_engine_computed_record(node, derived, pending.old_style_record);
-                scratch.cohorts.retain(|_, record| *record != derived);
+                scratch.cohorts.retain(|_, (record, _)| *record != derived);
                 scratch.cold_cohorts.retain(|_, record| record.record != derived);
                 self.engine_cold_record_cache
                     .retain(|_, record| record.record != derived);
@@ -1852,11 +1885,16 @@ impl RetainedState {
     /// parent's record. An animation that settles a custom property installs an environment of its
     /// own on the parent, and sampling moves it without a publication the engine sees.
     fn parent_composes_animations(&self, node: StyleNodeID) -> bool {
-        self.tree.inheritance_parent(node).is_some_and(|parent| {
-            self.computed_group_sets.node_has_animation_overlay(parent)
-                || self.computed_group_sets.adjustment_facts(parent) & bridge::element_adjustment_fact::HAS_ANIMATIONS
-                    != 0
-        })
+        self.tree
+            .inheritance_parent(node)
+            .is_some_and(|parent| self.host_composes_style(parent))
+    }
+
+    /// Whether the host composes a node's style over the record the engine holds: an element with
+    /// animations, whose effects C++ samples into its style.
+    pub(super) fn host_composes_style(&self, node: StyleNodeID) -> bool {
+        self.computed_group_sets.node_has_animation_overlay(node)
+            || self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
     }
 
     /// A later element alike in what a first record is computed from takes this record, the way a
@@ -2026,26 +2064,46 @@ impl RetainedState {
     }
 
     fn state_explicitly_inherits_non_inherited_property(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
+        self.state_explicitly_inherited_group_masks(node, state)
+            .next()
+            .is_some()
+    }
+
+    /// The non-inherited style groups a winner state reads straight from the parent: what C++
+    /// marks the parent with when it computes a record from the state.
+    fn state_explicitly_inherited_groups(&self, node: StyleNodeID, state: CascadeStateID) -> u32 {
+        self.state_explicitly_inherited_group_masks(node, state)
+            .fold(0, |groups, mask| groups | mask)
+    }
+
+    /// The style groups of each non-inherited property a winner state declares `inherit` for, and
+    /// every group for a value the engine cannot see the spelling of.
+    fn state_explicitly_inherited_group_masks(
+        &self,
+        node: StyleNodeID,
+        state: CascadeStateID,
+    ) -> impl Iterator<Item = u32> + '_ {
         let is_inherit_keyword = |value: Option<&crate::css::style_value::RetainedStyleValueData>| {
             value.is_none_or(|value| {
                 matches!(value.data(), crate::css::style_value::StyleValueData::Keyword { keyword }
                     if *keyword == crate::css::style_compute::keyword::INHERIT)
             })
         };
-        self.winner_groups.winners_in_state(state).any(|winner| {
+        self.winner_groups.winners_in_state(state).filter_map(move |winner| {
             if crate::css::property_metadata::property_is_inherited(winner.property) {
-                return false;
+                return None;
             }
-            let Some(winner) = self.winner_groups.resolved_winner(winner) else {
-                return false;
-            };
+            let winner = self.winner_groups.resolved_winner(winner)?;
+            let group_mask =
+                || crate::css::computed_values::computed_group_output_mask(winner.property).unwrap_or(u32::MAX);
             match winner.source {
                 WinnerSource::Rule(rule) => is_inherit_keyword(self.program.written_winner_value(
                     rule,
                     winner.property,
                     winner.important,
                     winner.key.value,
-                )),
+                ))
+                .then(group_mask),
                 WinnerSource::Element(kind) => {
                     let (declared, _) = self.facts.element_declared_properties(node, kind);
                     let written = self.facts.element_written_declared_values(node, kind);
@@ -2054,9 +2112,9 @@ impl RetainedState {
                             && declared.important == winner.important
                             && declared.value == winner.key.value
                     });
-                    is_inherit_keyword(index.and_then(|index| written.get(index)))
+                    is_inherit_keyword(index.and_then(|index| written.get(index))).then(group_mask)
                 }
-                WinnerSource::ExactCascade => true,
+                WinnerSource::ExactCascade => Some(u32::MAX),
             }
         })
     }
@@ -2136,6 +2194,7 @@ impl RetainedState {
             ColdRecord {
                 record: style_record,
                 swap_eligible,
+                explicitly_inherited_groups: self.state_explicitly_inherited_groups(node, cascade_state.1),
             },
         );
     }
@@ -3822,11 +3881,19 @@ struct ColdRecordParent {
     parent_display: u32,
 }
 
-/// A first record the engine keeps for reuse, with the swap eligibility its assignment carries.
+/// What a warm record is derived from: the record it replaces, the winner state, the element
+/// facts, the parent, the custom-property environment, the root's font inputs and the monospace
+/// recascade.
+type RecordCohortKey = (u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs, i32);
+
+/// A first record the engine keeps for reuse, with the swap eligibility its assignment carries
+/// and the style groups it read straight from the parent through an explicit `inherit`, which
+/// every element it answers for marks its own parent with.
 #[derive(Clone, Copy)]
 pub(super) struct ColdRecord {
     record: computed::FinalStyleRecordID,
     swap_eligible: bool,
+    explicitly_inherited_groups: u32,
 }
 
 /// The value-independent half of a first-record key. Records under the same key may seed one
@@ -3951,11 +4018,15 @@ pub(super) struct EngineComputedRecordScratch {
     /// publishes beside its record, decided by the step rather than read back out of the
     /// retained set.
     pub(super) element_uses_substitution: bool,
+    /// The non-inherited style groups the element being derived read straight from its parent
+    /// through an explicit `inherit`, which the row carries for C++ to mark the parent with.
+    pub(super) element_explicitly_inherited_groups: u32,
     /// The nodes whose substituted-record fact the step decided, in the order it decided them.
     /// The boundary that installs the record applies them.
     substitution_effects: Vec<(StyleNodeID, bool)>,
-    cohorts:
-        HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs, i32), computed::FinalStyleRecordID>,
+    /// Warm records derived this flush, by what they were derived from, with the style groups
+    /// they explicitly inherit.
+    cohorts: HashMap<RecordCohortKey, (computed::FinalStyleRecordID, u32)>,
     computability: EngineComputabilityScratch,
     /// What each node the walk has reached tells its children: whether the chain above it is
     /// confined, and whether it resolved the record its children inherit from. A column with
@@ -4105,12 +4176,13 @@ pub(super) struct DriveSubject {
     facts: u32,
 }
 
-/// What a retry after an ancestor settles: the element's record, and the pseudo-element records
-/// the engine settled beside it, one slot per synthetic kind with a present bit each; a present
+/// What a retry after an ancestor settles: the element's record with the groups it explicitly
+/// inherits, and the pseudo-element records the engine settled beside it, one slot per synthetic kind with a present bit each; a present
 /// slot holding zero is a removal.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct RetriedEngineRecord {
     pub(crate) style_record: u64,
+    pub(crate) explicitly_inherited_groups: u32,
     pub(crate) pseudo_records_present: u8,
     pub(crate) pseudo_records: [u64; bridge::RETRY_PSEUDO_RECORD_SLOTS],
 }

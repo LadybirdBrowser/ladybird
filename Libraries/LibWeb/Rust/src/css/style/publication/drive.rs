@@ -55,13 +55,15 @@ impl<T> OrRefused<T> for Option<T> {
 }
 
 /// A driven longhand table with the length context it was driven against, the longhand
-/// evaluations it took, and the font a full drive resolved.
-pub(super) type DrivenTable = (
-    ComputedLonghandTable,
-    crate::css::style_compute::FfiLengthResolutionContext,
-    u32,
-    Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
-);
+/// evaluations it took, the font a full drive resolved, and the non-inherited style groups it read
+/// straight from the parent through an explicit `inherit`, which C++ marks the parent with.
+pub(super) struct DrivenTable {
+    pub(super) table: ComputedLonghandTable,
+    pub(super) length: crate::css::style_compute::FfiLengthResolutionContext,
+    pub(super) longhand_evaluations: u32,
+    pub(super) font: Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
+    pub(super) explicitly_inherited_groups: u32,
+}
 
 /// What a partial drive answers besides a refusal.
 #[expect(
@@ -177,6 +179,22 @@ struct DriveProgress {
 }
 
 impl RetainedState {
+    /// Whether what an explicit `inherit` of a non-inherited property reads from the parent is the
+    /// record the engine holds. A parent whose style the host composes over its record, or that
+    /// runs a transition, holds the style C++ composes, which the engine cannot read.
+    fn parent_record_answers_explicit_inheritance(&self, parent: Option<StyleNodeID>) -> bool {
+        let Some(parent) = parent else {
+            return true;
+        };
+        !self.host_composes_style(parent)
+            && self
+                .computed_group_sets
+                .assigned_style_record(parent)
+                .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
+                .and_then(|view| unsafe { view.longhand_table.as_ref() })
+                .is_some_and(|table| !crate::css::style_compute::has_active_transition_properties(table))
+    }
+
     /// The font size the monospace recascade gives a drive target: the cascaded font-size of every
     /// ancestor it inherits from, root first, walked again from a 13px default. A pseudo-element
     /// inherits from its originating element. A length the walk cannot resolve from the document's
@@ -491,7 +509,16 @@ impl RetainedState {
             Counter::EnginePartialLonghandEvaluations,
             u64::from(results.longhand_evaluations),
         );
-        if results.explicitly_inherited_non_inherited_style_groups != 0 || results.uses_tree_counting_function {
+        if results.uses_tree_counting_function {
+            counters.bump(Counter::EngineComputedRecordBailDrive);
+            return Err(Unanswered::Refused);
+        }
+        // An `inherit` of a non-inherited property reads the half of the parent's style a child
+        // normally cannot see. The value is computed here, and the mark C++ leaves on the parent
+        // beside it travels with the row.
+        if results.explicitly_inherited_non_inherited_style_groups != 0
+            && !self.parent_record_answers_explicit_inheritance(parent)
+        {
             counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }
@@ -533,12 +560,13 @@ impl RetainedState {
             resolved_viewport_relative_length: std::ptr::null_mut(),
             ..length
         };
-        Ok(PartialDrive::Driven((
+        Ok(PartialDrive::Driven(DrivenTable {
             table,
             length,
-            results.longhand_evaluations,
-            None,
-        )))
+            longhand_evaluations: results.longhand_evaluations,
+            font: None,
+            explicitly_inherited_groups: results.explicitly_inherited_non_inherited_style_groups,
+        }))
     }
 
     /// Drive a record through every phase: the font phase against the parent's metrics, the
@@ -1143,7 +1171,16 @@ impl RetainedState {
             &raw const input_line_height_metrics,
             line_height_value,
         );
-        if results.explicitly_inherited_non_inherited_style_groups != 0 || results.uses_tree_counting_function {
+        if results.uses_tree_counting_function {
+            counters.bump(Counter::EngineComputedRecordBailDrive);
+            return Err(Unanswered::Refused);
+        }
+        // C++ marks the originating element's parent when a pseudo-element explicitly inherits a
+        // non-inherited property, and a pseudo-element's row carries no groups to mark it with, so
+        // such a pseudo-element stays with C++.
+        if results.explicitly_inherited_non_inherited_style_groups != 0
+            && (target.is_pseudo() || !self.parent_record_answers_explicit_inheritance(parent))
+        {
             counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }
@@ -1182,12 +1219,13 @@ impl RetainedState {
             resolved_viewport_relative_length: std::ptr::null_mut(),
             ..remaining_length
         };
-        Ok(FullDrive::Driven((
+        Ok(FullDrive::Driven(DrivenTable {
             table,
             length,
-            results.longhand_evaluations,
-            Some(font),
-        )))
+            longhand_evaluations: results.longhand_evaluations,
+            font: Some(font),
+            explicitly_inherited_groups: results.explicitly_inherited_non_inherited_style_groups,
+        }))
     }
 }
 

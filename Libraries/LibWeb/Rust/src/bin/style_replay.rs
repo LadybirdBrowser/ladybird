@@ -2225,6 +2225,9 @@ fn read_style_transaction_outputs(
                     tag => return Err(format!("unknown style delta gap tag {tag}").into()),
                 },
                 uses_substitution: format_version >= 16 && payload.read_bool()?,
+                // NB: The recording does not carry the explicit-inheritance marks, and replay does not
+                //     compare them.
+                explicitly_inherited_groups: 0,
             });
         }
         emissions.push(StyleTransactionEmission {
@@ -2979,6 +2982,7 @@ mod tests {
                     pseudo_kind: u8::MAX,
                     gap: FfiStyleDeltaGap::Computed,
                     uses_substitution: true,
+                    explicitly_inherited_groups: 0,
                 }],
             }],
             style_atoms_swept: false,

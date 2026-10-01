@@ -2228,6 +2228,11 @@ impl StyleEngineState {
                         gap,
                         uses_substitution: gap == FfiStyleDeltaGap::Computed
                             && engine_computed_record_scratch.element_uses_substitution,
+                        explicitly_inherited_groups: if gap == FfiStyleDeltaGap::Computed {
+                            engine_computed_record_scratch.element_explicitly_inherited_groups
+                        } else {
+                            0
+                        },
                     };
                     if style_deltas.len() == style_deltas.capacity() {
                         style_deltas.reserve(1);
@@ -2259,6 +2264,7 @@ impl StyleEngineState {
                                 pseudo_kind: pseudo.kind,
                                 gap: FfiStyleDeltaGap::Computed,
                                 uses_substitution: false,
+                                explicitly_inherited_groups: 0,
                             });
                         }
                     }
