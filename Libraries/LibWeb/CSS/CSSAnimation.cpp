@@ -131,13 +131,37 @@ static GC::Ptr<Animations::AnimationTimeline> materialize_timeline(AnimationTime
     VERIFY_NOT_REACHED();
 }
 
-void CSSAnimation::apply_css_properties(AnimationProperties const& animation_properties, DOM::AbstractElement timeline_target)
+void CSSAnimation::apply_css_properties(AnimationProperties const& animation_properties, Animations::KeyframeEffect::KeyFrameSet const* keyframe_set, DOM::AbstractElement timeline_target)
 {
     // FIXME: Don't apply overridden properties as defined here: https://drafts.csswg.org/css-animations-2/#animations
 
     VERIFY(effect());
 
     auto& effect = as<Animations::KeyframeEffect>(*this->effect());
+
+    // NB: Recorded before the early return below, so that the definition always says what the style
+    //     computation last computed.
+    m_applied_keyframe_set = keyframe_set;
+    m_applied_timing_function_value = animation_properties.timing_function_value;
+    m_applied_definition = {
+        .values = {
+            .duration_is_auto = animation_properties.duration.has<Utf16String>(),
+            .duration = animation_properties.duration.visit(
+                [](double duration) { return duration; },
+                [](Utf16String const&) { return 0.0; }),
+            .iteration_count = animation_properties.iteration_count,
+            .direction = to_underlying(animation_properties.direction),
+            .play_state = to_underlying(animation_properties.play_state),
+            .delay = animation_properties.delay,
+            .fill_mode = to_underlying(animation_properties.fill_mode),
+            .composition = to_underlying(animation_properties.composition),
+            .timeline_kind = to_underlying(animation_properties.timeline.kind),
+            .scroll_scroller = to_underlying(animation_properties.timeline.scroller),
+            .scroll_axis = to_underlying(animation_properties.timeline.axis),
+        },
+        .keyframe_set = m_applied_keyframe_set.ptr(),
+        .timing_function = m_applied_timing_function_value.data(),
+    };
 
     auto const update_timeline = !m_ignored_css_properties.contains(PropertyID::AnimationTimeline)
         && should_update_timeline(timeline(), animation_properties.timeline, timeline_target);

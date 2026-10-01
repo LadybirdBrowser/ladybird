@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Animations/Animation.h>
+#include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSAnimationProperties.h>
 #include <LibWeb/CSS/EasingFunction.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -27,7 +28,8 @@ public:
     virtual Animations::AnimationClass animation_class() const override;
     virtual int class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
 
-    void apply_css_properties(AnimationProperties const&, DOM::AbstractElement timeline_target);
+    // Applies a plan's definition, whose keyframes the caller gives the animation's effect.
+    void apply_css_properties(AnimationProperties const&, Animations::KeyframeEffect::KeyFrameSet const* keyframe_set, DOM::AbstractElement timeline_target);
 
     void set_animation_name_index(size_t index);
 
@@ -49,6 +51,9 @@ public:
 
     Optional<CSS::AnimationPlayState> last_css_animation_play_state() const { return m_last_css_animation_play_state; }
     void set_last_css_animation_play_state(CSS::AnimationPlayState state) { m_last_css_animation_play_state = state; }
+
+    // The definition the last plan applied, which the style engine compares the next plan's against.
+    StyleEngineFFI::FfiAppliedAnimationDefinition const& applied_definition() const { return m_applied_definition; }
 
 private:
     struct AppliedCSSProperties {
@@ -79,6 +84,13 @@ private:
 
     Optional<CSS::AnimationPlayState> m_last_css_animation_play_state;
     Optional<AppliedCSSProperties> m_applied_css_properties;
+
+    // What the style computation last computed for this animation, as computed values rather than
+    // the easings and enums `m_applied_css_properties` holds, with the keyframe set and the timing
+    // function it names, which the animation retains for as long as it names them.
+    StyleEngineFFI::FfiAppliedAnimationDefinition m_applied_definition {};
+    RefPtr<Animations::KeyframeEffect::KeyFrameSet const> m_applied_keyframe_set;
+    RustStyleValueHandle m_applied_timing_function_value;
 
     bool m_script_overrode_play_state { false };
     bool m_applying_css_play_state { false };

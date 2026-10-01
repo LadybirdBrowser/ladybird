@@ -1405,7 +1405,7 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
 
             if (auto effect = existing_animation->effect()) {
                 as<Animations::KeyframeEffect>(*effect).set_key_frame_set(definition_keyframe_sets[i]);
-                existing_animation->apply_css_properties(animation_properties, abstract_element);
+                existing_animation->apply_css_properties(animation_properties, definition_keyframe_sets[i], abstract_element);
             }
             existing_animation->set_animation_name_index(i);
             new_animations.append(existing_animation);
@@ -1424,7 +1424,7 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
         auto effect = Animations::KeyframeEffect::create();
         animation->set_effect(effect);
 
-        animation->apply_css_properties(animation_properties, abstract_element);
+        animation->apply_css_properties(animation_properties, definition_keyframe_sets[i], abstract_element);
         animation->set_animation_name_index(i);
 
         effect->set_key_frame_set(definition_keyframe_sets[i]);
@@ -5881,6 +5881,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                     .composition = static_cast<AnimationComposition>(animation.composition),
                     .name = css_string_from_rust(animation.name),
                     .timeline = timeline,
+                    .timing_function_value = RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(animation.timing_function)),
                 });
             }
             auto const& driver_results = longhand_result->driver_results;

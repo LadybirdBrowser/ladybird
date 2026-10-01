@@ -363,6 +363,24 @@ impl PayloadWriter {
         }
     }
 
+    /// Writes applied animation definitions without the host pointers they name, which a replayed
+    /// engine could not read: a definition naming no timing function changes something, so a
+    /// replay hands every plan over.
+    pub fn write_applied_animation_definitions(
+        &mut self,
+        definitions: &[super::bridge::FfiAppliedAnimationDefinition],
+    ) {
+        let without_host_pointers: Vec<_> = definitions
+            .iter()
+            .map(|definition| super::bridge::FfiAppliedAnimationDefinition {
+                keyframe_set: std::ptr::null(),
+                timing_function: std::ptr::null(),
+                ..*definition
+            })
+            .collect();
+        self.write_raw_slice(&without_host_pointers);
+    }
+
     /// Writes `values` as their raw in-memory bytes, padded so the array's offset within the
     /// payload is a multiple of the row alignment. Payloads start eight-aligned in the file, so a
     /// replay over a page-aligned mapping reads the array back in place.

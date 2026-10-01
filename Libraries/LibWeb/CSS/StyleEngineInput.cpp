@@ -962,11 +962,12 @@ void record_element_animation_names(DOM::Element& element, ReadonlySpan<Utf16Fly
     style_engine->set_element_animation_names(element.style_node_id(), atoms);
 }
 
-// The names of the CSS animations the element owns, in one of its per-pseudo-element lists.
+// The names of the CSS animations the element owns, in one of its per-pseudo-element lists, and the
+// definition each one last had applied.
 //
 // This one is an input: the computation of an element's animation definitions matches them
 // against the animations the element already has, and this is what it matches them against.
-void record_element_css_defined_animations(DOM::Element& element, u8 slot, ReadonlySpan<Utf16FlyString> names)
+void record_element_css_defined_animations(DOM::Element& element, u8 slot, ReadonlySpan<Utf16FlyString> names, ReadonlySpan<StyleEngineFFI::FfiAppliedAnimationDefinition> definitions)
 {
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() == no_style_node)
@@ -984,7 +985,7 @@ void record_element_css_defined_animations(DOM::Element& element, u8 slot, Reado
         for (size_t index = 0; index < view.length_in_code_units(); ++index)
             units.unchecked_append(view.code_unit_at(index));
     }
-    style_engine->set_element_css_defined_animations(element.style_node_id(), slot, lengths, units);
+    style_engine->set_element_css_defined_animations(element.style_node_id(), slot, lengths, units, definitions);
 }
 
 // The custom properties an element declares or references.

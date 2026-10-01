@@ -1270,6 +1270,48 @@ pub unsafe extern "C" fn style_engine_publish_font_faces(
     }
 }
 
+/// The definition a plan last applied to one of the host's CSS animations, published beside the
+/// animation's name: what the style computation handed the host for it, field for field, so that a
+/// definition just computed and one published back compare directly. A plan whose every definition
+/// equals what its animation last had applied changes nothing, and the engine does not hand it
+/// over.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiAppliedAnimationDefinition {
+    pub values: FfiAppliedAnimationValues,
+    /// The keyframe set the plan gave the animation's effect, which the animation retains.
+    pub keyframe_set: *const c_void,
+    /// The computed `animation-timing-function`, which the animation retains, or null where no plan
+    /// has described the animation yet.
+    pub timing_function: *const c_void,
+}
+
+/// What an applied animation definition holds by value.
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq)]
+pub struct FfiAppliedAnimationValues {
+    pub duration_is_auto: bool,
+    pub duration: f64,
+    pub iteration_count: f64,
+    pub direction: u8,
+    pub play_state: u8,
+    pub delay: f64,
+    pub fill_mode: u8,
+    pub composition: u8,
+    /// An `FfiAnimationTimelineKind`.
+    pub timeline_kind: u8,
+    pub scroll_scroller: u8,
+    pub scroll_axis: u8,
+}
+
+// SAFETY: plain values and pointers, recorded from definitions the host published.
+unsafe impl super::record_replay::RawRecord for FfiAppliedAnimationDefinition {}
+// SAFETY: the keyframe set is only compared by address, and the timing function is immutable style
+// value data the animation retains for as long as the definition is published, read only to
+// compare it.
+unsafe impl Send for FfiAppliedAnimationDefinition {}
+unsafe impl Sync for FfiAppliedAnimationDefinition {}
+
 /// Replaces the `@keyframes` row of one style scope: each name the scope defines, packed into one
 /// buffer of code units with a length each, with the host's keyframe set for it. An empty row gives
 /// the scope's row up; a shadow root's scope is named by the root's pointer identity as well.
