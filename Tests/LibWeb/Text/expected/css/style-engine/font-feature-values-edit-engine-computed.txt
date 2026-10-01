@@ -1,0 +1,3 @@
+engine computed records: true
+C++ recomputations: 0
+font-variant-alternates: styleset(fancy)

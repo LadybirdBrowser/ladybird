@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @font-feature-values FeatureFamily { @styleset { fancy: 1; } }
+    #alternates { font-family: FeatureFamily, serif; font-variant-alternates: styleset(fancy); }
+</style>
+<div id="alternates">alternates</div>
+<div id="plain">plain</div>
+<script>
+    // An edit to a @font-feature-values rule moves the feature values every font resolution reads.
+    // Count who computes the records it reaches, and check the alternates still name the feature.
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        document.styleSheets[0].cssRules[0].styleset.set("fancy", 2);
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`engine computed records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords > 0}`);
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`font-variant-alternates: ${getComputedStyle(document.getElementById("alternates")).fontVariantAlternates}`);
+    });
+</script>
