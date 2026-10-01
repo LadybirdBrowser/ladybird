@@ -632,6 +632,16 @@ impl RetainedState {
         self.tree.set_text_is_ascii_whitespace(node, value, &mut self.memory);
     }
 
+    /// Record whether the text node holds the value of a password input.
+    pub fn set_text_is_password_input(&mut self, node: StyleNodeID, value: bool) {
+        self.tree.set_text_is_password_input(node, value, &mut self.memory);
+    }
+
+    /// Record the characters the text node now holds.
+    pub fn set_text_data(&mut self, node: StyleNodeID, data: ak::Utf16String) {
+        self.tree.set_text_data(node, data);
+    }
+
     /// Record which kind of tree the text node arrived in.
     pub fn set_text_is_in_user_agent_shadow_tree(&mut self, node: StyleNodeID, value: bool) {
         self.tree

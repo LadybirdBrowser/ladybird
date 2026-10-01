@@ -12310,6 +12310,33 @@ fn a_reissued_identity_holds_no_construction_facts() {
 }
 
 #[test]
+fn a_text_node_holds_its_published_characters_until_its_identity_is_reissued() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 1];
+    engine.allocate_text_style_nodes(&mut raw);
+    let text = StyleNodeID::from_raw(raw[0]).unwrap();
+    let data = ak::Utf16String::from(ak::Utf16FlyString::from_utf16(
+        &"characters a text box renders".encode_utf16().collect::<Vec<_>>(),
+    ));
+    engine.set_text_data(text, data.clone());
+    engine.set_text_is_password_input(text, true);
+    // The mirror shares the document's string rather than copying it.
+    assert_eq!(
+        engine.tree.text_data(text).map(ak::Utf16String::raw_identity),
+        Some(data.raw_identity())
+    );
+    assert!(engine.tree.text_is_password_input(text));
+
+    engine.retire_text_style_nodes([text]);
+    engine.discard_style_transaction_outputs();
+    let mut reissued = [0_u32; 1];
+    engine.allocate_text_style_nodes(&mut reissued);
+    assert_eq!(reissued[0], text.raw());
+    assert!(engine.tree.text_data(text).is_some_and(ak::Utf16String::is_empty));
+    assert!(!engine.tree.text_is_password_input(text));
+}
+
+#[test]
 fn inheritance_parent_keeps_the_dom_parent_of_nodes_outside_the_flat_tree() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 7];

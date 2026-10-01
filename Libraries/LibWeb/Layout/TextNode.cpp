@@ -71,6 +71,8 @@ GeneratedTextNode::GeneratedTextNode(DOM::Document& document, Utf16String text)
     : TextNode(document, RustFFI::NodeKind::GeneratedTextNode)
     , m_text(move(text))
 {
+    // No DOM text node holds these characters for the style mirror to publish, so the row keeps them itself.
+    RustFFI::layout_arena_set_generated_text(arena_handle(), slot_id(this), m_text.to_raw_leaked());
 }
 
 GeneratedTextNode::~GeneratedTextNode() = default;

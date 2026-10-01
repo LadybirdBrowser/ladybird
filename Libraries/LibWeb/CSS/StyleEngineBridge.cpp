@@ -438,6 +438,11 @@ bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
     });
 }
 
+void StyleEngine::set_text_data(StyleNodeID node, Utf16String const& data)
+{
+    StyleEngineFFI::style_engine_set_text_data(m_impl, node.value(), data.to_raw_leaked());
+}
+
 void StyleEngine::set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag)
 {
     // A language range is not a name, so `:lang()` compares against the tag itself rather than

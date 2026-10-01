@@ -333,6 +333,9 @@ struct TextNodeState {
     source_range: Option<FfiTextSourceRange>,
     first_letter: NodeSlotId,
     content: Option<TextContent>,
+    /// What a generated text row renders. Generated content has no DOM text node whose characters
+    /// the style mirror could hold, so the row keeps the characters it was made with.
+    generated_text: Option<ak::Utf16String>,
 }
 
 #[derive(Default)]
@@ -3540,6 +3543,11 @@ impl LayoutNodeArena {
             .and_then(|slot| slot.state.as_deref())
     }
 
+    /// Record what a generated text row spells.
+    pub(crate) fn set_generated_text(&mut self, id: NodeSlotId, text: ak::Utf16String) {
+        self.text_node_state_mut(id).generated_text = Some(text);
+    }
+
     pub(crate) fn set_text_content(&mut self, id: NodeSlotId, content: TextContent) {
         let state = self.text_node_state_mut(id);
         if let Some(previous) = state.content.as_mut()
@@ -4245,6 +4253,20 @@ pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
     let arena = unsafe { Box::from_raw(arena.cast::<LayoutNodeArena>()) };
     arena.assert_owner_thread();
     assert_eq!(arena.live_count, 0, "layout node arena destroyed with live slots");
+}
+
+/// Records the characters a generated text row renders.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create` with no outstanding borrow, and `text`
+/// a raw `AK::Utf16String` representation for which the caller transfers one reference.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_generated_text(arena: *mut c_void, id: NodeSlotId, text: usize) {
+    // SAFETY: The caller transfers one reference to a live string.
+    let text = unsafe { ak::Utf16String::from_raw_owned(text) };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle_mut(arena) }.set_generated_text(id, text);
 }
 
 #[unsafe(no_mangle)]
