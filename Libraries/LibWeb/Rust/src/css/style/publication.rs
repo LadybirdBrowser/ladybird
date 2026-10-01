@@ -1803,6 +1803,13 @@ impl RetainedState {
         Ok((publication.style_record_identity, swap_eligible))
     }
 
+    /// C++ computes `node` itself rather than install what a record demand derived for it: the
+    /// derived records go back as an abandoned derivation's do, and the demand's own cohorts went
+    /// with it.
+    pub(crate) fn abandon_demanded_records(&mut self, node: StyleNodeID, counters: &mut Counters) {
+        self.abandon_engine_computed_record(node, &mut EngineComputedRecordScratch::default(), counters);
+    }
+
     /// A derivation that could not be completed: everything derived for `node` this flush goes
     /// back to what the node held, and nothing in the flush may share it.
     pub(super) fn abandon_engine_computed_record(

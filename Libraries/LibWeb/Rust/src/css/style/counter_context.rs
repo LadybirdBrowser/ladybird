@@ -990,6 +990,12 @@ impl StyleEngine {
         self.state.acknowledge_engine_computed_record(node, &mut self.counters);
     }
 
+    /// C++ computes `node` itself rather than install what a record demand derived for it.
+    #[inline]
+    pub(crate) fn abandon_demanded_records(&mut self, node: StyleNodeID) {
+        self.state.abandon_demanded_records(node, &mut self.counters);
+    }
+
     /// Retry a record after C++ has installed earlier records in the same preorder batch. A record
     /// rejected while the batch was planned may become computable once its inheritance parent is
     /// authoritative.
