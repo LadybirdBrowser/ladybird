@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<div id="container"></div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const container = document.getElementById("container");
+    const addShadowTree = () => {
+        const host = document.createElement("div");
+        host.attachShadow({ mode: "open" }).innerHTML = "<style>:host { display: block; font-size: 13px; } p { font-weight: bold; } span { color: green; }</style><p><span>a</span><span>b</span></p>";
+        container.appendChild(host);
+    };
+
+    // Every shadow tree gives its host the same font, which the paragraph and spans below inherit and build on. The
+    // trees added after the first one is styled can take their styles from it.
+    addShadowTree();
+    document.body.offsetWidth;
+    const before = internals.styleEngineCounters();
+    for (let i = 0; i < 20; ++i)
+        addShadowTree();
+    document.body.offsetWidth;
+    const after = internals.styleEngineCounters();
+    println(`full drives for 20 more shadow trees: ${after.engineFullDrivesStarted - before.engineFullDrivesStarted}`);
+
+    const spans = [...container.children].map(host => host.shadowRoot.querySelector("span"));
+    println(`span font: ${getComputedStyle(spans[0]).fontSize} ${getComputedStyle(spans[0]).fontWeight}`);
+    println(`all spans alike: ${spans.every(span => getComputedStyle(span).font === getComputedStyle(spans[0]).font)}`);
+});
+</script>

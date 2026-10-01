@@ -1,0 +1,3 @@
+full drives for 20 more shadow trees: 0
+span font: 13px 700
+all spans alike: true
