@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Adopting a shadow root that defines @keyframes into another document takes its keyframes along:
+    // its elements animate from them in the new document, and the new document's own shadow root keeps
+    // its keyframes. Each document numbers its own tree scopes, so the two roots share a number.
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+        const child = iframe.contentWindow;
+
+        function attach(doc, name, opacity) {
+            const host = doc.createElement("div");
+            const root = host.attachShadow({ mode: "open" });
+            root.innerHTML = `
+                <style>
+                    @keyframes ${name} {
+                        from { opacity: ${opacity}; }
+                        to { opacity: ${opacity}; }
+                    }
+                    #target.go { animation: ${name} 100s linear; }
+                </style>
+                <div id="target"></div>`;
+            doc.body.appendChild(host);
+            return { host, target: root.getElementById("target") };
+        }
+
+        const moved = attach(document, "spin", 0.25);
+        const stays = attach(child.document, "fade", 0.5);
+        internals.updateStyle();
+        child.internals.updateStyle();
+
+        child.document.body.appendChild(child.document.adoptNode(moved.host));
+        child.internals.updateStyle();
+        internals.updateStyle();
+
+        stays.target.classList.add("go");
+        moved.target.classList.add("go");
+        println(`staying root's animation: ${child.getComputedStyle(stays.target).opacity}`);
+        println(`adopted root's animation: ${child.getComputedStyle(moved.target).opacity}`);
+        done();
+    });
+</script>
