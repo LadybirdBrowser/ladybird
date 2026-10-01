@@ -293,6 +293,8 @@ impl RetainedState {
                 let unchanged = match (state, bound) {
                     (Some(state), Some((bound_generation, bound_state))) => {
                         bound_generation == generation
+                            && !(self.custom_property_registrations_changed
+                                && self.state_has_substitutions(node, state))
                             && self.winner_groups.states_are_semantically_equal(bound_state, state)
                     }
                     (None, None) => true,

@@ -564,9 +564,10 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecord);
             return Err(Unanswered::Refused);
         };
-        // A moved environment reaches every winner written with a substitution: such a record
-        // is driven again in full under the new one.
-        let environment_moved_under_substitutions = environment.is_some() && self.state_has_substitutions(node, state);
+        // A moved environment reaches every winner written with a substitution, and so does a
+        // moved custom-property registry: such a record is driven again in full.
+        let substitutions_moved = (environment.is_some() || self.custom_property_registrations_changed)
+            && self.state_has_substitutions(node, state);
         if delta.is_empty() {
             // The winners the record was computed from are the winners now. When everything else
             // the record was computed from is as it was too - the document environment, the rules
@@ -591,7 +592,7 @@ impl RetainedState {
             // record: it is driven again in full against the parent as it is now. The record
             // does not say which parent display it was transformed under, and a winner's own
             // value may read the parent (a relative length, an inherit keyword).
-            if !parent_inputs_moved.any() && !root_inputs_moved && !environment_moved_under_substitutions {
+            if !parent_inputs_moved.any() && !root_inputs_moved && !substitutions_moved {
                 // A declaration in an inherited payload group does not prove that the other
                 // properties in that group still inherit from the current parent. Re-drive the
                 // record in full when its payloads cannot prove the relationship.
@@ -646,7 +647,7 @@ impl RetainedState {
         // and the inheritance are part of the full drive.
         let full_drive = parent_inputs_moved.any()
             || root_inputs_moved
-            || environment_moved_under_substitutions
+            || substitutions_moved
             || delta.properties().iter().any(|&property| {
                 !property_computes_in_remaining_phase(property) || property_feeds_box_type_transformation(property)
             });
