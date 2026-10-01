@@ -1430,7 +1430,6 @@ static CSS::StyleComputer::ComputedStyleInvalidation decode_style_record_invalid
 }
 struct ElementDependentInvalidationState {
     Layout::NodeWithStyle const* layout_node { nullptr };
-    Optional<Vector<ValueComparingRefPtr<CSS::CounterStyle const>>> content_counter_style_dependencies;
     Optional<ValueComparingRefPtr<CSS::CounterStyle const>> list_counter_style;
     bool has_snapshot { false };
 
@@ -1438,8 +1437,6 @@ struct ElementDependentInvalidationState {
     {
         if (!layout_node)
             return;
-        if (auto const& content = layout_node->content(); content.has_value())
-            content_counter_style_dependencies = content->counter_style_dependencies;
         // Only a list item renders a marker, so only its counter style can matter; a display
         // change to or from list-item rebuilds the box regardless.
         if (layout_node->display().is_list_item()) {
@@ -1451,15 +1448,30 @@ struct ElementDependentInvalidationState {
     }
 };
 
+// Whether the counter styles the element's generated content names now differ from the ones the box built for it
+// renders from. The build resolves them from the published record and the tree scope's registered counter styles, and
+// the arena keeps what each box was built with.
+static bool content_counter_styles_changed(DOM::AbstractElement const& abstract_element)
+{
+    auto* arena = abstract_element.element().document().layout_node_arena_if_created();
+    if (!arena)
+        return false;
+    // Only a pseudo-element's box renders generated content.
+    auto const pseudo_element = abstract_element.pseudo_element();
+    if (!pseudo_element.has_value())
+        return false;
+    abstract_element.style_scope().publish_counter_style_lookup_chain();
+    return Layout::RustFFI::layout_arena_content_counter_styles_changed(arena->handle(), abstract_element.element().style_node_id().value(), Layout::Node::encode_generated_for(*pseudo_element));
+}
+
 static void add_element_dependent_invalidation(CSS::RequiredInvalidationAfterStyleChange& invalidation, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element)
 {
     // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant
     //     @counter-style rule was modified, or a new rule with the same name took precedence over the old one).
     // Generated content and the marker live inside the element's own layout subtree, so, like a
     // 'content' change, they rebuild from the element rather than its parent.
-    auto compare = [&](Optional<Vector<ValueComparingRefPtr<CSS::CounterStyle const>>> const& old_content_dependencies, Optional<ValueComparingRefPtr<CSS::CounterStyle const>> const& old_list_counter_style) {
-        if (old_content_dependencies.has_value()
-            && *old_content_dependencies != new_computed_values.resolved_content(abstract_element, 0, CSS::NotifyListItemCounterRendered::No).content_data.counter_style_dependencies)
+    auto compare = [&](Optional<ValueComparingRefPtr<CSS::CounterStyle const>> const& old_list_counter_style) {
+        if (content_counter_styles_changed(abstract_element))
             invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(CSS::LayoutTreeRebuildRoot::Self);
 
         if (old_list_counter_style.has_value()) {
@@ -1473,17 +1485,14 @@ static void add_element_dependent_invalidation(CSS::RequiredInvalidationAfterSty
     };
 
     if (old_state.layout_node) {
-        Optional<Vector<ValueComparingRefPtr<CSS::CounterStyle const>>> old_content_dependencies;
-        if (auto const& content = old_state.layout_node->content(); content.has_value())
-            old_content_dependencies = content->counter_style_dependencies;
         Optional<ValueComparingRefPtr<CSS::CounterStyle const>> old_list_counter_style;
         if (old_state.layout_node->display().is_list_item()) {
             if (auto const& list_style_type = old_state.layout_node->list_style_type(); list_style_type.has<RefPtr<CSS::CounterStyle const>>())
                 old_list_counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
         }
-        compare(old_content_dependencies, old_list_counter_style);
+        compare(old_list_counter_style);
     } else if (old_state.has_snapshot) {
-        compare(old_state.content_counter_style_dependencies, old_state.list_counter_style);
+        compare(old_state.list_counter_style);
     }
 }
 
@@ -1641,7 +1650,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                                              : nullptr;
         ElementDependentInvalidationState old_state {
             .layout_node = pseudo_element_unsafe_layout_node(pseudo_element),
-            .content_counter_style_dependencies = {},
             .list_counter_style = {},
             .has_snapshot = false,
         };
@@ -2322,7 +2330,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         VERIFY(new_computed_values);
         ElementDependentInvalidationState old_state {
             .layout_node = unsafe_layout_node(),
-            .content_counter_style_dependencies = {},
             .list_counter_style = {},
             .has_snapshot = false,
         };
@@ -2401,7 +2408,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     auto root_font_metrics_depended_on_viewport_before_recompute = style_computer.root_element_font_metrics_depend_on_viewport_metrics();
     ElementDependentInvalidationState old_state {
         .layout_node = unsafe_layout_node(),
-        .content_counter_style_dependencies = {},
         .list_counter_style = {},
         .has_snapshot = false,
     };

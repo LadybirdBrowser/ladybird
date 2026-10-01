@@ -19,6 +19,7 @@ pub(crate) mod fc_run_cache;
 pub(crate) mod flex_formatting_context;
 pub mod formatting_context;
 pub(crate) mod fragment_tree;
+pub(crate) mod generated_content;
 pub mod geometry;
 pub mod grid_formatting_context;
 pub mod inline_content;

@@ -565,6 +565,18 @@ impl RetainedState {
             .is_some_and(crate::css::computed_value_views::ComputedValuesView::content_is_single_image)
     }
 
+    /// The tree scope a counter style name `node` uses is looked up from: its own, unless its shadow
+    /// tree takes the document's styles, which looks names up in the document's scope instead.
+    #[must_use]
+    pub(crate) fn counter_style_tree_scope(&self, node: StyleNodeID) -> u32 {
+        let tree_scope = self.tree.tree_scope(node);
+        if self.program.scope_uses_document_sheets(tree_scope) {
+            TreeScopeID::DOCUMENT.0
+        } else {
+            tree_scope.0
+        }
+    }
+
     /// The element's published style record, or its record for one pseudo-element kind, as a view.
     /// `None` while there is no such record.
     #[must_use]

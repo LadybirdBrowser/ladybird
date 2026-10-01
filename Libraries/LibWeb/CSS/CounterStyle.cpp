@@ -105,7 +105,7 @@ Utf16String generate_a_counter_representation(RefPtr<CounterStyle const> const& 
 
 // The descriptors travel as flat columns of `AK::Utf16FlyString` raw words; the Rust side takes ownership of the one
 // reference each leaked word carries.
-static Parser::ValueParserFFI::FfiRegisteredCounterStyle* create_rust_counter_style(Utf16FlyString const& name, CounterStyleAlgorithm const& algorithm, CounterStyleNegativeSign const& negative_sign, Vector<CounterStyleRangeEntry> const& range, Optional<Utf16FlyString> const& fallback, CounterStylePad const& pad)
+static Parser::ValueParserFFI::FfiRegisteredCounterStyle* create_rust_counter_style(Utf16FlyString const& name, CounterStyleAlgorithm const& algorithm, CounterStyleNegativeSign const& negative_sign, Utf16FlyString const& prefix, Utf16FlyString const& suffix, Vector<CounterStyleRangeEntry> const& range, Optional<Utf16FlyString> const& fallback, CounterStylePad const& pad)
 {
     Vector<size_t> symbols;
     Vector<i32> additive_weights;
@@ -170,6 +170,8 @@ static Parser::ValueParserFFI::FfiRegisteredCounterStyle* create_rust_counter_st
         .range_count = ranges.size(),
         .negative_prefix = negative_sign.prefix.to_raw_leaked(),
         .negative_suffix = negative_sign.suffix.to_raw_leaked(),
+        .prefix = prefix.to_raw_leaked(),
+        .suffix = suffix.to_raw_leaked(),
         .fallback = fallback.has_value() ? fallback->to_raw_leaked() : 0,
         .pad_symbol = pad.symbol.to_raw_leaked(),
         .pad_minimum_length = pad.minimum_length,
@@ -197,7 +199,7 @@ CounterStyle::~CounterStyle()
 Parser::ValueParserFFI::FfiRegisteredCounterStyle const* CounterStyle::rust_counter_style() const
 {
     if (!m_rust_counter_style)
-        m_rust_counter_style = create_rust_counter_style(m_name, m_algorithm, m_negative_sign, m_range, m_fallback, m_pad);
+        m_rust_counter_style = create_rust_counter_style(m_name, m_algorithm, m_negative_sign, m_prefix, m_suffix, m_range, m_fallback, m_pad);
     return m_rust_counter_style;
 }
 

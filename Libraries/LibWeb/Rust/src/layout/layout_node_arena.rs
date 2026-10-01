@@ -652,6 +652,8 @@ pub(crate) struct LayoutNodeArena {
     counter_styles: RefCell<crate::css::counter_representation::CounterStyleRegistry>,
     /// The CSS counters set of every element and pseudo-element the tree build resolved one for.
     counters_sets: RefCell<super::counters::CountersSets>,
+    /// What the tree build recorded about the generated content of each pseudo-element it built.
+    generated_content: RefCell<super::generated_content::GeneratedContent>,
     owner_thread: thread::ThreadId,
 }
 
@@ -738,6 +740,7 @@ impl LayoutNodeArena {
             layout_tree_update_marks: RefCell::default(),
             counter_styles: RefCell::default(),
             counters_sets: RefCell::default(),
+            generated_content: RefCell::default(),
             owner_thread: thread::current().id(),
         }
     }
@@ -1331,6 +1334,7 @@ impl LayoutNodeArena {
     pub(crate) fn forget_style_node(&self, style_node: StyleNodeID) {
         self.assert_owner_thread();
         self.counters_sets.borrow_mut().forget(style_node);
+        self.generated_content.borrow_mut().forget(style_node);
         loop {
             let row = self.first_rows_by_style_node.borrow().head(style_node);
             if row.is_invalid() {
@@ -1562,6 +1566,10 @@ impl LayoutNodeArena {
     pub(crate) fn counters_sets(&self) -> &RefCell<super::counters::CountersSets> {
         self.assert_owner_thread();
         &self.counters_sets
+    }
+
+    pub(crate) fn generated_content(&self) -> &RefCell<super::generated_content::GeneratedContent> {
+        &self.generated_content
     }
 
     pub(crate) fn with_counter_style_registry<T>(
@@ -3934,6 +3942,28 @@ pub unsafe extern "C" fn layout_arena_detach_and_free_subtree(arena: *mut c_void
     let was_attached = unsafe { &*arena }.detach_from_parent(node);
     crate::layout::tree_mutation::free_subtree_and_destroy_shells(arena, node);
     was_attached
+}
+
+/// Whether the counter styles the generated content of the element `style_node` names, or of its
+/// pseudo-element `generated_for`, names now differ from the ones its box was built with.
+///
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_content_counter_styles_changed(
+    arena: *mut c_void,
+    style_node: u32,
+    generated_for: u8,
+) -> bool {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    let Some(owner) = counter_owner(style_node, generated_for) else {
+        return false;
+    };
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on the
+    // document thread.
+    let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
+    super::generated_content::content_counter_styles_changed(arena, owner)
 }
 
 fn counter_owner(style_node: u32, generated_for: u8) -> Option<super::counters::CounterOwner> {

@@ -11,25 +11,30 @@
     // Re-deriving that set from the marker's `content`, which is `normal`, answers about a value
     // naming no counter at all, so the two could never agree: every recomputation of the marker's
     // own style was read as a counter-style change and rebuilt the list item's layout subtree.
+    // A list-style-type naming a counter style no scope registers renders as decimal, and the
+    // comparison has to record that unresolved name the way the build did.
+    const recolouringMarkerCase = (name, listStyleType) => ({
+        name,
+        setup: fixture => {
+            const item = document.createElement("div");
+            item.className = "item";
+            item.style.display = "list-item";
+            item.style.listStyleType = listStyleType;
+            item.textContent = "item";
+            fixture.append(item);
+            return {
+                mutate: () => {
+                    item.classList.add("recoloured");
+                },
+                trackedNodes: [{ node: item, label: "list item" }],
+            };
+        },
+    });
+
     test(() => {
         runLayoutTreeInvalidationScopeCases([
-            {
-                name: "recolouring a marker keeps the list item's box",
-                setup: fixture => {
-                    const item = document.createElement("div");
-                    item.className = "item";
-                    item.style.display = "list-item";
-                    item.style.listStyleType = "decimal";
-                    item.textContent = "item";
-                    fixture.append(item);
-                    return {
-                        mutate: () => {
-                            item.classList.add("recoloured");
-                        },
-                        trackedNodes: [{ node: item, label: "list item" }],
-                    };
-                },
-            },
+            recolouringMarkerCase("recolouring a marker keeps the list item's box", "decimal"),
+            recolouringMarkerCase("recolouring a marker of an unregistered counter style keeps the list item's box", "unregistered"),
         ]);
     });
 </script>
