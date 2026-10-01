@@ -1112,11 +1112,6 @@ impl SequenceChanges {
     }
 }
 
-thread_local! {
-    static SHARED_SIBLING_ENTRY_MAPS: RefCell<SharedVectorPool<u32>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RoutingRegistry));
-}
-
 pub(super) struct SiblingCandidateWorkspace {
     entry_by_route: SharedVector<u32>,
     pub(super) candidate_epochs: EpochColumn,
@@ -1125,7 +1120,7 @@ pub(super) struct SiblingCandidateWorkspace {
 }
 
 impl SiblingCandidateWorkspace {
-    pub(super) fn new(entries: &[SiblingEntry]) -> Self {
+    pub(super) fn new(entries: &[SiblingEntry], entry_map_pool: &mut SharedVectorPool<u32>) -> Self {
         let route_count = entries.iter().map(|entry| entry.route.index() + 1).max().unwrap_or(0);
         let mut entry_by_route: SharedVector<u32> = (0..route_count).map(|_| u32::MAX).collect();
         for (index, entry) in entries.iter().enumerate() {
@@ -1133,7 +1128,7 @@ impl SiblingCandidateWorkspace {
             assert_ne!(index, u32::MAX, "sibling entry space exhausted");
             entry_by_route.make_mut()[entry.route.index()] = index;
         }
-        entry_by_route.share(&SHARED_SIBLING_ENTRY_MAPS);
+        entry_by_route.share(entry_map_pool);
         Self {
             entry_by_route,
             candidate_epochs: {

@@ -294,11 +294,19 @@ struct PrefixDispatchBucket {
     end_step: u32,
 }
 
-thread_local! {
-    static SHARED_PREFIX_COMPOUNDS: std::cell::RefCell<SharedVectorPool<PrefixCompound>> =
-        std::cell::RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
-    static SHARED_PREFIX_FEATURES: std::cell::RefCell<SharedVectorPool<PrefixFeature>> =
-        std::cell::RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+/// The pools for finished prefix automata.
+pub(super) struct PrefixPools {
+    compounds: SharedVectorPool<PrefixCompound>,
+    features: SharedVectorPool<PrefixFeature>,
+}
+
+impl Default for PrefixPools {
+    fn default() -> Self {
+        Self {
+            compounds: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            features: SharedVectorPool::new(MemoryCategory::RuleProgram),
+        }
+    }
 }
 
 /// Immutable prefix program attached to one selector dispatch.
@@ -604,7 +612,7 @@ impl PrefixAutomaton {
         true
     }
 
-    pub(super) fn finish(&mut self) {
+    pub(super) fn finish(&mut self, pools: &mut PrefixPools) {
         assert!(!self.entry_paths_finished, "cannot finish a prefix automaton twice");
         if !self.entry_paths.is_sorted_by_key(|path| path.terminal) {
             self.entry_paths.sort_unstable_by_key(|path| path.terminal);
@@ -738,8 +746,8 @@ impl PrefixAutomaton {
         // have exact capacity. Spare builder capacity in the retained template is unused.
         self.compounds.shrink_to_fit();
         self.features.shrink_to_fit();
-        self.compounds.share(&SHARED_PREFIX_COMPOUNDS);
-        self.features.share(&SHARED_PREFIX_FEATURES);
+        self.compounds.share(&mut pools.compounds);
+        self.features.share(&mut pools.features);
         self.tag_tests.shrink_to_fit();
         self.attribute_tests.shrink_to_fit();
         self.outputs.shrink_to_fit();
@@ -5481,7 +5489,7 @@ mod tests {
             .extend([unique, unique, shared]);
         automaton.step_output_builders[1].terminals.push(shared);
 
-        automaton.finish();
+        automaton.finish(&mut PrefixPools::default());
 
         let first_outputs = automaton.outputs_for(&automaton.steps[0]);
         assert!(matches!(first_outputs[0].kind, PrefixOutputKind::UniqueTerminal));
@@ -5545,7 +5553,7 @@ mod tests {
             steps: 0..2,
         });
 
-        automaton.finish();
+        automaton.finish(&mut PrefixPools::default());
 
         assert_eq!(
             automaton.compounds[automaton.steps[0].compound.0 as usize].dispatch_key,

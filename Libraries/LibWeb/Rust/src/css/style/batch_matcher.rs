@@ -231,7 +231,8 @@ pub fn build_scope_dispatch(
     // Put the document contribution first so shadow roots share a prefix even when their local
     // sheets differ, letting a later scope extend the already-built common topology.
     insert_scope_sheets(&mut dispatch, program, programs, tree_scope, SheetsToTake::All);
-    dispatch.finish_prefixes();
+    // A standalone dispatch belongs to no engine, so it interns into pools of its own.
+    dispatch.finish_prefixes(&mut super::prefix::PrefixPools::default());
     dispatch
 }
 

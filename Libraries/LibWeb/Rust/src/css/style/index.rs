@@ -34,7 +34,6 @@ use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::FastSet as HashSet;
 use super::shared_vector::{SharedVector, SharedVectorPool};
 use crate::css::style_value::RetainedStyleValueData;
-use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::num::NonZeroU32;
 use std::sync::Arc;
@@ -2418,17 +2417,27 @@ impl Default for RuleDispatchTopology {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) struct AncestorDispatchTopologyID(usize);
 
-thread_local! {
-    static SHARED_CASCADE_RULE_PAGES: RefCell<SharedVectorPool<CascadeOrderRule>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
-    static SHARED_DISPATCH_BINDINGS: RefCell<SharedVectorPool<DispatchEntryBinding>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
-    static SHARED_CASCADE_ORDERS: RefCell<SharedVectorPool<u32>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
-    static SHARED_CASCADE_PROPERTIES: RefCell<SharedVectorPool<u16>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
-    static SHARED_CASCADE_ENTRIES: RefCell<SharedVectorPool<CascadeEntryData>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+/// The pools for the rule bindings and cascade projections of dispatches.
+pub(super) struct DispatchStoragePools {
+    cascade_rule_pages: SharedVectorPool<CascadeOrderRule>,
+    dispatch_bindings: SharedVectorPool<DispatchEntryBinding>,
+    cascade_orders: SharedVectorPool<u32>,
+    cascade_properties: SharedVectorPool<u16>,
+    cascade_entries: SharedVectorPool<CascadeEntryData>,
+    pub(super) prefixes: super::prefix::PrefixPools,
+}
+
+impl Default for DispatchStoragePools {
+    fn default() -> Self {
+        Self {
+            cascade_rule_pages: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            dispatch_bindings: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            cascade_orders: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            cascade_properties: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            cascade_entries: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            prefixes: super::prefix::PrefixPools::default(),
+        }
+    }
 }
 
 pub struct RuleDispatch {
@@ -2444,12 +2453,6 @@ pub struct RuleDispatch {
     cascade_entries: SharedVector<CascadeEntryData>,
     topology: Arc<RuleDispatchTopology>,
     residency: MemoryLease,
-}
-
-impl Drop for RuleDispatchEntries {
-    fn drop(&mut self) {
-        super::matching::forget_dead_shared_dispatches();
-    }
 }
 
 /// Weak references to the actual shared storage, independent of a particular scope wrapper.
@@ -2474,12 +2477,6 @@ impl WeakRuleDispatch {
             cascade_entries: SharedVector::default(),
             residency: MemoryLease::new(MemoryCategory::RuleProgram),
         })
-    }
-}
-
-impl Drop for RuleDispatchTopology {
-    fn drop(&mut self) {
-        super::matching::forget_dead_shared_dispatches();
     }
 }
 
@@ -2716,7 +2713,7 @@ impl RuleDispatch {
         }
     }
 
-    pub(super) fn finish_prefixes(&mut self) {
+    pub(super) fn finish_prefixes(&mut self, pools: &mut super::prefix::PrefixPools) {
         debug_assert!(!self.topology.finalized, "a dispatch can only be finalized once");
         // Finished templates are cloned before extension, so their spare builder capacity
         // does not contribute to subsequent edits.
@@ -2730,7 +2727,7 @@ impl RuleDispatch {
             entries.entry_tails = Vec::new();
         }
         self.entry_bindings.make_mut().shrink_to_fit();
-        self.topology_mut().prefixes.finish();
+        self.topology_mut().prefixes.finish(pools);
         self.finalize_bucket_directories();
         self.rebuild_universal_with_parent_filter();
         self.rebuild_non_prefix_index();
@@ -2954,8 +2951,9 @@ impl RuleDispatch {
     ///
     /// Cascade matching reads this directly while walking candidates. Keeping it in the immutable
     /// dispatch avoids looking the rule up through several program maps for every element.
-    pub fn assign_cascade_properties<Properties: ExactSizeIterator<Item = u16>>(
+    pub(super) fn assign_cascade_properties<Properties: ExactSizeIterator<Item = u16>>(
         &mut self,
+        pools: &mut DispatchStoragePools,
         mut blocks_pruning: impl FnMut(DispatchEntry) -> bool,
         mut properties_of: impl FnMut(DispatchEntry) -> Option<Properties>,
     ) {
@@ -2988,12 +2986,12 @@ impl RuleDispatch {
         // These complete projections retain only numeric identities and declaration inventories.
         // Equal bindings can share across scopes while their mutable match results stay separate.
         for page in self.cascade_order_rule_pages.iter_mut().flatten() {
-            page.share(&SHARED_CASCADE_RULE_PAGES);
+            page.share(&mut pools.cascade_rule_pages);
         }
-        self.entry_bindings.share(&SHARED_DISPATCH_BINDINGS);
-        self.cascade_orders_by_rule_entry.share(&SHARED_CASCADE_ORDERS);
-        self.cascade_properties.share(&SHARED_CASCADE_PROPERTIES);
-        self.cascade_entries.share(&SHARED_CASCADE_ENTRIES);
+        self.entry_bindings.share(&mut pools.dispatch_bindings);
+        self.cascade_orders_by_rule_entry.share(&mut pools.cascade_orders);
+        self.cascade_properties.share(&mut pools.cascade_properties);
+        self.cascade_entries.share(&mut pools.cascade_entries);
     }
 
     #[must_use]
@@ -6527,7 +6525,7 @@ mod tests {
             entry(2, Some(DispatchKey::Class(StyleAtomID(11)))),
         );
         dispatch.insert(DispatchKey::Universal, entry(3, None));
-        dispatch.finish_prefixes();
+        dispatch.finish_prefixes(&mut Default::default());
 
         let mut facts = StyleNodeFacts::new();
         facts.push_row(

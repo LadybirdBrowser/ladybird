@@ -41,8 +41,8 @@ use super::index::StyleNodeFacts;
 use super::index::dispatch_bloom_bit;
 use super::instrumentation::Counters;
 use super::shared_vector::{SharedVector, SharedVectorPool};
+use super::weak_pool::WeakPool;
 use smallvec::SmallVec;
-use std::cell::RefCell;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::marker::PhantomData;
@@ -50,11 +50,10 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
-use std::sync::Weak;
+use std::sync::OnceLock;
 
 use super::TransactionFactSide;
 use super::TransactionFactView;
-use super::memory::DeviceClass;
 use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::memory::MemoryLease;
@@ -2570,11 +2569,10 @@ fn dispatch_selectivity(key: DispatchKey) -> u8 {
 
 struct SharedSelectorProgram {
     program: SelectorProgram,
-    hash: u64,
     _memory: MemoryLease,
 }
 
-/// A strong identity for a process-interned selector. Keeping the payload alive prevents an
+/// A strong identity for an interned selector. Keeping the payload alive prevents an
 /// address from being recycled while a dispatch sharing key still refers to it.
 #[derive(Clone)]
 pub(super) struct SharedSelectorIdentity(Arc<SharedSelectorProgram>);
@@ -2593,70 +2591,22 @@ impl Hash for SharedSelectorIdentity {
     }
 }
 
-impl Drop for SharedSelectorProgram {
-    fn drop(&mut self) {
-        let _ = SHARED_SELECTOR_PROGRAMS.try_with(|shared| {
-            let Ok(mut shared) = shared.try_borrow_mut() else {
-                return;
-            };
-            let std::collections::hash_map::Entry::Occupied(mut entry) = shared.by_hash.entry(self.hash) else {
-                return;
-            };
-            let bucket = entry.get_mut();
-            bucket.retain(|candidate| candidate.strong_count() != 0);
-            if bucket.is_empty() {
-                entry.remove();
-            }
-        });
-    }
-}
-
-struct SharedSelectorPrograms {
-    by_hash: HashMap<u64, Vec<Weak<SharedSelectorProgram>>>,
-    memory: MemoryController,
-}
-
-impl Default for SharedSelectorPrograms {
-    fn default() -> Self {
-        Self {
-            by_hash: HashMap::default(),
-            memory: MemoryController::new(DeviceClass::ForegroundDesktop),
-        }
-    }
-}
-
-thread_local! {
-    static SHARED_SELECTOR_PROGRAMS: RefCell<SharedSelectorPrograms> = RefCell::new(SharedSelectorPrograms::default());
-}
-
-fn share_selector_program(program: SelectorProgram) -> Arc<SharedSelectorProgram> {
+fn share_selector_program(
+    program: SelectorProgram,
+    pool: &mut WeakPool<SharedSelectorProgram>,
+) -> Arc<SharedSelectorProgram> {
     let hash = SelectorPrograms::program_hash(&program);
-    SHARED_SELECTOR_PROGRAMS.with_borrow_mut(|shared| {
-        let bucket = shared.by_hash.entry(hash).or_default();
-        let mut found = None;
-        bucket.retain(|candidate| {
-            let Some(candidate) = candidate.upgrade() else {
-                return false;
-            };
-            if found.is_none() && candidate.program == program {
-                found = Some(candidate);
-            }
-            true
-        });
-        if let Some(found) = found {
-            return found;
-        }
-
-        let mut program_memory = MemoryLease::new(MemoryCategory::RuleProgram);
-        program_memory.reconcile_committed(&mut shared.memory, program.capacity_bytes());
-        let program = Arc::new(SharedSelectorProgram {
-            program,
-            hash,
-            _memory: program_memory,
-        });
-        bucket.push(Arc::downgrade(&program));
-        program
-    })
+    if let Some(found) = pool.find(hash, |candidate| candidate.program == program) {
+        return found;
+    }
+    let mut program_memory = MemoryLease::new(MemoryCategory::RuleProgram);
+    program_memory.reconcile_committed(&mut pool.memory, program.capacity_bytes());
+    let program = Arc::new(SharedSelectorProgram {
+        program,
+        _memory: program_memory,
+    });
+    pool.insert(hash, &program);
+    program
 }
 
 #[derive(Clone)]
@@ -2765,20 +2715,37 @@ impl SelectorEntryIDs {
     }
 }
 
-thread_local! {
-    static SHARED_ENTRY_ATTACHMENTS: RefCell<SharedVectorPool<Option<SelectorEntryIDs>>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
-    static SHARED_PROGRAM_ATTACHMENTS: RefCell<SharedVectorPool<Option<SelectorProgramStorage>>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
-    static SHARED_PROGRAM_INDICES: RefCell<SharedVectorPool<Option<NonZeroU32>>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
-    static SHARED_ENTRY_LOCATIONS: RefCell<SharedVectorPool<Option<(NonZeroU32, u32)>>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+/// The process's pools for selector programs and their attachments, shared by every engine.
+struct SelectorProgramPools {
+    programs: WeakPool<SharedSelectorProgram>,
+    entry_attachments: SharedVectorPool<Option<SelectorEntryIDs>>,
+    program_attachments: SharedVectorPool<Option<SelectorProgramStorage>>,
+    program_indices: SharedVectorPool<Option<NonZeroU32>>,
+    entry_locations: SharedVectorPool<Option<(NonZeroU32, u32)>>,
+}
+
+impl Default for SelectorProgramPools {
+    fn default() -> Self {
+        Self {
+            programs: WeakPool::default(),
+            entry_attachments: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            program_attachments: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            program_indices: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            entry_locations: SharedVectorPool::new(MemoryCategory::RuleProgram),
+        }
+    }
+}
+
+fn selector_program_pools() -> MutexGuard<'static, SelectorProgramPools> {
+    // Every engine interns through the same pools, from whichever thread runs it. Values never
+    // reach back into a pool when they are dropped, so the lock is only held while interning.
+    static SELECTOR_PROGRAM_POOLS: OnceLock<Mutex<SelectorProgramPools>> = OnceLock::new();
+    SELECTOR_PROGRAM_POOLS.get_or_init(Mutex::default).lock().unwrap()
 }
 
 /// One document's attachments to compiled selector programs.
 ///
-/// The immutable program payloads are process-shared on the StyleEngine thread. Entry identities,
+/// The immutable program payloads are interned in the process's pool. Entry identities,
 /// attached rules, and every selector-result materialization remain document-local.
 pub struct SelectorPrograms {
     programs: SharedVector<Option<SelectorProgramStorage>>,
@@ -2873,7 +2840,9 @@ impl SelectorPrograms {
         self.vacant_programs.pop();
         let program = match self.scope {
             SelectorProgramScope::Document => SelectorProgramStorage::Document(Arc::new(program)),
-            SelectorProgramScope::Process => SelectorProgramStorage::Process(share_selector_program(program)),
+            SelectorProgramScope::Process => {
+                SelectorProgramStorage::Process(share_selector_program(program, &mut selector_program_pools().programs))
+            }
         };
         self.program_memory.grow_committed(program.document_capacity_bytes());
         if id.0 as usize == self.programs.len() {
@@ -2954,11 +2923,13 @@ impl SelectorPrograms {
 
     pub(super) fn share_indices(&mut self, memory: &mut MemoryController) {
         if matches!(self.scope, SelectorProgramScope::Process) {
-            self.programs.share(&SHARED_PROGRAM_ATTACHMENTS);
+            self.programs.share(&mut selector_program_pools().program_attachments);
         }
-        self.program_index.share(&SHARED_PROGRAM_INDICES);
-        self.entry_locations.share(&SHARED_ENTRY_LOCATIONS);
-        self.entry_ids_by_program.share(&SHARED_ENTRY_ATTACHMENTS);
+        let mut pools = selector_program_pools();
+        self.program_index.share(&mut pools.program_indices);
+        self.entry_locations.share(&mut pools.entry_locations);
+        self.entry_ids_by_program.share(&mut pools.entry_attachments);
+        drop(pools);
         self.settle_memory(memory);
     }
 
@@ -3223,37 +3194,13 @@ struct FlatRouteDirectoryData {
 
 struct SharedFlatRouteDirectory {
     data: FlatRouteDirectoryData,
-    hash: u64,
     _memory: MemoryLease,
 }
 
-struct SharedFlatRouteDirectories {
-    by_hash: HashMap<u64, Vec<Weak<SharedFlatRouteDirectory>>>,
-    memory: MemoryController,
-}
-
-thread_local! {
-    static SHARED_FLAT_ROUTE_DIRECTORIES: RefCell<SharedFlatRouteDirectories> = RefCell::new(SharedFlatRouteDirectories {
-        by_hash: HashMap::default(),
-        memory: MemoryController::new(DeviceClass::ForegroundDesktop),
-    });
-}
-
-impl Drop for SharedFlatRouteDirectory {
-    fn drop(&mut self) {
-        let _ = SHARED_FLAT_ROUTE_DIRECTORIES.try_with(|pool| {
-            let Ok(mut pool) = pool.try_borrow_mut() else { return };
-            if let std::collections::hash_map::Entry::Occupied(mut entry) = pool.by_hash.entry(self.hash) {
-                entry.get_mut().retain(|directory| directory.strong_count() != 0);
-                if entry.get().is_empty() {
-                    entry.remove();
-                }
-            }
-        });
-    }
-}
-
-fn share_flat_route_directory(data: FlatRouteDirectoryData) -> Option<Arc<SharedFlatRouteDirectory>> {
+fn share_flat_route_directory(
+    data: FlatRouteDirectoryData,
+    pool: &mut WeakPool<SharedFlatRouteDirectory>,
+) -> Option<Arc<SharedFlatRouteDirectory>> {
     if data.ranges.is_empty() {
         debug_assert!(data.routes.is_empty());
         return None;
@@ -3270,31 +3217,19 @@ fn share_flat_route_directory(data: FlatRouteDirectoryData) -> Option<Arc<Shared
     data.ranges.len().hash(&mut hasher);
     data.routes.hash(&mut hasher);
     let hash = hasher.finish();
-    Some(SHARED_FLAT_ROUTE_DIRECTORIES.with_borrow_mut(|pool| {
-        let bucket = pool.by_hash.entry(hash).or_default();
-        bucket.retain(|directory| directory.strong_count() != 0);
-        if let Some(found) = bucket
-            .iter()
-            .filter_map(Weak::upgrade)
-            .find(|candidate| candidate.data == data)
-        {
-            return found;
-        }
-        let mut memory = MemoryLease::new(MemoryCategory::RoutingRegistry);
-        memory.resize_required_to(
-            &mut pool.memory,
-            size_of::<SharedFlatRouteDirectory>() as u64
-                + data.ranges.shallow_capacity_bytes()
-                + data.routes.shallow_capacity_bytes(),
-        );
-        let shared = Arc::new(SharedFlatRouteDirectory {
-            data,
-            hash,
-            _memory: memory,
-        });
-        bucket.push(Arc::downgrade(&shared));
-        shared
-    }))
+    if let Some(found) = pool.find(hash, |candidate| candidate.data == data) {
+        return Some(found);
+    }
+    let mut memory = MemoryLease::new(MemoryCategory::RoutingRegistry);
+    memory.resize_required_to(
+        &mut pool.memory,
+        size_of::<SharedFlatRouteDirectory>() as u64
+            + data.ranges.shallow_capacity_bytes()
+            + data.routes.shallow_capacity_bytes(),
+    );
+    let shared = Arc::new(SharedFlatRouteDirectory { data, _memory: memory });
+    pool.insert(hash, &shared);
+    Some(shared)
 }
 
 enum RouteDirectory {
@@ -3378,7 +3313,7 @@ impl RouteDirectory {
         }
     }
 
-    fn finish(&mut self) -> bool {
+    fn finish(&mut self, pool: &mut WeakPool<SharedFlatRouteDirectory>) -> bool {
         match std::mem::take(self) {
             Self::FlatAfterIdle { data } | Self::FlatAfterChange { data } => {
                 *self = Self::FlatAfterIdle { data };
@@ -3389,17 +3324,21 @@ impl RouteDirectory {
                 true
             }
             Self::BuildingAfterIdle(building) => {
-                *self = Self::flatten(building, true);
+                *self = Self::flatten(building, true, pool);
                 true
             }
             Self::BuildingIdleAfterChange(building) => {
-                *self = Self::flatten(building, false);
+                *self = Self::flatten(building, false, pool);
                 true
             }
         }
     }
 
-    fn flatten(building: HashMap<RoutingKey, Vec<RouteID>>, after_change: bool) -> Self {
+    fn flatten(
+        building: HashMap<RoutingKey, Vec<RouteID>>,
+        after_change: bool,
+        pool: &mut WeakPool<SharedFlatRouteDirectory>,
+    ) -> Self {
         let route_count = building.values().map(Vec::len).sum();
         let mut ranges = HashMap::with_capacity_and_hasher(building.len(), Default::default());
         let mut flat_routes = Vec::with_capacity(route_count);
@@ -3414,10 +3353,13 @@ impl RouteDirectory {
                 },
             );
         }
-        let data = share_flat_route_directory(FlatRouteDirectoryData {
-            ranges,
-            routes: flat_routes,
-        });
+        let data = share_flat_route_directory(
+            FlatRouteDirectoryData {
+                ranges,
+                routes: flat_routes,
+            },
+            pool,
+        );
         if after_change {
             Self::FlatAfterChange { data }
         } else {
@@ -3435,7 +3377,7 @@ impl RouteDirectory {
                 nested [building.values().map(|routes| routes.capacity() * size_of::<RouteID>()).sum::<usize>()];
                 skip [];
             },
-            // Immutable directory allocations are charged once to the process ledger.
+            // Immutable directory allocations are charged once to the pool's ledger.
             Self::FlatAfterIdle { .. } | Self::FlatAfterChange { .. } => 0,
         }
     }
@@ -3508,36 +3450,32 @@ impl std::ops::Deref for RouteColumns {
 
 struct SharedRouteColumns {
     data: RouteColumnData,
-    hash: u64,
     _memory: MemoryLease,
 }
 
-struct SharedRouteColumnTable {
-    by_hash: HashMap<u64, Vec<Weak<SharedRouteColumns>>>,
-    memory: MemoryController,
+/// The process's pools for routing registries, shared by every engine.
+struct RoutingPools {
+    route_columns: WeakPool<SharedRouteColumns>,
+    route_ranges: SharedVectorPool<RouteRange>,
+    flat_route_directories: WeakPool<SharedFlatRouteDirectory>,
+    sibling_entry_maps: SharedVectorPool<u32>,
 }
 
-thread_local! {
-    static SHARED_ROUTE_RANGES: RefCell<SharedVectorPool<RouteRange>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RoutingRegistry));
-    static SHARED_ROUTE_COLUMNS: RefCell<SharedRouteColumnTable> = RefCell::new(SharedRouteColumnTable {
-        by_hash: HashMap::default(),
-        memory: MemoryController::new(DeviceClass::ForegroundDesktop),
-    });
-}
-
-impl Drop for SharedRouteColumns {
-    fn drop(&mut self) {
-        let _ = SHARED_ROUTE_COLUMNS.try_with(|table| {
-            let Ok(mut table) = table.try_borrow_mut() else { return };
-            if let std::collections::hash_map::Entry::Occupied(mut entry) = table.by_hash.entry(self.hash) {
-                entry.get_mut().retain(|candidate| candidate.strong_count() != 0);
-                if entry.get().is_empty() {
-                    entry.remove();
-                }
-            }
-        });
+impl Default for RoutingPools {
+    fn default() -> Self {
+        Self {
+            route_columns: WeakPool::default(),
+            route_ranges: SharedVectorPool::new(MemoryCategory::RoutingRegistry),
+            flat_route_directories: WeakPool::default(),
+            sibling_entry_maps: SharedVectorPool::new(MemoryCategory::RoutingRegistry),
+        }
     }
+}
+
+fn routing_pools() -> MutexGuard<'static, RoutingPools> {
+    // Shared like the selector program pools; see selector_program_pools().
+    static ROUTING_POOLS: OnceLock<Mutex<RoutingPools>> = OnceLock::new();
+    ROUTING_POOLS.get_or_init(Mutex::default).lock().unwrap()
 }
 
 impl RouteColumns {
@@ -3564,12 +3502,12 @@ impl RouteColumns {
     fn capacity_bytes(&self) -> u64 {
         match self {
             Self::Owned(data) => size_of::<RouteColumnData>() as u64 + data.capacity_bytes(),
-            // The immutable allocation is charged once to the process ledger.
+            // The immutable allocation is charged once to the pool's ledger.
             Self::Shared(_) => 0,
         }
     }
 
-    fn share(&mut self) {
+    fn share(&mut self, pools: &mut RoutingPools) {
         if matches!(self, Self::Shared(_)) || self.is_empty() {
             return;
         }
@@ -3579,33 +3517,26 @@ impl RouteColumns {
         let mut hasher = fast_hasher();
         data.hash(&mut hasher);
         let hash = hasher.finish();
-        let shared = SHARED_ROUTE_COLUMNS.with_borrow_mut(|table| {
-            let bucket = table.by_hash.entry(hash).or_default();
-            bucket.retain(|candidate| candidate.strong_count() != 0);
-            if let Some(found) = bucket
-                .iter()
-                .filter_map(Weak::upgrade)
-                .find(|candidate| candidate.data == *data)
-            {
-                return found;
+        let shared = match pools.route_columns.find(hash, |candidate| candidate.data == *data) {
+            Some(found) => found,
+            None => {
+                // Offsets and lengths can agree even when route keys or rule bindings differ.
+                // Share each immutable range column independently of the complete registry.
+                data.paths.share(&mut pools.route_ranges);
+                data.origins.share(&mut pools.route_ranges);
+                data.origin_requirements.share(&mut pools.route_ranges);
+                data.parents.share(&mut pools.route_ranges);
+                data.waypoints.share(&mut pools.route_ranges);
+                let mut memory = MemoryLease::new(MemoryCategory::RoutingRegistry);
+                memory.resize_required_to(&mut pools.route_columns.memory, data.capacity_bytes());
+                let shared = Arc::new(SharedRouteColumns {
+                    data: *data,
+                    _memory: memory,
+                });
+                pools.route_columns.insert(hash, &shared);
+                shared
             }
-            // Offsets and lengths can agree even when route keys or rule bindings differ.
-            // Share each immutable range column independently of the complete registry.
-            data.paths.share(&SHARED_ROUTE_RANGES);
-            data.origins.share(&SHARED_ROUTE_RANGES);
-            data.origin_requirements.share(&SHARED_ROUTE_RANGES);
-            data.parents.share(&SHARED_ROUTE_RANGES);
-            data.waypoints.share(&SHARED_ROUTE_RANGES);
-            let mut memory = MemoryLease::new(MemoryCategory::RoutingRegistry);
-            memory.resize_required_to(&mut table.memory, data.capacity_bytes());
-            let shared = Arc::new(SharedRouteColumns {
-                data: *data,
-                hash,
-                _memory: memory,
-            });
-            table.by_hash.get_mut(&hash).unwrap().push(Arc::downgrade(&shared));
-            shared
-        });
+        };
         *self = Self::Shared(shared);
     }
 }
@@ -4153,7 +4084,10 @@ impl Default for RoutingRegistry {
             live_relational_routes: Vec::new(),
             live_sibling_entries: Vec::new(),
             live_sequence_entries: Vec::new(),
-            live_sibling_workspace: Mutex::new(SiblingCandidateWorkspace::new(&[])),
+            live_sibling_workspace: Mutex::new(SiblingCandidateWorkspace::new(
+                &[],
+                &mut routing_pools().sibling_entry_maps,
+            )),
             live_sequence_index: Mutex::new(SequenceEntryIndex::default()),
             geometry_routes: BitColumn::default(),
             route_liveness_version: None,
@@ -4429,7 +4363,8 @@ impl RoutingRegistry {
                 .filter(|route| liveness.contains(route.index()))
                 .map(|route| SiblingEntry { route }),
         );
-        let sibling_workspace = SiblingCandidateWorkspace::new(&live_sibling_entries);
+        let sibling_workspace =
+            SiblingCandidateWorkspace::new(&live_sibling_entries, &mut routing_pools().sibling_entry_maps);
         let mut live_sequence_entries = std::mem::take(&mut self.live_sequence_entries);
         live_sequence_entries.clear();
         for &route in self.routes_for(RoutingKey::Structural) {
@@ -4604,8 +4539,10 @@ impl RoutingRegistry {
     }
 
     pub(super) fn finish_directories(&mut self) -> bool {
-        let changed = self.by_input.finish() | self.arrival_by_input.finish();
-        self.routes.share();
+        let mut pools = routing_pools();
+        let changed = self.by_input.finish(&mut pools.flat_route_directories)
+            | self.arrival_by_input.finish(&mut pools.flat_route_directories);
+        self.routes.share(&mut pools);
         changed
     }
 
@@ -6575,8 +6512,9 @@ mod tests {
         first.make_mut().keys.push(DispatchKey::Universal);
         second.make_mut().inverse_steps.push(InverseStep::Children);
         second.make_mut().keys.push(DispatchKey::Universal);
-        first.share();
-        second.share();
+        let mut pools = RoutingPools::default();
+        first.share(&mut pools);
+        second.share(&mut pools);
         let (RouteColumns::Shared(a), RouteColumns::Shared(b)) = (&first, &second) else {
             panic!("columns were not shared")
         };
@@ -6592,7 +6530,7 @@ mod tests {
         assert_eq!(second.canonical_route_heads.len(), 129);
         assert_eq!(first.sibling_first.len(), 128);
         assert_eq!(second.sibling_first.len(), 129);
-        second.share();
+        second.share(&mut pools);
         drop(first);
         let headers = second.headers.as_ptr();
         second.make_mut();
@@ -7790,11 +7728,12 @@ mod tests {
     #[test]
     fn equal_flat_route_directories_share_and_reopen_independently() {
         let key = RoutingKey::Class(CLASS_ITEM);
+        let mut pool = WeakPool::default();
         let mut first = RouteDirectory::default();
         let mut second = RouteDirectory::default();
         for directory in [&mut first, &mut second] {
             directory.push(key, RouteID::from_index(0));
-            directory.finish();
+            directory.finish(&mut pool);
         }
         let (RouteDirectory::FlatAfterChange { data: Some(a) }, RouteDirectory::FlatAfterChange { data: Some(b) }) =
             (&first, &second)
@@ -7805,8 +7744,8 @@ mod tests {
         second.push(key, RouteID::from_index(1));
         assert_eq!(first.get(key), &[RouteID::from_index(0)]);
         assert_eq!(second.get(key), &[RouteID::from_index(0), RouteID::from_index(1)]);
-        second.finish();
-        second.finish();
+        second.finish(&mut pool);
+        second.finish(&mut pool);
         drop(first);
         assert_eq!(second.get(key), &[RouteID::from_index(0), RouteID::from_index(1)]);
     }
@@ -8038,25 +7977,15 @@ mod tests {
             panic!("replay selector programs must have process storage");
         };
         assert!(Arc::ptr_eq(first_program, second_program));
-        SHARED_SELECTOR_PROGRAMS.with_borrow(|shared| {
-            assert_eq!(
-                shared.memory.bytes_in_category(MemoryCategory::RuleProgram),
-                expected_bytes
-            );
-        });
+        // The pool is shared with every other test running in the process, so this test only
+        // looks at its own program: nothing else interns a class selector on this atom.
+        assert_eq!(first_program._memory.bytes(), expected_bytes);
+        assert_eq!(selector_program_pools().programs.live_values_under(program_hash), 1);
 
         drop(first);
-        SHARED_SELECTOR_PROGRAMS.with_borrow(|shared| {
-            assert_eq!(
-                shared.memory.bytes_in_category(MemoryCategory::RuleProgram),
-                expected_bytes
-            );
-        });
+        assert_eq!(selector_program_pools().programs.live_values_under(program_hash), 1);
         drop(second);
-        SHARED_SELECTOR_PROGRAMS.with_borrow(|shared| {
-            assert_eq!(shared.memory.bytes_in_category(MemoryCategory::RuleProgram), 0);
-            assert!(!shared.by_hash.contains_key(&program_hash));
-        });
+        assert_eq!(selector_program_pools().programs.live_values_under(program_hash), 0);
     }
 
     #[test]

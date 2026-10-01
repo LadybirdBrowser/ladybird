@@ -95,6 +95,7 @@ mod routing;
 mod sorted_merge;
 mod style_invalidation;
 mod transition_baselines;
+mod weak_pool;
 #[cfg(not(feature = "style-recording"))]
 pub mod record_replay {
     include!(concat!(env!("OUT_DIR"), "/style_engine_event_kind_stub_generated.rs"));
