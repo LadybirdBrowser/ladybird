@@ -11,6 +11,7 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
@@ -34,8 +35,9 @@ static SerializedPolicyContainer serialize_request_policy_container(Fetch::Infra
 {
     return request.policy_container().visit(
         [&request](Fetch::Infrastructure::Request::PolicyContainer) {
-            VERIFY(request.client());
-            return request.client()->policy_container()->serialize();
+            auto client = Fetch::Fetching::resolve_client(request);
+            VERIFY(client);
+            return client->policy_container()->serialize();
         },
         [](NonnullRefPtr<PolicyContainer const> const& policy_container) {
             return policy_container->serialize();
@@ -47,7 +49,7 @@ static NavigationRequestDescriptor create_navigation_request_descriptor(Fetch::I
     return {
         .url_list = request.url_list(),
         .method = request.method(),
-        .client_is_null = !request.client(),
+        .client_is_null = !request.client().has_value(),
         .referrer = request.referrer(),
         .referrer_policy = request.referrer_policy(),
         .policy_container = serialize_request_policy_container(request),
@@ -239,7 +241,7 @@ static GC::Ptr<Fetch::Infrastructure::Request> create_navigation_request_from_de
     request->set_url_list(descriptor->url_list);
     request->set_method(descriptor->method);
     if (!descriptor->client_is_null)
-        request->set_client(&navigable.active_document()->relevant_settings_object());
+        request->set_client(navigable.active_document()->relevant_settings_object().address());
     request->set_referrer(descriptor->referrer);
     request->set_referrer_policy(descriptor->referrer_policy);
     request->set_policy_container(create_a_policy_container_from_serialized_policy_container(descriptor->policy_container));

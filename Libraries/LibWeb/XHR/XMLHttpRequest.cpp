@@ -802,7 +802,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
 
     // client
     //    This’s relevant settings object.
-    request->set_client(&relevant_settings_object());
+    request->set_client(relevant_settings_object().address());
 
     // mode
     //    "cors".

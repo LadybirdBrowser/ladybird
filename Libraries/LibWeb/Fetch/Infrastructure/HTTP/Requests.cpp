@@ -43,7 +43,6 @@ Request::Request(NonnullRefPtr<HTTP::HeaderList> header_list)
 void Request::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_client);
     visitor.visit(m_body);
     visitor.visit(m_reserved_client);
     visitor.visit(m_traversable_for_user_prompts);
@@ -392,7 +391,7 @@ bool Request::cross_origin_embedder_policy_allows_credentials() const
         return true;
 
     // 3. If request’s client is null, then return true.
-    if (m_client == nullptr)
+    if (!m_client.has_value())
         return true;
 
     // 4. If request’s client’s policy container’s embedder policy’s value is not "credentialless", then return true.

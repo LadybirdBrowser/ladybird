@@ -103,7 +103,7 @@ static GC::Ptr<Fetch::Infrastructure::Request> fetch_a_style_resource_impl(Style
     request->set_origin(environment_settings.origin());
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::SameOrigin);
     request->set_use_url_credentials(true);
-    request->set_client(&environment_settings);
+    request->set_client(environment_settings.address());
     request->set_referrer(Fetch::Infrastructure::Request::Referrer::Client);
 
     // 4. If corsMode is "no-cors", set req’s credentials mode to "include".

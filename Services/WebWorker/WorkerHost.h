@@ -12,6 +12,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -44,6 +45,7 @@ private:
     GC::Root<Web::HTML::WorkerDebugConsoleClient> m_console;
     GC::Root<Web::HTML::WorkerGlobalScope> m_worker_global_scope;
     GC::Root<Web::HTML::WorkerEnvironmentSettingsObject> m_inside_settings;
+    GC::Root<Web::HTML::EnvironmentSettingsSnapshot> m_outside_settings;
 
     URL::URL m_url;
     Web::HTML::WorkerType m_type;

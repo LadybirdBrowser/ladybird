@@ -269,7 +269,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
         auto request = create_potential_CORS_request(parsed_url.release_value(), Fetch::Infrastructure::Request::Destination::Track, cors_attribute_state, SameOriginFallbackFlag::Yes);
 
         // 2. Set request's client to the track element's node document's relevant settings object.
-        request->set_client(&document().relevant_settings_object());
+        request->set_client(document().relevant_settings_object().address());
 
         // 3. Set request's initiator type to "track".
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Track);

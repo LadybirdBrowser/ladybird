@@ -72,12 +72,12 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(Utf16View url, Fet
 
     // 7.1 Let req be a new request, initialized as follows:
     auto req = Fetch::Infrastructure::Request::create();
-    req->set_method("POST"sv);                         // method: POST
-    req->set_client(&relevant_settings_object);        // client: this's relevant settings object
-    req->set_url_list({ parsed_url.release_value() }); // url: parsedUrl
-    req->set_header_list(header_list);                 // header list: headerList
-    req->set_origin(origin);                           // origin: origin
-    req->set_keepalive(true);                          // keepalive: true
+    req->set_method("POST"sv);                           // method: POST
+    req->set_client(relevant_settings_object.address()); // client: this's relevant settings object
+    req->set_url_list({ parsed_url.release_value() });   // url: parsedUrl
+    req->set_header_list(header_list);                   // header list: headerList
+    req->set_origin(origin);                             // origin: origin
+    req->set_keepalive(true);                            // keepalive: true
     if (transmitted_data)
         req->set_body(GC::Ref<Fetch::Infrastructure::Body> { *transmitted_data });       // body: transmittedData
     req->set_mode(cors_mode);                                                            // mode: corsMode

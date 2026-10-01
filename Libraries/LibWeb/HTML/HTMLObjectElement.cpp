@@ -273,7 +273,7 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
             //    "object", and whose use-URL-credentials flag is set.
             auto request = Fetch::Infrastructure::Request::create();
             request->set_url(url.release_value());
-            request->set_client(&document().relevant_settings_object());
+            request->set_client(document().relevant_settings_object().address());
             request->set_destination(Fetch::Infrastructure::Request::Destination::Object);
             request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
             request->set_mode(Fetch::Infrastructure::Request::Mode::Navigate);
@@ -570,7 +570,7 @@ void HTMLObjectElement::load_image()
 
     if (m_resource_request->needs_fetching()) {
         auto request = HTML::create_potential_CORS_request(*url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
-        request->set_client(&document().relevant_settings_object());
+        request->set_client(document().relevant_settings_object().address());
         m_resource_request->fetch_resource(request);
     }
 }

@@ -384,7 +384,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::create_with_settings(HTML::Enviro
 
     // client
     //     This’s relevant settings object.
-    request->set_client(&relevant_settings_object);
+    request->set_client(relevant_settings_object.address());
 
     // traversable for user prompts
     //     traversableForUserPrompts.

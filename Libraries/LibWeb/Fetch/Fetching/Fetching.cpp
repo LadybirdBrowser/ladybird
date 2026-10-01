@@ -269,13 +269,15 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     // 3. Let crossOriginIsolatedCapability be false.
     auto cross_origin_isolated_capability = HTML::CanUseCrossOriginIsolatedAPIs::No;
 
+    auto client = resolve_client(request);
+
     // 4. Populate request from client given request.
-    populate_request_from_client(request);
+    populate_request_from_client(request, client);
 
     // 5. If request’s client is non-null, then:
-    if (request.client() != nullptr) {
+    if (client) {
         // 1. Set taskDestination to request’s client’s global object.
-        task_destination = GC::Ref { request.client()->global_object() };
+        task_destination = GC::Ref { client->global_object() };
 
         // 2. Set crossOriginIsolatedCapability to request’s client’s cross-origin isolated capability.
         cross_origin_isolated_capability = request.client_snapshot()->cross_origin_isolated_capability;
@@ -316,7 +318,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         fetch_params->set_blob_url_entry(move(blob_url_entry));
     }
 
-    auto* client_window = request.client() ? HTML::window_from_global_object(request.client()->global_object()) : nullptr;
+    auto* client_window = client ? HTML::window_from_global_object(client->global_object()) : nullptr;
 
     // 10. If all of the following conditions are true:
     if (
@@ -444,7 +446,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         auto record = Infrastructure::FetchRecord::create(request, fetch_params->controller());
 
         // 2. Append record to request’s client’s fetch group’s fetch records.
-        request.client()->fetch_group().append(record);
+        client->fetch_group().append(record);
 
         // AD-HOC: A keepalive request's body length counts toward its fetch group's keepalive quota from here until
         //         its done flag is set or its body is null, since its fetch record can be collected before then.
@@ -468,7 +470,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
 }
 
 // https://fetch.spec.whatwg.org/#populate-request-from-client
-void populate_request_from_client(Infrastructure::Request& request)
+void populate_request_from_client(Infrastructure::Request& request, GC::Ptr<HTML::EnvironmentSettingsObject> client)
 {
     // 1. If request’s traversable for user prompts is "client":
     auto const* traversable_for_user_prompts = request.traversable_for_user_prompts().get_pointer<Infrastructure::Request::TraversableForUserPrompts>();
@@ -477,9 +479,9 @@ void populate_request_from_client(Infrastructure::Request& request)
         request.set_traversable_for_user_prompts(Infrastructure::Request::TraversableForUserPrompts::NoTraversable);
 
         // 2. If request’s client is non-null:
-        if (request.client()) {
+        if (client) {
             // 1. Let global be request’s client’s global object.
-            auto& global = request.client()->global_object();
+            auto& global = client->global_object();
 
             // 2. If global is a Window object and global’s navigable is not null, then set request’s traversable for
             //    user prompts to global’s navigable’s traversable navigable.
@@ -494,10 +496,10 @@ void populate_request_from_client(Infrastructure::Request& request)
     auto const* origin = request.origin().get_pointer<Infrastructure::Request::Origin>();
     if (origin && *origin == Infrastructure::Request::Origin::Client) {
         // 1. Assert: request’s client is non-null.
-        VERIFY(request.client());
+        VERIFY(client);
 
         // 2. Set request’s origin to request’s client’s origin.
-        request.set_origin(request.client()->origin());
+        request.set_origin(client->origin());
     }
 
     // 3. If request’s policy container is "client":
@@ -505,8 +507,8 @@ void populate_request_from_client(Infrastructure::Request& request)
     if (policy_container && *policy_container == Infrastructure::Request::PolicyContainer::Client) {
         // 1. If request’s client is non-null, then set request’s policy container to a clone of request’s client’s
         //    policy container.
-        if (request.client())
-            request.set_policy_container(request.client()->policy_container()->clone());
+        if (client)
+            request.set_policy_container(client->policy_container()->clone());
         // 2. Otherwise, set request’s policy container to a new policy container.
         else
             request.set_policy_container(HTML::PolicyContainer::create());
@@ -514,8 +516,8 @@ void populate_request_from_client(Infrastructure::Request& request)
 
     // AD-HOC: Fetching reads the client through a snapshot of it, taken here, so that it needs neither the settings
     //         object nor its global object.
-    if (request.client())
-        request.set_client_snapshot(snapshot_client_context(*request.client()));
+    if (client)
+        request.set_client_snapshot(snapshot_client_context(*client));
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
@@ -1050,10 +1052,10 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         //    given fetchParams’s request’s client’s global object.
         // AD-HOC: Not when this fetch consumed a preload that reports its own timing. Other engines report a single
         //         entry for a preloaded resource and its consumer.
-        auto client = fetch_params.request()->client();
         auto const* task_destination_global_object = fetch_params.task_destination().get_pointer<GC::Ref<JS::Object>>();
-        if (client != nullptr && task_destination_global_object != nullptr && !fetch_params.preload_reports_timing()) {
-            if (fetch_params.request()->initiator_type().has_value() && &client->global_object() == task_destination_global_object->ptr())
+        if (task_destination_global_object != nullptr && fetch_params.request()->initiator_type().has_value() && !fetch_params.preload_reports_timing()) {
+            auto client = resolve_client(fetch_params.request());
+            if (client != nullptr && &client->global_object() == task_destination_global_object->ptr())
                 fetch_params.controller()->report_timing(client->global_object());
         }
     };

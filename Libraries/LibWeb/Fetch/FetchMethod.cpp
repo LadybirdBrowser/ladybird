@@ -12,6 +12,7 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Fetch/FetchMethod.h>
+#include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/RefCountedFlag.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -97,7 +98,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
     }
 
     // 5. Let globalObject be request’s client’s global object.
-    auto& global_object = request->client()->global_object();
+    auto& global_object = Fetching::resolve_client(request)->global_object();
 
     // FIXME: 6. If globalObject is a ServiceWorkerGlobalScope object, then set request’s service-workers mode to "none".
     (void)global_object;

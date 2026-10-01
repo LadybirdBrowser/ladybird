@@ -600,7 +600,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
                 || request.referrer().get<Fetch::Infrastructure::Request::Referrer>() != Fetch::Infrastructure::Request::Referrer::NoReferrer;
 
             // - navigation TAO check given navigationParams's response and navigationParams's origin returns success,
-            may_expose_redirect_count = (!request.client() || request_has_eligible_referrer)
+            may_expose_redirect_count = (!request.client().has_value() || request_has_eligible_referrer)
                 && Fetch::Fetching::navigation_tao_check(*navigation_params.response, navigation_params.origin);
         }
 

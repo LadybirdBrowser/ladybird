@@ -644,7 +644,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
     auto request = create_potential_CORS_request(url, Fetch::Infrastructure::Request::Destination::Script, cors_setting);
 
     // 2. Set request's client to settings object.
-    request->set_client(&settings_object);
+    request->set_client(settings_object.address());
 
     // 3. Set request's initiator type to "script".
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Script);
@@ -823,7 +823,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
     //    and whose use-URL-credentials flag is set.
     auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url);
-    request->set_client(&fetch_client);
+    request->set_client(fetch_client.address());
     request->set_destination(destination);
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Other);
     request->set_mode(Fetch::Infrastructure::Request::Mode::SameOrigin);
@@ -902,7 +902,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     //    parser metadata is "not parser-inserted", and whose use-URL-credentials flag is set.
     auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url);
-    request->set_client(&settings_object);
+    request->set_client(settings_object.address());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Script);
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Other);
     request->set_parser_metadata(Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted);
@@ -1078,7 +1078,7 @@ void fetch_single_module_script(JS::Realm& realm,
     request->set_url(url);
     request->set_mode(Fetch::Infrastructure::Request::Mode::CORS);
     request->set_referrer(referrer);
-    request->set_client(&fetch_client);
+    request->set_client(fetch_client.address());
 
     // 9. Set request's destination to the result of running the fetch destination from module type steps given destination and moduleType.
     request->set_destination(fetch_destination_from_module_type(destination, module_type.utf16_view()));
