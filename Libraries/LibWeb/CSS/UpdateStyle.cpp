@@ -1030,9 +1030,38 @@ static void apply_targeted_style_invalidation(DOM::Element& element, RequiredInv
     apply_document_style_invalidation_after_style_change(element.document(), invalidation);
 }
 
+// Install the engine's answer to a targeted demand for the element's record, or return nothing where the read is
+// C++'s.
+static Optional<RequiredInvalidationAfterStyleChange> install_targeted_record_demand_answer(DOM::Element& element, bool& did_change_custom_properties)
+{
+    auto& style_engine = element.document().style_computer().style_engine();
+    auto answer = style_engine.answer_record_demand(element.style_node_id(), { .targeted = true, .read_only = false });
+    if (answer.style_record == 0)
+        return {};
+    // The engine resolved the record's environment over the parent's own; when the parent's inheritable environment
+    // differs, C++ computes the style, and the engine takes back what the demand derived.
+    if (!engine_computed_record_environment_is_installable(element, StyleRecordID { answer.style_record })) {
+        style_engine.abandon_demanded_records(element.style_node_id());
+        return {};
+    }
+    DOM::Element::EnginePseudoElementRecords pseudo_element_records {};
+    for (size_t kind = 0; kind < array_size(answer.pseudo_records); ++kind) {
+        if ((answer.pseudo_records_present >> kind) & 1)
+            pseudo_element_records[kind] = StyleRecordID { answer.pseudo_records[kind] };
+    }
+    auto invalidation = element.apply_engine_computed_style_record(StyleRecordID { answer.style_record }, pseudo_element_records, answer.uses_substitution, answer.record_reads, answer.explicitly_inherited_groups, did_change_custom_properties);
+    style_engine.acknowledge_engine_computed_record(element.style_node_id());
+    return invalidation;
+}
+
 static RequiredInvalidationAfterStyleChange materialize_style_for_targeted_update(DOM::Element& element, bool& did_change_custom_properties)
 {
     auto& style_computer = element.document().style_computer();
+
+    if (element.parent()) {
+        if (auto invalidation = install_targeted_record_demand_answer(element, did_change_custom_properties); invalidation.has_value())
+            return *invalidation;
+    }
 
     style_computer.style_engine().consume_recorded_element_style_input_change(element.style_node_id());
 
