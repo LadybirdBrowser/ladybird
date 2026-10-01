@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<map name="shapes">
+    <area id="rect" shape="rect" coords="0,0,100,100" href="#rect" alt="rect">
+</map>
+<img id="image" usemap="#shapes" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" width="100" height="100" alt="image map">
+<script>
+    test(() => {
+        const image = document.getElementById("image");
+        const map = document.querySelector("map[name=shapes]");
+        const rect = document.getElementById("rect");
+        const imageRect = image.getBoundingClientRect();
+
+        document.addEventListener("click", event => {
+            event.preventDefault();
+        });
+
+        function targetAt(x, y) {
+            let target;
+            document.addEventListener("click", event => { target = event.target; }, { once: true });
+            internals.click(imageRect.x + x, imageRect.y + y);
+            return target.id;
+        }
+
+        println(`the area covers the image: ${targetAt(60, 60)}`);
+
+        // Shrinking the shape is a change to the area alone; nothing about the image changes.
+        rect.setAttribute("coords", "0,0,20,20");
+        println(`after shrinking coords, outside: ${targetAt(60, 60)}`);
+        println(`after shrinking coords, inside: ${targetAt(10, 10)}`);
+
+        // So is changing which shape the coordinates describe.
+        rect.setAttribute("shape", "circle");
+        rect.setAttribute("coords", "50,50,30");
+        println(`as a circle, at the centre: ${targetAt(50, 50)}`);
+        println(`as a circle, at a corner: ${targetAt(2, 2)}`);
+
+        // The shapes are layered in reverse tree order, so an area inserted first wins.
+        const polygon = document.createElement("area");
+        polygon.id = "polygon";
+        polygon.setAttribute("shape", "poly");
+        polygon.setAttribute("coords", "0,0,100,0,100,100,0,100");
+        polygon.setAttribute("href", "#polygon");
+        map.insertBefore(polygon, rect);
+        println(`an area inserted before it wins: ${targetAt(50, 50)}`);
+
+        polygon.remove();
+        println(`removing it gives the circle back: ${targetAt(50, 50)}`);
+
+        // An image whose map has left the document is associated with no map at all.
+        map.remove();
+        println(`with the map removed: ${targetAt(50, 50)}`);
+
+        document.body.appendChild(map);
+        println(`with the map put back: ${targetAt(50, 50)}`);
+
+        // Which map the image is associated with is a name the image's usemap and the map's name must both agree on.
+        image.useMap = "#other";
+        println(`with usemap naming another map: ${targetAt(50, 50)}`);
+        map.name = "other";
+        println(`with the map renamed to match: ${targetAt(50, 50)}`);
+
+        // A default-state area covers everything that hits the image.
+        rect.setAttribute("shape", "default");
+        println(`as a default shape, at a corner: ${targetAt(2, 2)}`);
+    });
+</script>

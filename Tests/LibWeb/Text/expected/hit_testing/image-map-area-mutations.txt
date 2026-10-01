@@ -1,0 +1,12 @@
+the area covers the image: rect
+after shrinking coords, outside: image
+after shrinking coords, inside: rect
+as a circle, at the centre: rect
+as a circle, at a corner: image
+an area inserted before it wins: polygon
+removing it gives the circle back: rect
+with the map removed: image
+with the map put back: rect
+with usemap naming another map: image
+with the map renamed to match: rect
+as a default shape, at a corner: rect

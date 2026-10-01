@@ -1,0 +1,4 @@
+hit at 50: AREA#inserted-area
+click reached inserted-area
+hit at 150: AREA#inserted-map-area
+click reached inserted-map-area
