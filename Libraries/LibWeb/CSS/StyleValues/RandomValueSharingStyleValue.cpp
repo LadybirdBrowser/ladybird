@@ -39,11 +39,12 @@ ValueComparingNonnullRefPtr<StyleValue const> RandomValueSharingStyleValue::abso
     //    specified in <random-value-sharing>.
     // 3. A document ID identifying the Document the styles are from.
     // NB: The style engine keeps the base values, one engine per document. A key names the element by its style
-    //     node, and a pseudo-element's by its element's.
+    //     node, and a pseudo-element's by its element's. A <dashed-ident> is shared by every element, as the
+    //     style computation shares it.
     auto name = this->name().value();
     auto const& element = computation_context.abstract_element->element();
     auto& style_engine = const_cast<StyleEngine&>(element.document().style_computer().style_engine());
-    auto random_base_value = style_engine.ensure_random_base_value(element.style_node_id(), name.view(), element_shared());
+    auto random_base_value = style_engine.ensure_random_base_value(element.style_node_id(), name.view(), element_shared() || !is_auto());
 
     return RandomValueSharingStyleValue::create_fixed(NumberStyleValue::create(random_base_value));
 }

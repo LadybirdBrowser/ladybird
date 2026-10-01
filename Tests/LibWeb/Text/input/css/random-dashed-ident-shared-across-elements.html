@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .named {
+        width: random(--foo, 0px, 1000000px);
+    }
+</style>
+<div id="first" class="named"></div>
+<div id="second" class="named"></div>
+<script>
+    // A random() named by a <dashed-ident> alone draws one random base value for every element.
+    test(() => {
+        const first = getComputedStyle(document.getElementById("first")).width;
+        const second = getComputedStyle(document.getElementById("second")).width;
+        println(`same width: ${first === second}`);
+    });
+</script>
