@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+@property --x { syntax: "<length>"; inherits: false; initial-value: 0px; }
+#container { container-type: inline-size; width: 200px; }
+.on #target { --x: 10cqw; }
+.on #through-var { --cq: 10cqw; --x: var(--cq); }
+</style>
+<div id="container"><div id="target"></div><div id="through-var"></div></div>
+<script>
+test(() => {
+    const values = () => ["target", "through-var"].map(id => getComputedStyle(document.getElementById(id)).getPropertyValue("--x")).join("; ");
+    println(`before: ${values()}`);
+    container.classList.add("on");
+    println(`after a class change: ${values()}`);
+});
+</script>

@@ -582,8 +582,19 @@ impl RetainedState {
         }
         // The environment the node's own custom declarations resolve to over the parent's. A node
         // declaring none keeps its record's, which is the parent's; a moved environment
-        // republishes the record under the new one.
-        let (environment, current_environment, parent_environment) = {
+        // republishes the record under the new one. A registered name declared here computes
+        // against the record's font until a drive settles the font anew.
+        let has_registered_declarations = self.declares_registered_custom_property(node, None, &inputs);
+        // Every installed record is published with an environment; a record without is
+        // republished as moved.
+        let old_environment = self
+            .computed_group_sets
+            .style_record_custom_property_environment(old_style_record.raw());
+        debug_assert!(
+            old_environment.is_some(),
+            "an installed record was published with a custom-property environment"
+        );
+        let (mut environment, mut current_environment, parent_environment) = {
             let parent = self
                 .record_inheritance_parent(node, scratch.installed_ancestors.as_ref())
                 .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
@@ -591,20 +602,12 @@ impl RetainedState {
                 Some(parent) => self.held_custom_property_environment(parent, counters)?,
                 None => 0,
             };
-            let Ok(environment) = self.engine_custom_property_environment(node, parent_environment, &inputs, counters)
+            let Ok(environment) =
+                self.engine_custom_property_environment(node, parent_environment, &inputs, None, counters)
             else {
                 counters.bump(Counter::EngineComputedRecordBailCustomProperties);
                 return Err(Unanswered::Refused);
             };
-            // Every installed record is published with an environment; a record without is
-            // republished as moved.
-            let old_environment = self
-                .computed_group_sets
-                .style_record_custom_property_environment(old_style_record.raw());
-            debug_assert!(
-                old_environment.is_some(),
-                "an installed record was published with a custom-property environment"
-            );
             // An unmoved environment is the one the record holds, so the current one is always
             // what the declarations resolved to.
             (
@@ -703,10 +706,12 @@ impl RetainedState {
         // A moved font-phase longhand reaches every value the font feeds, so the record is driven
         // through every phase and every group is rebuilt. A moved box-type transformation input
         // takes the same route, as does a record whose parent inputs moved: the transformation
-        // and the inheritance are part of the full drive.
+        // and the inheritance are part of the full drive, and so does a record whose registered
+        // custom properties moved, which compute against the font the drive settles.
         let full_drive = parent_inputs_moved.any()
             || root_inputs_moved
             || drive_in_full
+            || (has_registered_declarations && environment.is_some())
             || delta.properties().iter().any(|&property| {
                 !property_computes_in_remaining_phase(property) || property_feeds_box_type_transformation(property)
             });
@@ -724,8 +729,11 @@ impl RetainedState {
         {
             cohort_parent = RecordDeltaParent::Inputs(inputs);
         }
-        // A record whose winners read beyond its environment is the element's alone.
-        let cohort = (!self.state_reads_beyond_environment(node, state)).then(|| {
+        // A record whose winners read beyond its environment is the element's alone, as is one
+        // driven in full under registered custom properties, which its own font decides.
+        let record_is_the_elements_alone =
+            self.state_reads_beyond_environment(node, state) || (has_registered_declarations && full_drive);
+        let cohort = (!record_is_the_elements_alone).then(|| {
             (
                 old_style_record.raw(),
                 state,
@@ -891,7 +899,7 @@ impl RetainedState {
         // A store whose values substitute `attr()` or `inherit()` holds this element's attributes
         // or its parent's values, and is the element's alone.
         let element_alone = self.state_reads_beyond_environment(node, state);
-        let store = match scratch
+        let mut store = match scratch
             .stores
             .get(&(state, current_environment))
             .filter(|_| !element_alone)
@@ -950,17 +958,62 @@ impl RetainedState {
                     groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
                 }
                 let subject = self.element_drive_subject(node, scratch.installed_ancestors.as_ref(), counters)?;
-                match self.engine_full_drive(
+                let mut driven = self.engine_full_drive(
                     subject,
                     Some(old_style_record),
                     &store,
                     &inputs,
                     &mut scratch.font_drive,
                     goal,
+                    has_registered_declarations,
                     counters,
-                )? {
+                )?;
+                // The registered custom properties compute against the font the drive settled,
+                // and the winners substitute what they computed to.
+                if let FullDrive::AwaitsRegisteredContext(registered) = driven {
+                    let (settled, settled_store, _) = self.store_over_registered_context(
+                        subject.target,
+                        state,
+                        parent_environment,
+                        |engine, counters| {
+                            engine
+                                .engine_custom_property_environment(
+                                    node,
+                                    parent_environment,
+                                    &inputs,
+                                    Some(&registered),
+                                    counters,
+                                )
+                                .inspect_err(|&unanswered| {
+                                    if unanswered == Unanswered::Refused {
+                                        counters.bump(Counter::EngineComputedRecordBailCustomProperties);
+                                    }
+                                })
+                        },
+                        scratch,
+                        counters,
+                    )?;
+                    current_environment = settled;
+                    environment = (old_environment != Some(settled)).then_some(settled);
+                    store = std::sync::Arc::new(settled_store);
+                    self.note_node_substitution(node, scratch, state, current_environment);
+                    driven = self.engine_full_drive(
+                        subject,
+                        Some(old_style_record),
+                        &store,
+                        &inputs,
+                        &mut scratch.font_drive,
+                        goal,
+                        false,
+                        counters,
+                    )?;
+                }
+                match driven {
                     FullDrive::Driven(driven) => driven,
                     FullDrive::RootInputs(root_inputs) => return Ok(ElementAnswer::RootInputs(Some(root_inputs))),
+                    FullDrive::AwaitsRegisteredContext(_) => {
+                        unreachable!("a drive resumed with its registered context waits for nothing")
+                    }
                 }
             }
         };
@@ -1042,6 +1095,40 @@ impl RetainedState {
         let substituted = scratch.substituted_states.contains(&(state, environment));
         scratch.noted_substitution = Some(substituted);
         scratch.substitution_effects.push((node, substituted));
+    }
+
+    /// The environment and store a full drive resumes with once it settled the context the
+    /// target's registered custom properties compute against: `resolve_environment` resolves the
+    /// target's custom declarations again with that context, and the state's winners substitute
+    /// what they computed to. Returns the settled environment, the store and whether it
+    /// substituted.
+    fn store_over_registered_context(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+        state: CascadeStateID,
+        inherited_environment: u64,
+        resolve_environment: impl FnOnce(&mut Self, &mut Counters) -> Drive<u64>,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> Drive<(u64, WinnerStore, bool)> {
+        let environment = resolve_environment(self, counters)?;
+        let mut substituted = false;
+        let store = self.cascaded_store_for_state(
+            target.node(),
+            state,
+            target.is_pseudo().then_some(target.pseudo_kind()),
+            custom_property_cascade::SubstitutionEnvironment {
+                own: environment,
+                inherited: inherited_environment,
+            },
+            &mut substituted,
+            counters,
+        )?;
+        scratch.store_capacity_bytes += store.capacity_bytes();
+        if substituted {
+            scratch.substituted_states.insert((state, environment));
+        }
+        Ok((environment, store, substituted))
     }
 
     /// Write the substituted-record facts the step decided. The set is a retained per-node fact
@@ -1246,7 +1333,11 @@ impl RetainedState {
                 return Err(Unanswered::Refused);
             }
         }
-        let Ok(environment) = self.engine_custom_property_environment(node, parent_environment, &inputs, counters)
+        // A registered name declared here computes provisionally against the parent's font until
+        // the drive settles the element's own.
+        let has_registered_declarations = self.declares_registered_custom_property(node, None, &inputs);
+        let Ok(mut environment) =
+            self.engine_custom_property_environment(node, parent_environment, &inputs, None, counters)
         else {
             counters.bump(Counter::EngineComputedRecordBailCustomProperties);
             return Err(Unanswered::Refused);
@@ -1256,7 +1347,7 @@ impl RetainedState {
         // element's alone. A store with substituted values is the environment's as well as the
         // state's, and admits nothing for the state alone.
         let element_alone = self.state_reads_beyond_environment(node, state);
-        let store = match scratch.stores.get(&(state, environment)).filter(|_| !element_alone) {
+        let mut store = match scratch.stores.get(&(state, environment)).filter(|_| !element_alone) {
             Some(store) => store.clone(),
             None => {
                 let mut substituted = false;
@@ -1293,10 +1384,11 @@ impl RetainedState {
             }
         };
         self.note_node_substitution(node, scratch, state, environment);
-        // A record whose winners read beyond its environment is the element's alone.
+        // A record whose winners read beyond its environment is the element's alone, as is one
+        // declaring registered custom properties, which its own font decides.
         let cache_key = parent
             .zip(parent_record)
-            .filter(|_| !self.state_reads_beyond_environment(node, state))
+            .filter(|_| !element_alone && !has_registered_declarations)
             .and_then(|(parent, parent_record)| self.cold_record_parent(node, parent, parent_record, state))
             .map(|parent| ColdRecordKey {
                 monospace_recascaded_font_size: self
@@ -1432,15 +1524,67 @@ impl RetainedState {
             }
         }
         let subject = DriveSubject { target, parent, facts };
+        let mut driven = self.engine_full_drive(
+            subject,
+            None,
+            &store,
+            &inputs,
+            &mut scratch.font_drive,
+            goal,
+            has_registered_declarations,
+            counters,
+        )?;
+        // The registered custom properties compute against the font the drive settled, and the
+        // winners substitute what they computed to.
+        if let FullDrive::AwaitsRegisteredContext(registered) = driven {
+            let (settled, settled_store, _) = self.store_over_registered_context(
+                subject.target,
+                state,
+                parent_environment,
+                |engine, counters| {
+                    engine
+                        .engine_custom_property_environment(
+                            node,
+                            parent_environment,
+                            &inputs,
+                            Some(&registered),
+                            counters,
+                        )
+                        .inspect_err(|&unanswered| {
+                            if unanswered == Unanswered::Refused {
+                                counters.bump(Counter::EngineComputedRecordBailCustomProperties);
+                            }
+                        })
+                },
+                scratch,
+                counters,
+            )?;
+            environment = settled;
+            store = std::sync::Arc::new(settled_store);
+            self.note_node_substitution(node, scratch, state, environment);
+            driven = self.engine_full_drive(
+                subject,
+                None,
+                &store,
+                &inputs,
+                &mut scratch.font_drive,
+                goal,
+                false,
+                counters,
+            )?;
+        }
         let DrivenTable {
             table,
             length,
             longhand_evaluations,
             font,
             explicitly_inherited_groups,
-        } = match self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, goal, counters)? {
+        } = match driven {
             FullDrive::Driven(driven) => driven,
             FullDrive::RootInputs(root_inputs) => return Ok(ElementAnswer::RootInputs(Some(root_inputs))),
+            FullDrive::AwaitsRegisteredContext(_) => {
+                unreachable!("a drive resumed with its registered context waits for nothing")
+            }
         };
         let font = font.expect("a full drive resolves the font");
         let counter_style_registry = self.table_counter_style_environment_identity(target, &table);

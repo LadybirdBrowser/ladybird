@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --len { syntax: "<length>"; inherits: true; initial-value: 0px; }
+    .parent { --len: 1em; }
+    .small { font-size: 10px; }
+    .large { font-size: 20px; }
+    .parent.on { --len: 2em; color: blue; }
+    .child { width: var(--len); }
+    .pseudo::before { content: ""; display: block; font-size: 20px; }
+    .pseudo.on::before { --len: 3em; width: var(--len); }
+</style>
+<div class="parent small" id="small"><div class="child"></div><div class="child"></div><div class="other"></div></div>
+<div class="parent large" id="large"><div class="child"></div><div class="child"></div><div class="other"></div></div>
+<div class="pseudo" id="pseudo"></div>
+<script>
+    // A registered <length> declared in em computes against each declaring element's own font:
+    // two parents declaring the same value under different fonts hand their children different
+    // lengths, and a pseudo-element declaring one computes it against the pseudo-element's font.
+    // Each line prints how many elements C++ computed for the change. The parents' change moves a
+    // winner beside the custom property, which the engine drives; a rule declaring custom
+    // properties for a pseudo-element alone still sends the element to C++.
+    function measure(name, change, values) {
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+        change();
+        internals.updateStyle();
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        println(`${name}: C++ recomputations ${recomputations}, ${values()}`);
+    }
+
+    const widths = id => [...document.getElementById(id).querySelectorAll(".child")].map(child => getComputedStyle(child).width).join(" ");
+    const parentValues = () => `small --len ${getComputedStyle(small).getPropertyValue("--len")} children ${widths("small")}, large --len ${getComputedStyle(large).getPropertyValue("--len")} children ${widths("large")}`;
+
+    test(() => {
+        measure("parents switched on", () => {
+            small.classList.add("on");
+            large.classList.add("on");
+        }, parentValues);
+        measure("::before switched on", () => pseudo.classList.add("on"), () => {
+            const style = getComputedStyle(pseudo, "::before");
+            return `--len ${style.getPropertyValue("--len")}, width ${style.width}`;
+        });
+        measure("first records", () => {
+            const parent = document.createElement("div");
+            parent.className = "parent large on";
+            parent.id = "inserted";
+            parent.innerHTML = '<div class="child"></div>';
+            document.body.appendChild(parent);
+        }, () => `--len ${getComputedStyle(inserted).getPropertyValue("--len")}, child ${widths("inserted")}`);
+    });
+</script>

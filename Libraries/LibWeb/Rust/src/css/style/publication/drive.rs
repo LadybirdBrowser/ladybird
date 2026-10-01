@@ -87,6 +87,10 @@ pub(super) enum FullDrive {
     /// The root-input probe finished the font and line-height phases; the drive is left pending
     /// for the root's own row.
     RootInputs(RootFontInputs),
+    /// The drive settled the element's font and color scheme, which the registered custom
+    /// properties it declares compute against; it is left pending until the caller resolves them
+    /// against this context, substitutes its winners again, and drives once more without waiting.
+    AwaitsRegisteredContext(custom_property_cascade::RegisteredValueContext),
 }
 
 #[derive(Default)]
@@ -170,6 +174,9 @@ struct PendingFontDrive {
 /// The completed font phase owns its table.
 struct DriveProgress {
     root_font_complete: bool,
+    /// Whether the color-scheme phase ran too, as it has for a drive awaiting its registered
+    /// context.
+    color_scheme_complete: bool,
     /// The monospace recascade's size the table already holds, which the remaining phases read.
     recascaded_font_size: Option<i32>,
     table: ComputedLonghandTable,
@@ -580,7 +587,10 @@ impl RetainedState {
     /// element's font resolved through the document's resolver, line-height and color-scheme
     /// against that font, and the remaining phase with the element facts the box-type
     /// transformation reads. Root-input preparation finishes only the font and line-height
-    /// phases and preserves them for completion. Monospace default-size recascade stays in C++.
+    /// phases and preserves them for completion, and a drive that `awaits_registered_context`
+    /// stops after the color-scheme phase with the context the registered custom properties it
+    /// declares compute against, which it preserves likewise. Monospace default-size recascade
+    /// stays in C++.
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
     pub(super) fn engine_full_drive(
         &self,
@@ -590,6 +600,7 @@ impl RetainedState {
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         font_scratch: &mut FontDriveScratch,
         goal: FontDriveGoal,
+        awaits_registered_context: bool,
         counters: &mut Counters,
     ) -> Drive<FullDrive> {
         let resource_contexts = store.drive_resource_contexts(self);
@@ -880,6 +891,7 @@ impl RetainedState {
             .and_then(|pending| pending.progress);
         let resuming = resumed.is_some();
         let root_font_complete = resumed.as_ref().is_some_and(|pending| pending.root_font_complete);
+        let color_scheme_complete = resumed.as_ref().is_some_and(|pending| pending.color_scheme_complete);
         if !resuming {
             counters.bump(Counter::EngineFullDrivesStarted);
         }
@@ -1063,6 +1075,7 @@ impl RetainedState {
         else {
             let progress = DriveProgress {
                 root_font_complete: false,
+                color_scheme_complete: false,
                 recascaded_font_size,
                 table,
                 results,
@@ -1138,6 +1151,7 @@ impl RetainedState {
                 target,
                 progress: Some(DriveProgress {
                     root_font_complete: true,
+                    color_scheme_complete: false,
                     recascaded_font_size,
                     table,
                     results,
@@ -1147,16 +1161,18 @@ impl RetainedState {
             });
             return Ok(FullDrive::RootInputs(root_inputs));
         }
-        drive(
-            counters,
-            &mut table,
-            &mut results,
-            &mut effective_color_scheme,
-            LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
-            std::ptr::null(),
-            std::ptr::null(),
-            std::ptr::null(),
-        );
+        if !color_scheme_complete {
+            drive(
+                counters,
+                &mut table,
+                &mut results,
+                &mut effective_color_scheme,
+                LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+                std::ptr::null(),
+                std::ptr::null(),
+                std::ptr::null(),
+            );
+        }
         effective_color_scheme = table.effective_color_scheme();
 
         let remaining_length = length_context(
@@ -1173,6 +1189,31 @@ impl RetainedState {
                 inputs.root_font_metrics_depend_on_viewport_metrics
             },
         );
+        // A registered custom property computes against the font and color scheme settled now, as
+        // the host finalizes one after the line-height phase; the winners the remaining phase reads
+        // substitute what it computes to.
+        if awaits_registered_context {
+            let context = custom_property_cascade::RegisteredValueContext {
+                length: FfiLengthResolutionContext {
+                    resolved_viewport_relative_length: std::ptr::null_mut(),
+                    ..remaining_length
+                },
+                color_scheme: u8::try_from(effective_color_scheme).unwrap_or(inputs.preferred_color_scheme),
+            };
+            font_scratch.pending = Some(PendingFontDrive {
+                target,
+                progress: Some(DriveProgress {
+                    root_font_complete: true,
+                    color_scheme_complete: true,
+                    recascaded_font_size,
+                    table,
+                    results,
+                    effective_color_scheme,
+                    resolved_viewport_relative_length,
+                }),
+            });
+            return Ok(FullDrive::AwaitsRegisteredContext(context));
+        }
         let input_line_height_metrics = if has(fact::CHECK_INPUT_LINE_HEIGHT) {
             FfiInputLineHeightMetrics {
                 current_line_height: line_height_before_adjustments,

@@ -1,0 +1,2 @@
+before: 0px; 0px
+after a class change: 20px; 20px
