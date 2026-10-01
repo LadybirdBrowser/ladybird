@@ -3246,6 +3246,48 @@ pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
     })
 }
 
+/// Settle the synthetic pseudo-element records of an element whose record C++ has just installed.
+/// A zero `style_record` leaves them to C++.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
+    engine: *mut c_void,
+    node: u32,
+    old_is_list_item: bool,
+) -> FfiEngineComputedRecord {
+    abort_on_panic(|| {
+        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        // A verification pass computes the reference records itself.
+        let Some(style_node) =
+            StyleNodeID::from_raw(node).filter(|_| engine.host.computed_record_verification_counters.is_none())
+        else {
+            return FfiEngineComputedRecord::default();
+        };
+        let (settled, uses_substitution) = engine.settle_pseudo_records_after_host_record(style_node, old_is_list_item);
+        let result = FfiEngineComputedRecord {
+            style_record: settled.style_record,
+            uses_substitution,
+            record_reads: if settled.style_record != 0 {
+                engine.node_record_reads(style_node)
+            } else {
+                0
+            },
+            explicitly_inherited_groups: 0,
+            pseudo_records_present: settled.pseudo_records_present,
+            pseudo_records: settled.pseudo_records,
+        };
+        engine.record_boundary_call(EventKind::SettlePseudoRecordsAfterHostRecord, |payload| {
+            payload.write_u32(node);
+            payload.write_bool(old_is_list_item);
+            payload.write_u64(result.style_record);
+            payload.write_u8(result.pseudo_records_present);
+        });
+        result
+    })
+}
+
 /// The store of an environment the engine resolved, with one strong reference transferred to the
 /// caller, and the environment it was resolved over; null for an environment C++ published.
 ///

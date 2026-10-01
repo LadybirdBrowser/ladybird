@@ -1612,6 +1612,46 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     auto matches_have_pseudo_element = [&](CSS::PseudoElement pseudo_element) {
         return CSS::is_synthetic_pseudo_element(pseudo_element) && ((engine_pseudo_element_styles >> to_underlying(pseudo_element)) & 1);
     };
+    // The engine settles the synthetic pseudo-elements of an element C++ computed against the
+    // record C++ just installed, as it settles them beside a record of its own: C++ then installs
+    // the engine's records, and computes only the kinds the engine never settles.
+    EnginePseudoElementRecords records_settled_after_host_record {};
+    bool const settled_after_host_record = [&] {
+        if (engine_pseudo_element_records || style_node_id() == 0 || !originating_style)
+            return false;
+        // Most elements have no style for any of the kinds the engine settles, and C++ computes
+        // none for them either. A marker is refreshed for a list item only.
+        auto may_have_style = [&](CSS::PseudoElement pseudo_element) {
+            return matches_have_pseudo_element(pseudo_element)
+                || !!style_record_identity(pseudo_element)
+                || (old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
+                || originating_style->has_pseudo_element_style(pseudo_element);
+        };
+        if (!had_list_marker && !originating_style->display().is_list_item()
+            && !may_have_style(CSS::PseudoElement::Before)
+            && !may_have_style(CSS::PseudoElement::After)
+            && !may_have_style(CSS::PseudoElement::FirstLetter))
+            return false;
+        auto settled = style_computer.style_engine().settle_pseudo_records_after_host_record(style_node_id(), had_list_marker);
+        if (settled.style_record == 0)
+            return false;
+        for (size_t kind = 0; kind < array_size(settled.pseudo_records); ++kind) {
+            if (!((settled.pseudo_records_present >> kind) & 1))
+                continue;
+            CSS::StyleRecordID record { settled.pseudo_records[kind] };
+            records_settled_after_host_record[kind] = record;
+            // What the element's dependencies record for a pseudo-element's computation.
+            if (!!record && has_flag(style_computer.style_engine().style_record_dependency_flags(record), CSS::StyleRecordDependencyFlag::DependsOnViewportMetrics))
+                set_style_depends_on_viewport_metrics();
+        }
+        if (settled.uses_substitution)
+            set_style_uses_var_css_function();
+        if (settled.record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::Attributes))
+            set_style_uses_attr_css_function();
+        return true;
+    }();
+    if (settled_after_host_record)
+        engine_pseudo_element_records = &records_settled_after_host_record;
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
@@ -1804,13 +1844,15 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         recompute_pseudo_element_style(CSS::PseudoElement::Marker, true);
     // Element-backed pseudo-elements are C++'s; an engine-computed record moving an element's own
     // properties leaves them as they were, as it did before the engine settled the synthetic ones.
-    if (!engine_pseudo_element_records || !old_originating_style) {
+    if (!engine_pseudo_element_records || !old_originating_style || settled_after_host_record) {
         for (auto i = to_underlying(CSS::first_element_reference_pseudo_element); i <= to_underlying(CSS::last_element_reference_pseudo_element); ++i) {
             auto pseudo_element = static_cast<CSS::PseudoElement>(i);
             if (get_pseudo_element(pseudo_element).has_value())
                 recompute_pseudo_element_style(pseudo_element);
         }
     }
+    if (settled_after_host_record)
+        style_computer.style_engine().acknowledge_engine_computed_record(style_node_id());
 
     return invalidation;
 }

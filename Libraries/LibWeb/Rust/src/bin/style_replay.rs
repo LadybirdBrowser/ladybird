@@ -748,6 +748,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         &mut phase_times,
                     );
                 }
+                EventKind::SettlePseudoRecordsAfterHostRecord => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let node = event.payload.read_u32()?;
+                    let old_is_list_item = event.payload.read_bool()?;
+                    let expected = event.payload.read_u64()?;
+                    let expected_present = event.payload.read_u8()?;
+                    let actual = unsafe {
+                        bridge::style_engine_settle_pseudo_records_after_host_record(engine, node, old_is_list_item)
+                    };
+                    if actual.style_record != expected || actual.pseudo_records_present != expected_present {
+                        return Err(format!(
+                            "pseudo records settled after a host record diverged for node {node}: expected {expected} (present {expected_present:#x}), got {actual:?}"
+                        )
+                        .into());
+                    }
+                }
                 EventKind::RetryEngineRecordAfterAncestor => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;

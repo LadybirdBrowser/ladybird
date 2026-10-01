@@ -274,6 +274,11 @@ StyleEngineFFI::FfiEngineComputedRecord StyleEngine::retry_engine_record_after_a
     return StyleEngineFFI::style_engine_retry_engine_record_after_ancestor(m_impl, node.value());
 }
 
+StyleEngineFFI::FfiEngineComputedRecord StyleEngine::settle_pseudo_records_after_host_record(StyleNodeID node, bool old_is_list_item)
+{
+    return StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(m_impl, node.value(), old_is_list_item);
+}
+
 void const* StyleEngine::borrow_engine_custom_property_environment(u64 identity, u64& parent_identity) const
 {
     return StyleEngineFFI::style_engine_borrow_engine_custom_property_environment(m_impl, identity, &parent_identity);
