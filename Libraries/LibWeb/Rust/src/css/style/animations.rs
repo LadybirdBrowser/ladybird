@@ -218,6 +218,17 @@ pub(crate) fn plan_changes_nothing(
             })
 }
 
+/// The tree scope an `animation-name` declaration was written in, where the `@keyframes` it names
+/// are looked for first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DeclarationScope {
+    /// A declaration of the document, of another origin or of the element itself, or none at all:
+    /// none of these has a scope of its own.
+    Unscoped,
+    /// A rule of a style sheet a shadow root's scope holds.
+    Shadow(TreeScopeID),
+}
+
 /// The `@keyframes` every style scope of the document defines, as each scope's rule cache resolved
 /// them, with the host's keyframe set for each name.
 ///
@@ -273,12 +284,14 @@ impl AnimationKeyframes {
         self.scopes.insert(tree_scope, sets);
     }
 
-    /// Whether no scope but the document's defines any `@keyframes`. The chain `resolve` walks ends
-    /// at the document's scope, so then a name runs the document's rule for it whatever scope the
-    /// winning `animation-name` was declared in and whatever scope the element is in.
+    /// The scope of a declaration the cascade attributes to the shadow root of this pointer identity.
+    /// The document's identity, zero, names no shadow root, and a shadow root whose scope defines no
+    /// `@keyframes` has none to look in.
     #[must_use]
-    pub(crate) fn only_the_document_scope_defines_keyframes(&self) -> bool {
-        self.scopes.keys().all(|&scope| scope == TreeScopeID::DOCUMENT)
+    pub(crate) fn scope_of_shadow_root(&self, shadow_root_identity: usize) -> DeclarationScope {
+        self.scope_by_shadow_root
+            .get(&shadow_root_identity)
+            .map_or(DeclarationScope::Unscoped, |&scope| DeclarationScope::Shadow(scope))
     }
 
     /// The host's keyframe set an animation of this name runs, or `None` where no scope in its chain
@@ -291,7 +304,7 @@ impl AnimationKeyframes {
     #[must_use]
     pub(crate) fn resolve(
         &self,
-        declaration_shadow_root_identity: usize,
+        declaration_scope: DeclarationScope,
         element_tree_scope: TreeScopeID,
         name: &[u16],
     ) -> Option<usize> {
@@ -299,9 +312,11 @@ impl AnimationKeyframes {
             return None;
         }
         let in_scope = |scope: TreeScopeID| self.scopes.get(&scope)?.get(name).copied();
-        let declaration_scope = self.scope_by_shadow_root.get(&declaration_shadow_root_identity);
-        declaration_scope
-            .and_then(|&scope| in_scope(scope))
+        let declared = match declaration_scope {
+            DeclarationScope::Shadow(scope) => in_scope(scope),
+            DeclarationScope::Unscoped => None,
+        };
+        declared
             .or_else(|| match element_tree_scope {
                 TreeScopeID::DOCUMENT => None,
                 scope => in_scope(scope),
@@ -431,7 +446,11 @@ mod tests {
     }
 
     fn resolve(keyframes: &AnimationKeyframes, identity: usize, scope: u32, name: &str) -> Option<usize> {
-        keyframes.resolve(identity, TreeScopeID(scope), &name.encode_utf16().collect::<Vec<_>>())
+        keyframes.resolve(
+            keyframes.scope_of_shadow_root(identity),
+            TreeScopeID(scope),
+            &name.encode_utf16().collect::<Vec<_>>(),
+        )
     }
 
     #[test]

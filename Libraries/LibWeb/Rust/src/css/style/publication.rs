@@ -17,6 +17,7 @@ use super::*;
 use crate::css::computed_longhand_table::{
     ComputedLonghandTable, DEPENDS_ON_VIEWPORT_METRICS, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS,
 };
+use animations::DeclarationScope;
 pub(crate) use demand::RecordDemandAnswer;
 pub(super) use demand::WinnerRepublication;
 pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
@@ -868,7 +869,7 @@ impl RetainedState {
             // Transitions start from the C++ computation, and so does any animation the engine
             // cannot hand the host a plan for.
             if property_starts_animation(property)
-                && !(property_declares_css_animations(property) && self.may_plan_css_animations(node, scratch))
+                && !(property_declares_css_animations(property) && self.may_plan_css_animations(node, state, scratch))
             {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
                 return Err(Unanswered::Refused);
@@ -1864,15 +1865,70 @@ impl RetainedState {
         }
     }
 
-    /// Whether the host can be handed the animation plan of a record the engine derives for `node`,
-    /// decided from that record once it is installed: the host applies it, the element holds no CSS
-    /// animation, so the plan can only start what its definitions name, and no scope but the
-    /// document's defines `@keyframes`, so the scope the winning `animation-name` was declared in,
-    /// which the winners do not record, cannot change what a name runs.
-    fn may_plan_css_animations(&self, node: StyleNodeID, scratch: &EngineComputedRecordScratch) -> bool {
+    /// Whether the host can be handed the animation plan of a record the engine derives for `node`
+    /// from `state`, decided from that record once it is installed: the host applies it, the
+    /// element holds no CSS animation, so the plan can only start what its definitions name, and
+    /// the winners say which scope the winning `animation-name` was declared in.
+    fn may_plan_css_animations(
+        &self,
+        node: StyleNodeID,
+        state: CascadeStateID,
+        scratch: &EngineComputedRecordScratch,
+    ) -> bool {
         scratch.host_applies_animation_plans
             && !self.css_defined_animations.node_runs_a_css_animation(node)
-            && self.animation_keyframes.only_the_document_scope_defines_keyframes()
+            && self.animation_name_declaration_scope(node, state).is_ok()
+    }
+
+    /// The tree scope the winning `animation-name` declaration of `state` was written in, where its
+    /// `@keyframes` are looked for first, refused where the winners cannot say. An author rule's is
+    /// the scope its sheet is attached to, and for a sheet several scopes adopt, the one among them
+    /// the winner's priority places among the element's encapsulation contexts.
+    fn animation_name_declaration_scope(
+        &self,
+        node: StyleNodeID,
+        state: CascadeStateID,
+    ) -> Result<DeclarationScope, Unanswered> {
+        let Some(winner) = self
+            .winner_groups
+            .winner_in_state(state, crate::css::property_metadata::property_id::ANIMATION_NAME)
+        else {
+            return Ok(DeclarationScope::Unscoped);
+        };
+        let winner = self.winner_groups.resolved_winner(winner).ok_or(Unanswered::Refused)?;
+        let rule = match winner.source {
+            cascade::WinnerSource::Rule(rule) => rule,
+            cascade::WinnerSource::Element(_) => return Ok(DeclarationScope::Unscoped),
+            cascade::WinnerSource::ExactCascade => return Err(Unanswered::Refused),
+        };
+        let sheet = self.program.rule_sheet(rule);
+        if self.program.sheet_origin(sheet) != crate::css::cascaded_properties::CascadeOrigin::Author {
+            return Ok(DeclarationScope::Unscoped);
+        }
+        let scope = match self.program.sheet_scopes(sheet).as_slice() {
+            &[scope] => scope,
+            scopes => {
+                let depth = winner.priority.author_context_depth().ok_or(Unanswered::Refused)?;
+                *scopes
+                    .iter()
+                    .find(|&&scope| self.author_context_index(node, scope) == Some(depth))
+                    .ok_or(Unanswered::Refused)?
+            }
+        };
+        Ok(match scope {
+            TreeScopeID::DOCUMENT => DeclarationScope::Unscoped,
+            scope => DeclarationScope::Shadow(scope),
+        })
+    }
+
+    /// The scope the winning `animation-name` of the cascade state an element's record is bound to
+    /// was declared in, as [`Self::animation_name_declaration_scope`] answers it, or `None` where it
+    /// refuses or the record is bound to no state.
+    pub(crate) fn element_animation_name_declaration_scope(&self, node: StyleNodeID) -> Option<DeclarationScope> {
+        let (_, state) = self
+            .computed_group_sets
+            .cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX))?;
+        self.animation_name_declaration_scope(node, state).ok()
     }
 
     /// Whether moving an element from the `old` record the host holds to the `new` one the engine

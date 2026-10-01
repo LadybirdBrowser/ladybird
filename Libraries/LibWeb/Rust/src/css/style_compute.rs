@@ -5218,15 +5218,18 @@ fn settled_animation_plan(
     let view = style_engine.style_record_view(record)?;
     let table = unsafe { view.longhand_table.as_ref() }?;
     let pseudo_kind = crate::css::cascaded_properties::NO_PSEUDO_ELEMENT;
+    let declaration_scope = style_engine.element_animation_name_declaration_scope(node)?;
     let existing_animations = style_engine.element_css_defined_animations(node, animation_slot(pseudo_kind));
     let element_tree_scope = style_engine.tree().tree_scope(node);
     let mut definitions = smallvec::SmallVec::new();
-    // The engine settles such a record only where no scope but the document's defines `@keyframes`,
-    // so no declaration scope is asked for.
     build_computed_animation_list(
         table,
         existing_animations,
-        |name| style_engine.animation_keyframes().resolve(0, element_tree_scope, name),
+        |name| {
+            style_engine
+                .animation_keyframes()
+                .resolve(declaration_scope, element_tree_scope, name)
+        },
         &mut definitions,
     );
     if crate::css::style::animations::plan_changes_nothing(&definitions, existing_animations) {
@@ -5524,8 +5527,9 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
     if !input.stop_after_longhand_drive {
         // An animation's `@keyframes` are looked for in the tree scope the winning `animation-name`
         // declaration was written in, then in the element's, then in the document's.
-        let declaration_shadow_root_identity =
-            unsafe { &*input.store }.winning_source_shadow_root_identity(property_id::ANIMATION_NAME);
+        let declaration_scope = style_engine.animation_keyframes().scope_of_shadow_root(
+            unsafe { &*input.store }.winning_source_shadow_root_identity(property_id::ANIMATION_NAME),
+        );
         let element_tree_scope = crate::css::style::tree::StyleNodeID::from_raw(input.style_node)
             .map_or(crate::css::style::tree::TreeScopeID::DOCUMENT, |node| {
                 style_engine.tree().tree_scope(node)
@@ -5536,7 +5540,7 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
             |name| {
                 style_engine
                     .animation_keyframes()
-                    .resolve(declaration_shadow_root_identity, element_tree_scope, name)
+                    .resolve(declaration_scope, element_tree_scope, name)
             },
             &mut animation_definitions,
         );

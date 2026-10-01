@@ -1665,7 +1665,7 @@ impl RetainedState {
     /// element is in from the outermost inwards, the ones holding the slots it is assigned to along
     /// its assignment chain, then the element's own shadow tree, for `:host`. `None` when the scope
     /// is none of them.
-    fn author_context_index(&self, node: StyleNodeID, scope: TreeScopeID) -> Option<u32> {
+    pub(super) fn author_context_index(&self, node: StyleNodeID, scope: TreeScopeID) -> Option<u32> {
         let mut contexts: SmallVec<[TreeScopeID; 8]> = SmallVec::new();
         let mut append = |scope: TreeScopeID| {
             if !contexts.contains(&scope) {
