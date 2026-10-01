@@ -269,47 +269,50 @@ CSS::SizeWithAspectRatio SVGSVGElement::negotiate_natural_metrics(SVG::SVGSVGEle
         natural_metrics.height = height->to_px(resolution_context);
 
     // The intrinsic aspect ratio must be calculated using the following algorithm. If the algorithm returns null, then there is no intrinsic aspect ratio.
-    natural_metrics.aspect_ratio = [&]() -> Optional<CSSPixelFraction> {
-        // 1. If the width and height sizing properties on the ‘svg’ element are both absolute values:
-        if (natural_metrics.width.has_value() && natural_metrics.height.has_value()) {
-            if (natural_metrics.width != 0 && natural_metrics.height != 0) {
-                // 1. return width / height
-                return *natural_metrics.width / *natural_metrics.height;
-            }
-            return {};
+    // 1. If the width and height sizing properties on the ‘svg’ element are both absolute values:
+    if (natural_metrics.width.has_value() && natural_metrics.height.has_value()) {
+        if (natural_metrics.width != 0 && natural_metrics.height != 0) {
+            // 1. return width / height
+            natural_metrics.aspect_ratio = *natural_metrics.width / *natural_metrics.height;
         }
-
-        // 2. If an SVG View is active:
-        if (auto active_view_element = svg_root.active_view_element(); active_view_element && active_view_element->view_box().has_value()) {
-            // 1. let viewbox be the viewbox defined by the active SVG View
-            auto view_box = active_view_element->view_box().value();
-
-            // 2. return viewbox.width / viewbox.height
-            if (view_box.width != 0 || view_box.height != 0)
-                return view_box.width / view_box.height;
-
-            return {};
-        }
-
-        // 3. If the ‘viewBox’ on the ‘svg’ element is correctly specified:
-        if (svg_root.view_box().has_value()) {
-            // 1. let viewbox be the viewbox defined by the ‘viewBox’ attribute on the ‘svg’ element
-            auto const& viewbox = svg_root.view_box().value();
-
-            // 2. return viewbox.width / viewbox.height
-            auto viewbox_width = CSSPixels::nearest_value_for(viewbox.width);
-            auto viewbox_height = CSSPixels::nearest_value_for(viewbox.height);
-            if (viewbox_width != 0 && viewbox_height != 0)
-                return viewbox_width / viewbox_height;
-
-            return {};
-        }
-
-        // 4. return null
-        return {};
-    }();
+    } else {
+        natural_metrics.aspect_ratio = view_box_natural_aspect_ratio(svg_root);
+    }
 
     return natural_metrics;
+}
+
+// https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
+Optional<CSSPixelFraction> SVGSVGElement::view_box_natural_aspect_ratio(SVGSVGElement const& svg_root)
+{
+    // 2. If an SVG View is active:
+    if (auto active_view_element = svg_root.active_view_element(); active_view_element && active_view_element->view_box().has_value()) {
+        // 1. let viewbox be the viewbox defined by the active SVG View
+        auto view_box = active_view_element->view_box().value();
+
+        // 2. return viewbox.width / viewbox.height
+        if (view_box.width != 0 || view_box.height != 0)
+            return view_box.width / view_box.height;
+
+        return {};
+    }
+
+    // 3. If the ‘viewBox’ on the ‘svg’ element is correctly specified:
+    if (svg_root.view_box().has_value()) {
+        // 1. let viewbox be the viewbox defined by the ‘viewBox’ attribute on the ‘svg’ element
+        auto const& viewbox = svg_root.view_box().value();
+
+        // 2. return viewbox.width / viewbox.height
+        auto viewbox_width = CSSPixels::nearest_value_for(viewbox.width);
+        auto viewbox_height = CSSPixels::nearest_value_for(viewbox.height);
+        if (viewbox_width != 0 && viewbox_height != 0)
+            return viewbox_width / viewbox_height;
+
+        return {};
+    }
+
+    // 4. return null
+    return {};
 }
 
 }

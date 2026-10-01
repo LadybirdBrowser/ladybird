@@ -44,12 +44,12 @@ fn style_has_size_containment(style: ComputedValuesView<'_>) -> bool {
 }
 
 /// Whether the node's replaced content facts still come from its layout node, because what it
-/// shows is not published: an image the box owns the provider of (`content: url(...)`), an SVG
-/// root, or a navigable container.
+/// shows is not published: an image the box owns the provider of (`content: url(...)`), or a
+/// navigable container.
 pub(crate) fn replaced_content_facts_need_host(data: &NodeData, has_owned_image_provider: bool) -> bool {
     let needs_host = match data.kind.get() {
         NodeKind::ImageBox => has_owned_image_provider,
-        NodeKind::SVGSVGBox | NodeKind::NavigableContainerViewport => true,
+        NodeKind::NavigableContainerViewport => true,
         _ => false,
     };
     needs_host && !node_style_view(data).is_some_and(style_has_size_containment)
@@ -665,7 +665,11 @@ impl<'pass> NodeFacts<'pass> {
         self.callbacks.computed_values_view_if_styled(parent)
     }
 
+    #[inline]
     fn replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
+        if self.data().kind.get() == NodeKind::SVGSVGBox {
+            return self.svg_root_replaced_content();
+        }
         let Some(facts) = self.callbacks.replaced_content_facts(self.node) else {
             // The kind check is cheap enough for release builds; the style
             // half of the enrollment predicate is debug-only because this
@@ -680,6 +684,26 @@ impl<'pass> NodeFacts<'pass> {
             );
             return crate::layout::FfiReplacedContentFacts::default();
         };
+        facts
+    }
+
+    /// An <svg> root's natural size resolves the lengths its element published against its style and the
+    /// viewport, so the pass negotiates it rather than reading synced facts.
+    #[cold]
+    fn svg_root_replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
+        let mut facts = derived_replaced_content_facts(self.data(), ReplacedContentInput::None);
+        if !self.node_has_size_containment() {
+            let (width, height, aspect_ratio) =
+                super::svg_formatting_context::svg_root_natural_size(&self.callbacks, self.node);
+            set_auto_content_size(
+                &mut facts,
+                AutoContentSize {
+                    width,
+                    height,
+                    aspect_ratio,
+                },
+            );
+        }
         facts
     }
 
