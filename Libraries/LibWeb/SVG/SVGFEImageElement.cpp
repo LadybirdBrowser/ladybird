@@ -9,7 +9,6 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/SVGFEImageElement.h>
 #include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
@@ -64,7 +63,6 @@ void SVGFEImageElement::process_href(Optional<Utf16String> const& href)
     m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *m_href);
     m_resource_request->add_callbacks(
         [this, resource_request = GC::Root { m_resource_request }] {
-            document().style_computer().style_engine().record_element_style_input_change(style_node_id());
             document().note_svg_paint_resources_changed();
             document().schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::FilterResourcesChanged);
             document().set_needs_repaint(Badge<SVGFEImageElement> {}, InvalidateDisplayList::PaintCommands);
