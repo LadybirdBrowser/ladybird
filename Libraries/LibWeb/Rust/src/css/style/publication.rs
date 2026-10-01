@@ -12,7 +12,7 @@ mod winner_store;
 use winner_store::{WinnerDeclaration, WinnerStore, WinnerValue, shorthand_longhand_data};
 
 use super::*;
-use crate::css::computed_longhand_table::ComputedLonghandTable;
+use crate::css::computed_longhand_table::{ComputedLonghandTable, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS};
 pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
 use drive::{FontDriveGoal, FullDrive, PartialDrive, drive_font_metric};
 use retry::InstalledAncestors;
@@ -1412,8 +1412,12 @@ impl RetainedState {
         if !self.font_family_winner_is_monospace(state) {
             return 0;
         }
-        self.monospace_recascaded_font_size(target, &self.document_style_computation_inputs)
-            .map_or(i32::MIN, |(size, _)| size)
+        match self.monospace_recascaded_font_size(target, &self.document_style_computation_inputs) {
+            Some(drive::MonospaceRecascade::Size(size, _)) => size,
+            // The drive this key is for waits for the same font, and takes the key again after; or
+            // it is left to C++.
+            Some(drive::MonospaceRecascade::AwaitsFont(_)) | None => i32::MIN,
+        }
     }
 
     fn display_winner_is_list_item(&self, state: CascadeStateID) -> bool {
@@ -1805,7 +1809,7 @@ impl RetainedState {
                 drive_font_metric(font.font_zero_advance).to_bits(),
                 font.line_height_used.to_double().to_bits(),
             ],
-            depends_on_viewport: view.dependency_flags & (1 << 1) != 0,
+            depends_on_viewport: view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS != 0,
         })
     }
 

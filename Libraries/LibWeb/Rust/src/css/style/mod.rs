@@ -814,6 +814,9 @@ pub struct RetainedState {
     /// Every font resolution this document has been given. An evaluation step reads it; only a
     /// host round between passes adds to it.
     font_resolution: Option<font_resolution::FontResolutionCache>,
+    /// `font-family: monospace`, the family the monospace font-size recascade resolves an
+    /// ancestor's font-relative lengths against.
+    monospace_font_family: RetainedStyleValueData,
     layer_topology_version: u64,
     sheet_order_version: u64,
 
