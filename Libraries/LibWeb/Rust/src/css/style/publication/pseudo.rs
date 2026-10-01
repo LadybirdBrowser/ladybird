@@ -102,7 +102,7 @@ impl RetainedState {
     /// way the C++ computation refreshes them after the element's own: each kind the element has
     /// rules for, and the marker a list item generates, is driven against the element's new
     /// record; one that generates no box any more is removed; one whose cascade state did not
-    /// move keeps its record. `None` is a pseudo-element the engine cannot settle.
+    /// move keeps its record. A refusal is a pseudo-element the engine cannot settle.
     pub(super) fn engine_pseudo_records(
         &mut self,
         node: StyleNodeID,
@@ -111,17 +111,18 @@ impl RetainedState {
         generation: u64,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
-    ) -> Option<()> {
+    ) -> Drive<()> {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
         let Some(mut inputs) = self.document_style_computation_inputs else {
             counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
-            return None;
+            return Err(Unanswered::Refused);
         };
         // NB: Root pseudos use the originating record's current font, independently of
         //     the document context used for the root's own remaining properties.
         if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {
-            self.root_font_inputs_from_record(new_element_record)?
+            self.root_font_inputs_from_record(new_element_record)
+                .or_refused()?
                 .apply_to(&mut inputs);
         }
         let program_version = self.program.version();
@@ -144,7 +145,7 @@ impl RetainedState {
             }
             if version != program_version || !priority_current {
                 counters.bump(Counter::EngineComputedRecordBailPseudoStale);
-                return None;
+                return Err(Unanswered::Refused);
             }
             states[usize::from(kind)] = Some(state);
         }
@@ -155,7 +156,7 @@ impl RetainedState {
             .any(|kind| kind == BACKDROP)
         {
             counters.bump(Counter::EngineComputedRecordBailPseudoBackdrop);
-            return None;
+            return Err(Unanswered::Refused);
         }
         let display_is_list_item = |engine: &Self, record: computed::FinalStyleRecordID| -> Option<bool> {
             let view = engine.computed_group_sets.style_record_view(record.raw())?;
@@ -164,7 +165,7 @@ impl RetainedState {
         };
         let Some(new_is_list_item) = display_is_list_item(self, new_element_record) else {
             counters.bump(Counter::EngineComputedRecordBailRecord);
-            return None;
+            return Err(Unanswered::Refused);
         };
         let Some(new_view_dependency_flags) = self
             .computed_group_sets
@@ -172,13 +173,13 @@ impl RetainedState {
             .map(|view| view.dependency_flags)
         else {
             counters.bump(Counter::EngineComputedRecordBailRecord);
-            return None;
+            return Err(Unanswered::Refused);
         };
         let old_is_list_item = match old_element_record {
             Some(record) => {
                 let Some(list_item) = display_is_list_item(self, record) else {
                     counters.bump(Counter::EngineComputedRecordBailRecord);
-                    return None;
+                    return Err(Unanswered::Refused);
                 };
                 list_item
             }
@@ -226,13 +227,13 @@ impl RetainedState {
             });
         let Some(environment) = self.computed_group_sets.custom_property_environment_identity(node) else {
             counters.bump(Counter::EngineComputedRecordBailRecord);
-            return None;
+            return Err(Unanswered::Refused);
         };
         // The kinds the node's match answer has rules for: a winner row is published for each
         // the engine cascaded itself, and a kind with rules but no row is not decided.
         let Some(kinds_with_rules) = self.pseudo_style_mask(node) else {
             counters.bump(Counter::EngineComputedRecordBailPseudoMask);
-            return None;
+            return Err(Unanswered::Refused);
         };
         let mut pseudo_uses_substitution = scratch.pseudo_uses_substitution;
         for (pseudo_index, kind) in [BEFORE, AFTER, FIRST_LETTER, SELECTION, MARKER]
@@ -251,13 +252,13 @@ impl RetainedState {
             if let Some(old) = old {
                 let Some(view) = self.computed_group_sets.style_record_view(old.raw()) else {
                     counters.bump(Counter::EngineComputedRecordBailRecord);
-                    return None;
+                    return Err(Unanswered::Refused);
                 };
                 let transitioning = (unsafe { view.longhand_table.as_ref() })
                     .is_some_and(crate::css::style_compute::has_active_transition_properties);
                 if !view.animated_overlay.is_null() || transitioning {
                     counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                    return None;
+                    return Err(Unanswered::Refused);
                 }
             }
             // A marker is generated for a list item (and refreshed once more for an element that
@@ -272,7 +273,7 @@ impl RetainedState {
             let state = states[usize::from(kind)].filter(|_| has_rules);
             if has_rules && state.is_none() {
                 counters.bump(Counter::EngineComputedRecordBailPseudoRow);
-                return None;
+                return Err(Unanswered::Refused);
             }
             // The row has to hold the rules that flipped for this kind: one this flush published
             // holds the cascade of the node's current answer.
@@ -284,7 +285,7 @@ impl RetainedState {
                 ) != Some(self.flush_stamp)
             {
                 counters.bump(Counter::EngineComputedRecordBailPseudoFlip);
-                return None;
+                return Err(Unanswered::Refused);
             }
             let old_record = old.unwrap_or(computed::FinalStyleRecordID::NONE);
             let remove = |engine: &mut Self, scratch: &mut EngineComputedRecordScratch, counters: &mut Counters| {
@@ -333,14 +334,17 @@ impl RetainedState {
                     Some(store) => store.clone(),
                     None => {
                         let mut substituted = false;
-                        let store = std::sync::Arc::new(self.cascaded_store_for_state(
-                            node,
-                            state,
-                            Some(kind),
-                            environment,
-                            &mut substituted,
-                            counters,
-                        )?);
+                        let store = std::sync::Arc::new(
+                            self.cascaded_store_for_state(
+                                node,
+                                state,
+                                Some(kind),
+                                environment,
+                                &mut substituted,
+                                counters,
+                            )
+                            .or_refused()?,
+                        );
                         if substituted {
                             scratch.substituted_states.insert((state, environment));
                         }
@@ -432,24 +436,26 @@ impl RetainedState {
                         FontDriveGoal::Complete,
                         counters,
                     );
-                    if driven.is_none() && scratch.font_drive.request.is_some() {
+                    if let Err(Unanswered::Suspended(_)) = driven {
                         scratch.next_pseudo = pseudo_index;
                         scratch.pseudo_uses_substitution = pseudo_uses_substitution;
                     }
                     let (table, length, longhand_evaluations, font) = driven?;
                     let font = font.expect("a full drive resolves the font");
-                    let (record, _) = self.assemble_and_publish_engine_record(
-                        target,
-                        Some(new_element_record),
-                        table,
-                        &length,
-                        &font,
-                        environment,
-                        0,
-                        cascade_state,
-                        &mut scratch.computability,
-                        counters,
-                    )?;
+                    let (record, _) = self
+                        .assemble_and_publish_engine_record(
+                            target,
+                            Some(new_element_record),
+                            table,
+                            &length,
+                            &font,
+                            environment,
+                            0,
+                            cascade_state,
+                            &mut scratch.computability,
+                            counters,
+                        )
+                        .or_refused()?;
                     if let Some(key) = key {
                         scratch.pseudo_cohorts.insert(key, record);
                         if self.engine_pseudo_record_cache.len() >= COLD_RECORD_CACHE_LIMIT {
@@ -472,7 +478,7 @@ impl RetainedState {
             );
         }
         scratch.pseudo_uses_substitution = pseudo_uses_substitution;
-        Some(())
+        Ok(())
     }
 
     /// Account for a pseudo-element record the engine settled (a removal when `new_style_record`
