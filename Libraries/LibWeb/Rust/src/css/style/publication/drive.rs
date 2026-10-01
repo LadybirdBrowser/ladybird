@@ -138,6 +138,8 @@ struct PendingFontDrive {
     /// take up someone else's table.
     target: computed::ComputedStyleTarget,
     root_font_complete: bool,
+    /// The monospace recascade's size the table already holds, which the remaining phases read.
+    recascaded_font_size: Option<i32>,
     table: ComputedLonghandTable,
     results: crate::css::style_compute::FfiLonghandDriverResults,
     effective_color_scheme: i16,
@@ -145,6 +147,52 @@ struct PendingFontDrive {
 }
 
 impl RetainedState {
+    /// The font size the monospace recascade gives a drive target, and whether reaching it read the
+    /// viewport: the cascaded font-size of every ancestor it inherits from, root first, walked again
+    /// from a 13px default. A pseudo-element inherits from its originating element. `None` when a
+    /// length on the way needs font metrics only C++ resolves yet; a `calc()` is skipped as C++
+    /// skips it.
+    pub(super) fn monospace_recascaded_font_size(
+        &self,
+        target: computed::ComputedStyleTarget,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+    ) -> Option<(i32, bool)> {
+        use crate::css::css_pixels::CssPixels;
+        use crate::css::style_compute::{
+            FfiFontSizeRecascadeDocumentInputs, FontSizeRecascadeStatus, recascade_font_size_batch,
+        };
+
+        let mut tables = Vec::new();
+        let mut ancestor = match target.is_pseudo() {
+            true => Some(target.node()),
+            false => self.tree.inheritance_parent(target.node()),
+        };
+        while let Some(node) = ancestor {
+            tables.push(
+                self.computed_group_sets
+                    .assigned_style_record(node)
+                    .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
+                    .and_then(|view| unsafe { view.longhand_table.as_ref() })
+                    .map_or(std::ptr::null(), ComputedLonghandTable::raw_cascaded_font_size),
+            );
+            ancestor = self.tree.inheritance_parent(node);
+        }
+        tables.reverse();
+        let default_size = CssPixels::from_integer(13).raw_value();
+        let batch = recascade_font_size_batch(
+            tables.len(),
+            |index| tables[index],
+            0,
+            default_size,
+            false,
+            default_size,
+            FfiFontSizeRecascadeDocumentInputs::from_document(inputs),
+            std::ptr::null(),
+        );
+        (batch.status == FontSizeRecascadeStatus::Complete)
+            .then_some((batch.current_size_raw, batch.depends_on_viewport_metrics))
+    }
+
     /// Run the drive's remaining phase for the selected longhands over a copy of the node's
     /// current table, against the record's own font metrics, the document's computation inputs
     /// and the parent's record. The required driver inputs recompute on every drive and their
@@ -402,13 +450,27 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailUnhosted);
             return Err(Unanswered::Refused);
         }
-        if store
-            .winning_declaration(prop::FONT_FAMILY)
-            .is_some_and(|(value, ..)| font_family_is_monospace(unsafe { &*value.cast::<StyleValueData>() }))
-        {
-            counters.bump(Counter::EngineComputedRecordBailFontPhase);
-            return Err(Unanswered::Refused);
-        }
+        // HACK: A cascade that ends in `font-family: monospace` re-runs the font-size cascade over
+        //       the whole ancestor chain against a 13px default instead of the 16px one, which
+        //       changes what a keyword size an ancestor declared means. See
+        //       `StyleComputer::recascade_font_size_if_needed`.
+        let mut recascaded_font_size_reads_viewport = false;
+        let recascaded_font_size =
+            if let Some(pending) = font_scratch.pending.as_ref().filter(|pending| pending.target == target) {
+                pending.recascaded_font_size
+            } else if store
+                .winning_declaration(prop::FONT_FAMILY)
+                .is_some_and(|(value, ..)| font_family_is_monospace(unsafe { &*value.cast::<StyleValueData>() }))
+            {
+                let Some((recascaded, reads_viewport)) = self.monospace_recascaded_font_size(target, inputs) else {
+                    counters.bump(Counter::EngineComputedRecordBailMonospaceQuirk);
+                    return Err(Unanswered::Refused);
+                };
+                recascaded_font_size_reads_viewport = reads_viewport;
+                Some(recascaded)
+            } else {
+                None
+            };
         let old_table = match old_style_record {
             Some(old_style_record) => {
                 let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
@@ -575,7 +637,7 @@ impl RetainedState {
                 document_supported_scheme_count: usize::from(inputs.document_supported_scheme_count),
             },
             is_th_element: has(fact::IS_TH),
-            has_new_font_size: false,
+            has_new_font_size: recascaded_font_size.is_some(),
             has_tree_counting_context: false,
             sibling_count: 0,
             sibling_index: 0,
@@ -682,6 +744,20 @@ impl RetainedState {
             )
         };
         if !resuming {
+            // The recascaded size stands in for the element's cascaded `font-size`, which the drive
+            // then leaves alone, exactly as C++ writes it into the working set before driving. An
+            // element that declares its own `font-size` still has that declaration win, because the
+            // drive reads a winning declaration before it consults this.
+            if let Some(recascaded) = recascaded_font_size {
+                table.set_computed(
+                    prop::FONT_SIZE,
+                    StyleValueData::Length {
+                        value: CssPixels::from_raw(recascaded).to_double(),
+                        unit: crate::css::style_compute::px_length_unit(),
+                    },
+                    -1,
+                );
+            }
             drive(
                 counters,
                 &mut table,
@@ -692,6 +768,12 @@ impl RetainedState {
                 std::ptr::null(),
                 std::ptr::null(),
             );
+            // A recascaded size that read the viewport makes the element's style and font metrics
+            // read it, as C++ marks them beside the size it writes.
+            if recascaded_font_size_reads_viewport {
+                results.depends_on_viewport_metrics = true;
+                results.font_metrics_depend_on_viewport_metrics = true;
+            }
         }
 
         // The element's own font, resolved as the C++ font computer would for these values.
@@ -784,6 +866,7 @@ impl RetainedState {
             font_scratch.pending = Some(PendingFontDrive {
                 target,
                 root_font_complete: false,
+                recascaded_font_size,
                 table,
                 results,
                 effective_color_scheme,
@@ -857,6 +940,7 @@ impl RetainedState {
             font_scratch.pending = Some(PendingFontDrive {
                 target,
                 root_font_complete: true,
+                recascaded_font_size,
                 table,
                 results,
                 effective_color_scheme,

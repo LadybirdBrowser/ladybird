@@ -339,6 +339,7 @@ impl RetainedState {
                 .node_inherited_groups_identity(node)
                 .zip(self.box_type_parent_display(node))
                 .map(|(inherited_groups, parent_display)| PseudoCohortKey {
+                    monospace_recascaded_font_size: state.map_or(0, |state| self.monospace_cohort_key(target, state)),
                     parent_record: if state
                         .is_some_and(|state| self.state_explicitly_inherits_non_inherited_property(node, state))
                     {

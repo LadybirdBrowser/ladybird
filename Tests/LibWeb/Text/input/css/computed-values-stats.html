@@ -10,7 +10,8 @@
         println(`totalComputedValuesCreated >= liveComputedValues: ${stats.totalComputedValuesCreated >= stats.liveComputedValues}`);
 
         let before = internals.computedValuesStats().totalComputedValuesCreated;
-        document.getElementById("target").style.color = "red";
+        // A container-relative length is one only C++ computes.
+        document.getElementById("target").style.width = "10cqw";
         internals.updateStyle();
         let after = internals.computedValuesStats().totalComputedValuesCreated;
         println(`restyle creates new ComputedValues: ${after > before}`);

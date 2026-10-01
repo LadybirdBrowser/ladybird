@@ -5376,6 +5376,12 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
             current_size.raw_value(),
             current_size_depends_on_viewport_metrics,
             default_monospace_font_size_in_px.raw_value(),
+            ComputedValuesFFI::FfiFontSizeRecascadeDocumentInputs {
+                .root_font_size = m_root_element_font_metrics.font_size.to_double(),
+                .root_font_metrics_depend_on_viewport_metrics = m_root_element_font_metrics_depend_on_viewport_metrics,
+                .viewport_width = viewport_rect().width().to_double(),
+                .viewport_height = viewport_rect().height().to_double(),
+            },
             length_resolution_context);
     };
 
