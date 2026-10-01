@@ -32,9 +32,14 @@
         await regularFace.load();
         internals.updateStyle();
 
+        // A font-environment reaction is settled by the style engine where it can be and by C++
+        // otherwise, so count both: what this test is about is how many elements were recomputed,
+        // not which side recomputed them.
         const counters = internals.getStyleInvalidationCounters();
-        println(`affected weight recomputed: ${counters.elementStyleRecomputations > 0}`);
-        println(`unaffected weights skipped: ${counters.elementStyleRecomputations < 10}`);
+        const recomputed = counters.elementStyleRecomputations + counters.engineComputedStyleRecords;
+        println(`affected weight recomputed: ${recomputed > 0}`);
+        println(`unaffected weights skipped: ${recomputed < 10}`);
+        println(`affected weight computed by the style engine: ${counters.engineComputedStyleRecords > 0}`);
         println(`regular face loaded: ${regularFace.status}`);
     });
 </script>
