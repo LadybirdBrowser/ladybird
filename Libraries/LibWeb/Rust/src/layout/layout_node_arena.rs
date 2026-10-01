@@ -930,7 +930,10 @@ impl LayoutNodeArena {
 
     pub(crate) fn enroll_node_for_replaced_content_facts_sync_if_eligible(&self, node: NodeSlotId) {
         let data = self.data(node);
-        if !super::node_facts::node_may_have_replaced_content_facts_including_size_containment(data) {
+        // The pass negotiates an <svg> root's natural size itself.
+        if !super::node_facts::node_may_have_replaced_content_facts_including_size_containment(data)
+            || data.kind.get() == NodeKind::SVGSVGBox
+        {
             return;
         }
         let mut enrolled_nodes = self.nodes_enrolled_for_replaced_content_facts_sync.borrow_mut();
