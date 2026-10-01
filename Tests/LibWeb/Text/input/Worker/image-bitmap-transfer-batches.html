@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const workerSource = `
+            onmessage = event => {
+                const { bitmaps, buffer, port } = event.data;
+                try {
+                    const canvas = new OffscreenCanvas(1, 1);
+                    const context = canvas.getContext("2d");
+                    for (const bitmap of bitmaps) {
+                        if (bitmap.width !== 1 || bitmap.height !== 1)
+                            throw new Error("Transferred bitmap dimensions changed");
+                        context.clearRect(0, 0, 1, 1);
+                        context.drawImage(bitmap, 0, 0);
+                        const pixels = context.getImageData(0, 0, 1, 1).data;
+                        if (pixels.join(",") !== "255,0,0,255")
+                            throw new Error("Transferred bitmap pixels changed");
+                        bitmap.close();
+                    }
+                    if (buffer && new Uint8Array(buffer)[0] !== 42)
+                        throw new Error("Transferred buffer contents changed");
+                    if (port) {
+                        if (event.data.queued) {
+                            port.onmessage = queuedEvent => {
+                                try {
+                                    for (const bitmap of queuedEvent.data) {
+                                        context.clearRect(0, 0, 1, 1);
+                                        context.drawImage(bitmap, 0, 0);
+                                        if (context.getImageData(0, 0, 1, 1).data.join(",") !== "255,0,0,255")
+                                            throw new Error("Queued bitmap pixels changed");
+                                        bitmap.close();
+                                    }
+                                    port.postMessage("queued bitmap pixels preserved");
+                                } catch (error) {
+                                    postMessage({ error: String(error) });
+                                } finally {
+                                    port.close();
+                                }
+                            };
+                        } else {
+                            port.postMessage("port remained connected");
+                            port.close();
+                        }
+                    }
+                    postMessage({ count: bitmaps.length });
+                } catch (error) {
+                    postMessage({ error: String(error) });
+                }
+            };
+        `;
+        const workerURL = URL.createObjectURL(new Blob([workerSource], { type: "application/javascript" }));
+        const worker = new Worker(workerURL);
+        try {
+            for (const mixed of [false, true]) {
+                const count = 1000;
+                const pixels = new ImageData(new Uint8ClampedArray([255, 0, 0, 255]), 1, 1);
+                const bitmaps = await Promise.all(Array.from({ length: count }, () => createImageBitmap(pixels)));
+                const message = { bitmaps };
+                const transfer = [...bitmaps];
+                const received = new Promise((resolve, reject) => {
+                    worker.onmessage = event => event.data.error ? reject(new Error(event.data.error)) : resolve(event.data.count);
+                    worker.onerror = event => reject(new Error(event.message));
+                });
+                let portReceived = Promise.resolve();
+                let channel;
+                if (mixed) {
+                    channel = new MessageChannel();
+                    message.buffer = new Uint8Array([42]).buffer;
+                    message.port = channel.port1;
+                    transfer.unshift(message.buffer, message.port);
+                    portReceived = new Promise((resolve, reject) => {
+                        channel.port2.onmessage = event => event.data === "port remained connected" ? resolve() : reject(new Error("Port message changed"));
+                    });
+                }
+                worker.postMessage(message, transfer);
+                if (bitmaps.some(bitmap => bitmap.width !== 0 || bitmap.height !== 0))
+                    throw new Error("Sending did not detach every bitmap");
+                if (mixed && message.buffer.byteLength !== 0)
+                    throw new Error("Sending did not detach the buffer");
+                const [receivedCount] = await Promise.all([received, portReceived]);
+                if (receivedCount !== count)
+                    throw new Error("Received bitmap count changed");
+                if (channel)
+                    channel.port2.close();
+                println(`${count} bitmaps${mixed ? " with ArrayBuffer and MessagePort" : ""} transferred with intact pixels`);
+            }
+            const channel = new MessageChannel();
+            const pixels = new ImageData(new Uint8ClampedArray([255, 0, 0, 255]), 1, 1);
+            const bitmaps = await Promise.all(Array.from({ length: 1000 }, () => createImageBitmap(pixels)));
+            channel.port1.postMessage(bitmaps, bitmaps);
+            if (bitmaps.some(bitmap => bitmap.width !== 0 || bitmap.height !== 0))
+                throw new Error("Queueing did not detach every bitmap");
+            const queuedReceived = new Promise((resolve, reject) => {
+                channel.port1.onmessage = event => event.data === "queued bitmap pixels preserved" ? resolve() : reject(new Error("Queued port message changed"));
+                worker.onmessage = event => {
+                    if (event.data.error)
+                        reject(new Error(event.data.error));
+                };
+                worker.onerror = event => reject(new Error(event.message));
+            });
+            worker.postMessage({ bitmaps: [], port: channel.port2, queued: true }, [channel.port2]);
+            await queuedReceived;
+            channel.port1.close();
+            println("MessagePort with 1000 queued bitmaps transferred with intact pixels");
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        } finally {
+            worker.terminate();
+            URL.revokeObjectURL(workerURL);
+            done();
+        }
+    });
+</script>

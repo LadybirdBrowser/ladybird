@@ -1,0 +1,7 @@
+Original after transfer: 0x0
+Clone after closing original: 3x2, 255,0,0,255,0,255,0,128,0,0,255,255,255,255,0,255,0,0,0,0,255,255,255,255
+Transferred after closing clone: 3x2, 255,0,0,255,0,255,0,128,0,0,255,255,255,255,0,255,0,0,0,0,255,255,255,255
+Previous receiver after transfer: 0x0
+Transferred again: 3x2, 255,0,0,255,0,255,0,128,0,0,255,255,255,255,0,255,0,0,0,0,255,255,255,255
+Closed receiver: 0x0
+Transferring closed receiver: DataCloneError

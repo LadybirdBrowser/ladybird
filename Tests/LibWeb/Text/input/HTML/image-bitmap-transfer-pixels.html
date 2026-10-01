@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function pixels(bitmap) {
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext("2d");
+        context.drawImage(bitmap, 0, 0);
+        return Array.from(context.getImageData(0, 0, canvas.width, canvas.height).data).join(",");
+    }
+
+    asyncTest(async done => {
+        const data = new Uint8ClampedArray([
+            255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 255,
+            255, 255, 0, 255, 0, 0, 0, 0, 255, 255, 255, 255,
+        ]);
+        const original = await createImageBitmap(new ImageData(data, 3, 2));
+        const clone = structuredClone(original);
+        const transferred = structuredClone(original, { transfer: [original] });
+        println(`Original after transfer: ${original.width}x${original.height}`);
+        original.close();
+        println(`Clone after closing original: ${clone.width}x${clone.height}, ${pixels(clone)}`);
+        clone.close();
+        println(`Transferred after closing clone: ${transferred.width}x${transferred.height}, ${pixels(transferred)}`);
+
+        const retransferred = structuredClone(transferred, { transfer: [transferred] });
+        println(`Previous receiver after transfer: ${transferred.width}x${transferred.height}`);
+        transferred.close();
+        println(`Transferred again: ${retransferred.width}x${retransferred.height}, ${pixels(retransferred)}`);
+        retransferred.close();
+        println(`Closed receiver: ${retransferred.width}x${retransferred.height}`);
+        try {
+            structuredClone(retransferred, { transfer: [retransferred] });
+            println("Transferring closed receiver: succeeded");
+        } catch (error) {
+            println(`Transferring closed receiver: ${error.name}`);
+        }
+        done();
+    });
+</script>

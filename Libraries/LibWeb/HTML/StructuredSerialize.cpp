@@ -2261,6 +2261,21 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
     TRY(structured_serialize_internal(vm, serialized_writer, value, false, memory));
     auto serialized_record = serialized_writer.take_ipc_record();
 
+    // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there
+    //         is not enough memory for it, the pixels travel inline.
+    Optional<ImageBitmap::SharedPixels> image_bitmap_pixels;
+    Checked<size_t> image_bitmap_pixels_size = 0;
+    for (auto const& transferable : transfer_list) {
+        if (auto* image_bitmap = Bindings::impl_from<ImageBitmap>(transferable.ptr()); image_bitmap && image_bitmap->bitmap())
+            image_bitmap_pixels_size += ImageBitmap::shared_pixels_size(*image_bitmap->bitmap());
+    }
+    if (!image_bitmap_pixels_size.has_overflow() && image_bitmap_pixels_size.value() > 0) {
+        if (auto buffer = Core::AnonymousBuffer::create_with_size(image_bitmap_pixels_size.value()); !buffer.is_error()) {
+            image_bitmap_pixels = ImageBitmap::SharedPixels { .buffer = buffer.release_value(), .buffer_index = static_cast<u32>(serialized_writer.shared_buffers().size()) };
+            serialized_writer.shared_buffers().append(image_bitmap_pixels->buffer);
+        }
+    }
+
     // 4. Let transferDataHolders be a new empty List.
     Vector<TransferDataEncoder> transfer_data_holders;
     transfer_data_holders.ensure_capacity(transfer_list.size());
@@ -2327,7 +2342,10 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
             MUST(data_holder.encode(interface_name));
 
             // 4. Perform the appropriate transfer steps for the interface identified by interfaceName, given transferable and dataHolder.
-            TRY(transferable_object.transfer_steps(realm, data_holder));
+            if (interface_name == TransferType::ImageBitmap)
+                TRY(Bindings::impl_from<ImageBitmap>(transferable.ptr())->transfer_steps(data_holder, image_bitmap_pixels.has_value() ? &image_bitmap_pixels.value() : nullptr));
+            else
+                TRY(transferable_object.transfer_steps(realm, data_holder));
 
             // 5. Set transferable.[[Detached]] to true.
             transferable_object.set_detached(true);
@@ -2382,6 +2400,7 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
             continue;
 
         TransferDataDecoder decoder { move(transfer_data_holder) };
+        decoder.set_shared_buffers(serialize_with_transfer_result.shared_buffers);
 
         // 1. Let value be an uninitialized value.
         auto value = TRY(structured_deserialize_with_transfer_internal(decoder, target_realm));
@@ -2395,6 +2414,10 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
 
     // 4. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
     auto deserialized = TRY(structured_deserialize(vm, serialize_with_transfer_result.serialized, target_realm, memory, &serialize_with_transfer_result.shared_buffers));
+
+    // NB: The deserialized values hold their own references to the shared memory they use. The record can outlive its
+    //     delivery, as in a task that awaits garbage collection, so it must not keep that memory alive.
+    serialize_with_transfer_result.shared_buffers.clear();
 
     // 5. Return { [[Deserialized]]: deserialized, [[TransferredValues]]: transferredValues }.
     return DeserializedTransferRecord { .deserialized = deserialized, .transferred_values = move(transferred_values) };
