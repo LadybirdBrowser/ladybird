@@ -2773,6 +2773,9 @@ pub enum FfiNodeRecordReads {
     /// A tree-counting function, in the element's winners or its pseudo-elements', written or
     /// substituted: a change among the element's siblings reaches the records.
     SiblingPosition = 1 << 1,
+    /// An `inherit()` substitution, in the element's winners, its pseudo-elements' or the custom
+    /// properties either declares: a moved environment of the parent reaches the records.
+    InheritFunction = 1 << 2,
 }
 
 /// The raw custom-property environment identity a style record was published with.

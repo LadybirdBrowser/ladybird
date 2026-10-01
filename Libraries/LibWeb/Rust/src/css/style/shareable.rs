@@ -62,7 +62,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         computed_group_sets,
         custom_property_environments,
         nodes_with_substituted_records,
-        custom_declarations_reading_attributes,
+        custom_declaration_reads,
         nodes_with_tree_counting_records,
         element_custom_property_data,
         pseudo_element_custom_property_data,
@@ -164,7 +164,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(specified_values);
     assert_member_is_sync(winner_groups);
     assert_member_is_sync(nodes_with_substituted_records);
-    assert_member_is_sync(custom_declarations_reading_attributes);
+    assert_member_is_sync(custom_declaration_reads);
     assert_member_is_sync(nodes_with_tree_counting_records);
     assert_member_is_sync(element_custom_property_data);
     assert_member_is_sync(pseudo_element_custom_property_data);

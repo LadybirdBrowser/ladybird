@@ -850,10 +850,10 @@ pub struct RetainedState {
     /// The nodes whose engine-computed record substituted a custom property into a winner: what
     /// C++ notes as reading custom properties when it installs the record.
     nodes_with_substituted_records: HashSet<StyleNodeID>,
-    /// The elements whose own custom declarations, or their pseudo-elements', read the element's
-    /// attributes through `attr()`, as the resolution of their environments last found: what the
-    /// host notes beside their records.
-    custom_declarations_reading_attributes: HashSet<StyleNodeID>,
+    /// What the custom declarations of an element, or of its pseudo-elements, read beyond the
+    /// environment they resolve over, as `FfiNodeRecordReads` bits, for the elements whose
+    /// declarations read anything: what the host notes beside their records.
+    custom_declaration_reads: HashMap<StyleNodeID, u8>,
     /// Which of a node's records read its place among its siblings, written or produced by a
     /// substitution: a bit for its own record and one per synthetic pseudo-element kind, which
     /// each record the engine derives, or admits from C++, sets or clears as it is installed. A

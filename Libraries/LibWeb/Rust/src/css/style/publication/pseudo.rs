@@ -364,7 +364,7 @@ impl RetainedState {
                             && self.winner_groups.custom_declarations_of(state) == Default::default()
                             && !(self.custom_property_registrations_changed
                                 && self.state_has_substitutions(node, state))
-                            && !self.state_reads_attributes(node, state)
+                            && !self.state_reads_beyond_environment(node, state)
                             && self.winner_groups.states_are_semantically_equal(bound_state, state)
                     }
                     (None, None) => true,
@@ -378,14 +378,14 @@ impl RetainedState {
             // as an element's resolve over its parent's.
             let environment =
                 self.engine_custom_property_environment_of(node, Some(kind), element_environment, &inputs, counters)?;
-            // A store substituting `attr()` holds the element's attributes, which no other element
-            // shares.
-            let reads_attributes = state.is_some_and(|state| self.state_reads_attributes(node, state));
+            // A store substituting `attr()` or `inherit()` holds the element's attributes or its
+            // parent's values, which no other element shares.
+            let element_alone = state.is_some_and(|state| self.state_reads_beyond_environment(node, state));
             let store = match state {
                 Some(state) => match scratch
                     .pseudo_stores
                     .get(&(kind, state, environment))
-                    .filter(|_| !reads_attributes)
+                    .filter(|_| !element_alone)
                 {
                     Some(store) => store.clone(),
                     None => {
@@ -394,7 +394,10 @@ impl RetainedState {
                             node,
                             state,
                             Some(kind),
-                            environment,
+                            custom_property_cascade::SubstitutionEnvironment {
+                                own: environment,
+                                inherited: element_environment,
+                            },
                             &mut substituted,
                             counters,
                         )?);
@@ -402,7 +405,7 @@ impl RetainedState {
                             scratch.substituted_states.insert((state, environment));
                         }
                         scratch.store_capacity_bytes += store.capacity_bytes();
-                        if !reads_attributes {
+                        if !element_alone {
                             scratch.pseudo_stores.insert((kind, state, environment), store.clone());
                         }
                         store
@@ -425,13 +428,13 @@ impl RetainedState {
             }
             // What the record is derived from: the element's inherited style, display and
             // environment, and the element's record itself only when the state inherits a
-            // non-inherited property from it. A record whose winners read the originating
-            // element's attributes is that element's alone.
+            // non-inherited property from it. A record whose winners read beyond its environment
+            // is the originating element's alone.
             let key = self
                 .computed_group_sets
                 .node_inherited_groups_identity(node)
                 .zip(self.box_type_parent_display(node))
-                .filter(|_| !reads_attributes)
+                .filter(|_| !element_alone)
                 .map(|(inherited_groups, parent_display)| PseudoCohortKey {
                     monospace_recascaded_font_size: state.map_or(0, |state| self.monospace_cohort_key(target, state)),
                     parent_record: if kind == SELECTION
@@ -863,7 +866,7 @@ impl RetainedState {
             Some(parent) => self.held_custom_property_environment(parent, counters)?,
             None => 0,
         };
-        self.note_custom_declarations_reading_attributes(node, None, &custom_declarations);
+        self.note_custom_declaration_reads(node, None, &custom_declarations);
         let environment = self.engine_custom_property_environment_over(
             host,
             custom_declarations,
@@ -872,7 +875,17 @@ impl RetainedState {
             counters,
         )?;
         let mut substituted = false;
-        let store = self.cascaded_store_for_state(node, state, None, environment, &mut substituted, counters)?;
+        let store = self.cascaded_store_for_state(
+            node,
+            state,
+            None,
+            custom_property_cascade::SubstitutionEnvironment {
+                own: environment,
+                inherited: parent_environment,
+            },
+            &mut substituted,
+            counters,
+        )?;
         let pseudo_styles = self.pseudo_style_mask_or_rematch(node, counters);
         let FullDrive::Driven(DrivenTable {
             table,
