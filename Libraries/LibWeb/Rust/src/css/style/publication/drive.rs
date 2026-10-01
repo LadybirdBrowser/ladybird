@@ -451,9 +451,10 @@ impl RetainedState {
                 == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
             resolved_viewport_relative_length: &raw mut resolved_viewport_relative_length,
         };
-        // No element fact reaches the remaining phase through this environment: the moved
-        // properties were checked not to need one, and the required driver inputs are compared
-        // against the record below.
+        // No element fact reaches the remaining phase through this environment but the element's
+        // place among its siblings: the moved properties were checked not to need one, and the
+        // required driver inputs are compared against the record below.
+        let sibling_position = self.sibling_position(node);
         let environment = FfiStyleComputationEnvironment {
             box_type_input: crate::css::style_compute::rust_box_type_transformation_input(
                 0,
@@ -469,9 +470,9 @@ impl RetainedState {
             },
             is_th_element: false,
             has_new_font_size: false,
-            has_tree_counting_context: false,
-            sibling_count: 0,
-            sibling_index: 0,
+            has_tree_counting_context: sibling_position.is_some(),
+            sibling_count: sibling_position.map_or(0, |position| u64::from(position.count)),
+            sibling_index: sibling_position.map_or(0, |position| u64::from(position.index)),
             random_base_values: std::ptr::null(),
             random_base_value_count: 0,
             document_base_url: document_base_url.as_ptr(),
@@ -514,7 +515,8 @@ impl RetainedState {
             Counter::EnginePartialLonghandEvaluations,
             u64::from(results.longhand_evaluations),
         );
-        if results.uses_tree_counting_function {
+        // A tree-counting value is admitted only where the retained tree places the element.
+        if results.uses_tree_counting_function && sibling_position.is_none() {
             counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }
@@ -814,6 +816,8 @@ impl RetainedState {
             zero_advance: inputs.root_font_zero_advance,
             line_height: inputs.root_line_height,
         };
+        // A tree-counting function on a pseudo-element counts its originating element's siblings.
+        let sibling_position = self.sibling_position(subject.target.node());
         let environment = FfiStyleComputationEnvironment {
             box_type_input: crate::css::style_compute::rust_box_type_transformation_input(
                 facts,
@@ -829,9 +833,9 @@ impl RetainedState {
             },
             is_th_element: has(fact::IS_TH),
             has_new_font_size: recascaded_font_size.is_some(),
-            has_tree_counting_context: false,
-            sibling_count: 0,
-            sibling_index: 0,
+            has_tree_counting_context: sibling_position.is_some(),
+            sibling_count: sibling_position.map_or(0, |position| u64::from(position.count)),
+            sibling_index: sibling_position.map_or(0, |position| u64::from(position.index)),
             random_base_values: std::ptr::null(),
             random_base_value_count: 0,
             document_base_url: document_base_url.as_ptr(),
@@ -1191,7 +1195,8 @@ impl RetainedState {
             &raw const input_line_height_metrics,
             line_height_value,
         );
-        if results.uses_tree_counting_function {
+        // A tree-counting value is admitted only where the retained tree places the element.
+        if results.uses_tree_counting_function && sibling_position.is_none() {
             counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }

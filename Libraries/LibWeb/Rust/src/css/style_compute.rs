@@ -1450,7 +1450,7 @@ fn container_relative_length_unit_bit(unit: u8) -> u8 {
     }
 }
 
-fn collect_external_value_dependencies(value: &StyleValueData) -> ExternalValueDependencies {
+pub(crate) fn collect_external_value_dependencies(value: &StyleValueData) -> ExternalValueDependencies {
     fn collect_optional(value: &RetainedStyleValueData, dependencies: &mut ExternalValueDependencies) {
         if let Some(value) = value.optional_data() {
             collect(value, dependencies);

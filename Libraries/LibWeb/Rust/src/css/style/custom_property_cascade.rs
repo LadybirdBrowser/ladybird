@@ -933,21 +933,27 @@ impl RetainedState {
     /// What a node's records read beyond their cascade, as `FfiNodeRecordReads` bits, for the row
     /// that installs them: an `attr()` in the element's winners, in its pseudo-elements' (which
     /// read the originating element's attributes), or in the custom properties either declares,
-    /// as their resolution found.
+    /// as their resolution found; a tree-counting function in the records the engine derived for
+    /// the element or its pseudo-elements, written or substituted, as their installation noted.
     pub(super) fn node_record_reads(&self, node: StyleNodeID) -> u8 {
         let groups = self.current_winner_groups();
-        let reads_attributes = matches!(
-            groups.token_for(WinnerGroupKey::current(node, self.program.version())),
-            Lookup::Known((_, state)) if self.state_reads_attributes(node, state)
-        ) || groups
-            .pseudo_states(node)
-            .any(|(_, _, state, _)| self.state_reads_attributes(node, state))
-            || self.custom_declarations_reading_attributes.contains(&node);
-        if reads_attributes {
-            bridge::FfiNodeRecordReads::Attributes as u8
-        } else {
-            0
+        let state = match groups.token_for(WinnerGroupKey::current(node, self.program.version())) {
+            Lookup::Known((_, state)) => Some(state),
+            _ => None,
+        };
+        let mut reads = 0;
+        if state.is_some_and(|state| self.state_reads_attributes(node, state))
+            || groups
+                .pseudo_states(node)
+                .any(|(_, _, state, _)| self.state_reads_attributes(node, state))
+            || self.custom_declarations_reading_attributes.contains(&node)
+        {
+            reads |= bridge::FfiNodeRecordReads::Attributes as u8;
         }
+        if self.nodes_with_tree_counting_records.contains_key(&node) {
+            reads |= bridge::FfiNodeRecordReads::SiblingPosition as u8;
+        }
+        reads
     }
 
     /// What a written value with `var()` references substitutes to for a property under an

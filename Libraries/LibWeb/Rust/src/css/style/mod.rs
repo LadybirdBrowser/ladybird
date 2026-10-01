@@ -854,6 +854,12 @@ pub struct RetainedState {
     /// attributes through `attr()`, as the resolution of their environments last found: what the
     /// host notes beside their records.
     custom_declarations_reading_attributes: HashSet<StyleNodeID>,
+    /// Which of a node's records read its place among its siblings, written or produced by a
+    /// substitution: a bit for its own record and one per synthetic pseudo-element kind, which
+    /// each record the engine derives, or admits from C++, sets or clears as it is installed. A
+    /// change among the node's siblings drives a record that reads it again in full, and C++ notes
+    /// the node as reading it when it installs the engine's records.
+    nodes_with_tree_counting_records: HashMap<StyleNodeID, u16>,
     /// The custom-property environment each element holds, for the elements that hold one. This is
     /// the only copy: the element reads its environment from here.
     element_custom_property_data: HashMap<StyleNodeID, inputs::HeldCustomPropertyEnvironment>,

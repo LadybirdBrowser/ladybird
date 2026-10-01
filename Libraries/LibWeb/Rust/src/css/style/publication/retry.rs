@@ -82,6 +82,7 @@ impl RetainedState {
                 .map(|parent| ColdRecordKey {
                     monospace_recascaded_font_size: self
                         .monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), cascade_state.1),
+                    sibling_position: self.sibling_position_key(node, cascade_state.1),
                     parent,
                     previous_style_record: old_style_record.raw(),
                     generation: cascade_state.0,

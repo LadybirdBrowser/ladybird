@@ -614,14 +614,16 @@ impl RetainedState {
         };
         // A moved environment reaches every winner written with a substitution, and so does a
         // moved custom-property registry. A winner written with `attr()` computes to what the
-        // element's attributes hold now, which no winner delta shows. Such a record is driven
-        // again in full, as is one holding no current cascade state or one under a moved document
+        // element's attributes hold now, and one reading the element's place among its siblings
+        // to where it stands now, which no winner delta shows. Such a record is driven again in
+        // full, as is one holding no current cascade state or one under a moved document
         // environment.
         let drive_in_full = holds_no_current_cascade_state
             || scratch.document_environment_moved
             || ((environment.is_some() || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
-            || self.state_reads_attributes(node, state);
+            || self.state_reads_attributes(node, state)
+            || self.record_reads_sibling_position(node, state);
         if delta.is_empty() {
             // The winners the record was computed from are the winners now. When everything else
             // the record was computed from is as it was too - the document environment, the rules
@@ -659,13 +661,15 @@ impl RetainedState {
                         )));
                     }
                     // Only the environment moved: the record keeps its groups and takes the new one.
+                    // A record reading its place among its siblings is driven in full, so one that
+                    // stands reads none.
                     if let Some(environment) = environment {
                         let delta = self
                             .computed_group_sets
                             .republish_engine_record_with_environment(node, environment)
                             .expect("an assigned record without an overlay moves to any environment");
                         counters.bump(Counter::EngineComputedRecordUnchangedWinners);
-                        self.note_engine_computed_record(node, delta, (generation, state), 0, 0, counters);
+                        self.note_engine_computed_record(node, delta, (generation, state), false, 0, 0, counters);
                         return Ok(ElementAnswer::Delta(delta));
                     }
                     counters.bump(Counter::EngineComputedRecordUnchangedWinners);
@@ -674,6 +678,7 @@ impl RetainedState {
                         node,
                         (old_style_record, old_style_record),
                         (generation, state),
+                        false,
                         0,
                         0,
                         counters,
@@ -728,9 +733,10 @@ impl RetainedState {
                 current_environment,
                 RootFontInputs::from_document(&inputs),
                 self.monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), state),
+                self.sibling_position_key(node, state),
             )
         });
-        if let Some(&(new_style_record, explicitly_inherited_groups)) =
+        if let Some(&(new_style_record, explicitly_inherited_groups, reads_sibling_position)) =
             cohort.as_ref().and_then(|cohort| scratch.cohorts.get(cohort))
         {
             self.note_node_substitution(node, scratch, state, current_environment);
@@ -743,7 +749,15 @@ impl RetainedState {
             if delta.0 == delta.1 {
                 counters.bump(Counter::ComputedWinnerPropagationStops);
             }
-            self.note_engine_computed_record(node, delta, (generation, state), delta_property_count, 0, counters);
+            self.note_engine_computed_record(
+                node,
+                delta,
+                (generation, state),
+                reads_sibling_position,
+                delta_property_count,
+                0,
+                counters,
+            );
             counters.bump(Counter::EngineComputedRecordCohortHits);
             return Ok(ElementAnswer::Delta(delta));
         }
@@ -974,10 +988,14 @@ impl RetainedState {
             counters.bump(Counter::ComputedWinnerPropagationStops);
         }
         let delta = assembly.delta;
+        // The record reads the element's place among its siblings where its state's winners do, as
+        // the store substitutes them.
+        let reads_sibling_position = store.uses_tree_counting_function(self);
         self.note_engine_computed_record(
             node,
             delta,
             (generation, state),
+            reads_sibling_position,
             delta_property_count,
             longhand_evaluations,
             counters,
@@ -985,7 +1003,9 @@ impl RetainedState {
         // A record driven in full stands for a cohort keyed by the parent's inherited inputs only
         // when the drive was partial.
         if !driver_input_moved && let Some(cohort) = cohort {
-            scratch.cohorts.insert(cohort, (delta.1, explicitly_inherited_groups));
+            scratch
+                .cohorts
+                .insert(cohort, (delta.1, explicitly_inherited_groups, reads_sibling_position));
         }
         scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
         Ok(ElementAnswer::Delta(delta))
@@ -1031,11 +1051,15 @@ impl RetainedState {
         }
     }
 
+    /// Account for an element record the engine derived, which reads the node's place among its
+    /// siblings as `reads_sibling_position` says, in place of whatever the record it replaces read.
+    #[allow(clippy::too_many_arguments)]
     fn note_engine_computed_record(
         &mut self,
         node: StyleNodeID,
         delta: (computed::FinalStyleRecordID, computed::FinalStyleRecordID),
         cascade_state: (u64, CascadeStateID),
+        reads_sibling_position: bool,
         delta_property_count: u64,
         longhand_evaluations: u32,
         counters: &mut Counters,
@@ -1047,6 +1071,7 @@ impl RetainedState {
         // describes, as the host publishes them when it installs a record: a descendant this batch
         // derives after it reads the container as the host will leave it.
         self.set_element_container_query_inputs(node, delta.1.raw());
+        self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
         self.engine_computed_records_pending
             .entry(node)
             .or_default()
@@ -1177,6 +1202,7 @@ impl RetainedState {
             .map(|parent| ColdRecordKey {
                 monospace_recascaded_font_size: self
                     .monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), state),
+                sibling_position: self.sibling_position_key(node, state),
                 parent,
                 previous_style_record: 0,
                 generation: cascade_state.0,
@@ -1237,7 +1263,7 @@ impl RetainedState {
                         environment,
                         inputs.custom_property_registration_generation,
                     ),
-                    store.is_ok(),
+                    store.as_ref().ok().map(|store| store.uses_tree_counting_function(self)),
                 );
                 let store = std::sync::Arc::new(store?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
@@ -1259,6 +1285,7 @@ impl RetainedState {
             .map(|parent| ColdRecordKey {
                 monospace_recascaded_font_size: self
                     .monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), state),
+                sibling_position: self.sibling_position_key(node, state),
                 parent,
                 previous_style_record: 0,
                 generation: cascade_state.0,
@@ -1283,6 +1310,9 @@ impl RetainedState {
         ) {
             return Ok(ElementAnswer::Delta(delta));
         }
+        // The record reads the element's place among its siblings where its state's winners do, as
+        // the store substitutes them.
+        let reads_sibling_position = store.uses_tree_counting_function(self);
         let donor = cache_key.and_then(|key| {
             let donor_key = ColdRecordDonorKey {
                 parent: key.parent,
@@ -1293,6 +1323,7 @@ impl RetainedState {
                 environment: key.environment,
                 font_environment_generation: key.font_environment_generation,
                 root_font_inputs: key.root_font_inputs,
+                sibling_position: key.sibling_position,
             };
             self.engine_cold_record_donors
                 .get(&donor_key)?
@@ -1360,6 +1391,7 @@ impl RetainedState {
                     node,
                     assembly.delta,
                     cascade_state,
+                    reads_sibling_position,
                     delta_property_count,
                     longhand_evaluations,
                     counters,
@@ -1374,6 +1406,7 @@ impl RetainedState {
                         record: assembly.delta.1,
                         swap_eligible: self.computed_group_sets.node_inherited_group_swap_eligible(node),
                         explicitly_inherited_groups,
+                        reads_sibling_position,
                     };
                     scratch.cold_cohorts.insert(cache_key, record);
                     self.remember_cold_record(cache_key, record);
@@ -1418,6 +1451,7 @@ impl RetainedState {
                 record: delta.1,
                 swap_eligible,
                 explicitly_inherited_groups,
+                reads_sibling_position,
             };
             scratch.cold_cohorts.insert(cache_key, record);
             self.remember_cold_record(cache_key, record);
@@ -1427,6 +1461,7 @@ impl RetainedState {
             node,
             delta,
             cascade_state,
+            reads_sibling_position,
             delta_property_count,
             longhand_evaluations,
             counters,
@@ -1466,6 +1501,7 @@ impl RetainedState {
                 record,
                 swap_eligible,
                 explicitly_inherited_groups,
+                reads_sibling_position,
             },
             from_cache,
         ) = cache_key.and_then(|cache_key| {
@@ -1498,7 +1534,15 @@ impl RetainedState {
         );
         let delta = (old_style_record, publication.style_record_identity);
         scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
-        self.note_engine_computed_record(node, delta, cascade_state, delta_property_count, 0, counters);
+        self.note_engine_computed_record(
+            node,
+            delta,
+            cascade_state,
+            reads_sibling_position,
+            delta_property_count,
+            0,
+            counters,
+        );
         counters.bump(if from_cache {
             Counter::EngineComputedRecordSharedHits
         } else {
@@ -1837,7 +1881,7 @@ impl RetainedState {
                 let target = computed::ComputedStyleTarget::new(node, u8::MAX);
                 self.computed_group_sets.take_pending_cascade_state(target);
                 self.revert_engine_computed_element_record(&pending);
-                scratch.cohorts.retain(|_, (record, _)| *record != derived);
+                scratch.cohorts.retain(|_, (record, ..)| *record != derived);
                 scratch.cold_cohorts.retain(|_, record| record.record != derived);
                 self.engine_cold_record_cache
                     .retain(|_, record| record.record != derived);
@@ -1994,6 +2038,7 @@ impl RetainedState {
                 environment: key.environment,
                 font_environment_generation: key.font_environment_generation,
                 root_font_inputs: key.root_font_inputs,
+                sibling_position: key.sibling_position,
             };
             let donors = self.engine_cold_record_donors.entry(donor_key).or_default();
             if let Some(existing) = donors.iter_mut().find(|donor| donor.state == key.state) {
@@ -2010,16 +2055,18 @@ impl RetainedState {
         }
     }
 
-    /// Whether a winner state is one the engine computes records from: every winner a plain rule
-    /// declaration with a written value that needs no document context. Substituted declarations
-    /// also depend on the custom-property environment and the registry used to parse them.
-    fn state_is_engine_computable(
+    /// Whether a record the engine computes from a winner state reads the node's place among its
+    /// siblings, or `None` when the state is not one the engine computes records from: every
+    /// winner a plain rule declaration with a written value that needs no document context.
+    /// Substituted declarations also depend on the custom-property environment and the registry
+    /// used to parse them.
+    fn computable_state_reads_sibling_position(
         &mut self,
         node: StyleNodeID,
         cascade_state: (u64, CascadeStateID),
         scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
-    ) -> bool {
+    ) -> Option<bool> {
         let environment = self
             .computed_group_sets
             .custom_property_environment_identity(node)
@@ -2048,7 +2095,8 @@ impl RetainedState {
                 StoreUse::Admission,
                 counters,
             )
-            .is_ok();
+            .ok()
+            .map(|store| store.uses_tree_counting_function(self));
         scratch.remember(key, admitted);
         admitted
     }
@@ -2250,11 +2298,20 @@ impl RetainedState {
         if self.computed_group_sets.custom_property_environment_identity(parent) != Some(custom_property_environment) {
             return;
         }
-        if !self.state_is_engine_computable(node, cascade_state, scratch, counters)
-            && !self.state_is_opaque_record_shareable(node, cascade_state.1, counters)
-        {
+        // An opaque record is shared only when every winner is context-free, which no winner
+        // reading the element's place among its siblings is.
+        let Some(reads_sibling_position) = self
+            .computable_state_reads_sibling_position(node, cascade_state, scratch, counters)
+            .or_else(|| {
+                self.state_is_opaque_record_shareable(node, cascade_state.1, counters)
+                    .then_some(false)
+            })
+        else {
             return;
-        }
+        };
+        // The element holds the record whether or not a later element takes it, and a change
+        // among its siblings has to drive one reading its place again in full.
+        self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
         // A record whose winners read the element's attributes is the element's alone.
         if self.state_reads_attributes(node, cascade_state.1) {
             return;
@@ -2266,6 +2323,7 @@ impl RetainedState {
         let key = ColdRecordKey {
             monospace_recascaded_font_size: self
                 .monospace_cohort_key(computed::ComputedStyleTarget::new(node, u8::MAX), cascade_state.1),
+            sibling_position: self.sibling_position_key(node, cascade_state.1),
             parent,
             previous_style_record: previous_style_record.map_or(0, computed::FinalStyleRecordID::raw),
             generation: cascade_state.0,
@@ -2282,6 +2340,7 @@ impl RetainedState {
                 record: style_record,
                 swap_eligible,
                 explicitly_inherited_groups: self.state_explicitly_inherited_groups(node, cascade_state.1),
+                reads_sibling_position,
             },
         );
     }
@@ -2479,6 +2538,17 @@ impl RetainedState {
         {
             reads |= cascade::STATE_READS_ATTRIBUTES;
         }
+        if self
+            .winner_groups
+            .winners_in_state(state)
+            .filter_map(|winner| self.winner_groups.resolved_winner(winner))
+            .filter_map(|winner| self.written_winner_value(node, &winner).ok().flatten())
+            .any(|(_, value, _)| {
+                crate::css::style_compute::collect_external_value_dependencies(value.data()).uses_tree_counting_function
+            })
+        {
+            reads |= cascade::STATE_READS_SIBLING_POSITION;
+        }
         self.winner_groups.note_state_reads(state, reads);
         reads
     }
@@ -2497,6 +2567,76 @@ impl RetainedState {
             return node;
         }
         self.backed_host_pseudo_element(node).map_or(node, |(_, host)| host)
+    }
+
+    /// Where `node` stands among its element siblings, as the tree-counting functions count: an
+    /// element whose parent is a shadow root has no parent element, and is an only child. `None`
+    /// for a node the retained tree does not hold.
+    pub(super) fn sibling_position(&self, node: StyleNodeID) -> Option<SiblingPosition> {
+        if !self.tree.is_live(node) {
+            return None;
+        }
+        let Some(parent) = self
+            .tree
+            .parent(node)
+            .filter(|&parent| self.tree.host_of(parent).is_none())
+        else {
+            return Some(SiblingPosition { count: 1, index: 1 });
+        };
+        let mut position = SiblingPosition::default();
+        for child in self
+            .tree
+            .dom_children(parent)
+            .filter(|child| child.text_index().is_none())
+        {
+            position.count += 1;
+            if child == node {
+                position.index = position.count;
+            }
+        }
+        Some(position)
+    }
+
+    /// Whether any of a state's winners is written with a tree-counting function.
+    pub(super) fn state_has_written_tree_counting(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
+        self.state_reads(node, state) & cascade::STATE_READS_SIBLING_POSITION != 0
+    }
+
+    /// Whether the record `node` holds reads its place among its siblings, written or substituted,
+    /// as its installation noted, or as a winner of `state` written with a tree-counting function
+    /// says of a record whose installation noted nothing.
+    pub(super) fn record_reads_sibling_position(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
+        self.nodes_with_tree_counting_records
+            .get(&node)
+            .is_some_and(|&bits| bits & ELEMENT_READS_SIBLING_POSITION != 0)
+            || self.state_has_written_tree_counting(node, state)
+    }
+
+    /// Note whether the record the engine derived for `node`, or for its pseudo-element of
+    /// `pseudo_kind` (`u8::MAX` for the element's own), reads the node's place among its siblings,
+    /// in place of what the record it replaces read.
+    fn note_sibling_position_reads(&mut self, node: StyleNodeID, pseudo_kind: u8, reads: bool) {
+        let bit = if pseudo_kind == u8::MAX {
+            ELEMENT_READS_SIBLING_POSITION
+        } else {
+            1 << pseudo_kind
+        };
+        if reads {
+            *self.nodes_with_tree_counting_records.entry(node).or_default() |= bit;
+        } else if let Some(bits) = self.nodes_with_tree_counting_records.get_mut(&node) {
+            *bits &= !bit;
+            if *bits == 0 {
+                self.nodes_with_tree_counting_records.remove(&node);
+            }
+        }
+    }
+
+    /// Where `node` stands among its siblings, for the record caches, when a winner of `state` is
+    /// written with a tree-counting function, or a substitution may produce one.
+    pub(super) fn sibling_position_key(&self, node: StyleNodeID, state: CascadeStateID) -> Option<SiblingPosition> {
+        (self.state_has_written_tree_counting(node, state) || self.state_has_substitutions(node, state))
+            .then(|| self.sibling_position(node))
+            .flatten()
     }
 
     /// The written values of a state's longhand winners that substitute: `var()`, `attr()` and
@@ -2759,7 +2899,9 @@ impl RetainedState {
             let context_free = checks
                 .longhand_context_free
                 .unwrap_or_else(|| value_computes_without_document_context(data))
-                || (resources_are_known && value_computes_without_document_context_but_for_resources(data).is_some());
+                || (resources_are_known && value_computes_without_document_context_but_for_resources(data).is_some())
+                || (value_computes_with_tree_counting_inputs(data, resources_are_known)
+                    && self.sibling_position(node).is_some());
             if !context_free
                 || (pseudo_kind.is_some()
                     && winner.property == prop::CONTENT
@@ -4067,6 +4209,18 @@ fn cold_record_facts(facts: u32) -> u32 {
     facts & !bridge::element_adjustment_fact::LAYOUT_TREE_FACTS
 }
 
+/// The bit a node's own record holds among what its records read of its place among its siblings,
+/// above one bit per synthetic pseudo-element kind.
+const ELEMENT_READS_SIBLING_POSITION: u16 = 1 << pseudo_kind::SYNTHETIC_COUNT;
+
+/// Where an element stands among its element siblings, counted from one: what `sibling-count()`
+/// and `sibling-index()` read.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub(super) struct SiblingPosition {
+    pub(super) count: u32,
+    pub(super) index: u32,
+}
+
 /// What a first record was derived from: the parent's side of the computation, the winner state
 /// (with the generation its identity belongs to), the element facts, the pseudo-elements the
 /// element has rules for, and the font environment.
@@ -4088,6 +4242,8 @@ pub(super) struct ColdRecordKey {
     environment: u64,
     font_environment_generation: u64,
     root_font_inputs: RootFontInputs,
+    /// Where the element stands among its siblings, when its winners read it.
+    sibling_position: Option<SiblingPosition>,
 }
 
 /// What a first record reads of the parent's style: its inherited groups, its custom-property
@@ -4104,18 +4260,30 @@ struct ColdRecordParent {
 }
 
 /// What a warm record is derived from: the record it replaces, the winner state, the element
-/// facts, the parent, the custom-property environment, the root's font inputs and the monospace
-/// recascade. A record whose winners read `attr()` has none: it is the element's alone.
-type RecordCohortKey = (u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs, i32);
+/// facts, the parent, the custom-property environment, the root's font inputs, the monospace
+/// recascade and the sibling position a tree-counting function reads. A record whose winners read
+/// `attr()` has none: it is the element's alone.
+type RecordCohortKey = (
+    u64,
+    CascadeStateID,
+    u32,
+    RecordDeltaParent,
+    u64,
+    RootFontInputs,
+    i32,
+    Option<SiblingPosition>,
+);
 
-/// A first record the engine keeps for reuse, with the swap eligibility its assignment carries
-/// and the style groups it read straight from the parent through an explicit `inherit`, which
-/// every element it answers for marks its own parent with.
+/// A first record the engine keeps for reuse, with the swap eligibility its assignment carries,
+/// the style groups it read straight from the parent through an explicit `inherit`, which every
+/// element it answers for marks its own parent with, and whether it reads the element's place
+/// among its siblings, which every element it answers for is noted as reading.
 #[derive(Clone, Copy)]
 pub(super) struct ColdRecord {
     record: computed::FinalStyleRecordID,
     swap_eligible: bool,
     explicitly_inherited_groups: u32,
+    reads_sibling_position: bool,
 }
 
 /// The value-independent half of a first-record key. Records under the same key may seed one
@@ -4130,6 +4298,7 @@ pub(super) struct ColdRecordDonorKey {
     environment: u64,
     font_environment_generation: u64,
     root_font_inputs: RootFontInputs,
+    sibling_position: Option<SiblingPosition>,
 }
 
 #[derive(Clone, Copy)]
@@ -4201,8 +4370,10 @@ impl WrittenValueChecks {
 
 #[derive(Default)]
 pub(super) struct EngineComputabilityScratch {
+    /// Whether a record computed from the state reads the node's place among its siblings, or
+    /// `None` when the engine computes none from it.
     // NB: Equal winner states can have different per-node written declaration inputs.
-    states: HashMap<(StyleNodeID, u64, CascadeStateID, u64, u64), bool>,
+    states: HashMap<(StyleNodeID, u64, CascadeStateID, u64, u64), Option<bool>>,
 }
 
 impl EngineComputabilityScratch {
@@ -4215,7 +4386,7 @@ impl EngineComputabilityScratch {
         }
     }
 
-    fn remember(&mut self, key: (StyleNodeID, u64, CascadeStateID, u64, u64), admitted: bool) {
+    fn remember(&mut self, key: (StyleNodeID, u64, CascadeStateID, u64, u64), admitted: Option<bool>) {
         if self.states.len() >= COLD_RECORD_CACHE_LIMIT {
             self.states.clear();
         }
@@ -4263,8 +4434,8 @@ pub(super) struct EngineComputedRecordScratch {
     /// The boundary that installs the record applies them.
     substitution_effects: Vec<(StyleNodeID, bool)>,
     /// Warm records derived this flush, by what they were derived from, with the style groups
-    /// they explicitly inherit.
-    cohorts: HashMap<RecordCohortKey, (computed::FinalStyleRecordID, u32)>,
+    /// they explicitly inherit and whether they read the element's place among its siblings.
+    cohorts: HashMap<RecordCohortKey, (computed::FinalStyleRecordID, u32, bool)>,
     computability: EngineComputabilityScratch,
     /// What each node the walk has reached tells its children: whether the chain above it is
     /// confined, and whether it resolved the record its children inherit from. A column with
@@ -4459,6 +4630,9 @@ pub(super) struct PseudoCohortKey {
     facts: u32,
     font_environment_generation: u64,
     root_font_inputs: RootFontInputs,
+    /// Where the originating element stands among its siblings, when the pseudo-element's winners
+    /// read it.
+    sibling_position: Option<SiblingPosition>,
 }
 
 /// The synthetic pseudo-element kinds, as the C++ `PseudoElement` enumeration numbers them.
@@ -4687,6 +4861,25 @@ fn property_starts_animation_or_counter_environment(property: u16) -> bool {
                 .is_some_and(|group| usize::from(group) == crate::css::table_group_builder::group_index::ANIMATION))
 }
 
+/// Whether a value computes from the document's computation inputs and the element's place among
+/// its siblings, which the retained tree supplies to the drive, and reads that place.
+fn value_computes_with_tree_counting_inputs(value: &StyleValueData, resources_are_known: bool) -> bool {
+    if matches!(
+        value,
+        StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
+    ) || crate::css::style_compute::value_is_computationally_independent(value).is_none()
+    {
+        return false;
+    }
+    let dependencies = crate::css::style_compute::external_value_dependencies(value);
+    dependencies.uses_tree_counting_function
+        && dependencies.container_relative_length_unit_mask == 0
+        && !dependencies.has_unfixed_random_sharing
+        && !dependencies.uses_random_function
+        && (resources_are_known
+            || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
+}
+
 /// Whether a written value computes from the record, the parent and the document's computation
 /// inputs alone: no custom-property substitution, and none of the element or sheet facts the C++
 /// computation gathers per drive.
@@ -4855,7 +5048,13 @@ mod tests {
                 assert_eq!(
                     engine
                         .state
-                        .state_is_engine_computable(node, cascade_state, &mut scratch, &mut engine.counters),
+                        .computable_state_reads_sibling_position(
+                            node,
+                            cascade_state,
+                            &mut scratch,
+                            &mut engine.counters
+                        )
+                        .is_some(),
                     node == first,
                 );
             }

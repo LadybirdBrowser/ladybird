@@ -1388,6 +1388,8 @@ impl std::ops::Deref for WinnerView<'_> {
 
 /// A state's winners substitute `attr()`.
 pub(super) const STATE_READS_ATTRIBUTES: u8 = 1 << 0;
+/// A state's winners are written with a tree-counting function.
+pub(super) const STATE_READS_SIBLING_POSITION: u8 = 1 << 1;
 /// What a state's winners read has been decided.
 const STATE_READS_DECIDED: u8 = 1 << 7;
 
