@@ -17,7 +17,6 @@
 #include <AK/InsertionSort.h>
 #include <AK/JsonObjectSerializer.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
@@ -85,7 +84,6 @@
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/TransitionEvent.h>
@@ -9067,14 +9065,6 @@ void Document::for_each_active_css_style_sheet(Function<void(CSS::StyleSheetStat
     if (m_dynamic_view_transition_style_sheet) {
         callback(*m_dynamic_view_transition_style_sheet);
     }
-}
-
-double Document::ensure_element_shared_css_random_base_value(CSS::RandomCachingKey const& random_caching_key)
-{
-    return m_element_shared_css_random_base_value_cache.ensure(random_caching_key, []() {
-        static XorShift128PlusRNG random_number_generator;
-        return random_number_generator.get();
-    });
 }
 
 static Optional<CSS::StyleSheetState&> find_style_sheet_with_url(Utf16View url, CSS::StyleSheetState& style_sheet)

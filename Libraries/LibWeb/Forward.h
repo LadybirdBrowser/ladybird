@@ -474,7 +474,6 @@ struct ComputationContext;
 struct CustomPropertyRegistration;
 struct LogicalAliasMappingContext;
 struct NormalGap;
-struct RandomCachingKey;
 struct RequiredInvalidationAfterStyleChange;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish

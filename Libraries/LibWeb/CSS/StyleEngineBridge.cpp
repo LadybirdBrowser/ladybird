@@ -220,6 +220,30 @@ StyleEngine::StyleRecordView StyleEngine::style_record_view(StyleRecordID style_
     return StyleEngineFFI::style_engine_style_record_view(m_impl, style_record.value());
 }
 
+double StyleEngine::ensure_random_base_value(StyleNodeID node, Utf16View name, bool element_shared)
+{
+    Vector<u16, 32> code_units;
+    code_units.ensure_capacity(name.length_in_code_units());
+    for (size_t i = 0; i < name.length_in_code_units(); ++i)
+        code_units.unchecked_append(name.code_unit_at(i));
+    return bit_cast<double>(ensure_random_base_value_bits(node, code_units, element_shared));
+}
+
+void StyleEngine::element_random_base_values(StyleNodeID node, Vector<u32>& name_lengths, Vector<u16>& name_units, Vector<u64>& value_bits) const
+{
+    struct Values {
+        Vector<u32>& name_lengths;
+        Vector<u16>& name_units;
+        Vector<u64>& value_bits;
+    } values { name_lengths, name_units, value_bits };
+    StyleEngineFFI::style_engine_element_random_base_values(m_impl, node.value(), &values, [](void* context, u16 const* name, size_t length, u64 bits) {
+        auto& values = *static_cast<Values*>(context);
+        values.name_lengths.append(static_cast<u32>(length));
+        values.name_units.append(name, length);
+        values.value_bits.append(bits);
+    });
+}
+
 void StyleEngine::decide_transitions(StyleRecordID before_style_record, void const* after_longhand_table, void const* after_animated_overlay, StyleValueFFI::FfiTransitionInput& input, StyleValueFFI::FfiTransitionAction* actions) const
 {
     StyleValueFFI::rust_decide_transitions(m_impl, before_style_record.value(), after_longhand_table, after_animated_overlay, &input, actions);

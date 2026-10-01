@@ -1,0 +1,2 @@
+after a move: true
+after a removal and reinsertion: true

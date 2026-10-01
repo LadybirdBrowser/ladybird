@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="first"><div id="target" style="width: random(1px, 1000000px)"></div></div>
+<div id="second"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const before = getComputedStyle(target).width;
+
+        document.getElementById("second").appendChild(target);
+        println(`after a move: ${getComputedStyle(target).width === before}`);
+
+        target.remove();
+        document.body.offsetWidth;
+        document.getElementById("first").appendChild(target);
+        println(`after a removal and reinsertion: ${getComputedStyle(target).width === before}`);
+    });
+</script>

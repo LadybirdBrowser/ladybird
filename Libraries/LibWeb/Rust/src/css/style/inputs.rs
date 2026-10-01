@@ -1485,6 +1485,7 @@ impl StyleEngineState {
                 held_style_records: HashMap::default(),
                 host_var_reads: HashMap::default(),
                 css_defined_animations: Default::default(),
+                random_base_values: Default::default(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
                 pending_element_style_computation_selections: HashMap::default(),
@@ -2966,6 +2967,7 @@ impl RetainedState {
             held_style_records,
             host_var_reads,
             css_defined_animations,
+            random_base_values,
             transition_baselines,
             custom_property_registrations_changed: _,
             pending_element_style_computation_selections,
@@ -3070,6 +3072,7 @@ impl RetainedState {
         }
         host_var_reads.remove(&node);
         css_defined_animations.retire(node);
+        random_base_values.retire(node);
         pending_element_style_computation_selections.remove(&node);
         pending_pseudo_style_computation_selections.remove(&node);
         // A retired identity can name another element before the epoch commits.

@@ -1338,6 +1338,27 @@ pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
     StyleNodeID::from_raw(node).map_or(0, |node| engine.pseudo_elements_with_custom_property_data(node))
 }
 
+/// Visits the random caching keys that name an element, with their values, for the element to keep
+/// while it has no style node.
+///
+/// # Safety
+/// `engine` must be live, and `visit` must not retain the name it is given.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_element_random_base_values(
+    engine: *const c_void,
+    node: u32,
+    context: *mut c_void,
+    visit: unsafe extern "C" fn(*mut c_void, *const u16, usize, u64),
+) {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return;
+    };
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    for (name, value) in engine.random_base_values.element_values(node) {
+        unsafe { visit(context, name.as_ptr(), name.len(), value.to_bits()) };
+    }
+}
+
 /// Applies the memory policy used while producing a replay recording.
 ///
 /// # Safety
@@ -1655,6 +1676,27 @@ pub unsafe fn replay_set_element_declared_properties(
         custom_declarations.to_vec(),
         Vec::new(),
         declarations_are_complete,
+    );
+}
+
+/// Takes the random base value a recorded draw gave, where a replay would draw one of its own.
+///
+/// # Safety
+/// `engine` must be live.
+#[cfg(feature = "style-recording")]
+pub unsafe fn replay_random_base_value(
+    engine: *mut c_void,
+    node: u32,
+    name: &[u16],
+    element_shared: bool,
+    value_bits: u64,
+) {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.random_base_values.set(
+        StyleNodeID::from_raw(node),
+        name,
+        element_shared,
+        f64::from_bits(value_bits),
     );
 }
 

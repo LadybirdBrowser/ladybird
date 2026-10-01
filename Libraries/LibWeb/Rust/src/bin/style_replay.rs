@@ -1181,6 +1181,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                 }
+                EventKind::EnsureRandomBaseValue => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let node = event.payload.read_u32()?;
+                    let name = event.payload.read_u16_vec()?;
+                    let element_shared = event.payload.read_bool()?;
+                    let value_bits = event.payload.read_u64()?;
+                    unsafe { bridge::replay_random_base_value(engine, node, &name, element_shared, value_bits) };
+                }
                 EventKind::AttributeValueTextRequirementsVersion => {
                     let _engine = read_engine(&mut event.payload, &live_engines)?;
                     let _recorded_version = event.payload.read_u64()?;

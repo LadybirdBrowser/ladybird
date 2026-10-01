@@ -80,7 +80,6 @@
 #include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -1115,13 +1114,8 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         random_base_values.ensure_capacity(resolved_batch.unfixed_random_sharing_count);
         for (auto const& sharing : ReadonlySpan<StyleValueFFI::FfiAnimationUnfixedRandomSharing> { resolved_batch.unfixed_random_sharings, resolved_batch.unfixed_random_sharing_count }) {
             VERIFY(sharing.name);
-            RandomCachingKey random_caching_key {
-                .name = css_string_from_rust(sharing.name),
-                .element_id = sharing.element_shared
-                    ? Optional<UniqueNodeID> { OptionalNone {} }
-                    : Optional<UniqueNodeID> { abstract_element.element().unique_id() },
-            };
-            random_base_values.empend(sharing.source, const_cast<DOM::Element&>(abstract_element.element()).ensure_css_random_base_value(random_caching_key));
+            auto name = css_string_from_rust(sharing.name);
+            random_base_values.empend(sharing.source, const_cast<StyleComputer&>(*this).style_engine().ensure_random_base_value(abstract_element.element().style_node_id(), name.view(), sharing.element_shared));
         }
         String document_base_url;
         if (resolved_batch.needs_document_base_url)
@@ -5661,12 +5655,9 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             .finalization_environment = &state.computation_environment,
             .finalization_color_scheme = static_cast<u8>(to_underlying(*resolution_state.color_scheme)),
             .draw_random_base_value = [](void* context_pointer, u16 const* name, size_t name_length, bool element_shared) {
-                auto& element = const_cast<DOM::Element&>(static_cast<NativeComputePropertiesContext*>(context_pointer)->abstract_element.element());
-                RandomCachingKey random_caching_key {
-                    .name = Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(name), name_length }),
-                    .element_id = element_shared ? Optional<UniqueNodeID> { OptionalNone {} } : Optional<UniqueNodeID> { element.unique_id() },
-                };
-                return element.ensure_css_random_base_value(random_caching_key);
+                auto& element = static_cast<NativeComputePropertiesContext*>(context_pointer)->abstract_element.element();
+                auto& style_engine = const_cast<StyleEngine&>(element.document().style_computer().style_engine());
+                return bit_cast<double>(style_engine.ensure_random_base_value_bits(element.style_node_id(), ReadonlySpan<u16> { name, name_length }, element_shared));
             },
             .random_base_context = context_pointer,
         };
@@ -5757,13 +5748,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             state.random_base_values.ensure_capacity(computation_requirements->unfixed_random_sharing_count);
             for (auto const& sharing : ReadonlySpan<ComputedValuesFFI::FfiUnfixedRandomSharing> { computation_requirements->unfixed_random_sharings, computation_requirements->unfixed_random_sharing_count }) {
                 VERIFY(sharing.name);
-                RandomCachingKey random_caching_key {
-                    .name = css_string_from_rust(sharing.name),
-                    .element_id = sharing.element_shared
-                        ? Optional<UniqueNodeID> { OptionalNone {} }
-                        : Optional<UniqueNodeID> { abstract_element.element().unique_id() },
-                };
-                state.random_base_values.empend(sharing.source, const_cast<DOM::Element&>(abstract_element.element()).ensure_css_random_base_value(random_caching_key));
+                auto name = css_string_from_rust(sharing.name);
+                state.random_base_values.empend(sharing.source, const_cast<StyleComputer&>(style_computer).style_engine().ensure_random_base_value(abstract_element.element().style_node_id(), name.view(), sharing.element_shared));
             }
             if (computation_requirements->environment_requirements & ComputedValuesFFI::CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT) {
                 state.style_sheet_base_urls.resize(context.cascaded_properties.source_slot_count());

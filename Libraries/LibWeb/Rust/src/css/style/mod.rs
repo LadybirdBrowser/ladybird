@@ -91,6 +91,7 @@ mod prefix;
 pub mod program;
 mod program_updates;
 mod publication;
+mod random_bases;
 #[cfg(feature = "style-recording")]
 pub mod record_replay;
 mod resource_contexts;
@@ -905,6 +906,9 @@ pub struct RetainedState {
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
     css_defined_animations: animations::CssDefinedAnimations,
+    /// The random base value each random caching key has been given, for the random functions the
+    /// document's styles hold.
+    random_base_values: random_bases::RandomBaseValues,
     /// https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
     /// Per transition target, by element and then pseudo-element kind, the before-change style its
     /// transitions are decided against for the rest of the style stabilization epoch, pinned until

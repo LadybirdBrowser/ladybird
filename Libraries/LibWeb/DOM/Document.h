@@ -382,8 +382,6 @@ public:
 
     void for_each_active_css_style_sheet(Function<void(CSS::StyleSheetState&)> const& callback) const;
 
-    double ensure_element_shared_css_random_base_value(CSS::RandomCachingKey const&);
-
     Optional<Utf16String> get_style_sheet_source(CSS::StyleSheetIdentifier const&) const;
 
     virtual Utf16FlyString node_name() const override { return "#document"_utf16_fly_string; }
@@ -2122,9 +2120,6 @@ private:
     bool m_rust_custom_property_registry_synced { false };
 
     CSS::StyleScope m_style_scope;
-
-    // https://drafts.csswg.org/css-values-5/#random-caching
-    HashMap<CSS::RandomCachingKey, double> m_element_shared_css_random_base_value_cache;
 
     // Cache of parsed selector queries for querySelectorAll/querySelector/matches/closest.
     // A null value means the selector string failed to parse.

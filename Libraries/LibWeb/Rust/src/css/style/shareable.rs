@@ -79,6 +79,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         held_style_records,
         host_var_reads,
         css_defined_animations,
+        random_base_values,
         transition_baselines,
         custom_property_registrations_changed,
         pending_element_style_computation_selections,
@@ -183,6 +184,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(held_style_records);
     assert_member_is_sync(host_var_reads);
     assert_member_is_sync(css_defined_animations);
+    assert_member_is_sync(random_base_values);
     assert_member_is_sync(transition_baselines);
     assert_member_is_sync(custom_property_registrations_changed);
     assert_member_is_sync(pending_element_style_computation_selections);
