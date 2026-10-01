@@ -527,8 +527,10 @@ void HTMLObjectElement::load_image()
     m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *url);
     // An image representation has a box only once the new request has image data.
     CSS::record_element_box_kind(*this);
+    CSS::record_element_replaced_content_input(*this);
     m_resource_request->add_callbacks(
         [this] {
+            CSS::record_element_replaced_content_input(*this);
             run_object_representation_completed_steps(Representation::Image);
             m_document_load_event_delayer_for_resource_load.take_last();
         },

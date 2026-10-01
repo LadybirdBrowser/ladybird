@@ -683,6 +683,9 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     text_nodes_enrolled_for_content_sync: RefCell<HashSet<NodeSlotId>>,
     nodes_enrolled_for_replaced_content_facts_sync: RefCell<Vec<NodeSlotId>>,
+    /// The image boxes that own their image's provider (`content: url(...)`), which shows an image
+    /// of the box's own rather than its element's.
+    rows_with_owned_image_provider: RefCell<HashSet<NodeSlotId>>,
     /// What the running pass has to tell the document, waiting for the commit that delivers it.
     messages_reported_during_pass: RefCell<Vec<super::commit::FfiCommitMessage>>,
     /// The rows the layout commit in progress gathers for the style engine's container queries.
@@ -776,6 +779,7 @@ impl LayoutNodeArena {
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
+            rows_with_owned_image_provider: RefCell::new(HashSet::default()),
             messages_reported_during_pass: RefCell::new(Vec::new()),
             layout_style_snapshot_commit: RefCell::new(Vec::new()),
             layout_tree_update_marks: RefCell::default(),
@@ -1101,6 +1105,7 @@ impl LayoutNodeArena {
         if let Some(slot) = self.replaced_content_facts.get_mut(index as usize) {
             *slot = ReplacedContentFactsSlot::default();
         }
+        self.rows_with_owned_image_provider.get_mut().remove(&id);
         // free() never interleaves with a layout pass (C++ is blocked on the
         // synchronous FFI entry), so a live record here means a run leaked.
         if let Some(slot) = self.run_used_records.get_mut().get_mut(index as usize) {
@@ -4308,6 +4313,20 @@ pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
     assert_eq!(arena.live_count, 0, "layout node arena destroyed with live slots");
 }
 
+/// Notes that the image box `id` owns its image's provider, and so shows an image of its own
+/// rather than its element's.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, and `id` a live image box.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_note_owned_image_provider(arena: *mut c_void, id: NodeSlotId) {
+    // SAFETY: Guaranteed by the caller.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    assert_eq!(arena.data(id).kind.get(), NodeKind::ImageBox);
+    arena.rows_with_owned_image_provider.borrow_mut().insert(id);
+}
+
 /// Records the characters a generated text row renders.
 ///
 /// # Safety
@@ -5047,7 +5066,8 @@ pub(crate) unsafe fn sync_enrolled_content_for_layout(arena: *mut c_void) {
         }
         live_replaced_nodes.push(node);
         let data = shared.data(node);
-        let facts = if super::node_facts::replaced_content_facts_need_host(data) {
+        let has_owned_image_provider = shared.rows_with_owned_image_provider.borrow().contains(&node);
+        let facts = if super::node_facts::replaced_content_facts_need_host(data, has_owned_image_provider) {
             let shell = shared.node_shell(node);
             let mut facts = FfiReplacedContentFacts::default();
             // SAFETY: The callback receives a live shell and a valid out-pointer, and no arena

@@ -31,7 +31,9 @@
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLHeadingElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
@@ -39,9 +41,11 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
+#include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSwitchElement.h>
@@ -751,7 +755,7 @@ static void set_replaced_content_input(StyleEngine& style_engine, StyleNodeID no
     style_engine.set_element_replaced_content_input(node, to_underlying(kind), present, values);
 }
 
-static void set_natural_size_input(StyleEngine& style_engine, StyleNodeID node, SizeWithAspectRatio const& natural_size)
+static void set_natural_size_input(StyleEngine& style_engine, StyleNodeID node, SizeWithAspectRatio const& natural_size, StyleEngineFFI::FfiReplacedContentInputKind kind = StyleEngineFFI::FfiReplacedContentInputKind::NaturalSize)
 {
     using Present = StyleEngineFFI::FfiReplacedContentInputPresent;
     u8 present = 0;
@@ -769,7 +773,17 @@ static void set_natural_size_input(StyleEngine& style_engine, StyleNodeID node, 
         values[2] = bit_cast<u32>(natural_size.aspect_ratio->numerator().raw_value());
         values[3] = bit_cast<u32>(natural_size.aspect_ratio->denominator().raw_value());
     }
-    set_replaced_content_input(style_engine, node, StyleEngineFFI::FfiReplacedContentInputKind::NaturalSize, present, values[0], values[1], values[2], values[3]);
+    set_replaced_content_input(style_engine, node, kind, present, values[0], values[1], values[2], values[3]);
+}
+
+// An image box's natural size: its image's, or zero while no image is available.
+static void set_image_natural_size_input(StyleEngine& style_engine, StyleNodeID node, Layout::ImageProvider const& image_provider)
+{
+    if (!image_provider.is_image_available()) {
+        set_natural_size_input(style_engine, node, { 0, 0, {} });
+        return;
+    }
+    set_natural_size_input(style_engine, node, { image_provider.intrinsic_width(), image_provider.intrinsic_height(), image_provider.intrinsic_aspect_ratio() });
 }
 
 // What the element gives the natural size of its replaced content, which layout resolves against the style of the
@@ -785,7 +799,20 @@ void record_element_replaced_content_input(DOM::Element& element)
         set_replaced_content_input(*style_engine, node, Kind::TextArea, 0, text_area->cols(), text_area->rows());
         return;
     }
+    if (auto const* image = as_if<HTML::HTMLImageElement>(element)) {
+        set_image_natural_size_input(*style_engine, node, *image);
+        return;
+    }
+    if (auto const* object = as_if<HTML::HTMLObjectElement>(element)) {
+        set_image_natural_size_input(*style_engine, node, *object);
+        return;
+    }
     if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
+        // An image button's box is an image box, which no size attribute sizes.
+        if (input->type_state() == HTML::HTMLInputElement::TypeAttributeState::ImageButton) {
+            set_image_natural_size_input(*style_engine, node, *input);
+            return;
+        }
         auto kind = Kind::Input;
         switch (input->type_state()) {
         case HTML::HTMLInputElement::TypeAttributeState::Text:
@@ -812,6 +839,13 @@ void record_element_replaced_content_input(DOM::Element& element)
                 natural_size = { size->width(), size->height(), size->width() / size->height() };
         }
         set_natural_size_input(*style_engine, node, natural_size);
+        return;
+    }
+    if (auto const* image = as_if<SVG::SVGImageElement>(element)) {
+        // An SVG <image> takes its image's natural size as the image reports it, and the default object size once
+        // something has decoded.
+        set_natural_size_input(*style_engine, node, { image->intrinsic_width(), image->intrinsic_height(), image->intrinsic_aspect_ratio() },
+            image->decoded_image_data() ? Kind::DecodedSvgImage : Kind::NaturalSize);
         return;
     }
     if (auto const* canvas = as_if<HTML::HTMLCanvasElement>(element))

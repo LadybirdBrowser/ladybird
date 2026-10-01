@@ -874,6 +874,8 @@ pub enum FfiReplacedContentInputKind {
     /// pixels: `first` is its width, `second` its height, and `third` and `fourth` the numerator
     /// and denominator of its aspect ratio. `present` says which of them it has.
     NaturalSize = 5,
+    /// An SVG `<image>` whose image has decoded: its natural size, as `NaturalSize`.
+    DecodedSvgImage = 6,
 }
 
 /// The bits of a replaced content input's `present`, for the kinds whose values can be missing.
