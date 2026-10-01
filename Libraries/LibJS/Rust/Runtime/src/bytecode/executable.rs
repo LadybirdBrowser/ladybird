@@ -10,7 +10,7 @@ use std::rc::Rc;
 use ak::Utf16FlyString;
 
 use crate::bytecode::class_blueprint::ClassBlueprint;
-use crate::bytecode::operand::{IdentifierTableIndex, PropertyKeyTableIndex};
+use crate::bytecode::operand::{IdentifierTableIndex, PropertyKeyTableIndex, StringTableIndex};
 use crate::frontend_host::rust_free_compiled_regex;
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::heap::cell_is_dead;
@@ -29,6 +29,7 @@ pub use crate::layout::property_lookup_cache::{
 };
 use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
+use crate::runtime::array::Array;
 use crate::runtime::big_int::{BigInt, SignedBigInteger};
 use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
 use crate::runtime::primitive_string::PrimitiveString;
@@ -37,6 +38,7 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::source_code::SourceCode;
 use crate::source_range::{Position, SourceRange};
+use libjs_runtime_macros::Trace;
 use libjs_rust::bytecode::basic_block::SourceMapEntry;
 use libjs_rust::bytecode::constant::WellKnownSymbolKind;
 use libjs_rust::bytecode::executable::ExecutableData;
@@ -582,6 +584,15 @@ define_static_property_lookup_cache_sites! {
     ValueIsRegExp,
     InstanceOfHasInstance,
     OrdinaryHasInstancePrototype,
+    GetIteratorDirectNext,
+    GetIteratorFromMethodNext,
+    GetIteratorSyncMethod,
+    GetIteratorMethod,
+    GetIteratorFlattenableMethod,
+    IteratorCompleteDone,
+    IteratorValueValue,
+    ArrayAppendIteratorMethod,
+    ArrayAppendNextMethod,
 }
 
 /// The caches of the static call sites, one set per VM, which prunes them like the caches of executables.
@@ -701,6 +712,34 @@ impl KeyedPropertyLookupCache {
 impl Default for KeyedPropertyLookupCache {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// https://tc39.es/ecma262/#sec-gettemplateobject
+// Template objects are cached at the call site.
+#[repr(C)]
+#[derive(Trace)]
+pub struct TemplateObjectCache {
+    header: CellHeader,
+    cached_template_object: Cell<Option<Gc<Array>>>,
+}
+
+define_cell!(TemplateObjectCache, Other);
+
+impl TemplateObjectCache {
+    pub fn create(vm: &Vm) -> Gc<TemplateObjectCache> {
+        vm.heap().allocate(TemplateObjectCache {
+            header: CellHeader::for_class(Self::CLASS),
+            cached_template_object: Cell::new(None),
+        })
+    }
+
+    pub fn cached_template_object(&self) -> Option<Gc<Array>> {
+        self.cached_template_object.get()
+    }
+
+    pub fn set_cached_template_object(&self, template_object: Gc<Array>) {
+        self.cached_template_object.set(Some(template_object));
     }
 }
 
@@ -862,6 +901,7 @@ pub struct Executable {
     global_variable_caches: Box<[GlobalVariableCache]>,
     environment_coordinate_caches: Box<[Cell<EnvironmentCoordinate>]>,
     environment_shape_caches: Box<[Cell<Option<Gc<EnvironmentShape>>>]>,
+    template_object_caches: Box<[Gc<TemplateObjectCache>]>,
     object_shape_caches: Box<[ObjectShapeCache]>,
     object_property_iterator_caches: Box<[ObjectPropertyIteratorCache]>,
     pub number_of_registers: u32,
@@ -914,6 +954,10 @@ impl Executable {
         &self.property_lookup_caches[index]
     }
 
+    pub fn template_object_cache(&self, index: u32) -> Gc<TemplateObjectCache> {
+        self.template_object_caches[index as usize]
+    }
+
     pub fn object_shape_cache(&self, index: u32) -> &ObjectShapeCache {
         &self.object_shape_caches[index as usize]
     }
@@ -928,6 +972,10 @@ impl Executable {
 
     pub fn get_property_key(&self, index: PropertyKeyTableIndex) -> PropertyKey {
         PropertyKey::from(self.property_key_table[index.0 as usize].clone())
+    }
+
+    pub fn get_string(&self, index: StringTableIndex) -> &Utf16FlyString {
+        &self.string_table[index.0 as usize]
     }
 
     /// Forgets the cells the inline caches remember that died in this collection.
@@ -1000,6 +1048,7 @@ impl Executable {
             global_variable_caches,
             environment_coordinate_caches,
             environment_shape_caches,
+            template_object_caches: Box::new([]),
             object_shape_caches: Box::new([]),
             object_property_iterator_caches: Box::new([]),
             number_of_registers,
@@ -1069,6 +1118,13 @@ impl Executable {
             rooted_constants.push(constant_value(vm, constant));
         }
         let constants: Box<[Value]> = rooted_constants.to_vec().into_boxed_slice();
+        // The template object caches stay rooted until the executable that holds them is allocated.
+        let rooted_template_object_caches = MarkedVec::with_capacity(vm, data.cache_counts.template_object as usize);
+        for _ in 0..data.cache_counts.template_object {
+            rooted_template_object_caches.push(TemplateObjectCache::create(vm));
+        }
+        let template_object_caches: Box<[Gc<TemplateObjectCache>]> =
+            rooted_template_object_caches.to_vec().into_boxed_slice();
         let counts = ExecutableCacheCounts {
             property_lookup_caches: data.cache_counts.property_lookup,
             global_variable_caches: data.cache_counts.global_variable,
@@ -1091,6 +1147,7 @@ impl Executable {
         executable.exception_handlers = data.exception_handlers.into_boxed_slice();
         executable.shared_function_data = shared_function_data;
         executable.class_blueprints = class_blueprints;
+        executable.template_object_caches = template_object_caches;
         executable.allocate_object_caches(
             data.cache_counts.object_shape,
             data.cache_counts.object_property_iterator,
@@ -1099,6 +1156,7 @@ impl Executable {
         executable.source_map = data.source_map.into_boxed_slice();
         executable.source_code = source_code.cloned();
         let executable = Self::create_from_parts(vm, executable);
+        drop(rooted_template_object_caches);
         drop(rooted_constants);
         drop(rooted_literal_values);
         drop(rooted_shared_function_data);
@@ -1236,9 +1294,9 @@ fn parse_big_int_literal(literal: &str) -> SignedBigInteger {
     SignedBigInteger::parse_bytes(digits, radix).expect("the frontend only emits valid BigInt literals")
 }
 
-// SAFETY: Visits the constants, the for-in key snapshots, the environment shapes, the functions the bytecode
-// creates and the literal values of its classes, which are all the cells an executable keeps alive so far. The inline
-// caches do not keep the shapes and objects they remember alive.
+// SAFETY: Visits the constants, the for-in key snapshots, the environment shapes, the template object caches, the
+// functions the bytecode creates and the literal values of its classes, which are all the cells an executable keeps
+// alive so far. The inline caches do not keep the shapes and objects they remember alive.
 unsafe impl Trace for Executable {
     fn trace(&self, visitor: &mut Visitor) {
         visitor.visit_values(&self.constants);
@@ -1246,6 +1304,7 @@ unsafe impl Trace for Executable {
             cache.data.trace(visitor);
         }
         self.environment_shape_caches.trace(visitor);
+        self.template_object_caches.trace(visitor);
         self.shared_function_data.trace(visitor);
         self.class_blueprints.trace(visitor);
     }

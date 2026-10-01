@@ -56,19 +56,22 @@ impl Vm {
         }
 
         if self.interpreter_stack().is_exhausted() || self.did_reach_stack_space_limit() {
-            crate::interpreter::runtime_functions::unimplemented_runtime_function(
-                "the InternalError for exceeding the call stack size",
-                0,
-            );
-        }
-        // SAFETY: The interpreter runs the executable in the context, whose slots follow it.
-        unsafe {
-            js_interpreter(
-                executable_ref.bytecode().as_ptr(),
-                entry_point,
-                context_ref.slots().as_ptr().cast_mut().cast(),
-                core::ptr::from_ref(self).cast(),
-            );
+            let Err(throw) =
+                self.throw_completion::<()>(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[])
+            else {
+                unreachable!("throw_completion always throws");
+            };
+            context_ref.register(register::EXCEPTION).set(throw.value());
+        } else {
+            // SAFETY: The interpreter runs the executable in the context, whose slots follow it.
+            unsafe {
+                js_interpreter(
+                    executable_ref.bytecode().as_ptr(),
+                    entry_point,
+                    context_ref.slots().as_ptr().cast_mut().cast(),
+                    core::ptr::from_ref(self).cast(),
+                );
+            }
         }
         self.head
             .running_execution_context
@@ -148,7 +151,7 @@ impl Vm {
 
         // 9. Suspend the currently running execution context.
         // 10. Push scriptContext onto the execution context stack; scriptContext is now the running execution context.
-        vm.push_execution_context(script_context);
+        vm.push_execution_context_checking_stack_space(script_context)?;
 
         // 13. If result.[[Type]] is normal, then
         if result.is_ok() {

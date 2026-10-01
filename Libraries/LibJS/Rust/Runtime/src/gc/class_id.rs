@@ -124,4 +124,7 @@ define_class_ids! {
     AsyncFunctionPrototype,
     AsyncFunctionConstructor,
     ProxyConstructor,
+    IteratorRecord,
+    Iterator,
+    TemplateObjectCache,
 }

@@ -15,8 +15,10 @@ use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::function_object::FunctionObject;
 use crate::runtime::native_function::{NativeFunction, define_native_function_class};
+use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::realm::Realm;
+use crate::utf16::Utf16View;
 
 #[repr(C)]
 #[derive(Trace)]
@@ -74,4 +76,12 @@ impl StringConstructor {
     fn construct(_: &NativeFunction, _: &Vm, _: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<Object>> {
         unimplemented_runtime_function("StringConstructor::construct, the [[Construct]] of %String%", 0)
     }
+}
+
+pub fn from_char_code_impl(vm: &Vm, code_unit: Value) -> ThrowCompletionOr<Value> {
+    let value = code_unit.to_u16(vm)?;
+    Ok(Value::from_string(PrimitiveString::create_from_utf16_view(
+        vm,
+        Utf16View::Utf16(&[value]),
+    )))
 }

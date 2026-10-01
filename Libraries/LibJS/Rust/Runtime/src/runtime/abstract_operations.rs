@@ -17,7 +17,7 @@ use crate::gc::class_id::ClassId;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
-use crate::interpreter::vm::Vm;
+use crate::interpreter::vm::{CompilationType, EvalMode, Vm};
 use crate::layout::cell::Gc;
 use crate::layout::function_object::EcmascriptFunctionObject;
 use crate::layout::function_object::FunctionObject;
@@ -26,8 +26,9 @@ use crate::runtime::accessor::Accessor;
 use crate::runtime::arguments_object::ArgumentsObject;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
-use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
+use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment::{Environment, InitializeBindingHint, ThisBindingStatus};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -41,7 +42,7 @@ use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
-use crate::runtime::shared_function_instance_data::ThisMode;
+use crate::runtime::shared_function_instance_data::{ClassFieldInitializerName, ConstructorKind, ThisMode};
 use crate::runtime::string_conversions::parse_number_f64;
 use crate::runtime::value::{number_to_utf16_string, same_value};
 use crate::utf16::Utf16View;
@@ -676,6 +677,149 @@ pub fn get_this_environment(vm: &Vm) -> Gc<Environment> {
         env = environment.outer_environment();
     }
     unreachable!("the outermost environment has a this binding");
+}
+
+// 13.3.7.2 GetSuperConstructor ( ), https://tc39.es/ecma262/#sec-getsuperconstructor
+pub fn get_super_constructor(vm: &Vm) -> Option<Gc<Object>> {
+    // 1. Let envRec be GetThisEnvironment().
+    let env = get_this_environment(vm);
+
+    // 2. Assert: envRec is a function Environment Record.
+    // 3. Let activeFunction be envRec.[[FunctionObject]].
+    // 4. Assert: activeFunction is an ECMAScript function object.
+    let active_function = env
+        .downcast::<FunctionEnvironment>()
+        .expect("GetSuperConstructor runs in a function environment")
+        .function_object();
+
+    // 5. Let superConstructor be ! activeFunction.[[GetPrototypeOf]]().
+    // 6. Return superConstructor.
+    active_function.internal_get_prototype_of(vm).must()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CallerMode {
+    Strict,
+    NonStrict,
+}
+
+// 19.2.1.1 PerformEval ( x, strictCaller, direct ), https://tc39.es/ecma262/#sec-performeval
+// 3 PerformEval ( x, strictCaller, direct ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-performeval
+pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMode) -> ThrowCompletionOr<Value> {
+    // 1. Assert: If direct is false, then strictCaller is also false.
+    assert!(direct == EvalMode::Direct || strict_caller == CallerMode::NonStrict);
+
+    let code_string;
+
+    // 2. If x is a String, then
+    if x.is_string() {
+        // a. Let xStr be x.
+        code_string = x.as_string();
+    }
+    // 3. Else if x is an Object, then
+    else if x.is_object() {
+        // a. Let code be HostGetCodeForEval(x).
+        let code = vm.host_get_code_for_eval()(vm, &x.as_object());
+
+        // b. If code is a String, let xStr be code.
+        if let Some(code) = code {
+            code_string = code;
+        }
+        // c. Else, return x.
+        else {
+            return Ok(x);
+        }
+    }
+    // 4. Else,
+    else {
+        // a. Return x.
+        return Ok(x);
+    }
+
+    // 5. Let evalRealm be the current Realm Record.
+    let eval_realm = vm.current_realm().expect("eval runs in a realm");
+
+    // 6. NOTE: In the case of a direct eval, evalRealm is the realm of both the caller of eval and of the eval function itself.
+    // 7. Perform ? HostEnsureCanCompileStrings(evalRealm, « », xStr, xStr, direct, « », x).
+    let code = code_string.utf16_string();
+    let compilation_type = if direct == EvalMode::Direct {
+        CompilationType::DirectEval
+    } else {
+        CompilationType::IndirectEval
+    };
+    vm.host_ensure_can_compile_strings()(
+        vm,
+        eval_realm,
+        &[],
+        Utf16View::of_string(&code),
+        Utf16View::of_string(&code),
+        compilation_type,
+        &[],
+        x,
+    )?;
+
+    // 8. Let inFunction be false.
+    let mut in_function = false;
+
+    // 9. Let inMethod be false.
+    let mut in_method = false;
+
+    // 10. Let inDerivedConstructor be false.
+    let mut in_derived_constructor = false;
+
+    // 11. Let inClassFieldInitializer be false.
+    let mut in_class_field_initializer = false;
+
+    // 12. If direct is true, then
+    if direct == EvalMode::Direct {
+        // a. Let thisEnvRec be GetThisEnvironment().
+        let this_environment_record = get_this_environment(vm);
+
+        // b. If thisEnvRec is a function Environment Record, then
+        if let Some(this_function_environment_record) = this_environment_record.downcast::<FunctionEnvironment>() {
+            // i. Let F be thisEnvRec.[[FunctionObject]].
+            let function = as_ecmascript_function_object(this_function_environment_record.function_object())
+                .expect("a function environment's function is an ECMAScript function");
+
+            // ii. Set inFunction to true.
+            in_function = true;
+
+            // iii. Set inMethod to thisEnvRec.HasSuperBinding().
+            in_method = this_function_environment_record.has_super_binding();
+
+            // iv. If F.[[ConstructorKind]] is derived, set inDerivedConstructor to true.
+            if function.constructor_kind() == ConstructorKind::Derived {
+                in_derived_constructor = true;
+            }
+
+            // v. Let classFieldInitializerName be F.[[ClassFieldInitializerName]].
+            let class_field_initializer_name = function.class_field_initializer_name();
+
+            // vi. If classFieldInitializerName is not empty, set inClassFieldInitializer to true.
+            if !matches!(class_field_initializer_name, ClassFieldInitializerName::Empty) {
+                in_class_field_initializer = true;
+            }
+        }
+    }
+
+    // 13. Perform the following substeps in an implementation-defined order, possibly interleaving parsing and error detection:
+    //     a. Let script be ParseText(StringToCodePoints(x), Script).
+    //     c. If script Contains ScriptBody is false, return undefined.
+    //     d. Let body be the ScriptBody of script.
+    //     NOTE: We do these next steps by passing initial state to the parser.
+    //     e. If inFunction is false, and body Contains NewTarget, throw a SyntaxError exception.
+    //     f. If inMethod is false, and body Contains SuperProperty, throw a SyntaxError exception.
+    //     g. If inDerivedConstructor is false, and body Contains SuperCall, throw a SyntaxError exception.
+    //     h. If inClassFieldInitializer is true, and ContainsArguments of body is true, throw a SyntaxError exception.
+    unimplemented_runtime_function(
+        &format!(
+            "compiling the code of an eval (RustIntegration::compile_eval in PerformEval, strict caller: {}, in \
+             function: {in_function}, in method: {in_method}, in derived constructor: {in_derived_constructor}, in \
+             class field initializer: {in_class_field_initializer})",
+            strict_caller == CallerMode::Strict
+        ),
+        0,
+    )
 }
 
 // 10.4.4.6 CreateUnmappedArgumentsObject ( argumentsList ), https://tc39.es/ecma262/#sec-createunmappedargumentsobject

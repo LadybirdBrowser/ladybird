@@ -48,9 +48,76 @@ use crate::runtime::reference::{BaseType, Reference};
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::symbol::{self, Symbol, enumerate_well_known_symbols};
 use crate::source_range::SourceRange;
+use crate::utf16::Utf16View;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EvalMode {
+    Direct,
+    Indirect,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompilationType {
+    DirectEval,
+    IndirectEval,
+    Function,
+    Timer,
+}
 
 /// HostEnsureCanAddPrivateElement, which hosts that are web browsers may override.
 pub type HostEnsureCanAddPrivateElement = fn(&Vm, &Object) -> ThrowCompletionOr<()>;
+
+/// HostGetCodeForEval, which hosts may override.
+pub type HostGetCodeForEval = fn(&Vm, &Object) -> Option<Gc<PrimitiveString>>;
+
+/// HostEnsureCanCompileStrings ( calleeRealm, parameterStrings, bodyString, codeString, compilationType,
+/// parameterArgs, bodyArg ), which hosts may override.
+pub type HostEnsureCanCompileStrings = fn(
+    &Vm,
+    Gc<Realm>,
+    &[Utf16String],
+    Utf16View<'_>,
+    Utf16View<'_>,
+    CompilationType,
+    &[Value],
+    Value,
+) -> ThrowCompletionOr<()>;
+
+// 1 HostGetCodeForEval ( argument ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-hostgetcodeforeval
+fn default_host_get_code_for_eval(_: &Vm, _: &Object) -> Option<Gc<PrimitiveString>> {
+    // The host-defined abstract operation HostGetCodeForEval takes argument argument (an Object) and returns a
+    // String or NO-CODE. It allows host environments to return a String of code from argument to be used by eval,
+    // rather than eval returning argument.
+    //
+    // argument represents the Object to be checked for code.
+    //
+    // The default implementation of HostGetCodeForEval is to return NO-CODE.
+    None
+}
+
+// 2 HostEnsureCanCompileStrings ( calleeRealm, parameterStrings, bodyString, codeString, compilationType, parameterArgs, bodyArg ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-hostensurecancompilestrings
+#[allow(clippy::too_many_arguments, reason = "the hook takes the spec's arguments")]
+#[allow(clippy::unnecessary_wraps, reason = "the hook's type lets other hosts throw")]
+fn default_host_ensure_can_compile_strings(
+    _: &Vm,
+    _: Gc<Realm>,
+    _: &[Utf16String],
+    _: Utf16View<'_>,
+    _: Utf16View<'_>,
+    _: CompilationType,
+    _: &[Value],
+    _: Value,
+) -> ThrowCompletionOr<()> {
+    // The host-defined abstract operation HostEnsureCanCompileStrings takes arguments calleeRealm (a Realm Record),
+    // parameterStrings (a List of Strings), bodyString (a String), and direct (a Boolean) and returns either a normal
+    // completion containing unused or a throw completion.
+    //
+    // It allows host environments to block certain ECMAScript functions which allow developers to compile strings into ECMAScript code.
+    // An implementation of HostEnsureCanCompileStrings must conform to the following requirements:
+    //   - If the returned Completion Record is a normal completion, it must be a normal completion containing unused.
+    // The default implementation of HostEnsureCanCompileStrings is to return NormalCompletion(unused).
+    Ok(())
+}
 
 #[allow(clippy::unnecessary_wraps, reason = "the hook's type lets other hosts throw")]
 fn default_host_ensure_can_add_private_element(_: &Vm, _: &Object) -> ThrowCompletionOr<()> {
@@ -155,6 +222,8 @@ pub struct Vm {
     static_property_lookup_caches: StaticPropertyLookupCaches,
     keyed_property_lookup_cache: KeyedPropertyLookupCache,
     host_ensure_can_add_private_element: Cell<HostEnsureCanAddPrivateElement>,
+    host_get_code_for_eval: Cell<HostGetCodeForEval>,
+    host_ensure_can_compile_strings: Cell<HostEnsureCanCompileStrings>,
     /// The id the next PrivateEnvironment gives its names, the C++ static PrivateEnvironment::s_next_id. It starts
     /// at one such that 0 can be invalid / default initialized.
     next_private_environment_id: Cell<u64>,
@@ -215,6 +284,8 @@ impl Vm {
             static_property_lookup_caches: StaticPropertyLookupCaches::new(),
             keyed_property_lookup_cache: KeyedPropertyLookupCache::new(),
             host_ensure_can_add_private_element: Cell::new(default_host_ensure_can_add_private_element),
+            host_get_code_for_eval: Cell::new(default_host_get_code_for_eval),
+            host_ensure_can_compile_strings: Cell::new(default_host_ensure_can_compile_strings),
             next_private_environment_id: Cell::new(1),
             intrinsic_accessors: RefCell::new(HashMap::new()),
             type_error_realm_override: Cell::new(None),
@@ -477,6 +548,22 @@ impl Vm {
 
     pub fn set_host_ensure_can_add_private_element(&self, hook: HostEnsureCanAddPrivateElement) {
         self.host_ensure_can_add_private_element.set(hook);
+    }
+
+    pub fn host_get_code_for_eval(&self) -> HostGetCodeForEval {
+        self.host_get_code_for_eval.get()
+    }
+
+    pub fn set_host_get_code_for_eval(&self, hook: HostGetCodeForEval) {
+        self.host_get_code_for_eval.set(hook);
+    }
+
+    pub fn host_ensure_can_compile_strings(&self) -> HostEnsureCanCompileStrings {
+        self.host_ensure_can_compile_strings.get()
+    }
+
+    pub fn set_host_ensure_can_compile_strings(&self, hook: HostEnsureCanCompileStrings) {
+        self.host_ensure_can_compile_strings.set(hook);
     }
 
     pub fn next_private_environment_id(&self) -> &Cell<u64> {
