@@ -1461,6 +1461,7 @@ impl StyleEngineState {
                 container_gates_unheld: HashSet::default(),
                 container_query_inputs: Default::default(),
                 layout_style_snapshots: HashMap::default(),
+                size_container_queries: Default::default(),
                 counter_style_environment_identities: HashMap::default(),
                 held_style_records: HashMap::default(),
                 host_var_reads: HashMap::default(),
@@ -2938,6 +2939,7 @@ impl RetainedState {
             container_gates_unheld,
             container_query_inputs,
             layout_style_snapshots,
+            size_container_queries,
             counter_style_environment_identities: _,
             held_style_records,
             host_var_reads,
@@ -3031,6 +3033,7 @@ impl RetainedState {
         container_gates_unheld.remove(&node);
         container_query_inputs.clear(node);
         layout_style_snapshots.remove(&node);
+        size_container_queries.retire(node);
         held_style_records.remove(&node);
         host_var_reads.remove(&node);
         css_defined_animations.retire(node);

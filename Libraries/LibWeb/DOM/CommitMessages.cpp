@@ -5,7 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
-#include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/CommitMessages.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -109,9 +109,11 @@ void CommitMessages::apply(Message const& message)
 {
     switch (message.kind) {
     case Kind::ContentSizeChangedForContainerQueries:
-        // Only an element can be a query container; the viewport names the document, which is not one.
-        if (auto* element = as_if<Element>(message.identity.resolve(m_document).ptr()))
-            CSS::Invalidation::invalidate_descendant_styles_depending_on_size_container_query(*element);
+        // Only an element can be a query container; the viewport names the document, which is not one. Layout says
+        // this of every size container, but `container-type` is set far more widely than it is asked about, and one
+        // no size query or container-relative unit resolved against has no dependent to record.
+        if (auto* element = as_if<Element>(message.identity.resolve(m_document).ptr()); element && element->is_size_query_container())
+            m_document->style_computer().style_engine().record_size_container_query_dependents(element->style_node_id());
         return;
     case Kind::NavigableContainerViewportCommitted:
         // A navigable another process hosts learns its viewport from the UI process, which the container tells of

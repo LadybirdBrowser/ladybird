@@ -296,6 +296,8 @@ void record_element_connected(DOM::Element& element)
     // A newly minted identity holds none of the facts the element's style noted before.
     if (element.style_recomputes_on_environment_move())
         element.publish_style_recomputes_on_environment_move();
+    if (element.is_size_query_container() || element.style_depends_on_size_container_query())
+        element.publish_size_container_query_facts();
     record_element_arrival_delta(element, *style_engine, tree_scope_of(element.root()));
     ensure_dom_order_parent_identity(element.parent(), *style_engine);
     link_in_dom_order(*style_engine, element);
@@ -397,6 +399,8 @@ void record_subtree_connecting(DOM::Node& root)
                 style_computer.register_style_node(identity, *element);
                 if (element->style_recomputes_on_environment_move())
                     element->publish_style_recomputes_on_environment_move();
+                if (element->is_size_query_container() || element->style_depends_on_size_container_query())
+                    element->publish_size_container_query_facts();
             } else {
                 auto identity = identities[next_shadow_root_identity++];
                 auto& shadow_root = as<DOM::ShadowRoot>(*arrival.node);

@@ -2248,6 +2248,14 @@ void Element::publish_style_recomputes_on_environment_move()
     document().style_computer().style_engine().set_element_recomputes_on_environment_move(style_node, style_recomputes_on_environment_move());
 }
 
+void Element::publish_size_container_query_facts()
+{
+    auto style_node = style_node_id();
+    if (style_node == 0)
+        return;
+    document().style_computer().style_engine().set_element_size_container_query_facts(style_node, m_is_size_query_container, m_style_depends_on_size_container_query);
+}
+
 void Element::set_style_depends_on_viewport_metrics()
 {
     if (m_style_depends_on_viewport_metrics)
@@ -2579,10 +2587,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     m_style_uses_inherit_css_function = false;
     m_style_uses_tree_counting_function = false;
     m_style_depends_on_viewport_metrics = false;
+    bool const had_size_container_query_dependency = m_style_depends_on_size_container_query;
     m_style_depends_on_size_container_query = false;
     m_style_depends_on_style_container_query = false;
     if (had_environment_move_dependencies)
         publish_style_recomputes_on_environment_move();
+    if (had_size_container_query_dependency)
+        publish_size_container_query_facts();
     if (auto* rare_data = element_rare_data(); rare_data && rare_data->custom_property_consumer_data)
         rare_data->custom_property_consumer_data->style_query_references.clear_with_capacity();
     reusable_style_engine_matches = &style_engine_matches;

@@ -6,7 +6,6 @@
 
 #include <AK/AllOf.h>
 #include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
 #include <LibWeb/CSS/ScrollStateContainerQuery.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -205,7 +204,7 @@ bool ScrollStateQueryContainers::snapshot_post_layout_state(DOM::Document& docum
         container.snapshot = snapshot;
         container.published_style_node_id = publish_scroll_state(element, snapshot);
         any_state_changed = true;
-        Invalidation::invalidate_descendant_styles_depending_on_size_container_query(element);
+        document.style_computer().style_engine().record_size_container_query_dependents(element->style_node_id());
     }
 
     for (auto& element : containers_to_forget) {
@@ -214,7 +213,7 @@ bool ScrollStateQueryContainers::snapshot_post_layout_state(DOM::Document& docum
         if (container.has_value() && container->snapshot != ScrollStateSnapshot {} && element->is_connected()) {
             publish_scroll_state(element, {});
             any_state_changed = true;
-            Invalidation::invalidate_descendant_styles_depending_on_size_container_query(element);
+            document.style_computer().style_engine().record_size_container_query_dependents(element->style_node_id());
         }
     }
     return any_state_changed;

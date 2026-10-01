@@ -5,7 +5,6 @@
  */
 
 #include <AK/ScopeGuard.h>
-#include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/DOM/Document.h>
@@ -46,7 +45,7 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
             return {
                 .document_is_active = document_is_active,
                 .document_needs_layout_tree_build = document.needs_layout_tree_update() || document.child_needs_layout_tree_update(),
-                .container_query_evaluation_is_pending = !document.m_query_containers_needing_container_query_evaluation_after_layout.is_empty(),
+                .container_query_evaluation_is_pending = document.has_size_containers_needing_evaluation_after_layout(),
                 .top_layer_work_pending = document.m_top_layer_needs_layout_zone_rebuild || !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
                 .should_collect_devtools_layout_data = document.page().client().has_active_devtools_client(),
                 .document_in_quirks_mode = document.in_quirks_mode(),
@@ -59,17 +58,7 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
         .reconcile_stale_list_item_counters_after_tree_build = [](void* context) -> bool { return static_cast<Document*>(context)->reconcile_stale_list_item_counters_after_tree_build(); },
         .after_layout_commit = [](void* context, bool layout_tree_changed) { static_cast<Document*>(context)->after_layout_commit(layout_tree_changed ? LayoutTreeChanged::Yes : LayoutTreeChanged::No); },
         .note_full_layout_performed = [](void* context) { static_cast<Document*>(context)->style_invalidation_counters().relayouts_performed++; },
-        .evaluate_pending_container_queries = [](void* context) {
-            auto& document = *static_cast<Document*>(context);
-            if (document.m_query_containers_needing_container_query_evaluation_after_layout.is_empty())
-                return;
-            auto query_containers = exchange(document.m_query_containers_needing_container_query_evaluation_after_layout, {});
-            for (auto& query_container : query_containers) {
-                if (!query_container->is_connected())
-                    continue;
-
-                CSS::Invalidation::invalidate_descendant_styles_depending_on_size_container_query(query_container);
-            } },
+        .evaluate_pending_container_queries = [](void* context) { static_cast<Document*>(context)->style_computer().style_engine().evaluate_size_containers_needing_evaluation_after_layout(); },
         .record_stabilization_bound_failure = [](void* context) { ++static_cast<Document*>(context)->m_style_invalidation_counters.style_stabilization_bound_failures; },
     };
 }
