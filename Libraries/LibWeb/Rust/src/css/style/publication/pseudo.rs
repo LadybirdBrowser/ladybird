@@ -131,33 +131,22 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailPseudoBackdrop);
             return Err(Unanswered::Refused);
         }
-        let display_is_list_item = |engine: &Self, record: computed::FinalStyleRecordID| -> Option<bool> {
-            let view = engine.computed_group_sets.style_record_view(record.raw())?;
-            let table = unsafe { view.longhand_table.as_ref() }?;
-            Some(table.display_is_list_item())
+        // Every installed record has a view. One without, or one holding no table, is read as a
+        // list item, so its marker is considered rather than dropped.
+        let display_is_list_item = |engine: &Self, record: computed::FinalStyleRecordID| -> bool {
+            let view = engine.computed_group_sets.style_record_view(record.raw());
+            debug_assert!(view.is_some(), "an installed record has a view");
+            view.and_then(|view| unsafe { view.longhand_table.as_ref() })
+                .is_none_or(|table| table.display_is_list_item())
         };
-        let Some(new_is_list_item) = display_is_list_item(self, new_element_record) else {
-            counters.bump(Counter::EngineComputedRecordBailRecord);
-            return Err(Unanswered::Refused);
-        };
-        let Some(new_view_dependency_flags) = self
+        let new_is_list_item = display_is_list_item(self, new_element_record);
+        let new_view_dependency_flags = self
             .computed_group_sets
             .style_record_view(new_element_record.raw())
-            .map(|view| view.dependency_flags)
-        else {
-            counters.bump(Counter::EngineComputedRecordBailRecord);
-            return Err(Unanswered::Refused);
-        };
-        let old_is_list_item = match old_element_record {
-            Some(record) => {
-                let Some(list_item) = display_is_list_item(self, record) else {
-                    counters.bump(Counter::EngineComputedRecordBailRecord);
-                    return Err(Unanswered::Refused);
-                };
-                list_item
-            }
-            None => false,
-        };
+            .map(|view| view.dependency_flags);
+        debug_assert!(new_view_dependency_flags.is_some(), "an element record has a view");
+        let new_view_dependency_flags = new_view_dependency_flags.unwrap_or(0);
+        let old_is_list_item = old_element_record.is_some_and(|record| display_is_list_item(self, record));
         // What a pseudo-element inherits from its element: an element record that kept its
         // inherited groups left them alone.
         let inherited_inputs_unchanged = match old_element_record {
@@ -199,10 +188,14 @@ impl RetainedState {
                             .computed_group_sets
                             .style_record_custom_property_environment(new_element_record.raw())
             });
-        let Some(environment) = self.computed_group_sets.custom_property_environment_identity(node) else {
-            counters.bump(Counter::EngineComputedRecordBailRecord);
-            return Err(Unanswered::Refused);
-        };
+        // The element's record is installed, and with it the environment its pseudo-elements
+        // resolve against.
+        let environment = self.computed_group_sets.custom_property_environment_identity(node);
+        debug_assert!(
+            environment.is_some(),
+            "an installed element record holds an environment"
+        );
+        let environment = environment.unwrap_or(0);
         // The kinds the node's match answer has rules for: a winner row is published for each
         // the engine cascaded itself, and a kind with rules but no row is not decided.
         let Some(kinds_with_rules) = self.pseudo_style_mask(node) else {
@@ -223,11 +216,13 @@ impl RetainedState {
             }
             let target = computed::ComputedStyleTarget::new(node, kind);
             let old = self.computed_group_sets.pseudo_style_record(node, kind);
-            if let Some(old) = old {
-                let Some(view) = self.computed_group_sets.style_record_view(old.raw()) else {
-                    counters.bump(Counter::EngineComputedRecordBailRecord);
-                    return Err(Unanswered::Refused);
-                };
+            // An installed pseudo-element record has a view; one without holds no composition.
+            let old_view = old.and_then(|old| self.computed_group_sets.style_record_view(old.raw()));
+            debug_assert!(
+                old.is_none() || old_view.is_some(),
+                "an installed pseudo-element record has a view"
+            );
+            if let Some(view) = old_view {
                 let transitioning = (unsafe { view.longhand_table.as_ref() })
                     .is_some_and(crate::css::style_compute::has_active_transition_properties);
                 if !view.animated_overlay.is_null() || transitioning {

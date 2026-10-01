@@ -368,9 +368,11 @@ impl RetainedState {
             is_required_driver_input, parent_snapshot_for_style_record, property_computation_order_for_phase,
         };
 
+        // The record being driven again has a view. Without one, what the selection leaves standing
+        // is unknown: the caller drives in full.
         let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
-            counters.bump(Counter::EngineComputedRecordBailRecord);
-            return Err(Unanswered::Refused);
+            debug_assert!(false, "the record being driven again has a view");
+            return Ok(PartialDrive::DriverInputMoved);
         };
         if !view.animated_overlay.is_null() {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
@@ -647,12 +649,15 @@ impl RetainedState {
         } else {
             None
         };
-        let old_table = match old_style_record {
-            Some(old_style_record) => {
-                let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
-                    counters.bump(Counter::EngineComputedRecordBailRecord);
-                    return Err(Unanswered::Refused);
-                };
+        // The record being driven again has a view. One without is driven as an element with no
+        // record is, from a fresh table.
+        let old_view = old_style_record.and_then(|old_style_record| {
+            let view = self.computed_group_sets.style_record_view(old_style_record.raw());
+            debug_assert!(view.is_some(), "the record being driven again has a view");
+            view
+        });
+        let old_table = match &old_view {
+            Some(view) => {
                 if !view.animated_overlay.is_null() {
                     counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return Err(Unanswered::Refused);
@@ -771,18 +776,10 @@ impl RetainedState {
         };
         // The subject axis is the element's own writing mode when it has one, else its parent's;
         // the initial writing mode is horizontal.
-        let inherited_box_payload = match old_style_record {
-            Some(old_style_record) => {
-                let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
-                    counters.bump(Counter::EngineComputedRecordBailRecord);
-                    return Err(Unanswered::Refused);
-                };
-                Some(view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX])
-            }
-            None => parent_view
-                .as_ref()
-                .map(|parent_view| parent_view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX]),
-        };
+        let inherited_box_payload = old_view
+            .as_ref()
+            .or(parent_view.as_ref())
+            .map(|view| view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX]);
         let subject_inline_axis_is_horizontal = inherited_box_payload.is_none_or(|payload| {
             let inherited_box = unsafe {
                 payload
