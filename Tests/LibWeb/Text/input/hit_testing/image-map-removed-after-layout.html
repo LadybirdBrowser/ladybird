@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    img { display: block; width: 100px; height: 100px; }
+</style>
+<img id="image" usemap="#shapes" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==">
+<map name="shapes" id="map">
+    <area id="area" shape="rect" coords="0,0,100,100" href="#area">
+</map>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await nextFrame();
+        println(`before removing the map: ${document.elementFromPoint(50, 50).id}`);
+
+        // The map is the image's sibling, and nothing in the image's style depends on it, so taking it out of the
+        // document after a completed layout restyles nothing about the image.
+        document.getElementById("map").remove();
+        println(`after removing the map: ${document.elementFromPoint(50, 50).id}`);
+
+        await nextFrame();
+        println(`a frame later: ${document.elementFromPoint(50, 50).id}`);
+        done();
+    });
+</script>

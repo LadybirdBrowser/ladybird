@@ -1,0 +1,3 @@
+before removing the map: area
+after removing the map: image
+a frame later: image

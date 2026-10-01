@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    img { display: block; width: 200px; height: 100px; }
+</style>
+<img id="first" usemap="#first-map" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4YWMDAAMQAUEiFmcFAAAAAElFTkSuQmCC">
+<img id="second" usemap="#second-map" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4YWMDAAMQAUEiFmcFAAAAAElFTkSuQmCC">
+<div id="hidden" style="display: none"><map name="first-map" id="first-map"></map></div>
+<div id="container"></div>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const makeArea = id => {
+            const area = document.createElement("area");
+            area.id = id;
+            area.shape = "rect";
+            area.coords = "0,0,200,100";
+            area.href = `#${id}`;
+            area.addEventListener("click", event => {
+                event.preventDefault();
+                println(`click reached ${id}`);
+            });
+            return area;
+        };
+        await nextFrame();
+
+        // An area inserted into a map that renders nothing.
+        document.getElementById("first-map").appendChild(makeArea("inserted-area"));
+        // A whole map inserted after the image that names it.
+        const map = document.createElement("map");
+        map.name = "second-map";
+        map.appendChild(makeArea("inserted-map-area"));
+        container.appendChild(map);
+
+        await nextFrame();
+        for (const y of [50, 150]) {
+            const hit = document.elementFromPoint(100, y);
+            println(`hit at ${y}: ${hit.nodeName}#${hit.id}`);
+            internals.click(100, y);
+        }
+        done();
+    });
+</script>
