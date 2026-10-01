@@ -49,6 +49,8 @@ public:
     ErrorOr<void> initialize_browser_crash_handler();
 
     ErrorOr<void> show_directory() const;
+    // Opens the report in the application the system uses for text files.
+    ErrorOr<void> show_report(ByteString const& name) const;
 
     static bool is_saved_report_name(StringView);
 
