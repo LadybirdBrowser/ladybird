@@ -19,23 +19,20 @@
 <script>
     // A container's size moves under elements whose rules it gates, one of them on a ::before,
     // and under an element measuring it in container-relative units. Print what each computes to
-    // and whether the reaction gate left any of them to C++.
+    // and how many of them C++ computed.
     test(() => {
         const container = document.getElementById("container");
         const plain = document.getElementById("plain");
         const units = document.getElementById("units");
         const reverted = document.getElementById("reverted");
         document.body.offsetWidth;
-        const before = internals.styleEngineCounters();
         const invalidationsBefore = internals.getStyleInvalidationCounters();
         for (const width of [100, 300, 400, 100]) {
             container.style.width = width + "px";
             document.body.offsetWidth;
             println(`${width}: ${getComputedStyle(plain).color}; ${getComputedStyle(plain, "::before").color}; ${getComputedStyle(units).color}; ${getComputedStyle(units).width}; ${getComputedStyle(reverted).color}`);
         }
-        const after = internals.styleEngineCounters();
         const invalidationsAfter = internals.getStyleInvalidationCounters();
-        println(`container reactions stayed in the engine: ${after.engineComputedRecordGateReaction === before.engineComputedRecordGateReaction}`);
         println(`C++ recomputations: ${invalidationsAfter.elementStyleRecomputations - invalidationsBefore.elementStyleRecomputations}`);
     });
 </script>

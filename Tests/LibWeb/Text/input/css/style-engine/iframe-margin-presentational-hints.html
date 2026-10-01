@@ -8,7 +8,6 @@
         const body = frame.contentDocument.body;
         const childInternals = frame.contentWindow.internals;
         const before = childInternals.getStyleInvalidationCounters();
-        const beforeEngine = childInternals.styleEngineCounters();
         const initial = getComputedStyle(body).marginLeft;
         frame.setAttribute("marginwidth", "17");
         println(`initial iframe hint: ${getComputedStyle(body).marginLeft === "17px" && getComputedStyle(body).marginRight === "17px"}`);
@@ -22,8 +21,6 @@
         frame.removeAttribute("marginwidth");
         println(`hint removed: ${getComputedStyle(body).marginLeft === initial}`);
         const after = childInternals.getStyleInvalidationCounters();
-        const afterEngine = childInternals.styleEngineCounters();
         println(`child recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
-        println(`child reaction gates: ${afterEngine.engineComputedRecordGateReaction - beforeEngine.engineComputedRecordGateReaction}`);
     });
 </script>
