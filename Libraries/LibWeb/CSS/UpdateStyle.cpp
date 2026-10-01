@@ -533,7 +533,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                         ? authoritative_custom_property_data->identity()
                         : 0;
                     auto const production_packed = !!previous_style_record
-                        ? style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, previous_style_record, true, false, false)
+                        ? style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, previous_style_record)
                         : to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged);
                     auto& counters = document.style_invalidation_counters();
                     auto const counters_before_verification = counters;
@@ -553,7 +553,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                             break;
                         }
                     }
-                    auto packed = style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, element->style_record_identity(), true, false, false);
+                    auto packed = style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, element->style_record_identity());
                     VERIFY(!(packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged))
                         || style_engine.style_records_match_for_verification(reaction.style_node, NumericLimits<u8>::max(), StyleRecordID { reaction.new_style_record }, element->style_record_identity()));
                     // A custom-property environment reaction can jump over ancestors whose computed
@@ -574,7 +574,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                             continue;
                         }
                         VERIFY(!!installed);
-                        auto pseudo_packed = style_engine.compare_style_records(*engine_record, installed, true, false, false);
+                        auto pseudo_packed = style_engine.compare_style_records(*engine_record, installed);
                         VERIFY(!(pseudo_packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged))
                             || style_engine.style_records_match_for_verification(reaction.style_node, kind, *engine_record, installed));
                     }

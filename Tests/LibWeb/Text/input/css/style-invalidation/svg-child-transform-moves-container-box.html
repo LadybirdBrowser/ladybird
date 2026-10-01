@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body { margin: 0; }
+    svg { display: block; }
+</style>
+<svg width="200" height="100"><g id="group"><rect id="rect" width="10" height="10" /></g></svg>
+<script>
+    // An SVG container's box unions its children's boxes mapped by their own transforms, so a
+    // child's transform moving is a layout change of the container, not only a repaint.
+    test(() => {
+        const rect = document.getElementById("rect");
+        const group = document.getElementById("group");
+        println(`before: ${group.getBoundingClientRect().left}`);
+        rect.style.transform = "translate(50px, 0)";
+        println(`after: ${group.getBoundingClientRect().left}`);
+    });
+</script>

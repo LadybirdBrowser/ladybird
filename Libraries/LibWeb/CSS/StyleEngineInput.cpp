@@ -34,6 +34,7 @@
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSwitchElement.h>
@@ -662,6 +663,9 @@ u32 element_style_adjustment_facts(DOM::Element const& element)
     set(element.has_relevant_animations() || element.has_associated_animations(), ElementStyleAdjustmentFact::HasAnimations);
     set(element.associated_shadow_host_pseudo_element().has_value(), ElementStyleAdjustmentFact::IsShadowHostPseudoElement);
     set(is<SVG::SVGElement>(element), ElementStyleAdjustmentFact::IsSvgElement);
+    set(is<SVG::SVGGraphicsElement>(element), ElementStyleAdjustmentFact::IsSvgGraphicsElement);
+    set(element.is_html_html_element(), ElementStyleAdjustmentFact::IsHtmlHtmlElement);
+    set(is<HTML::HTMLBodyElement>(element), ElementStyleAdjustmentFact::IsHtmlBodyElement);
     set(is<SVG::SVGSwitchElement>(element), ElementStyleAdjustmentFact::IsSvgSwitchElement);
     set(element.is_svg_container(), ElementStyleAdjustmentFact::IsSvgContainer);
     set(element.requires_svg_container(), ElementStyleAdjustmentFact::RequiresSvgContainer);

@@ -116,9 +116,15 @@ enum ElementStyleAdjustmentFact : u32 {
     IsTh = 1 << 15,
     IsDocumentElement = 1 << 16,
     HasAnimations = 1 << 17,
+    // An SVG graphics element folds its own transform into its SVG container's layout, which the
+    // style engine's damage for the element's record moves reads.
+    IsSvgGraphicsElement = 1 << 18,
     // The element stands for an element-reference pseudo-element of its shadow host, whose style
     // it takes.
     IsShadowHostPseudoElement = 1 << 19,
+    // An HTML <body>. The first one among an HTML <html> root's children propagates its overflow to
+    // the viewport, which the style engine's damage for the element's record moves reads.
+    IsHtmlBodyElement = 1 << 20,
     // The element types layout tree construction branches on. An element's type is fixed when it is
     // created, so the store holds these rather than the tree builder asking the DOM for them.
     IsSvgElement = 1 << 21,
@@ -132,6 +138,9 @@ enum ElementStyleAdjustmentFact : u32 {
     // Whether the element is rendered in the top layer. Unlike the type facts above it moves during
     // the element's lifetime, and every move is recorded where the element's flag is set.
     RenderedInTopLayer = 1 << 29,
+    // An HTML <html>, whose first <body> child propagates its overflow to the viewport when it is
+    // the root.
+    IsHtmlHtmlElement = 1 << 30,
 };
 WEB_API u32 element_style_adjustment_facts(DOM::Element const&);
 WEB_API u32 element_box_type_adjustment_facts(DOM::Element const&);
