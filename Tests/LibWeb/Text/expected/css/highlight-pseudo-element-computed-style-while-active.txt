@@ -1,0 +1,4 @@
+::selection while another element is selected: rgb(0, 128, 0) on rgb(255, 0, 0)
+::selection with nothing selected: rgb(0, 128, 0) on rgb(255, 0, 0)
+::search-text while another element is the active match: rgb(0, 0, 255) on rgb(255, 255, 0)
+::search-text with no active match: rgb(0, 0, 255) on rgb(255, 255, 0)

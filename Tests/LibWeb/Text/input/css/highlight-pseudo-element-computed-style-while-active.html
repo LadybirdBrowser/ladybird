@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+section::selection {
+    color: rgb(0, 128, 0);
+    background-color: rgb(255, 0, 0);
+}
+section::search-text {
+    color: rgb(0, 0, 255);
+    background-color: rgb(255, 255, 0);
+}
+</style>
+<p id="match">needle</p>
+<section><span id="unrelated">unrelated</span></section>
+<script>
+    test(() => {
+        const colors = (pseudoElement) => {
+            const style = getComputedStyle(unrelated, pseudoElement);
+            return `${style.color} on ${style.backgroundColor}`;
+        };
+
+        const range = document.createRange();
+        range.selectNodeContents(match.firstChild);
+        getSelection().addRange(range);
+        println(`::selection while another element is selected: ${colors("::selection")}`);
+        getSelection().removeAllRanges();
+        println(`::selection with nothing selected: ${colors("::selection")}`);
+
+        internals.findInPage("needle");
+        println(`::search-text while another element is the active match: ${colors("::search-text")}`);
+        internals.findInPageEnd();
+        getSelection().removeAllRanges();
+        println(`::search-text with no active match: ${colors("::search-text")}`);
+    });
+</script>
