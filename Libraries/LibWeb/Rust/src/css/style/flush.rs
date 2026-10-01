@@ -1837,8 +1837,6 @@ impl StyleEngineState {
                     && (reaction_is_settleable
                         || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     && nodes_with_declaration_changes.binary_search(&root).is_err()
-                    && !(self.retained.custom_property_registrations_changed
-                        && self.node_style_reads_custom_properties(root))
                     && !self.retained.computed_group_sets.node_answer_is_incomplete(root)
                     && !selector_truth_changes.deltas_for(root).iter().any(|delta| {
                         !self
@@ -2057,11 +2055,6 @@ impl StyleEngineState {
                         false
                     } else if nodes_with_declaration_changes.binary_search(&node).is_ok() {
                         counters.bump(Counter::EngineComputedRecordGateDeclarations);
-                        false
-                    } else if self.retained.custom_property_registrations_changed
-                        && self.node_style_reads_custom_properties(node)
-                    {
-                        counters.bump(Counter::EngineComputedRecordBailSubstitution);
                         false
                     } else if previous_answer_was_incomplete
                         || selector_truth_changes.deltas_for(node).iter().any(|delta| {

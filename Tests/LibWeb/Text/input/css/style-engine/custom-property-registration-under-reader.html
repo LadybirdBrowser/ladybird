@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #reader { width: var(--late, 3px); }
+</style>
+<div id="reader"></div>
+<script>
+    // A registration that moves the value a var() substitutes drives the element reading it again
+    // in the style engine.
+    test(() => {
+        internals.updateStyle();
+        println(`before: ${getComputedStyle(document.getElementById("reader")).width}`);
+        internals.resetStyleInvalidationCounters();
+
+        CSS.registerProperty({ name: "--late", syntax: "<length>", inherits: true, initialValue: "7px" });
+        internals.updateStyle();
+
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations}`);
+        println(`after: ${getComputedStyle(document.getElementById("reader")).width}`);
+    });
+</script>
