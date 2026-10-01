@@ -471,27 +471,10 @@ TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node
 
     // NB: Called during layout tree construction.
     auto* layout_node = node.unsafe_layout_node();
-    // SVGPatternBox, SVGMaskBox, and SVGClipBox are created on behalf of a referencing
-    // element and attached to that element's layout subtree. Skip them so they survive
-    // cleanup of their DOM ancestor, unless their layout attachment is inside the
-    // subtree being cleared too.
-    if (layout_node && is_svg_resource_box(*layout_node)) {
-        RustFFI::FfiStaleNodeCallbacks callbacks {
-            .layout_dom_node = [](void* layout_node_pointer) -> void* {
-                VERIFY(layout_node_pointer);
-                return static_cast<Layout::Node*>(layout_node_pointer)->dom_node(); },
-            .dom_is_shadow_including_inclusive_descendant = [](void* node_pointer, void* root_pointer) {
-                VERIFY(node_pointer);
-                VERIFY(root_pointer);
-                return static_cast<DOM::Node*>(node_pointer)->is_shadow_including_inclusive_descendant_of(*static_cast<DOM::Node*>(root_pointer)); },
-        };
-        // The cleared root is only ever looked at here, so the walk carries it as an identity and it is resolved once
-        // an SVG resource box asks rather than once per cleared node.
-        auto* cleared_subtree_root_node = cleared_subtree_root ? &dom_node_for_style_node(node.document(), cleared_subtree_root) : nullptr;
-        if (RustFFI::rust_should_preserve_svg_resource_layout_node(
-                &callbacks, layout_node->arena_handle(), Node::slot_id(layout_node), cleared_subtree_root_node))
-            return TraversalDecision::SkipChildrenAndContinue;
-    }
+    // A resource box hangs under the element that references it; see rust_should_preserve_svg_resource_layout_node().
+    if (layout_node && is_svg_resource_box(*layout_node)
+        && RustFFI::rust_should_preserve_svg_resource_layout_node(layout_node->arena_handle(), Node::slot_id(layout_node), cleared_subtree_root))
+        return TraversalDecision::SkipChildrenAndContinue;
 
     if (layout_node)
         layout_node->clear_committed_box();
