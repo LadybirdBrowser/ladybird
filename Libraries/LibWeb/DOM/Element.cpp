@@ -1860,16 +1860,6 @@ static bool content_displays_a_counter(CSS::StyleValue const& content)
     });
 }
 
-// A marker whose text is the same for every counter value (disc, circle, square, ...) does not
-// reveal renumbering.
-static bool counter_style_representation_depends_on_value(CSS::CounterStyle const& counter_style)
-{
-    auto first = counter_style.generate_an_initial_representation_for_the_counter_value(1);
-    auto second = counter_style.generate_an_initial_representation_for_the_counter_value(2);
-    auto third = counter_style.generate_an_initial_representation_for_the_counter_value(3);
-    return first != second || second != third;
-}
-
 static bool pseudo_element_content_displays_a_counter(Element const& element, CSS::PseudoElement pseudo_element)
 {
     if (!element.has_style(pseudo_element))
@@ -1896,7 +1886,7 @@ static bool element_displays_a_list_item_counter_value(Element const& element)
             return false;
         },
         [](RefPtr<CSS::CounterStyle const> const& counter_style) {
-            return !counter_style || counter_style_representation_depends_on_value(*counter_style);
+            return !counter_style || CSS::counter_style_representation_depends_on_value(*counter_style);
         },
         [](Utf16String const&) {
             return false;
@@ -1905,7 +1895,7 @@ static bool element_displays_a_list_item_counter_value(Element const& element)
             return true;
         },
         [](CSS::ListStyleSymbols const& symbols) {
-            return counter_style_representation_depends_on_value(*symbols.counter_style);
+            return CSS::counter_style_representation_depends_on_value(*symbols.counter_style);
         });
 }
 
