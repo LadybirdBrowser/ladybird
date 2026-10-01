@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #absolute { font-size: 16px; }
+    #keyword { font-size: medium; }
+    .mono { font-family: monospace; }
+</style>
+<div id="absolute"><div class="mid"><span class="mono">x</span></div></div>
+<div id="keyword"><div class="mid"><span class="mono">y</span></div></div>
+<script>
+    test(() => {
+        // The recascade reads the cascaded font-size of every ancestor rather than the computed one,
+        // so an absolute length pins the chain against the 13px default and a keyword does not. The
+        // two `.mid` elements compute the same style either way, which is what makes the difference
+        // below invisible to anything that compares records rather than chains.
+        internals.updateStyle();
+        const sizeOf = selector => getComputedStyle(document.querySelector(selector)).fontSize;
+        println(`mid under an absolute length: ${sizeOf("#absolute .mid")}`);
+        println(`mid under a keyword: ${sizeOf("#keyword .mid")}`);
+        println(`monospace under an absolute length: ${sizeOf("#absolute .mono")}`);
+        println(`monospace under a keyword: ${sizeOf("#keyword .mono")}`);
+    });
+</script>

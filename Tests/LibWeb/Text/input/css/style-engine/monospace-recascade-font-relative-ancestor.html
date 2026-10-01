@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #ex { font-size: 1ex; }
+    #lh { line-height: 20px; }
+    #lh > div { font-size: 1lh; }
+    #keyword { font-size: large; }
+    #keyword > span::before { content: "c"; font-family: monospace; }
+    code { font-family: monospace; }
+</style>
+<div id="ex"><code id="under-ex">a</code></div>
+<div id="lh"><div><code id="under-lh">b</code></div></div>
+<div id="keyword"><span id="pseudo"></span></div>
+<script>
+    test(() => {
+        // An ancestor's font-relative size recascades against the monospace font's own metrics,
+        // and a pseudo-element's recascade walks its originating element's chain.
+        const exSize = parseFloat(getComputedStyle(document.getElementById("under-ex")).fontSize);
+        println(`under-ex is smaller than the 13px default: ${exSize > 0 && exSize < 13}`);
+        println(`under-lh: ${getComputedStyle(document.getElementById("under-lh")).fontSize}`);
+        println(`pseudo: ${getComputedStyle(document.getElementById("pseudo"), "::before").fontSize}`);
+    });
+</script>

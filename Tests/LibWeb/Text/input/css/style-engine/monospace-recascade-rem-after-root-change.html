@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes fade { to { opacity: 0.5; } }
+    html { animation: fade 1000s; }
+    html.big { font-size: 24px; }
+    .rem { font-size: 2rem; }
+    code { font-family: monospace; }
+    #animated { animation: fade 1000s; }
+</style>
+<body><div class="rem"><code id="animated">a</code></div><div class="rem"><code id="plain">b</code></div></body>
+<script>
+    // C++ computes the animated root and, in the same update, monospace elements under a `2rem`
+    // ancestor: the recascade resolves the ancestor's `rem` against the root's new size.
+    test(() => {
+        const report = (label) => {
+            const size = (id) => getComputedStyle(document.getElementById(id)).fontSize;
+            println(`${label}: animated ${size("animated")}, plain ${size("plain")}`);
+        };
+        report("16px root");
+        document.documentElement.classList.add("big");
+        report("24px root");
+    });
+</script>
+</html>

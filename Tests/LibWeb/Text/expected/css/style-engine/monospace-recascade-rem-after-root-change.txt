@@ -1,0 +1,2 @@
+16px root: animated 32px, plain 32px
+24px root: animated 48px, plain 48px
