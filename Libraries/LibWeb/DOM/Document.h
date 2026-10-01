@@ -1249,6 +1249,7 @@ public:
 
     void register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
+    void publish_animation_keyframes_for_style_update();
     template<typename Callback>
     void for_each_shadow_root(Callback&& callback)
     {
@@ -2000,6 +2001,10 @@ private:
     // It's responsibility of object that allocated ShadowRoot to keep it alive.
     ShadowRoot::DocumentShadowRootList m_shadow_roots;
     u64 m_style_sheet_set_generation { 0 };
+    // The `@keyframes` rows the style engine still holds for shadow roots that left this document.
+    Vector<CSS::StyleScope::DepartedAnimationKeyframes> m_departed_animation_keyframes;
+    // The style sheet set generation the `@keyframes` rows were last brought up to date at.
+    Optional<u64> m_animation_keyframes_published_generation;
 
     Optional<Utf16String> m_content_blocker_style_sheet;
     // Class/id tokens already covered by the cached content blocker stylesheet.

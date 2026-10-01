@@ -924,6 +924,9 @@ pub struct RetainedState {
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
     css_defined_animations: animations::CssDefinedAnimations,
+    /// The `@keyframes` each of the document's style scopes defines, as the host's rule caches
+    /// resolved them, which an animation definition's keyframes are resolved from.
+    animation_keyframes: animations::AnimationKeyframes,
     /// The random base value each random caching key has been given, for the random functions the
     /// document's styles hold.
     random_base_values: random_bases::RandomBaseValues,

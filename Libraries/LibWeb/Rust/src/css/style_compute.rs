@@ -2820,6 +2820,9 @@ pub struct FfiComputedAnimation {
     /// The index, in the list of CSS animations the host already holds for this element or
     /// pseudo-element, of the animation this definition claims, or -1 where it asks for a new one.
     pub matched_existing_index: i32,
+    /// The host's keyframe set for this definition's name, from the `@keyframes` the scopes in the
+    /// name's chain published, or null where none of them defines it.
+    pub keyframe_set: *const c_void,
 }
 
 #[repr(C)]
@@ -5184,6 +5187,7 @@ fn animation_slot(pseudo_kind: u8) -> crate::css::style::animations::AnimationSl
 fn build_computed_animation_list(
     table: &ComputedLonghandTable,
     existing_animation_names: &[crate::css::css_string::CssString],
+    resolve_keyframes: impl Fn(&[u16]) -> Option<usize>,
 ) -> FfiComputedAnimationList {
     use crate::css::property_metadata::property_id as prop;
 
@@ -5244,6 +5248,7 @@ fn build_computed_animation_list(
             scroll_scroller,
             scroll_axis,
             matched_existing_index: crate::css::style::animations::NO_MATCHED_ANIMATION,
+            keyframe_set: resolve_keyframes(name.units()).map_or(std::ptr::null(), |set| set as *const c_void),
         });
     }
 
@@ -5435,8 +5440,23 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
         false => &[],
     };
     if !input.stop_after_longhand_drive {
-        result.animations =
-            build_computed_animation_list(unsafe { &*drive_input.longhand_table }, existing_animation_names);
+        // An animation's `@keyframes` are looked for in the tree scope the winning `animation-name`
+        // declaration was written in, then in the element's, then in the document's.
+        let declaration_shadow_root_identity =
+            unsafe { &*input.store }.winning_source_shadow_root_identity(property_id::ANIMATION_NAME);
+        let element_tree_scope = crate::css::style::tree::StyleNodeID::from_raw(input.style_node)
+            .map_or(crate::css::style::tree::TreeScopeID::DOCUMENT, |node| {
+                style_engine.tree().tree_scope(node)
+            });
+        result.animations = build_computed_animation_list(
+            unsafe { &*drive_input.longhand_table },
+            existing_animation_names,
+            |name| {
+                style_engine
+                    .animation_keyframes()
+                    .resolve(declaration_shadow_root_identity, element_tree_scope, name)
+            },
+        );
     }
     // An element with no definitions and no animations to cancel has no plan to apply.
     let has_animation_plan = result.animations.count != 0 || !existing_animation_names.is_empty();

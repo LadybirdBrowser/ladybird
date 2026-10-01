@@ -124,7 +124,17 @@ public:
     [[nodiscard]] bool has_valid_rule_cache() const { return m_style_cache && m_style_cache->rule_cache; }
     void invalidate_style_cache();
     void publish_cascade_layer_order(StyleSheetState* pending_attachment = nullptr);
+    void publish_animation_keyframes();
     void invalidate_user_style_sheet();
+
+    // The `@keyframes` row a shadow root's scope published to the style engine, taken from the scope as the root
+    // leaves its document, with the keyframe sets the row names: they stay alive until the row is given up.
+    struct DepartedAnimationKeyframes {
+        TreeScopeID tree_scope;
+        FlatPtr shadow_root_identity { 0 };
+        Vector<NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet const>> keyframe_sets;
+    };
+    [[nodiscard]] Optional<DepartedAnimationKeyframes> take_published_animation_keyframes();
 
     void for_each_stylesheet(CascadeOrigin, Function<void(CSS::StyleSheetState&)> const&) const;
     static WEB_API void for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, bool include_mathml_and_svg_stylesheets, Function<void(CSS::StyleSheetState&, StyleSheetIdentifier const&)> const&);
@@ -163,6 +173,10 @@ public:
     StyleCache& ensure_style_cache() const;
 
     RefPtr<StyleCache> m_style_cache;
+
+    // The keyframe sets this scope last published. The style engine names them by pointer, so they stay alive after
+    // the rule cache they came from is invalidated, until the scope publishes again or gives its row up.
+    Vector<NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet const>> m_published_keyframe_sets;
 
     RefPtr<StyleSheetState> m_user_style_sheet;
 

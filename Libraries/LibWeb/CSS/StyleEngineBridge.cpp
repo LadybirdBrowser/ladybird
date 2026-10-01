@@ -742,6 +742,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
     Vector<StyleEngineFFI::FfiCustomFunctionEntry> custom_functions;
     if (m_style_computer) {
         auto& document = m_style_computer->document();
+        document.publish_animation_keyframes_for_style_update();
         document_base_url = document.serialized_base_url();
         auto document_api_base_url = HTML::relevant_settings_object(document).api_base_url().to_string();
         if (!m_style_sheet_resource_contexts.has_value()

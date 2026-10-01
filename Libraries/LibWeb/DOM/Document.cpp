@@ -9147,6 +9147,31 @@ void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& s
 {
     m_shadow_roots.remove(shadow_root);
     note_style_sheet_set_change();
+    // The style engine names the keyframe sets of the root's `@keyframes` by pointer. The root may be leaving from a
+    // garbage collection's finalizer, which must not reach into the engine, so its row is given up before the next
+    // style transaction, and the sets stay alive until then.
+    if (auto departed = shadow_root.style_scope().take_published_animation_keyframes(); departed.has_value())
+        m_departed_animation_keyframes.append(departed.release_value());
+}
+
+// Resolving an animation's `@keyframes` is a lookup in what each style scope published to the style engine, which a
+// scope does whenever its rule cache is built. So before a style transaction, the rows of the shadow roots that left
+// are given up and every scope's rule cache is built. A rule cache is invalidated only with a change of the style sheet
+// set, as is a shadow root's departure, so without one since the last transaction every row is current.
+void Document::publish_animation_keyframes_for_style_update()
+{
+    if (m_animation_keyframes_published_generation == m_style_sheet_set_generation)
+        return;
+    // NB: Read before the walk, so that a change the walk itself makes walks again next time.
+    m_animation_keyframes_published_generation = m_style_sheet_set_generation;
+    auto* engine = style_computer().style_engine().rust_handle();
+    for (auto const& departed : m_departed_animation_keyframes)
+        CSS::StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(engine, departed.tree_scope.value(), departed.shadow_root_identity, nullptr, nullptr, 0, nullptr, 0);
+    m_departed_animation_keyframes.clear();
+    style_scope().build_rule_cache_if_needed();
+    for_each_shadow_root([](DOM::ShadowRoot& shadow_root) {
+        shadow_root.style_scope().build_rule_cache_if_needed();
+    });
 }
 
 // https://drafts.csswg.org/css-position-4/#add-an-element-to-the-top-layer
