@@ -420,10 +420,6 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
                 commit_messages.append(messages[index]);
             // The pass that produced them reads back what they change before it ends.
             commit_messages.apply(); },
-        .build_replaced_content_facts = [](void*, void* node_shell, RustFFI::FfiReplacedContentFacts* facts) {
-            auto const& node = *static_cast<Node const*>(node_shell);
-            if (auto const* box = as_if<Box>(node))
-                *facts = box->build_replaced_content_facts_for_arena(); },
         .viewport_propagation_facts = [](void* context) { return viewport_propagation_facts(*static_cast<DOM::Document*>(context)); },
         .container_length_bases = [](void*, void* node_shell) -> RustFFI::FfiContainerLengthBases {
             auto const& element = as<DOM::Element>(*static_cast<Node const*>(node_shell)->dom_node());

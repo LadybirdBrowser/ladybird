@@ -923,8 +923,6 @@ pub struct FfiLayoutHostCallbacks {
     /// The commit messages a finished commit leaves for the document, in the order it produced
     /// them.
     pub deliver_commit_messages: unsafe extern "C" fn(*mut c_void, *const commit::FfiCommitMessage, usize),
-    /// Fills the replaced-content facts of a live box shell ahead of a pass.
-    pub build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiReplacedContentFacts),
     /// The document element and body facts the viewport propagation decides from.
     pub viewport_propagation_facts:
         unsafe extern "C" fn(*mut c_void) -> viewport_propagation::FfiViewportPropagationFacts,

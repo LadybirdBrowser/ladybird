@@ -934,33 +934,6 @@ CSS::UserSelect Node::user_select_used_value() const
     return CSS::UserSelect::Text;
 }
 
-// https://drafts.csswg.org/css-contain-2/#containment-size
-bool NodeWithStyle::has_size_containment() const
-{
-    // However, giving an element size containment has no effect if any of the following are true:
-
-    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
-    // Note: This is the principal box
-
-    // - if its inner display type is 'table'
-    if (display().is_table_inside())
-        return false;
-
-    // - if its principal box is an internal table box
-    if (display().is_internal_table())
-        return false;
-
-    // - if its principal box is an internal ruby box or a non-atomic inline-level box
-    // FIXME: Implement this.
-
-    if (contain().size_containment)
-        return true;
-
-    if (container_type().is_size_container)
-        return true;
-
-    return false;
-}
 void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdatePropagation propagation)
 {
     if constexpr (UPDATE_LAYOUT_DEBUG) {

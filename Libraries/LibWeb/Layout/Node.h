@@ -457,21 +457,6 @@ public:
             return {};
         return values.z_index;
     }
-    // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
-    Optional<CSSPixels> explicit_intrinsic_inner_width() const
-    {
-        auto const& value = style_group<CSS::ComputedValues::BoxValues>().contain_intrinsic_width;
-        if (!value.has_length)
-            return {};
-        return CSSPixels::nearest_value_for(value.length_px);
-    }
-    Optional<CSSPixels> explicit_intrinsic_inner_height() const
-    {
-        auto const& value = style_group<CSS::ComputedValues::BoxValues>().contain_intrinsic_height;
-        if (!value.has_length)
-            return {};
-        return CSSPixels::nearest_value_for(value.length_px);
-    }
     CSS::Containment contain() const
     {
         auto const& values = style_group<CSS::ComputedValues::BoxValues>();
@@ -655,9 +640,6 @@ public:
 
     bool establishes_an_absolute_positioning_containing_block() const;
     bool establishes_a_fixed_positioning_containing_block() const;
-
-    // https://drafts.csswg.org/css-contain-2/#containment-types
-    bool has_size_containment() const;
 
     [[nodiscard]] bool has_css_transform() const;
 
