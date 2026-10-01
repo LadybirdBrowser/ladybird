@@ -81,6 +81,9 @@ public:
 
     Vector<GC::Root<LocalNavigable>> child_navigables() const;
     Vector<GC::Root<LocalNavigable>> hosted_inclusive_descendant_navigables();
+    // For a dump that descends into the documents navigable containers show: brings the layout of the active
+    // document of this navigable and of every navigable it hosts up to date.
+    void update_layout_of_hosted_inclusive_descendant_documents(DOM::UpdateLayoutReason);
 
     bool is_local_root() const;
     GC::Ref<LocalNavigable> local_root();
