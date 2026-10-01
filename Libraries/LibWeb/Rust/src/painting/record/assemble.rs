@@ -703,7 +703,7 @@ mod tests {
         let source_prologue_bytes = host.source.as_ref().map(|frame| frame.prologue_bytes);
         let root_entry = Assembler::new(host, tree, source_prologue_bytes).assemble_root(context(row(0)));
         let output = std::mem::replace(&mut host.output, new_output());
-        let hit_test_items = std::rc::Rc::try_unwrap(output.hit_test_list.items).expect("items are unshared");
+        let hit_test_items = std::sync::Arc::try_unwrap(output.hit_test_list.items).expect("items are unshared");
         Frame {
             display_list: output.recorder.into_builder().finish(),
             hit_test_items,

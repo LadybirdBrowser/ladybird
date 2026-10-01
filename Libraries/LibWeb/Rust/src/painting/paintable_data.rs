@@ -164,7 +164,7 @@ pub struct PaintableSideData {
     pub(crate) overflow_valid_across_recommits: Cell<bool>,
     pub(crate) overflow_relative_to_padding_box: Cell<FfiOverflowData>,
     pub(crate) overflow_measured_this_commit: Cell<bool>,
-    pub(crate) inline_content: Option<std::rc::Rc<crate::layout::inline_content::InlineContent>>,
+    pub(crate) inline_content: Option<std::sync::Arc<crate::layout::inline_content::InlineContent>>,
     pub(crate) piece_indices: Vec<u32>,
     pub(crate) svg_filter_bounds: Cell<Option<used_values::FfiCssPixelRect>>,
     // Only meaningful while is_self_painting(); assigned by the containing block's

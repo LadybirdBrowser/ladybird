@@ -3309,7 +3309,7 @@ impl<'pass> GridFormattingContext<'pass> {
             columns: self.used_track_list_data(Axis::Column, self.is_subgridded(Axis::Column, grid_style)),
             rows: self.used_track_list_data(Axis::Row, self.is_subgridded(Axis::Row, grid_style)),
         };
-        self.container_used().rare_data_mut().used_grid_tracks = Some(std::rc::Rc::new(tracks));
+        self.container_used().rare_data_mut().used_grid_tracks = Some(std::sync::Arc::new(tracks));
     }
 
     fn save_devtools_data(&self, grid_style: &GridValues) {
@@ -3414,7 +3414,7 @@ impl<'pass> GridFormattingContext<'pass> {
             is_subgrid: self.is_subgridded(Axis::Column, grid_style) || self.is_subgridded(Axis::Row, grid_style),
             fragments: vec![fragment],
         };
-        self.container_used().rare_data_mut().grid_layout_data = Some(std::rc::Rc::new(data));
+        self.container_used().rare_data_mut().grid_layout_data = Some(std::sync::Arc::new(data));
     }
 
     pub(crate) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {

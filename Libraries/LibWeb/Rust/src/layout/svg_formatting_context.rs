@@ -1888,7 +1888,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let used = &used_pointer;
         used.set_content_inline_size(bounding_box.width);
         used.set_content_block_size(bounding_box.height);
-        self.used_values(graphics_box).rare_data_mut().computed_svg_path = Some(std::rc::Rc::new(path));
+        self.used_values(graphics_box).rare_data_mut().computed_svg_path = Some(std::sync::Arc::new(path));
         self.place_child(graphics_box, bounding_box.x, bounding_box.y);
         used.has_definite_inline_size.set(true);
         used.has_definite_block_size.set(true);

@@ -104,7 +104,7 @@ fn publish_recording_output(arena: &LayoutNodeArena, mut output: RecordingOutput
         .zip(paint_state.published_hit_test_items.as_ref())
         .is_some_and(|(source, item_source)| {
             std::sync::Arc::ptr_eq(&output.display_list, &source.display_list)
-                && std::rc::Rc::ptr_eq(&output.hit_test_list.items, &item_source.items)
+                && std::sync::Arc::ptr_eq(&output.hit_test_list.items, &item_source.items)
                 && output.recorded_structural_epoch == source.recorded_structural_epoch
                 && output.wheel_event_listener_state_generation == source.wheel_event_listener_state_generation
                 && output.has_blocking_wheel_event_listeners == source.has_blocking_wheel_event_listeners
@@ -114,7 +114,7 @@ fn publish_recording_output(arena: &LayoutNodeArena, mut output: RecordingOutput
     let previous_list_is_the_source = hit_test_list
         .as_ref()
         .zip(paint_state.published_hit_test_items.as_ref())
-        .is_some_and(|(list, source)| std::rc::Rc::ptr_eq(&list.items, &source.items));
+        .is_some_and(|(list, source)| std::sync::Arc::ptr_eq(&list.items, &source.items));
     if output.is_identical_to_published_frame && previous_list_is_the_source {
         drop(list);
     } else {

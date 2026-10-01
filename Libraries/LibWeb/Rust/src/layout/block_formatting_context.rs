@@ -163,7 +163,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-    previous_line_data: Option<std::rc::Rc<inline_content::InlineContent>>,
+    previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     is_line_clamp_container: bool,
     max_lines: Cell<Option<usize>>,
     line_clamp_line_count: Cell<usize>,

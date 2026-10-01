@@ -811,7 +811,7 @@ pub(crate) struct ChildLayoutResult {
 pub(crate) struct RunRootOutcome {
     pub(super) cells: used_values::UsedValuesCellState,
     pub(super) own_metrics_sealed: bool,
-    pub(super) line_data: Option<std::rc::Rc<inline_content::InlineContent>>,
+    pub(super) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     pub(super) rare: Option<used_values::UsedValuesRareData>,
 }
 
@@ -977,7 +977,7 @@ pub(crate) struct FormattingContextRun<'pass> {
     pub(crate) should_collect_devtools_layout_data: bool,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(crate) fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
-    pub(crate) previous_line_data: Option<std::rc::Rc<inline_content::InlineContent>>,
+    pub(crate) previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 }
 
 impl<'pass> FormattingContextRun<'pass> {
@@ -1626,7 +1626,7 @@ fn execute_formatting_context_run(
     callbacks: LayoutPass<'_>,
     input: LayoutInput,
     parent_block: Option<&block_formatting_context::BlockFormattingContext>,
-    previous_line_data: Option<std::rc::Rc<inline_content::InlineContent>>,
+    previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> RunOutputs {
     assert!(!box_.is_invalid());

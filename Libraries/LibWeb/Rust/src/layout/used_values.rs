@@ -216,7 +216,7 @@ pub(crate) enum LineDataState {
     #[default]
     Empty,
     Building(Box<LineData>),
-    Finished(std::rc::Rc<inline_content::InlineContent>),
+    Finished(std::sync::Arc<inline_content::InlineContent>),
 }
 
 impl std::fmt::Debug for LineDataState {
@@ -302,12 +302,12 @@ impl CommittedSvgFacts {
 
 #[derive(Clone, Default)]
 pub(crate) struct UsedValuesRareData {
-    pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
+    pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::OwnedPath>>,
     pub(crate) svg: CommittedSvgFacts,
-    pub(crate) grid_layout_data: Option<std::rc::Rc<grid_formatting_context::GridLayoutData>>,
-    pub(crate) flex_layout_data: Option<std::rc::Rc<formatting_context::FlexLayoutData>>,
-    pub(crate) used_grid_tracks: Option<std::rc::Rc<grid_formatting_context::OwnedUsedGridTracks>>,
-    pub(crate) collapsed_table_borders: Option<std::rc::Rc<table_formatting_context::OwnedCollapsedTableBorders>>,
+    pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
+    pub(crate) flex_layout_data: Option<std::sync::Arc<formatting_context::FlexLayoutData>>,
+    pub(crate) used_grid_tracks: Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>>,
+    pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
     pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
 }
 
@@ -501,19 +501,19 @@ impl UsedValues {
         RefMut::map(self.line_data.borrow_mut(), LineDataState::building_mut)
     }
 
-    pub(crate) fn set_finished_line_data(&self, content: std::rc::Rc<inline_content::InlineContent>) {
+    pub(crate) fn set_finished_line_data(&self, content: std::sync::Arc<inline_content::InlineContent>) {
         *self.line_data.borrow_mut() = LineDataState::Finished(content);
     }
 
     pub(crate) fn finish_line_data(
         &self,
         callbacks: &LayoutPass<'_>,
-    ) -> Option<std::rc::Rc<inline_content::InlineContent>> {
+    ) -> Option<std::sync::Arc<inline_content::InlineContent>> {
         let mut state = self.line_data.borrow_mut();
         let content = match &mut *state {
             LineDataState::Empty => return None,
             LineDataState::Finished(content) => return Some(content.clone()),
-            LineDataState::Building(data) => std::rc::Rc::new(inline_content::InlineContent::finish(
+            LineDataState::Building(data) => std::sync::Arc::new(inline_content::InlineContent::finish(
                 std::mem::take(data.as_mut()),
                 callbacks.arena(),
                 self.content_inline_size.get(),

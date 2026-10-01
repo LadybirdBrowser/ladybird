@@ -615,7 +615,7 @@ impl FcRunCacheAttempt {
         }
     }
 
-    pub(super) fn previous_line_data(&self) -> Option<std::rc::Rc<inline_content::InlineContent>> {
+    pub(super) fn previous_line_data(&self) -> Option<std::sync::Arc<inline_content::InlineContent>> {
         let Self::Store {
             structurally_damaged_entry: Some(entry),
             ..

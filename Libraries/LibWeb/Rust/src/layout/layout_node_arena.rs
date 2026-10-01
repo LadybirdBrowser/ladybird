@@ -5279,7 +5279,7 @@ mod tests {
 
     fn test_fragment_link(node: NodeSlotId) -> fragment_tree::FragmentLink {
         fragment_tree::FragmentLink {
-            fragment: std::rc::Rc::new(fragment_tree::Fragment {
+            fragment: std::sync::Arc::new(fragment_tree::Fragment {
                 identity: 1,
                 node,
                 content_inline_size: CssPixels::default(),
@@ -5654,7 +5654,7 @@ mod tests {
         let moved = arena
             .take_committed_fragment_link(arena.data(old.slot))
             .expect("old slot must retain its committed fragment");
-        assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
+        assert!(std::sync::Arc::ptr_eq(&moved.fragment, &retained_fragment));
         arena.set_committed_fragment_link(arena.data(new.slot), moved, None);
 
         assert!(arena.committed_fragment_link(arena.data(old.slot)).is_none());
@@ -5663,7 +5663,7 @@ mod tests {
         let moved = arena
             .committed_fragment_link(arena.data(new.slot))
             .expect("new slot must receive the committed fragment");
-        assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
+        assert!(std::sync::Arc::ptr_eq(&moved.fragment, &retained_fragment));
         arena.set_committed_fragment_link(arena.data(new.slot), test_fragment_link(new.slot), None);
         assert_eq!(arena.saved_abspos_layout_inputs(arena.data(new.slot)), None);
         arena.free_subtree(old.slot).destroy_shells_and_invoke_callbacks();

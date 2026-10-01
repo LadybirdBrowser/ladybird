@@ -134,7 +134,7 @@ pub enum PaintStyle {
         end_radius: f32,
     },
     Pattern {
-        tile_records: std::rc::Rc<Vec<u8>>,
+        tile_records: std::sync::Arc<Vec<u8>>,
         tile_rect: FloatRect,
         content_scale: FloatSize,
         pattern_transform: OptionalAffineTransform,

@@ -9,7 +9,6 @@ use super::geometry::AvailableSize;
 use super::layout_node_arena::LayoutNodeArena;
 use super::node_data::NodeSlotId;
 use super::{formatting_context, inline_formatting_context, used_values};
-use std::rc::Rc;
 
 // Finalized inline output shared by committed fragments, formatting-context caches and painting.
 // Glyph buffers move here from the line builder and own their fonts. No borrowed text or mutable
@@ -115,7 +114,7 @@ pub struct FragmentRecord {
     pub dom_end_offset_in_node: usize,
     pub dom_end_offset_with_trailing_whitespace: usize,
     pub trailing_whitespace_length_in_code_units: usize,
-    pub glyph_run: Option<Rc<GlyphRunRecord>>,
+    pub glyph_run: Option<std::sync::Arc<GlyphRunRecord>>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -165,7 +164,7 @@ impl InlineContent {
                     let bounding_box = libgfx_rust::FloatRect::from_array(
                         libgfx_rust::text_layout::glyph_run_bounding_box(&glyph_data.font, &glyph_data.glyphs, 1.0),
                     );
-                    Rc::new(GlyphRunRecord {
+                    std::sync::Arc::new(GlyphRunRecord {
                         glyphs: glyph_data.glyphs,
                         font: glyph_data.font,
                         bounding_box,

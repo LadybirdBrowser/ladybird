@@ -18,7 +18,7 @@ use crate::painting::display_list::commands::ContextRef;
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::visual_context::{ClipBehavior, VisualContextTree};
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -54,7 +54,7 @@ pub struct HitTestItem {
     pub block_container: NodeSlotId,
     pub context: ContextRef,
     pub border_radii: BorderRadii,
-    pub path: Option<Rc<libgfx_rust::path::OwnedPath>>,
+    pub path: Option<Arc<libgfx_rust::path::OwnedPath>>,
     pub winding_rule: i32,
     pub writing_mode: u8,
     pub inline_axis_is_reverse: bool,
@@ -127,7 +127,7 @@ pub fn rects_overlap_in_block_axis(a: CssPixelRect, b: CssPixelRect, writing_mod
 #[derive(Default)]
 pub struct HitTestList {
     pub generation: u64,
-    pub items: std::rc::Rc<Vec<HitTestItem>>,
+    pub items: Arc<Vec<HitTestItem>>,
     pub item_capacity_hint_from_previous_list: usize,
     /// Point queries read only the spatial indexes, and caret navigation reads only the caret lines,
     /// which resolve line box geometry for every caret-capable item. Each is built on first use.
@@ -145,7 +145,7 @@ impl HitTestList {
             !self.spatial_indexes_built && !self.caret_lines_built,
             "hit-test item appended after the derived structures were built"
         );
-        let items = std::rc::Rc::make_mut(&mut self.items);
+        let items = Arc::make_mut(&mut self.items);
         if items.capacity() == 0 {
             items.reserve(self.item_capacity_hint_from_previous_list);
         }
@@ -160,7 +160,7 @@ impl HitTestList {
         if source.is_empty() {
             return;
         }
-        let items = Rc::make_mut(&mut self.items);
+        let items = Arc::make_mut(&mut self.items);
         if items.capacity() == 0 {
             items.reserve(self.item_capacity_hint_from_previous_list.max(source.len()));
         }

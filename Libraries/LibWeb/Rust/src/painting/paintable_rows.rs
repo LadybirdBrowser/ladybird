@@ -980,7 +980,7 @@ impl LayoutNodeArena {
         };
         // Replacement preserves current paint geometry until the next layout commit. Give that
         // version new node identities without modifying retained run outputs or copying glyphs.
-        let content = std::rc::Rc::make_mut(content);
+        let content = std::sync::Arc::make_mut(content);
         for fragment in &mut content.fragments {
             if fragment.layout_node == old_node {
                 fragment.layout_node = new_node;

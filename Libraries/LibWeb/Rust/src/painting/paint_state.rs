@@ -33,8 +33,10 @@ pub struct PaintState {
     // publication or discarding decides what stays.
     pub(crate) paint_order_tree: std::cell::RefCell<crate::painting::record::order_tree::PaintOrderTree>,
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
-    pub(crate) selection_pseudo_styles:
-        std::collections::HashMap<NodeSlotId, Rc<crate::painting::record::paint::text::SelectionStyleAnswer>>,
+    pub(crate) selection_pseudo_styles: std::collections::HashMap<
+        NodeSlotId,
+        std::sync::Arc<crate::painting::record::paint::text::SelectionStyleAnswer>,
+    >,
 }
 
 impl PaintState {

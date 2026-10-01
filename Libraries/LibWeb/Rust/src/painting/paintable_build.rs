@@ -34,7 +34,7 @@ pub(crate) struct LineRootChanges {
 fn same_inline_content(left: &fragment_tree::Fragment, right: &fragment_tree::Fragment) -> bool {
     match (&left.line_data, &right.line_data) {
         (None, None) => true,
-        (Some(left), Some(right)) => std::rc::Rc::ptr_eq(left, right) || left == right,
+        (Some(left), Some(right)) => std::sync::Arc::ptr_eq(left, right) || left == right,
         _ => false,
     }
 }
@@ -370,7 +370,7 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn set_line_data(
         &self,
         slot: NodeSlotId,
-        line_data: &std::rc::Rc<crate::layout::inline_content::InlineContent>,
+        line_data: &std::sync::Arc<crate::layout::inline_content::InlineContent>,
     ) -> bool {
         if !node_painting::has_lines(self.arena(), slot) {
             return false;
