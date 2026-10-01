@@ -1672,6 +1672,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             set_style_uses_inherit_css_function();
         if (settled.record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::IfFunction))
             set_style_uses_if_css_function();
+        if (settled.record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::CustomFunction))
+            set_style_uses_custom_function();
         // What C++ marks the parent with when a pseudo-element it computes explicitly inherits a
         // non-inherited property.
         if (settled.explicitly_inherited_groups != 0 && parent())
@@ -2241,6 +2243,19 @@ void Element::set_style_uses_if_css_function()
         publish_style_recomputes_on_environment_move();
 }
 
+// A custom function's declarations may be gated by @media conditions, which a viewport change
+// moves, as it moves an if() condition.
+void Element::set_style_uses_custom_function()
+{
+    if (m_style_uses_custom_function)
+        return;
+    bool const publishes = !style_recomputes_on_environment_move();
+    m_style_uses_custom_function = true;
+    document().add_element_with_viewport_dependent_style(*this);
+    if (publishes)
+        publish_style_recomputes_on_environment_move();
+}
+
 void Element::publish_style_recomputes_on_environment_move()
 {
     auto style_node = style_node_id();
@@ -2446,6 +2461,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     // of either has to reach the element again.
     if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::IfFunction))
         set_style_uses_if_css_function();
+    // A custom function call reads the definitions its scope sees and whatever their declarations
+    // read, so a change of either has to reach the element again.
+    if (record_reads & to_underlying(CSS::StyleEngineFFI::FfiNodeRecordReads::CustomFunction))
+        set_style_uses_custom_function();
     // An attr() in the record's winners, or in the custom properties the element declares, reads
     // the element's attributes, so an attribute change has to reach the element again. An engine
     // record only ever sets the flag: one that stops reading attributes leaves it set, and the

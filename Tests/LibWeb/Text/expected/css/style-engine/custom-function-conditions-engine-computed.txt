@@ -1,0 +1,2 @@
+narrow: document 1px, shadow 1px, shadow local 7px
+wide: document 3px, shadow 3px, shadow local 7px

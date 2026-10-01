@@ -1395,6 +1395,9 @@ pub(super) const STATE_READS_INHERIT_FUNCTION: u8 = 1 << 2;
 /// A state's winners substitute `if()`, whose conditions read the document's media features and
 /// the element's lengths.
 pub(super) const STATE_READS_IF_FUNCTION: u8 = 1 << 3;
+/// A state's winners call a custom function, whose definition and the conditions inside it the
+/// cascade does not decide.
+pub(super) const STATE_READS_CUSTOM_FUNCTION: u8 = 1 << 4;
 /// What a state's winners read has been decided.
 const STATE_READS_DECIDED: u8 = 1 << 7;
 

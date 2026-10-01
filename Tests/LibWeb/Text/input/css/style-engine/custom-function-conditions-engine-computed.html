@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    const childDocumentSource = `
+        <!DOCTYPE html>
+        <style>
+            @function --pick() {
+                result: 1px;
+                @media (max-width: 0px) { result: 2px; }
+                @media (min-width: 400px) { result: 3px; }
+            }
+            #target { width: --pick(); height: 1px; }
+        </style>
+        <div id="target"></div>
+        <div id="host"></div>
+    `;
+
+    // A custom function's body holds a block whose @media never matches and one a viewport resize
+    // turns on; a call in a shadow tree reaches the document's definition and the shadow tree's own.
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.border = "0";
+        iframe.style.width = "300px";
+        iframe.style.height = "200px";
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = childDocumentSource;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const shadow = child.document.getElementById("host").attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+            <style>
+                @function --local() { result: 7px; }
+                #outer { width: --pick(); height: 1px; }
+                #local { width: --local(); height: 1px; }
+            </style>
+            <div id="outer"></div>
+            <div id="local"></div>
+        `;
+        const report = label => {
+            const width = element => child.getComputedStyle(element).width;
+            println(`${label}: document ${width(child.document.getElementById("target"))}, shadow ${width(shadow.getElementById("outer"))}, shadow local ${width(shadow.getElementById("local"))}`);
+        };
+        child.document.body.offsetWidth;
+        report("narrow");
+
+        iframe.style.width = "500px";
+        document.body.offsetWidth;
+        await animationFrame();
+        child.document.body.offsetWidth;
+        report("wide");
+    });
+</script>

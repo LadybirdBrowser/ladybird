@@ -35,6 +35,21 @@ pub(crate) struct ContainerVerdict {
     pub(crate) style_query_references: Option<Box<StyleQueryDependencies>>,
 }
 
+impl ContainerVerdict {
+    /// Add what another evaluation read of the containers to what this one read.
+    pub(crate) fn add_reads(&mut self, other: ContainerVerdict) {
+        self.depends_on_size |= other.depends_on_size;
+        self.depends_on_style |= other.depends_on_style;
+        self.effects.extend(other.effects);
+        if let Some(references) = other.style_query_references {
+            match &mut self.style_query_references {
+                Some(noted) => noted.extend(&references),
+                noted => *noted = Some(references),
+            }
+        }
+    }
+}
+
 /// What a `style()` feature reads of the container it asks about: the custom-property
 /// environment of its record, and lengths and colors as the record computes them.
 struct RetainedContainerStyleContext<'a> {
@@ -46,6 +61,20 @@ struct RetainedContainerStyleContext<'a> {
 /// The engine answers `style()` features in Rust, never through the facts' callback.
 unsafe extern "C" fn no_style_feature_callback(_: *mut c_void, _: FfiContainerStyleFeature) -> u8 {
     MatchResult::Unknown as u8
+}
+
+/// Whether one of the container conditions asks a `style()` question.
+fn conditions_ask_container_style(
+    containers: &[std::sync::Arc<crate::css::container_conditions::ContainerConditionsData>],
+) -> bool {
+    containers.iter().any(|conditions| {
+        conditions.conditions.iter().any(|condition| {
+            condition
+                .query
+                .as_ref()
+                .is_some_and(|query| query.container_requirements() & CONTAINER_QUERY_REQUIRES_STYLE != 0)
+        })
+    })
 }
 
 impl RetainedState {
@@ -109,11 +138,23 @@ impl RetainedState {
         subject_is_pseudo_element: bool,
     ) -> Option<ContainerVerdict> {
         let containers = self.native_rules.targets.get(&rule)?.containers();
+        self.container_conditions_verdict(containers, subject, subject_is_pseudo_element)
+    }
+
+    /// Evaluate container conditions for a subject, as the host evaluates them: a rule's, or those
+    /// around a block of a custom function's declarations. `None` when the engine cannot decide
+    /// them, as for `rule_container_verdict`.
+    pub(super) fn container_conditions_verdict(
+        &self,
+        containers: &[std::sync::Arc<crate::css::container_conditions::ContainerConditionsData>],
+        subject: StyleNodeID,
+        subject_is_pseudo_element: bool,
+    ) -> Option<ContainerVerdict> {
         let mut verdict = ContainerVerdict {
             matches: true,
             // A dependency is marked even where an inner condition then fails to match.
             depends_on_size: containers.iter().any(|conditions| conditions.contains_size_feature()),
-            depends_on_style: self.rule_asks_container_style(rule),
+            depends_on_style: conditions_ask_container_style(containers),
             ..Default::default()
         };
         // Every group holds when one of its conditions does, and the evaluation stops where the
@@ -404,16 +445,10 @@ impl RetainedState {
     /// Keep what a row the engine answers read of its containers for the host, which records it
     /// when it installs the element's record, as it does for a row it computes itself.
     pub(super) fn note_container_effects_for_host(&mut self, node: StyleNodeID, verdict: ContainerVerdict) {
-        let noted = self.container_effects_for_host.entry(node).or_default();
-        noted.depends_on_size |= verdict.depends_on_size;
-        noted.depends_on_style |= verdict.depends_on_style;
-        noted.effects.extend(verdict.effects);
-        if let Some(references) = verdict.style_query_references {
-            match &mut noted.style_query_references {
-                Some(noted) => noted.extend(&references),
-                noted => *noted = Some(references),
-            }
-        }
+        self.container_effects_for_host
+            .entry(node)
+            .or_default()
+            .add_reads(verdict);
     }
 
     /// What the rows the host installs read of their containers, taken as it installs each.
@@ -433,16 +468,10 @@ impl RetainedState {
     /// Whether one of a rule's container conditions asks a `style()` question, which every
     /// element above the subject may answer.
     fn rule_asks_container_style(&self, rule: RuleID) -> bool {
-        self.native_rules.targets.get(&rule).is_some_and(|target| {
-            target.containers().iter().any(|conditions| {
-                conditions.conditions.iter().any(|condition| {
-                    condition
-                        .query
-                        .as_ref()
-                        .is_some_and(|query| query.container_requirements() & CONTAINER_QUERY_REQUIRES_STYLE != 0)
-                })
-            })
-        })
+        self.native_rules
+            .targets
+            .get(&rule)
+            .is_some_and(|target| conditions_ask_container_style(target.containers()))
     }
 
     /// Decide, as a node's winners are published, whether its gated rules can be: their

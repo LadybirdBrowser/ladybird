@@ -2809,6 +2809,10 @@ pub enum FfiNodeRecordReads {
     /// properties either declares: a change of the media features or of the element's
     /// environment reaches the records.
     IfFunction = 1 << 3,
+    /// A custom function call, in the element's winners, its pseudo-elements' or the custom
+    /// properties either declares: a change of the media features, of the element's environment
+    /// or of the `@function` definitions reaches the records.
+    CustomFunction = 1 << 4,
 }
 
 /// The raw custom-property environment identity a style record was published with.
@@ -3860,7 +3864,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     // SAFETY: The host lends the media environment the inputs name for this call.
     unsafe { engine.document_media.take_in(&mut computation_inputs) };
     // SAFETY: The host lends the custom functions the inputs name for this call.
-    unsafe { engine.document_functions.take_in(&mut computation_inputs) };
+    unsafe { engine.take_in_document_functions(&mut computation_inputs) };
     engine.custom_property_registrations_changed = engine
         .document_style_computation_inputs
         .custom_property_registration_generation

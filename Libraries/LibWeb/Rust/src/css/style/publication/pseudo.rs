@@ -869,6 +869,7 @@ impl RetainedState {
         self.note_custom_declaration_reads(node, None, &custom_declarations);
         let environment = self.engine_custom_property_environment_over(
             host,
+            None,
             custom_declarations,
             parent_environment,
             &inputs,

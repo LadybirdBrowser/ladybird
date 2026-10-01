@@ -2302,7 +2302,7 @@ void Node::set_document(Document& document)
     m_document = &document;
 
     if (auto* element = as_if<Element>(*this)) {
-        if (element->style_uses_if_css_function() || element->style_depends_on_viewport_metrics())
+        if (element->style_uses_if_css_function() || element->style_uses_custom_function() || element->style_depends_on_viewport_metrics())
             document.add_element_with_viewport_dependent_style(*element);
         element->on_document_changed(old_document, document);
     }

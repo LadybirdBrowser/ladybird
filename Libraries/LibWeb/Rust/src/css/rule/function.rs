@@ -21,10 +21,6 @@ pub(crate) struct FunctionDeclarationInput {
     /// The container conditions around the block, nearest first, which hold for an element or not.
     pub(crate) containers: Vec<Arc<ContainerConditionsData>>,
     /// The `@media` lists around the block, which hold for the document or not.
-    #[allow(
-        dead_code,
-        reason = "style engine records read it once they resolve custom functions"
-    )]
     pub(crate) media: Vec<Arc<MediaListData>>,
     /// Whether every one of those lists matched when the function was compiled. A media change
     /// invalidates the host's definition cache, so the host reads this; the style engine
