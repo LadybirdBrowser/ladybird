@@ -64,6 +64,33 @@ impl<T> WeakPool<T> {
         }
     }
 
+    /// Make `value`, which may have been published under `hash`, private to its owner. When the
+    /// owner holds the only strong reference the pool just forgets it, so it can be edited in place;
+    /// otherwise `copy` makes a private value, charged to the pool's ledger.
+    pub(super) fn make_private(
+        &mut self,
+        hash: Option<u64>,
+        value: &mut Arc<T>,
+        copy: impl FnOnce(&T, &mut MemoryController) -> T,
+    ) {
+        // A pool reference is only upgraded under the pool's lock, so while it is held a value with
+        // one strong reference cannot gain another.
+        if Arc::strong_count(value) == 1
+            && let Some(hash) = hash
+            && let Some(bucket) = self.by_hash.get_mut(&hash)
+        {
+            let before = bucket.len();
+            bucket.retain(|candidate| !std::ptr::eq(candidate.as_ptr(), Arc::as_ptr(value)));
+            self.references -= before - bucket.len();
+            if bucket.is_empty() {
+                self.by_hash.remove(&hash);
+            }
+        }
+        if Arc::get_mut(value).is_none() {
+            *value = Arc::new(copy(value, &mut self.memory));
+        }
+    }
+
     fn sweep(&mut self) {
         self.by_hash.retain(|_, bucket| {
             bucket.retain(|candidate| candidate.strong_count() != 0);
@@ -104,5 +131,25 @@ mod tests {
         drop((found, kept));
         assert!(pool.find(7, |_| true).is_none());
         assert_eq!(pool.live_values_under(7), 0);
+    }
+
+    #[test]
+    fn a_sole_owner_edits_in_place_and_a_shared_value_is_copied() {
+        let mut pool = WeakPool::<u32>::default();
+        let mut sole = Arc::new(1);
+        pool.insert(1, &sole);
+        let address = Arc::as_ptr(&sole);
+        pool.make_private(Some(1), &mut sole, |_, _| unreachable!("a sole owner is never copied"));
+        assert_eq!(Arc::as_ptr(&sole), address);
+        assert!(Arc::get_mut(&mut sole).is_some());
+        assert!(pool.find(1, |_| true).is_none());
+
+        let mut shared = Arc::new(2);
+        pool.insert(2, &shared);
+        let other = Arc::clone(&shared);
+        pool.make_private(Some(2), &mut shared, |value, _| *value);
+        assert!(!Arc::ptr_eq(&shared, &other));
+        assert!(Arc::get_mut(&mut shared).is_some());
+        assert!(Arc::ptr_eq(&pool.find(2, |_| true).unwrap(), &other));
     }
 }
