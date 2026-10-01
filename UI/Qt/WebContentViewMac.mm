@@ -29,6 +29,11 @@ bool WebContentView::ensure_iosurface_layer_attached_to_native_view()
     if (!content_layer)
         return false;
 
+    // NB: Qt restores the native view's exposed state from the content layer's display callback after it is unhidden.
+    //     Presenting our own sublayer may leave that layer clean, which keeps Qt from routing mouse events to the view.
+    if (isVisible() && !window_handle->isExposed())
+        [content_layer setNeedsDisplay];
+
     if (!m_iosurface_layer) {
         auto* layer = [[CALayer alloc] init];
         layer.opaque = YES;
