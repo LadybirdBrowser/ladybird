@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .parent { border: 1px solid rgb(1, 2, 3); }
+    .parent.changed { border-color: rgb(4, 5, 6); }
+    .child { border-width: 1px; border-style: solid; border-color: inherit; }
+</style>
+<div class="parent" id="first"><span class="child" id="first-child"></span></div>
+<div class="parent" id="second"><span class="child" id="second-child"></span></div>
+<div id="later"></div>
+<script>
+    test(() => {
+        const colorOf = id => getComputedStyle(document.getElementById(id)).borderTopColor;
+        internals.updateStyle();
+        println(`first child: ${colorOf("first-child")}, second child: ${colorOf("second-child")}`);
+
+        // The two parents share one record. A child that explicitly inherits a non-inherited
+        // property from one of them follows that parent alone.
+        document.getElementById("first").classList.add("changed");
+        internals.updateStyle();
+        println(`after the first parent changed: ${colorOf("first-child")}, ${colorOf("second-child")}`);
+
+        document.getElementById("second").classList.add("changed");
+        document.getElementById("first").classList.remove("changed");
+        internals.updateStyle();
+        println(`after both changed back and forth: ${colorOf("first-child")}, ${colorOf("second-child")}`);
+
+        // A parent and its explicitly inheriting child styled in the same update.
+        document.getElementById("later").innerHTML = `<div class="parent changed" id="third"><span class="child" id="third-child"></span></div>`;
+        internals.updateStyle();
+        println(`new child: ${colorOf("third-child")}`);
+        document.getElementById("third").classList.remove("changed");
+        internals.updateStyle();
+        println(`new child after its parent changed: ${colorOf("third-child")}`);
+    });
+</script>

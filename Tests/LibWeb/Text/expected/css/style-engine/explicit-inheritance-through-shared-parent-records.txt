@@ -1,0 +1,5 @@
+first child: rgb(1, 2, 3), second child: rgb(1, 2, 3)
+after the first parent changed: rgb(4, 5, 6), rgb(1, 2, 3)
+after both changed back and forth: rgb(1, 2, 3), rgb(4, 5, 6)
+new child: rgb(4, 5, 6)
+new child after its parent changed: rgb(1, 2, 3)
