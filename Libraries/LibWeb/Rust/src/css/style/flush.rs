@@ -1842,10 +1842,8 @@ impl StyleEngineState {
                     | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
                 let reaction_is_settleable = reaction & !(transaction::STYLE_REACTION_PUBLISHED_STYLE | DERIVABLE) == 0
                     && !(reaction & DERIVABLE != 0 && style_input_nodes_for_cpp.contains(&root));
-                // A moved `@font-feature-values` reaches values a record does not say it read.
-                let can_prepare = !(old_record.is_some() && named_rules_moved.font_feature_values)
-                    && (reaction_is_settleable
-                        || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
+                let can_prepare = (reaction_is_settleable
+                    || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     && !self.retained.computed_group_sets.node_answer_is_incomplete(root)
                     && !selector_truth_changes.deltas_for(root).iter().any(|delta| {
                         !self
@@ -1879,6 +1877,7 @@ impl StyleEngineState {
                         || !selector_truth_changes.refreshes_for(root).is_empty();
                     engine_computed_record_scratch.recompute_in_full =
                         self.named_rule_contexts_drive_in_full(root, named_rules_moved);
+                    engine_computed_record_scratch.font_environment_moved = named_rules_moved.font_feature_values;
                     self.prepare_root_font_inputs(
                         root,
                         answer.cascade_winners_are_complete,
@@ -1888,6 +1887,7 @@ impl StyleEngineState {
                         counters,
                     );
                     engine_computed_record_scratch.recompute_in_full = false;
+                    engine_computed_record_scratch.font_environment_moved = false;
                 } else {
                     counters.bump(Counter::RootFontInputsUnprovenFallbacks);
                 }
@@ -2130,9 +2130,8 @@ impl StyleEngineState {
                         // C++ only refreshes the inherited environment for a non-consumer. There
                         // is no element record to recompute or compare against the parent's groups.
                         false
-                    } else if (old_style_record != 0 && named_rules_moved.font_feature_values)
-                        || !(reaction_is_settleable
-                            || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
+                    } else if !(reaction_is_settleable
+                        || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     {
                         counters.bump(Counter::EngineComputedRecordGateReaction);
                         false
@@ -2203,8 +2202,11 @@ impl StyleEngineState {
                         engine_computed_record_scratch.answer_or_declarations_moved = rule_declarations_edited
                             || !flipped_rules.is_empty()
                             || !selector_truth_changes.refreshes_for(node).is_empty();
-                        engine_computed_record_scratch.font_environment_moved =
-                            reaction & transaction::STYLE_REACTION_FONT_INPUTS_CHANGED != 0;
+                        // A moved `@font-feature-values` moves the font input of every record the
+                        // same way: the font resolver holds the published feature-value table of
+                        // the font-environment generation.
+                        engine_computed_record_scratch.font_environment_moved = named_rules_moved.font_feature_values
+                            || reaction & transaction::STYLE_REACTION_FONT_INPUTS_CHANGED != 0;
                         // A descendant recompute stands for inputs no winner shows: the root's font
                         // metrics, an ancestor's direction, writing mode or container type. An
                         // ancestor becoming visible stands for a record whose style was cleared on
