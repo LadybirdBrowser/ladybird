@@ -3,4 +3,4 @@ sibling color: rgb(0, 128, 0)
 deep sibling color: rgb(0, 128, 0)
 style read recomputations: 4
 subsequent update recomputations: 0
-style read engine records: 1
+style read engine records: 4

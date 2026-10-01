@@ -455,8 +455,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 reaction.inherited_style_groups = static_cast<u8>(absorbed >> 8);
             }
 
-            // An element whose style was cleared on entry to display:none computes it here, before its descendants.
-            if (!element->has_style() && reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed && reaction.old_style_record != 0) {
+            // An element whose style was cleared on entry to display:none computes it here, before its descendants,
+            // unless the engine computed it for an ancestor that became visible: that record installs like a first one.
+            if (!element->has_style() && reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed && reaction.old_style_record != 0
+                && !(reaction.reaction & StyleEngine::AncestorBecameVisible)) {
                 reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize;
                 reaction.new_style_record = 0;
                 reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::None;
