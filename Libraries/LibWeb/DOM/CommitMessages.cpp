@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/CommitMessages.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Dump.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/Node.h>
@@ -52,6 +53,9 @@ void CommitMessages::append(Layout::RustFFI::FfiCommitMessage const& message)
         }
         m_messages.append({ .identity = identity, .kind = Kind::NavigableContainerViewportCommitted });
         return;
+    case Layout::RustFFI::FfiCommitMessageKind::UnexpectedFragmentedInline:
+        m_messages.append({ .identity = identity, .kind = Kind::UnexpectedFragmentedInline });
+        return;
     }
     VERIFY_NOT_REACHED();
 }
@@ -86,6 +90,12 @@ void CommitMessages::apply(Message const& message)
         if (auto* box = bound_layout_node(message.identity)) {
             if (auto* content_navigable = local_content_navigable(*box))
                 content_navigable->set_viewport_size(Painting::content_size(*box));
+        }
+        return;
+    case Kind::UnexpectedFragmentedInline:
+        if (auto* box = bound_layout_node(message.identity)) {
+            dbgln("FIXME: InlineFormattingContext::dimension_box_on_line got unexpected box in inline context:");
+            dump_tree(*box);
         }
         return;
     }

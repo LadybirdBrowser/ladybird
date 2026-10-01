@@ -14,6 +14,8 @@ pub enum FfiCommitMessageKind {
     ContentSizeChangedForContainerQueries,
     /// The node is a navigable container whose viewport committed.
     NavigableContainerViewportCommitted,
+    /// The node is an inline box that reached atomic inline layout without line box fragments.
+    UnexpectedFragmentedInline,
 }
 
 /// One thing layout has to tell the document. The node it is about is named by the style node the
@@ -173,7 +175,8 @@ pub(crate) fn commit_replacing(
     let links_by_slot = pass_fragments.links_by_slot();
     let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena, root);
     paintables.begin_commit();
-    let mut messages = Vec::new();
+    // What the pass itself found out comes before what committing it finds out.
+    let mut messages = paintables.arena().take_messages_reported_during_pass();
     commit_subtree(
         root,
         &mut messages,
