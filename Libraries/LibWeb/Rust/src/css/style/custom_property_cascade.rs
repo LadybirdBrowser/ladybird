@@ -310,10 +310,12 @@ impl RetainedState {
         }) {
             return false;
         }
-        // A rule deciding from another tree scope orders by its context like any other; the
-        // record path reads the winners the cascade holds for it, whichever scope it decided from.
-        let rule_is_complete = |rule: RuleID, _tree_scope: TreeScopeID, _pseudo: bool| {
-            !self.program.rule_is_gated_by_container_query(rule)
+        // The cascade publishes the winners of the document scope's rules only while a rule from
+        // another tree scope matches (`compaction_blocked`): such a rule's declarations are in no
+        // winner state, whichever scope it decided from.
+        let rule_is_complete = |rule: RuleID, tree_scope: TreeScopeID, _pseudo: bool| {
+            tree_scope == TreeScopeID::DOCUMENT
+                && !self.program.rule_is_gated_by_container_query(rule)
                 && self.program.declarations_are_complete_but_for_custom_properties(rule)
         };
         if let Some((published, answer)) = Self::published_answer_lookup(
