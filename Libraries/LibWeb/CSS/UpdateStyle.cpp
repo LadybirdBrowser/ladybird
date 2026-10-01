@@ -379,6 +379,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
     // engine's to derive: it reads each application and plans the children as the next
     // transaction of this style update.
     RequiredInvalidationAfterStyleChange transaction_invalidation;
+    document.style_computer().style_engine().begin_noting_declaration_changes_during_apply();
+    ScopeGuard end_noting_declaration_changes = [&] { document.style_computer().style_engine().end_noting_declaration_changes_during_apply(); };
     // Unstyled descendants of display:none need no record until a targeted read or visibility
     // change asks for one. SVG resources and existing animations can still consume style while
     // hidden, so retain their inheritance prerequisites in this batch. An element has animations when
@@ -521,6 +523,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             // records must equal the engine's by value.
             auto apply_engine_computed_records = [&](DOM::Element::EnginePseudoElementRecords const& pseudo_element_records, bool acknowledge) {
                 auto& style_engine = document.style_computer().style_engine();
+                // The record answers any style input the element owes, as the C++ computation it
+                // equals would: nothing is left for a later transaction to plan.
+                style_engine.consume_recorded_element_style_input_change(reaction.style_node);
                 if (verify_engine_computed_records) {
                     auto authoritative_custom_property_data = element->custom_property_data({});
                     if (authoritative_custom_property_data && authoritative_custom_property_data->is_animation_overlay())
@@ -540,7 +545,6 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                         previous_pseudo_element_records[kind] = element->style_record_identity(static_cast<PseudoElement>(kind));
                     bool const production_computed_value_changed = production_packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged)
                         && !style_engine.style_records_match_for_verification(reaction.style_node, NumericLimits<u8>::max(), StyleRecordID { reaction.new_style_record }, previous_style_record);
-                    style_engine.consume_recorded_element_style_input_change(reaction.style_node);
                     bool verification_did_change_custom_properties = false;
                     invalidation = element->apply_style_engine_reaction(verification_did_change_custom_properties, DOM::Element::StyleRecomputeMode::Verification);
                     bool verification_pseudo_record_changed = false;
@@ -618,10 +622,6 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                             element->set_computed_style(pseudo_element, *previous_pseudo_element_records[kind]);
                     }
                 } else {
-                    // A first record answers the element's recorded arrival; nothing is left for a
-                    // later transaction to plan.
-                    if (!element->has_style())
-                        style_engine.consume_recorded_element_style_input_change(reaction.style_node);
                     invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties);
                 }
                 if (acknowledge)
@@ -647,9 +647,11 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 auto pseudo_element_records = retried_pseudo_element_records.value_or({});
                 for (auto next = reaction_index + 1; next < reactions.size() && reactions[next].style_node == published_reaction.style_node && reactions[next].pseudo_kind != NumericLimits<u8>::max(); ++next)
                     pseudo_element_records[reactions[next].pseudo_kind] = StyleRecordID { reactions[next].new_style_record };
-                if (!engine_computed_record_environment_is_installable(*element, StyleRecordID { reaction.new_style_record })) {
+                if (!engine_computed_record_environment_is_installable(*element, StyleRecordID { reaction.new_style_record })
+                    || document.style_computer().style_engine().declarations_changed_during_apply(StyleNodeID { reaction.style_node })) {
                     // The engine resolved the record's environment over the parent's own; when the
-                    // parent's inheritable environment differs, C++ computes the style.
+                    // parent's inheritable environment differs, C++ computes the style. So it does
+                    // when a host rewrote the element's declarations after the engine computed it.
                     document.style_computer().style_engine().consume_recorded_element_style_input_change(reaction.style_node);
                     invalidation = element->apply_style_engine_reaction(did_change_custom_properties);
                 } else {

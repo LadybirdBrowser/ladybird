@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashTable.h>
 #include <AK/QuickSort.h>
 #include <AK/SetUnion.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
@@ -1217,6 +1218,8 @@ bool record_element_presentational_hint_properties(DOM::Element& element, Readon
 
 void record_element_declarations_changed(DOM::Element& element, ElementDeclarationKind kind, bool had_declarations, bool has_declarations)
 {
+    if (element.style_node_id() != no_style_node)
+        element.document().style_computer().style_engine().note_element_declarations_changed(element.style_node_id());
     element.document().flush_deferred_style_change_event();
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))

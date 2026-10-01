@@ -593,6 +593,9 @@ impl RetainedState {
     }
 
     pub(super) fn pseudo_style_mask(&self, node: StyleNodeID) -> Option<u64> {
+        if let Some(mask) = self.computed_group_sets.node_pseudo_style_mask(node) {
+            return Some(mask);
+        }
         let bit = synthetic_pseudo_bit;
         if let Some((owner, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
@@ -706,7 +709,9 @@ impl RetainedState {
             return matches
                 .iter()
                 .filter(|entry| entry.pseudo_element.is_some())
-                .all(|entry| entry.tree_scope == TreeScopeID::DOCUMENT && rule_is_complete(entry.rule));
+                .all(|entry| {
+                    self.match_scope_is_complete_for(Some(node), entry.tree_scope) && rule_is_complete(entry.rule)
+                });
         }
         let Lookup::Known(answer) = self.retained_match_answer(node) else {
             return false;
@@ -715,7 +720,8 @@ impl RetainedState {
             self.programs.get(rule_match.program).entries()[rule_match.entry as usize]
                 .pseudo_element
                 .is_none()
-                || (rule_match.tree_scope == TreeScopeID::DOCUMENT && rule_is_complete(rule_match.rule))
+                || (self.match_scope_is_complete_for(Some(node), rule_match.tree_scope)
+                    && rule_is_complete(rule_match.rule))
         })
     }
 }

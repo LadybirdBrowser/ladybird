@@ -1906,12 +1906,19 @@ impl StyleEngineState {
                     // Only a node the walk has processed holds a row; everything else is either
                     // published and still to come, or published nothing at all.
                     let published = row.is_some() || published_match_answers.lookup(ancestor).is_some();
+                    // An ancestor whose answer the winners do not hold whole is C++'s to compute, and
+                    // what its winner delta says it moved is not all it moves.
+                    let answer_is_incomplete = published_match_answers.lookup(ancestor).is_some_and(|answer| {
+                        !answer.cascade_winners_are_complete
+                            && !engine.cascade_winners_are_complete_but_for_custom_properties(ancestor)
+                    });
                     let unconfined = published
-                        && !(style_input_reactions
-                            .binary_search_by_key(&ancestor, |&(style_node, _, _)| style_node)
-                            .is_err()
-                            && engine.winner_delta_is_engine_confined(ancestor)
-                            && !engine.node_environment_may_move(ancestor));
+                        && (answer_is_incomplete
+                            || !(style_input_reactions
+                                .binary_search_by_key(&ancestor, |&(style_node, _, _)| style_node)
+                                .is_err()
+                                && engine.winner_delta_is_engine_confined(ancestor)
+                                && !engine.node_environment_may_move(ancestor)));
                     let settled = row.is_some_and(|row| row.settled);
                     chain = publication::AncestorChain::fold(chain, published, unconfined, settled);
                     chain_is_final = chain_is_final && (row.is_some() || !published);
@@ -1923,6 +1930,45 @@ impl StyleEngineState {
                 }
                 chain
             };
+            // Each published node's pseudo-element inventory, read from the answer this transaction
+            // publishes for it before that answer is installed and kept with the node's record
+            // columns for as long as that answer stands, and beside it, for the record loop, the
+            // answer's completeness and the matches its custom-property cascade runs over.
+            self.retained.batch_answers_complete_but_for_custom_properties.clear();
+            self.retained.batch_custom_property_matches.clear();
+            for &node in &published_nodes {
+                let Some(answer) = published_match_answers.lookup(node) else {
+                    continue;
+                };
+                let mask = match answer.cascade_input {
+                    Some(identity) => self.retained.match_answers.synthetic_pseudo_mask(identity),
+                    None => published_match_answers.matches_for(answer).map(|matches| {
+                        matches.iter().fold(0, |mask, rule_match| {
+                            mask | rule_match
+                                .pseudo_element
+                                .map(|pseudo| pseudo.kind.0)
+                                .filter(|&kind| kind <= bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND)
+                                .map_or(0, |kind| 1u64 << kind)
+                        })
+                    }),
+                };
+                self.retained.computed_group_sets.set_node_pseudo_style_mask(node, mask);
+                if self.retained.any_custom_property_is_declared()
+                    && let Some(matches) = self
+                        .retained
+                        .batch_custom_property_matches_of(&published_match_answers, answer)
+                {
+                    self.retained.batch_custom_property_matches.insert(node, matches);
+                }
+                if let Some(complete) =
+                    self.retained
+                        .answer_is_complete_but_for_custom_properties(node, &published_match_answers, answer)
+                {
+                    self.retained
+                        .batch_answers_complete_but_for_custom_properties
+                        .insert(node, complete);
+                }
+            }
             let mut next_published_index = 0;
             let mut pending_parent_inputs = None;
             while next_published_index < published_nodes.len() {
@@ -2017,7 +2063,10 @@ impl StyleEngineState {
                     let mut parent_inputs_moved = pending_parent_inputs.take().or(prepared_parent_inputs).unwrap_or(
                         publication::ParentInputsMoved {
                             inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
-                            display: parent_inputs_moved_nodes.contains(&node),
+                            // A slotted element's box-type parent moves with its slot's place in
+                            // the shadow tree, which no input of its own says.
+                            display: parent_inputs_moved_nodes.contains(&node)
+                                || self.retained.tree.assigned_slot_of(node).is_some(),
                         },
                     );
                     let mut retry_after_ancestor = false;
@@ -2299,6 +2348,8 @@ impl StyleEngineState {
         published_match_answers.match_element_calls_at_publication =
             counters.get(Counter::MatchElementCallsDuringPublishedStyleTransaction);
         published_match_answers.discard_unobserved_retained_answers = publish_document_root_arrival || plan_is_broad;
+        self.retained.batch_answers_complete_but_for_custom_properties.clear();
+        self.retained.batch_custom_property_matches.clear();
         self.retained.published_match_answers = published_match_answers;
         if initial_tree_was_bulk_loaded {
             counters.bump(Counter::InitialBulkMatchLoads);
