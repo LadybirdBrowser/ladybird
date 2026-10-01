@@ -13,15 +13,586 @@ pub mod control;
 pub mod operators;
 pub mod property_access;
 
+use core::cell::Cell;
+
 use super::runtime_functions::{Runtime, RuntimeFunctions, SlowPathControl, handle_asm_exception};
 use super::vm::Vm;
+use crate::bytecode::executable::PropertyLookupCache;
 use crate::bytecode::op;
 use crate::layout::value::Value;
+
+/// The VM a helper receives as an integer argument.
+fn vm_from_helper_argument<'vm>(argument: u64) -> &'vm Vm {
+    // SAFETY: The interpreter passes the VM it runs on, whose address escaped to it through the FFI call that started
+    // it, and the VM outlives every call the interpreter makes into the runtime.
+    unsafe { &*core::ptr::with_exposed_provenance::<Vm>(argument as usize) }
+}
 
 impl RuntimeFunctions for Runtime {
     // Arithmetic, comparisons, conversions and the jumps on comparisons: operators.rs.
 
+    fn helper_to_boolean(encoded_value: u64) -> u64 {
+        operators::helper_to_boolean(encoded_value)
+    }
+
+    fn helper_math_exp(encoded_value: u64) -> u64 {
+        operators::helper_math_exp(encoded_value)
+    }
+
+    fn helper_empty_string(vm: u64) -> u64 {
+        operators::helper_empty_string(vm_from_helper_argument(vm))
+    }
+
+    fn helper_single_ascii_character_string(vm: u64, encoded_value: u64) -> u64 {
+        operators::helper_single_ascii_character_string(vm_from_helper_argument(vm), encoded_value)
+    }
+
+    fn helper_single_utf16_code_unit_string(vm: u64, encoded_value: u64) -> u64 {
+        operators::helper_single_utf16_code_unit_string(vm_from_helper_argument(vm), encoded_value)
+    }
+
+    fn add_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::add_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn sub_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::sub_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn mul_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::mul_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn div_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::div_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn mod_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::mod_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn exp_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::exp_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn bitwise_and_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::bitwise_and_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn bitwise_or_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::bitwise_or_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn bitwise_xor_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::bitwise_xor_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn left_shift_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::left_shift_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn right_shift_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::right_shift_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn unsigned_right_shift_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::unsigned_right_shift_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn less_than_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::less_than_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn less_than_equals_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::less_than_equals_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn greater_than_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::greater_than_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn greater_than_equals_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::greater_than_equals_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn loosely_equals_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::loosely_equals_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn loosely_inequals_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::loosely_inequals_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn strictly_equals_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::strictly_equals_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn strictly_inequals_values(vm: &Vm, pc: u32, dst: &Cell<Value>, lhs: Value, rhs: Value) -> SlowPathControl {
+        operators::strictly_inequals_values(vm, pc, dst, lhs, rhs)
+    }
+
+    fn jump_less_than_values(
+        vm: &Vm,
+        pc: u32,
+        lhs: Value,
+        rhs: Value,
+        true_target: u32,
+        false_target: u32,
+    ) -> SlowPathControl {
+        operators::jump_less_than_values(vm, pc, lhs, rhs, true_target, false_target)
+    }
+
+    fn jump_less_than_equals_values(
+        vm: &Vm,
+        pc: u32,
+        lhs: Value,
+        rhs: Value,
+        true_target: u32,
+        false_target: u32,
+    ) -> SlowPathControl {
+        operators::jump_less_than_equals_values(vm, pc, lhs, rhs, true_target, false_target)
+    }
+
+    fn jump_greater_than_values(
+        vm: &Vm,
+        pc: u32,
+        lhs: Value,
+        rhs: Value,
+        true_target: u32,
+        false_target: u32,
+    ) -> SlowPathControl {
+        operators::jump_greater_than_values(vm, pc, lhs, rhs, true_target, false_target)
+    }
+
+    fn jump_greater_than_equals_values(
+        vm: &Vm,
+        pc: u32,
+        lhs: Value,
+        rhs: Value,
+        true_target: u32,
+        false_target: u32,
+    ) -> SlowPathControl {
+        operators::jump_greater_than_equals_values(vm, pc, lhs, rhs, true_target, false_target)
+    }
+
+    fn jump_loosely_equals_values(
+        vm: &Vm,
+        pc: u32,
+        lhs: Value,
+        rhs: Value,
+        true_target: u32,
+        false_target: u32,
+    ) -> SlowPathControl {
+        operators::jump_loosely_equals_values(vm, pc, lhs, rhs, true_target, false_target)
+    }
+
+    fn jump_loosely_inequals_values(
+        vm: &Vm,
+        pc: u32,
+        lhs: Value,
+        rhs: Value,
+        true_target: u32,
+        false_target: u32,
+    ) -> SlowPathControl {
+        operators::jump_loosely_inequals_values(vm, pc, lhs, rhs, true_target, false_target)
+    }
+
+    fn jump_strictly_equals_values(
+        _vm: &Vm,
+        _pc: u32,
+        lhs: Value,
+        rhs: Value,
+        true_target: u32,
+        false_target: u32,
+    ) -> SlowPathControl {
+        operators::jump_strictly_equals_values(lhs, rhs, true_target, false_target)
+    }
+
+    fn jump_strictly_inequals_values(
+        _vm: &Vm,
+        _pc: u32,
+        lhs: Value,
+        rhs: Value,
+        true_target: u32,
+        false_target: u32,
+    ) -> SlowPathControl {
+        operators::jump_strictly_inequals_values(lhs, rhs, true_target, false_target)
+    }
+
+    fn unary_minus(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::UnaryMinus,
+        values: &mut op::UnaryMinusValues,
+    ) -> SlowPathControl {
+        operators::unary_minus(vm, pc, values)
+    }
+
+    fn unary_plus(vm: &Vm, pc: u32, _instruction: &op::UnaryPlus, values: &mut op::UnaryPlusValues) -> SlowPathControl {
+        operators::unary_plus(vm, pc, values)
+    }
+
+    fn bitwise_not(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::BitwiseNot,
+        values: &mut op::BitwiseNotValues,
+    ) -> SlowPathControl {
+        operators::bitwise_not(vm, pc, values)
+    }
+
+    fn increment(vm: &Vm, pc: u32, _instruction: &op::Increment, values: &mut op::IncrementValues) -> SlowPathControl {
+        operators::increment(vm, pc, values)
+    }
+
+    fn decrement(vm: &Vm, pc: u32, _instruction: &op::Decrement, values: &mut op::DecrementValues) -> SlowPathControl {
+        operators::decrement(vm, pc, values)
+    }
+
+    fn postfix_increment(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::PostfixIncrement,
+        values: &mut op::PostfixIncrementValues,
+    ) -> SlowPathControl {
+        operators::postfix_increment(vm, pc, values)
+    }
+
+    fn postfix_decrement(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::PostfixDecrement,
+        values: &mut op::PostfixDecrementValues,
+    ) -> SlowPathControl {
+        operators::postfix_decrement(vm, pc, values)
+    }
+
+    fn to_int32(vm: &Vm, pc: u32, _instruction: &op::ToInt32, values: &mut op::ToInt32Values) -> SlowPathControl {
+        operators::to_int32(vm, pc, values)
+    }
+
+    fn to_length(vm: &Vm, pc: u32, _instruction: &op::ToLength, values: &mut op::ToLengthValues) -> SlowPathControl {
+        operators::to_length(vm, pc, values)
+    }
+
+    fn to_object(vm: &Vm, pc: u32, _instruction: &op::ToObject, values: &mut op::ToObjectValues) -> SlowPathControl {
+        operators::to_object(vm, pc, values)
+    }
+
+    fn to_primitive_with_string_hint(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::ToPrimitiveWithStringHint,
+        values: &mut op::ToPrimitiveWithStringHintValues,
+    ) -> SlowPathControl {
+        operators::to_primitive_with_string_hint(vm, pc, values)
+    }
+
+    fn to_string(vm: &Vm, pc: u32, _instruction: &op::ToString, values: &mut op::ToStringValues) -> SlowPathControl {
+        operators::to_string(vm, pc, values)
+    }
+
+    fn r#typeof(vm: &Vm, pc: u32, _instruction: &op::Typeof, values: &mut op::TypeofValues) -> SlowPathControl {
+        operators::r#typeof(vm, pc, values)
+    }
+
+    fn concat_string(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::ConcatString,
+        values: &mut op::ConcatStringValues,
+    ) -> SlowPathControl {
+        operators::concat_string(vm, pc, values)
+    }
+
+    fn r#in(vm: &Vm, pc: u32, _instruction: &op::In, values: &mut op::InValues) -> SlowPathControl {
+        operators::r#in(vm, pc, values)
+    }
+
+    fn instance_of(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::InstanceOf,
+        values: &mut op::InstanceOfValues,
+    ) -> SlowPathControl {
+        operators::instance_of(vm, pc, values)
+    }
+
+    fn is_constructor(
+        _vm: &Vm,
+        pc: u32,
+        _instruction: &op::IsConstructor,
+        values: &mut op::IsConstructorValues,
+    ) -> SlowPathControl {
+        operators::is_constructor(pc, values)
+    }
+
     // Property access and its inline caches: property_access.rs.
+
+    fn get_by_id(vm: &Vm, pc: u32, instruction: &op::GetById, values: &mut op::GetByIdValues) -> SlowPathControl {
+        property_access::get_by_id(vm, pc, instruction, values)
+    }
+
+    fn get_by_id_cached_accessor(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetById,
+        values: &mut op::GetByIdValues,
+    ) -> SlowPathControl {
+        property_access::get_by_id_cached_accessor(vm, pc, instruction, values)
+    }
+
+    fn get_by_id_with_this(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetByIdWithThis,
+        values: &mut op::GetByIdWithThisValues,
+    ) -> SlowPathControl {
+        property_access::get_by_id_with_this(vm, pc, instruction, values)
+    }
+
+    fn get_by_value(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetByValue,
+        values: &mut op::GetByValueValues,
+    ) -> SlowPathControl {
+        property_access::get_by_value(vm, pc, instruction, values)
+    }
+
+    fn get_by_value_with_this(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::GetByValueWithThis,
+        values: &mut op::GetByValueWithThisValues,
+    ) -> SlowPathControl {
+        property_access::get_by_value_with_this(vm, pc, values)
+    }
+
+    fn get_length(vm: &Vm, pc: u32, instruction: &op::GetLength, values: &mut op::GetLengthValues) -> SlowPathControl {
+        property_access::get_length(vm, pc, instruction, values)
+    }
+
+    fn get_length_with_this(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetLengthWithThis,
+        values: &mut op::GetLengthWithThisValues,
+    ) -> SlowPathControl {
+        property_access::get_length_with_this(vm, pc, instruction, values)
+    }
+
+    fn get_method(vm: &Vm, pc: u32, instruction: &op::GetMethod, values: &mut op::GetMethodValues) -> SlowPathControl {
+        property_access::get_method(vm, pc, instruction, values)
+    }
+
+    fn put_by_id(vm: &Vm, pc: u32, instruction: &op::PutById, values: &mut op::PutByIdValues) -> SlowPathControl {
+        property_access::put_by_id(vm, pc, instruction, values)
+    }
+
+    fn put_by_id_with_this(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::PutByIdWithThis,
+        values: &mut op::PutByIdWithThisValues,
+    ) -> SlowPathControl {
+        property_access::put_by_id_with_this(vm, pc, instruction, values)
+    }
+
+    fn put_by_value(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::PutByValue,
+        values: &mut op::PutByValueValues,
+    ) -> SlowPathControl {
+        property_access::put_by_value(vm, pc, instruction, values)
+    }
+
+    fn put_by_value_with_this(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::PutByValueWithThis,
+        values: &mut op::PutByValueWithThisValues,
+    ) -> SlowPathControl {
+        property_access::put_by_value_with_this(vm, pc, instruction, values)
+    }
+
+    fn put_by_spread(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::PutBySpread,
+        values: &mut op::PutBySpreadValues,
+    ) -> SlowPathControl {
+        property_access::put_by_spread(vm, pc, values)
+    }
+
+    fn delete_by_id(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::DeleteById,
+        values: &mut op::DeleteByIdValues,
+    ) -> SlowPathControl {
+        property_access::delete_by_id(vm, pc, instruction, values)
+    }
+
+    fn delete_by_value(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::DeleteByValue,
+        values: &mut op::DeleteByValueValues,
+    ) -> SlowPathControl {
+        property_access::delete_by_value(vm, pc, instruction, values)
+    }
+
+    fn get_private_by_id(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetPrivateById,
+        values: &mut op::GetPrivateByIdValues,
+    ) -> SlowPathControl {
+        property_access::get_private_by_id(vm, pc, instruction, values)
+    }
+
+    fn put_private_by_id(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::PutPrivateById,
+        values: &mut op::PutPrivateByIdValues,
+    ) -> SlowPathControl {
+        property_access::put_private_by_id(vm, pc, instruction, values)
+    }
+
+    fn has_private_id(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::HasPrivateId,
+        values: &mut op::HasPrivateIdValues,
+    ) -> SlowPathControl {
+        property_access::has_private_id(vm, pc, instruction, values)
+    }
+
+    fn add_private_name(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::AddPrivateName,
+        _values: &mut op::AddPrivateNameValues,
+    ) -> SlowPathControl {
+        property_access::add_private_name(vm, pc, instruction)
+    }
+
+    fn init_object_literal_property(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::InitObjectLiteralProperty,
+        values: &mut op::InitObjectLiteralPropertyValues,
+    ) -> SlowPathControl {
+        property_access::init_object_literal_property(vm, pc, instruction, values)
+    }
+
+    fn cache_object_shape(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CacheObjectShape,
+        values: &mut op::CacheObjectShapeValues,
+    ) -> SlowPathControl {
+        property_access::cache_object_shape(vm, pc, instruction, values)
+    }
+
+    fn new_object(vm: &Vm, pc: u32, instruction: &op::NewObject, values: &mut op::NewObjectValues) -> SlowPathControl {
+        property_access::new_object(vm, pc, instruction, values)
+    }
+
+    fn new_object_with_no_prototype(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::NewObjectWithNoPrototype,
+        values: &mut op::NewObjectWithNoPrototypeValues,
+    ) -> SlowPathControl {
+        property_access::new_object_with_no_prototype(vm, pc, values)
+    }
+
+    fn copy_object_excluding_properties(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CopyObjectExcludingProperties,
+        values: &mut op::CopyObjectExcludingPropertiesValues,
+        excluded_names: &mut [Value],
+    ) -> SlowPathControl {
+        property_access::copy_object_excluding_properties(vm, pc, instruction, values, excluded_names)
+    }
+
+    fn create_data_property_or_throw(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::CreateDataPropertyOrThrow,
+        values: &mut op::CreateDataPropertyOrThrowValues,
+    ) -> SlowPathControl {
+        property_access::create_data_property_or_throw(vm, pc, values)
+    }
+
+    fn get_object_property_iterator(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetObjectPropertyIterator,
+        values: &mut op::GetObjectPropertyIteratorValues,
+    ) -> SlowPathControl {
+        property_access::get_object_property_iterator(vm, pc, instruction, values)
+    }
+
+    fn object_property_iterator_next(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::ObjectPropertyIteratorNext,
+        values: &mut op::ObjectPropertyIteratorNextValues,
+    ) -> SlowPathControl {
+        property_access::object_property_iterator_next(vm, pc, values)
+    }
+
+    fn try_get_by_id_cache(encoded_base: u64, cache_address: u64) -> u64 {
+        // SAFETY: The interpreter passes the address of one of the running executable's property lookup caches.
+        let cache = unsafe { &*core::ptr::with_exposed_provenance::<PropertyLookupCache>(cache_address as usize) };
+        property_access::try_get_by_id_cache(Value(encoded_base), cache).0
+    }
+
+    fn try_get_by_value_typed_array(
+        _vm: &Vm,
+        pc: u32,
+        _instruction: &op::GetByValue,
+        values: &mut op::GetByValueValues,
+    ) -> bool {
+        property_access::try_get_by_value_typed_array(pc, values)
+    }
+
+    fn try_inline_get_by_id_accessor(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetById,
+        values: &mut op::GetByIdValues,
+    ) -> bool {
+        property_access::try_inline_get_by_id_accessor(vm, pc, instruction, values)
+    }
+
+    fn try_put_by_id_cache(vm: &Vm, _pc: u32, instruction: &op::PutById, values: &mut op::PutByIdValues) -> bool {
+        property_access::try_put_by_id_cache(vm, instruction, values)
+    }
+
+    fn try_put_by_value_holey_array(
+        _vm: &Vm,
+        _pc: u32,
+        _instruction: &op::PutByValue,
+        values: &mut op::PutByValueValues,
+    ) -> bool {
+        property_access::try_put_by_value_holey_array(values)
+    }
+
+    fn try_put_by_value_typed_array(
+        _vm: &Vm,
+        pc: u32,
+        _instruction: &op::PutByValue,
+        values: &mut op::PutByValueValues,
+    ) -> bool {
+        property_access::try_put_by_value_typed_array(pc, values)
+    }
 
     // Bindings and environments: bindings.rs.
 

@@ -51,4 +51,7 @@ define_class_ids! {
     ObjectEnvironment,
     GlobalEnvironment,
     Script,
+    // Reserved for RegExpObject, whose [[RegExpMatcher]] slot IsRegExp already recognizes by its class.
+    RegExpObject,
+    ObjectPropertyIteratorCacheData,
 }

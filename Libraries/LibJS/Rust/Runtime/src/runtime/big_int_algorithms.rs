@@ -172,6 +172,17 @@ pub fn number_to_bigint(number: f64) -> Result<BigInt, NumericOperationError> {
     Ok(BigInt::from_biguint(sign, floor_of_magnitude(number)))
 }
 
+/// Crypto::SignedBigInteger::to_u64, which is libtommath's mp_get_u64: the low 64 bits of the magnitude, negated
+/// modulo 2^64 for negative values, which is ℝ(value) modulo 2^64.
+pub fn to_u64(value: &BigInt) -> u64 {
+    let low_bits = value.magnitude().iter_u64_digits().next().unwrap_or(0);
+    if value.sign() == Sign::Minus {
+        low_bits.wrapping_neg()
+    } else {
+        low_bits
+    }
+}
+
 /// Crypto::SignedBigInteger::to_base: the digits in the radix with lowercase letters, after a minus sign for negative
 /// values.
 pub fn to_base(value: &BigInt, radix: u32) -> String {

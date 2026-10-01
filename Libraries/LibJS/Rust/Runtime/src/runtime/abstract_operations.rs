@@ -25,6 +25,7 @@ use crate::layout::value::Value;
 use crate::runtime::accessor::Accessor;
 use crate::runtime::arguments_object::ArgumentsObject;
 use crate::runtime::bound_function::BoundFunction;
+use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
 use crate::runtime::environment::{Environment, InitializeBindingHint, ThisBindingStatus};
@@ -40,7 +41,9 @@ use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::shared_function_instance_data::ThisMode;
-use crate::runtime::value::same_value;
+use crate::runtime::string_conversions::parse_number_f64;
+use crate::runtime::value::{number_to_utf16_string, same_value};
+use crate::utf16::Utf16View;
 use libjs_runtime_macros::Trace;
 
 /// The Object a function object starts with.
@@ -967,4 +970,87 @@ pub fn get_dispose_method(
     //    a. Let method be ? GetMethod(V, @@dispose).
     // 3. Return method.
     value.get_method(vm, &PropertyKey::from(vm.well_known_symbols().dispose))
+}
+
+/// Mirrors JS::CanonicalIndexMode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CanonicalIndexMode {
+    DetectNumericRoundtrip,
+    IgnoreNumericRoundtrip,
+}
+
+// 7.1.21 CanonicalNumericIndexString ( argument ), https://tc39.es/ecma262/#sec-canonicalnumericindexstring
+pub fn canonical_numeric_index_string(property_key: &PropertyKey, mode: CanonicalIndexMode) -> CanonicalIndex {
+    // NOTE: If the property name is a number type (An implementation-defined optimized
+    // property key type), it can be treated as a string property that has already been
+    // converted successfully into a canonical numeric index.
+
+    assert!(property_key.is_string() || property_key.is_number());
+
+    if property_key.is_number() {
+        return CanonicalIndex::new(CanonicalIndexType::Index, property_key.as_number());
+    }
+
+    if mode != CanonicalIndexMode::DetectNumericRoundtrip {
+        return CanonicalIndex::new(CanonicalIndexType::Undefined, 0);
+    }
+
+    let argument = Utf16View::of_fly_string(property_key.as_string());
+    let is_code_unit = |index: usize, character: u8| argument.code_unit_at(index) == u16::from(character);
+
+    // Handle trivial cases without a full round trip test
+    // We do not need to check for argument == "0" at this point because we
+    // already covered it with the is_number() == true path.
+    if argument.is_empty() {
+        return CanonicalIndex::new(CanonicalIndexType::Undefined, 0);
+    }
+
+    let mut current_index = 0;
+
+    if is_code_unit(current_index, b'-') {
+        current_index += 1;
+        if current_index == argument.length_in_code_units() {
+            return CanonicalIndex::new(CanonicalIndexType::Undefined, 0);
+        }
+    }
+
+    if is_code_unit(current_index, b'0') {
+        current_index += 1;
+        if current_index == argument.length_in_code_units() {
+            return CanonicalIndex::new(CanonicalIndexType::Numeric, 0);
+        }
+        if !is_code_unit(current_index, b'.') {
+            return CanonicalIndex::new(CanonicalIndexType::Undefined, 0);
+        }
+        current_index += 1;
+        if current_index == argument.length_in_code_units() {
+            return CanonicalIndex::new(CanonicalIndexType::Undefined, 0);
+        }
+    }
+
+    // Short circuit a few common cases
+    if argument == "Infinity" || argument == "-Infinity" || argument == "NaN" {
+        return CanonicalIndex::new(CanonicalIndexType::Numeric, 0);
+    }
+
+    // Short circuit any string that doesn't start with digits
+    let first_non_zero = argument.code_unit_at(current_index);
+    if first_non_zero < u16::from(b'0') || first_non_zero > u16::from(b'9') {
+        return CanonicalIndex::new(CanonicalIndexType::Undefined, 0);
+    }
+
+    // 2. Let n be ! ToNumber(argument).
+    let code_units: Vec<u16> = argument.code_units().collect();
+    let Some(number) = parse_number_f64(&code_units) else {
+        return CanonicalIndex::new(CanonicalIndexType::Undefined, 0);
+    };
+
+    // FIXME: We return 0 instead of n but it might not observable?
+    // 3. If SameValue(! ToString(n), argument) is true, return n.
+    if Utf16View::Utf16(&number_to_utf16_string(number)) == argument {
+        return CanonicalIndex::new(CanonicalIndexType::Numeric, 0);
+    }
+
+    // 4. Return undefined.
+    CanonicalIndex::new(CanonicalIndexType::Undefined, 0)
 }
