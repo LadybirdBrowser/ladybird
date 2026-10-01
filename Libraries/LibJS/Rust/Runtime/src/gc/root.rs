@@ -75,9 +75,10 @@ impl<T: Trace + 'static> Drop for Root<'_, T> {
     }
 }
 
-/// A growable list of values that are kept alive, for the temporaries a Vec would hide from the collector. The list
-/// registers its root with the first element, so an empty one costs nothing.
-pub struct MarkedVec<'vm, T: Trace + Copy + 'static> {
+/// A growable list of values that are kept alive, for the temporaries a Vec would hide from the collector. Elements
+/// are copied in and out, so no reference into the list outlives a call. The list registers its root with the first
+/// element, so an empty one costs nothing.
+pub struct MarkedVec<'vm, T: Trace + Clone + 'static> {
     vm: &'vm Vm,
     values: OnceCell<Root<'vm, RefCell<Vec<T>>>>,
 }
@@ -89,7 +90,7 @@ unsafe impl<T: Trace> Trace for RefCell<Vec<T>> {
     }
 }
 
-impl<'vm, T: Trace + Copy + 'static> MarkedVec<'vm, T> {
+impl<'vm, T: Trace + Clone + 'static> MarkedVec<'vm, T> {
     pub fn new(vm: &'vm Vm) -> Self {
         Self {
             vm,
@@ -115,8 +116,16 @@ impl<'vm, T: Trace + Copy + 'static> MarkedVec<'vm, T> {
         self.rooted_values().borrow_mut().push(value);
     }
 
+    pub fn insert(&self, index: usize, value: T) {
+        self.rooted_values().borrow_mut().insert(index, value);
+    }
+
+    pub fn pop(&self) -> Option<T> {
+        self.values.get()?.get().borrow_mut().pop()
+    }
+
     pub fn get(&self, index: usize) -> Option<T> {
-        self.values.get()?.get().borrow().get(index).copied()
+        self.values.get()?.get().borrow().get(index).cloned()
     }
 
     pub fn set(&self, index: usize, value: T) {

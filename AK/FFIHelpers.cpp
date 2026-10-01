@@ -193,3 +193,13 @@ extern "C" void* ladybird_realloc(void* pointer, size_t old_size, size_t new_siz
     }
     return new_pointer;
 }
+
+extern "C" void* ladybird_js_object_storage_alloc(size_t size)
+{
+    return ak_kmalloc(HeapPartition::JSObjectStorage, size);
+}
+
+extern "C" void* ladybird_js_object_storage_realloc(void* pointer, size_t new_size)
+{
+    return ak_krealloc(HeapPartition::JSObjectStorage, pointer, new_size);
+}

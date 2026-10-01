@@ -51,7 +51,7 @@ pub struct Substring {
 }
 
 /// Mirrors AK::u64_hash, the MurmurHash3 64-bit finalizer.
-fn u64_hash(mut key: u64) -> u32 {
+pub(crate) fn u64_hash(mut key: u64) -> u32 {
     key ^= key >> 33;
     key = key.wrapping_mul(0xff51_afd7_ed55_8ccd);
     key ^= key >> 33;

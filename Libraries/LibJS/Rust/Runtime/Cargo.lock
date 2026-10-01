@@ -429,6 +429,8 @@ dependencies = [
  "ak",
  "cc",
  "flapc",
+ "foldhash",
+ "indexmap",
  "ladybird_allocator",
  "libc",
  "libjs_abi",

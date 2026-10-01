@@ -13,7 +13,7 @@ use super::capi::{self, GCAllocator, GCGatherRootsCallback, GCHeap, GCLayout};
 use super::class::{CellTypeInfo, Class, GcCell};
 use super::class_id::CLASS_COUNT;
 use crate::build_configuration::{HEAP_REGION_OFFSET_MASK, PRIMITIVE_STORAGE_CAGE_OFFSET_MASK};
-use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::cell::{CellHeader, CellState, Gc};
 
 /// A LibGC heap, with one allocator per class of cell.
 pub struct Heap {
@@ -119,6 +119,14 @@ impl Drop for Heap {
             }
         }
     }
+}
+
+/// Whether a cell that something holds without keeping it alive did not survive the collection in progress. Only
+/// meaningful in a sweep callback, when the marks are final and dead cells are not swept yet.
+pub fn cell_is_dead<T>(cell: Gc<T>) -> bool {
+    // SAFETY: Every cell starts with its header, and a weakly held cell is intact until the sweep that follows.
+    let header = unsafe { &*cell.as_ptr().cast::<CellHeader>() };
+    header.state.get() != CellState::Live || !header.mark.get()
 }
 
 /// Checks the layouts this crate mirrors against the LibGC it is linked with.

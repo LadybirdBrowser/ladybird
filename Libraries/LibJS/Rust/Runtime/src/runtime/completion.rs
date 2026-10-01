@@ -23,3 +23,18 @@ impl Throw {
 
 /// The result of an operation that completes normally with a T or throws.
 pub type ThrowCompletionOr<T> = Result<T, Throw>;
+
+/// MUST() of the C++ runtime: the spec's `!`, for an operation that cannot throw here.
+pub trait Must<T> {
+    fn must(self) -> T;
+}
+
+impl<T> Must<T> for ThrowCompletionOr<T> {
+    #[track_caller]
+    fn must(self) -> T {
+        match self {
+            Ok(value) => value,
+            Err(throw) => panic!("an operation that cannot throw threw {:?}", throw.value()),
+        }
+    }
+}

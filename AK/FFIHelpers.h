@@ -27,6 +27,10 @@ void* ladybird_alloc_zeroed(size_t size, size_t alignment);
 void* ladybird_realloc(void*, size_t old_size, size_t new_size, size_t alignment);
 void ladybird_dealloc(void*, size_t alignment);
 
+// Allocations in HeapPartition::JSObjectStorage, where JS objects keep their property values. ak_kfree frees them.
+void* ladybird_js_object_storage_alloc(size_t size);
+void* ladybird_js_object_storage_realloc(void*, size_t new_size);
+
 FlatPtr ladybird_utf16_string_create_uninitialized(size_t, bool has_ascii_storage);
 FlatPtr ladybird_utf16_fly_string_from_utf8(u8 const*, size_t);
 FlatPtr ladybird_utf16_fly_string_from_utf16(u16 const*, size_t);
