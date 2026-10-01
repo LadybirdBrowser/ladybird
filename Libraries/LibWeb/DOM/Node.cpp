@@ -65,6 +65,7 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
+#include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
@@ -2135,6 +2136,12 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     old_parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
     new_parent.invalidate_html_collection_caches_in_ancestors(affects_elements);
 
+    // NB: A move runs no children changed steps, which is where an <html> element publishes which child is the body.
+    for (auto* parent : { old_parent, &new_parent }) {
+        if (auto* html_element = as_if<HTML::HTMLHtmlElement>(*parent))
+            html_element->publish_body_construction_facts();
+    }
+
     old_parent->bump_dom_tree_version();
     new_parent.bump_dom_tree_version();
 
@@ -2341,6 +2348,10 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         // display list, so a flip must invalidate the recorded output.
         if (node.recompute_editable_subtree_flag())
             node.set_needs_repaint();
+        // Whether an element is an editing host is one of the facts a layout row is built with, which the style
+        // mirror holds for the tree build. Only contenteditable and designMode move it, and both reach here.
+        if (auto* element = as_if<Element>(node))
+            CSS::record_element_construction_facts(*element);
         // Editing-host status and the empty-text fragment behavior of text nodes are
         // stamped into layout NodeData at layout node construction; contenteditable and
         // designMode changes reach here without a layout tree rebuild, so the stamps must

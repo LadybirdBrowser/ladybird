@@ -419,6 +419,9 @@ struct PublishedComputedColumns {
     /// The element facts the style computation's adjustments read; see
     /// `bridge::element_adjustment_fact`.
     adjustment_facts: Vec<u32>,
+    /// The element facts a layout row built for the element records; see
+    /// `bridge::element_construction_fact`.
+    construction_facts: Vec<u32>,
     /// One plus the element-backed pseudo-element kind the element stands for, or zero.
     associated_pseudo_kinds: Vec<u8>,
     /// The synthetic pseudo-elements the node's last published match answer has rules for, one
@@ -453,6 +456,7 @@ impl PublishedComputedColumns {
         self.cascade_states.resize(len, 0);
         self.flags.resize(len, 0);
         self.adjustment_facts.resize(len, 0);
+        self.construction_facts.resize(len, 0);
         self.associated_pseudo_kinds.resize(len, 0);
         self.pseudo_style_masks.resize(len, 0);
     }
@@ -581,6 +585,7 @@ impl PublishedComputedColumns {
             // The index may be handed to a shadow root or the document next, which publish no facts
             // of their own, so a retired element's facts must not stay behind for them.
             self.adjustment_facts[index] = 0;
+            self.construction_facts[index] = 0;
             self.associated_pseudo_kinds[index] = 0;
         }
         overlay
@@ -2940,6 +2945,14 @@ impl ComputedGroupSets {
         self.columns.adjustment_facts[index] = facts;
     }
 
+    pub fn set_construction_facts(&mut self, node: StyleNodeID, facts: u32) {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return;
+        };
+        self.columns.ensure(index);
+        self.columns.construction_facts[index] = facts;
+    }
+
     /// The identity of the inherited groups a node's published style carries.
     pub(super) fn node_inherited_groups_identity(&self, node: StyleNodeID) -> Option<u32> {
         let index = node.element_index()? as usize;
@@ -3019,6 +3032,13 @@ impl ComputedGroupSets {
     pub fn adjustment_facts(&self, node: StyleNodeID) -> u32 {
         node.element_index()
             .and_then(|index| self.columns.adjustment_facts.get(index as usize))
+            .copied()
+            .unwrap_or(0)
+    }
+
+    pub fn construction_facts(&self, node: StyleNodeID) -> u32 {
+        node.element_index()
+            .and_then(|index| self.columns.construction_facts.get(index as usize))
             .copied()
             .unwrap_or(0)
     }
