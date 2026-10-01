@@ -1,17 +1,11 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(async done => {
         function fail(name, error) {
             println(`FAIL: ${name}: ${error}`);
             done();
-        }
-
-        function formatRanges(buffered) {
-            const parts = [];
-            for (let i = 0; i < buffered.length; i++)
-                parts.push(`${buffered.start(i).toFixed(3)}-${buffered.end(i).toFixed(3)}`);
-            return `[${parts.join(", ")}]`;
         }
 
         async function update(sourceBuffer, action) {
@@ -40,12 +34,12 @@
             // appendWindowStart at 0, so it must be trimmed to start there rather than kept or dropped.
             sourceBuffer.timestampOffset = 0.01;
             await update(sourceBuffer, () => sourceBuffer.appendBuffer(data));
-            println(`after append: ${formatRanges(sourceBuffer.buffered)}`);
+            println(`after append: ${timeRangesToString(sourceBuffer.buffered, 3)}`);
 
             // A frame starting before appendWindowStart would survive this removal, since only frames starting
             // at or after the start of the range are removed.
             await update(sourceBuffer, () => sourceBuffer.remove(0, 0.5));
-            println(`after removing up to 0.5: ${formatRanges(sourceBuffer.buffered)}`);
+            println(`after removing up to 0.5: ${timeRangesToString(sourceBuffer.buffered, 3)}`);
             done();
         } catch (e) {
             fail("test", e);

@@ -34,3 +34,14 @@ function formatReadyStateExpectation(element, eventName) {
         ? `readyState >= ${minName}`
         : `readyState=${readyStateName(element.readyState)}, expected >= ${minName}`;
 }
+
+function timeRangesToString(ranges, fractionDigits) {
+    const parts = [];
+    for (let i = 0; i < ranges.length; i++) {
+        const start = ranges.start(i);
+        const end = ranges.end(i);
+        if (fractionDigits === undefined) parts.push(`${start}-${end}`);
+        else parts.push(`${start.toFixed(fractionDigits)}-${end.toFixed(fractionDigits)}`);
+    }
+    return `[${parts.join(", ")}]`;
+}

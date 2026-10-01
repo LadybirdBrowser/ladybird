@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <video id="video"></video>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(done => {
         function fail(name, error) {
@@ -35,11 +36,7 @@
                         sourceBuffer.appendBuffer(data);
                     });
 
-                    const buffered = sourceBuffer.buffered;
-                    const ranges = [];
-                    for (let i = 0; i < buffered.length; i++)
-                        ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
-                    println(`buffered: [${ranges.join(", ")}]`);
+                    println(`buffered: ${timeRangesToString(sourceBuffer.buffered)}`);
 
                     // The gap threshold must be derived from the longest frame buffered rather than the most
                     // recent one, or reading the slower frames at the start blocks on a false discontinuity.

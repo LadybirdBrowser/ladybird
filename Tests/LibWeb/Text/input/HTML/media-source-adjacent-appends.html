@@ -4,6 +4,7 @@
 <script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
 <video id="video"></video>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(done => {
         function step(name) {
@@ -55,14 +56,6 @@
                     const mediaSegments = movieFragments.map((start, index) =>
                         data.subarray(start, index + 1 < movieFragments.length ? movieFragments[index + 1] : mediaEnd));
 
-                    function formatRanges() {
-                        const buffered = sourceBuffer.buffered;
-                        const ranges = [];
-                        for (let i = 0; i < buffered.length; i++)
-                            ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
-                        return `[${ranges.join(", ")}]`;
-                    }
-
                     async function append(bytes) {
                         await new Promise((resolve, reject) => {
                             sourceBuffer.addEventListener("updateend", resolve, { once: true });
@@ -79,14 +72,14 @@
                     for (const segment of mediaSegments.slice(2))
                         await append(segment);
                     const seam = sourceBuffer.buffered.start(0);
-                    println(`buffered after the second half: ${formatRanges()}`);
+                    println(`buffered after the second half: ${timeRangesToString(sourceBuffer.buffered)}`);
 
                     for (const segment of mediaSegments.slice(0, 2))
                         await append(segment);
 
                     // The halves meet in presentation time, so they buffer as one range and playback has to
                     // read straight out of the first group and into the second.
-                    println(`buffered after both halves: ${formatRanges()}`);
+                    println(`buffered after both halves: ${timeRangesToString(sourceBuffer.buffered)}`);
 
                     await new Promise(resolve => {
                         mediaSource.addEventListener("sourceended", resolve);

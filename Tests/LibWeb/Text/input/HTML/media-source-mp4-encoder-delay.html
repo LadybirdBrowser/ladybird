@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(async done => {
         function fail(name, error) {
@@ -42,11 +43,7 @@
                     sourceBuffer.appendBuffer(data);
                 });
 
-                const buffered = sourceBuffer.buffered;
-                const ranges = [];
-                for (let i = 0; i < buffered.length; i++)
-                    ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
-                return `[${ranges.join(", ")}]`;
+                return timeRangesToString(sourceBuffer.buffered);
             }
 
             const results = [];

@@ -1,18 +1,12 @@
 <!DOCTYPE html>
 <video id="video"></video>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(done => {
         function fail(name, error) {
             println(`FAIL: ${name}: ${error}`);
             done();
-        }
-
-        function formatRanges(buffered) {
-            const ranges = [];
-            for (let index = 0; index < buffered.length; ++index)
-                ranges.push(`${buffered.start(index)}-${buffered.end(index)}`);
-            return `[${ranges.join(", ")}]`;
         }
 
         const mediaSource = new MediaSource();
@@ -42,12 +36,12 @@
 
                 await appendSlice(0, INITIALIZATION_SEGMENT_END);
                 await appendSlice(INITIALIZATION_SEGMENT_END, PARTIAL_CLUSTER_END);
-                println(`after partial cluster: ${formatRanges(sourceBuffer.buffered)}`);
+                println(`after partial cluster: ${timeRangesToString(sourceBuffer.buffered)}`);
 
                 sourceBuffer.abort();
 
                 await appendSlice(INITIALIZATION_SEGMENT_END, SECOND_CLUSTER_START);
-                println(`after complete cluster: ${formatRanges(sourceBuffer.buffered)}`);
+                println(`after complete cluster: ${timeRangesToString(sourceBuffer.buffered)}`);
                 done();
             } catch (error) {
                 fail("sourceopen handler", error);
