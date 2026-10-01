@@ -12,6 +12,7 @@ use super::interpreter_stack::InterpreterStackMemory;
 use crate::build_configuration::VM_STACK_SPACE_LIMIT;
 use crate::gc::capi::{self, GCVisitor};
 use crate::gc::heap::Heap;
+use crate::gc::root::RootSet;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::NativeFunctionTableEntry;
@@ -27,6 +28,7 @@ pub struct Vm {
     /// The context that was running when each context on the stack was pushed.
     previous_running_execution_contexts: RefCell<Vec<*mut ExecutionContext>>,
     native_function_table: RefCell<Vec<NativeFunctionTableEntry>>,
+    roots: RootSet,
 }
 
 const _: () = assert!(core::mem::offset_of!(Vm, head) == 0);
@@ -54,6 +56,7 @@ impl Vm {
             execution_context_stack: RefCell::new(Vec::new()),
             previous_running_execution_contexts: RefCell::new(Vec::new()),
             native_function_table: RefCell::new(native_function_table),
+            roots: RootSet::default(),
         });
         // SAFETY: The VM is boxed, so its address is stable, and it destroys the heap before anything else.
         let heap = unsafe { Heap::new(gather_roots, core::ptr::from_ref::<Vm>(&vm).cast_mut().cast()) };
@@ -139,8 +142,13 @@ impl Vm {
         }
     }
 
+    pub fn roots(&self) -> &RootSet {
+        &self.roots
+    }
+
     fn gather_roots(&self, visitor: &mut Visitor) {
         self.for_each_execution_context_top_to_bottom(|context| context.trace(visitor));
+        self.roots.trace(visitor);
     }
 
     pub fn register_native_function(&self, entry: NativeFunctionTableEntry) -> u32 {

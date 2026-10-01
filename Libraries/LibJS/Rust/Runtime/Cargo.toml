@@ -9,6 +9,7 @@ crate-type = ["staticlib", "rlib"]
 # This crate is its own workspace so that it costs nothing when ENABLE_LIBJS_RUST_RUNTIME is off, and so that
 # libjs_rust can be built here without the features LibJS enables.
 [workspace]
+members = [".", "macros"]
 
 [features]
 default = []
@@ -20,6 +21,8 @@ thread-sanitizer = []
 ak = { path = "../../../../AK/Rust" }
 ladybird_allocator = { path = "../../../RustAllocator", optional = true }
 libjs_abi = { path = "../../ABI" }
+libjs_runtime_macros = { path = "macros" }
+libregex_rust = { path = "../../../LibRegex/Rust", default-features = false }
 rustc-demangle = "0.1"
 
 [build-dependencies]
