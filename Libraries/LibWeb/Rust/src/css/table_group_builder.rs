@@ -3319,10 +3319,9 @@ pub(crate) fn assembly_color_inputs(
     table: &ComputedLonghandTable,
     length: &crate::css::style_compute::FfiLengthResolutionContext,
 ) -> (u8, u32) {
-    const LIGHT: u8 = 2;
     let used_color_scheme = u8::try_from(table.effective_color_scheme()).unwrap_or_else(|_| {
         debug_assert!(false, "a driven table without a used color scheme");
-        LIGHT
+        crate::css::color_resolution::PREFERRED_COLOR_SCHEME_LIGHT
     });
     let current_color = own_color_from_table(table, used_color_scheme, Some(length)).unwrap_or_else(|| {
         debug_assert!(false, "a driven table whose color does not resolve");
@@ -3348,11 +3347,7 @@ pub(crate) unsafe fn assemble_group_from_table(
 ) -> *const c_void {
     let payload = unsafe {
         if group == group_index::FONT {
-            rebuild_font_group_from_table(
-                table,
-                font.expect("a font group assembly carries the resolved font"),
-                parent_payload,
-            )
+            font.and_then(|font| rebuild_font_group_from_table(table, font, parent_payload))
         } else {
             rebuild_group_from_table(
                 table,

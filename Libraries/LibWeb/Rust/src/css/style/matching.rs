@@ -131,8 +131,9 @@ impl RetainedState {
 
     /// The pseudo-element winner states a node settled this flush for the kinds the engine
     /// settles pseudo-elements from, to travel with the node's winner state: ::before, ::after,
-    /// ::first-letter and ::selection. The rules for the other kinds match every element, and a
-    /// row for each of them on every element would cost the memory the winner groups have.
+    /// ::first-letter, ::marker and ::selection. The user agent's rules for ::marker match every
+    /// element, and a row for it on every element would cost the memory the winner groups have,
+    /// so it travels only from a node holding a marker record: a list item's.
     fn settled_pseudo_winner_states(
         &self,
         effects: &AnswerEffects,
@@ -143,7 +144,12 @@ impl RetainedState {
             .view(&self.winner_groups)
             .pseudo_states(node)
             .filter(|&(pseudo, version, _, priority_current)| {
-                matches!(pseudo.kind.0, 0 | 2 | 3 | 6) && version == self.program.version() && priority_current
+                let travels = match pseudo.kind.0 {
+                    0 | 2 | 3 | 6 => true,
+                    5 => self.computed_group_sets.pseudo_style_record(node, 5).is_some(),
+                    _ => false,
+                };
+                travels && version == self.program.version() && priority_current
             })
             .map(|(pseudo, _, state, _)| (pseudo, state))
             .collect()
@@ -5125,10 +5131,9 @@ impl RetainedState {
                                     Lookup::Missing(_) => None,
                                 };
                                 // The rows the engine settles pseudo-elements from travel with
-                                // the group: ::before, ::after, ::first-letter and ::selection.
-                                // The rules for ::marker, ::backdrop and the element-backed
-                                // pseudo-elements match every element, and a row for every
-                                // element would only cost the memory the winner groups have.
+                                // the group, a list item's ::marker included: a cohort hit must
+                                // carry that cascade when the originating record makes the
+                                // element a list item.
                                 let pseudo_winner_groups = self.settled_pseudo_winner_states(effects, node);
                                 let pseudo_winner_groups = (!pseudo_winner_groups.is_empty())
                                     .then(|| (self.winner_groups.generation(), Arc::from(pseudo_winner_groups)));

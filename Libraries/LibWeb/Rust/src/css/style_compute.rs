@@ -2213,13 +2213,15 @@ fn value_contains_percentage(value: &StyleValueData) -> bool {
     }
 }
 
-/// Whether a value's computed value depends on inherited font metrics because
+/// Whether a value's computed value depends on inherited information because
 /// of the property it belongs to: a font-weight of bolder or lighter (relative
 /// to the inherited weight), a font-size that is a percentage, a percentage-
 /// bearing calc(), or one of larger/smaller/math (relative to the inherited
-/// size), or a line-height that is a percentage or percentage-bearing calc()
-/// (relative to the computed font size). This is the property-specific part of
-/// the flow's inheritance-dependency decision; the property-agnostic parts
+/// size), a line-height that is a percentage or percentage-bearing calc()
+/// (relative to the computed font size), or a text-align of match-parent or
+/// -libweb-inherit-or-center (relative to the parent's text-align and
+/// direction). This is the property-specific part of the flow's
+/// inheritance-dependency decision; the property-agnostic parts
 /// (depends-on-current-color and computational independence) stay with the
 /// value's own operations.
 ///
@@ -2237,6 +2239,8 @@ pub(crate) fn value_depends_on_inherited_info_for_property(value: &StyleValueDat
                     if matches!(*keyword, keyword::LARGER | keyword::SMALLER | keyword::MATH))
         }
         prop::LINE_HEIGHT => value_contains_percentage(value),
+        prop::TEXT_ALIGN => matches!(value, StyleValueData::Keyword { keyword }
+            if matches!(*keyword, keyword::MATCH_PARENT | keyword::_LIBWEB_INHERIT_OR_CENTER)),
         _ => false,
     }
 }
@@ -3341,11 +3345,17 @@ fn needs_computed_style_sheet_context(value: *const StyleValueData) -> bool {
     }
 }
 
-fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &ComputedStoreEntry) {
+/// Store what a drive found for one longhand: its computed value, and the specified value its
+/// inheritance depends on, if it does.
+fn store_driven_value(longhand_table: &mut ComputedLonghandTable, entry: &ComputedStoreEntry) {
     let specified_value = entry.inheritance_dependent.then(|| unsafe {
         RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(entry.data.cast()))
     });
     longhand_table.set_drive_inheritance_dependent_value(entry.property_id, specified_value);
+    store_computed_value(longhand_table, entry);
+}
+
+fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &ComputedStoreEntry) {
     let source_slot = if entry.has_style_sheet_context
         && entry.computed_kind == COMPUTED_KIND_UNCHANGED
         && needs_computed_style_sheet_context(entry.data.cast())
@@ -4591,7 +4601,7 @@ pub(crate) unsafe fn drive_property_computation(
 
             let longhand_table = unsafe { &mut *longhand_table };
             let mut store = |entry: ComputedStoreEntry| {
-                store_computed_value(longhand_table, &entry);
+                store_driven_value(longhand_table, &entry);
             };
             if property_id == prop::OVERFLOW_X {
                 pending_overflow_x_store = Some(entry);
@@ -5809,15 +5819,18 @@ fn apply_post_compute_adjustments(
         computed_kind,
         value,
     };
+    // An adjustment moves only a computed value. Whether the value depends on the parent stays
+    // what the drive recorded for the specified value, as for a match-parent text-align a table
+    // adjusts.
+    let mut store = |entry: ComputedStoreEntry| store_computed_value(longhand_table, &entry);
     let mut post_adjusted_longhands = 0;
-    let mut adjustments = Vec::new();
     if transformation.set_float_none {
         post_adjusted_longhands |= POST_ADJUSTED_FLOAT;
-        adjustments.push(adjusted_entry(prop::FLOAT, COMPUTED_KIND_KEYWORD, keyword::NONE as f64));
+        store(adjusted_entry(prop::FLOAT, COMPUTED_KIND_KEYWORD, keyword::NONE as f64));
     }
     if adjusted_display != adjustment.display_before {
         post_adjusted_longhands |= POST_ADJUSTED_DISPLAY;
-        adjustments.push(adjusted_entry(
+        store(adjusted_entry(
             prop::DISPLAY,
             COMPUTED_KIND_DISPLAY,
             adjusted_display.encoded() as f64,
@@ -5826,7 +5839,7 @@ fn apply_post_compute_adjustments(
     let line_height_changed = element_adjustment.set_line_height_normal || clamp_input_line_height;
     if line_height_changed {
         post_adjusted_longhands |= POST_ADJUSTED_LINE_HEIGHT;
-        adjustments.push(adjusted_entry(
+        store(adjusted_entry(
             prop::LINE_HEIGHT,
             COMPUTED_KIND_KEYWORD,
             keyword::NORMAL as f64,
@@ -5834,7 +5847,7 @@ fn apply_post_compute_adjustments(
     }
     if element_adjustment.set_position_static {
         post_adjusted_longhands |= POST_ADJUSTED_POSITION;
-        adjustments.push(adjusted_entry(
+        store(adjusted_entry(
             prop::POSITION,
             COMPUTED_KIND_KEYWORD,
             keyword::STATIC as f64,
@@ -5842,28 +5855,11 @@ fn apply_post_compute_adjustments(
     }
     if element_adjustment.changed_text_align {
         post_adjusted_longhands |= POST_ADJUSTED_TEXT_ALIGN;
-        adjustments.push(adjusted_entry(
+        store(adjusted_entry(
             prop::TEXT_ALIGN,
             COMPUTED_KIND_KEYWORD,
             element_adjustment.text_align as f64,
         ));
-    }
-    if !adjustments.is_empty() {
-        for entry in &adjustments {
-            store_computed_value(longhand_table, entry);
-        }
-        longhand_table.finish_drive_inheritance_dependent_values();
-    }
-    if matches!(
-        adjustment.text_align_before,
-        keyword::MATCH_PARENT | keyword::_LIBWEB_INHERIT_OR_CENTER
-    ) {
-        longhand_table.add_inheritance_dependent_value(
-            prop::TEXT_ALIGN,
-            retained_new(StyleValueData::Keyword {
-                keyword: adjustment.text_align_before,
-            }),
-        );
     }
 
     let mut clear_adjusted_flags = |changed, property_id| {

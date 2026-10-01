@@ -892,6 +892,11 @@ impl RetainedState {
         self.environment_move_recompute_nodes.contains(&node)
     }
 
+    /// Record the identity of the counter-style registry a tree scope's style scope has now.
+    pub fn set_counter_style_environment_identity(&mut self, tree_scope: TreeScopeID, identity: u64) {
+        self.counter_style_environment_identities.insert(tree_scope, identity);
+    }
+
     /// Record the style record an element holds; zero is none. Only elements that hold one have an
     /// entry.
     pub fn set_held_style_record(&mut self, node: StyleNodeID, style_record: u64) {
@@ -1354,6 +1359,7 @@ impl StyleEngineState {
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
                 environment_move_recompute_nodes: HashSet::default(),
+                counter_style_environment_identities: HashMap::default(),
                 held_style_records: HashMap::default(),
                 host_var_reads: HashMap::default(),
                 css_defined_animations: Default::default(),
@@ -2818,6 +2824,7 @@ impl RetainedState {
             element_custom_property_data,
             pseudo_element_custom_property_data,
             environment_move_recompute_nodes,
+            counter_style_environment_identities: _,
             held_style_records,
             host_var_reads,
             css_defined_animations,

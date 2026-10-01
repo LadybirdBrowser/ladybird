@@ -1434,7 +1434,9 @@ impl ComputedGroupSets {
     ///
     /// The node's assigned record is the base the table was driven from; the table it held, if
     /// any, only seeds the new table's identity. Its pseudo-elements' records are untouched: they
-    /// inherit from the element, and the caller has proven that nothing they inherit moved.
+    /// inherit from the element, and the caller has proven that nothing they inherit moved. The
+    /// record names `counter_style_environment_identity` as its counter-style registry, or the
+    /// one its base names when that is `None`.
     #[allow(clippy::arc_with_non_send_sync, clippy::too_many_arguments)]
     pub(super) fn replace_engine_computed_table(
         &mut self,
@@ -1447,23 +1449,24 @@ impl ComputedGroupSets {
         font: Option<&crate::css::table_group_builder::FfiFontGroupBuildInputs>,
         parent_in_display_none_subtree: bool,
         environment: Option<u64>,
-    ) -> EngineComputedAssembly {
-        let index = node.element_index().expect("an engine-computed record is an element's") as usize;
+        counter_style_environment_identity: Option<u64>,
+    ) -> Option<EngineComputedAssembly> {
+        // The caller drove the table from an element's live base record; a row that is not
+        // assembles nothing.
+        let base = node
+            .element_index()
+            .zip(base_style_record.base_record())
+            .filter(|&(_, base)| self.style_record_generation_is_live(base, base_style_record.base_generation()));
+        let Some((index, base_style_record_identity)) = base else {
+            debug_assert!(false, "a table is driven from an element's live base record");
+            return None;
+        };
+        let index = index as usize;
         debug_assert!(
             self.columns.animation_overlay_slot(index).is_none(),
             "a record composing animations is not driven"
         );
-        let base_style_record_identity = base_style_record
-            .base_record()
-            .expect("the base of a record is a base record");
-        assert!(
-            self.style_record_generation_is_live(base_style_record_identity, base_style_record.base_generation()),
-            "a table is driven from a live record"
-        );
-        let old_record = *self
-            .style_records
-            .get_index(base_style_record_identity.index())
-            .expect("a live record");
+        let old_record = *self.style_records.get_index(base_style_record_identity.index())?;
         let old_table = old_record.longhand_table;
         debug_assert_eq!(
             self.sets
@@ -1560,14 +1563,19 @@ impl ComputedGroupSets {
             .get_index(group_set.0 as usize)
             .is_some_and(|set| style_group_payloads_hold_image_values(SharedPayload::as_pointer_slice(&set.payloads)));
         let old_metadata = self.computed_fixed_metadata[old_record.fixed_metadata];
+        let counter_style_environment_identity =
+            counter_style_environment_identity.unwrap_or(old_metadata.counter_style_environment_identity);
         let swap_eligible = table_inherited_group_swap_eligible(&table);
         let dependency_flags =
             table.publication_dependency_flags() | (u8::from(holds_image_values) * HOLDS_IMAGE_VALUES);
-        let fixed_metadata = if dependency_flags == old_metadata.dependency_flags {
+        let fixed_metadata = if dependency_flags == old_metadata.dependency_flags
+            && counter_style_environment_identity == old_metadata.counter_style_environment_identity
+        {
             old_record.fixed_metadata
         } else {
             self.intern_fixed_metadata(ComputedFixedMetadata {
                 dependency_flags,
+                counter_style_environment_identity,
                 ..old_metadata
             })
             .0
@@ -1607,11 +1615,11 @@ impl ComputedGroupSets {
             self.style_record_column.resize(index + 1, None);
         }
         self.style_record_column[index] = Some(new_style_record);
-        EngineComputedAssembly {
+        Some(EngineComputedAssembly {
             delta: (previous_style_record, self.final_base_style_record(new_style_record)),
             canonicalized_groups,
             group_set_unchanged: group_set == old_record.groups,
-        }
+        })
     }
 
     /// Put a node back on the record it held before an engine derivation C++ never installed,
