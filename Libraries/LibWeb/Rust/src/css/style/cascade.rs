@@ -1398,6 +1398,9 @@ pub(super) const STATE_READS_IF_FUNCTION: u8 = 1 << 3;
 /// A state's winners call a custom function, whose definition and the conditions inside it the
 /// cascade does not decide.
 pub(super) const STATE_READS_CUSTOM_FUNCTION: u8 = 1 << 4;
+/// A state's winners are written with a random function whose random base value is drawn for the
+/// element.
+pub(super) const STATE_READS_ELEMENT_RANDOM_BASE: u8 = 1 << 5;
 /// What a state's winners read has been decided.
 const STATE_READS_DECIDED: u8 = 1 << 7;
 

@@ -204,6 +204,55 @@ impl WinnerStore {
     }
 }
 
+impl WinnerStore {
+    /// The random sharings of the declarations' random functions whose random base value is not
+    /// fixed, as the drive finds their base values: by pointer.
+    fn unfixed_random_sharings(&self, engine: &RetainedState) -> Vec<*const StyleValueData> {
+        let view = self.view(engine);
+        let mut sharings = Vec::new();
+        for declaration in &self.declarations {
+            if view.dependencies(declaration).has_unfixed_random_sharing {
+                crate::css::style_compute::collect_unfixed_random_sharings_in_value(
+                    view.value(declaration),
+                    &mut sharings,
+                );
+            }
+        }
+        sharings
+    }
+
+    /// Draw the random base value of every random function in the declarations that has not got
+    /// one yet, for a drive of `node`'s record.
+    pub(super) fn draw_random_base_values(&self, engine: &mut RetainedState, node: StyleNodeID) {
+        for sharing in self.unfixed_random_sharings(engine) {
+            // SAFETY: The declarations retain every value a sharing is part of.
+            let (name, element_shared) = crate::css::style_compute::random_caching_key(unsafe { &*sharing });
+            engine.ensure_random_base_value(Some(node), name, element_shared);
+        }
+    }
+
+    /// The random base values of the declarations' random functions for a drive of `node`'s
+    /// record. Empty, and no allocation, when they hold none; `None` when one was not drawn for
+    /// the node.
+    pub(super) fn drive_random_base_values(
+        &self,
+        engine: &RetainedState,
+        node: StyleNodeID,
+    ) -> Option<Vec<crate::css::style_compute::FfiRandomBaseValue>> {
+        self.unfixed_random_sharings(engine)
+            .into_iter()
+            .map(|sharing| {
+                // SAFETY: The declarations retain every value a sharing is part of.
+                let (name, element_shared) = crate::css::style_compute::random_caching_key(unsafe { &*sharing });
+                Some(crate::css::style_compute::FfiRandomBaseValue {
+                    source: sharing.cast(),
+                    value: engine.random_base_values.get(node, name, element_shared)?,
+                })
+            })
+            .collect()
+    }
+}
+
 impl<'a> WinnerView<'a> {
     fn dependencies(&self, declaration: &WinnerDeclaration) -> ExternalValueDependencies {
         let memoized = declaration.dependencies.load(Ordering::Relaxed);

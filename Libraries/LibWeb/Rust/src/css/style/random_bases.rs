@@ -68,6 +68,18 @@ impl RandomBaseValues {
         value
     }
 
+    /// The base value of a key, if it has been drawn.
+    pub(crate) fn get(&self, node: StyleNodeID, name: &[u16], element_shared: bool) -> Option<f64> {
+        if element_shared {
+            return self.document.get(name).copied();
+        }
+        self.elements
+            .get(&node)?
+            .iter()
+            .find(|(row_name, _)| **row_name == *name)
+            .map(|(_, value)| *value)
+    }
+
     /// Take a key's value as given, for a replay that reproduces what a recorded draw gave.
     #[cfg(feature = "style-recording")]
     pub(crate) fn set(&mut self, node: Option<StyleNodeID>, name: &[u16], element_shared: bool, value: f64) {

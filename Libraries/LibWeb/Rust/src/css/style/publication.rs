@@ -2715,16 +2715,19 @@ impl RetainedState {
                 reads |= cascade::STATE_READS_CUSTOM_FUNCTION;
             }
         }
-        if self
+        for (_, value, _) in self
             .winner_groups
             .winners_in_state(state)
             .filter_map(|winner| self.winner_groups.resolved_winner(winner))
             .filter_map(|winner| self.written_winner_value(node, &winner).ok().flatten())
-            .any(|(_, value, _)| {
-                crate::css::style_compute::collect_external_value_dependencies(value.data()).uses_tree_counting_function
-            })
         {
-            reads |= cascade::STATE_READS_SIBLING_POSITION;
+            let dependencies = crate::css::style_compute::collect_external_value_dependencies(value.data());
+            if dependencies.uses_tree_counting_function {
+                reads |= cascade::STATE_READS_SIBLING_POSITION;
+            }
+            if dependencies.has_unfixed_random_sharing && value_draws_element_random_base(value.data()) {
+                reads |= cascade::STATE_READS_ELEMENT_RANDOM_BASE;
+            }
         }
         self.winner_groups.note_state_reads(state, reads);
         reads
@@ -2734,13 +2737,15 @@ impl RetainedState {
     /// substitutes what the node's own custom-property environment does not decide: the element's
     /// attributes through `attr()`, the parent's environment through `inherit()`, the document's
     /// media features and the element's lengths through `if()`, or the `@function` definitions
-    /// through a custom function call. What such a state substitutes to is the element's alone.
+    /// through a custom function call. What such a state substitutes to is the element's alone,
+    /// as is what a state computes to whose winners draw a random base value for the element.
     pub(super) fn state_reads_beyond_environment(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
         self.state_reads(node, state)
             & (cascade::STATE_READS_ATTRIBUTES
                 | cascade::STATE_READS_INHERIT_FUNCTION
                 | cascade::STATE_READS_IF_FUNCTION
-                | cascade::STATE_READS_CUSTOM_FUNCTION)
+                | cascade::STATE_READS_CUSTOM_FUNCTION
+                | cascade::STATE_READS_ELEMENT_RANDOM_BASE)
             != 0
     }
 
@@ -3123,7 +3128,10 @@ impl RetainedState {
                 .unwrap_or_else(|| value_computes_without_document_context(data))
                 || (resources_are_known && value_computes_without_document_context_but_for_resources(data).is_some())
                 || (value_computes_with_tree_counting_inputs(data, resources_are_known)
-                    && self.sibling_position(node).is_some());
+                    && self.sibling_position(node).is_some())
+                // A substituted random function is not keyed by the element in the record caches.
+                || (matches!(value, WinnerValue::Written { .. })
+                    && value_computes_with_random_base_values(data, resources_are_known));
             if !context_free
                 || (pseudo_kind.is_some()
                     && winner.property == prop::CONTENT
@@ -3165,6 +3173,9 @@ impl RetainedState {
                     ..Default::default()
                 },
             );
+        }
+        if store_use == StoreUse::Drive {
+            store.draw_random_base_values(self, node);
         }
         Ok(store)
     }
@@ -5123,6 +5134,30 @@ fn value_computes_with_tree_counting_inputs(value: &StyleValueData, resources_ar
         && !dependencies.uses_random_function
         && (resources_are_known
             || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
+}
+
+/// Whether a value computes from the document's computation inputs and the random base values of
+/// its random functions, which the store a drive reads draws for the element.
+fn value_computes_with_random_base_values(value: &StyleValueData, resources_are_known: bool) -> bool {
+    if crate::css::style_compute::value_is_computationally_independent(value).is_none() {
+        return false;
+    }
+    let dependencies = crate::css::style_compute::external_value_dependencies(value);
+    dependencies.uses_random_function
+        && !dependencies.uses_tree_counting_function
+        && dependencies.container_relative_length_unit_mask == 0
+        && (resources_are_known
+            || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
+}
+
+/// Whether a value holds a random function whose random caching key names the element.
+fn value_draws_element_random_base(value: &StyleValueData) -> bool {
+    let mut sharings = Vec::new();
+    crate::css::style_compute::collect_unfixed_random_sharings_in_value(value, &mut sharings);
+    sharings.into_iter().any(|sharing| {
+        // SAFETY: The value retains every sharing in it.
+        !crate::css::style_compute::random_caching_key(unsafe { &*sharing }).1
+    })
 }
 
 /// Whether a written value computes from the record, the parent and the document's computation
