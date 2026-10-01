@@ -1,7 +1,7 @@
 rect: 60
 rect with inline style: 100
 rect with var(): 70
-rect with a custom property: 0
+rect with a custom property: 100
 circle: 62
 path: 50
 rect in detached subtree: 20

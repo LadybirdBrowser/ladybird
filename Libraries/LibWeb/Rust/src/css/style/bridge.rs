@@ -3370,9 +3370,6 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
             .map(|hint| unsafe { declaration_from_view(hint) })
             .collect::<Vec<_>>();
         let inline_data = unsafe { inline_block.cast::<DeclarationBlock>().as_ref() }.map(DeclarationBlock::data);
-        let declares_custom_properties = inline_data
-            .as_ref()
-            .is_some_and(|data| !data.custom_properties.is_empty());
         let hint_kind = decode_element_declaration_kind(hint_kind);
         let declarations = hints
             .iter()
@@ -3384,7 +3381,7 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
             }))
             .collect::<Vec<_>>();
         engine
-            .declared_only_record(subject, facts, &declarations, declares_custom_properties)
+            .declared_only_record(subject, facts, &declarations)
             .map_or(0, super::computed::FinalStyleRecordID::raw)
     })
 }
