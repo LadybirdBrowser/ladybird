@@ -106,28 +106,18 @@ void HTMLBodyElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    // The link colors are presentational hints on every link of the document, which the style
-    // engine has to know each link carries.
-    auto refresh_link_style_facts = [&] {
-        auto links = document().links();
-        for (size_t index = 0; index < links->length(); ++index)
-            CSS::record_element_adjustment_facts(*links->item(index));
-    };
     if (name == HTML::AttributeNames::link) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-3
         auto color = parse_legacy_color_value(value.has_value() ? value->utf16_view() : u""sv);
         document().set_normal_link_color(color);
-        refresh_link_style_facts();
     } else if (name == HTML::AttributeNames::alink) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-5
         auto color = parse_legacy_color_value(value.has_value() ? value->utf16_view() : u""sv);
         document().set_active_link_color(color);
-        refresh_link_style_facts();
     } else if (name == HTML::AttributeNames::vlink) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-4
         auto color = parse_legacy_color_value(value.has_value() ? value->utf16_view() : u""sv);
         document().set_visited_link_color(color);
-        refresh_link_style_facts();
     } else if (name == HTML::AttributeNames::background) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:attr-background
         m_background_style_value = nullptr;

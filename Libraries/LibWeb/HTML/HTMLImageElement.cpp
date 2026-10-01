@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -237,7 +238,7 @@ void HTMLImageElement::set_dimension_attribute_source(DOM::Element const* source
 {
     if (m_dimension_attribute_source.ptr() != source) {
         m_dimension_attribute_source = source;
-        document().style_computer().style_engine().record_element_style_input_change(style_node_id());
+        CSS::republish_presentational_hints(*this);
     }
 }
 

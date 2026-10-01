@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/Invalidation/EmbeddedContentInvalidator.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -90,10 +91,9 @@ void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<U
 
     if (name == HTML::AttributeNames::marginwidth || name == HTML::AttributeNames::marginheight) {
         if (auto* document = this->content_document_without_origin_check()) {
-            if (auto* body_element = document->body()) {
-                auto& mutable_body_element = const_cast<HTMLElement&>(*body_element);
-                mutable_body_element.document().style_computer().style_engine().record_element_style_input_change(mutable_body_element.style_node_id());
-            }
+            // The body's margins are hints mapped from these.
+            if (auto* body_element = document->body())
+                CSS::republish_presentational_hints(const_cast<HTMLElement&>(*body_element));
         }
     }
 }

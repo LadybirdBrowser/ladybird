@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -146,10 +147,10 @@ void HTMLTableElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
             m_cellpadding = 1;
 
         // NOTE: cellpadding is magical, it applies to the cells inside this table, not the table itself.
-        //       When it changes, we need new style for the cells.
+        //       When it changes, the cells' hints move.
         if (old_cellpadding != m_cellpadding) {
             for_each_in_subtree_of_type<HTMLTableCellElement>([&](auto& cell) {
-                cell.document().style_computer().style_engine().record_element_style_input_change(cell.style_node_id());
+                CSS::republish_presentational_hints(cell);
                 return TraversalDecision::Continue;
             });
         }

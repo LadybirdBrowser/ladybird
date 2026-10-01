@@ -1,0 +1,2 @@
+initial: 30px 20px
+changed: 40px 20px

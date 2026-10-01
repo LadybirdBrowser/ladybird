@@ -1743,6 +1743,17 @@ void Document::respond_to_base_url_changes(URL::URL const& old_document_url, URL
         return TraversalDecision::Continue;
     });
 
+    // A table's, a table section's, a row's or a cell's background attribute maps to an image hint
+    // resolved against the base URL when it is published, so publish those hints again.
+    if (!base_url_unchanged) {
+        for_each_shadow_including_descendant([&](Node& node) {
+            if (auto* element = as_if<Element>(node); element && element->has_attribute(HTML::AttributeNames::background)
+                && element->is_presentational_hint(HTML::AttributeNames::background))
+                CSS::republish_presentational_hints(*element);
+            return TraversalDecision::Continue;
+        });
+    }
+
     // FIXME: 3. For each descendant of document's shadow-including descendants:
     //        ...
 

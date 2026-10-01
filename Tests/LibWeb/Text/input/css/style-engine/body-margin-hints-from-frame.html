@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<iframe id="frame" marginwidth="30" marginheight="20" srcdoc="<body>x</body>"></iframe>
+<script>
+    // A body takes its margins from its frame's marginwidth and marginheight, from its first style on.
+    asyncTest(done => {
+        frame.onload = () => {
+            const body = frame.contentDocument.body;
+            const report = label => {
+                const style = frame.contentWindow.getComputedStyle(body);
+                println(`${label}: ${style.marginLeft} ${style.marginTop}`);
+            };
+            report("initial");
+            frame.setAttribute("marginwidth", "40");
+            report("changed");
+            done();
+        };
+    });
+</script>

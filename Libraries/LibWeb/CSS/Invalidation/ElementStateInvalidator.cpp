@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLMeterElement.h>
@@ -17,6 +18,9 @@ namespace Web::CSS::Invalidation {
 void invalidate_style_after_active_state_change(DOM::Element& element, bool is_active)
 {
     record_element_state_changed(element, PseudoClass::Active, is_active);
+    // The body's alink colour is a hint on an active link.
+    if ((element.matches_link_pseudo_class() || element.matches_visited_pseudo_class()) && element.document().active_link_color().has_value())
+        republish_presentational_hints(element);
 }
 
 void invalidate_style_after_modal_state_change(DOM::Element& element, bool is_modal)
