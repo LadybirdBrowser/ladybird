@@ -5517,6 +5517,18 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             append_transition_property(property_id);
     }
     auto inheritance_parent = abstract_element.element_to_inherit_style_from();
+    // The custom properties the computation resolves for the element: its own declarations, unless
+    // the environment it holds is its parent's.
+    auto custom_property_data = [&]() -> RefPtr<CustomPropertyData const> {
+        auto data = abstract_element.custom_property_data();
+        if (data && data->is_animation_overlay())
+            data = data->parent();
+        if (!data || data->declared_count() == 0)
+            return nullptr;
+        if (inheritance_parent.has_value() && inheritable_custom_property_data(*inheritance_parent).ptr() == data.ptr())
+            return nullptr;
+        return data;
+    }();
     struct CustomPropertyResolutionState {
         AK_ALLOC_WITH_KMALLOC;
         AK_MAKE_NONCOPYABLE(CustomPropertyResolutionState);
@@ -5529,12 +5541,12 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         SubstitutionData substitution_data;
         ComputedValuesFFI::FfiCascadeResolutionContext resolution_context {};
         Optional<ComputedValuesFFI::FfiStyleQueryInputs> style_query_inputs;
+        ComputedValuesFFI::FfiLengthResolutionContext finalization_length_resolution_context {};
         void* style_query_dependencies { nullptr };
         FlatPtr document_identity;
         size_t registration_generation;
         Optional<PreferredColorScheme> color_scheme;
-        bool root_font_metrics_prepared { false };
-        bool computed_registered_value { false };
+        bool declares_registered_value { false };
 
         CustomPropertyResolutionState(NonnullRefPtr<CustomPropertyData const> data, RefPtr<CustomPropertyData const> parent_data, DOM::AbstractElement element, FlatPtr document_identity, size_t registration_generation)
             : data(move(data))
@@ -5584,6 +5596,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         GC::Ref<StyleComputer const> style_computer;
         DOM::AbstractElement abstract_element;
         CascadedProperties& cascaded_properties;
+        RefPtr<CustomPropertyData const> custom_property_data;
         u64 matching_pseudo_element_styles;
         u32* explicitly_inherited_non_inherited_style_groups;
         bool stop_after_longhand_drive;
@@ -5595,6 +5608,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     };
     auto prepare_phase_context = [](void* context_pointer, u8 phase, ComputedValuesFFI::FfiLonghandPhaseContext* output) {
         auto& context = *static_cast<NativeComputePropertiesContext*>(context_pointer);
+        auto& style_computer = *context.style_computer;
         auto& state = *context.state;
         auto& computed_style = *state.working_set;
         auto context_property = phase == ComputedValuesFFI::LONGHAND_PHASE_CONTEXT_AFTER_FONT ? PropertyID::LineHeight : PropertyID::Color;
@@ -5619,45 +5633,49 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         document.style_invalidation_counters().custom_property_elements++;
         document.style_invalidation_counters().custom_property_resolutions += resolution_state.data->declared_count();
         document.style_invalidation_counters().custom_property_value_computations += resolution_state.data->declared_count();
+        // A registered value of the document element computes against the element's own font
+        // metrics for rem, which its longhands have just settled.
+        if (!context.abstract_element.pseudo_element().has_value() && context.abstract_element.element().is_document_element()) {
+            style_computer.m_root_element_font_metrics = style_computer.calculate_root_element_font_metrics(computed_style);
+            style_computer.m_root_element_font_metrics_depend_on_viewport_metrics = computed_style.font_metrics_depend_on_viewport_metrics();
+        }
+        // Only a registered value computes against the element's lengths. One that substitutes may
+        // read any container-relative length, which its declaration does not show.
+        auto registered_values = ComputedValuesFFI::rust_custom_property_store_registered_value_declarations(resolution_state.data->rust_store(), document.rust_custom_property_registry());
+        bool declares_registered_value = registered_values != ComputedValuesFFI::FfiRegisteredValueDeclarations::None;
+        resolution_state.declares_registered_value = declares_registered_value;
+        if (declares_registered_value) {
+            auto const& finalization_context = style_computer.get_computation_context_for_property(PropertyID::Custom, computed_style, context.abstract_element);
+            auto container_relative_length_unit_mask = registered_values == ComputedValuesFFI::FfiRegisteredValueDeclarations::Substituted
+                ? all_container_relative_length_units_mask
+                : state.container_relative_length_unit_mask;
+            resolution_state.finalization_length_resolution_context = to_ffi_length_resolution_context_with_container_bases(finalization_context.length_resolution_context, container_relative_length_unit_mask);
+        }
         output->custom_property_input = {
             .store = resolution_state.data->rust_store(),
             .resolved_parent_store = resolution_state.parent_data ? resolution_state.parent_data->rust_store() : resolution_state.data->parent() ? resolution_state.data->parent()->rust_store()
                                                                                                                                                  : nullptr,
             .reuse_resolved_parent_if_empty = resolution_state.parent_data != nullptr,
             .resolution_context = &resolution_state.resolution_context,
-            .finalizer_context = &context,
-            .finalize_component = [](void* context_pointer, size_t const* names, u32 const* members, size_t member_count, ComputedValuesFFI::FfiResolvedStyleValue* resolved) {
-                auto& context = *static_cast<NativeComputePropertiesContext*>(context_pointer);
-                auto& computed_style = *context.state->working_set;
-                auto& state = *context.state->custom_property_resolution;
-                auto& style_computer = context.abstract_element.document().style_computer();
-                if (!state.root_font_metrics_prepared) {
-                    if (!context.abstract_element.pseudo_element().has_value() && context.abstract_element.element().is_document_element()) {
-                        style_computer.m_root_element_font_metrics = style_computer.calculate_root_element_font_metrics(computed_style);
-                        style_computer.m_root_element_font_metrics_depend_on_viewport_metrics = computed_style.font_metrics_depend_on_viewport_metrics();
-                    }
-                    state.root_font_metrics_prepared = true;
-                }
-                for (auto member : ReadonlySpan<u32> { members, member_count }) {
-                    auto name = Utf16FlyString::from_raw(names[member]);
-                    if (!state.computed_registered_value && context.abstract_element.document().get_registered_custom_property(name).has_value())
-                        state.computed_registered_value = true;
-                    auto substituted = StyleValue::adopt_rust_style_value_data(
-                        static_cast<StyleValueFFI::StyleValueData const*>(resolved[member].data));
-                    auto finalized = style_computer.finalize_custom_property_value(
-                        &computed_style,
-                        context.abstract_element,
-                        name,
-                        move(substituted));
-                    resolved[member].data = StyleValueFFI::rust_style_value_retain(finalized->rust_style_value_data());
-                }
+            .finalization_length_resolution_context = declares_registered_value ? &resolution_state.finalization_length_resolution_context : nullptr,
+            .finalization_environment = &state.computation_environment,
+            .finalization_color_scheme = static_cast<u8>(to_underlying(*resolution_state.color_scheme)),
+            .draw_random_base_value = [](void* context_pointer, u16 const* name, size_t name_length, bool element_shared) {
+                auto& element = const_cast<DOM::Element&>(static_cast<NativeComputePropertiesContext*>(context_pointer)->abstract_element.element());
+                RandomCachingKey random_caching_key {
+                    .name = Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(name), name_length }),
+                    .element_id = element_shared ? Optional<UniqueNodeID> { OptionalNone {} } : Optional<UniqueNodeID> { element.unique_id() },
+                };
+                return element.ensure_css_random_base_value(random_caching_key);
             },
+            .random_base_context = context_pointer,
         };
     };
     NativeComputePropertiesContext native_context {
         .style_computer = *this,
         .abstract_element = abstract_element,
         .cascaded_properties = cascaded_properties,
+        .custom_property_data = custom_property_data,
         .matching_pseudo_element_styles = matching_pseudo_element_styles,
         .explicitly_inherited_non_inherited_style_groups = explicitly_inherited_non_inherited_style_groups,
         .stop_after_longhand_drive = stop_after_longhand_drive,
@@ -5670,6 +5688,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     auto const highlight_inheritance_parent = abstract_element.highlight_inheritance_parent();
     ComputedValuesFFI::FfiComputePropertiesInput const input {
         .store = cascaded_properties.rust_store(),
+        .custom_property_store = custom_property_data ? custom_property_data->rust_store() : nullptr,
+        .custom_property_registry = document().rust_custom_property_registry(),
         .style_engine = m_style_engine.rust_handle(),
         .style_node = abstract_element.element().style_node_id().value(),
         .pseudo_kind = pseudo_element_to_ffi(abstract_element.pseudo_element()),
@@ -5789,62 +5809,56 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 .default_font_size_raw = style_computer.default_user_font_size().raw_value(),
             };
 
-            auto data = abstract_element.custom_property_data();
-            if (data && data->is_animation_overlay())
-                data = data->parent();
-            if (data && data->declared_count() > 0) {
-                bool shares_parent_data = inheritance_parent.has_value() && inheritable_custom_property_data(*inheritance_parent).ptr() == data.ptr();
-                if (!shares_parent_data) {
-                    auto parent_data = inheritance_parent.has_value() ? inheritable_custom_property_data(*inheritance_parent) : nullptr;
-                    state.custom_property_resolution = make<CustomPropertyResolutionState>(data.release_nonnull(), move(parent_data), abstract_element, bit_cast<FlatPtr>(&style_computer.document()), style_computer.document().custom_property_registration_generation());
-                    auto inheritance_data = inheritance_parent.has_value() ? inheritance_parent->custom_property_data() : nullptr;
-                    auto& resolution = *state.custom_property_resolution;
-                    resolution.resolution_context = {
-                        .parse_context = &resolution.substitution_data.parse_context,
-                        .media_environment = style_computer.cached_media_environment_for_style_update(),
-                        .load_media_environment = [](void* context) -> void const* {
-                            auto& element = static_cast<CustomPropertyResolutionState*>(context)->resolution_element;
-                            return element.document().style_computer().ensure_media_environment_for_style_update();
-                        },
-                        .custom_property_store = resolution.data->rust_store(),
-                        .inheritance_custom_property_store = inheritance_data ? inheritance_data->rust_store() : nullptr,
-                        .custom_property_registry = style_computer.document().rust_custom_property_registry(),
-                        .root_custom_property_name = {},
-                        .attributes = resolution.substitution_data.ffi_attributes.data(),
-                        .attribute_count = resolution.substitution_data.ffi_attributes.size(),
-                        .attribute_names_are_ascii_case_insensitive = abstract_element.element().namespace_uri() == Namespace::HTML && style_computer.document().is_html_document(),
-                        .custom_functions = resolution.substitution_data.ffi_functions.data(),
-                        .custom_function_count = resolution.substitution_data.ffi_functions.size(),
-                        .custom_function_scope_identity = bit_cast<FlatPtr>(&resolution.resolution_element.style_scope()),
-                        .custom_function_visibilities = resolution.substitution_data.function_visibilities.data(),
-                        .custom_function_visibility_count = resolution.substitution_data.function_visibilities.size(),
-                        .callback_context = &resolution,
-                        .install_custom_properties = nullptr,
-                        .style_query_inputs = nullptr,
-                        .load_style_query_inputs = [](void* context) -> ComputedValuesFFI::FfiStyleQueryInputs const* {
-                            auto& resolution = *static_cast<CustomPropertyResolutionState*>(context);
-                            if (!resolution.style_query_inputs.has_value())
-                                resolution.style_query_inputs = style_query_inputs_for(resolution.resolution_element.document().style_computer(), resolution.resolution_element);
-                            return &*resolution.style_query_inputs;
-                        },
-                        .style_query_dependencies = &resolution.style_query_dependencies,
-                        .note_substitution = [](void* context, void const* unresolved_data) {
-                            auto& element = static_cast<CustomPropertyResolutionState*>(context)->resolution_element;
-                            auto& dom_element = element.abstract_element().element();
-                            auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                                static_cast<StyleValueFFI::StyleValueData const*>(unresolved_data)));
-                            if (unresolved->as_unresolved().includes_var_function())
-                                dom_element.set_style_uses_var_css_function();
-                            if (unresolved->as_unresolved().includes_attr_function())
-                                dom_element.set_style_uses_attr_css_function();
-                            if (unresolved->as_unresolved().includes_if_function())
-                                dom_element.set_style_uses_if_css_function();
-                            if (unresolved->as_unresolved().includes_inherit_function())
-                                dom_element.set_style_uses_inherit_css_function();
-                            if (unresolved->as_unresolved().includes_dashed_function())
-                                dom_element.set_style_uses_custom_function(); },
-                    };
-                }
+            if (auto data = context.custom_property_data) {
+                auto parent_data = inheritance_parent.has_value() ? inheritable_custom_property_data(*inheritance_parent) : nullptr;
+                state.custom_property_resolution = make<CustomPropertyResolutionState>(data.release_nonnull(), move(parent_data), abstract_element, bit_cast<FlatPtr>(&style_computer.document()), style_computer.document().custom_property_registration_generation());
+                auto inheritance_data = inheritance_parent.has_value() ? inheritance_parent->custom_property_data() : nullptr;
+                auto& resolution = *state.custom_property_resolution;
+                resolution.resolution_context = {
+                    .parse_context = &resolution.substitution_data.parse_context,
+                    .media_environment = style_computer.cached_media_environment_for_style_update(),
+                    .load_media_environment = [](void* context) -> void const* {
+                        auto& element = static_cast<CustomPropertyResolutionState*>(context)->resolution_element;
+                        return element.document().style_computer().ensure_media_environment_for_style_update();
+                    },
+                    .custom_property_store = resolution.data->rust_store(),
+                    .inheritance_custom_property_store = inheritance_data ? inheritance_data->rust_store() : nullptr,
+                    .custom_property_registry = style_computer.document().rust_custom_property_registry(),
+                    .root_custom_property_name = {},
+                    .attributes = resolution.substitution_data.ffi_attributes.data(),
+                    .attribute_count = resolution.substitution_data.ffi_attributes.size(),
+                    .attribute_names_are_ascii_case_insensitive = abstract_element.element().namespace_uri() == Namespace::HTML && style_computer.document().is_html_document(),
+                    .custom_functions = resolution.substitution_data.ffi_functions.data(),
+                    .custom_function_count = resolution.substitution_data.ffi_functions.size(),
+                    .custom_function_scope_identity = bit_cast<FlatPtr>(&resolution.resolution_element.style_scope()),
+                    .custom_function_visibilities = resolution.substitution_data.function_visibilities.data(),
+                    .custom_function_visibility_count = resolution.substitution_data.function_visibilities.size(),
+                    .callback_context = &resolution,
+                    .install_custom_properties = nullptr,
+                    .style_query_inputs = nullptr,
+                    .load_style_query_inputs = [](void* context) -> ComputedValuesFFI::FfiStyleQueryInputs const* {
+                        auto& resolution = *static_cast<CustomPropertyResolutionState*>(context);
+                        if (!resolution.style_query_inputs.has_value())
+                            resolution.style_query_inputs = style_query_inputs_for(resolution.resolution_element.document().style_computer(), resolution.resolution_element);
+                        return &*resolution.style_query_inputs;
+                    },
+                    .style_query_dependencies = &resolution.style_query_dependencies,
+                    .note_substitution = [](void* context, void const* unresolved_data) {
+                        auto& element = static_cast<CustomPropertyResolutionState*>(context)->resolution_element;
+                        auto& dom_element = element.abstract_element().element();
+                        auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+                            static_cast<StyleValueFFI::StyleValueData const*>(unresolved_data)));
+                        if (unresolved->as_unresolved().includes_var_function())
+                            dom_element.set_style_uses_var_css_function();
+                        if (unresolved->as_unresolved().includes_attr_function())
+                            dom_element.set_style_uses_attr_css_function();
+                        if (unresolved->as_unresolved().includes_if_function())
+                            dom_element.set_style_uses_if_css_function();
+                        if (unresolved->as_unresolved().includes_inherit_function())
+                            dom_element.set_style_uses_inherit_css_function();
+                        if (unresolved->as_unresolved().includes_dashed_function())
+                            dom_element.set_style_uses_custom_function(); },
+                };
             }
 
             state.container_relative_length_unit_mask = computation_requirements->container_relative_length_unit_mask;
@@ -5873,6 +5887,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 style_computer.document().style_invalidation_counters().custom_property_overlay_hits += resolution.stats.final_value_hits;
                 style_computer.document().style_invalidation_counters().custom_property_value_computations += resolution.stats.final_value_misses;
                 style_computer.document().style_invalidation_counters().custom_property_cycle_participants += resolution.stats.cycle_participants;
+                if (resolution.stats.depends_on_viewport_metrics)
+                    computed_style.set_depends_on_viewport_metrics();
 
                 OrderedHashMap<Utf16FlyString, StyleProperty> resolved_own;
                 for (auto const& property : ReadonlySpan<ComputedValuesFFI::FfiResolvedCustomProperty> { resolution.properties, resolution.count }) {
@@ -5900,7 +5916,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 }
                 // A registered value computes against the element's own font and viewport, which an
                 // element alike in its declarations does not share.
-                if (resolution_read_only_the_environment && !resolution_state.computed_registered_value)
+                if (resolution_read_only_the_environment && !resolution_state.declares_registered_value)
                     resolution_state.data->set_cached_resolution(resolution_state.document_identity, resolution_state.registration_generation, resolution_state.color_scheme.value(), resolved);
                 context.abstract_element.set_custom_property_data(move(resolved));
                 record_style_query_dependencies(context.abstract_element, exchange(resolution_state.style_query_dependencies, nullptr));

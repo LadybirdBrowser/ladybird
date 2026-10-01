@@ -661,20 +661,14 @@ fn resolve_animation_declarations(
     let unfixed_random_sharings = random_sharing_sources
         .into_iter()
         .map(|source| {
-            let StyleValueData::RandomValueSharing {
-                has_name,
-                is_auto,
-                name,
-                element_shared,
-                ..
-            } = (unsafe { &*source })
-            else {
+            let sharing = unsafe { &*source };
+            let StyleValueData::RandomValueSharing { has_name, name, .. } = sharing else {
                 unreachable!();
             };
             FfiAnimationUnfixedRandomSharing {
                 source,
                 name: if *has_name { name.as_ptr() } else { std::ptr::null() },
-                element_shared: *element_shared || !*is_auto,
+                element_shared: crate::css::style_compute::random_caching_key(sharing).1,
             }
         })
         .collect();
