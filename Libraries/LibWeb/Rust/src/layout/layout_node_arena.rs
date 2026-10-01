@@ -1088,7 +1088,7 @@ impl LayoutNodeArena {
         if let Some(style_node) = self.commit_message_style_node(id) {
             self.messages_reported_during_pass
                 .borrow_mut()
-                .push(super::commit::FfiCommitMessage { style_node, kind });
+                .push(super::commit::FfiCommitMessage::new(style_node, kind));
         }
     }
 

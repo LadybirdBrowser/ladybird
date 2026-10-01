@@ -87,11 +87,6 @@ void LayoutTreeBuilderAccess::detach_layout_node(DOM::Node& node)
     }
 }
 
-void LayoutTreeBuilderAccess::register_svg_resource_reference(SVG::SVGElement& resource, DOM::Element& referencing_element)
-{
-    resource.register_resource_box_referencing_element({}, referencing_element);
-}
-
 void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& element, CSS::PseudoElement pseudo_element, Layout::NodeWithStyle* layout_node)
 {
     element.set_synthetic_pseudo_element_node({}, pseudo_element, layout_node);
@@ -1187,11 +1182,11 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .dom_children_parent = parent_node,
                 .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
                 .slot_element = slot_element,
-                .svg_graphics_element = graphics_element,
+                .svg_graphics_element = graphics_element ? Node::style_node_of(graphics_element).value() : 0,
                 .svg_mask = identified_dom_node(mask.ptr()),
                 .svg_clip_path = identified_dom_node(clip_path.ptr()),
-                .svg_fill_pattern = const_cast<SVG::SVGPatternElement*>(fill_pattern.ptr()),
-                .svg_stroke_pattern = const_cast<SVG::SVGPatternElement*>(stroke_pattern.ptr()),
+                .svg_fill_pattern = identified_dom_node(fill_pattern.ptr()),
+                .svg_stroke_pattern = identified_dom_node(stroke_pattern.ptr()),
             }; },
         .layout_node_has_first_letter_style = [](void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
@@ -1229,12 +1224,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .svg_pattern_content_element = [](void* pattern_pointer) -> RustFFI::FfiIdentifiedDomNode {
             VERIFY(pattern_pointer);
             return identified_dom_node(static_cast<SVG::SVGPatternElement*>(pattern_pointer)->pattern_content_element().ptr()); },
-        .register_svg_resource_reference = [](void* resource_pointer, void* graphics_element_pointer) {
-            VERIFY(resource_pointer);
-            VERIFY(graphics_element_pointer);
-            LayoutTreeBuilderAccess::register_svg_resource_reference(
-                *static_cast<SVG::SVGElement*>(resource_pointer),
-                *static_cast<SVG::SVGGraphicsElement*>(graphics_element_pointer)); },
         .principal_node_entry_facts = [](void*, void* node_pointer, bool must_create_subtree) -> RustFFI::FfiPrincipalNodeEntryFacts {
             VERIFY(node_pointer);
             auto& node = *static_cast<DOM::Node*>(node_pointer);

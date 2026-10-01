@@ -49,10 +49,13 @@ private:
         UnexpectedFragmentedInline,
         NeedsLayoutTreeUpdate,
         TopLayerZoneRebuildNeeded,
+        SvgResourceReferenced,
     };
 
     struct Message {
         NodeIdentity identity;
+        // The second node a message about a pair names. Only SvgResourceReferenced has one.
+        NodeIdentity other_identity {};
         Kind kind;
         // Only the layout tree update trace reads this.
         SetNeedsLayoutTreeUpdateReason layout_tree_update_reason { SetNeedsLayoutTreeUpdateReason::None };

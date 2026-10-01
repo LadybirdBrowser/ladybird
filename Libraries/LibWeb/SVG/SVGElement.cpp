@@ -499,7 +499,7 @@ void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor,
         document().set_needs_repaint(Badge<SVGElement> {}, InvalidateDisplayList::PaintCommands);
 }
 
-void SVGElement::register_resource_box_referencing_element(Badge<Layout::LayoutTreeBuilderAccess>, DOM::Element& referencing_element)
+void SVGElement::register_resource_box_referencing_element(Badge<DOM::CommitMessages>, DOM::Element& referencing_element)
 {
     m_resource_box_referencing_elements.remove_all_matching([&](auto& weak_element) {
         return !weak_element || weak_element == &referencing_element;

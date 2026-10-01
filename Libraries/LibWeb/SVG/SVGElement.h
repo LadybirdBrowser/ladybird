@@ -52,7 +52,7 @@ public:
 
     virtual SVGFitToViewBox const* fit_to_view_box() const { return nullptr; }
 
-    void register_resource_box_referencing_element(Badge<Layout::LayoutTreeBuilderAccess>, DOM::Element&);
+    void register_resource_box_referencing_element(Badge<DOM::CommitMessages>, DOM::Element&);
     void mark_resource_box_referencing_elements_for_content_change();
     void note_svg_paint_resource_description_may_have_changed();
 

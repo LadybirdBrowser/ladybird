@@ -22,6 +22,10 @@ pub enum FfiCommitMessageKind {
     /// A top layer member was reached with no box and nothing scheduled to rebuild it, so the
     /// document has to run another top layer zone pass. This one is about the document itself.
     TopLayerZoneRebuildNeeded,
+    /// The node is an SVG resource, a `<mask>`, `<clipPath>` or `<pattern>`, whose content the
+    /// tree build laid out under the graphics element `other_style_node` names. The resource
+    /// outlives that box, so removing it has to rebuild the subtree the box sits in.
+    SvgResourceReferenced,
 }
 
 /// One thing layout has to tell the document. The node it is about is named by the style node the
@@ -30,7 +34,19 @@ pub enum FfiCommitMessageKind {
 #[repr(C)]
 pub struct FfiCommitMessage {
     pub style_node: u32,
+    /// A second node the message names, for the kinds that are about a pair. Zero otherwise.
+    pub other_style_node: u32,
     pub kind: FfiCommitMessageKind,
+}
+
+impl FfiCommitMessage {
+    pub(crate) fn new(style_node: u32, kind: FfiCommitMessageKind) -> Self {
+        Self {
+            style_node,
+            other_style_node: 0,
+            kind,
+        }
+    }
 }
 
 /// Host notifications contain no arena borrows. Dispatch them only after the
@@ -111,10 +127,10 @@ fn commit_subtree(
             })
             && let Some(style_node) = paintables.arena().commit_message_style_node(node)
         {
-            messages.push(FfiCommitMessage {
+            messages.push(FfiCommitMessage::new(
                 style_node,
-                kind: FfiCommitMessageKind::ContentSizeChangedForContainerQueries,
-            });
+                FfiCommitMessageKind::ContentSizeChangedForContainerQueries,
+            ));
         }
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
@@ -194,10 +210,10 @@ pub(crate) fn commit_replacing(
     paintables.discard_absolute_rects_memoized_during_commit();
     for &viewport in paintables.committed_navigable_container_viewports() {
         if let Some(style_node) = paintables.arena().commit_message_style_node(viewport) {
-            messages.push(FfiCommitMessage {
+            messages.push(FfiCommitMessage::new(
                 style_node,
-                kind: FfiCommitMessageKind::NavigableContainerViewportCommitted,
-            });
+                FfiCommitMessageKind::NavigableContainerViewportCommitted,
+            ));
         }
     }
     CommitNotifications {
