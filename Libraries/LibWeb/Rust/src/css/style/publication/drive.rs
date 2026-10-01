@@ -51,10 +51,32 @@ pub(super) type DrivenTable = (
     Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
 );
 
+/// What a partial drive answers besides a refusal.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the driven table moves by value, as it did in an `Option`"
+)]
+pub(super) enum PartialDrive {
+    Driven(DrivenTable),
+    /// An input the drive reads for properties it did not select moved with the selection: the
+    /// caller drives the record in full instead.
+    DriverInputMoved,
+}
+
+/// What a full drive answers besides a refusal or a suspension.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the driven table moves by value, as it did in an `Option`"
+)]
+pub(super) enum FullDrive {
+    Driven(DrivenTable),
+    /// The root-input probe finished the font and line-height phases; the drive is left pending
+    /// for the root's own row.
+    RootInputs(RootFontInputs),
+}
+
 #[derive(Default)]
 pub(in crate::css::style) struct FontDriveScratch {
-    pub(super) root_inputs: Option<RootFontInputs>,
-    pub(super) root_inputs_unproven: bool,
     pub(in crate::css::style) request: Option<font_resolution::FontRequest>,
     pending: Option<PendingFontDrive>,
 }
@@ -102,14 +124,8 @@ impl RetainedState {
         store: &WinnerStore,
         selected: &[u64],
         inputs: &bridge::FfiDocumentStyleComputationInputs,
-        driver_input_moved: &mut bool,
         counters: &mut Counters,
-    ) -> Option<(
-        ComputedLonghandTable,
-        crate::css::style_compute::FfiLengthResolutionContext,
-        u32,
-        Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
-    )> {
+    ) -> Drive<PartialDrive> {
         let store = store.view(self);
         use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
         use crate::css::style_compute::{
@@ -120,15 +136,15 @@ impl RetainedState {
 
         let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
             counters.bump(Counter::EngineComputedRecordBailRecord);
-            return None;
+            return Err(Unanswered::Refused);
         };
         if !view.animated_overlay.is_null() {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-            return None;
+            return Err(Unanswered::Refused);
         }
         let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
             counters.bump(Counter::EngineComputedRecordBailRecordTable);
-            return None;
+            return Err(Unanswered::Refused);
         };
         // A record under display:none may no longer be the style C++ holds, and a property change
         // on an element with active transitions starts one in the C++ computation.
@@ -136,7 +152,7 @@ impl RetainedState {
             || crate::css::style_compute::has_active_transition_properties(old_table)
         {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-            return None;
+            return Err(Unanswered::Refused);
         }
         let snapshot = match self.tree.flat_tree_parent(node) {
             None => None,
@@ -148,13 +164,13 @@ impl RetainedState {
                         .is_some_and(|view| !view.animated_overlay.is_null());
                     if parent_has_animation_overlay {
                         counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                        return None;
+                        return Err(Unanswered::Refused);
                     }
                     Some(parent_snapshot_for_style_record(self, record.raw(), None))
                 }
                 None => {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                    return None;
+                    return Err(Unanswered::Refused);
                 }
             },
         };
@@ -264,13 +280,12 @@ impl RetainedState {
         );
         if results.explicitly_inherited_non_inherited_style_groups != 0 || results.uses_tree_counting_function {
             counters.bump(Counter::EngineComputedRecordBailDrive);
-            return None;
+            return Err(Unanswered::Refused);
         }
         // An input the drive reads for properties it did not select moved with the selection: the
         // caller drives the record in full instead.
         if table.display_before_box_type_transformation() != old_table.display_before_box_type_transformation() {
-            *driver_input_moved = true;
-            return None;
+            return Ok(PartialDrive::DriverInputMoved);
         }
         let old_values = old_table.value_pointers();
         for &property in property_computation_order_for_phase(LONGHAND_DRIVE_PHASE_REMAINING) {
@@ -295,8 +310,7 @@ impl RetainedState {
                 }
             };
             if !equal {
-                *driver_input_moved = true;
-                return None;
+                return Ok(PartialDrive::DriverInputMoved);
             }
             table.copy_slot_from(old_table, property);
         }
@@ -306,7 +320,12 @@ impl RetainedState {
             resolved_viewport_relative_length: std::ptr::null_mut(),
             ..length
         };
-        Some((table, length, results.longhand_evaluations, None))
+        Ok(PartialDrive::Driven((
+            table,
+            length,
+            results.longhand_evaluations,
+            None,
+        )))
     }
 
     /// Drive a record through every phase: the font phase against the parent's metrics, the
@@ -324,7 +343,7 @@ impl RetainedState {
         font_scratch: &mut FontDriveScratch,
         goal: FontDriveGoal,
         counters: &mut Counters,
-    ) -> Drive<DrivenTable> {
+    ) -> Drive<FullDrive> {
         let store = store.view(self);
         use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
         use crate::css::css_pixels::CssPixels;
@@ -788,7 +807,7 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         };
         if goal == FontDriveGoal::RootInputs {
-            font_scratch.root_inputs = Some(RootFontInputs {
+            let root_inputs = RootFontInputs {
                 metrics: [
                     font_size.to_bits(),
                     drive_font_metric(resolved.x_height).to_bits(),
@@ -797,7 +816,7 @@ impl RetainedState {
                     line_height_before_adjustments.to_bits(),
                 ],
                 depends_on_viewport: results.font_metrics_depend_on_viewport_metrics,
-            });
+            };
             font_scratch.pending = Some(PendingFontDrive {
                 root_font_complete: true,
                 table,
@@ -805,9 +824,7 @@ impl RetainedState {
                 effective_color_scheme,
                 resolved_viewport_relative_length,
             });
-            // NB: The probe's answer is the scratch's root inputs; the drive stays pending for the
-            //     root's own row.
-            return Err(Unanswered::Refused);
+            return Ok(FullDrive::RootInputs(root_inputs));
         }
         drive(
             counters,
@@ -896,7 +913,12 @@ impl RetainedState {
             resolved_viewport_relative_length: std::ptr::null_mut(),
             ..remaining_length
         };
-        Ok((table, length, results.longhand_evaluations, Some(font)))
+        Ok(FullDrive::Driven((
+            table,
+            length,
+            results.longhand_evaluations,
+            Some(font),
+        )))
     }
 }
 

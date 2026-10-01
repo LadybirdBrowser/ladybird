@@ -13,7 +13,7 @@ use winner_store::{WinnerDeclaration, WinnerStore, WinnerValue, shorthand_longha
 use super::*;
 use crate::css::computed_longhand_table::ComputedLonghandTable;
 pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
-use drive::{FontDriveGoal, drive_font_metric};
+use drive::{FontDriveGoal, FullDrive, PartialDrive, drive_font_metric};
 
 /// Another element's published style that a first-time computation may build over: the element
 /// whose cascade state stands in for the previous one, and the record it must still hold.
@@ -41,6 +41,23 @@ pub(super) struct RootFontInputs {
 
 /// An element's old and new style records.
 pub(super) type RecordDelta = (computed::FinalStyleRecordID, computed::FinalStyleRecordID);
+
+/// What the computation of an element's record answers: its record delta, or, for the root-input
+/// probe, the document element's font inputs where the probe proved them.
+pub(super) enum ElementAnswer {
+    Delta(RecordDelta),
+    RootInputs(Option<RootFontInputs>),
+}
+
+impl ElementAnswer {
+    /// The delta of a computation that was no root-input probe.
+    fn delta(self) -> RecordDelta {
+        match self {
+            Self::Delta(delta) => delta,
+            Self::RootInputs(_) => unreachable!("only the root-input probe answers with root inputs"),
+        }
+    }
+}
 
 impl RootFontInputs {
     fn apply_to(self, inputs: &mut bridge::FfiDocumentStyleComputationInputs) {
@@ -305,15 +322,17 @@ impl RetainedState {
         }
         let delta = match pending_element {
             Some(delta) => delta,
-            None => self.engine_computed_element_record_delta(
-                node,
-                cascade_winners_are_complete,
-                exact_flipped_rules,
-                parent_inputs_moved,
-                scratch,
-                FontDriveGoal::Complete,
-                counters,
-            )?,
+            None => self
+                .engine_computed_element_record_delta(
+                    node,
+                    cascade_winners_are_complete,
+                    exact_flipped_rules,
+                    parent_inputs_moved,
+                    scratch,
+                    FontDriveGoal::Complete,
+                    counters,
+                )?
+                .delta(),
         };
         // The element's pseudo-elements are settled beside its record, as the C++ computation
         // refreshes them after the element's own; a pseudo-element the engine cannot settle
@@ -359,7 +378,7 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
         goal: FontDriveGoal,
         counters: &mut Counters,
-    ) -> Drive<RecordDelta> {
+    ) -> Drive<ElementAnswer> {
         use crate::css::computed_value_types::{
             STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_SURROUND,
         };
@@ -515,7 +534,7 @@ impl RetainedState {
                 // font inputs moved: keep the host's root-metric route rather than declaring the
                 // root's computation unsupported, which takes every descendant with it.
                 if goal == FontDriveGoal::RootInputs {
-                    scratch.font_drive.root_inputs_unproven = true;
+                    return Ok(ElementAnswer::RootInputs(None));
                 }
                 return Err(Unanswered::Refused);
             }
@@ -531,8 +550,9 @@ impl RetainedState {
                     if goal == FontDriveGoal::RootInputs {
                         // NB: This proof covers the retained font, without publishing the root's
                         //     remaining properties or custom-property environment during preparation.
-                        scratch.font_drive.root_inputs = self.root_font_inputs_from_record(old_style_record);
-                        return Err(Unanswered::Refused);
+                        return Ok(ElementAnswer::RootInputs(Some(
+                            self.root_font_inputs_from_record(old_style_record).or_refused()?,
+                        )));
                     }
                     // Only the environment moved: the record keeps its groups and takes the new one.
                     if let Some(environment) = environment {
@@ -545,7 +565,7 @@ impl RetainedState {
                         };
                         counters.bump(Counter::EngineComputedRecordUnchangedWinners);
                         self.note_engine_computed_record(node, delta, (generation, state), 0, 0, counters);
-                        return Ok(delta);
+                        return Ok(ElementAnswer::Delta(delta));
                     }
                     counters.bump(Counter::EngineComputedRecordUnchangedWinners);
                     counters.bump(Counter::CascadeWinnerDeltaStops);
@@ -557,7 +577,7 @@ impl RetainedState {
                         0,
                         counters,
                     );
-                    return Ok((old_style_record, old_style_record));
+                    return Ok(ElementAnswer::Delta((old_style_record, old_style_record)));
                 }
                 let owned_groups = self
                     .winner_groups
@@ -616,7 +636,7 @@ impl RetainedState {
             }
             self.note_engine_computed_record(node, delta, (generation, state), delta_property_count, 0, counters);
             counters.bump(Counter::EngineComputedRecordCohortHits);
-            return Ok(delta);
+            return Ok(ElementAnswer::Delta(delta));
         }
 
         // The moved properties, the groups they feed, and the drive selection. A moved member of
@@ -726,12 +746,11 @@ impl RetainedState {
         if goal == FontDriveGoal::RootInputs && !full_drive {
             // NB: No font property moved, but borrowing the retained font still needs the
             //     proof that only the named rule flips changed the computation's inputs.
-            if exact_flipped_rules.is_some() {
-                scratch.font_drive.root_inputs = self.root_font_inputs_from_record(old_style_record);
-            } else {
-                scratch.font_drive.root_inputs_unproven = true;
-            }
-            return Err(Unanswered::Refused);
+            let proven = match exact_flipped_rules {
+                Some(_) => Some(self.root_font_inputs_from_record(old_style_record).or_refused()?),
+                None => None,
+            };
+            return Ok(ElementAnswer::RootInputs(proven));
         }
 
         let store = match scratch.stores.get(&(state, current_environment)) {
@@ -751,34 +770,22 @@ impl RetainedState {
             }
         };
         self.note_node_substitution(node, scratch, state, current_environment);
-        let mut driver_input_moved = false;
         let partial = if full_drive {
             None
         } else {
-            let partial = self.engine_driven_table(
-                node,
-                old_style_record,
-                &store,
-                &selected,
-                &inputs,
-                &mut driver_input_moved,
-                counters,
-            );
-            if partial.is_none() && !driver_input_moved {
-                return Err(Unanswered::Refused);
-            }
-            partial
+            Some(self.engine_driven_table(node, old_style_record, &store, &selected, &inputs, counters)?)
         };
+        let driver_input_moved = matches!(partial, Some(PartialDrive::DriverInputMoved));
         let (table, length, longhand_evaluations, font) = match partial {
-            Some(partial) => partial,
+            Some(PartialDrive::Driven(partial)) => partial,
             // A partial drive whose driver inputs moved reaches values it did not select, so the
             // record is driven in full and every group is rebuilt.
-            None => {
+            Some(PartialDrive::DriverInputMoved) | None => {
                 if driver_input_moved {
                     groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
                 }
                 let subject = self.element_drive_subject(node, counters).or_refused()?;
-                self.engine_full_drive(
+                match self.engine_full_drive(
                     subject,
                     Some(old_style_record),
                     &store,
@@ -786,7 +793,10 @@ impl RetainedState {
                     &mut scratch.font_drive,
                     goal,
                     counters,
-                )?
+                )? {
+                    FullDrive::Driven(driven) => driven,
+                    FullDrive::RootInputs(root_inputs) => return Ok(ElementAnswer::RootInputs(Some(root_inputs))),
+                }
             }
         };
         let parent_in_display_none_subtree = self
@@ -831,7 +841,7 @@ impl RetainedState {
         if !driver_input_moved {
             scratch.cohorts.insert(cohort, delta.1);
         }
-        Ok(delta)
+        Ok(ElementAnswer::Delta(delta))
     }
 
     /// Account for a record the engine derived and leave its commitment to C++'s acknowledgement.
@@ -971,7 +981,7 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
         goal: FontDriveGoal,
         counters: &mut Counters,
-    ) -> Drive<RecordDelta> {
+    ) -> Drive<ElementAnswer> {
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
         let (_, state) = cascade_state;
         let Some(mut inputs) = self.document_style_computation_inputs else {
@@ -1042,7 +1052,7 @@ impl RetainedState {
                 counters,
             )
         {
-            return Ok(delta);
+            return Ok(ElementAnswer::Delta(delta));
         }
         // A winner that starts an animation or reads the counter-style environment keeps the
         // record in C++. The font-phase longhands feed no group of their own: the full drive
@@ -1114,7 +1124,7 @@ impl RetainedState {
             scratch,
             counters,
         ) {
-            return Ok(delta);
+            return Ok(ElementAnswer::Delta(delta));
         }
         let donor = cache_key.and_then(|key| {
             let donor_key = ColdRecordDonorKey {
@@ -1150,15 +1160,8 @@ impl RetainedState {
             let donor_delta = self.winner_groups.semantic_delta(Some(donor.state), state);
             if let Some((groups_to_rebuild, selected)) =
                 self.cold_record_donor_selection(donor, donor_delta.properties())
-                && let Some((table, length, longhand_evaluations, _)) = self.engine_driven_table(
-                    node,
-                    donor.record.record,
-                    &store,
-                    &selected,
-                    &inputs,
-                    &mut false,
-                    counters,
-                )
+                && let Ok(PartialDrive::Driven((table, length, longhand_evaluations, _))) =
+                    self.engine_driven_table(node, donor.record.record, &store, &selected, &inputs, counters)
             {
                 let parent_in_display_none_subtree = parent_record
                     .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
@@ -1196,13 +1199,16 @@ impl RetainedState {
                         scratch.cold_cohorts.insert(cache_key, record);
                         self.remember_cold_record(cache_key, record);
                     }
-                    return Ok(assembly.delta);
+                    return Ok(ElementAnswer::Delta(assembly.delta));
                 }
             }
         }
         let subject = DriveSubject { parent, facts };
         let (table, length, longhand_evaluations, font) =
-            self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, goal, counters)?;
+            match self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, goal, counters)? {
+                FullDrive::Driven(driven) => driven,
+                FullDrive::RootInputs(root_inputs) => return Ok(ElementAnswer::RootInputs(Some(root_inputs))),
+            };
         let font = font.expect("a full drive resolves the font");
         let (new_style_record, swap_eligible) = self
             .assemble_and_publish_engine_record(
@@ -1238,7 +1244,7 @@ impl RetainedState {
             longhand_evaluations,
             counters,
         );
-        Ok(delta)
+        Ok(ElementAnswer::Delta(delta))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -4702,20 +4708,8 @@ impl StyleEngineState {
             return;
         }
         scratch.root_element_inputs = Some((node, RootFontInputs::from_document(&inputs)));
-        if let Err(Unanswered::Suspended(Suspension::Font)) = self.engine_computed_element_record_delta(
-            node,
-            cascade_winners_are_complete,
-            exact_flipped_rules,
-            parent_inputs_moved,
-            scratch,
-            FontDriveGoal::RootInputs,
-            counters,
-        ) {
-            // NB: A root font miss completes at this preparation boundary. Consumers need
-            //     current metrics even when their first records install in this same pass.
-            let request = scratch.font_drive.take_suspended_request();
-            self.refill_font_request(node, request, counters);
-            let _ = self.engine_computed_element_record_delta(
+        let probe = |state: &mut Self, scratch: &mut EngineComputedRecordScratch, counters: &mut Counters| {
+            state.engine_computed_element_record_delta(
                 node,
                 cascade_winners_are_complete,
                 exact_flipped_rules,
@@ -4723,9 +4717,22 @@ impl StyleEngineState {
                 scratch,
                 FontDriveGoal::RootInputs,
                 counters,
-            );
+            )
+        };
+        let mut answer = probe(self, scratch, counters);
+        if let Err(Unanswered::Suspended(Suspension::Font)) = answer {
+            // NB: A root font miss completes at this preparation boundary. Consumers need
+            //     current metrics even when their first records install in this same pass.
+            let request = scratch.font_drive.take_suspended_request();
+            self.refill_font_request(node, request, counters);
+            answer = probe(self, scratch, counters);
         }
-        let prepared = scratch.font_drive.root_inputs.take();
+        // An unproven probe keeps the host's root-metric route; a refused one leaves the root's
+        // computation to C++.
+        let (prepared, unproven) = match answer {
+            Ok(ElementAnswer::RootInputs(prepared)) => (prepared, prepared.is_none()),
+            Ok(ElementAnswer::Delta(_)) | Err(_) => (None, false),
+        };
         if let Some(root_inputs) = prepared {
             scratch.root_font_inputs_changed = RootFontInputs::from_document(&inputs) != root_inputs;
             root_inputs.apply_to(self.document_style_computation_inputs.as_mut().unwrap());
@@ -4735,7 +4742,7 @@ impl StyleEngineState {
             //     turn every descendant into a host-boundary retry.
             counters.bump(Counter::RootFontInputsUnprovenFallbacks);
         }
-        if prepared.is_none() && !scratch.font_drive.is_pending() && !scratch.font_drive.root_inputs_unproven {
+        if prepared.is_none() && !scratch.font_drive.is_pending() && !unproven {
             scratch.root_computation_unsupported = Some(node);
         }
         if scratch.font_drive.is_pending() {
