@@ -1148,8 +1148,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 stroke_pattern = graphics_element->stroke_pattern(layout_node);
             }
             return {
-                .is_element = element != nullptr,
-                .is_document = node.is_document(),
                 .dom_children_parent = parent_node,
                 .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
                 .shadow_root_style_node = shadow_root ? shadow_root->style_node_id().value() : 0,
@@ -1182,7 +1180,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& node = *static_cast<DOM::Node*>(node_pointer);
             // NB: Called during layout tree construction.
             auto* existing_layout_node = node.unsafe_layout_node();
-            auto* element = as_if<DOM::Element>(node);
             bool can_update_pseudo_elements = may_update_pseudo_elements_in_place(node);
             bool can_insert_children = may_reuse_layout_node_for_child_list_insertion(node);
             bool can_reuse = (!node.needs_pseudo_element_layout_tree_update() || can_update_pseudo_elements)
@@ -1192,10 +1189,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .needs_layout_tree_update = node.needs_layout_tree_update(),
                 .may_reuse_layout_node_for_child_list_insertion = can_reuse && can_insert_children,
                 .may_update_pseudo_elements_in_place = can_reuse && can_update_pseudo_elements,
-                .is_document = node.is_document(),
                 .has_layout_node = existing_layout_node != nullptr,
-                .is_element = element != nullptr,
-                .is_text = is<DOM::Text>(node),
                 .layout_node_is_attached = existing_layout_node && existing_layout_node->has_parent(),
                 .style_node = Node::style_node_of(&node).value(),
             }; },
@@ -1327,10 +1321,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(frame.layout_node);
             as<NodeWithStyle>(*frame.layout_node).attach_style_resources(); },
 
-        .document_layout_node = [](void* document_pointer) -> Compositing::RustFFI::NodeSlotId {
-            VERIFY(document_pointer);
-            // NB: Called during layout tree construction.
-            return Node::slot_id(static_cast<DOM::Document*>(document_pointer)->unsafe_layout_node()); },
         .document_element_layout_node = [](void* document_pointer) -> Compositing::RustFFI::NodeSlotId {
             VERIFY(document_pointer);
             // NB: Called during layout tree construction.
