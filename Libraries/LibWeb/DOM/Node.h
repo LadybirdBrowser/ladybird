@@ -471,7 +471,9 @@ public:
     void change_associated_animation_count_in_subtree(i32 delta);
 
     [[nodiscard]] u32 children_explicitly_inherited_non_inherited_style_groups() const { return m_children_explicitly_inherited_non_inherited_style_groups; }
-    void add_children_explicitly_inherited_non_inherited_style_groups(u32 style_groups) { m_children_explicitly_inherited_non_inherited_style_groups |= style_groups; }
+    void add_children_explicitly_inherited_non_inherited_style_groups(u32 style_groups);
+    // Tell the style engine of this node's mark, which it keeps for the node's style node.
+    void publish_children_explicitly_inherit_mark();
 
     void record_style_environment_change();
     CSS::StyleScope& style_scope();

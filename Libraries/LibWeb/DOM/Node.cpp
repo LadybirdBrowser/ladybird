@@ -4016,6 +4016,28 @@ void Node::begin_child_index_generation()
     });
 }
 
+void Node::add_children_explicitly_inherited_non_inherited_style_groups(u32 style_groups)
+{
+    bool const was_marked = m_children_explicitly_inherited_non_inherited_style_groups != 0;
+    m_children_explicitly_inherited_non_inherited_style_groups |= style_groups;
+    if (!was_marked)
+        publish_children_explicitly_inherit_mark();
+}
+
+void Node::publish_children_explicitly_inherit_mark()
+{
+    if (m_children_explicitly_inherited_non_inherited_style_groups == 0)
+        return;
+    // An element's or a shadow root's children are the ones that read it; the engine keeps no mark for anything else.
+    CSS::StyleNodeID style_node;
+    if (auto const* element = as_if<Element>(*this))
+        style_node = element->style_node_id();
+    else if (auto const* shadow_root = as_if<ShadowRoot>(*this))
+        style_node = shadow_root->style_node_id();
+    if (style_node != 0)
+        document().style_computer().style_engine().note_children_explicitly_inherit(style_node);
+}
+
 void Node::change_associated_animation_count_in_subtree(i32 delta)
 {
     for (auto* node = this; node; node = node->parent_or_shadow_host())

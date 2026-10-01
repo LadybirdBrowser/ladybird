@@ -80,6 +80,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         size_container_queries,
         counter_style_environment_identities,
         held_style_records,
+        children_explicitly_inherit_marks,
         host_var_reads,
         css_defined_animations,
         random_base_values,
@@ -187,6 +188,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(size_container_queries);
     assert_member_is_sync(counter_style_environment_identities);
     assert_member_is_sync(held_style_records);
+    assert_member_is_sync(children_explicitly_inherit_marks);
     assert_member_is_sync(host_var_reads);
     assert_member_is_sync(css_defined_animations);
     assert_member_is_sync(random_base_values);
