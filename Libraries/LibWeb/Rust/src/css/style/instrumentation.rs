@@ -153,7 +153,6 @@ define_counters! {
     RetryAfterAncestorPseudoAbandons => "retryAfterAncestorPseudoAbandons",
     RetryAfterAncestorColdHits => "retryAfterAncestorColdHits",
     RetryAfterAncestorMicroseconds => "retryAfterAncestorMicroseconds",
-    EngineComputedRecordBailPseudoBackdrop => "engineComputedRecordBailPseudoBackdrop",
     EngineComputedRecordBailPseudoFlip => "engineComputedRecordBailPseudoFlip",
     EngineComputedRecordGateAncestors => "engineComputedRecordGateAncestors",
     EngineComputedLonghandEvaluations => "engineComputedLonghandEvaluations",

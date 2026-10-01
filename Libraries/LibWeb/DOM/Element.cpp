@@ -1631,6 +1631,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             && !may_have_style(CSS::PseudoElement::Before)
             && !may_have_style(CSS::PseudoElement::After)
             && !may_have_style(CSS::PseudoElement::FirstLetter)
+            && !(m_rendered_in_top_layer && may_have_style(CSS::PseudoElement::Backdrop))
             && !(document().selection_styles_are_observable()
                 && (may_have_style(CSS::PseudoElement::Selection)
                     || AbstractElement { *this, CSS::PseudoElement::Selection }.highlight_inheritance_parent().has_value())))
@@ -1663,22 +1664,24 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
         // A synthetic pseudo-element the style engine settled beside the element's record takes the engine's
-        // answer; one the engine left alone is unchanged. The engine never settles a ::backdrop, whose
-        // materialization is the top layer's to decide. Whether ::selection styles are observable at all
+        // answer; one the engine left alone is unchanged. Whether ::selection styles are observable at all
         // stays the host's decision.
-        Optional<CSS::StyleRecordID> engine_record;
-        if (engine_pseudo_element_records && CSS::is_synthetic_pseudo_element(pseudo_element) && pseudo_element != CSS::PseudoElement::Backdrop) {
-            engine_record = engine_pseudo_element_records->at(to_underlying(pseudo_element));
-            if (!engine_record.has_value())
-                return;
-        }
+        // An unobservable ::selection holds no record, whatever the engine left standing, and neither does the
+        // ::backdrop of an element outside the top layer.
         auto old_style_record = style_record_identity(pseudo_element);
-        if (pseudo_element == CSS::PseudoElement::Selection && !document().selection_styles_are_observable()) {
+        if ((pseudo_element == CSS::PseudoElement::Selection && !document().selection_styles_are_observable())
+            || (pseudo_element == CSS::PseudoElement::Backdrop && !m_rendered_in_top_layer)) {
             if (!!old_style_record) {
                 auto delta = style_computer.style_engine().remove_computed_pseudo(style_node_id(), to_underlying(pseudo_element));
                 set_computed_style(pseudo_element, delta.new_style_record);
             }
             return;
+        }
+        Optional<CSS::StyleRecordID> engine_record;
+        if (engine_pseudo_element_records && CSS::is_synthetic_pseudo_element(pseudo_element)) {
+            engine_record = engine_pseudo_element_records->at(to_underlying(pseudo_element));
+            if (!engine_record.has_value())
+                return;
         }
         auto preserved_style_record = preserved_pseudo_element_styles ? preserved_pseudo_element_styles->at(to_underlying(pseudo_element)) : CSS::StyleRecordID {};
         auto inherits_highlight_style = AbstractElement { *this, pseudo_element }.highlight_inheritance_parent().has_value();
@@ -1855,7 +1858,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     recompute_pseudo_element_style(CSS::PseudoElement::After);
     recompute_pseudo_element_style(CSS::PseudoElement::FirstLetter);
     recompute_pseudo_element_style(CSS::PseudoElement::Selection);
-    if (m_rendered_in_top_layer)
+    // An element that left the top layer drops the ::backdrop it held.
+    if (m_rendered_in_top_layer || !!style_record_identity(CSS::PseudoElement::Backdrop))
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
     if (had_list_marker || originating_style->display().is_list_item()
         || (engine_pseudo_element_records && engine_pseudo_element_records->at(to_underlying(CSS::PseudoElement::Marker)).has_value()))
