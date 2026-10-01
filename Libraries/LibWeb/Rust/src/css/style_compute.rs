@@ -1745,6 +1745,24 @@ pub(crate) fn external_value_dependencies(value: &StyleValueData) -> ExternalVal
     dependencies
 }
 
+/// The random caching key a random function's `<random-value-sharing>` gives it, as its name and
+/// whether its element is null: a sharing that names a `<dashed-ident>` is shared by every element,
+/// as an `element-shared` one is.
+/// https://drafts.csswg.org/css-values-5/#random-caching
+pub(crate) fn random_caching_key(sharing: &StyleValueData) -> (&[u16], bool) {
+    let StyleValueData::RandomValueSharing {
+        has_name,
+        name,
+        element_shared,
+        is_auto,
+        ..
+    } = sharing
+    else {
+        unreachable!("a random caching key is a random sharing's");
+    };
+    (if *has_name { name.units() } else { &[] }, *element_shared || !*is_auto)
+}
+
 /// Collects the element- or document-cached random sharing nodes reachable through the
 /// recursively absolutized style-value graph. Keep this aligned with new structural variants
 /// and with `absolutize::absolutize`.
@@ -2767,6 +2785,10 @@ pub struct FfiComputedAnimationList {
 #[repr(C)]
 pub struct FfiComputePropertiesInput {
     pub store: *const CascadedPropertyStore,
+    /// The custom properties the computation resolves for the element, null where it resolves
+    /// none, and the registry their names may be registered in.
+    pub custom_property_store: *const c_void,
+    pub custom_property_registry: *const c_void,
     pub style_engine: *const c_void,
     pub style_node: u32,
     pub pseudo_kind: u8,
@@ -4816,6 +4838,8 @@ unsafe fn compute_longhands(
                 final_value_hits: 0,
                 final_value_misses: 0,
                 cycle_participants: 0,
+                depends_on_viewport_metrics: false,
+                left_a_value_uncomputed: false,
             },
             storage: std::ptr::null_mut(),
         }
@@ -5283,8 +5307,26 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
         has_relevant_animations_other_than_transitions: input.has_relevant_animations_other_than_transitions,
         has_css_defined_animations: input.has_css_defined_animations,
     };
-    let requirements =
-        unsafe { crate::css::cascaded_properties::collect_style_computation_requirements(input.store, Some(&plan)) };
+    // SAFETY: The host lends the custom properties and the registry for the call.
+    let custom_properties = unsafe {
+        input
+            .custom_property_store
+            .cast::<crate::css::custom_properties::CustomPropertyStore>()
+            .as_ref()
+            .zip(
+                input
+                    .custom_property_registry
+                    .cast::<crate::css::custom_properties::CustomPropertyRegistry>()
+                    .as_ref(),
+            )
+    };
+    let requirements = unsafe {
+        crate::css::cascaded_properties::collect_style_computation_requirements(
+            input.store,
+            custom_properties,
+            Some(&plan),
+        )
+    };
     let parent_snapshot = if input.inheritance_parent_style_record != 0 {
         Some(parent_snapshot_for_style_record(
             style_engine,

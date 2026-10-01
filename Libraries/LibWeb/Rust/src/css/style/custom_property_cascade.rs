@@ -20,7 +20,7 @@ use std::sync::Arc;
 use super::publication::{Drive, Unanswered};
 use super::*;
 use crate::css::cascaded_properties::{
-    CallbackFreeParseOutcome, FfiCascadeResolutionContext, FfiCustomPropertyDriveInput, FfiResolvedStyleValue,
+    CallbackFreeParseOutcome, FfiCascadeResolutionContext, FfiCustomPropertyDriveInput,
     destroy_resolved_custom_properties, drive_custom_property_resolution, parse_substituted_source,
     parse_substituted_without_callbacks,
 };
@@ -31,50 +31,8 @@ use crate::css::custom_properties::{
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::value_parser::ParseOutcome;
 use crate::css::rule::CompiledFunction;
-use crate::css::style_compute::keyword;
-use crate::css::style_value::{RetainedStyleValueData, StyleValueData, release_style_value, retain_style_value};
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData, release_style_value};
 use custom_property_environments::{CascadedCustomProperty, CustomPropertyName};
-
-/// What the finalizer resolves a CSS-wide keyword against: the environment inherited.
-struct EngineFinalizer {
-    parent_store: *const c_void,
-}
-
-/// The tail of resolving one component of unregistered custom properties, as the C++ finalizer
-/// does it for a name without a registration: `initial` is the guaranteed-invalid value, and
-/// `inherit`, `unset`, `revert` and `revert-layer` are what the parent resolved the name to.
-#[allow(clippy::arc_with_non_send_sync)]
-unsafe extern "C" fn finalize_engine_custom_property_component(
-    context: *mut c_void,
-    names: *const usize,
-    members: *const u32,
-    member_count: usize,
-    outputs: *mut FfiResolvedStyleValue,
-) {
-    let context = unsafe { &*context.cast::<EngineFinalizer>() };
-    let parent = unsafe { context.parent_store.cast::<CustomPropertyStore>().as_ref() };
-    let members = unsafe { std::slice::from_raw_parts(members, member_count) };
-    for &member in members {
-        let output = unsafe { &mut *outputs.add(member as usize) };
-        let value = unsafe { &*output.data.cast::<StyleValueData>() };
-        let StyleValueData::Keyword { keyword } = value else {
-            continue;
-        };
-        let replacement: *const StyleValueData = match *keyword {
-            keyword::INITIAL => Arc::into_raw(Arc::new(StyleValueData::GuaranteedInvalid)),
-            keyword::INHERIT | keyword::UNSET | keyword::REVERT | keyword::REVERT_LAYER => {
-                let name_raw = unsafe { *names.add(member as usize) };
-                match parent.and_then(|parent| parent.get(name_raw)) {
-                    Some(entry) => unsafe { retain_style_value(entry.value.pointer()) },
-                    None => Arc::into_raw(Arc::new(StyleValueData::GuaranteedInvalid)),
-                }
-            }
-            _ => continue,
-        };
-        unsafe { release_style_value(output.data.cast()) };
-        output.data = replacement.cast();
-    }
-}
 
 /// The document's media features as the style update a transaction belongs to saw them, which
 /// `media()` conditions in `if()` read. Copied rather than borrowed: the host's snapshot ends with
@@ -1388,17 +1346,20 @@ impl RetainedState {
             Some(&mut style_query_references),
             functions.as_ref(),
         );
-        let mut finalizer = EngineFinalizer { parent_store };
+        // No registered name is declared here, so a value finalizes against the registry and the
+        // environment inherited alone.
         let drive = FfiCustomPropertyDriveInput {
             store: cascaded_store,
             resolved_parent_store: parent_store,
             reuse_resolved_parent_if_empty: !parent_store.is_null(),
             resolution_context: &raw const resolution_context,
-            finalizer_context: std::ptr::from_mut(&mut finalizer).cast(),
-            finalize_component: Some(finalize_engine_custom_property_component),
+            finalization_length_resolution_context: std::ptr::null(),
+            finalization_environment: std::ptr::null(),
+            finalization_color_scheme: 0,
+            draw_random_base_value: None,
+            random_base_context: std::ptr::null_mut(),
         };
-        // SAFETY: Every pointer the drive reads is live for the call, and the finalizer replaces
-        // each output with one transferred reference.
+        // SAFETY: Every pointer the drive reads is live for the call.
         let resolved = unsafe { drive_custom_property_resolution(&drive) };
         // The resolved values live in the store; the listing transfers references of its own.
         let properties = match resolved.count {

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --x {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+    #target {
+        --r: random(1px, 10px);
+        --x: var(--r);
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const value = getComputedStyle(document.getElementById("target")).getPropertyValue("--x");
+        const pixels = parseFloat(value);
+        println(`computed to pixels: ${value.endsWith("px") && pixels >= 1 && pixels <= 10}`);
+    });
+</script>

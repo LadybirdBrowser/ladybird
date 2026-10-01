@@ -118,12 +118,26 @@ pub struct CustomPropertyRegistry {
     registrations: HashMap<Vec<u16>, RegisteredCustomProperty>,
     document_url: Vec<u8>,
     document_base_url: Vec<u8>,
+    /// What a value parses to with a registration's syntax, by registration and value identity,
+    /// keeping the value alive so its identity is not reused: one declared value is parsed for
+    /// what its computation reads, then again to finalize it, for every element declaring it.
+    parses: std::sync::Mutex<HashMap<(usize, usize), RegisteredValueParse>>,
 }
+
+/// A value the registry has parsed, kept alive, and what it parsed to.
+type RegisteredValueParse = (RetainedStyleValueData, Option<RetainedStyleValueData>);
+
+/// How many parses the registry keeps before it starts over.
+const MAX_REGISTERED_VALUE_PARSES: usize = 4096;
 
 struct RegisteredCustomProperty {
     syntax: SyntaxNode,
     inherits: bool,
     initial_source: Option<Vec<u16>>,
+    /// The initial value as it computes, against the document rather than any element: the host
+    /// computes it, memoizes it on the registration for every reader, and publishes it with the
+    /// registration. The guaranteed-invalid value for a registration without one.
+    computed_initial: RetainedStyleValueData,
 }
 
 type CustomFunctionIdentity = u64;
@@ -172,6 +186,8 @@ pub struct FfiCustomPropertyRegistration {
     pub inherits: bool,
     pub has_initial_value: bool,
     pub initial_value: FfiUtf16View,
+    /// The initial value as the host computed it against the document, borrowed for the call.
+    pub computed_initial_value: *const c_void,
 }
 
 #[repr(C)]
@@ -219,6 +235,7 @@ impl CustomPropertyRegistry {
             registrations: HashMap::new(),
             document_url: Vec::new(),
             document_base_url: Vec::new(),
+            parses: Default::default(),
         }
     }
 
@@ -265,9 +282,259 @@ impl CustomPropertyRegistry {
     }
 }
 
+/// What a custom property's substituted value is finalized against, beside the registry and the
+/// environment inherited: the element's lengths as its style computes them after line-height, the
+/// facts its longhands are computed against, and the color scheme its colors resolve with. Only a
+/// registered name reads them.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct CustomPropertyFinalization<'a> {
+    pub(crate) length: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
+    pub(crate) environment: Option<&'a crate::css::style_compute::FfiStyleComputationEnvironment>,
+    /// A PreferredColorScheme code.
+    pub(crate) color_scheme: u8,
+    /// How to draw the random base value of a key the host published none for, with its context.
+    pub(crate) draw_random_base_value: Option<(DrawRandomBaseValue, *mut c_void)>,
+}
+
 /// Loads what a style query resolves against from a resolution's callback context.
 pub(crate) type LoadStyleQueryInputs =
     unsafe extern "C" fn(*mut c_void) -> *const crate::css::cascaded_properties::FfiStyleQueryInputs;
+
+/// Draws the random base value of a random caching key for the element computed: its name, and
+/// whether the key's element is null.
+pub(crate) type DrawRandomBaseValue = unsafe extern "C" fn(*mut c_void, *const u16, usize, bool) -> f64;
+
+impl CustomPropertyRegistry {
+    /// Parse a value with a registration's syntax, as the computation of its name parses it.
+    fn parse_registered_value(
+        &self,
+        registration: &RegisteredCustomProperty,
+        source: &[u16],
+    ) -> Option<StyleValueData> {
+        let mut random_function_index = 0;
+        let value_context = FfiValueParsingContext {
+            kind: FfiValueParsingContextKind::Property,
+            value: crate::css::property_metadata::property_id::CUSTOM,
+            secondary_value: 0,
+            name: Default::default(),
+        };
+        let mut context = self.parse_context(&mut random_function_index);
+        context.value_contexts = &raw const value_context;
+        context.value_context_count = 1;
+        parse_with_syntax(&context, source, &registration.syntax)
+    }
+
+    /// A value parsed with a registration's syntax, once per value the registry keeps alive.
+    fn parse_registered_value_memoized(
+        &self,
+        registration: &RegisteredCustomProperty,
+        value: &RetainedStyleValueData,
+    ) -> Option<RetainedStyleValueData> {
+        let key = (std::ptr::from_ref(registration) as usize, value.pointer() as usize);
+        let mut parses = self.parses.lock().expect("the parse memo is not poisoned");
+        if let Some((_, parsed)) = parses.get(&key) {
+            return parsed.clone();
+        }
+        let parsed = crate::css::serialize::serialize_resolved_style_value_to_utf16(value.data())
+            .and_then(|source| self.parse_registered_value(registration, &source))
+            .map(RetainedStyleValueData::from_owned);
+        if parses.len() >= MAX_REGISTERED_VALUE_PARSES {
+            parses.clear();
+        }
+        parses.insert(key, (value.clone(), parsed.clone()));
+        parsed
+    }
+
+    /// A registered custom property's declared value as its computation will parse it, where it
+    /// parses before substitution: what the computation reads beside lengths, the random sharings
+    /// and tree-counting functions, is in it. `None` for a name without a syntax to parse with, or
+    /// a value that parses only once substituted.
+    pub(crate) fn parse_declared_registered_value(
+        &self,
+        name: &[u16],
+        value: &RetainedStyleValueData,
+    ) -> Option<RetainedStyleValueData> {
+        let registration = self
+            .registrations
+            .get(name)
+            .filter(|registration| !matches!(registration.syntax, SyntaxNode::Universal))?;
+        self.parse_registered_value_memoized(registration, value)
+    }
+
+    /// Finalize a custom property's substituted value as its element's style computes it, as
+    /// `StyleComputer::finalize_custom_property_value` does: a CSS-wide keyword resolves against
+    /// the registration and the environment inherited, the guaranteed-invalid value against the
+    /// registration, and a registered name's value parses with its syntax and computes against
+    /// the element. Also says whether the computation resolved a viewport-relative length. A
+    /// registered value that does not compute against the element's inputs is an error carrying
+    /// the invalid fallback it takes.
+    pub(crate) fn finalize_custom_property_value(
+        &self,
+        inherited: Option<&CustomPropertyStore>,
+        name_raw: usize,
+        name: &[u16],
+        value: RetainedStyleValueData,
+        finalization: &CustomPropertyFinalization<'_>,
+    ) -> Result<(RetainedStyleValueData, bool), RetainedStyleValueData> {
+        use crate::css::style_compute::keyword;
+        let registration = self.registrations.get(name);
+        let initial = || {
+            registration.map_or_else(
+                || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
+                |registration| registration.computed_initial.clone(),
+            )
+        };
+        let inherited_value = || {
+            inherited
+                .and_then(|inherited| inherited.get(name_raw))
+                .map_or_else(initial, |entry| entry.value.clone())
+        };
+
+        let value = match value.data() {
+            // https://drafts.csswg.org/css-mixins/#resolve-function-styles
+            // On result, all CSS-wide keywords are left unresolved.
+            StyleValueData::Keyword { keyword } if !name.iter().copied().eq("result".encode_utf16()) => {
+                match *keyword {
+                    keyword::INITIAL => initial(),
+                    keyword::INHERIT => inherited_value(),
+                    // Unset is the same as inherit for an inherited property, and every unregistered
+                    // custom property inherits.
+                    // FIXME: Roll revert and revert-layer back to a declaration of the custom property from
+                    //        a lower cascade layer or origin when there is one, instead of treating them as
+                    //        unset.
+                    keyword::UNSET | keyword::REVERT | keyword::REVERT_LAYER => {
+                        if registration.is_some_and(|registration| !registration.inherits) {
+                            initial()
+                        } else {
+                            inherited_value()
+                        }
+                    }
+                    _ => value,
+                }
+            }
+            _ => value,
+        };
+
+        // https://drafts.csswg.org/css-values-5/#invalid-substitution
+        // An unregistered name, or one registered with the universal syntax, computes to the
+        // guaranteed-invalid value; any other to its inherited value or its initial value, as if
+        // its value had been specified as unset.
+        let syntax_registration =
+            registration.filter(|registration| !matches!(registration.syntax, SyntaxNode::Universal));
+        let invalid_fallback = || match syntax_registration {
+            Some(registration) if registration.inherits => inherited_value(),
+            Some(_) => initial(),
+            None => RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
+        };
+        if matches!(value.data(), StyleValueData::GuaranteedInvalid) {
+            return Ok((invalid_fallback(), false));
+        }
+        let Some(registration) = syntax_registration else {
+            return Ok((value, false));
+        };
+
+        let contains_attr_tainted_values = matches!(
+            value.data(),
+            StyleValueData::Unresolved {
+                contains_attr_tainted_values: true,
+                ..
+            }
+        );
+        let Some(parsed) = self.parse_registered_value_memoized(registration, &value) else {
+            return Ok((invalid_fallback(), false));
+        };
+        // Without the element's lengths the value stays as parsed, as the host leaves one it has
+        // no computed style to compute against.
+        let Some(length) = finalization.length else {
+            return Ok((parsed, false));
+        };
+        let random_base_values = random_base_values_for_registered_value(parsed.data(), finalization);
+        let context = crate::css::absolutize::AbsolutizationContext {
+            length,
+            scheme: Some(finalization.color_scheme),
+            resolved_viewport_relative_length: Cell::new(false),
+            tree_counting: finalization
+                .environment
+                .filter(|environment| environment.has_tree_counting_context)
+                .map(|environment| (environment.sibling_count, environment.sibling_index)),
+            random_base_values: &random_base_values,
+            document_base_url: &self.document_base_url,
+            style_sheet_resource_context: None,
+        };
+        let computed = match crate::css::absolutize::absolutize(parsed.data(), &context) {
+            Some(crate::css::absolutize::Absolutized::Changed(computed)) => computed,
+            Some(crate::css::absolutize::Absolutized::Unchanged) => parsed,
+            None => return Err(invalid_fallback()),
+        };
+        let depends_on_viewport_metrics = context.resolved_viewport_relative_length.get();
+        if !contains_attr_tainted_values {
+            return Ok((computed, depends_on_viewport_metrics));
+        }
+
+        // A value an attr() substituted into stays tainted, as an unresolved value carrying what
+        // it computed to.
+        let source =
+            crate::css::serialize::serialize_resolved_style_value_to_utf16(computed.data()).unwrap_or_default();
+        let mut wrapped = crate::css::parser::value_parser::unresolved_value(
+            &source,
+            &[],
+            crate::css::parser::arbitrary_substitution::SubstitutionFunctionsPresence::default(),
+        );
+        let StyleValueData::Unresolved {
+            contains_attr_tainted_values,
+            parsed_value,
+            ..
+        } = &mut wrapped
+        else {
+            unreachable!("an unresolved value is built");
+        };
+        *contains_attr_tainted_values = true;
+        *parsed_value = computed;
+        Ok((RetainedStyleValueData::from_owned(wrapped), depends_on_viewport_metrics))
+    }
+}
+
+/// The random base values a registered value draws from once parsed after substitution. Its random
+/// sharings are new, but the host published a base for each sharing the same declaration held when
+/// parsed before substitution, which agrees with it in name and kind; one that only substitution
+/// brought in is drawn now.
+fn random_base_values_for_registered_value(
+    value: &StyleValueData,
+    finalization: &CustomPropertyFinalization<'_>,
+) -> Vec<crate::css::style_compute::FfiRandomBaseValue> {
+    let published = finalization.environment.map_or(&[][..], |environment| unsafe {
+        ffi_slice(environment.random_base_values, environment.random_base_value_count)
+    });
+    let kind = |sharing: *const StyleValueData| match unsafe { &*sharing } {
+        StyleValueData::RandomValueSharing {
+            is_auto,
+            name,
+            element_shared,
+            ..
+        } => Some((*is_auto, name, *element_shared)),
+        _ => None,
+    };
+    let mut sharings = Vec::new();
+    crate::css::style_compute::collect_unfixed_random_sharings_in_value(value, &mut sharings);
+    sharings
+        .into_iter()
+        .filter_map(|sharing| {
+            let wanted = kind(sharing)?;
+            let value = match published.iter().find(|base| kind(base.source.cast()) == Some(wanted)) {
+                Some(base) => base.value,
+                None => {
+                    let (draw, context) = finalization.draw_random_base_value?;
+                    let (name, element_shared) = crate::css::style_compute::random_caching_key(unsafe { &*sharing });
+                    unsafe { draw(context, name.as_ptr(), name.len(), element_shared) }
+                }
+            };
+            Some(crate::css::style_compute::FfiRandomBaseValue {
+                source: sharing.cast(),
+                value,
+            })
+        })
+        .collect()
+}
 
 impl CustomPropertyStore {
     /// The store this one's chain goes on in, which may skip the environment it inherits from
@@ -959,21 +1226,10 @@ fn registration_accepts_tokens(
     registration: &RegisteredCustomProperty,
     tokens: &[OwnedToken],
 ) -> bool {
-    if matches!(registration.syntax, SyntaxNode::Universal) {
-        return true;
-    }
-    let source = serialize_tokens(tokens);
-    let mut random_function_index = 0;
-    let value_context = FfiValueParsingContext {
-        kind: FfiValueParsingContextKind::Property,
-        value: crate::css::property_metadata::property_id::CUSTOM,
-        secondary_value: 0,
-        name: Default::default(),
-    };
-    let mut context = registry.parse_context(&mut random_function_index);
-    context.value_contexts = &raw const value_context;
-    context.value_context_count = 1;
-    parse_with_syntax(&context, &source, &registration.syntax).is_some()
+    matches!(registration.syntax, SyntaxNode::Universal)
+        || registry
+            .parse_registered_value(registration, &serialize_tokens(tokens))
+            .is_some()
 }
 
 fn registered_property_fallback(
@@ -3396,6 +3652,11 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
             .unwrap_or_default()
             .to_vec();
     registry.registrations.clear();
+    registry
+        .parses
+        .get_mut()
+        .expect("the parse memo is not poisoned")
+        .clear();
     registry.registrations.reserve(registrations.len());
     for registration in registrations {
         let name = unsafe { registration.name.to_utf16() }.expect("invalid registered custom property name");
@@ -3410,12 +3671,20 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
         let Some(syntax) = (unsafe { clone_syntax_handle(registration.syntax) }) else {
             continue;
         };
+        // SAFETY: The host lends a live style value for the call; the registry keeps a reference of
+        //         its own for as long as it holds the registration.
+        let computed_initial = unsafe {
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                registration.computed_initial_value.cast(),
+            ))
+        };
         registry.registrations.insert(
             name,
             RegisteredCustomProperty {
                 syntax,
                 inherits: registration.inherits,
                 initial_source,
+                computed_initial,
             },
         );
     }
@@ -3567,6 +3836,53 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
 pub unsafe extern "C" fn rust_custom_property_store_destroy(store: *const c_void) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
     drop(unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) });
+}
+
+/// Which names a store declares that the registry registers with a syntax, whose values its
+/// element's lengths compute.
+#[repr(u8)]
+pub enum FfiRegisteredValueDeclarations {
+    None,
+    /// Every registered value parses as declared, so the lengths it reads are known before it is
+    /// computed.
+    Parsed,
+    /// A registered value substitutes, so the container-relative lengths it reads are known only
+    /// once it is substituted.
+    Substituted,
+}
+
+/// What registered values a store declares, as `FfiRegisteredValueDeclarations` says.
+///
+/// # Safety
+/// `store` must be a live store pointer, and `registry` null or a live registry.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_custom_property_store_registered_value_declarations(
+    store: *const c_void,
+    registry: *const c_void,
+) -> FfiRegisteredValueDeclarations {
+    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
+    let Some(registry) = (unsafe { registry.cast::<CustomPropertyRegistry>().as_ref() }) else {
+        return FfiRegisteredValueDeclarations::None;
+    };
+    let mut declarations = FfiRegisteredValueDeclarations::None;
+    for entry in store
+        .declared_names
+        .iter()
+        .filter_map(|name_raw| store.own_values.get(name_raw))
+    {
+        let is_registered = registry
+            .registrations
+            .get(&*entry.name)
+            .is_some_and(|registration| !matches!(registration.syntax, SyntaxNode::Universal));
+        if !is_registered {
+            continue;
+        }
+        if matches!(entry.value.data(), StyleValueData::Unresolved { .. }) {
+            return FfiRegisteredValueDeclarations::Substituted;
+        }
+        declarations = FfiRegisteredValueDeclarations::Parsed;
+    }
+    declarations
 }
 
 /// Hands every custom property a store declares itself to `callback`, in declaration order, with
