@@ -445,9 +445,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             }
 
             // An element whose style was cleared on entry to display:none computes it here, before its descendants,
-            // unless the engine computed it for an ancestor that became visible: that record installs like a first one.
+            // unless the engine computed it for an ancestor that became visible, or for an SVG element whose style
+            // was cleared under a hidden ancestor: that record installs like a first one.
             if (!element->has_style() && reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed && reaction.old_style_record != 0
-                && !(reaction.reaction & StyleEngine::AncestorBecameVisible)) {
+                && !(reaction.reaction & StyleEngine::AncestorBecameVisible) && !element->is_svg_element()) {
                 reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize;
                 reaction.new_style_record = 0;
                 reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::None;

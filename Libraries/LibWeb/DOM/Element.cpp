@@ -2924,10 +2924,11 @@ void Element::clear_computed_styles_from_display_none_descendants()
         element->document().style_computer().style_engine().set_held_style_record(element->style_node_id(), {});
 
         // NB: SVG resources can still affect rendering when a DOM ancestor has display:none.
-        //     Recompute their styles in this style update, including any missing inheritance
-        //     ancestors, so painting never needs to materialize styles for referenced resources.
+        //     Restore their styles in this style update, so painting never needs to materialize
+        //     styles for referenced resources. The engine still holds their records and settles
+        //     the reaction from them.
         if (element->is_svg_element())
-            element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
+            element->document().style_computer().style_engine().record_derived_element_style_input_change(element->style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
 
         element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
             pseudo_element.clear_computed_style();
