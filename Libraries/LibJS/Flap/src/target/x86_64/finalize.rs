@@ -9,6 +9,7 @@
 use super::Opcode;
 use crate::frontend::layout::KnownLayoutConstant;
 use crate::low_ir::Label;
+use crate::runtime_interface::{RawNativeReturnConvention, raw_native_return_convention};
 use crate::target::backend::{Backend, X86_64Backend};
 use crate::target::description::ArchitectureOpcode;
 use crate::target::description::{
@@ -28,7 +29,7 @@ use crate::target::registers::{
     PhysicalRegister,
     x86_64::{R11, R15},
 };
-use crate::{CompileError, ObjectFormat};
+use crate::{Architecture, CompileError, ObjectFormat, Target};
 
 fn machine_instruction(opcode: Opcode, operands: Vec<MachineOperand>) -> MachineInstruction {
     MachineInstruction {
@@ -710,7 +711,7 @@ fn call_with_values(
     kind: crate::target::backend::HelperCallKind,
 ) -> Result<(), CompileError> {
     use super::{AluOperation, Condition};
-    use crate::metadata::ParameterMode;
+    use crate::metadata::{ParameterMode, SlowPathAbi, SlowPathArray};
     use crate::target::registers::x86_64::{R8, R9, R10, R11, R13, R14, RAX, RBX, RCX, RDX, RSP};
 
     let Some(layout) = emit.runtime.slow_paths.get(emit.handler).cloned() else {
@@ -718,10 +719,11 @@ fn call_with_values(
         direct_call(emit, function);
         return Ok(());
     };
-    if kind == crate::target::backend::HelperCallKind::SlowPath
-        && emit.object_format != ObjectFormat::Coff
-        && layout.uses_scalar_arguments()
-    {
+    let abi = match kind {
+        crate::target::backend::HelperCallKind::SlowPath => layout.abi(emit.object_format == ObjectFormat::Coff),
+        crate::target::backend::HelperCallKind::Try => SlowPathAbi::Record,
+    };
+    if abi == SlowPathAbi::Scalar {
         return call_with_scalar_values(emit, function, &layout);
     }
     let shadow = if emit.object_format == ObjectFormat::Coff {
@@ -729,9 +731,7 @@ fn call_with_values(
     } else {
         0
     };
-    let scalar_inputs = kind == crate::target::backend::HelperCallKind::SlowPath
-        && emit.object_format != ObjectFormat::Coff
-        && layout.array.is_none();
+    let scalar_inputs = abi == SlowPathAbi::Mixed;
     let input_registers = [R8, R9];
     let input_count = layout
         .fields
@@ -750,7 +750,7 @@ fn call_with_values(
     emit!(emit.output, X86_64;
         Opcode::LoadEffectiveAddress => [register RCX, address MachineMemoryAddress::indexed(R14, R13)];
     );
-    if let Some((_, count_offset, _)) = layout.array {
+    if let Some(SlowPathArray { count_offset, .. }) = layout.array {
         emit!(emit.output, X86_64; Opcode::Move64Register => [register R11, register RSP];);
         let allocate = emit.unique_label("values_allocate");
         let probe = emit.unique_label("values_probe");
@@ -777,7 +777,7 @@ fn call_with_values(
             direct_call(
                 emit,
                 crate::low_ir::Relocation::function_call(crate::identity::ExternalSymbol::new(
-                    "asm_slow_path_stack_overflow",
+                    crate::runtime_interface::STACK_OVERFLOW_SLOW_PATH,
                 )),
             );
         } else {
@@ -844,7 +844,13 @@ fn call_with_values(
         }
         input_index += 1;
     }
-    if let Some((array_offset, count_offset, optional)) = layout.array {
+    if let Some(SlowPathArray {
+        instruction_offset: array_offset,
+        count_offset,
+        optional,
+        ..
+    }) = layout.array
+    {
         let next = emit.unique_label("array_value_next");
         let ready = emit.unique_label("array_value_ready");
         let end = emit.unique_label("array_values_end");
@@ -1271,8 +1277,12 @@ impl Backend for X86_64Backend {
 
         push_register_move(emit, scratch, function);
 
-        match emit.object_format {
-            ObjectFormat::Coff => {
+        let target = Target {
+            architecture: Architecture::X86_64,
+            object_format: emit.object_format,
+        };
+        match raw_native_return_convention(target) {
+            RawNativeReturnConvention::OutPointer if emit.object_format == ObjectFormat::Coff => {
                 emit!(emit.output, X86_64; Opcode::LoadEffectiveAddress => [register RCX, address MachineMemoryAddress::offset(RBP, super::WIN64_RAW_NATIVE_RETURN_SLOT)];);
                 vm_load(emit, RDX);
                 indirect_call(emit, scratch);
@@ -1287,7 +1297,7 @@ impl Backend for X86_64Backend {
                     MachineMemoryAddress::offset(RBP, super::WIN64_RAW_NATIVE_VARIANT_SLOT),
                 );
             }
-            ObjectFormat::MachO => {
+            RawNativeReturnConvention::OutPointer => {
                 push_stack_adjustment(emit, super::AluOperation::Subtract, 16);
                 push_register_move(emit, RDI, RSP);
                 vm_load(emit, RSI);
@@ -1296,7 +1306,7 @@ impl Backend for X86_64Backend {
                 push_load(emit, RDX, MachineMemoryAddress::offset(RSP, 8));
                 push_stack_adjustment(emit, super::AluOperation::Add, 16);
             }
-            ObjectFormat::Elf => {
+            RawNativeReturnConvention::Registers => {
                 vm_load(emit, RDI);
                 indirect_call(emit, scratch);
             }

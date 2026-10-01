@@ -5,8 +5,8 @@
  */
 
 use flapc::metadata::{
-    Field, InstructionDefinition, ParameterMode, derive_specialized_instructions, parse_flap_metadata,
-    parse_specializations,
+    Field, InstructionDefinition, ParameterMode, SlowPathAbi, SlowPathLayout, derive_specialized_instructions,
+    parse_flap_metadata, parse_specializations,
 };
 use flapc::validate_specializations;
 use std::env;
@@ -189,9 +189,9 @@ fn generate_class(output: &mut String, op: &InstructionDefinition) -> Result<(),
 
 fn generate_slow_path_interface(output: &mut String, op: &InstructionDefinition) {
     let name = &op.name;
-    let layout = flapc::metadata::SlowPathLayout::new(op);
-    let scalar = layout.uses_scalar_arguments();
-    let scalar_inputs = layout.array.is_none();
+    let abi = SlowPathLayout::new(op).abi(false);
+    let scalar = abi == SlowPathAbi::Scalar;
+    let scalar_inputs = abi != SlowPathAbi::Record;
     if scalar_inputs {
         writeln!(output, "#ifndef AK_OS_WINDOWS").unwrap();
         let result_type = if scalar { "AsmSlowPathResult" } else { "i64" };

@@ -29,23 +29,66 @@ pub enum ParameterMode {
     InOut,
 }
 
-#[derive(Debug, Clone)]
+/// One `Value` of an operation's `Op::Values` record.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlowPathField {
+    /// The name of the bytecode field that holds the operand.
+    pub name: String,
     pub instruction_offset: usize,
     pub value_offset: usize,
     pub mode: ParameterMode,
     pub optional: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+/// The variable-length input operands that end an `Op::Values` record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SlowPathArray {
+    /// The name of the bytecode field that holds the operands.
+    pub name: String,
+    pub instruction_offset: usize,
+    /// The instruction offset of the operand count.
+    pub count_offset: usize,
+    pub optional: bool,
+}
+
+/// The `Op::Values` record of an operation: one `Value` per scalar operand
+/// field in declaration order, followed by the variable-length operands.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SlowPathLayout {
     pub fields: Vec<SlowPathField>,
-    /// Instruction offsets of the operand array and its count, and whether its entries are optional.
-    pub array: Option<(usize, usize, bool)>,
+    pub array: Option<SlowPathArray>,
+}
+
+/// How an operation's slow path receives its operands and returns its outputs.
+///
+/// The control word every form returns is described in `SlowPaths.cpp`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlowPathAbi {
+    /// `AsmSlowPathResult f(VM*, u32 pc, Op::Name const*, Value inputs...)`,
+    /// where `AsmSlowPathResult` is `{ i64 control; u64 value; }` returned in
+    /// two registers and `value` is the encoded output, if there is one.
+    Scalar,
+    /// `i64 f(VM*, u32 pc, Op::Name const*, Op::Name::Values& outputs, Value inputs...)`,
+    /// where the inputs include input/output operands.
+    Mixed,
+    /// `i64 f(VM*, u32 pc, Op::Name const*, Op::Name::Values& values)`.
+    Record,
 }
 
 impl SlowPathLayout {
-    pub fn uses_scalar_arguments(&self) -> bool {
+    /// Classify the slow-path call of this operation, where `record_form_only`
+    /// is set for targets that always pass a record, which is what Windows does.
+    pub fn abi(&self, record_form_only: bool) -> SlowPathAbi {
+        if record_form_only || self.array.is_some() {
+            SlowPathAbi::Record
+        } else if self.uses_scalar_arguments() {
+            SlowPathAbi::Scalar
+        } else {
+            SlowPathAbi::Mixed
+        }
+    }
+
+    fn uses_scalar_arguments(&self) -> bool {
         self.array.is_none()
             && self
                 .fields
@@ -71,13 +114,15 @@ impl SlowPathLayout {
             let optional = field.ty == "Optional<Operand>";
             if field.is_array {
                 let array = op.array.as_ref().expect("operand array has a count");
-                layout.array = Some((
-                    array.offset,
-                    op.layout.field_offsets[&op.fields[array.count_field_index].name],
+                layout.array = Some(SlowPathArray {
+                    name: field.name.clone(),
+                    instruction_offset: array.offset,
+                    count_offset: op.layout.field_offsets[&op.fields[array.count_field_index].name],
                     optional,
-                ));
+                });
             } else {
                 layout.fields.push(SlowPathField {
+                    name: field.name.clone(),
                     instruction_offset: op.layout.field_offsets[&field.name],
                     value_offset: layout.fields.len() * 8,
                     mode: field.mode,
@@ -835,7 +880,7 @@ mod tests {
         .unwrap();
         let op = &ops[0];
         let layout = SlowPathLayout::new(op);
-        assert!(!layout.uses_scalar_arguments());
+        assert_eq!(layout.abi(false), SlowPathAbi::Record);
         assert_eq!(layout.fields.len(), 3);
         for (index, (name, mode)) in [
             ("m_dst", ParameterMode::Out),
@@ -845,6 +890,7 @@ mod tests {
         .into_iter()
         .enumerate()
         {
+            assert_eq!(layout.fields[index].name, name);
             assert_eq!(layout.fields[index].instruction_offset, op.layout.field_offsets[name]);
             assert_eq!(layout.fields[index].value_offset, index * 8);
             assert_eq!(layout.fields[index].mode, mode);
@@ -852,11 +898,12 @@ mod tests {
         }
         assert_eq!(
             layout.array,
-            Some((
-                op.array.as_ref().unwrap().offset,
-                op.layout.field_offsets["m_argument_count"],
-                false
-            ))
+            Some(SlowPathArray {
+                name: "m_arguments".to_string(),
+                instruction_offset: op.array.as_ref().unwrap().offset,
+                count_offset: op.layout.field_offsets["m_argument_count"],
+                optional: false,
+            })
         );
     }
 
@@ -866,10 +913,13 @@ mod tests {
             "test.flap",
             "handler Get(dst: out Operand, base: Operand, property: Optional<Operand>) { dispatch_next; }\nhandler Update(dst: out Operand, src: inout Operand) { dispatch_next; }\nhandler OptionalOutput(dst: out Optional<Operand>) { dispatch_next; }\nhandler Put(base: Operand, value: Operand) { dispatch_next; }",
         ).unwrap();
-        assert!(SlowPathLayout::new(&ops[0]).uses_scalar_arguments());
-        assert!(!SlowPathLayout::new(&ops[1]).uses_scalar_arguments());
-        assert!(!SlowPathLayout::new(&ops[2]).uses_scalar_arguments());
-        assert!(SlowPathLayout::new(&ops[3]).uses_scalar_arguments());
+        assert_eq!(SlowPathLayout::new(&ops[0]).abi(false), SlowPathAbi::Scalar);
+        assert_eq!(SlowPathLayout::new(&ops[1]).abi(false), SlowPathAbi::Mixed);
+        assert_eq!(SlowPathLayout::new(&ops[2]).abi(false), SlowPathAbi::Mixed);
+        assert_eq!(SlowPathLayout::new(&ops[3]).abi(false), SlowPathAbi::Scalar);
+        for op in &ops {
+            assert_eq!(SlowPathLayout::new(op).abi(true), SlowPathAbi::Record);
+        }
     }
 
     #[test]
