@@ -1767,11 +1767,7 @@ impl StyleEngineState {
             if relations.is_some() || !self.retained.tree.is_live(node) {
                 continue;
             }
-            self.retained.winner_groups.remove(node);
-            self.retained.computed_group_sets.remove(node);
-            self.retained.pending_element_style_computation_selections.remove(&node);
-            self.retained.pending_pseudo_style_computation_selections.remove(&node);
-            self.retained.nodes_with_substituted_records.remove(&node);
+            self.retained.retire_node_state(node);
             retired_nodes.push(node);
         }
         if !retired_nodes.is_empty() {
@@ -2468,5 +2464,119 @@ impl StyleEngineState {
         self.replace_rule_version(rule, version, counters);
         self.settle_program();
         counters.bump(Counter::StyleRulesCompiled);
+    }
+}
+
+impl RetainedState {
+    /// Drop what the engine retains for an element whose identity retires. Identities are handed
+    /// out again once released, so a row left behind would describe whatever element is given the
+    /// identity next. Every field is named here, so a new field fails to compile until it says
+    /// what it does with the node: a table this retires a row of is bound and cleared below, and
+    /// `_` is either not keyed by style node or says where its rows go instead.
+    pub(super) fn retire_node_state(&mut self, node: StyleNodeID) {
+        let Self {
+            memory: _,
+            admission: _,
+            deferred_pseudo_element: _,
+            // Retires the whole batch at once, in `retire_elements`.
+            tree: _,
+            program: _,
+            native_rules: _,
+            declaration_block_version: _,
+            last_transaction_only_derived_child_reactions: _,
+            sheets_excluded_from_routing: _,
+            routing_needs_detachment_sweep: _,
+            match_workspace: _,
+            // Scratch of one candidate evaluation.
+            exact_covered_scratch: _,
+            cascade_compaction_scratch: _,
+            cascade_compaction_scratch_memory: _,
+            next_style_transaction_version: _,
+            document_style_computation_inputs: _,
+            font_resolution: _,
+            layer_topology_version: _,
+            sheet_order_version: _,
+            specified_values: _,
+            winner_groups,
+            computed_group_sets,
+            custom_property_environments: _,
+            nodes_with_substituted_records,
+            custom_property_registrations_changed: _,
+            pending_element_style_computation_selections,
+            pending_pseudo_style_computation_selections,
+            // Settled or reverted when the transaction's outputs are discarded, before identities are
+            // released.
+            engine_computed_records_pending: _,
+            flush_stamp: _,
+            // Taken by the transaction that fills them.
+            style_input_nodes_for_cpp: _,
+            parent_inputs_moved_nodes: _,
+            engine_pseudo_record_cache: _,
+            engine_cold_record_cache: _,
+            engine_cold_record_donors: _,
+            computed_group_set_memory: _,
+            custom_property_environment_memory: _,
+            computed_fixed_metadata_memory: _,
+            computed_longhand_table_memory: _,
+            style_record_memory: _,
+            animation_overlay_memory: _,
+            computed_pseudo_assignment_memory: _,
+            style_invalidation_cache: _,
+            match_answers: _,
+            selector_truth_sets: _,
+            // Forgotten for departed elements in `forget_departed_elements`.
+            retained_match_answers: _,
+            // Cleared by every transaction with a tree input, which a departure is.
+            retained_selector_incidences: _,
+            selector_incidence_is_current: _,
+            // Scratch of one traversal.
+            batch_matching_traversal: _,
+            route_pruning_states: _,
+            completion_exactness: _,
+            // Dropped in `forget_departed_elements` when a relation holds a departed element.
+            prefix_caches: _,
+            #[cfg(test)]
+                force_bounded_prefix_completion: _,
+            // Scratch of one transaction.
+            prepared_batch_matching_traversal: _,
+            published_match_answers: _,
+            transaction_fact_view: _,
+            // Forgotten for departed elements in `forget_departed_elements`.
+            facts: _,
+            programs: _,
+            attribute_value_text_names: _,
+            attribute_value_text_requirements_version: _,
+            selector_programs_need_sweep: _,
+            routing: _,
+            // Scratch of one transaction.
+            selector_truth_changes: _,
+            already_planned_selector_truth: _,
+            selector_truth_changes_active: _,
+            // A witness is checked against the live tree before it is used.
+            relational_witnesses: _,
+            // Scratch of one transaction.
+            pending_witness_effects: _,
+            witness_effect_scratch: _,
+            relational_witness_residency: _,
+            // Forgotten for departed scope roots in `forget_departed_elements`.
+            scope_roots: _,
+            scope_by_root: _,
+            scope_programs: _,
+            vacant_scope_programs: _,
+            scope_dispatch_templates: _,
+            scope_cascade_templates: _,
+            ancestor_dispatch_templates: _,
+            scope_program_by_scope: _,
+            atoms: _,
+            html_element_namespace: _,
+            fold_id_and_class_name_case: _,
+            #[cfg(test)]
+                diagnostic_plan_capture: _,
+        } = self;
+        winner_groups.remove(node);
+        computed_group_sets.remove(node);
+        nodes_with_substituted_records.remove(&node);
+        pending_element_style_computation_selections.remove(&node);
+        pending_pseudo_style_computation_selections.remove(&node);
     }
 }
