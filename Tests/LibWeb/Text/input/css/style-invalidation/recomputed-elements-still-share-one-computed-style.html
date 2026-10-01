@@ -13,11 +13,15 @@
 
         // The ten leaves have each computed a style once and none of them declares an animation or a
         // transition. Recomputing them all decides the same thing about each, so one of them derives
-        // a style and the other nine take it, exactly as on their first pass.
+        // a style and the other nine take it, exactly as on their first pass. Either style computer
+        // may be the one that shares it, so count both.
+        const engineShared = () => (internals.styleEngineCounters().engineComputedRecordSharedHits ?? 0)
+            + (internals.styleEngineCounters().engineComputedRecordCohortHits ?? 0);
         resetStyleCounters();
+        const engineSharedBefore = engineShared();
         const second = addStyle(document.head, `.leaf { color: rgb(1, 2, 3); }`);
         internals.updateStyle();
-        const shared = styleCounters().elementStyleSharedComputations;
+        const shared = styleCounters().elementStyleSharedComputations + engineShared() - engineSharedBefore;
         println(`PASS: alike siblings share a recomputed style too: ${shared >= 9}`);
         assertEqual("the shared style is the matched one", readProbe(box.firstChild), MATCH);
 

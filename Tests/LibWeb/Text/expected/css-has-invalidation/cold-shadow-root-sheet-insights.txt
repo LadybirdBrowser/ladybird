@@ -1,5 +1,5 @@
 [cold shadow roots without :has()]
-  elementStyleRecomputations: 50
+  elementStyleRecomputations: 0
 rgb(255, 0, 0)
 [cold shadow root with :has()]
   elementStyleRecomputations: 2

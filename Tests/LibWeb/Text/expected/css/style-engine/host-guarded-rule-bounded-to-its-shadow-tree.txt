@@ -1,5 +1,5 @@
-li: 1
-:host > li: 1
+li: 0
+:host > li: 0
 :host(.a) li: 1
 :host([data-priority]) > li: 1
 :host: 2

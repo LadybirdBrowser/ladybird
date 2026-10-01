@@ -103,26 +103,26 @@ PASS: cousin context cold: stylesheet node removal stops matching | elementStyle
 PASS: cousin context detached: stylesheet node removal stops matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context detached-cold: stylesheet node removal stops matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context warm: shadow host attribute changes internal descendant style | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: cousin context cold: shadow host attribute changes internal descendant style | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: cousin context detached: shadow host attribute changes internal descendant style | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: cousin context detached-cold: shadow host attribute changes internal descendant style | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: cousin context cold: shadow host attribute changes internal descendant style | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: cousin context detached: shadow host attribute changes internal descendant style | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: cousin context detached-cold: shadow host attribute changes internal descendant style | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: cousin context warm: shadow host negation stops internal descendant style | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: cousin context cold: shadow host negation stops internal descendant style | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: cousin context detached: shadow host negation stops internal descendant style | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: cousin context detached-cold: shadow host negation stops internal descendant style | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: cousin context cold: shadow host negation stops internal descendant style | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: cousin context detached: shadow host negation stops internal descendant style | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: cousin context detached-cold: shadow host negation stops internal descendant style | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: cousin context warm: slotted selector begins matching after slottable class mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: cousin context cold: slotted selector begins matching after slottable class mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: cousin context detached: slotted selector begins matching after slottable class mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: cousin context detached-cold: slotted selector begins matching after slottable class mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: cousin context cold: slotted selector begins matching after slottable class mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: cousin context detached: slotted selector begins matching after slottable class mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: cousin context detached-cold: slotted selector begins matching after slottable class mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: cousin context warm: slotted selector stops matching after slot name mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: cousin context cold: slotted selector stops matching after slot name mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: cousin context detached: slotted selector stops matching after slot name mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: cousin context detached-cold: slotted selector stops matching after slot name mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: cousin context cold: slotted selector stops matching after slot name mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: cousin context detached: slotted selector stops matching after slot name mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: cousin context detached-cold: slotted selector stops matching after slot name mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: cousin context warm: part selector stops matching after part token removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: cousin context cold: part selector stops matching after part token removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: cousin context detached: part selector stops matching after part token removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: cousin context detached-cold: part selector stops matching after part token removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: cousin context cold: part selector stops matching after part token removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: cousin context detached: part selector stops matching after part token removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: cousin context detached-cold: part selector stops matching after part token removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: cousin context warm: part selector begins matching after exportparts mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: cousin context cold: part selector begins matching after exportparts mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: cousin context detached: part selector begins matching after exportparts mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: cousin context detached-cold: part selector begins matching after exportparts mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
+PASS: cousin context cold: part selector begins matching after exportparts mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: cousin context detached: part selector begins matching after exportparts mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: cousin context detached-cold: part selector begins matching after exportparts mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
