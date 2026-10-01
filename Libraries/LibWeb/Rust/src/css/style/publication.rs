@@ -783,14 +783,14 @@ impl RetainedState {
                 }
             }
         }
-        if full_drive {
+        // A partial delta that reaches the font group reaches every value the font feeds, so it is
+        // driven in full, as a partial drive whose driver inputs moved is below.
+        let font_moved = !full_drive && groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0;
+        if full_drive || font_moved {
             groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
-        } else if groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0 {
-            counters.bump(Counter::EngineComputedRecordBailFontPhase);
-            return Err(Unanswered::Refused);
         }
 
-        if goal == FontDriveGoal::RootInputs && !full_drive {
+        if goal == FontDriveGoal::RootInputs && !full_drive && !font_moved {
             // NB: No font property moved, but borrowing the retained font still needs the
             //     proof that only the named rule flips changed the computation's inputs.
             let proven = match exact_flipped_rules {
@@ -821,7 +821,7 @@ impl RetainedState {
             }
         };
         self.note_node_substitution(node, scratch, state, current_environment);
-        let partial = if full_drive {
+        let partial = if full_drive || font_moved {
             None
         } else {
             Some(self.engine_driven_table(
