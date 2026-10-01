@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/OwnPtr.h>
 #include <LibGfx/Path.h>
 
@@ -64,7 +65,9 @@ private:
     Gfx::FloatPoint m_last_move_to;
     bool m_has_current_point { false };
     NonnullOwnPtr<SkPathBuilder> m_path_builder;
-    mutable OwnPtr<SkPath> m_cached_path;
+    // NB: Const queries may run on several threads at once, so the lazily built snapshot is
+    //     published with a compare-and-swap.
+    mutable Atomic<SkPath*> m_cached_path { nullptr };
 };
 
 }

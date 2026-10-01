@@ -50,18 +50,26 @@ PathImplSkia::PathImplSkia(PathImplSkia const& other)
 {
 }
 
-PathImplSkia::~PathImplSkia() = default;
+PathImplSkia::~PathImplSkia()
+{
+    delete m_cached_path.load(AK::memory_order_relaxed);
+}
 
 SkPath const& PathImplSkia::sk_path() const
 {
-    if (!m_cached_path)
-        m_cached_path = adopt_own(*new SkPath(m_path_builder->snapshot()));
-    return *m_cached_path;
+    if (auto* cached_path = m_cached_path.load(AK::memory_order_acquire))
+        return *cached_path;
+    auto* path = new SkPath(m_path_builder->snapshot());
+    SkPath* expected = nullptr;
+    if (m_cached_path.compare_exchange_strong(expected, path, AK::memory_order_acq_rel))
+        return *path;
+    delete path;
+    return *expected;
 }
 
 SkPathBuilder& PathImplSkia::sk_path_builder()
 {
-    m_cached_path = nullptr;
+    delete m_cached_path.exchange(nullptr, AK::memory_order_relaxed);
     return *m_path_builder;
 }
 
