@@ -404,6 +404,13 @@ impl RetainedState {
         self.computed_group_sets.set_adjustment_facts(node, facts);
     }
 
+    /// The element facts the store holds, as `bridge::element_adjustment_fact` names them. A text
+    /// node and a retired identity hold none.
+    #[must_use]
+    pub fn element_adjustment_facts(&self, node: StyleNodeID) -> u32 {
+        self.computed_group_sets.adjustment_facts(node)
+    }
+
     /// Record what an attribute-value atom spells, for the operators an atom cannot answer.
     pub fn set_attribute_value_text(&mut self, value: StyleAtomID, text: &[u16]) {
         self.facts.set_attribute_value_text(value, text);

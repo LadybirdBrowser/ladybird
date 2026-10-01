@@ -1516,6 +1516,15 @@ impl LayoutNodeArena {
         })
     }
 
+    /// The element facts the style mirror holds for `style_node`, as
+    /// `bridge::element_adjustment_fact` names them. A text node, an anonymous row and the document
+    /// hold none, and answer zero.
+    pub(crate) fn element_adjustment_facts(&self, style_node: Option<StyleNodeID>) -> u32 {
+        style_node.map_or(0, |style_node| {
+            self.with_style_store(|engine| engine.element_adjustment_facts(style_node))
+        })
+    }
+
     /// How many nodes the style mirror holds assigned to the slot `style_node` names. Anything that
     /// is not a slot with assigned nodes answers zero.
     pub(crate) fn assigned_node_count(&self, style_node: Option<StyleNodeID>) -> usize {
