@@ -1,0 +1,48 @@
+<!doctype html>
+<html class="reftest-wait">
+<title>Dynamically set color and ensure scrollbars using currentcolor update</title>
+<link rel="author" title="Luke Warlow" href="mailto:luke@warlow.dev" />
+<link rel="help" href="https://drafts.csswg.org/css-scrollbars" />
+<link rel="match" href="../../../../expected/wpt-import/css/css-scrollbars/scrollbar-color-dynamic-5-ref.html" />
+<link rel="mismatch" href="../../../../expected/wpt-import/css/css-scrollbars/scrollbar-color-dynamic-5-mis-ref.html" />
+<script src="../../common/reftest-wait.js"></script>
+<style>
+  :root {
+    scrollbar-color: currentColor currentColor;
+    color: blue;
+  }
+  body {
+    display: flex;
+    flex-wrap: wrap;
+    width: 200vw;
+    height: 200vh;
+  }
+
+  .container {
+    scrollbar-gutter: stable;
+    overflow: auto;
+    flex: 0 0;
+    height: 200px;
+    min-width: 200px;
+    margin: 1px;
+    padding: 0px;
+    border: none;
+    background: deepskyblue;
+  }
+
+  .content {
+    height: 300px;
+    width: 300px;
+    background: red;
+  }
+</style>
+<div class="container">
+  <div class="content"></div>
+</div>
+<script>
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.documentElement.style.color = 'green';
+
+    takeScreenshot();
+  }));
+</script>

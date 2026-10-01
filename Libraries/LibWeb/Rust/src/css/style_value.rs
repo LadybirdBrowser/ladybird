@@ -4089,8 +4089,8 @@ mod replay_tests {
 }
 
 /// Whether a value's computed color depends on the element's used currentcolor: the
-/// currentcolor keyword itself, a color function whose nested colors do, or an Effects
-/// list whose shadow or filter colors do.
+/// currentcolor keyword itself, a color function whose nested colors do, an Effects list
+/// whose shadow or filter colors do, or a scrollbar color whose thumb or track color does.
 pub(crate) fn value_depends_on_current_color(value: &StyleValueData) -> bool {
     let retained_data_depends =
         |retained: &RetainedStyleValueData| retained.optional_data().is_some_and(value_depends_on_current_color);
@@ -4107,6 +4107,10 @@ pub(crate) fn value_depends_on_current_color(value: &StyleValueData) -> bool {
         StyleValueData::LightDark { light, dark, .. } => retained_data_depends(light) || retained_data_depends(dark),
         StyleValueData::Shadow { color, .. } => retained_data_depends(color),
         StyleValueData::Filter { value, .. } => retained_data_depends(value),
+        StyleValueData::ScrollbarColor {
+            thumb_color,
+            track_color,
+        } => retained_data_depends(thumb_color) || retained_data_depends(track_color),
         StyleValueData::ValueList { values, .. } => list_depends(values),
         _ => false,
     }
