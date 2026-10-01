@@ -419,3 +419,7 @@ if (DEFINED FLAP_ARCH)
             "-malign-branch-boundary=32;-malign-branch=fused,jcc")
     endif()
 endif()
+
+if (ENABLE_LIBJS_RUST_RUNTIME)
+    add_subdirectory(Rust/Runtime)
+endif()

@@ -18,6 +18,7 @@ members = [
 ]
 exclude = [
     "Libraries/LibJS/Flap",
+    "Libraries/LibJS/Rust/Runtime",
 ]
 resolver = "2"
 

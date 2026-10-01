@@ -1,0 +1,9 @@
+set(LIBJS_RUNTIME_RUST_FEATURES allocator)
+if (ENABLE_ADDRESS_SANITIZER)
+    list(APPEND LIBJS_RUNTIME_RUST_FEATURES address-sanitizer)
+endif()
+if (ENABLE_THREAD_SANITIZER)
+    list(APPEND LIBJS_RUNTIME_RUST_FEATURES thread-sanitizer)
+endif()
+
+import_rust_crate(MANIFEST_PATH Cargo.toml CRATE_NAME libjs_runtime_rust FEATURES ${LIBJS_RUNTIME_RUST_FEATURES})
