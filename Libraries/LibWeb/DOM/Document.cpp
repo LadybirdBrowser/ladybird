@@ -9400,6 +9400,8 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
                 || !start->is_connected() || !end->is_connected()
                 || match.start_offset > start->length() || match.end_offset > end->length())
                 return;
+            if (start != end && !end->is_following(*start))
+                return;
             search.matches.append(Range::create(*start, match.start_offset, *end, match.end_offset)); });
 
     return move(search.matches);

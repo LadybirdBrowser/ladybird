@@ -1,0 +1,7 @@
+<!doctype html>
+<div id="host"><span slot="a">alpha</span><span slot="b">beta</span></div>
+<script>
+host.attachShadow({ mode: "open" }).innerHTML = '<slot name="b"></slot><slot name="a"></slot>';
+internals.findInPage("betaalpha");
+getSelection().toString();
+</script>
