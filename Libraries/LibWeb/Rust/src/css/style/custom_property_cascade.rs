@@ -293,6 +293,15 @@ pub(super) struct PreparedCustomFunctions {
     pub(super) container_effects: Option<super::container_queries::ContainerVerdict>,
 }
 
+/// What a registered custom property's value computes against: the element's lengths as its style
+/// computes them after line-height, and the color scheme its colors resolve with (a
+/// PreferredColorScheme code). The length context lends no output flag.
+#[derive(Clone, Copy)]
+pub(super) struct RegisteredValueContext {
+    pub length: crate::css::style_compute::FfiLengthResolutionContext,
+    pub color_scheme: u8,
+}
+
 /// The resolution context the engine substitutes under: the stores alone, with no callback into
 /// C++ - what the engine cannot resolve without one is left to C++ before this is built.
 #[expect(
@@ -1037,6 +1046,102 @@ impl RetainedState {
         })
     }
 
+    /// Whether the custom declarations of a node, or of one of its pseudo-elements, name a
+    /// registered custom property: its drive then waits for the font it settles before resolving
+    /// them, as `FullDrive::AwaitsRegisteredContext` says.
+    pub(super) fn declares_registered_custom_property(
+        &self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+    ) -> bool {
+        inputs.custom_property_registry().has_registrations()
+            && self
+                .cascaded_custom_declarations_of(node, pseudo)
+                .is_some_and(|cascaded| self.declarations_name_a_registered_custom_property(&cascaded, inputs))
+    }
+
+    pub(super) fn declarations_name_a_registered_custom_property(
+        &self,
+        cascaded: &[(CustomDeclaration, RetainedStyleValueData)],
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+    ) -> bool {
+        let registry = inputs.custom_property_registry();
+        registry.has_registrations()
+            && cascaded.iter().any(|(declared, _)| {
+                self.declared_custom_property_name(declared.name)
+                    .is_some_and(|name| registry.name_is_registered(&name.text))
+            })
+    }
+
+    /// What a registered custom property computes against in a record's element: the record's
+    /// lengths, and the color scheme its table settled. `None` for a record without a font.
+    pub(super) fn record_registered_value_context(
+        &self,
+        record: computed::FinalStyleRecordID,
+    ) -> Option<RegisteredValueContext> {
+        let view = self.computed_group_sets.style_record_view(record.raw())?;
+        let length = self.record_length_resolution_context(&view)?;
+        let table = unsafe { view.longhand_table.as_ref() }?;
+        Some(RegisteredValueContext {
+            length,
+            color_scheme: u8::try_from(table.effective_color_scheme())
+                .unwrap_or(self.document_style_computation_inputs.preferred_color_scheme),
+        })
+    }
+
+    /// What a registered custom property computes against where the caller brings nothing
+    /// better: the record the node holds, as a row keeping its font reads it, else the one its
+    /// parent holds, as a first record's provisional environment reads it before the drive
+    /// settles its font, else the document's initial font. A pseudo-element's is its originating
+    /// element's.
+    pub(super) fn standing_registered_value_context(
+        &self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+    ) -> RegisteredValueContext {
+        let own = self.computed_group_sets.assigned_style_record(node);
+        let record = match pseudo {
+            Some(_) => own,
+            None => own.or_else(|| {
+                self.tree
+                    .inheritance_parent(node)
+                    .and_then(|parent| self.computed_group_sets.assigned_style_record(parent))
+            }),
+        };
+        if let Some(context) = record.and_then(|record| self.record_registered_value_context(record)) {
+            return context;
+        }
+        use crate::css::style_compute::{FfiFontMetrics, FfiLengthResolutionContext};
+        let inputs = &self.document_style_computation_inputs;
+        let initial = FfiFontMetrics {
+            font_size: inputs.initial_font_size,
+            x_height: inputs.initial_font_x_height,
+            cap_height: inputs.initial_font_cap_height,
+            zero_advance: inputs.initial_font_zero_advance,
+            line_height: 0.0,
+        };
+        RegisteredValueContext {
+            length: FfiLengthResolutionContext {
+                viewport_width: inputs.viewport_width,
+                viewport_height: inputs.viewport_height,
+                font_metrics: initial,
+                root_font_metrics: initial,
+                font_metrics_depend_on_viewport_metrics: false,
+                root_font_metrics_depend_on_viewport_metrics: false,
+                has_container_width_basis: false,
+                has_container_height_basis: false,
+                container_width_basis: 0.0,
+                container_height_basis: 0.0,
+                container_width_basis_depends_on_viewport_metrics: false,
+                container_height_basis_depends_on_viewport_metrics: false,
+                subject_inline_axis_is_horizontal: true,
+                resolved_viewport_relative_length: std::ptr::null_mut(),
+            },
+            color_scheme: inputs.preferred_color_scheme,
+        }
+    }
+
     /// What the custom function calls in the values of a node, or of one of its pseudo-elements,
     /// resolve against: the functions its tree scope's calls reach, each with the blocks of
     /// declarations whose `@media` conditions hold for the transaction and whose container
@@ -1138,22 +1243,20 @@ impl RetainedState {
 
     /// The environment of a node the engine computes a record for: the one it inherits when its
     /// cascade declares no custom property, else what its declarations resolve to over that one.
-    /// Refused when the environment is C++'s to compute: a registered name or a substitution the
-    /// engine does not resolve.
-    ///
-    /// A registration decides how its name computes, against the registered syntax and from its
-    /// own initial value, which this resolution does not do, so an element declaring a registered
-    /// name is the host's. A name registered as not inheriting keeps every declaring element with
-    /// the host: the environment this builds over the parent's would hand that name to a
-    /// descendant the registration keeps it from.
+    /// A registered name computes against `registered`, else against what
+    /// `standing_registered_value_context` says. Refused when an input is missing, or when a name
+    /// is registered as not inheriting: the environment this builds over the parent's is the one
+    /// a child declaring nothing takes whole, which would hand the name to a descendant the
+    /// registration keeps it from.
     pub(super) fn engine_custom_property_environment(
         &mut self,
         node: StyleNodeID,
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
+        registered: Option<&RegisteredValueContext>,
         counters: &mut Counters,
     ) -> Drive<u64> {
-        self.engine_custom_property_environment_of(node, None, parent_environment, inputs, counters)
+        self.engine_custom_property_environment_of(node, None, parent_environment, inputs, registered, counters)
     }
 
     /// What `engine_custom_property_environment` says of the element, for one of its
@@ -1164,6 +1267,7 @@ impl RetainedState {
         pseudo: Option<u8>,
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
+        registered: Option<&RegisteredValueContext>,
         counters: &mut Counters,
     ) -> Drive<u64> {
         if !self.any_custom_property_is_declared() {
@@ -1182,7 +1286,15 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         };
         self.note_custom_declaration_reads(node, pseudo, &cascaded);
-        self.engine_custom_property_environment_over(node, pseudo, cascaded, parent_environment, inputs, counters)
+        self.engine_custom_property_environment_over(
+            node,
+            pseudo,
+            cascaded,
+            parent_environment,
+            inputs,
+            registered,
+            counters,
+        )
     }
 
     /// Note what the custom declarations cascaded for an element or one of its pseudo-elements
@@ -1213,6 +1325,10 @@ impl RetainedState {
     /// What `engine_custom_property_environment_of` says of custom declarations the caller
     /// cascaded for the node or one of its pseudo-elements; `attr()` among them reads the node's
     /// attributes.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the declarations resolve over independent inputs"
+    )]
     pub(super) fn engine_custom_property_environment_over(
         &mut self,
         node: StyleNodeID,
@@ -1220,23 +1336,26 @@ impl RetainedState {
         cascaded: Vec<(CustomDeclaration, RetainedStyleValueData)>,
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
+        registered: Option<&RegisteredValueContext>,
         counters: &mut Counters,
     ) -> Drive<u64> {
         if cascaded.is_empty() {
             return Ok(parent_environment);
         }
         let registry_ref = inputs.custom_property_registry();
-        // Before the memo: what C++ resolved for a registered name may depend on the element.
-        if registry_ref.has_registrations()
-            && (registry_ref.has_non_inheriting_registrations()
-                || cascaded.iter().any(|(declared, _)| {
-                    self.declared_custom_property_name(declared.name)
-                        .is_some_and(|name| registry_ref.name_is_registered(&name.text))
-                }))
-        {
+        if registry_ref.has_non_inheriting_registrations() {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         }
+        // A registered name computes against the element's own font and viewport, so what it
+        // resolves to is the element's alone and takes no memo.
+        let registered = self
+            .declarations_name_a_registered_custom_property(&cascaded, inputs)
+            .then(|| {
+                registered
+                    .copied()
+                    .unwrap_or_else(|| self.standing_registered_value_context(node, pseudo))
+            });
         // A custom function call reads the definitions its scope sees, with the blocks of
         // declarations their conditions select for the element.
         let functions = if cascaded
@@ -1263,7 +1382,7 @@ impl RetainedState {
         // element's lengths, and so does a function call, which may hold one.
         let reads_conditions =
             functions.is_some() || cascaded.iter().any(|(_, value)| value_reads_conditions(value.data()));
-        let memoizes = !reads_attributes && !reads_conditions;
+        let memoizes = !reads_attributes && !reads_conditions && registered.is_none();
         let key = Self::environment_inputs(
             parent_environment,
             inputs.custom_property_registration_generation,
@@ -1346,16 +1465,16 @@ impl RetainedState {
             Some(&mut style_query_references),
             functions.as_ref(),
         );
-        // No registered name is declared here, so a value finalizes against the registry and the
-        // environment inherited alone.
         let drive = FfiCustomPropertyDriveInput {
             store: cascaded_store,
             resolved_parent_store: parent_store,
             reuse_resolved_parent_if_empty: !parent_store.is_null(),
             resolution_context: &raw const resolution_context,
-            finalization_length_resolution_context: std::ptr::null(),
+            finalization_length_resolution_context: registered
+                .as_ref()
+                .map_or(std::ptr::null(), |registered| &raw const registered.length),
             finalization_environment: std::ptr::null(),
-            finalization_color_scheme: 0,
+            finalization_color_scheme: registered.as_ref().map_or(0, |registered| registered.color_scheme),
             draw_random_base_value: None,
             random_base_context: std::ptr::null_mut(),
         };
@@ -1366,11 +1485,29 @@ impl RetainedState {
             0 => &[],
             count => unsafe { std::slice::from_raw_parts(resolved.properties, count) },
         };
+        // A registered value computes against the element's lengths alone here: one resolving a
+        // viewport-relative length makes the element's style read the viewport, which nothing in
+        // its record would say, one drawing a random() or counting siblings reads what the host
+        // holds, and one that does not compute, such as a container-relative length, reads what
+        // its lengths do not carry.
+        let mut reads_beyond_lengths =
+            resolved.stats.depends_on_viewport_metrics || resolved.stats.left_a_value_uncomputed;
         for property in properties {
+            let dependencies = crate::css::style_compute::collect_external_value_dependencies(unsafe {
+                &*property.data.cast::<StyleValueData>()
+            });
+            reads_beyond_lengths |= dependencies.uses_random_function || dependencies.uses_tree_counting_function;
             unsafe { release_style_value(property.data.cast()) };
         }
         unsafe { destroy_resolved_custom_properties(resolved.storage, resolved.count) };
         unsafe { Arc::decrement_strong_count(cascaded_store.cast::<CustomPropertyStore>()) };
+        if reads_beyond_lengths {
+            if !resolved.rust_store.is_null() {
+                unsafe { Arc::decrement_strong_count(resolved.rust_store.cast::<CustomPropertyStore>()) };
+            }
+            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+            return Err(Unanswered::Refused);
+        }
         counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
         if style_query_references.is_some() {
             self.note_container_effects_for_host(

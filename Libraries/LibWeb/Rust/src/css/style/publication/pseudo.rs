@@ -375,13 +375,22 @@ impl RetainedState {
                 }
             }
             // A pseudo-element's own custom declarations resolve over its element's environment,
-            // as an element's resolve over its parent's.
-            let environment =
-                self.engine_custom_property_environment_of(node, Some(kind), element_environment, &inputs, counters)?;
+            // as an element's resolve over its parent's. A registered name declared here computes
+            // provisionally against the element's font until the drive settles the pseudo-element's
+            // own.
+            let has_registered_declarations = self.declares_registered_custom_property(node, Some(kind), &inputs);
+            let mut environment = self.engine_custom_property_environment_of(
+                node,
+                Some(kind),
+                element_environment,
+                &inputs,
+                None,
+                counters,
+            )?;
             // A store substituting `attr()` or `inherit()` holds the element's attributes or its
             // parent's values, which no other element shares.
             let element_alone = state.is_some_and(|state| self.state_reads_beyond_environment(node, state));
-            let store = match state {
+            let mut store = match state {
                 Some(state) => match scratch
                     .pseudo_stores
                     .get(&(kind, state, environment))
@@ -429,12 +438,13 @@ impl RetainedState {
             // What the record is derived from: the element's inherited style, display and
             // environment, and the element's record itself only when the state inherits a
             // non-inherited property from it. A record whose winners read beyond its environment
-            // is the originating element's alone.
+            // is the originating element's alone, as is one declaring registered custom
+            // properties, which its own font decides.
             let key = self
                 .computed_group_sets
                 .node_inherited_groups_identity(node)
                 .zip(self.box_type_parent_display(node))
-                .filter(|_| !element_alone)
+                .filter(|_| !element_alone && !has_registered_declarations)
                 .map(|(inherited_groups, parent_display)| PseudoCohortKey {
                     monospace_recascaded_font_size: state.map_or(0, |state| self.monospace_cohort_key(target, state)),
                     parent_record: if kind == SELECTION
@@ -499,15 +509,50 @@ impl RetainedState {
                         parent: Some(node),
                         facts,
                     };
-                    let driven = self.engine_full_drive(
+                    let mut driven = self.engine_full_drive(
                         subject,
                         None,
                         &store,
                         &inputs,
                         &mut scratch.font_drive,
                         FontDriveGoal::Complete,
+                        has_registered_declarations,
                         counters,
                     );
+                    // The registered custom properties compute against the font the drive
+                    // settled, and the winners substitute what they computed to.
+                    if let Ok(FullDrive::AwaitsRegisteredContext(registered)) = driven {
+                        let (settled, settled_store, substituted) = self.store_over_registered_context(
+                            target,
+                            state.or_refused()?,
+                            element_environment,
+                            |engine, counters| {
+                                engine.engine_custom_property_environment_of(
+                                    node,
+                                    Some(kind),
+                                    element_environment,
+                                    &inputs,
+                                    Some(&registered),
+                                    counters,
+                                )
+                            },
+                            scratch,
+                            counters,
+                        )?;
+                        environment = settled;
+                        store = std::sync::Arc::new(settled_store);
+                        pseudo_uses_substitution |= substituted;
+                        driven = self.engine_full_drive(
+                            subject,
+                            None,
+                            &store,
+                            &inputs,
+                            &mut scratch.font_drive,
+                            FontDriveGoal::Complete,
+                            false,
+                            counters,
+                        );
+                    }
                     if let Err(Unanswered::Suspended(_)) = driven {
                         scratch.next_pseudo = pseudo_index;
                         scratch.pseudo_uses_substitution = pseudo_uses_substitution;
@@ -520,7 +565,7 @@ impl RetainedState {
                         explicitly_inherited_groups,
                     }) = driven?
                     else {
-                        unreachable!("only the root-input probe answers with root inputs");
+                        unreachable!("a complete drive that waits for no registered context answers with its table");
                     };
                     // C++ marks the originating element's parent when a pseudo-element explicitly
                     // inherits a non-inherited property, as it does for the element itself.
@@ -867,16 +912,22 @@ impl RetainedState {
             None => 0,
         };
         self.note_custom_declaration_reads(node, None, &custom_declarations);
-        let environment = self.engine_custom_property_environment_over(
+        // A registered name declared here computes provisionally until the drive settles the
+        // font, and then again over the same declarations.
+        let registered_declarations = self
+            .declarations_name_a_registered_custom_property(&custom_declarations, &inputs)
+            .then(|| custom_declarations.clone());
+        let mut environment = self.engine_custom_property_environment_over(
             host,
             None,
             custom_declarations,
             parent_environment,
             &inputs,
+            None,
             counters,
         )?;
         let mut substituted = false;
-        let store = self.cascaded_store_for_state(
+        let mut store = self.cascaded_store_for_state(
             node,
             state,
             None,
@@ -888,23 +939,57 @@ impl RetainedState {
             counters,
         )?;
         let pseudo_styles = self.pseudo_style_mask_or_rematch(node, counters);
-        let FullDrive::Driven(DrivenTable {
-            table,
-            length,
-            font,
-            explicitly_inherited_groups,
-            ..
-        }) = self.engine_full_drive(
+        let mut driven = self.engine_full_drive(
             subject,
             None,
             &store,
             &inputs,
             &mut scratch.font_drive,
             FontDriveGoal::Complete,
+            registered_declarations.is_some(),
             counters,
-        )?
+        )?;
+        if let FullDrive::AwaitsRegisteredContext(registered) = driven
+            && let Some(custom_declarations) = registered_declarations
+        {
+            (environment, store, substituted) = self.store_over_registered_context(
+                subject.target,
+                state,
+                parent_environment,
+                |engine, counters| {
+                    engine.engine_custom_property_environment_over(
+                        host,
+                        None,
+                        custom_declarations,
+                        parent_environment,
+                        &inputs,
+                        Some(&registered),
+                        counters,
+                    )
+                },
+                scratch,
+                counters,
+            )?;
+            driven = self.engine_full_drive(
+                subject,
+                None,
+                &store,
+                &inputs,
+                &mut scratch.font_drive,
+                FontDriveGoal::Complete,
+                false,
+                counters,
+            )?;
+        }
+        let FullDrive::Driven(DrivenTable {
+            table,
+            length,
+            font,
+            explicitly_inherited_groups,
+            ..
+        }) = driven
         else {
-            unreachable!("only the root-input probe answers with root inputs");
+            unreachable!("a complete drive that waits for no registered context answers with its table");
         };
         let font = font.expect("a full drive resolves the font");
         let counter_style_registry =

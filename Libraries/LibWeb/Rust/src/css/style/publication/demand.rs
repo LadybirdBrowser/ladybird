@@ -551,6 +551,7 @@ impl StyleEngineState {
                 &inputs,
                 &mut scratch.font_drive,
                 FontDriveGoal::Complete,
+                false,
                 counters,
             ) {
                 Err(Unanswered::Suspended(Suspension::Font)) => {
@@ -565,7 +566,7 @@ impl StyleEngineState {
             table, length, font, ..
         }) = driven
         else {
-            unreachable!("only the root-input probe answers with root inputs");
+            unreachable!("a complete drive declaring no custom property answers with its table");
         };
         let font = font.expect("a full drive resolves the font");
         let (record, _) = self.retained.assemble_and_publish_engine_record(
