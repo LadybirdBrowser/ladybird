@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/background-image-survives-layout-tree-rebuild-ref.html">
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background-size: 100px 100px;
+        background-repeat: no-repeat;
+    }
+    #box.with-image {
+        background-image: url("../data/smiley.png");
+    }
+</style>
+<div id="wrapper"><div id="box"></div></div>
+<script>
+    // The style engine computes the record that gains the image. Its load still starts when the
+    // box takes that style.
+    const image = new Image();
+    image.src = "../data/smiley.png";
+    image.decode().then(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("box").classList.add("with-image");
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (window.internals)
+                        internals.signalTestIsDone("PASS");
+                    else
+                        document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>
