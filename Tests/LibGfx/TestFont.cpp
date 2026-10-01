@@ -11,6 +11,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
+#include <LibGfx/Font/SystemFallbackFonts.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/FontCascadeList.h>
@@ -627,4 +628,48 @@ TEST_CASE(font_collection_retains_shared_backing_for_skia)
     auto actual_table = MUST(ByteBuffer::create_uninitialized(expected_table.size()));
     EXPECT_EQ(skia_typeface->getTableData(cmap_tag, 0, actual_table.size(), actual_table.data()), actual_table.size());
     EXPECT_EQ(actual_table, expected_table);
+}
+
+// The answer depends on the installed font set alone, so every thread must reach the same one and
+// the memo must match a code point once however many threads ask at the same moment.
+TEST_CASE(system_fallback_fonts_can_be_matched_on_several_threads)
+{
+    Gfx::clear_system_fallback_font_cache();
+    IGNORE_USE_IN_ESCAPING_LAMBDA Gfx::SystemFallbackFontKey key {
+        .code_point = 0x4e2d,
+        .weight = 400,
+        .width = Gfx::FontWidth::Normal,
+        .slope = 0,
+        .prefer_color_emoji = false,
+    };
+    // NB: A machine without a font covering this code point answers null, and null is an answer the
+    //     memo keeps like any other, so this test does not depend on what is installed.
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<Gfx::Font const*, 8> matched {};
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t thread_index = 0; thread_index < matched.size(); ++thread_index) {
+        auto thread = Threading::Thread::construct("SystemFallbackFont"sv, [&key, &matched, thread_index]() {
+            matched[thread_index] = Gfx::system_fallback_font(key, 12).ptr();
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    // One key is matched once, so every thread names the same font object, not eight equivalent ones.
+    for (auto const* font : matched)
+        EXPECT_EQ(font, matched[0]);
+    EXPECT_EQ(Gfx::system_fallback_font_cache_size(), 1u);
+    EXPECT_EQ(Gfx::system_fallback_font(key, 12).ptr(), matched[0]);
+
+    // Another size picks another font from the same typeface, so it does not grow the memo.
+    (void)Gfx::system_fallback_font(key, 13);
+    EXPECT_EQ(Gfx::system_fallback_font_cache_size(), 1u);
+
+    // A different style is a different question, not another answer to the same one.
+    auto bold_key = key;
+    bold_key.weight = 700;
+    (void)Gfx::system_fallback_font(bold_key, 12);
+    EXPECT_EQ(Gfx::system_fallback_font_cache_size(), 2u);
 }
