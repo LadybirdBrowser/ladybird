@@ -43,6 +43,10 @@ WEB_API void record_element_connected(DOM::Element&);
 // Called once a text node has been linked into a connected tree that no subtree arrival covered.
 // Allocates the text node's style node identity if it does not have one yet.
 WEB_API void record_text_connected(DOM::Text&);
+
+// Called once a text node's data has stopped being, or started being, nothing but ASCII whitespace.
+// That is the only thing about its data the mirror carries.
+WEB_API void record_text_whitespace_state_changed(DOM::Text&);
 WEB_API void publish_pending_element_features(StyleEngine&, StyleComputer&);
 WEB_API void publish_required_attribute_value_texts(StyleEngine&, StyleComputer&);
 

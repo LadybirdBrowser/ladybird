@@ -8,6 +8,17 @@ use smallvec::SmallVec;
 
 use super::*;
 
+/// What the style mirror says about the element a text node's box takes its style from: the text's
+/// flat-tree parent, which is the slot it is assigned to or else its DOM parent. A text under a
+/// shadow root or the document has no element above it and answers with every field cleared.
+#[derive(Clone, Copy, Default)]
+pub struct TextStyleParentFacts {
+    pub has_style_parent: bool,
+    pub parent_display_is_contents: bool,
+    pub parent_collapses_whitespace: bool,
+    pub style_record: u64,
+}
+
 /// What an element's published style record says about the box it asks for. The layout tree build
 /// reads this for an element that may have no box yet, where the arena has nothing to answer from.
 #[derive(Clone, Copy)]
@@ -428,6 +439,42 @@ impl RetainedState {
             display: view.display(),
             content_visibility: view.content_visibility(),
         })
+    }
+
+    /// What the text node's flat-tree parent publishes, for the anonymous inline wrapper a text
+    /// under a `display: contents` element needs.
+    #[must_use]
+    pub fn text_style_parent_facts(&self, node: StyleNodeID) -> TextStyleParentFacts {
+        let parent = self
+            .tree
+            .assigned_slot_of(node)
+            .or_else(|| self.tree.text_parent(node))
+            .filter(|parent| self.tree.host_of(*parent).is_none() && !self.tree.is_relation_only(*parent));
+        let Some(parent) = parent else {
+            return TextStyleParentFacts::default();
+        };
+        let style_record = self.computed_group_sets.assigned_style_record(parent);
+        let Some(view) = self.published_style_record_view(style_record) else {
+            return TextStyleParentFacts::default();
+        };
+        TextStyleParentFacts {
+            has_style_parent: true,
+            parent_display_is_contents: view.display().is_contents(),
+            parent_collapses_whitespace: view.white_space_collapse()
+                == crate::css::css_enums::white_space_collapse::COLLAPSE,
+            style_record: style_record.map_or(0, computed::FinalStyleRecordID::raw),
+        }
+    }
+
+    /// Whether the text node's data is nothing but ASCII whitespace.
+    #[must_use]
+    pub fn text_is_ascii_whitespace(&self, node: StyleNodeID) -> bool {
+        self.tree.text_is_ascii_whitespace(node)
+    }
+
+    /// Record the text node's whitespace-only state, as its data now spells it.
+    pub fn set_text_is_ascii_whitespace(&mut self, node: StyleNodeID, value: bool) {
+        self.tree.set_text_is_ascii_whitespace(node, value, &mut self.memory);
     }
 
     /// Whether the element's published style record replaces its contents with a single image.

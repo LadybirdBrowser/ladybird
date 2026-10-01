@@ -302,9 +302,18 @@ void record_text_connected(DOM::Text& text)
     style_engine->allocate_text_style_nodes({ &identity, 1 });
     text.set_style_node_id(identity);
     text.document().style_computer().register_style_node(identity, text);
+    style_engine->set_text_is_ascii_whitespace(identity, text.data().is_ascii_whitespace());
     ensure_dom_order_parent_identity(text.parent(), *style_engine);
     link_in_dom_order(*style_engine, text);
     republish_assigned_slot_of(text);
+}
+
+void record_text_whitespace_state_changed(DOM::Text& text)
+{
+    auto* style_engine = style_engine_for(text);
+    if (!style_engine || text.style_node_id() == no_style_node)
+        return;
+    style_engine->set_text_is_ascii_whitespace(text.style_node_id(), text.data().is_ascii_whitespace());
 }
 
 // The document's identity, minted before anything connects under it.
@@ -361,6 +370,7 @@ void record_subtree_connecting(DOM::Node& root)
         for (size_t i = 0; i < text_arrivals.size(); ++i) {
             text_arrivals[i]->set_style_node_id(identities[i]);
             style_computer.register_style_node(identities[i], text_arrivals[i]);
+            style_engine.set_text_is_ascii_whitespace(identities[i], text_arrivals[i]->data().is_ascii_whitespace());
         }
     }
 

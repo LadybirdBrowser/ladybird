@@ -1312,20 +1312,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             frame.anonymous_computed_values = document.style_computer().create_document_style();
             frame.layout_node = &allocate_layout_node<Layout::Viewport>(document, frame.anonymous_computed_values.release_nonnull());
             return Node::slot_id(frame.layout_node); },
-        .principal_text_layout_facts = [](void* text_pointer) -> RustFFI::FfiTextLayoutFacts {
-            VERIFY(text_pointer);
-            auto& text = *static_cast<DOM::Text*>(text_pointer);
-            auto* style_parent = as_if<DOM::Element>(text.flat_tree_parent());
-            auto const* style_parent_payloads = style_parent ? style_parent->style_record_payloads() : nullptr;
-            auto const* style_parent_box_values = CSS::style_group_from_payloads<CSS::ComputedValues::BoxValues>(style_parent_payloads);
-            auto const* style_parent_text_values = CSS::style_group_from_payloads<CSS::ComputedValues::InheritedTextValues>(style_parent_payloads);
-            return {
-                .has_style_parent = style_parent_payloads != nullptr,
-                .parent_display_is_contents = style_parent_box_values && style_parent_box_values->display_value().is_contents(),
-                .text_is_ascii_whitespace = text.data().is_ascii_whitespace(),
-                .parent_collapses_whitespace = style_parent_text_values && first_is_one_of(style_parent_text_values->white_space_collapse_value(), CSS::WhiteSpaceCollapse::Collapse),
-                .style_parent_style_record = style_parent ? style_parent->style_record_identity().value() : 0,
-            }; },
         .create_principal_text_layout = [](void* frame_pointer, void* text_pointer) -> Compositing::RustFFI::NodeSlotId {
             VERIFY(frame_pointer);
             VERIFY(text_pointer);

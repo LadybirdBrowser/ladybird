@@ -18,7 +18,7 @@ use super::used_values::UsedValues;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::{
-    PublishedBoxFacts, StyleEngine,
+    PublishedBoxFacts, StyleEngine, TextStyleParentFacts,
     layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle},
 };
 use crate::layout::ComputedValuesView;
@@ -1559,6 +1559,19 @@ impl LayoutNodeArena {
             }
             let parent = tree.parent(style_node)?;
             Some(tree.host_of(parent).unwrap_or(parent))
+        })
+    }
+
+    /// Whether the text node's data is nothing but ASCII whitespace. Anything that is not a text
+    /// node has no data and answers no.
+    pub(crate) fn text_is_ascii_whitespace(&self, style_node: Option<StyleNodeID>) -> bool {
+        style_node.is_some_and(|style_node| self.with_style_store(|engine| engine.text_is_ascii_whitespace(style_node)))
+    }
+
+    /// What the element above the text node in the flat tree publishes, in one borrow.
+    pub(crate) fn text_style_parent_facts(&self, style_node: Option<StyleNodeID>) -> TextStyleParentFacts {
+        style_node.map_or_else(TextStyleParentFacts::default, |style_node| {
+            self.with_style_store(|engine| engine.text_style_parent_facts(style_node))
         })
     }
 

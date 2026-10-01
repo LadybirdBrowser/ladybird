@@ -769,6 +769,7 @@ impl StyleNodeTree {
             let index = node.text_index().expect("retire_texts requires a text identity");
             let (was_live, _) = self.text.live.set(index as usize, false);
             assert!(was_live, "retiring a text identity that is not live");
+            self.text.is_ascii_whitespace.set(index as usize, false);
             self.text.parent[index as usize] = None;
             self.text.next_sibling[index as usize] = None;
             self.text.previous_sibling[index as usize] = None;
@@ -778,6 +779,25 @@ impl StyleNodeTree {
             }
         }
         let current = self.text.capacity_bytes() + self.shadow_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
+    }
+
+    /// Whether the text node's data is nothing but ASCII whitespace. Only a text node has data, so
+    /// every other identity answers no.
+    #[must_use]
+    pub fn text_is_ascii_whitespace(&self, node: StyleNodeID) -> bool {
+        node.text_index()
+            .is_some_and(|index| self.text.is_ascii_whitespace.contains(index as usize))
+    }
+
+    /// Record what the text node's data now spells, as its whitespace-only state.
+    pub fn set_text_is_ascii_whitespace(&mut self, node: StyleNodeID, value: bool, memory: &mut MemoryController) {
+        let Some(index) = node.text_index() else {
+            return;
+        };
+        let before = self.text.capacity_bytes();
+        self.text.is_ascii_whitespace.set(index as usize, value);
+        let current = self.text.capacity_bytes();
         self.record_capacity_change(memory, before, current);
     }
 
@@ -1513,6 +1533,9 @@ struct TextRows {
     next_sibling: Vec<Option<StyleNodeID>>,
     previous_sibling: Vec<Option<StyleNodeID>>,
     live: BitColumn,
+    /// Whether the node's data is nothing but ASCII whitespace, which is what decides whether the
+    /// layout tree build can collapse it away rather than give it a box of its own.
+    is_ascii_whitespace: BitColumn,
     pending_reuse: Vec<u32>,
     free_indexes: Vec<u32>,
 }
@@ -1522,7 +1545,7 @@ impl TextRows {
         capacity_bytes! {
             shallow [self.parent, self.next_sibling, self.previous_sibling, self.pending_reuse, self.free_indexes];
             cached [];
-            nested [self.live.capacity_bytes()];
+            nested [self.live.capacity_bytes(), self.is_ascii_whitespace.capacity_bytes()];
             skip [];
         }
     }
