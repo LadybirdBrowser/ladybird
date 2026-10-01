@@ -40,6 +40,7 @@ mod rendered_text;
 mod replaced_with_children_formatting_context;
 pub(crate) mod run_records;
 pub(crate) mod sizing_context;
+pub(crate) mod style_snapshot;
 pub(crate) mod style_values;
 pub mod svg_formatting_context;
 pub mod table_formatting_context;
