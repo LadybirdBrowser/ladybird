@@ -538,6 +538,28 @@ impl RetainedState {
             .is_some_and(crate::css::computed_value_views::ComputedValuesView::counter_reset_has_reversed_counter)
     }
 
+    /// Whether `node` or one of its inclusive ancestors computed `display: none` in its record, as
+    /// the record stood before any animation was layered on it: the host's
+    /// `has_inclusive_ancestor_with_display_none_ignoring_animations()`. A node that holds no
+    /// record, a shadow root or one style has not reached yet, is passed over, as the host passes
+    /// over a node that is not an element.
+    #[must_use]
+    pub(crate) fn has_inclusive_ancestor_with_display_none_ignoring_animations(&self, node: StyleNodeID) -> bool {
+        std::iter::successors(Some(node), |&current| self.tree.parent_or_shadow_host(current)).any(|ancestor| {
+            self.computed_group_sets
+                .assigned_style_record(ancestor)
+                .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
+                .is_some_and(|view| {
+                    !view.base_payloads.is_empty()
+                        && crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(
+                            view.base_payloads,
+                        ))
+                        .display()
+                        .is_none()
+                })
+        })
+    }
+
     /// Whether the element is a `<slot>`, whose children the flat tree takes elsewhere.
     #[must_use]
     pub fn element_is_slot(&self, node: StyleNodeID) -> bool {

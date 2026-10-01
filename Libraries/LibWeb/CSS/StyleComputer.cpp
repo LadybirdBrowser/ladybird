@@ -1359,7 +1359,7 @@ void StyleComputer::invalidate_animated_custom_property_readers(DOM::AbstractEle
     }
 }
 
-void StyleComputer::apply_animation_definitions(ComputedStyleWorkingSet const& computed_properties, DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions, ReadonlySpan<i32> definition_matches, ReadonlySpan<RefPtr<Animations::KeyframeEffect::KeyFrameSet const>> definition_keyframe_sets) const
+void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions, ReadonlySpan<i32> definition_matches, ReadonlySpan<RefPtr<Animations::KeyframeEffect::KeyFrameSet const>> definition_keyframe_sets, bool in_display_none_subtree) const
 {
     auto& document = abstract_element.document();
 
@@ -1377,23 +1377,8 @@ void StyleComputer::apply_animation_definitions(ComputedStyleWorkingSet const& c
     // NB: We must not start animations on elements that are not rendered due to display:none. Once display becomes
     //     something other than none, the resulting style recomputation re-enters this function and starts them.
     //     Termination of running animations when display becomes none is handled by
-    //     Element::play_or_cancel_animations_after_display_property_change().
-    // OPTIMIZATION: This involves an ancestor walk, so it's computed lazily since it's only needed on the path that
-    //               starts a brand new animation, not for the common case of an element without animations.
-    Optional<bool> in_display_none_subtree;
-    auto is_in_display_none_subtree = [&] {
-        if (!in_display_none_subtree.has_value()) {
-            bool result = computed_properties.display().is_none();
-            if (!result) {
-                if (abstract_element.pseudo_element().has_value())
-                    result = abstract_element.element().has_inclusive_ancestor_with_display_none_ignoring_animations();
-                else if (auto* parent = abstract_element.element().parent_or_shadow_host())
-                    result = parent->has_inclusive_ancestor_with_display_none_ignoring_animations();
-            }
-            in_display_none_subtree = result;
-        }
-        return in_display_none_subtree.value();
-    };
+    //     Element::play_or_cancel_animations_after_display_property_change(). The style computation answers
+    //     whether the element is in such a subtree from the records the style engine holds.
 
     // NB: Which existing animation each definition claims is decided by the style computation, from the names of
     //     the animations this element holds, which it publishes. See match_existing_animations(). So are the
@@ -1427,7 +1412,7 @@ void StyleComputer::apply_animation_definitions(ComputedStyleWorkingSet const& c
             continue;
         }
 
-        if (is_in_display_none_subtree())
+        if (in_display_none_subtree)
             continue;
 
         // An animation applies to an element if its name appears as one of the identifiers in the computed value of the
@@ -5926,9 +5911,9 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 style_computer.m_root_element_font_metrics_depend_on_viewport_metrics = computed_style.font_metrics_depend_on_viewport_metrics();
             }
             style_computer.clear_computation_context_caches(); },
-        .apply_animation_definitions = [](void* context_pointer) {
+        .apply_animation_definitions = [](void* context_pointer, bool in_display_none_subtree) {
             auto& context = *static_cast<NativeComputePropertiesContext*>(context_pointer);
-            context.style_computer->apply_animation_definitions(*context.state->working_set, context.abstract_element, context.state->animation_definitions.span(), context.state->animation_definition_matches.span(), context.state->animation_definition_keyframe_sets.span()); },
+            context.style_computer->apply_animation_definitions(context.abstract_element, context.state->animation_definitions.span(), context.state->animation_definition_matches.span(), context.state->animation_definition_keyframe_sets.span(), in_display_none_subtree); },
         .prepare_animations = [](void* context_pointer) -> bool {
             auto& context = *static_cast<NativeComputePropertiesContext*>(context_pointer);
             context.style_computer->m_keyframes_inherited_non_inherited_style_groups = 0;

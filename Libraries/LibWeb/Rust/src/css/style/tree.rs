@@ -1286,6 +1286,13 @@ impl StyleNodeTree {
         self.shadow.as_ref()?.host.get(shadow_root)
     }
 
+    /// The node's parent in the tree it is in, or a shadow root's host: the host's
+    /// `parent_or_shadow_host()`, so a slotted element continues through its light-tree parent.
+    #[must_use]
+    pub fn parent_or_shadow_host(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        self.parent(node).or_else(|| self.host_of(node))
+    }
+
     /// Assign `node` to `slot`. Passing `None` removes the assignment.
     ///
     /// Slot assignment changes flat-tree identity even when the DOM parent does not move, which is

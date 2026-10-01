@@ -2862,7 +2862,9 @@ pub struct FfiComputePropertiesInput {
         *mut FfiLonghandDriveInput,
     ),
     pub finish_longhand_drive: unsafe extern "C" fn(*mut c_void, *const FfiLonghandDriveResult),
-    pub apply_animation_definitions: unsafe extern "C" fn(*mut c_void),
+    /// Reconciles the element's CSS animations against the plan the computation decided. The second
+    /// argument says whether the element is in a `display: none` subtree, where no animation starts.
+    pub apply_animation_definitions: unsafe extern "C" fn(*mut c_void, bool),
     pub prepare_animations: unsafe extern "C" fn(*mut c_void) -> bool,
     pub apply_animations:
         unsafe extern "C" fn(*mut c_void, bool, *mut FfiInputLineHeightMetrics) -> *mut AnimatedOverlay,
@@ -5182,6 +5184,46 @@ fn animation_slot(pseudo_kind: u8) -> crate::css::style::animations::AnimationSl
     }
 }
 
+/// Whether the element whose animation plan is about to be applied is in a `display: none` subtree,
+/// where no animation starts. Only asked where a definition claims no existing animation, the one
+/// case that starts one.
+///
+/// <https://drafts.csswg.org/css-animations-1/#animations>
+fn in_display_none_subtree_for_animations(
+    input: &FfiComputePropertiesInput,
+    drive_input: &FfiLonghandDriveInput,
+    animations: &FfiComputedAnimationList,
+    style_engine: &crate::css::style::StyleEngine,
+) -> bool {
+    let definitions = match animations.count {
+        0 => &[][..],
+        count => unsafe { std::slice::from_raw_parts(animations.animations, count) },
+    };
+    if !definitions
+        .iter()
+        .any(|definition| definition.matched_existing_index == crate::css::style::animations::NO_MATCHED_ANIMATION)
+    {
+        return false;
+    }
+    if effective_display(unsafe { &*drive_input.longhand_table }, unsafe {
+        drive_input.animated_overlay.as_ref()
+    })
+    .is_none()
+    {
+        return true;
+    }
+    let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(input.style_node) else {
+        return false;
+    };
+    // The element's own display is answered above, so an element's walk starts at its parent; a
+    // pseudo-element's starts at its originating element.
+    let start = match input.pseudo_kind == crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
+        true => style_engine.tree().parent_or_shadow_host(node),
+        false => Some(node),
+    };
+    start.is_some_and(|start| style_engine.has_inclusive_ancestor_with_display_none_ignoring_animations(start))
+}
+
 // https://drafts.csswg.org/css-values-4/#linked-properties
 // https://drafts.csswg.org/css-animations-1/#animations
 fn build_computed_animation_list(
@@ -5460,6 +5502,8 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
     }
     // An element with no definitions and no animations to cancel has no plan to apply.
     let has_animation_plan = result.animations.count != 0 || !existing_animation_names.is_empty();
+    let in_display_none_subtree =
+        in_display_none_subtree_for_animations(input, &drive_input, &result.animations, style_engine);
     let mut animated_overlay = drive_input.animated_overlay;
     let mut animation_values_applied = unsafe { animated_overlay.as_ref() }.is_some_and(|overlay| !overlay.is_empty());
     unsafe { (input.finish_longhand_drive)(input.callback_context, &raw const result) };
@@ -5472,7 +5516,7 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
     }
 
     if has_animation_plan {
-        unsafe { (input.apply_animation_definitions)(input.callback_context) };
+        unsafe { (input.apply_animation_definitions)(input.callback_context, in_display_none_subtree) };
     }
     let has_animations = unsafe { (input.prepare_animations)(input.callback_context) };
     if animation_values_applied || has_animations {
