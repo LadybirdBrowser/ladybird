@@ -15,6 +15,7 @@ use super::tree_builder::FfiLayoutTreeBuildOutcome;
 use super::update_layout::{FfiLayoutTreeBuildStats, FfiLayoutUpdateHostCallbacks};
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
+use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::{
@@ -1979,6 +1980,13 @@ impl LayoutNodeArena {
     pub(crate) fn has_published_first_letter_style(&self, style_node: Option<StyleNodeID>) -> bool {
         style_node.is_some_and(|style_node| {
             self.with_style_store(|engine| engine.has_published_first_letter_style(style_node))
+        })
+    }
+
+    /// Which principal box the element asks for, as the style mirror publishes it.
+    pub(crate) fn element_box_kind(&self, style_node: Option<StyleNodeID>) -> ElementBoxKind {
+        style_node.map_or(ElementBoxKind::FromDisplay, |style_node| {
+            self.with_style_store(|engine| engine.element_box_kind(style_node))
         })
     }
 

@@ -678,7 +678,8 @@ pub struct FfiElementArrival {
     /// One plus the element-backed pseudo-element kind the element stands for in its host's
     /// shadow tree, or zero.
     pub associated_pseudo_kind_plus_one: u8,
-    pub reserved: u8,
+    /// The `ElementBoxKind` the element asks for, as its raw byte.
+    pub box_kind: u8,
     /// The element's `ElementStyleAdjustmentFact` bits: what the box-type transformation and the
     /// element style adjustments read of the DOM. Mirrors the C++ enum.
     pub adjustment_facts: u32,
@@ -783,6 +784,76 @@ pub mod element_construction_fact {
     pub const IS_EDITING_HOST: u32 = 1 << 4;
     pub const IS_BODY: u32 = 1 << 5;
     pub const IS_DOCUMENT_ELEMENT: u32 = 1 << 6;
+}
+
+/// Which principal box an element asks for before its computed style has a say. The element's own
+/// type and state decide this; the tree build resolves it against the computed `display` and
+/// `appearance`. Mirrors the C++ `CSS::ElementBoxKind`; it crosses the boundary as its raw byte.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[repr(u8)]
+pub enum ElementBoxKind {
+    /// The computed display decides the box on its own.
+    #[default]
+    FromDisplay = 0,
+    /// The element generates no box, whatever its display says.
+    NoBox = 1,
+    Break = 2,
+    FieldSet = 3,
+    Legend = 4,
+    Audio = 5,
+    Video = 6,
+    Canvas = 7,
+    NavigableContainerViewport = 8,
+    TextArea = 9,
+    Image = 10,
+    SvgGraphics = 11,
+    SvgSvg = 12,
+    SvgText = 13,
+    SvgTextPath = 14,
+    SvgForeignObject = 15,
+    SvgImage = 16,
+    SvgGeometry = 17,
+    // An input's native widget. `appearance: none` suppresses it, and then the computed display
+    // decides the box like it does for any other element.
+    InputButton = 18,
+    InputCheckBox = 19,
+    InputRadioButton = 20,
+    InputRange = 21,
+    InputText = 22,
+}
+
+impl ElementBoxKind {
+    /// The kind C++ sends as `raw`. The two enums list the same kinds in the same order, which
+    /// `ElementBoxKind.h` asserts for the last one.
+    #[must_use]
+    pub(crate) fn from_raw(raw: u8) -> Self {
+        match raw {
+            0 => Self::FromDisplay,
+            1 => Self::NoBox,
+            2 => Self::Break,
+            3 => Self::FieldSet,
+            4 => Self::Legend,
+            5 => Self::Audio,
+            6 => Self::Video,
+            7 => Self::Canvas,
+            8 => Self::NavigableContainerViewport,
+            9 => Self::TextArea,
+            10 => Self::Image,
+            11 => Self::SvgGraphics,
+            12 => Self::SvgSvg,
+            13 => Self::SvgText,
+            14 => Self::SvgTextPath,
+            15 => Self::SvgForeignObject,
+            16 => Self::SvgImage,
+            17 => Self::SvgGeometry,
+            18 => Self::InputButton,
+            19 => Self::InputCheckBox,
+            20 => Self::InputRadioButton,
+            21 => Self::InputRange,
+            22 => Self::InputText,
+            _ => unreachable!("C++ sent an unknown element box kind {raw}"),
+        }
+    }
 }
 
 /// Which local fact a feature delta describes.
@@ -4799,7 +4870,7 @@ mod tests {
                 heading_level: 4,
                 is_slot: true,
                 associated_pseudo_kind_plus_one: 0,
-                reserved: 0,
+                box_kind: 0,
             },
             FfiElementArrival {
                 node: nodes[1],
@@ -4813,7 +4884,7 @@ mod tests {
                 heading_level: 0,
                 is_slot: false,
                 associated_pseudo_kind_plus_one: 0,
-                reserved: 0,
+                box_kind: 0,
             },
         ];
         engine.apply_transaction_batch(&tree, (&arrivals, &[31, 32, 33]), &[], &[], &[], &[]);
@@ -4845,7 +4916,7 @@ mod tests {
             heading_level: 0,
             is_slot: false,
             associated_pseudo_kind_plus_one: 0,
-            reserved: 0,
+            box_kind: 0,
         }
     }
 

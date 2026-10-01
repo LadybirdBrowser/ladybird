@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/Invalidation/EmbeddedContentInvalidator.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -524,6 +525,8 @@ void HTMLObjectElement::load_image()
     m_document_load_event_delayer_for_resource_load.empend(document());
 
     m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *url);
+    // An image representation has a box only once the new request has image data.
+    CSS::record_element_box_kind(*this);
     m_resource_request->add_callbacks(
         [this] {
             run_object_representation_completed_steps(Representation::Image);
@@ -551,6 +554,8 @@ void HTMLObjectElement::update_layout_and_child_objects(Representation represent
     }
 
     m_representation = representation;
+    // The representation decides which box the element asks for.
+    CSS::record_element_box_kind(*this);
 
     if (auto parent_element = this->parent_element())
         parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLObjectElementUpdateLayoutAndChildObjects);

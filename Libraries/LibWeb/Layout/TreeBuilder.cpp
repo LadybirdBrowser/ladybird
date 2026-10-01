@@ -668,7 +668,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto style_record_identity = element.style_record_identity();
             VERIFY(style_record_identity);
             static_cast<LayoutTreeBuildBridge*>(builder_pointer)->pin_style_record_for_build(style_record_identity); },
-        .create_principal_element_layout = [](void* builder_pointer, u32 style_node, RustFFI::FfiElementLayoutKind kind) -> Compositing::RustFFI::NodeSlotId {
+        .create_principal_element_layout = [](void* builder_pointer, u32 style_node, RustFFI::FfiElementLayoutKind kind, u8 box_kind) -> Compositing::RustFFI::NodeSlotId {
             auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, style_node));
             auto style_record_identity = element.style_record_identity();
             VERIFY(style_record_identity);
@@ -694,7 +694,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGPatternBox);
                 break;
             case RustFFI::FfiElementLayoutKind::Normal:
-                layout_node = create_principal_element_box(element, style, element.box_kind());
+                layout_node = create_principal_element_box(element, style, static_cast<CSS::ElementBoxKind>(box_kind));
                 break;
             }
             return Node::slot_id(layout_node); },
