@@ -8,17 +8,15 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
-#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::Layout {
 
 NodeArena::NodeArena()
-    : m_handle(RustFFI::layout_arena_create([](void* shell) {
-        return as<TextNode>(*static_cast<Node*>(shell)).text_source();
-    }))
+    : m_handle(RustFFI::layout_arena_create())
 {
     VERIFY(m_handle);
     Painting::register_geometry_host(*this);

@@ -10,7 +10,7 @@ use super::formatting_context::FfiLayoutHostCallbacks;
 use super::formatting_context::LayoutMode;
 use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
-use super::rendered_text::{FfiTextSource, FfiTextSourceRange, RenderedTextBoundary, TextContent, TextFragments};
+use super::rendered_text::{FfiTextSourceRange, RenderedTextBoundary, TextContent, TextFragments};
 use super::tree_builder::FfiLayoutTreeBuildOutcome;
 use super::update_layout::{FfiLayoutTreeBuildStats, FfiLayoutUpdateHostCallbacks};
 use super::used_values::SizeConstraint;
@@ -18,7 +18,7 @@ use super::used_values::UsedValues;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::{
-    PublishedBoxFacts, StyleEngine, TextStyleParentFacts,
+    PublishedBoxFacts, PublishedTextSource, StyleEngine, TextStyleParentFacts,
     layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle},
 };
 use crate::layout::ComputedValuesView;
@@ -631,7 +631,6 @@ pub(crate) struct LayoutNodeArena {
     default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
     any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
     text_nodes: Vec<TextNodeSlot>,
-    pub(super) text_source_callback: Option<unsafe extern "C" fn(*mut c_void) -> FfiTextSource>,
     pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
@@ -739,7 +738,6 @@ impl LayoutNodeArena {
             default_scroll_shift_anchors: RefCell::new(Vec::new()),
             any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
             text_nodes: Vec::new(),
-            text_source_callback: None,
             searchable_text: None,
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: HashMap::default(),
@@ -3548,6 +3546,46 @@ impl LayoutNodeArena {
         self.text_node_state_mut(id).generated_text = Some(text);
     }
 
+    /// Everything a text row renders from. A generated text row carries its own characters; a row
+    /// bound to a DOM text node reads what the style mirror publishes for it.
+    pub(crate) fn published_text_source(&self, id: NodeSlotId, uses_locale: bool) -> PublishedTextSource {
+        if self.data(id).kind.get() == NodeKind::GeneratedTextNode {
+            return PublishedTextSource {
+                data: self
+                    .text_node_state(id)
+                    .and_then(|state| state.generated_text.clone())
+                    .unwrap_or_default(),
+                locale: uses_locale.then(|| self.generated_text_language_tag(id)).flatten(),
+                is_password_input: false,
+            };
+        }
+        let Some(style_node) = self
+            .node_style_node(id)
+            .filter(|style_node| style_node.text_index().is_some())
+        else {
+            return PublishedTextSource::default();
+        };
+        self.with_style_store(|engine| engine.published_text_source(style_node, uses_locale))
+    }
+
+    /// The language tag a generated text row's transform reads: the one the element the content
+    /// was generated for resolves to. The row is either the pseudo-element's own box or a child of
+    /// it; a generated row under any other box reads no tag.
+    fn generated_text_language_tag(&self, id: NodeSlotId) -> Option<Vec<u16>> {
+        let parent = self.data(id).parent.get();
+        let generator = if self.node_is_generated_for_pseudo_element(id) {
+            self.node_style_node(id)
+        } else if self.node_is_generated_for_pseudo_element(parent) {
+            self.node_style_node(parent)
+        } else {
+            None
+        }?;
+        self.with_style_store(|engine| {
+            let tag = engine.element_language_tag(generator);
+            (!tag.is_empty()).then(|| tag.to_vec())
+        })
+    }
+
     pub(crate) fn set_text_content(&mut self, id: NodeSlotId, content: TextContent) {
         let state = self.text_node_state_mut(id);
         if let Some(previous) = state.content.as_mut()
@@ -4239,10 +4277,8 @@ pub(crate) struct NodeAllocation {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_arena_create(text_source: unsafe extern "C" fn(*mut c_void) -> FfiTextSource) -> *mut c_void {
-    let mut arena = Box::new(LayoutNodeArena::new());
-    arena.text_source_callback = Some(text_source);
-    Box::into_raw(arena).cast()
+pub extern "C" fn layout_arena_create() -> *mut c_void {
+    Box::into_raw(Box::new(LayoutNodeArena::new())).cast()
 }
 
 #[unsafe(no_mangle)]
@@ -4970,8 +5006,7 @@ pub(crate) unsafe fn sync_enrolled_content_for_layout(arena: *mut c_void) {
     let host = unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_host();
     let enrolled_text_nodes = unsafe { &*arena.cast::<LayoutNodeArena>() }.pending_text_nodes_for_content_sync();
     for node in enrolled_text_nodes {
-        let shell = unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_if_live(node);
-        if shell.is_null() {
+        if !unsafe { &*arena.cast::<LayoutNodeArena>() }.slot_is_live(node) {
             continue;
         }
         let parent = unsafe { &*arena.cast::<LayoutNodeArena>() }.data(node).parent.get();
@@ -4979,7 +5014,7 @@ pub(crate) unsafe fn sync_enrolled_content_for_layout(arena: *mut c_void) {
         if parent.is_invalid() {
             continue;
         }
-        // SAFETY: The slot is live, and no arena borrow survives the source callback.
+        // SAFETY: The slot is live, and no arena borrow survives the loop's reads.
         unsafe { super::rendered_text::ensure_text_content(arena.cast(), node) };
     }
 

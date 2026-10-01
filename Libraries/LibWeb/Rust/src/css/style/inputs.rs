@@ -8,6 +8,17 @@ use smallvec::SmallVec;
 
 use super::*;
 
+/// What the style mirror publishes about a text node's characters. The characters are shared with
+/// the document rather than copied. The language tag is the one the text node's DOM parent element
+/// resolves to, and is read only where the transform uses one, since a tag the transform never
+/// consults must not reach the rendering key.
+#[derive(Default)]
+pub struct PublishedTextSource {
+    pub data: ak::Utf16String,
+    pub locale: Option<Vec<u16>>,
+    pub is_password_input: bool,
+}
+
 /// What the style mirror says about the element a text node's box takes its style from: the text's
 /// flat-tree parent, which is the slot it is assigned to or else its DOM parent. A text under a
 /// shadow root or the document has no element above it and answers with every field cleared.
@@ -625,6 +636,37 @@ impl RetainedState {
     #[must_use]
     pub fn text_is_ascii_whitespace(&self, node: StyleNodeID) -> bool {
         self.tree.text_is_ascii_whitespace(node)
+    }
+
+    /// Everything a text node's box renders from, taken in one borrow of the mirror.
+    #[must_use]
+    pub fn published_text_source(&self, node: StyleNodeID, uses_locale: bool) -> PublishedTextSource {
+        let Some(data) = self.tree.text_data(node) else {
+            return PublishedTextSource::default();
+        };
+        PublishedTextSource {
+            data: data.clone(),
+            locale: uses_locale
+                .then(|| self.text_language_tag(node))
+                .filter(|tag| !tag.is_empty())
+                .map(<[u16]>::to_vec),
+            is_password_input: self.tree.text_is_password_input(node),
+        }
+    }
+
+    /// The element's resolved language tag, empty where it has none.
+    #[must_use]
+    pub fn element_language_tag(&self, node: StyleNodeID) -> &[u16] {
+        self.facts.language_tag_of(node)
+    }
+
+    /// The language tag a text node's transform reads: the one its DOM parent element resolves to.
+    /// A text node under a shadow root or the document has no element above it and reads none.
+    fn text_language_tag(&self, node: StyleNodeID) -> &[u16] {
+        self.tree
+            .text_parent(node)
+            .filter(|&parent| self.tree.host_of(parent).is_none() && !self.tree.is_relation_only(parent))
+            .map_or(&[], |parent| self.facts.language_tag_of(parent))
     }
 
     /// Record the text node's whitespace-only state, as its data now spells it.
