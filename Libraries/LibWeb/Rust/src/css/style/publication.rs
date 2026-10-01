@@ -473,6 +473,12 @@ impl RetainedState {
         use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT};
 
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        // An element standing for its host's pseudo-element is cascaded from the host's rules.
+        if let Some(backed) = self.backed_host_pseudo_element(node) {
+            return self
+                .engine_backing_element_record(node, backed, cascade_winners_are_complete, scratch, counters)
+                .map(ElementAnswer::Delta);
+        }
         // A row left out of winner publication can still carry a retained selector answer.
         // Rebuild its winners before comparing them with the record's cascade state: otherwise
         // an empty delta can describe yesterday's answer after this flush flipped a rule. So does
@@ -499,10 +505,7 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailWinner);
             return Err(Unanswered::Refused);
         };
-        // An element's animations compose into its style in the C++ computation, an element
-        // standing for its host's pseudo-element takes the style C++ computes for that
-        // pseudo-element, and a hint mapped from another element's attributes moves without
-        // anything recorded on the element.
+        // An element's animations compose into its style in the C++ computation.
         let facts = self.computed_group_sets.adjustment_facts(node);
         // Moved root inputs reach every row below the root. The root's font the root-input probe
         // drove is left pending for the root's own row, which resumes it in full the same way.
@@ -511,11 +514,7 @@ impl RetainedState {
         } else {
             scratch.root_font_inputs_changed
         };
-        if facts
-            & (bridge::element_adjustment_fact::HAS_ANIMATIONS
-                | bridge::element_adjustment_fact::IS_SHADOW_HOST_PSEUDO_ELEMENT)
-            != 0
-        {
+        if facts & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0 {
             counters.bump(Counter::EngineComputedRecordBailWinnerElement);
             return Err(Unanswered::Refused);
         }
@@ -2435,6 +2434,16 @@ impl RetainedState {
         self.state_reads(node, state) & cascade::STATE_READS_ATTRIBUTES != 0
     }
 
+    /// The element whose attributes `attr()` reads for a node's record or one of its
+    /// pseudo-elements': an element standing for its shadow host's pseudo-element is computed as
+    /// that pseudo-element, so it reads the host's, as C++ does for all but its ::first-letter.
+    pub(super) fn substitution_attribute_element(&self, node: StyleNodeID, pseudo_kind: Option<u8>) -> StyleNodeID {
+        if pseudo_kind == Some(pseudo_kind::FIRST_LETTER) {
+            return node;
+        }
+        self.backed_host_pseudo_element(node).map_or(node, |(_, host)| host)
+    }
+
     /// The written values of a state's longhand winners that substitute: `var()`, `attr()` and
     /// the like, or a longhand pending its shorthand's substitution.
     fn state_substitution_values(
@@ -2529,6 +2538,7 @@ impl RetainedState {
         // What an `attr()` reads, gathered once for the first winner that reads it. A
         // pseudo-element's reads its originating element's.
         let mut attributes = None;
+        let attribute_element = self.substitution_attribute_element(node, pseudo_kind);
         for winner in self.winner_groups.winners_in_state(state) {
             // A revert whose continuation resumes at nothing leaves the property undeclared.
             let Some(winner) = self.winner_groups.resolved_winner(winner) else {
@@ -2595,7 +2605,7 @@ impl RetainedState {
                         attributes = Some(
                             custom_property_cascade::SubstitutionAttributes::of(
                                 &self.facts,
-                                node,
+                                attribute_element,
                                 self.html_element_namespace,
                             )
                             .or_refused()?,

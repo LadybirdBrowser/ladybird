@@ -912,6 +912,9 @@ pub struct RetainedState {
     /// Beside them, the matches in each answer that declare custom properties, read the same way:
     /// what the node's custom-property cascade runs over while its answer is not installed.
     batch_custom_property_matches: HashMap<StyleNodeID, Vec<BatchCustomPropertyMatch>>,
+    /// Beside them, each published host's matches for the element-backed pseudo-elements, which
+    /// the elements backing them cascade from while the host's answer is not installed.
+    batch_backing_pseudo_matches: HashMap<StyleNodeID, Vec<RuleMatch>>,
     engine_cold_record_cache: HashMap<publication::ColdRecordKey, publication::ColdRecord>,
     engine_cold_record_donors: HashMap<publication::ColdRecordDonorKey, Vec<publication::ColdRecordDonor>>,
     computed_group_set_memory: MemoryLease,

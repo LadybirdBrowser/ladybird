@@ -2857,6 +2857,14 @@ impl ComputedGroupSets {
         self.columns.associated_pseudo_kinds[index] = pseudo_kind_plus_one;
     }
 
+    /// The element-backed pseudo-element kind the element stands for.
+    pub(super) fn associated_pseudo_kind(&self, node: StyleNodeID) -> Option<u8> {
+        node.element_index()
+            .and_then(|index| self.columns.associated_pseudo_kinds.get(index as usize))
+            .copied()
+            .and_then(|kind| kind.checked_sub(1))
+    }
+
     /// The synthetic pseudo-elements the node's last published match answer has rules for.
     pub(super) fn node_pseudo_style_mask(&self, node: StyleNodeID) -> Option<u64> {
         let index = node.element_index()? as usize;

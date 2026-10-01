@@ -1,0 +1,6 @@
+::placeholder: rgb(0, 128, 0)
+::details-content: rgb(0, 128, 0)
+inside: rgb(0, 128, 0)
+::placeholder: rgb(255, 0, 0)
+::details-content: rgb(255, 0, 0)
+inside: rgb(255, 0, 0)

@@ -580,6 +580,255 @@ impl RetainedState {
         }
     }
 
+    /// Whether the node is an element standing for its shadow host's pseudo-element (the element
+    /// a `::placeholder` or a slider part is): its style is that pseudo-element's, cascaded from
+    /// the host's rules, and its own cascade decides nothing.
+    pub(crate) fn backs_host_pseudo_element(&self, node: StyleNodeID) -> bool {
+        self.backed_host_pseudo_element(node).is_some()
+    }
+
+    /// The pseudo-element kind an element stands for and the shadow host it stands for it on. The
+    /// host publishes the kind with the element's facts, and an element in no shadow tree stands
+    /// for nothing.
+    pub(super) fn backed_host_pseudo_element(&self, node: StyleNodeID) -> Option<(u8, StyleNodeID)> {
+        let kind = self.computed_group_sets.associated_pseudo_kind(node)?;
+        Some((kind, self.tree.shadow_host_of(node)?))
+    }
+
+    /// The host's matches for the pseudo-element an element stands for: those the transaction
+    /// publishes for the host, the ones it holds, or a fresh match of the host. The backing
+    /// element's own published answer proves the inventory its style is computed from, the host's
+    /// pseudo-element rules included; `None` when it does not.
+    fn backing_element_rule_matches(
+        &mut self,
+        host: StyleNodeID,
+        target: tree::PseudoElementTarget,
+        backing_answer_is_complete: bool,
+        counters: &mut Counters,
+    ) -> Option<Vec<RuleMatch>> {
+        if !backing_answer_is_complete {
+            return None;
+        }
+        let for_target = |matches: &[RuleMatch]| -> Vec<RuleMatch> {
+            matches
+                .iter()
+                .filter(|entry| entry.pseudo_element == Some(target))
+                .copied()
+                .collect()
+        };
+        if let Some(matches) = self.batch_backing_pseudo_matches.get(&host) {
+            return Some(for_target(matches));
+        }
+        let published = Self::published_answer_lookup(
+            &self.published_match_answers,
+            self.batch_matching_traversal.as_deref(),
+            host,
+        )
+        .and_then(|(published, answer)| match published.matches_for(answer) {
+            Some(matches) => Some(for_target(matches)),
+            None => self
+                .match_answers
+                .answer(answer.cascade_input?)?
+                .iter()
+                .filter(|entry| {
+                    self.programs.get(entry.program).entries()[entry.entry as usize].pseudo_element == Some(target)
+                })
+                .map(|entry| entry.materialize(host, &self.programs, 0))
+                .collect::<Option<Vec<_>>>(),
+        });
+        if published.is_some() {
+            return published;
+        }
+        match self.retained_match_answer(host) {
+            Lookup::Known(answer) => answer
+                .iter()
+                .filter(|entry| {
+                    self.programs.get(entry.program).entries()[entry.entry as usize].pseudo_element == Some(target)
+                })
+                .map(|entry| entry.materialize(host, &self.programs, 0))
+                .collect(),
+            _ => Some(for_target(&self.exact_match_answer(host, counters).ok()?)),
+        }
+    }
+
+    /// The matches for element-backed pseudo-elements in the answer a transaction publishes for a
+    /// node, read before that answer is installed. `None` when it has none.
+    pub(in crate::css::style) fn batch_backing_pseudo_matches_of(
+        &self,
+        node: StyleNodeID,
+        published: &PublishedMatchAnswers,
+        answer: &PublishedMatchAnswer,
+    ) -> Option<Vec<RuleMatch>> {
+        let is_backed = |pseudo: Option<tree::PseudoElementTarget>| {
+            pseudo.is_some_and(|pseudo| {
+                (u16::from(bridge::FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND)
+                    ..=u16::from(bridge::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND))
+                    .contains(&pseudo.kind.0)
+            })
+        };
+        let matches: Vec<RuleMatch> = match published.matches_for(answer) {
+            Some(matches) => matches
+                .iter()
+                .filter(|entry| is_backed(entry.pseudo_element))
+                .copied()
+                .collect(),
+            None => self
+                .match_answers
+                .answer(answer.cascade_input?)?
+                .iter()
+                .filter(|entry| {
+                    is_backed(self.programs.get(entry.program).entries()[entry.entry as usize].pseudo_element)
+                })
+                .map(|entry| entry.materialize(node, &self.programs, 0))
+                .collect::<Option<_>>()?,
+        };
+        (!matches.is_empty()).then_some(matches)
+    }
+
+    /// The record of an element standing for its shadow host's pseudo-element, the way C++
+    /// computes one: the host's rules for that pseudo-element, held to the properties the
+    /// pseudo-element supports, cascaded with the element's own declarations, the rules' custom
+    /// declarations resolved over the environment of the parent the record inherits from, with the
+    /// element's own box adjustments.
+    pub(super) fn engine_backing_element_record(
+        &mut self,
+        node: StyleNodeID,
+        (kind, host): (u8, StyleNodeID),
+        backing_answer_is_complete: bool,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> Drive<RecordDelta> {
+        use bridge::element_adjustment_fact as fact;
+        let facts = self.computed_group_sets.adjustment_facts(node);
+        if facts & fact::HAS_ANIMATIONS != 0 {
+            counters.bump(Counter::EngineComputedRecordBailWinnerElement);
+            return Err(Unanswered::Refused);
+        }
+        // A record it already holds is replaced by a full drive; one composing animations or
+        // running transitions starts them from itself, which C++ does.
+        let old_record = self.computed_group_sets.assigned_style_record(node);
+        if old_record.is_some_and(|old| self.record_requires_cpp_animation(old)) {
+            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            return Err(Unanswered::Refused);
+        }
+        let target = tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(kind)));
+        // The host's rules for the pseudo-element, cascaded as the element's own with its own
+        // declarations, as C++ cascades them for it.
+        let Some(mut matches) = self.backing_element_rule_matches(host, target, backing_answer_is_complete, counters)
+        else {
+            counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+            return Err(Unanswered::Refused);
+        };
+        // The pseudo-element's custom declarations cascade from these matches too: a shadow host
+        // retains no answer to read them from.
+        let Some(custom_declarations) = self.cascade_custom_declarations(host, Some(kind), Some(&matches)) else {
+            counters.bump(Counter::EngineComputedRecordBailCustomProperties);
+            return Err(Unanswered::Refused);
+        };
+        for entry in &mut matches {
+            entry.node = node;
+            entry.pseudo_element = None;
+        }
+        let mut winners = self.resolved_cascade_winners_for_properties(node, &matches, None, None);
+        // A pseudo-element takes from its rules only the properties it supports; the element's
+        // own declarations are not held to that. An own declaration a dropped rule winner hid
+        // wins among the element's own declarations alone, since no rule declares it for this
+        // pseudo-element.
+        let (declared_properties, _) = self
+            .facts
+            .element_declared_properties(node, ElementDeclarationKind::InlineStyle);
+        let own_declared: Vec<u16> = declared_properties.iter().map(|declared| declared.property).collect();
+        let mut hidden_own_declarations = Vec::new();
+        winners.retain(|winner| {
+            let supported = !matches!(winner.source, WinnerSource::Rule(_))
+                || crate::css::property_metadata::pseudo_element_supports_property(kind, winner.property);
+            if !supported && own_declared.contains(&winner.property) {
+                hidden_own_declarations.push(winner.property);
+            }
+            supported
+        });
+        if !hidden_own_declarations.is_empty() {
+            hidden_own_declarations.sort_unstable();
+            hidden_own_declarations.dedup();
+            winners.extend(self.resolved_cascade_winners_for_properties(
+                node,
+                &[],
+                None,
+                Some(&hidden_own_declarations),
+            ));
+            winners.sort_unstable_by_key(|winner| winner.property);
+        }
+        let state = self.with_cascade_interning_counters(|groups| groups.intern_sorted(&winners, None), counters);
+        for property in self.winner_groups.semantic_delta_properties(None, state) {
+            if self.first_record_winner_needs_cpp(property) {
+                counters.bump(Counter::EngineComputedRecordBailProperty);
+                return Err(Unanswered::Refused);
+            }
+        }
+        let mut inputs = self.document_style_computation_inputs;
+        if let Some((root, root_inputs)) = scratch.root_element_inputs
+            && root == node
+        {
+            root_inputs.apply_to(&mut inputs);
+        }
+        let subject = self.element_drive_subject(node, scratch.installed_ancestors.as_ref(), counters)?;
+        let parent_record = subject
+            .parent
+            .and_then(|parent| self.computed_group_sets.assigned_style_record(parent));
+        let parent_environment = match subject.parent {
+            Some(parent) => self.held_custom_property_environment(parent, counters)?,
+            None => 0,
+        };
+        self.note_custom_declarations_reading_attributes(node, None, &custom_declarations);
+        let environment = self.engine_custom_property_environment_over(
+            host,
+            custom_declarations,
+            parent_environment,
+            &inputs,
+            counters,
+        )?;
+        let mut substituted = false;
+        let store = self.cascaded_store_for_state(node, state, None, environment, &mut substituted, counters)?;
+        let pseudo_styles = self.pseudo_style_mask_or_rematch(node, counters);
+        let FullDrive::Driven(DrivenTable {
+            table,
+            length,
+            font,
+            explicitly_inherited_groups,
+            ..
+        }) = self.engine_full_drive(
+            subject,
+            None,
+            &store,
+            &inputs,
+            &mut scratch.font_drive,
+            FontDriveGoal::Complete,
+            counters,
+        )?
+        else {
+            unreachable!("only the root-input probe answers with root inputs");
+        };
+        let font = font.expect("a full drive resolves the font");
+        let counter_style_registry =
+            self.table_counter_style_environment_identity(computed::ComputedStyleTarget::new(node, u8::MAX), &table);
+        let (record, _) = self.assemble_and_publish_engine_record(
+            computed::ComputedStyleTarget::new(node, u8::MAX),
+            parent_record,
+            table,
+            &length,
+            &font,
+            environment,
+            pseudo_styles,
+            counter_style_registry,
+            None,
+            &mut scratch.computability,
+            counters,
+        )?;
+        scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
+        scratch.noted_substitution = Some(substituted);
+        Ok((old_record.unwrap_or(computed::FinalStyleRecordID::NONE), record))
+    }
+
     /// Whether the node holds a match answer its pseudo-elements' winners are proven from: the
     /// one this transaction published, or the retained one.
     fn holds_pseudo_match_answer(&self, node: StyleNodeID) -> bool {
