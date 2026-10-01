@@ -45,7 +45,6 @@ void Request::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_body);
     visitor.visit(m_reserved_client);
-    visitor.visit(m_traversable_for_user_prompts);
     visitor.visit(m_pending_responses);
     visitor.visit(m_webdriver_bidi_network_request);
 }

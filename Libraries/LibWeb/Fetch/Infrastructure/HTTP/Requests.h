@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsObjectAddress.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 
 namespace Web::WebDriver::BiDi {
@@ -171,7 +172,7 @@ public:
     using PolicyContainerType = Variant<PolicyContainer, NonnullRefPtr<HTML::PolicyContainer const>>;
     using ReferrerType = RequestReferrerType;
     using ReservedClientType = GC::Ptr<HTML::Environment>;
-    using TraversableForUserPromptsType = Variant<TraversableForUserPrompts, GC::Ptr<HTML::EnvironmentSettingsObject>, GC::Ptr<HTML::Navigable>>;
+    using TraversableForUserPromptsType = Variant<TraversableForUserPrompts, HTML::CrossProcessId>;
 
     [[nodiscard]] static GC::Ref<Request> create();
     [[nodiscard]] static GC::Ref<Request> create(JS::VM&);
@@ -418,6 +419,7 @@ private:
     // https://fetch.spec.whatwg.org/#concept-request-window
     // A request has an associated traversable for user prompts, that is "no-traversable", "client", or a traversable
     // navigable. Unless stated otherwise it is "client".
+    // NB: A traversable navigable is held by its id.
     TraversableForUserPromptsType m_traversable_for_user_prompts { TraversableForUserPrompts::Client };
 
     // https://fetch.spec.whatwg.org/#request-keepalive-flag

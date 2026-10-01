@@ -487,7 +487,7 @@ void populate_request_from_client(Infrastructure::Request& request, GC::Ptr<HTML
             //    user prompts to global’s navigable’s traversable navigable.
             if (auto const* window = HTML::window_from_global_object(global)) {
                 if (window->navigable())
-                    request.set_traversable_for_user_prompts(GC::Ptr<HTML::Navigable> { window->navigable()->traversable_navigable() });
+                    request.set_traversable_for_user_prompts(window->navigable()->traversable_navigable()->id());
             }
         }
     }
@@ -2350,7 +2350,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         if (response->status() == 401
             && http_request->response_tainting() != Infrastructure::Request::ResponseTainting::CORS
             && include_credentials == HTTP::Cookie::IncludeCredentials::Yes
-            && request->traversable_for_user_prompts().has<GC::Ptr<HTML::Navigable>>()
+            && request->traversable_for_user_prompts().has<HTML::CrossProcessId>()
             && www_authenticate_has_credential_based_scheme()) {
             // NB: Every branch below drops this response, for a network error or a new fetch's response.
             stop_discarded_response_body(*fetch_params.controller(), *response);

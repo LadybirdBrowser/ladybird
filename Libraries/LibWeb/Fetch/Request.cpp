@@ -343,11 +343,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::create_with_settings(HTML::Enviro
 
     // 9. If request’s traversable for user prompts is an environment settings object and its origin is same origin with
     //    origin, then set traversableForUserPrompts to request’s traversable for user prompts.
-    if (input_request->traversable_for_user_prompts().has<GC::Ptr<HTML::EnvironmentSettingsObject>>()) {
-        auto eso = input_request->traversable_for_user_prompts().get<GC::Ptr<HTML::EnvironmentSettingsObject>>();
-        if (eso->origin().is_same_origin(origin))
-            traversable_for_user_prompts = input_request->traversable_for_user_prompts();
-    }
+    // NB: A request's traversable for user prompts is never an environment settings object.
 
     // 11. If init["window"] exists, then set traversableForUserPrompts to "no-traversable".
     if (init.window.has_value()) {
