@@ -6920,6 +6920,18 @@ pub(crate) mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn web_css_custom_property_data_reference(_data: *const c_void) {}
     #[unsafe(no_mangle)]
+    extern "C" fn web_css_font_face_snapshot_unreference(_snapshot: *const c_void) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_font_cascade_memo_unreference(_memo: *const c_void) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_resolve_font(
+        _memo: *mut c_void,
+        _snapshot: *const c_void,
+        _request: crate::css::style::bridge::FfiFontResolutionRequest,
+    ) -> crate::css::style::bridge::FfiResolvedFont {
+        crate::css::style::bridge::FfiResolvedFont::default()
+    }
+    #[unsafe(no_mangle)]
     extern "C" fn web_css_custom_property_data_unreference(_data: *const c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}

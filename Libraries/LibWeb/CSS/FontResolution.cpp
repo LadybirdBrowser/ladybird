@@ -18,6 +18,8 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/StyleEngineRustFFI.h>
+#include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
 
@@ -505,6 +507,8 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_for_style_values(FontComp
 
 NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family)
 {
+    VERIFY(snapshot.generation() >= m_generation);
+    m_generation = snapshot.generation();
     return m_cascades.ensure(key, [&] {
         return resolve_font_cascade(snapshot, key, font_feature_values_for_family);
     });
@@ -515,4 +519,51 @@ void FontCascadeMemo::forget_matching(Function<bool(ComputedFontCacheKey const&,
     m_cascades.remove_all_matching([&](auto const& key, auto const& font_list) { return predicate(key, font_list); });
 }
 
+}
+
+// The style engine resolves a font through this, with nothing but the table and memo it was given and the request: the
+// request's family is an opaque handle the engine holds, which becomes a value again here.
+extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void* memo, void const* snapshot, Web::CSS::StyleEngineFFI::FfiFontResolutionRequest request)
+{
+    using namespace Web;
+    using namespace Web::CSS;
+    auto font_family = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
+        reinterpret_cast<StyleValueFFI::StyleValueData const*>(request.font_family)));
+    ComputedFontCacheKey key {
+        .font_families = computed_font_families_from_style_value(*font_family),
+        .font_optical_sizing = static_cast<FontOpticalSizing>(request.font_optical_sizing),
+        .font_size = CSSPixels::from_raw(request.font_size_raw),
+        .font_slope = request.font_slope,
+        .font_weight = request.font_weight,
+        .font_width = Percentage(request.font_width),
+        .font_variation_settings = {},
+        .font_feature_data = {},
+        .font_feature_values_scope = {},
+    };
+    // NB: The request carries no font-variant-alternates, so no @font-feature-values reach it.
+    FontFeatureValues const no_font_feature_values;
+    auto font_list = static_cast<FontCascadeMemo*>(memo)->resolve(*static_cast<FontFaceSnapshot const*>(snapshot), key, [&](auto const&) -> FontFeatureValues const& { return no_font_feature_values; });
+    // The metric probe must not load a face: the first available font answers without one.
+    auto const& first_available_font = font_list->first_available_font();
+    auto const metrics = first_available_font.pixel_metrics();
+    // The engine's resolver cache adopts this reference and releases it on eviction.
+    return {
+        // Handles, not pointers: the engine names these host objects and hands them back here.
+        .first_available_font = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(&first_available_font),
+        .font_cascade_list = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(&font_list.leak_ref()),
+        .ascent = metrics.ascent,
+        .descent = metrics.descent,
+        .x_height = metrics.x_height,
+        .zero_advance = metrics.advance_of_ascii_zero,
+    };
+}
+
+extern "C" void web_css_font_face_snapshot_unreference(void const* snapshot)
+{
+    static_cast<Web::CSS::FontFaceSnapshot const*>(snapshot)->unref();
+}
+
+extern "C" void web_css_font_cascade_memo_unreference(void const* memo)
+{
+    static_cast<Web::CSS::FontCascadeMemo const*>(memo)->unref();
 }

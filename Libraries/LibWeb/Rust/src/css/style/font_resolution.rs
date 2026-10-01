@@ -10,7 +10,20 @@ use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
 use libgfx_rust::font::FontCascadeListHandle;
 use std::ffi::c_void;
 
-pub type ResolveFontCallback = unsafe extern "C" fn(*mut c_void, FfiFontResolutionRequest) -> FfiResolvedFont;
+/// Resolves one request against the document's published `@font-face` table, through the memo of
+/// what has been resolved from it. It is handed nothing else, so it cannot reach the document.
+pub type ResolveFontCallback =
+    unsafe extern "C" fn(memo: *mut c_void, snapshot: *const c_void, FfiFontResolutionRequest) -> FfiResolvedFont;
+
+unsafe extern "C" {
+    fn web_css_resolve_font(
+        memo: *mut c_void,
+        snapshot: *const c_void,
+        request: FfiFontResolutionRequest,
+    ) -> FfiResolvedFont;
+    fn web_css_font_face_snapshot_unreference(snapshot: *const c_void);
+    fn web_css_font_cascade_memo_unreference(memo: *const c_void);
+}
 
 #[derive(PartialEq, Eq, Hash)]
 struct FontResolutionKey {
@@ -118,23 +131,85 @@ impl FontResolutionCache {
     }
 }
 
-/// The host's synchronous font resolver. This is host state: it holds a C++ context pointer and
-/// the callback into it, and only a round between evaluation passes may call it.
+/// One reference to a host object, handed back when this is dropped. The raw pointer keeps it
+/// neither `Send` nor `Sync`: the host counts its references without atomics, and the memo behind
+/// one changes on every resolution, so it stays on the thread that published it.
+struct HostReference {
+    object: *mut c_void,
+    unreference: unsafe extern "C" fn(*const c_void),
+}
+
+impl HostReference {
+    /// # Safety
+    /// `object` must be live, with one reference this takes over and `unreference` gives up.
+    unsafe fn adopt(object: *const c_void, unreference: unsafe extern "C" fn(*const c_void)) -> Self {
+        Self {
+            object: object.cast_mut(),
+            unreference,
+        }
+    }
+}
+
+impl Drop for HostReference {
+    fn drop(&mut self) {
+        // SAFETY: This owns one reference, taken in `adopt`.
+        unsafe { (self.unreference)(self.object) };
+    }
+}
+
+/// The document's `@font-face` table as published, and the memo of the cascades resolved from it:
+/// one reference to each host object.
+pub(super) struct PublishedFontFaces {
+    snapshot: HostReference,
+    memo: HostReference,
+}
+
+impl PublishedFontFaces {
+    /// # Safety
+    /// `snapshot` and `memo` must be a live `Web::CSS::FontFaceSnapshot` and `FontCascadeMemo`, one
+    /// reference to each of which this takes over.
+    pub(super) unsafe fn adopt(snapshot: *const c_void, memo: *const c_void) -> Self {
+        unsafe {
+            Self {
+                snapshot: HostReference::adopt(snapshot, web_css_font_face_snapshot_unreference),
+                memo: HostReference::adopt(memo, web_css_font_cascade_memo_unreference),
+            }
+        }
+    }
+}
+
+/// The host's synchronous font resolver and the table it resolves against. This is host state, and
+/// only a round between evaluation passes may call it.
 pub(super) struct FontResolverHost {
-    context: *mut c_void,
     resolve: ResolveFontCallback,
+    font_faces: PublishedFontFaces,
 }
 
 impl FontResolverHost {
-    pub fn new(context: *mut c_void, resolve: ResolveFontCallback) -> Self {
-        Self { context, resolve }
+    pub(super) fn new(font_faces: PublishedFontFaces) -> Self {
+        Self::with_callback(web_css_resolve_font, font_faces)
+    }
+
+    fn with_callback(resolve: ResolveFontCallback, font_faces: PublishedFontFaces) -> Self {
+        Self { resolve, font_faces }
+    }
+
+    /// The table the document published last, which every later resolution reads.
+    pub(super) fn publish(&mut self, font_faces: PublishedFontFaces) {
+        self.font_faces = font_faces;
     }
 
     /// Service a synchronous request between evaluation passes. Pending web faces remain in
     /// the returned cascade and retain the host's rendering-triggered loading behavior.
     pub fn refill(&self, cache: &mut FontResolutionCache, request: FontRequest) {
         cache.prepare(request.ffi.font_environment_generation);
-        let ffi = unsafe { (self.resolve)(self.context, request.ffi) };
+        let ffi = unsafe {
+            (self.resolve)(
+                self.font_faces.memo.object,
+                self.font_faces.snapshot.object,
+                request.ffi,
+            )
+        };
         cache.insert(request, ffi);
     }
 }
@@ -148,7 +223,11 @@ mod tests {
 
     static RESOLVES: AtomicUsize = AtomicUsize::new(0);
 
-    unsafe extern "C" fn resolve_font(_context: *mut c_void, _request: FfiFontResolutionRequest) -> FfiResolvedFont {
+    unsafe extern "C" fn resolve_font(
+        _memo: *mut c_void,
+        _snapshot: *const c_void,
+        _request: FfiFontResolutionRequest,
+    ) -> FfiResolvedFont {
         RESOLVES.fetch_add(1, Ordering::Relaxed);
         FfiResolvedFont {
             first_available_font: crate::css::style::bridge::FfiHostHandle::from_pointer(std::ptr::dangling()),
@@ -162,7 +241,9 @@ mod tests {
         RESOLVES.store(0, Ordering::Relaxed);
         let unrefs_before = font_cascade_list_unref_count();
         let family = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 1 });
-        let host = FontResolverHost::new(std::ptr::null_mut(), resolve_font);
+        let host = FontResolverHost::with_callback(resolve_font, unsafe {
+            PublishedFontFaces::adopt(std::ptr::dangling(), std::ptr::dangling())
+        });
         let mut resolver = FontResolutionCache::default();
         let mut request = FfiFontResolutionRequest {
             font_family: crate::css::style::bridge::FfiHostHandle::from_pointer(family.pointer().cast()),
@@ -201,7 +282,11 @@ mod tests {
 
     #[test]
     fn unavailable_resolution_is_a_completed_answer_until_the_environment_changes() {
-        unsafe extern "C" fn unavailable(_: *mut c_void, _: FfiFontResolutionRequest) -> FfiResolvedFont {
+        unsafe extern "C" fn unavailable(
+            _: *mut c_void,
+            _: *const c_void,
+            _: FfiFontResolutionRequest,
+        ) -> FfiResolvedFont {
             FfiResolvedFont::default()
         }
         let family = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 1 });
@@ -214,7 +299,9 @@ mod tests {
             font_optical_sizing: 0,
             font_environment_generation: 1,
         };
-        let host = FontResolverHost::new(std::ptr::null_mut(), unavailable);
+        let host = FontResolverHost::with_callback(unavailable, unsafe {
+            PublishedFontFaces::adopt(std::ptr::dangling(), std::ptr::dangling())
+        });
         let mut resolver = FontResolutionCache::default();
         resolver.prepare(1);
         let owned = FontRequest::new(request);
