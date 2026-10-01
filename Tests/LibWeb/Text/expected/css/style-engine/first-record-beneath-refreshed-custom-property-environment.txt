@@ -1,0 +1,4 @@
+declared: 2
+var(): 4
+inherit(): 5
+own: ''
