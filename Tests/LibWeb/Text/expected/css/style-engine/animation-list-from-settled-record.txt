@@ -1,0 +1,8 @@
+before: 100px
+C++ recomputations: 1
+after: 20px 0.25
+names: grow,fade
+durations: 1000000,1000000
+hidden animations: 0
+removed: 100px 0
+after reframing: 0.5
