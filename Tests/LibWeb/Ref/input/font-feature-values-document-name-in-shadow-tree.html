@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/font-feature-values-document-name-in-shadow-tree-ref.html">
+<style>
+    @font-face {
+        font-family: FeatureFont;
+        src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+    }
+
+    @font-feature-values FeatureFont {
+        @stylistic { fancy: 2; }
+    }
+</style>
+<div id="host"></div>
+<div id="nested-host"></div>
+<script>
+    const style = `
+        <style>
+            @font-face {
+                font-family: FeatureFont;
+                src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+            }
+            p {
+                font-family: FeatureFont;
+                font-size: 2em;
+                font-variant-alternates: stylistic(fancy);
+            }
+        </style>`;
+    host.attachShadow({ mode: "open" }).innerHTML = `${style}<p>Xnophijklmqrstuvwxyz</p>`;
+    const inner = document.createElement("div");
+    document.getElementById("nested-host").attachShadow({ mode: "open" }).appendChild(inner);
+    inner.attachShadow({ mode: "open" }).innerHTML = `${style}<p>Xnophijklmqrstuvwxyz</p>`;
+</script>

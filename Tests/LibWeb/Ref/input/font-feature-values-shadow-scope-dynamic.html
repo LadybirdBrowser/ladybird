@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/font-feature-values-shadow-scope-dynamic-ref.html">
+<style>
+    @font-face {
+        font-family: FeatureFont;
+        src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+    }
+
+    @font-feature-values FeatureFont {
+        @stylistic { fancy: 2; }
+    }
+
+    p {
+        font-family: FeatureFont;
+        font-size: 2em;
+        font-variant-alternates: stylistic(fancy);
+    }
+</style>
+<p>Xnophijklmqrstuvwxyz</p>
+<div id="appended"></div>
+<div id="adopted"></div>
+<div id="inserted"></div>
+<script>
+    const paragraph = `
+        <style>
+            p {
+                font-family: FeatureFont;
+                font-size: 2em;
+                font-variant-alternates: stylistic(fancy);
+            }
+        </style>
+        <p>Xnophijklmqrstuvwxyz</p>`;
+    const appended = document.getElementById("appended").attachShadow({ mode: "open" });
+    const adopted = document.getElementById("adopted").attachShadow({ mode: "open" });
+    const inserted = document.getElementById("inserted").attachShadow({ mode: "open" });
+    for (const root of [appended, adopted, inserted])
+        root.innerHTML = paragraph;
+    document.fonts.ready.then(() => {
+        // Every shadow tree has resolved its font against the document's names by now.
+        for (const root of [appended, adopted, inserted])
+            root.querySelector("p").getBoundingClientRect();
+
+        const style = document.createElement("style");
+        style.textContent = "@font-feature-values FeatureFont { @stylistic { fancy: 1; } }";
+        appended.append(style);
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("@font-feature-values FeatureFont { @stylistic { fancy: 1; } }");
+        adopted.adoptedStyleSheets = [sheet];
+
+        inserted.styleSheets[0].insertRule("@font-feature-values FeatureFont { @stylistic { fancy: 1; } }", 0);
+
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>

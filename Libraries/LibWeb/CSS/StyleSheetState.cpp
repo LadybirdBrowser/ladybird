@@ -126,6 +126,9 @@ void StyleSheetState::disconnect_font_faces_in_rule(RustRule const& rule)
         if (auto face = css_connected_font_face(rule.identity()))
             face->disconnect_from_css_rule();
     }
+    // NB: A rule is disconnected before it leaves this sheet, so the sheet still declares its feature values.
+    if (rule.type() == RustRule::Type::FontFeatureValues)
+        forget_font_feature_values();
     if (auto* children = Parser::ValueParserFFI::rust_rule_children(rule.handle()))
         disconnect_font_faces_in_rules(children);
 }
@@ -133,12 +136,26 @@ void StyleSheetState::disconnect_font_faces_in_rule(RustRule const& rule)
 void StyleSheetState::disconnect_font_faces_in_rules(Parser::ValueParserFFI::NativeRuleList const* rules)
 {
     Parser::ValueParserFFI::rust_rule_list_visit_font_rules(rules, this, [](void const* context, Parser::ValueParserFFI::NativeRuleView const* view) {
+        auto const& sheet = *static_cast<StyleSheetState const*>(context);
         RustRuleView rule { *view };
         if (rule.type() == RustRule::Type::FontFace) {
-            if (auto face = static_cast<StyleSheetState const*>(context)->css_connected_font_face(rule.identity()))
+            if (auto face = sheet.css_connected_font_face(rule.identity()))
                 face->disconnect_from_css_rule();
         }
+        if (rule.type() == RustRule::Type::FontFeatureValues) {
+            if (auto document = sheet.owning_document())
+                document->font_computer().forget_font_feature_values_declared_by(rule);
+        }
     });
+}
+
+// An @font-feature-values rule reaches the elements of every tree scope that owns its sheet, where an @font-face rule
+// only reaches the document's font source. So whoever owns the sheet, what was built from its feature values is
+// forgotten when the sheet comes, goes or changes.
+void StyleSheetState::forget_font_feature_values()
+{
+    if (auto document = owning_document())
+        document->font_computer().forget_font_feature_values_declared_in(*this);
 }
 
 void StyleSheetState::set_rules(RustRuleList rules)
@@ -433,6 +450,8 @@ void StyleSheetState::add_owning_document_or_shadow_root(DOM::Node& document_or_
 
     if (!disabled() && document_or_shadow_root.is_document() && !had_document_owner)
         document_or_shadow_root.document().font_computer().load_fonts_from_sheet(*this);
+    if (!disabled())
+        forget_font_feature_values();
 
     for (auto const& import_rule : m_import_rules) {
         if (import_rule->loaded_style_sheet())
@@ -457,6 +476,8 @@ void StyleSheetState::remove_owning_document_or_shadow_root(DOM::Node& document_
     // still style their tree, but match other browsers by not contributing shadow-scoped @font-face rules there.
     if (!disabled() && is_removing_last_document_owner)
         document_or_shadow_root.document().font_computer().unload_fonts_from_sheet(*this);
+    if (!disabled())
+        forget_font_feature_values();
 
     m_owning_documents_or_shadow_roots.remove(document_or_shadow_root);
 
@@ -496,6 +517,7 @@ void StyleSheetState::set_disabled(bool disabled)
     } else if (document && has_document_owner()) {
         document->font_computer().unload_fonts_from_sheet(*this);
     }
+    forget_font_feature_values();
 
     invalidate_owners();
 }
@@ -567,6 +589,7 @@ void StyleSheetState::reload_fonts_after_media_query_change()
 // and maintain this ordering.
 void StyleSheetState::synchronize_fonts_after_rule_change()
 {
+    forget_font_feature_values();
     if (!has_document_owner())
         return;
 

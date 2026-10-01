@@ -32,6 +32,7 @@ static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFF
         Percentage(request.font_width),
         static_cast<FontOpticalSizing>(request.font_optical_sizing),
         {},
+        {},
         {});
     // The metric probe must not load a face: the first available font answers without one.
     auto const& first_available_font = font_list->first_available_font();

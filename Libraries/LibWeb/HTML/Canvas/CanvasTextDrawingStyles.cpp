@@ -152,7 +152,8 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
         computed_font_width->as_percentage().percentage(),
         CSS::FontOpticalSizing::Auto,
         {},
-        font_feature_data);
+        font_feature_data,
+        {});
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing

@@ -479,6 +479,23 @@ GC::Ptr<DOM::Node> StyleComputer::node_for_style_node(StyleNodeID style_node_id)
     return m_text_style_nodes[index];
 }
 
+TreeScopeID StyleComputer::allocate_tree_scope(DOM::ShadowRoot& shadow_root)
+{
+    m_shadow_roots_by_tree_scope.append(shadow_root);
+    return TreeScopeID { static_cast<u32>(m_shadow_roots_by_tree_scope.size()) };
+}
+
+DOM::ShadowRoot* StyleComputer::shadow_root_for_tree_scope(TreeScopeID tree_scope) const
+{
+    if (tree_scope == TreeScopeID {} || tree_scope.value() > m_shadow_roots_by_tree_scope.size())
+        return nullptr;
+    auto shadow_root = m_shadow_roots_by_tree_scope[tree_scope.value() - 1].ptr();
+    // An adopted root gives its scope up, and the document it moved to numbers it again, perhaps with this number.
+    if (!shadow_root || &shadow_root->document() != &document() || shadow_root->style_engine_tree_scope() != tree_scope)
+        return nullptr;
+    return shadow_root.ptr();
+}
+
 void StyleComputer::prepare_elements_for_style_computation()
 {
     for (;;) {
