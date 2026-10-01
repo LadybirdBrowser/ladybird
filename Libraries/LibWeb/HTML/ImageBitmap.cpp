@@ -14,6 +14,10 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+#if defined(AK_OS_LINUX)
+#    include <fcntl.h>
+#endif
+
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ImageBitmap);
@@ -111,10 +115,35 @@ template<typename T>
     auto buffer = (*shared_buffers)[buffer_index];
 
     auto const pitch = Gfx::Bitmap::minimum_pitch(width, format);
+    auto const pixel_size = Gfx::Bitmap::size_in_bytes(pitch, height);
     Checked<u64> end = offset;
-    end += Gfx::Bitmap::size_in_bytes(pitch, height);
-    if (offset % alignof(u32) != 0 || end.has_overflow() || end.value() > buffer.size() || buffer.validate_backing_size().is_error())
+    end += pixel_size;
+    if (offset % alignof(u32) != 0 || end.has_overflow() || end.value() > buffer.size())
         return WebIDL::DataCloneError::create("Invalid ImageBitmap shared pixels"_utf16);
+
+    // NB: Validate resize protection before checking the backing size. A native sender can retain its descriptor
+    //     and truncate an unsealed buffer after the size check, faulting any process that accesses its pixels.
+#if defined(AK_OS_LINUX)
+    auto const seals = fcntl(buffer.fd(), F_GET_SEALS);
+    if (seals < 0 || (seals & (F_SEAL_SHRINK | F_SEAL_GROW)) != (F_SEAL_SHRINK | F_SEAL_GROW))
+        return WebIDL::DataCloneError::create("Unsealed ImageBitmap shared pixels"_utf16);
+    if (buffer.validate_backing_size().is_error())
+        return WebIDL::DataCloneError::create("Invalid ImageBitmap shared pixels"_utf16);
+#else
+    // NB: Without resize seals, snapshot just this bitmap through an operation that reports truncation instead of
+    //     faulting. Copying the entire shared buffer for every bitmap would make batch transfers quadratic.
+    auto snapshot = buffer.snapshot(static_cast<size_t>(offset), pixel_size);
+    if (snapshot.is_error())
+        return WebIDL::DataCloneError::create("Failed to snapshot ImageBitmap shared pixels"_utf16);
+    if (offset == 0 && buffer.size() == round_up_to_power_of_two(pixel_size, shared_pixels_alignment))
+        return TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_with_anonymous_buffer(format, alpha_type, snapshot.release_value(), { width, height }));
+
+    // NB: A batch must not retain a separate snapshot descriptor for every bitmap. Copy the independent pixels into
+    //     ordinary bitmap storage, releasing each temporary descriptor before receiving the next bitmap.
+    auto bitmap = TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create(format, alpha_type, { width, height }));
+    snapshot.value().bytes().copy_to({ bitmap->scanline_u8(0), pixel_size });
+    return bitmap;
+#endif
 
     // NB: A buffer that holds just this bitmap backs it directly. Passing the bitmap on, as to WebGL or the compositor,
     //     then shares the memory rather than copying it.
