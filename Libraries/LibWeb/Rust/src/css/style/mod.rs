@@ -834,6 +834,9 @@ pub struct RetainedState {
     /// The nodes whose engine-computed record substituted a custom property into a winner: what
     /// C++ notes as reading custom properties when it installs the record.
     nodes_with_substituted_records: HashSet<StyleNodeID>,
+    /// The nodes whose own custom declarations read their attributes through `attr()`, as the
+    /// resolution of their environment last found: what the host notes beside their records.
+    custom_declarations_reading_attributes: HashSet<StyleNodeID>,
     /// The custom-property environment each element holds, for the elements that hold one. This is
     /// the only copy: the element reads its environment from here.
     element_custom_property_data: HashMap<StyleNodeID, inputs::RetainedCustomPropertyData>,

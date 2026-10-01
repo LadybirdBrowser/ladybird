@@ -79,7 +79,9 @@ fn engine_resolution_context(
     store: *const c_void,
     inheritance_store: *const c_void,
     registry: *const c_void,
+    attributes: Option<&SubstitutionAttributes<'_>>,
 ) -> FfiCascadeResolutionContext {
+    let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
     FfiCascadeResolutionContext {
         parse_context: std::ptr::from_ref(parse_context).cast(),
         media_environment: std::ptr::null(),
@@ -92,9 +94,10 @@ fn engine_resolution_context(
             utf16: std::ptr::null(),
             length: 0,
         },
-        attributes: std::ptr::null(),
-        attribute_count: 0,
-        attribute_names_are_ascii_case_insensitive: false,
+        attributes: substitution_attributes.as_ptr(),
+        attribute_count: substitution_attributes.len(),
+        attribute_names_are_ascii_case_insensitive: attributes
+            .is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
         custom_functions: std::ptr::null(),
         custom_function_count: 0,
         custom_function_scope_identity: 0,
@@ -541,6 +544,7 @@ impl RetainedState {
         counters: &mut Counters,
     ) -> Drive<u64> {
         if !self.any_custom_property_is_declared() {
+            self.custom_declarations_reading_attributes.remove(&node);
             return Ok(parent_environment);
         }
         // A node the engine drives has the match answer its winners came from, and a published
@@ -552,6 +556,14 @@ impl RetainedState {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         };
+        // Whether the declarations read the node's attributes, whatever environment they resolve
+        // to: the host notes it beside the node's record.
+        let reads_attributes = cascaded.iter().any(|(_, value)| value_reads_attributes(value.data()));
+        if reads_attributes {
+            self.custom_declarations_reading_attributes.insert(node);
+        } else {
+            self.custom_declarations_reading_attributes.remove(&node);
+        }
         if cascaded.is_empty() {
             return Ok(parent_environment);
         }
@@ -567,12 +579,14 @@ impl RetainedState {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         }
+        // An `attr()` among the declarations reads the element's attributes, so what they resolve
+        // to is the element's alone and takes no memo.
         let key = Self::environment_inputs(
             parent_environment,
             inputs.custom_property_registration_generation,
             &cascaded,
         );
-        if let Some(identity) = self.custom_property_environments.memoized(&key) {
+        if !reads_attributes && let Some(identity) = self.custom_property_environments.memoized(&key) {
             counters.bump(Counter::EngineCustomPropertyEnvironmentMemoHits);
             return Ok(identity);
         }
@@ -586,7 +600,7 @@ impl RetainedState {
             let Some(name) = self.declared_custom_property_name(declared.name) else {
                 continue;
             };
-            if !custom_property_value_is_engine_resolvable(value.data()) {
+            if !substitutions_but_attr_are_engine_resolvable(value.data()) {
                 counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
                 return Err(Unanswered::Refused);
             }
@@ -602,11 +616,24 @@ impl RetainedState {
             ));
         }
         if values.is_empty() {
-            let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
-            self.custom_property_environments
-                .remember(key, parent_environment, written_values);
+            if !reads_attributes {
+                let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
+                self.custom_property_environments
+                    .remember(key, parent_environment, written_values);
+            }
             return Ok(parent_environment);
         }
+        // The attributes an `attr()` among the declarations reads.
+        let attributes = if reads_attributes {
+            let attributes = SubstitutionAttributes::of(&self.facts, node, self.html_element_namespace);
+            if attributes.is_none() {
+                counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+                return Err(Unanswered::Refused);
+            }
+            attributes
+        } else {
+            None
+        };
         // SAFETY: The parent store is live for as long as a record names its environment, and the
         // values are the program's interned values, live for the call.
         let cascaded_store = unsafe { CustomPropertyStore::cascaded_child(parent_store, values) };
@@ -617,6 +644,7 @@ impl RetainedState {
             cascaded_store,
             parent_store,
             std::ptr::from_ref(registry_ref).cast(),
+            attributes.as_ref(),
         );
         let mut finalizer = EngineFinalizer { parent_store };
         let drive = FfiCustomPropertyDriveInput {
@@ -649,10 +677,32 @@ impl RetainedState {
                     .adopt_engine_environment(resolved.rust_store, parent_environment)
             }
         };
-        let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
-        self.custom_property_environments
-            .remember(key, identity, written_values);
+        if !reads_attributes {
+            let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
+            self.custom_property_environments
+                .remember(key, identity, written_values);
+        }
         Ok(identity)
+    }
+
+    /// What a node's records read beyond their cascade, as `FfiNodeRecordReads` bits, for the row
+    /// that installs them: an `attr()` in the element's winners, in its pseudo-elements' (which
+    /// read the originating element's attributes), or in the custom properties it declares, as
+    /// their resolution found.
+    pub(super) fn node_record_reads(&self, node: StyleNodeID) -> u8 {
+        let groups = self.current_winner_groups();
+        let reads_attributes = matches!(
+            groups.token_for(WinnerGroupKey::current(node, self.program.version())),
+            Lookup::Known((_, state)) if self.state_reads_attributes(node, state)
+        ) || groups
+            .pseudo_states(node)
+            .any(|(_, _, state, _)| self.state_reads_attributes(node, state))
+            || self.custom_declarations_reading_attributes.contains(&node);
+        if reads_attributes {
+            bridge::FfiNodeRecordReads::Attributes as u8
+        } else {
+            0
+        }
     }
 
     /// What a written value with `var()` references substitutes to for a property under an
