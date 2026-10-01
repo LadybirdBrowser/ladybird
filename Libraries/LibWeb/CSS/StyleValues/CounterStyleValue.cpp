@@ -46,36 +46,4 @@ CounterStyleValue::CounterStyleValue(CounterFunction function, Utf16FlyString co
 
 CounterStyleValue::~CounterStyleValue() = default;
 
-Utf16String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
-{
-    // "If no counter named <counter-name> exists on an element where counter() or counters() is used,
-    // one is first instantiated with a starting value of 0."
-    // NB: counter_value_for_use() and counter_values_for_use() instantiate it.
-
-    // counter( <counter-name>, <counter-style>? )
-    // "Represents the value of the innermost counter in the element’s CSS counters set named <counter-name>
-    // using the counter style named <counter-style>."
-    if (function_type() == CounterFunction::Counter) {
-        auto value = counter_value_for_use(element_reference, counter_name());
-        auto const& style_scope = element_reference.style_scope();
-        return generate_a_counter_representation(counter_style()->as_counter_style().resolve_counter_style(style_scope), style_scope, value);
-    }
-
-    // counters( <counter-name>, <string>, <counter-style>? )
-    // "Represents the values of all the counters in the element’s CSS counters set named <counter-name>
-    // using the counter style named <counter-style>, sorted in outermost-first to innermost-last order
-    // and joined by the specified <string>."
-    // NOTE: The way counters sets are inherited, this should be the order they appear in the counters set.
-    auto values = counter_values_for_use(element_reference, counter_name());
-    Utf16StringBuilder stb;
-    for (auto value : values) {
-        auto const& style_scope = element_reference.style_scope();
-        auto counter_string = generate_a_counter_representation(counter_style()->as_counter_style().resolve_counter_style(style_scope), style_scope, value);
-        if (!stb.is_empty())
-            stb.append(join_string().view());
-        stb.append(counter_string);
-    }
-    return stb.to_string();
-}
-
 }

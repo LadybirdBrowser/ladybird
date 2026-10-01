@@ -185,17 +185,6 @@ struct NormalGap {
     bool operator==(NormalGap const&) const = default;
 };
 
-struct QuotesData {
-    enum class Type {
-        None,
-        Auto,
-        Specified,
-    } type;
-    Vector<Array<Utf16FlyString, 2>> strings {};
-
-    bool operator==(QuotesData const&) const = default;
-};
-
 struct Position {
     PositionEdge edge_x { PositionEdge::Left };
     LengthPercentage offset_x { Percentage(50) };
@@ -561,30 +550,6 @@ struct ShadowData {
     bool operator==(ShadowData const&) const = default;
 };
 
-struct ContentData {
-    enum class Type {
-        Normal,
-        None,
-        List,
-    } type { Type::Normal };
-
-    Vector<Variant<Utf16String, NonnullRefPtr<AbstractImageStyleValue>>> data;
-    Vector<ValueComparingRefPtr<CounterStyle const>> counter_style_dependencies;
-    Optional<Utf16String> alt_text {};
-
-    bool operator==(ContentData const&) const = default;
-};
-
-struct ContentDataAndQuoteNestingLevel {
-    ContentData content_data;
-    u32 final_quote_nesting_level { 0 };
-};
-
-enum class NotifyListItemCounterRendered : u8 {
-    No,
-    Yes,
-};
-
 struct CounterData {
     Utf16FlyString name;
     bool is_reversed;
@@ -937,7 +902,6 @@ public:
     NonnullRefPtr<StyleValue const> computed_content() const { return m_noninherited.content_data->computed_content_value(); }
     bool content_is_normal() const { return m_noninherited.content_data->content_is_normal(); }
     bool content_uses_list_item_counter() const { return m_noninherited.content_data->content_uses_list_item_counter(); }
-    ContentDataAndQuoteNestingLevel resolved_content(DOM::AbstractElement&, u32 initial_quote_nesting_level, NotifyListItemCounterRendered) const;
     Vector<CounterData, 0> counter_increment() const { return m_noninherited.content_data->counter_increment_value(); }
     Vector<CounterData, 0> counter_reset() const { return m_noninherited.content_data->counter_reset_value(); }
     Vector<CounterData, 0> counter_set() const { return m_noninherited.content_data->counter_set_value(); }
@@ -1174,7 +1138,6 @@ public:
         bool list_style_type_depends_on_counter_style_environment() const;
         bool list_style_type_uses_non_overridable_counter_style() const;
         RefPtr<AbstractImageStyleValue const> list_style_image_value() const;
-        QuotesData quotes_value() const;
 
         bool operator==(InheritedListValues const& other) const
         {
@@ -1711,10 +1674,6 @@ public:
             return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
         }
     };
-
-    // Resolves the content property straight from the two groups it reads, for a caller holding a
-    // style record's payloads rather than a whole style.
-    static ContentDataAndQuoteNestingLevel resolved_content(ContentValues const&, InheritedListValues const&, DOM::AbstractElement&, u32 initial_quote_nesting_level, NotifyListItemCounterRendered);
 
 private:
     struct NonInheritedValues {
