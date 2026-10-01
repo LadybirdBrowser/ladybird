@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { color: rgb(1, 2, 3); }
+    .attribute .item { color: attr(data-color type(<color>)); }
+</style>
+<div id="parent"><span class="item" id="first" data-color="green"></span><span class="item" id="second" data-color="purple"></span></div>
+<script>
+    // An attr() substitutes the element's own attributes: two elements alike in everything else
+    // take their own values, and an attribute change reaches the element the engine computes.
+    test(() => {
+        internals.updateStyle();
+        let before = internals.getStyleInvalidationCounters();
+        document.getElementById("parent").classList.add("attribute");
+        internals.updateStyle();
+        let after = internals.getStyleInvalidationCounters();
+        println(`engine computed the readers: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords >= 2}`);
+        println(`colors: ${getComputedStyle(first).color} ${getComputedStyle(second).color}`);
+        before = internals.getStyleInvalidationCounters();
+        first.dataset.color = "red";
+        internals.updateStyle();
+        after = internals.getStyleInvalidationCounters();
+        println(`attribute change stays in the engine: ${after.elementStyleRecomputations - before.elementStyleRecomputations === 0}`);
+        println(`colors: ${getComputedStyle(first).color} ${getComputedStyle(second).color}`);
+    });
+</script>
