@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { display: list-item; }
+    #target::before { content: "before"; color: rgb(0, 128, 0); }
+    #target::marker { color: rgb(255, 0, 0); }
+    #target.changed::before { content: "changed"; }
+</style>
+<ul><li id="target" style="width: 10cqw"></li></ul>
+<script>
+    test(() => {
+        // A container unit in the element's own style keeps its record with C++.
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        const start = internals.styleEngineCounters();
+        target.className = "changed";
+        internals.updateStyle();
+        const end = internals.styleEngineCounters();
+        const before = getComputedStyle(target, "::before");
+        println(`before: ${before.content} ${before.color}`);
+        println(`marker: ${getComputedStyle(target, "::marker").color}`);
+        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
+    });
+</script>
