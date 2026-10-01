@@ -354,10 +354,11 @@ struct FontComputer::MatchingFontCandidate {
             // necessary to render something on the page. When this happens, they must act as if they had called the
             // corresponding FontFace’s load() method described here.
             // NB: An unloaded face with no subsetting unicode-range starts loading once a style actually selects
-            //     it. Loading happens via FontFace::load(). The font_with_point_size() call below then observes the
-            //     fetch in flight — and so delays the document load event until the fetch has settled.
+            //     it. Loading happens via FontFace::load(), which mutates the face, its FontFaceSets and the
+            //     document, so this only leaves the face's number behind; request_wanted_web_faces() loads it
+            //     once the style update has finished, in the same task.
             if (face->has_urls() && !face->has_non_default_unicode_range() && face->status() == FontFaceLoadStatus::Unloaded)
-                face->load_for_style();
+                note_wanted_web_face(face->id());
             if (auto face_fonts = face->font_with_point_size(point_size, variations, shape_features)) {
                 font_list->extend(*face_fonts);
                 continue;
@@ -617,9 +618,13 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
         .font_feature_values_scope = font_feature_values_scope,
     };
 
-    return m_computed_font_cache.ensure(cache_key, [&]() {
+    auto font_list = m_computed_font_cache.ensure(cache_key, [&]() {
         return compute_font_for_style_values_impl(cache_key.font_families.span(), font_size, font_slope, font_weight, font_width, font_optical_sizing, font_variation_settings, font_feature_data, font_feature_values_scope);
     });
+    // A cascade this computed may have wanted a web face loaded. Inside a style update the loads wait for its end;
+    // everywhere else, such as canvas, they happen right here.
+    request_wanted_web_faces();
+    return font_list;
 }
 
 NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const
@@ -980,29 +985,32 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
         invalidated_font_lists_kept_alive_for_the_walk.append(font_list);
         return true;
     });
-    if (invalidated_font_lists.is_empty())
-        return;
-
-    document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
-        auto* element = as_if<DOM::Element>(node);
-        if (!element)
+    if (!invalidated_font_lists.is_empty()) {
+        document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
+            auto* element = as_if<DOM::Element>(node);
+            if (!element)
+                return TraversalDecision::Continue;
+            auto uses_invalidated_font_list = [&](Optional<CSS::PseudoElement> pseudo_element = {}) {
+                auto const* values = element->style_group<ComputedValues::FontValues>(pseudo_element);
+                return values && invalidated_font_lists.contains(&values->font_list_value());
+            };
+            bool should_recompute = uses_invalidated_font_list();
+            element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element, DOM::SyntheticPseudoElement const&) {
+                if (uses_invalidated_font_list(pseudo_element)) {
+                    should_recompute = true;
+                    return IterationDecision::Break;
+                }
+                return IterationDecision::Continue;
+            });
+            if (should_recompute)
+                record_font_input_change(*element);
             return TraversalDecision::Continue;
-        auto uses_invalidated_font_list = [&](Optional<CSS::PseudoElement> pseudo_element = {}) {
-            auto const* values = element->style_group<ComputedValues::FontValues>(pseudo_element);
-            return values && invalidated_font_lists.contains(&values->font_list_value());
-        };
-        bool should_recompute = uses_invalidated_font_list();
-        element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element, DOM::SyntheticPseudoElement const&) {
-            if (uses_invalidated_font_list(pseudo_element)) {
-                should_recompute = true;
-                return IterationDecision::Break;
-            }
-            return IterationDecision::Continue;
         });
-        if (should_recompute)
-            record_font_input_change(*element);
-        return TraversalDecision::Continue;
-    });
+    }
+
+    // The selections resolved again above can want a face loaded. Outside a style update it loads now, as it did
+    // when matching loaded a face itself.
+    request_wanted_web_faces();
 }
 
 void FontComputer::begin_font_face_change_batch()

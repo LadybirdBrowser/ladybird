@@ -6,6 +6,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/Promise.h>
 #include <LibGC/Heap.h>
@@ -394,14 +395,72 @@ ParsedFontFace FontFaceState::parsed_font_face() const
     };
 }
 
+static HashMap<u64, FontFaceState*>& font_faces_by_id()
+{
+    static NeverDestroyed<HashMap<u64, FontFaceState*>> font_faces;
+    return *font_faces;
+}
+
+static u64 s_next_font_face_id { 1 };
+
 FontFaceState::FontFaceState(GC::Ref<HTML::EnvironmentSettingsObject> environment, GC::Ptr<WebIDL::Promise> font_status_promise)
-    : m_environment(environment)
+    : m_id(s_next_font_face_id++)
+    , m_environment(environment)
     , m_status(FontFaceLoadStatus::Unloaded)
     , m_font_status_promise(font_status_promise)
 {
+    font_faces_by_id().set(m_id, this);
 }
 
-FontFaceState::~FontFaceState() = default;
+FontFaceState::~FontFaceState()
+{
+    font_faces_by_id().remove(m_id);
+}
+
+RefPtr<FontFaceState> FontFaceState::with_id(u64 id)
+{
+    return font_faces_by_id().get(id).value_or(nullptr);
+}
+
+static Vector<u64>& wanted_web_faces()
+{
+    static NeverDestroyed<Vector<u64>> wanted;
+    return *wanted;
+}
+
+static u32 s_deferred_web_face_load_depth { 0 };
+
+void note_wanted_web_face(u64 face_id)
+{
+    auto& wanted = wanted_web_faces();
+    if (!wanted.contains_slow(face_id))
+        wanted.append(face_id);
+}
+
+void request_wanted_web_faces()
+{
+    if (s_deferred_web_face_load_depth != 0)
+        return;
+    // NB: A face that loads at once invalidates the selections that wanted it, and selecting again can want more.
+    while (!wanted_web_faces().is_empty()) {
+        for (auto face_id : exchange(wanted_web_faces(), {})) {
+            if (auto face = FontFaceState::with_id(face_id))
+                face->load_for_style();
+        }
+    }
+}
+
+void begin_deferred_web_face_loads()
+{
+    ++s_deferred_web_face_load_depth;
+}
+
+void end_deferred_web_face_loads()
+{
+    VERIFY(s_deferred_web_face_load_depth > 0);
+    --s_deferred_web_face_load_depth;
+    request_wanted_web_faces();
+}
 
 bool FontFaceState::should_be_registered_with_font_computer() const
 {
@@ -1022,8 +1081,8 @@ void FontFaceState::load_for_style()
     }
 
     // AD-HOC: The remaining steps run on the current task rather than truly async. So the fetch is observably in flight
-    //         by the time load() returns. Style computation depends on that: When computing a style starts a font load,
-    //         the in-flight fetch must engage the document-load-event delayer within that same style update. Only the
+    //         by the time load() returns. Style computation depends on that: When computing a style wants a font
+    //         loaded, the in-flight fetch must engage the document-load-event delayer within the same task. Only the
     //         fetch kickoff happens sync; the load operation itself, and the completion steps below, remain async.
     // 4. Using the value of font face’s [[Urls]] slot, attempt to load a font as defined in [CSS-FONTS-3],
     //     as if it was the value of a @font-face rule’s src descriptor.
@@ -1039,6 +1098,12 @@ void FontFaceState::load_for_style()
         if (font.m_font_download_timer)
             font.m_font_download_timer->stop();
         font.m_parsed_font = maybe_typeface;
+        // NB: The typeface is usable from here on, one task before the font-loading task below announces it, so the
+        //     selections that met the face pending are stale now rather than then.
+        if (maybe_typeface && font.should_be_registered_with_font_computer()) {
+            if (auto font_computer = font.font_computer(); font_computer.has_value())
+                font_computer->did_load_font(font.matching_key());
+        }
         HTML::queue_global_task(HTML::Task::Source::FontLoading, font.task_global_object(), GC::create_function(GC::Heap::the(), [font_root, maybe_typeface] {
             font_root->elements().first()->did_load(maybe_typeface);
         }));

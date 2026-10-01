@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function addStyle(text) {
+        const style = document.createElement("style");
+        style.textContent = text;
+        document.head.append(style);
+    }
+
+    function addElement(id) {
+        const element = document.createElement("div");
+        element.id = id;
+        document.body.append(element);
+        return element;
+    }
+
+    asyncTest(async done => {
+        // A local() face loads as soon as a style selects it, and the layout of that same update uses it. The weight
+        // range keeps the face out of the exact-match shortcut, which leaves every face to load while rendering.
+        addStyle(`
+            @font-face { font-family: LocalAhem; src: local("Ahem"); font-weight: 100 900; }
+            #local { font: 20px LocalAhem; width: 1ch; }
+        `);
+        const local = addElement("local");
+        println(`local() face in the first layout: ${local.getBoundingClientRect().width === 20}`);
+
+        // A style read sees the face as well, without a layout in between.
+        addStyle(`
+            @font-face { font-family: ReadAhem; src: local("Ahem"); font-weight: 100 900; }
+            #read { font: 20px ReadAhem; letter-spacing: 1ch; }
+        `);
+        const read = addElement("read");
+        println(`local() face in the first style read: ${getComputedStyle(read).letterSpacing === "20px"}`);
+
+        // A face whose source another face has already loaded loads at once too.
+        addStyle(`@font-face { font-family: UrlAhem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }`);
+        await document.fonts.load("20px UrlAhem");
+        addStyle(`
+            @font-face { font-family: SharedAhem; src: url("../../../Ref/data/fonts/Ahem.ttf"); font-weight: 100 900; }
+            #shared { font: 20px SharedAhem; width: 1ch; }
+        `);
+        const shared = addElement("shared");
+        println(`face sharing a finished load in the first layout: ${shared.getBoundingClientRect().width === 20}`);
+        done();
+    });
+</script>

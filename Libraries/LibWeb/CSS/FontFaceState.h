@@ -102,6 +102,22 @@ public:
 
     RefPtr<Gfx::Typeface const> typeface() const { return m_parsed_font; }
 
+    // The number this face is known by in the process. A style update that must not mutate the face names it by this
+    // number and leaves the mutation for the drain below.
+    [[nodiscard]] u64 id() const { return m_id; }
+    [[nodiscard]] static RefPtr<FontFaceState> with_id(u64);
+
+    // The key the font computer files this face under, and matching selects it by.
+    [[nodiscard]] FontFaceKey matching_key() const
+    {
+        return {
+            .family_name = m_family,
+            .weight = m_cached_weight_range,
+            .slope = m_cached_slope,
+            .width = m_cached_width,
+        };
+    }
+
     FontWeightRange declared_weight_range() const { return m_cached_weight_range; }
     int declared_slope() const { return m_cached_slope; }
     int declared_width() const { return m_cached_width; }
@@ -151,6 +167,8 @@ private:
     [[nodiscard]] Optional<ComputationContext> computation_context() const;
 
     // FIXME: Should we be storing StyleValues instead?
+    u64 m_id { 0 };
+
     Utf16FlyString m_family;
     Utf16String m_style;
     Utf16String m_weight;
@@ -203,5 +221,17 @@ private:
 };
 
 bool font_format_is_supported(Utf16View name);
+
+// Record that a style update wanted a web face loaded. Loading a face changes its status, appends it to every
+// FontFaceSet it is in - under an execution context that runs author callbacks - and starts a fetch, none of which
+// may happen while a style update runs.
+void note_wanted_web_face(u64 face_id);
+
+// Load every face wanted since the last call, unless a style update is running: that one drains them at its end.
+void request_wanted_web_faces();
+
+// A style update defers every load its cascades want to its own end.
+void begin_deferred_web_face_loads();
+void end_deferred_web_face_loads();
 
 }
