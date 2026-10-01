@@ -683,9 +683,9 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
     ScopeGuard end_stabilization_epoch = [&] {
         document.end_style_stabilization_epoch();
     };
-    // A highlight pseudo-element inherits from its parent element's, which nothing keeps current while its styles
-    // are unobservable, so the chain is computed outermost first.
-    if (is_highlight_pseudo_element(*pseudo_element) && !document.highlight_styles_are_observable(*pseudo_element)) {
+    // A highlight pseudo-element inherits from its parent element's, which is only kept current near an active
+    // highlight, so the chain is computed outermost first.
+    if (is_highlight_pseudo_element(*pseudo_element)) {
         Vector<DOM::AbstractElement> ancestors;
         for (auto ancestor = abstract_element.element().element_to_inherit_style_from({}); ancestor; ancestor = ancestor->element_to_inherit_style_from({}))
             ancestors.append({ *ancestor, pseudo_element });
