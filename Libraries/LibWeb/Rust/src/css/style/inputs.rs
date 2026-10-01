@@ -683,6 +683,16 @@ impl RetainedState {
         self.css_defined_animations.set(node, slot, names);
     }
 
+    /// The names of the CSS animations the host holds for one of an element's animation lists.
+    #[must_use]
+    pub(crate) fn element_css_defined_animations(
+        &self,
+        node: StyleNodeID,
+        slot: animations::AnimationSlot,
+    ) -> &[crate::css::css_string::CssString] {
+        self.css_defined_animations.names(node, slot)
+    }
+
     /// Record the custom properties an element declares or references. Also an index rather than an
     /// input, and for the same reason: it answers which elements an `@property` registration reaches.
     pub fn set_element_custom_property_names(
