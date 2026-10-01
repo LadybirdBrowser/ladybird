@@ -1087,8 +1087,6 @@ pub struct HostState {
     environment_move_changed_names: environment_move::ChangedCustomPropertyNames,
     /// What the last custom-property environment move answered the host, kept until the next one.
     environment_move_actions: Vec<bridge::FfiEnvironmentMoveAction>,
-    /// What the last container effects the host took held, kept until the next take.
-    container_effects: Vec<bridge::FfiContainerEffect>,
     /// The nodes whose deferred element style input C++ recorded and the engine did not also
     /// derive as a child reaction: what makes the next transaction a new pass of a style change
     /// rather than one more generation of the last one.

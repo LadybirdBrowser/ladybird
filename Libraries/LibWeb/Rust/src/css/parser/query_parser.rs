@@ -2696,12 +2696,16 @@ fn evaluate_container_scroll_state_feature(feature: &QueryFeature, facts: &FfiCo
     if matches { MatchResult::True } else { MatchResult::False }
 }
 
+/// How a container condition answers a `style()` feature.
+pub(crate) type EvaluateStyleFeature<'a> = dyn FnMut(&StyleFeature) -> MatchResult + 'a;
+
 fn evaluate_container_expression(
     expression: &Expression,
     facts: &FfiContainerFacts,
     length_context: Option<&FfiLengthResolutionContext>,
+    style: &mut EvaluateStyleFeature<'_>,
 ) -> MatchResult {
-    evaluate_container_expression_in(expression, QueryKind::Size, facts, length_context)
+    evaluate_container_expression_in(expression, QueryKind::Size, facts, length_context, style)
 }
 
 fn evaluate_container_expression_in(
@@ -2709,13 +2713,10 @@ fn evaluate_container_expression_in(
     kind: QueryKind,
     facts: &FfiContainerFacts,
     length_context: Option<&FfiLengthResolutionContext>,
+    style: &mut EvaluateStyleFeature<'_>,
 ) -> MatchResult {
-    let evaluate_container_expression =
-        |child: &Expression, facts: &FfiContainerFacts, length_context: Option<&FfiLengthResolutionContext>| {
-            evaluate_container_expression_in(child, kind, facts, length_context)
-        };
     match expression {
-        Expression::Not(child) => match evaluate_container_expression(child, facts, length_context) {
+        Expression::Not(child) => match evaluate_container_expression_in(child, kind, facts, length_context, style) {
             MatchResult::False => MatchResult::True,
             MatchResult::True => MatchResult::False,
             MatchResult::Unknown => MatchResult::Unknown,
@@ -2723,7 +2724,7 @@ fn evaluate_container_expression_in(
         Expression::And(children) => {
             let mut result = MatchResult::True;
             for child in children {
-                match evaluate_container_expression(child, facts, length_context) {
+                match evaluate_container_expression_in(child, kind, facts, length_context, style) {
                     MatchResult::False => return MatchResult::False,
                     MatchResult::Unknown => result = MatchResult::Unknown,
                     MatchResult::True => {}
@@ -2734,7 +2735,7 @@ fn evaluate_container_expression_in(
         Expression::Or(children) => {
             let mut result = MatchResult::False;
             for child in children {
-                match evaluate_container_expression(child, facts, length_context) {
+                match evaluate_container_expression_in(child, kind, facts, length_context, style) {
                     MatchResult::True => return MatchResult::True,
                     MatchResult::Unknown => result = MatchResult::Unknown,
                     MatchResult::False => {}
@@ -2743,17 +2744,17 @@ fn evaluate_container_expression_in(
             result
         }
         Expression::InParens(child) | Expression::StyleFunction(child) => {
-            evaluate_container_expression(child, facts, length_context)
+            evaluate_container_expression_in(child, kind, facts, length_context, style)
         }
         Expression::ScrollStateFunction(child) => {
-            evaluate_container_expression_in(child, QueryKind::ScrollState, facts, length_context)
+            evaluate_container_expression_in(child, QueryKind::ScrollState, facts, length_context, style)
         }
         Expression::GeneralEnclosed { result, .. } | Expression::GeneralEnclosedValues { result, .. } => *result,
         Expression::QueryFeature(feature) if kind == QueryKind::ScrollState => {
             evaluate_container_scroll_state_feature(feature, facts)
         }
         Expression::QueryFeature(feature) => evaluate_container_size_feature(feature, facts, length_context),
-        Expression::StyleFeature(feature) => evaluate_container_style_feature(feature, facts),
+        Expression::StyleFeature(feature) => style(feature),
         _ => MatchResult::Unknown,
     }
 }
@@ -3098,6 +3099,34 @@ pub unsafe extern "C" fn css_query_container_requirements(handle: *const FfiQuer
     )
 }
 
+/// Evaluate a retained container condition against a container's facts, answering its `style()`
+/// features with `style`.
+///
+/// # Safety
+/// The length resolution context in `facts`, if any, must be readable for the call.
+pub(crate) unsafe fn evaluate_container_query(
+    handle: &FfiQueryHandle,
+    facts: &FfiContainerFacts,
+    style: &mut EvaluateStyleFeature<'_>,
+) -> MatchResult {
+    let QueryTree::Expression { expression, kind } = &handle.tree else {
+        return MatchResult::Unknown;
+    };
+    if !matches!(kind, QueryKind::Size | QueryKind::Style) {
+        return MatchResult::Unknown;
+    }
+    if !facts.container_available {
+        return MatchResult::Unknown;
+    }
+    let length_context = unsafe {
+        facts
+            .length_resolution_context
+            .cast::<FfiLengthResolutionContext>()
+            .as_ref()
+    };
+    evaluate_container_expression(expression, facts, length_context, style)
+}
+
 /// Evaluates a retained container condition against immutable size facts and style callbacks.
 ///
 /// # Safety
@@ -3108,22 +3137,12 @@ pub unsafe extern "C" fn css_query_evaluate_container(handle: *const FfiQueryHan
     let Some(handle) = (unsafe { handle.as_ref() }) else {
         return MatchResult::Unknown as u8;
     };
-    let QueryTree::Expression { expression, kind } = &handle.tree else {
-        return MatchResult::Unknown as u8;
+    let result = unsafe {
+        evaluate_container_query(handle, &facts, &mut |feature| {
+            evaluate_container_style_feature(feature, &facts)
+        })
     };
-    if !matches!(kind, QueryKind::Size | QueryKind::Style) {
-        return MatchResult::Unknown as u8;
-    }
-    if !facts.container_available {
-        return MatchResult::Unknown as u8;
-    }
-    let length_context = unsafe {
-        facts
-            .length_resolution_context
-            .cast::<FfiLengthResolutionContext>()
-            .as_ref()
-    };
-    evaluate_container_expression(expression, &facts, length_context) as u8
+    result as u8
 }
 
 /// Serializes a retained query condition without changing its UTF-16 representation.
@@ -3467,8 +3486,14 @@ mod tests {
             block_start_side: SCROLL_STATE_SIDE_LEFT,
             inline_start_side: SCROLL_STATE_SIDE_TOP,
         };
-        let evaluate =
-            |source: &[u8]| evaluate_container_expression(&parse_single_container_query(source).unwrap(), &facts, None);
+        let evaluate = |source: &[u8]| {
+            evaluate_container_expression(
+                &parse_single_container_query(source).unwrap(),
+                &facts,
+                None,
+                &mut |feature| evaluate_container_style_feature(feature, &facts),
+            )
+        };
         assert_eq!(evaluate(b"scroll-state(stuck)"), MatchResult::True);
         assert_eq!(evaluate(b"scroll-state(stuck: inline-end)"), MatchResult::True);
         assert_eq!(evaluate(b"scroll-state(stuck: block-end)"), MatchResult::False);

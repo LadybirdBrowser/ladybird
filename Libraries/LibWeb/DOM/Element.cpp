@@ -2205,10 +2205,13 @@ void Element::record_style_query_custom_property_reference(Optional<CSS::PseudoE
         rare_data.custom_property_consumer_data = make<RareData::CustomPropertyConsumerData>();
     auto& consumer_data = *rare_data.custom_property_consumer_data;
 
+    // A record the style engine installs adds its references to the ones the element holds, so
+    // each name is held once.
     if (pseudo_element.has_value()) {
         for (auto& entry : consumer_data.pseudo_element_style_query_references) {
             if (entry.pseudo_element == *pseudo_element) {
-                entry.references.append(name);
+                if (!entry.references.contains_slow(name))
+                    entry.references.append(name);
                 return;
             }
         }
@@ -2219,7 +2222,8 @@ void Element::record_style_query_custom_property_reference(Optional<CSS::PseudoE
         consumer_data.pseudo_element_style_query_references.last().references.append(name);
         return;
     }
-    consumer_data.style_query_references.append(name);
+    if (!consumer_data.style_query_references.contains_slow(name))
+        consumer_data.style_query_references.append(name);
 }
 
 void Element::set_style_uses_if_css_function()
@@ -2372,21 +2376,22 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_environment_of_en
 // recorded as a C++ evaluation of the same conditions records it.
 static void record_engine_container_query_effects(Element& element)
 {
-    auto& document = element.document();
-    auto& style_computer = document.style_computer();
-    auto taken = CSS::StyleEngineFFI::style_engine_take_container_effects(style_computer.style_engine().rust_handle(), element.style_node_id().value());
-    if (taken.depends_on_size)
-        element.set_style_depends_on_size_container_query();
-    // The effects live until the engine is next called, which recording them may do.
-    Vector<CSS::StyleEngineFFI::FfiContainerEffect, 4> effects;
-    effects.append(taken.effects, taken.count);
-    for (auto const& effect : effects) {
-        auto container = style_computer.element_for_style_node(CSS::StyleNodeID { effect.node });
+    auto& style_computer = element.document().style_computer();
+    auto taken = CSS::StyleEngineFFI::style_engine_take_container_effects(style_computer.style_engine().rust_handle(), element.style_node_id().value(), &element, [](void* context, CSS::StyleEngineFFI::FfiContainerEffect effect) {
+        auto& element = *static_cast<Element*>(context);
+        auto& document = element.document();
+        auto container = document.style_computer().element_for_style_node(CSS::StyleNodeID { effect.node });
         if (!container)
-            continue;
+            return;
         switch (effect.kind) {
         case CSS::StyleEngineFFI::FfiContainerEffectKind::SizeContainerUsage:
             container->set_is_size_query_container();
+            break;
+        // A style query's value may resolve against the root, as `style(--length: 10rem)` does.
+        case CSS::StyleEngineFFI::FfiContainerEffectKind::StyleContainerUsage:
+            container->set_is_style_query_container();
+            if (auto* root = document.document_element())
+                root->set_is_style_query_container();
             break;
         case CSS::StyleEngineFFI::FfiContainerEffectKind::ScrollStateContainerUsage:
             (void)document.scroll_state_query_containers().snapshot_for_query(*container);
@@ -2399,7 +2404,14 @@ static void record_engine_container_query_effects(Element& element)
             element.set_style_depends_on_viewport_metrics();
             break;
         }
-    }
+    });
+    if (taken.depends_on_size)
+        element.set_style_depends_on_size_container_query();
+    if (taken.depends_on_style)
+        element.set_style_depends_on_style_container_query();
+    CSS::ComputedValuesFFI::rust_style_query_dependencies_take(taken.style_query_references, &element, [](void* context, CSS::ComputedValuesFFI::FfiUtf16View name) {
+        static_cast<Element*>(context)->record_style_query_custom_property_reference({}, Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length }));
+    });
 }
 
 CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties)

@@ -3668,6 +3668,8 @@ pub unsafe extern "C" fn style_engine_native_rule_target(
 pub enum FfiContainerEffectKind {
     /// The node is a container a size or scroll-state query asks about.
     SizeContainerUsage,
+    /// The node is a container a style query asks about.
+    StyleContainerUsage,
     /// The node is a scroll-state container a query asks about, whose state is snapshotted.
     ScrollStateContainerUsage,
     /// The node has no box yet, and the query is evaluated again after layout.
@@ -3683,41 +3685,43 @@ pub struct FfiContainerEffect {
     pub kind: FfiContainerEffectKind,
 }
 
-/// What the container conditions of a row the engine answered read of its containers: whether the
-/// row's style depends on a size or scroll-state query, and the effects, valid until the engine is
-/// next called.
+/// What the container conditions of a row the engine answered read of its containers, besides the
+/// effects: whether the row's style depends on a size or scroll-state query or a style query, and
+/// the custom properties its style queries read, null or the host's to take with
+/// `rust_style_query_dependencies_take`.
 #[repr(C)]
 pub struct FfiContainerEffects {
     pub depends_on_size: bool,
-    pub effects: *const FfiContainerEffect,
-    pub count: usize,
+    pub depends_on_style: bool,
+    pub style_query_references: *mut c_void,
 }
 
 /// Takes what the container conditions of the row the host is installing for `node` read of its
-/// containers, for the host to record as it records its own evaluation's.
+/// containers, for the host to record as it records its own evaluation's. Each effect is handed to
+/// `record` with no engine borrow held, so recording may call the engine.
 ///
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_take_container_effects(engine: *mut c_void, node: u32) -> FfiContainerEffects {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let mut effects = std::mem::take(&mut engine.host.container_effects);
-    effects.clear();
-    let verdict = StyleNodeID::from_raw(node).and_then(|node| engine.take_container_effects_for_host(node));
-    let depends_on_size = verdict.as_ref().is_some_and(|verdict| verdict.depends_on_size);
-    effects.extend(
-        verdict
-            .into_iter()
-            .flat_map(|verdict| verdict.effects)
-            .map(|(node, kind)| FfiContainerEffect { node: node.raw(), kind }),
-    );
-    let answer = FfiContainerEffects {
-        depends_on_size,
-        effects: effects.as_ptr(),
-        count: effects.len(),
-    };
-    engine.host.container_effects = effects;
-    answer
+pub unsafe extern "C" fn style_engine_take_container_effects(
+    engine: *mut c_void,
+    node: u32,
+    context: *mut c_void,
+    record: unsafe extern "C" fn(*mut c_void, FfiContainerEffect),
+) -> FfiContainerEffects {
+    let verdict = StyleNodeID::from_raw(node)
+        .and_then(|node| unsafe { &mut *engine.cast::<StyleEngine>() }.take_container_effects_for_host(node))
+        .unwrap_or_default();
+    for (node, kind) in verdict.effects {
+        unsafe { record(context, FfiContainerEffect { node: node.raw(), kind }) };
+    }
+    FfiContainerEffects {
+        depends_on_size: verdict.depends_on_size,
+        depends_on_style: verdict.depends_on_style,
+        style_query_references: verdict
+            .style_query_references
+            .map_or(std::ptr::null_mut(), |references| Box::into_raw(references).cast()),
+    }
 }
 
 /// Evaluate native container conditions while keeping their ownership independent of the host.
