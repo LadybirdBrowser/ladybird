@@ -1,3 +1,7 @@
+initial consumers answered by engine: true
+initial C++ recomputations: 0
 all shared consumers update: true
-records were shared: true
+counter-style consumers answered by engine: false
 all shared consumers restore: true
+records were shared: true
+counter content consumer updates: true

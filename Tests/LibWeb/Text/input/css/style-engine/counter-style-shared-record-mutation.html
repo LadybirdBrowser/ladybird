@@ -7,20 +7,39 @@
         list-style: marker inside;
         width: max-content;
     }
+    #counter-content { width: max-content; counter-reset: c 1; }
+    #counter-content::before { content: counter(c, marker); }
 </style>
 <div id="container"></div>
+<div id="counter-content"></div>
 <script>
     test(() => {
+        internals.updateStyle();
+        const initialCounters = internals.getStyleInvalidationCounters();
         for (let index = 0; index < 16; ++index)
             container.appendChild(document.createElement("div"));
         const targets = [...container.children];
         const initialWidths = targets.map(target => target.getBoundingClientRect().width);
-        const before = internals.styleEngineCounters();
+        const settledCounters = internals.getStyleInvalidationCounters();
+        println(`initial consumers answered by engine: ${settledCounters.engineComputedStyleRecords - initialCounters.engineComputedStyleRecords >= targets.length}`);
+        println(`initial C++ recomputations: ${settledCounters.elementStyleRecomputations - initialCounters.elementStyleRecomputations}`);
+        const counterContent = document.getElementById("counter-content");
+        const initialCounterContentWidth = counterContent.getBoundingClientRect().width;
+        const beforeMutation = internals.getStyleInvalidationCounters();
+        const beforeMutationEngine = internals.styleEngineCounters();
         document.styleSheets[0].cssRules[0].symbols = '"BBBBBBBB"';
         println(`all shared consumers update: ${targets.every((target, index) => target.getBoundingClientRect().width > initialWidths[index])}`);
-        const after = internals.styleEngineCounters();
-        println(`records were shared: ${after.sharedStyleRecordHits > before.sharedStyleRecordHits}`);
+        const counterContentUpdates = counterContent.getBoundingClientRect().width > initialCounterContentWidth;
+        const afterMutation = internals.getStyleInvalidationCounters();
+        // Records are shared among the consumers whichever side computes them: C++ through its
+        // shared records, the engine through the records it derives once for a cohort.
+        const afterMutationEngine = internals.styleEngineCounters();
+        const recordsWereShared = afterMutationEngine.sharedStyleRecordHits > beforeMutationEngine.sharedStyleRecordHits
+            || afterMutationEngine.engineComputedRecordCohortHits > beforeMutationEngine.engineComputedRecordCohortHits;
+        println(`counter-style consumers answered by engine: ${afterMutation.engineComputedStyleRecords - beforeMutation.engineComputedStyleRecords >= targets.length && afterMutation.elementStyleRecomputations === beforeMutation.elementStyleRecomputations}`);
         document.styleSheets[0].cssRules[0].symbols = '"A"';
         println(`all shared consumers restore: ${targets.every((target, index) => target.getBoundingClientRect().width === initialWidths[index])}`);
+        println(`records were shared: ${recordsWereShared}`);
+        println(`counter content consumer updates: ${counterContentUpdates}`);
     });
 </script>
