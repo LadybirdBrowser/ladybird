@@ -181,14 +181,14 @@ fn engine_resolution_context(
     }
 }
 
-/// Whether a token stream is a substitution the engine resolves itself: one whose only
-/// substitution functions are `var()`, `inherit()` and `if()`.
+/// Whether a token stream is a substitution the engine resolves itself: one that calls no custom
+/// function and substitutes no `attr()`.
 pub(super) fn value_is_engine_resolvable_substitution(value: &StyleValueData) -> bool {
     matches!(value, StyleValueData::Unresolved { .. }) && custom_property_value_is_engine_resolvable(value)
 }
 
 /// Whether a cascaded custom-property value is one the engine resolves: a plain value, or a
-/// token stream whose only substitutions are `var()`, `inherit()` and `if()`.
+/// token stream that calls no custom function and substitutes no `attr()`.
 fn custom_property_value_is_engine_resolvable(value: &StyleValueData) -> bool {
     !value_reads_attributes(value) && substitutions_but_attr_are_engine_resolvable(value)
 }
@@ -253,14 +253,15 @@ fn substitution_reads(value: &StyleValueData) -> u8 {
 }
 
 /// Whether the engine resolves every substitution a value holds but `attr()`, which it resolves
-/// only where it has the element's attributes.
+/// only where it has the element's attributes: every one but a custom function, whose definition
+/// the engine does not hold.
 fn substitutions_but_attr_are_engine_resolvable(value: &StyleValueData) -> bool {
     !matches!(
         value,
         StyleValueData::Unresolved {
             presence_dashed_function: true,
             ..
-        } | StyleValueData::Unresolved { presence_env: true, .. }
+        }
     )
 }
 
