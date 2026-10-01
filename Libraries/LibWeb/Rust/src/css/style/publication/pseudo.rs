@@ -193,14 +193,13 @@ impl RetainedState {
                             .computed_group_sets
                             .style_record_custom_property_environment(new_element_record.raw())
             });
-        // The element's record is installed, and with it the environment its pseudo-elements
-        // resolve against.
-        let environment = self.computed_group_sets.custom_property_environment_identity(node);
-        debug_assert!(
-            environment.is_some(),
-            "an installed element record holds an environment"
-        );
-        let environment = environment.unwrap_or(0);
+        // The element's new record names the environment its pseudo-elements resolve against,
+        // whether or not the host installed it yet.
+        let element_environment = self
+            .computed_group_sets
+            .style_record_custom_property_environment(new_element_record.raw());
+        debug_assert!(element_environment.is_some(), "an element record holds an environment");
+        let element_environment = element_environment.unwrap_or(0);
         // The kinds the node's match answer has rules for: a winner row is published for each
         // the engine cascaded itself, and a kind with rules but no row is not decided.
         let Some(kinds_with_rules) = self.pseudo_style_mask(node) else {
@@ -308,6 +307,10 @@ impl RetainedState {
                     continue;
                 }
             }
+            // A pseudo-element's own custom declarations resolve over its element's environment,
+            // as an element's resolve over its parent's.
+            let environment =
+                self.engine_custom_property_environment_of(node, Some(kind), element_environment, &inputs, counters)?;
             // A store substituting `attr()` holds the element's attributes, which no other element
             // shares.
             let reads_attributes = state.is_some_and(|state| self.state_reads_attributes(node, state));
@@ -671,11 +674,12 @@ impl RetainedState {
     }
 
     /// Whether every rule the node's answer matches for a pseudo-element declares only what the
-    /// winner columns hold, with no container query deciding it: the strict reading
-    /// `cascade_winners_are_complete_but_for_custom_properties` gives pseudo-element rules.
+    /// winner columns hold, and custom properties, which the engine resolves into the
+    /// pseudo-element's own environment, with no container query deciding it.
     fn pseudo_winners_are_complete(&self, node: StyleNodeID) -> bool {
         let rule_is_complete = |rule: RuleID| {
-            !self.program.rule_is_gated_by_container_query(rule) && self.program.declarations_are_complete_for(rule)
+            !self.program.rule_is_gated_by_container_query(rule)
+                && self.program.declarations_are_complete_but_for_custom_properties(rule)
         };
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,

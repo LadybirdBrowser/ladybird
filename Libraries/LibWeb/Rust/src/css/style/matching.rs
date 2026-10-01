@@ -4396,8 +4396,11 @@ impl RetainedState {
                         })
                 })
                 .all(|(pseudo, version, state, priority_current)| {
+                    // A state with custom declarations resolves them against the registrations as
+                    // well, which move without its rows: it cannot vouch for its environment.
                     version == self.program.version()
                         && priority_current
+                        && winner_groups.custom_declarations_of(state) == Default::default()
                         && u8::try_from(pseudo.kind.0).ok().is_some_and(|pseudo_kind| {
                             self.computed_group_sets
                                 .pseudo_retained_cascade_states(node)

@@ -197,15 +197,27 @@ impl RetainedState {
     fn try_for_each_element_match(
         &self,
         node: StyleNodeID,
+        visit: impl FnMut(RuleID, TreeScopeID, Specificity, u32) -> ControlFlow<()>,
+    ) -> Option<ControlFlow<()>> {
+        self.try_for_each_match(node, None, visit)
+    }
+
+    /// The element's matches when `pseudo` is `None`, else the matches for that pseudo-element.
+    fn try_for_each_match(
+        &self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
         mut visit: impl FnMut(RuleID, TreeScopeID, Specificity, u32) -> ControlFlow<()>,
     ) -> Option<ControlFlow<()>> {
+        let wanted =
+            |target: Option<tree::PseudoElementTarget>| target.map(|target| target.kind.0) == pseudo.map(u16::from);
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
             self.batch_matching_traversal.as_deref(),
             node,
         ) && let Some(matches) = published.matches_for(answer)
         {
-            for entry in matches.iter().filter(|entry| entry.pseudo_element.is_none()) {
+            for entry in matches.iter().filter(|entry| wanted(entry.pseudo_element)) {
                 if visit(entry.rule, entry.tree_scope, entry.specificity, entry.scope_proximity).is_break() {
                     return Some(ControlFlow::Break(()));
                 }
@@ -217,7 +229,7 @@ impl RetainedState {
         };
         for rule_match in answer.iter() {
             let entry = &self.programs.get(rule_match.program).entries()[rule_match.entry as usize];
-            if entry.pseudo_element.is_some() {
+            if !wanted(entry.pseudo_element) {
                 continue;
             }
             if visit(
@@ -337,6 +349,39 @@ impl RetainedState {
         &self,
         node: StyleNodeID,
     ) -> Option<Vec<(CustomDeclaration, RetainedStyleValueData)>> {
+        self.cascaded_custom_declarations_of(node, None)
+    }
+
+    /// What `cascaded_custom_declarations` says of the element, for one of its pseudo-elements:
+    /// its rules alone, since a pseudo-element has no declarations of its own.
+    fn cascaded_custom_declarations_of(
+        &self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+    ) -> Option<Vec<(CustomDeclaration, RetainedStyleValueData)>> {
+        self.cascade_custom_declarations(node, pseudo, None)
+    }
+
+    /// What a pseudo-element's custom declarations cascade to, from the matches being published
+    /// for it rather than from a published answer. `None` when a declaration arrived without its
+    /// written value.
+    pub(super) fn cascaded_pseudo_custom_declarations_in(
+        &self,
+        node: StyleNodeID,
+        matches: &[RuleMatch],
+        pseudo: tree::PseudoElementTarget,
+    ) -> Option<Vec<CustomDeclaration>> {
+        let kind = u8::try_from(pseudo.kind.0).ok()?;
+        let cascaded = self.cascade_custom_declarations(node, Some(kind), Some(matches))?;
+        Some(cascaded.into_iter().map(|(declared, _)| declared).collect())
+    }
+
+    fn cascade_custom_declarations(
+        &self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+        matches: Option<&[RuleMatch]>,
+    ) -> Option<Vec<(CustomDeclaration, RetainedStyleValueData)>> {
         struct Candidate<'a> {
             priority: CascadePriority,
             stratum: CascadeStratum,
@@ -345,7 +390,7 @@ impl RetainedState {
         }
 
         let mut candidates = Vec::new();
-        let result = self.try_for_each_element_match(node, |rule, tree_scope, specificity, scope_proximity| {
+        let mut visit = |rule: RuleID, tree_scope: TreeScopeID, specificity: Specificity, scope_proximity: u32| {
             let declared = self.program.custom_declarations_of(rule);
             if declared.is_empty() {
                 return ControlFlow::Continue(());
@@ -377,12 +422,34 @@ impl RetainedState {
                 });
             }
             ControlFlow::Continue(())
-        })?;
+        };
+        let result = match matches {
+            Some(matches) => {
+                let wanted = pseudo.map(u16::from);
+                let mut result = ControlFlow::Continue(());
+                for entry in matches
+                    .iter()
+                    .filter(|entry| entry.pseudo_element.map(|target| target.kind.0) == wanted)
+                {
+                    result = visit(entry.rule, entry.tree_scope, entry.specificity, entry.scope_proximity);
+                    if result.is_break() {
+                        break;
+                    }
+                }
+                result
+            }
+            None => self.try_for_each_match(node, pseudo, &mut visit)?,
+        };
         if result.is_break() {
             return None;
         }
-        let declared = self.facts.element_custom_declarations(node);
-        let written = self.facts.element_custom_written_values(node);
+        let (declared, written) = match pseudo {
+            None => (
+                self.facts.element_custom_declarations(node),
+                self.facts.element_custom_written_values(node),
+            ),
+            Some(_) => (&[][..], &[][..]),
+        };
         if written.len() != declared.len() {
             return None;
         }
@@ -543,6 +610,19 @@ impl RetainedState {
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         counters: &mut Counters,
     ) -> Drive<u64> {
+        self.engine_custom_property_environment_of(node, None, parent_environment, inputs, counters)
+    }
+
+    /// What `engine_custom_property_environment` says of the element, for one of its
+    /// pseudo-elements over the element's own environment.
+    pub(super) fn engine_custom_property_environment_of(
+        &mut self,
+        node: StyleNodeID,
+        pseudo: Option<u8>,
+        parent_environment: u64,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+        counters: &mut Counters,
+    ) -> Drive<u64> {
         if !self.any_custom_property_is_declared() {
             self.custom_declarations_reading_attributes.remove(&node);
             return Ok(parent_environment);
@@ -550,7 +630,7 @@ impl RetainedState {
         // A node the engine drives has the match answer its winners came from, and a published
         // block carries a written value for each custom declaration, so the cascade answers. One
         // that does not is refused rather than resolved without the node's own declarations.
-        let cascaded = self.cascaded_custom_declarations(node);
+        let cascaded = self.cascaded_custom_declarations_of(node, pseudo);
         debug_assert!(cascaded.is_some(), "a driven node's custom declarations cascade");
         let Some(cascaded) = cascaded else {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
@@ -586,7 +666,16 @@ impl RetainedState {
             inputs.custom_property_registration_generation,
             &cascaded,
         );
-        if !reads_attributes && let Some(identity) = self.custom_property_environments.memoized(&key) {
+        // An environment C++ resolved for an element alike in its declarations is C++'s own
+        // identity, and the host installs no record under one it does not recognise as the
+        // engine's: handing it back settles a row the host then computes again. The memo is worth
+        // only what it saves, so where it holds such an identity this resolves one of its own.
+        let memoized = self.custom_property_environments.memoized(&key);
+        let keeps_cpp_environment = memoized.is_some_and(|identity| {
+            identity != parent_environment
+                && identity & custom_property_environments::ENGINE_ENVIRONMENT_IDENTITY_BIT == 0
+        });
+        if !reads_attributes && let Some(identity) = memoized.filter(|_| !keeps_cpp_environment) {
             counters.bump(Counter::EngineCustomPropertyEnvironmentMemoHits);
             return Ok(identity);
         }
@@ -616,7 +705,7 @@ impl RetainedState {
             ));
         }
         if values.is_empty() {
-            if !reads_attributes {
+            if !reads_attributes && !keeps_cpp_environment {
                 let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
                 self.custom_property_environments
                     .remember(key, parent_environment, written_values);
@@ -677,7 +766,7 @@ impl RetainedState {
                     .adopt_engine_environment(resolved.rust_store, parent_environment)
             }
         };
-        if !reads_attributes {
+        if !reads_attributes && !keeps_cpp_environment {
             let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
             self.custom_property_environments
                 .remember(key, identity, written_values);
