@@ -1359,7 +1359,37 @@ void StyleComputer::invalidate_animated_custom_property_readers(DOM::AbstractEle
     }
 }
 
-void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions, ReadonlySpan<i32> definition_matches, ReadonlySpan<RefPtr<Animations::KeyframeEffect::KeyFrameSet const>> definition_keyframe_sets, bool in_display_none_subtree) const
+// The host's form of one animation definition a style computation decided.
+static AnimationProperties animation_properties_from_ffi(ComputedValuesFFI::FfiComputedAnimation const& animation)
+{
+    Variant<double, Utf16String> duration { animation.duration };
+    if (animation.duration_is_auto)
+        duration = "auto"_utf16;
+    auto timing_function_value = RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(animation.timing_function));
+    auto timing_function = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(timing_function_value.data()));
+    static_assert(to_underlying(AnimationTimelineSource::Kind::Document) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::Document));
+    static_assert(to_underlying(AnimationTimelineSource::Kind::None) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::None));
+    static_assert(to_underlying(AnimationTimelineSource::Kind::Scroll) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::Scroll));
+    return {
+        .duration = move(duration),
+        .timing_function = EasingFunction::from_style_value(timing_function),
+        .iteration_count = animation.iteration_count,
+        .direction = static_cast<AnimationDirection>(animation.direction),
+        .play_state = static_cast<AnimationPlayState>(animation.play_state),
+        .delay = animation.delay,
+        .fill_mode = static_cast<AnimationFillMode>(animation.fill_mode),
+        .composition = static_cast<AnimationComposition>(animation.composition),
+        .name = css_string_from_rust(animation.name),
+        .timeline = {
+            .kind = static_cast<AnimationTimelineSource::Kind>(animation.timeline_kind),
+            .scroller = static_cast<Scroller>(animation.scroll_scroller),
+            .axis = static_cast<Axis>(animation.scroll_axis),
+        },
+        .timing_function_value = move(timing_function_value),
+    };
+}
+
+void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_element, ReadonlySpan<ComputedValuesFFI::FfiComputedAnimation> animation_definitions, bool in_display_none_subtree) const
 {
     auto& document = abstract_element.document();
 
@@ -1383,8 +1413,6 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
     // NB: Which existing animation each definition claims is decided by the style computation, from the names of
     //     the animations this element holds, which it publishes. See match_existing_animations(). So are the
     //     keyframes each definition runs, from the `@keyframes` every style scope publishes.
-    VERIFY(definition_matches.size() == animation_definitions.size());
-    VERIFY(definition_keyframe_sets.size() == animation_definitions.size());
 
     auto existing_animations = *element_animations;
     Vector<bool> existing_animation_was_claimed;
@@ -1392,9 +1420,11 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
     Vector<GC::Ref<CSSAnimation>> new_animations;
 
     for (size_t i = animation_definitions.size(); i-- > 0;) {
-        auto const& animation_properties = animation_definitions[i];
+        auto const& definition = animation_definitions[i];
+        auto animation_properties = animation_properties_from_ffi(definition);
+        auto const* keyframe_set = static_cast<Animations::KeyframeEffect::KeyFrameSet const*>(definition.keyframe_set);
 
-        auto matched_index = definition_matches[i];
+        auto matched_index = definition.matched_existing_index;
         VERIFY(matched_index < static_cast<i32>(existing_animations.size()));
 
         if (matched_index >= 0) {
@@ -1404,8 +1434,8 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
             existing_animation_was_claimed[matched_index] = true;
 
             if (auto effect = existing_animation->effect()) {
-                as<Animations::KeyframeEffect>(*effect).set_key_frame_set(definition_keyframe_sets[i]);
-                existing_animation->apply_css_properties(animation_properties, definition_keyframe_sets[i], abstract_element);
+                as<Animations::KeyframeEffect>(*effect).set_key_frame_set(keyframe_set);
+                existing_animation->apply_css_properties(animation_properties, keyframe_set, abstract_element);
             }
             existing_animation->set_animation_name_index(i);
             new_animations.append(existing_animation);
@@ -1424,10 +1454,10 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
         auto effect = Animations::KeyframeEffect::create();
         animation->set_effect(effect);
 
-        animation->apply_css_properties(animation_properties, definition_keyframe_sets[i], abstract_element);
+        animation->apply_css_properties(animation_properties, keyframe_set, abstract_element);
         animation->set_animation_name_index(i);
 
-        effect->set_key_frame_set(definition_keyframe_sets[i]);
+        effect->set_key_frame_set(keyframe_set);
 
         effect->set_target(abstract_element);
         new_animations.append(animation);
@@ -1444,6 +1474,18 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
     new_animations.reverse();
 
     abstract_element.set_css_defined_animations(move(new_animations));
+}
+
+void StyleComputer::apply_settled_animation_plan(DOM::AbstractElement& abstract_element) const
+{
+    struct Context {
+        GC::Ref<StyleComputer const> style_computer;
+        DOM::AbstractElement& abstract_element;
+    } context { *this, abstract_element };
+    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.rust_handle(), abstract_element.element().style_node_id().value(), abstract_element.style_record_identity().value(), &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
+        auto& context = *static_cast<Context*>(context_pointer);
+        context.style_computer->apply_animation_definitions(context.abstract_element, { definitions, count }, in_display_none_subtree);
+    });
 }
 
 static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, Utf16FlyString const& attribute_name, CSS::PropertyID property_id)
@@ -5516,13 +5558,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         ComputedValuesFFI::FfiStyleComputationEnvironment computation_environment {};
         OwnPtr<CustomPropertyResolutionState> custom_property_resolution;
         GC::RootVector<GC::Ref<Animations::KeyframeEffect>> animation_effects;
-        Vector<AnimationProperties> animation_definitions;
-        // Per definition, the index of the CSS animation it claims in the list the element already
-        // holds, or -1 where the style computation asks for a new one.
-        Vector<i32> animation_definition_matches;
-        // Per definition, the keyframes its name resolved to in the `@keyframes` the style scopes published, or null
-        // where no scope in the name's chain defines it.
-        Vector<RefPtr<Animations::KeyframeEffect::KeyFrameSet const>> animation_definition_keyframe_sets;
         u64 container_relative_length_unit_mask { 0 };
 
         explicit NativeLonghandState(NonnullRefPtr<ComputedStyleWorkingSet> working_set)
@@ -5851,39 +5886,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 context.abstract_element.set_custom_property_data(move(resolved));
                 record_style_query_dependencies(context.abstract_element, exchange(resolution_state.style_query_dependencies, nullptr));
             }
-            state.animation_definitions.ensure_capacity(longhand_result->animations.count);
-            state.animation_definition_matches.ensure_capacity(longhand_result->animations.count);
-            state.animation_definition_keyframe_sets.ensure_capacity(longhand_result->animations.count);
-            for (auto const& animation : ReadonlySpan<ComputedValuesFFI::FfiComputedAnimation> { longhand_result->animations.animations, longhand_result->animations.count }) {
-                state.animation_definition_matches.unchecked_append(animation.matched_existing_index);
-                state.animation_definition_keyframe_sets.unchecked_append(static_cast<Animations::KeyframeEffect::KeyFrameSet const*>(animation.keyframe_set));
-                Variant<double, Utf16String> duration { animation.duration };
-                if (animation.duration_is_auto)
-                    duration = "auto"_utf16;
-                auto timing_function = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                    static_cast<StyleValueFFI::StyleValueData const*>(animation.timing_function)));
-                static_assert(to_underlying(AnimationTimelineSource::Kind::Document) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::Document));
-                static_assert(to_underlying(AnimationTimelineSource::Kind::None) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::None));
-                static_assert(to_underlying(AnimationTimelineSource::Kind::Scroll) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::Scroll));
-                AnimationTimelineSource timeline {
-                    .kind = static_cast<AnimationTimelineSource::Kind>(animation.timeline_kind),
-                    .scroller = static_cast<Scroller>(animation.scroll_scroller),
-                    .axis = static_cast<Axis>(animation.scroll_axis),
-                };
-                state.animation_definitions.unchecked_append({
-                    .duration = move(duration),
-                    .timing_function = EasingFunction::from_style_value(timing_function),
-                    .iteration_count = animation.iteration_count,
-                    .direction = static_cast<AnimationDirection>(animation.direction),
-                    .play_state = static_cast<AnimationPlayState>(animation.play_state),
-                    .delay = animation.delay,
-                    .fill_mode = static_cast<AnimationFillMode>(animation.fill_mode),
-                    .composition = static_cast<AnimationComposition>(animation.composition),
-                    .name = css_string_from_rust(animation.name),
-                    .timeline = timeline,
-                    .timing_function_value = RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(animation.timing_function)),
-                });
-            }
             auto const& driver_results = longhand_result->driver_results;
             style_computer.document().style_invalidation_counters().computed_longhand_evaluations += driver_results.longhand_evaluations;
             if (driver_results.uses_tree_counting_function)
@@ -5912,9 +5914,9 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 style_computer.m_root_element_font_metrics_depend_on_viewport_metrics = computed_style.font_metrics_depend_on_viewport_metrics();
             }
             style_computer.clear_computation_context_caches(); },
-        .apply_animation_definitions = [](void* context_pointer, bool in_display_none_subtree) {
+        .apply_animation_definitions = [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
             auto& context = *static_cast<NativeComputePropertiesContext*>(context_pointer);
-            context.style_computer->apply_animation_definitions(context.abstract_element, context.state->animation_definitions.span(), context.state->animation_definition_matches.span(), context.state->animation_definition_keyframe_sets.span(), in_display_none_subtree); },
+            context.style_computer->apply_animation_definitions(context.abstract_element, { definitions, count }, in_display_none_subtree); },
         .prepare_animations = [](void* context_pointer) -> bool {
             auto& context = *static_cast<NativeComputePropertiesContext*>(context_pointer);
             context.style_computer->m_keyframes_inherited_non_inherited_style_groups = 0;

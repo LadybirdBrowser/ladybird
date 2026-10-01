@@ -14,8 +14,7 @@
                 .target { margin-left: 2rem; margin-right: 2rlh }
                 .target::before { content: ""; margin-left: 3rem; margin-right: 3rlh }
                 .target.extra { padding: 1px }
-                @keyframes tint { from { color: green } to { color: green } }
-                html.animated { animation: tint 100s }
+                html.transitioning { transition: color 100s; color: green }
             </style>
             <div class="fixed"><div class="fixed" id="parent"><span class="target" id="target"></span></div></div>`;
         const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
@@ -57,10 +56,10 @@
         document.body.offsetWidth;
         println(`viewport after constant: ${values(target)}; new: ${values(added)}`);
 
-        // An animated root composes its style in C++, so its font inputs fall back to the host's.
-        root.classList.add("animated");
+        // A root that starts a transition is computed in C++, so its font inputs fall back to the host's.
+        root.classList.add("transitioning");
         root.style.fontSize = "30px";
-        println(`animated root: ${values(target)}`);
+        println(`transitioning root: ${values(target)}`);
         const after = child.internals.styleEngineCounters();
         println(`root font preparation exercised: ${after.rootFontInputsPrepared > before.rootFontInputsPrepared}`);
         println(`root font fallback exercised: ${after.rootFontInputsUnprovenFallbacks > before.rootFontInputsUnprovenFallbacks}`);

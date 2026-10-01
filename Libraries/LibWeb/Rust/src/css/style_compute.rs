@@ -2791,7 +2791,6 @@ pub struct FfiLonghandPhaseContext {
 pub struct FfiLonghandDriveResult {
     pub driver_results: FfiLonghandDriverResults,
     pub custom_properties: FfiResolvedCustomProperties,
-    pub animations: FfiComputedAnimationList,
 }
 
 #[derive(Clone, Copy)]
@@ -2826,14 +2825,6 @@ pub struct FfiComputedAnimation {
 }
 
 #[repr(C)]
-/// The animation definitions a computation hands the host, borrowed from the computation for the
-/// length of its callback.
-pub struct FfiComputedAnimationList {
-    pub animations: *const FfiComputedAnimation,
-    pub count: usize,
-}
-
-#[repr(C)]
 pub struct FfiComputePropertiesInput {
     pub store: *const CascadedPropertyStore,
     /// The custom properties the computation resolves for the element, null where it resolves
@@ -2863,9 +2854,10 @@ pub struct FfiComputePropertiesInput {
         *mut FfiLonghandDriveInput,
     ),
     pub finish_longhand_drive: unsafe extern "C" fn(*mut c_void, *const FfiLonghandDriveResult),
-    /// Reconciles the element's CSS animations against the plan the computation decided. The second
-    /// argument says whether the element is in a `display: none` subtree, where no animation starts.
-    pub apply_animation_definitions: unsafe extern "C" fn(*mut c_void, bool),
+    /// Reconciles the element's CSS animations against the definitions the computation decided,
+    /// borrowed for the call, and says whether the element is in a `display: none` subtree, where
+    /// no animation starts.
+    pub apply_animation_definitions: unsafe extern "C" fn(*mut c_void, *const FfiComputedAnimation, usize, bool),
     pub prepare_animations: unsafe extern "C" fn(*mut c_void) -> bool,
     pub apply_animations:
         unsafe extern "C" fn(*mut c_void, bool, *mut FfiInputLineHeightMetrics) -> *mut AnimatedOverlay,
@@ -4905,10 +4897,6 @@ unsafe fn compute_longhands(
         FfiLonghandDriveResult {
             driver_results,
             custom_properties,
-            animations: FfiComputedAnimationList {
-                animations: std::ptr::null(),
-                count: 0,
-            },
         },
         remaining_context.input_line_height_metrics,
     )
@@ -5190,10 +5178,12 @@ fn animation_slot(pseudo_kind: u8) -> crate::css::style::animations::AnimationSl
 ///
 /// <https://drafts.csswg.org/css-animations-1/#animations>
 fn in_display_none_subtree_for_animations(
-    input: &FfiComputePropertiesInput,
-    drive_input: &FfiLonghandDriveInput,
-    definitions: &[FfiComputedAnimation],
     style_engine: &crate::css::style::StyleEngine,
+    node: Option<crate::css::style::tree::StyleNodeID>,
+    pseudo_kind: u8,
+    table: &ComputedLonghandTable,
+    overlay: Option<&AnimatedOverlay>,
+    definitions: &[FfiComputedAnimation],
 ) -> bool {
     if !definitions
         .iter()
@@ -5201,23 +5191,87 @@ fn in_display_none_subtree_for_animations(
     {
         return false;
     }
-    if effective_display(unsafe { &*drive_input.longhand_table }, unsafe {
-        drive_input.animated_overlay.as_ref()
-    })
-    .is_none()
-    {
+    if effective_display(table, overlay).is_none() {
         return true;
     }
-    let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(input.style_node) else {
+    let Some(node) = node else {
         return false;
     };
     // The element's own display is answered above, so an element's walk starts at its parent; a
     // pseudo-element's starts at its originating element.
-    let start = match input.pseudo_kind == crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
+    let start = match pseudo_kind == crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
         true => style_engine.tree().parent_or_shadow_host(node),
         false => Some(node),
     };
     start.is_some_and(|start| style_engine.has_inclusive_ancestor_with_display_none_ignoring_animations(start))
+}
+
+/// The animation plan the record an element holds decides, where applying it would change
+/// anything, and whether the element is in a `display: none` subtree: what a C++ computation
+/// decides beside the record it computes, decided for a record the style engine settled once the
+/// host has installed it. The definitions borrow the record's values.
+fn settled_animation_plan(
+    style_engine: &crate::css::style::StyleEngine,
+    node: crate::css::style::tree::StyleNodeID,
+    record: u64,
+) -> Option<(smallvec::SmallVec<[FfiComputedAnimation; 1]>, bool)> {
+    let view = style_engine.style_record_view(record)?;
+    let table = unsafe { view.longhand_table.as_ref() }?;
+    let pseudo_kind = crate::css::cascaded_properties::NO_PSEUDO_ELEMENT;
+    let existing_animations = style_engine.element_css_defined_animations(node, animation_slot(pseudo_kind));
+    let element_tree_scope = style_engine.tree().tree_scope(node);
+    let mut definitions = smallvec::SmallVec::new();
+    // The engine settles such a record only where no scope but the document's defines `@keyframes`,
+    // so no declaration scope is asked for.
+    build_computed_animation_list(
+        table,
+        existing_animations,
+        |name| style_engine.animation_keyframes().resolve(0, element_tree_scope, name),
+        &mut definitions,
+    );
+    if crate::css::style::animations::plan_changes_nothing(&definitions, existing_animations) {
+        return None;
+    }
+    let in_display_none_subtree =
+        in_display_none_subtree_for_animations(style_engine, Some(node), pseudo_kind, table, None, &definitions);
+    Some((definitions, in_display_none_subtree))
+}
+
+/// Hands `apply` the animation plan of an element whose record the style engine settled, decided
+/// from the record the element holds now that the host has installed it, where applying the plan
+/// would change anything, with whether the element is in a `display: none` subtree.
+///
+/// # Safety
+/// `engine` must be live, `record` must be the record the element holds, and `apply` must not
+/// retain the definitions it is handed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_settled_animation_plan(
+    engine: *const c_void,
+    node: u32,
+    record: u64,
+    context: *mut c_void,
+    apply: unsafe extern "C" fn(*mut c_void, *const FfiComputedAnimation, usize, bool),
+) {
+    let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(node) else {
+        return;
+    };
+    // Applying the plan publishes the element's animations to the engine, so nothing of the
+    // engine is borrowed while the host applies it: the definitions only point into the record.
+    let Some((definitions, in_display_none_subtree)) = settled_animation_plan(
+        unsafe { &*engine.cast::<crate::css::style::StyleEngine>() },
+        node,
+        record,
+    ) else {
+        return;
+    };
+    unsafe {
+        apply(
+            context,
+            definitions.as_ptr(),
+            definitions.len(),
+            in_display_none_subtree,
+        );
+    }
 }
 
 // https://drafts.csswg.org/css-values-4/#linked-properties
@@ -5456,7 +5510,7 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
         snapshot.has_animated_property(property_id::TEXT_ALIGN)
             || snapshot.has_animated_property(property_id::DIRECTION)
     });
-    let (mut result, mut finalization_line_height_metrics) =
+    let (result, mut finalization_line_height_metrics) =
         unsafe { compute_longhands(&drive_input, parent_snapshot.as_ref(), highlight.as_ref()) };
     // The host's flag is its own precondition for holding any CSS animation, so an element without
     // it has an empty list in every one of its slots and nothing to match.
@@ -5486,17 +5540,19 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
             },
             &mut animation_definitions,
         );
-        result.animations = FfiComputedAnimationList {
-            animations: animation_definitions.as_ptr(),
-            count: animation_definitions.len(),
-        };
     }
     // An element with no definitions and no animations to cancel has no plan to apply, and neither
     // has one whose plan would leave every animation it holds as it is.
     let has_animation_plan =
         !crate::css::style::animations::plan_changes_nothing(&animation_definitions, existing_animations);
-    let in_display_none_subtree =
-        in_display_none_subtree_for_animations(input, &drive_input, &animation_definitions, style_engine);
+    let in_display_none_subtree = in_display_none_subtree_for_animations(
+        style_engine,
+        crate::css::style::tree::StyleNodeID::from_raw(input.style_node),
+        input.pseudo_kind,
+        unsafe { &*drive_input.longhand_table },
+        unsafe { drive_input.animated_overlay.as_ref() },
+        &animation_definitions,
+    );
     let mut animated_overlay = drive_input.animated_overlay;
     let mut animation_values_applied = unsafe { animated_overlay.as_ref() }.is_some_and(|overlay| !overlay.is_empty());
     unsafe { (input.finish_longhand_drive)(input.callback_context, &raw const result) };
@@ -5509,7 +5565,14 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
     }
 
     if has_animation_plan {
-        unsafe { (input.apply_animation_definitions)(input.callback_context, in_display_none_subtree) };
+        unsafe {
+            (input.apply_animation_definitions)(
+                input.callback_context,
+                animation_definitions.as_ptr(),
+                animation_definitions.len(),
+                in_display_none_subtree,
+            );
+        }
     }
     let has_animations = unsafe { (input.prepare_animations)(input.callback_context) };
     if animation_values_applied || has_animations {

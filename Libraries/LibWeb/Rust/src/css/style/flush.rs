@@ -1830,6 +1830,7 @@ impl StyleEngineState {
             style_delta_memory.resize_required_to(&mut self.retained.memory, style_delta_bytes);
             let mut engine_computed_record_scratch = publication::EngineComputedRecordScratch::default();
             engine_computed_record_scratch.document_environment_moved = environment_changed;
+            engine_computed_record_scratch.host_applies_animation_plans = true;
             // The viewport the records were driven against last, against the one they are driven
             // against now.
             let viewport = (
@@ -2351,6 +2352,10 @@ impl StyleEngineState {
                         } else {
                             0
                         },
+                        owes_an_animation_plan: gap == FfiStyleDeltaGap::Computed
+                            && self
+                                .retained
+                                .record_moves_animation_declarations(old_style_record, new_style_record),
                     };
                     if style_deltas.len() == style_deltas.capacity() {
                         style_deltas.reserve(1);
@@ -2398,6 +2403,7 @@ impl StyleEngineState {
                                 record_reads: 0,
                                 explicitly_inherited_groups: 0,
                                 record_damage,
+                                owes_an_animation_plan: false,
                             });
                         }
                     }
