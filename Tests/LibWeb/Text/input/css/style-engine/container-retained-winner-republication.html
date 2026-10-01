@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container { container-type: inline-size; width: 100px; }
+    #plain, #units { color: rgb(255, 0, 0); }
+    #plain::before { content: "query"; --pseudo-tone: rgb(255, 0, 0); color: var(--pseudo-tone); }
+    #units { width: 10cqw; }
+    @container (min-width: 200px) {
+        #plain, #units { color: rgb(0, 128, 0); }
+        #plain::before { --pseudo-tone: rgb(0, 128, 0); }
+    }
+    @layer base { #reverted { color: rgb(255, 0, 0); } }
+    @layer top {
+        #reverted { color: rgb(0, 0, 255); }
+        @container (min-width: 200px) { #reverted { color: revert-layer; } }
+    }
+</style>
+<div id="container"><div id="plain"></div><div id="units"></div><div id="reverted"></div></div>
+<script>
+    // A container's size moves under elements whose rules it gates, one of them on a ::before,
+    // and under an element measuring it in container-relative units. Print what each computes to
+    // and whether the reaction gate left any of them to C++.
+    test(() => {
+        const container = document.getElementById("container");
+        const plain = document.getElementById("plain");
+        const units = document.getElementById("units");
+        const reverted = document.getElementById("reverted");
+        document.body.offsetWidth;
+        const before = internals.styleEngineCounters();
+        const invalidationsBefore = internals.getStyleInvalidationCounters();
+        for (const width of [100, 300, 400, 100]) {
+            container.style.width = width + "px";
+            document.body.offsetWidth;
+            println(`${width}: ${getComputedStyle(plain).color}; ${getComputedStyle(plain, "::before").color}; ${getComputedStyle(units).color}; ${getComputedStyle(units).width}; ${getComputedStyle(reverted).color}`);
+        }
+        const after = internals.styleEngineCounters();
+        const invalidationsAfter = internals.getStyleInvalidationCounters();
+        println(`container reactions stayed in the engine: ${after.engineComputedRecordGateReaction === before.engineComputedRecordGateReaction}`);
+        println(`C++ recomputations: ${invalidationsAfter.elementStyleRecomputations - invalidationsBefore.elementStyleRecomputations}`);
+    });
+</script>
