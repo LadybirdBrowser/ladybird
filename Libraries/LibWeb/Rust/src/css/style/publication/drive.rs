@@ -19,6 +19,9 @@ pub(super) enum FontDriveGoal {
 pub(in crate::css::style) enum Unanswered {
     Suspended(Suspension),
     Refused,
+    /// The row inherits from a parent that holds no record yet: one the host styles in the same
+    /// update. The host retries the row once it has applied the rows before it.
+    AwaitsParent,
 }
 
 /// What a suspended row waits on. The request itself stays where the host's service reads it.
@@ -170,7 +173,7 @@ impl RetainedState {
                 }
                 None => {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                    return Err(Unanswered::Refused);
+                    return Err(Unanswered::AwaitsParent);
                 }
             },
         };
@@ -407,7 +410,7 @@ impl RetainedState {
             Some(parent) => {
                 let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent) else {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                    return Err(Unanswered::Refused);
+                    return Err(Unanswered::AwaitsParent);
                 };
                 let Some(parent_view) = self.computed_group_sets.style_record_view(parent_record.raw()) else {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);

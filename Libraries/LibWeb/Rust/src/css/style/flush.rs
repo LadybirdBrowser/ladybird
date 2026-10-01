@@ -2088,9 +2088,8 @@ impl StyleEngineState {
                         {
                             None => {
                                 counters.bump(Counter::EngineComputedRecordGateAncestors);
-                                retry_after_ancestor = self.retained.tree.tree_scope(node) == TreeScopeID::DOCUMENT
-                                    && (answer.cascade_winners_are_complete
-                                        || self.cascade_winners_are_complete_but_for_custom_properties(node));
+                                retry_after_ancestor =
+                                    self.row_may_retry_after_ancestor(node, answer.cascade_winners_are_complete);
                                 false
                             }
                             Some(relied_on_settled_ancestor) => {
@@ -2143,6 +2142,13 @@ impl StyleEngineState {
                         pending_parent_inputs = Some(parent_inputs_moved);
                         suspended_on_font = true;
                         break;
+                    }
+                    // A row whose inheritance parent the host styles in this update is asked for again
+                    // once the host has applied the rows before it, as a row behind an unsettled
+                    // ancestor is.
+                    if let Some(Err(publication::Unanswered::AwaitsParent)) = engine_record_answer {
+                        retry_after_ancestor =
+                            self.row_may_retry_after_ancestor(node, answer.cascade_winners_are_complete);
                     }
                     let engine_computed_delta = engine_record_answer.and_then(Result::ok);
                     next_published_index = published_index + 1;
@@ -2405,6 +2411,13 @@ impl StyleEngineState {
 }
 
 impl StyleEngineState {
+    /// Whether the host can ask for a declined row again once it has applied the rows before it:
+    /// a document-scope row whose winners the engine holds.
+    fn row_may_retry_after_ancestor(&self, node: StyleNodeID, cascade_winners_are_complete: bool) -> bool {
+        self.retained.tree.tree_scope(node) == TreeScopeID::DOCUMENT
+            && (cascade_winners_are_complete || self.cascade_winners_are_complete_but_for_custom_properties(node))
+    }
+
     pub fn take_style_transaction(
         &mut self,
         root: StyleNodeID,
