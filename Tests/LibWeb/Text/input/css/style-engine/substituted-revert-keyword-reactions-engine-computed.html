@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="sheet">
+    @layer low {
+        .toggled { margin-left: 7px; }
+        .on .toggled { margin-left: 9px; }
+        .edited { margin-left: 3px; }
+        .pseudo::before { margin-left: 5px; }
+        .on .pseudo::before { margin-left: 6px; }
+    }
+    @layer top {
+        .toggled, .edited { margin-left: var(--missing, revert-layer); }
+        .pseudo::before { content: "x"; margin-left: var(--missing, revert-layer); }
+    }
+</style>
+<div id="parent"><div class="toggled"></div><div class="edited"></div><div class="pseudo"></div></div>
+<script>
+    // Each record rolls margin-left back below a substituted revert-layer, to a lower layer's
+    // declaration its cascade winners do not name. Each line prints how often the style engine
+    // refused a record for its substitution, how many elements C++ computed, and the values.
+    test(() => {
+        const parent = document.getElementById("parent");
+        const values = () => {
+            const marginLeft = (selector, pseudo) => getComputedStyle(parent.querySelector(selector), pseudo).marginLeft;
+            const pseudos = [...parent.querySelectorAll(".pseudo")].map(element => getComputedStyle(element, "::before").marginLeft).join(" ");
+            return `toggled=${marginLeft(".toggled")} edited=${marginLeft(".edited")} ::before=${pseudos}`;
+        };
+        const measure = (name, change) => {
+            internals.updateStyle();
+            const before = Object.assign({}, internals.styleEngineCounters());
+            internals.resetStyleInvalidationCounters();
+            change();
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+            println(`${name}: substitution refusals ${after.engineComputedRecordBailSubstitution - before.engineComputedRecordBailSubstitution}, C++ recomputations ${recomputations}, ${values()}`);
+        };
+        println(`initial: ${values()}`);
+        measure("ancestor class added", () => parent.classList.add("on"));
+        measure("ancestor class removed", () => parent.classList.remove("on"));
+        measure("lower layer edited", () => {
+            document.getElementById("sheet").sheet.cssRules[0].cssRules[2].style.marginLeft = "11px";
+        });
+        measure("::before inserted", () => {
+            const element = document.createElement("div");
+            element.className = "pseudo";
+            parent.appendChild(element);
+        });
+    });
+</script>
