@@ -344,9 +344,6 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailUnhosted);
             return Err(Unanswered::Refused);
         }
-        if scratch.root_computation_unsupported == Some(node) {
-            return Err(Unanswered::Refused);
-        }
         // An element-backed pseudo-element is the element in the host's shadow tree that backs
         // it, which is no row of the host's: a host whose rules for one flipped is left to C++,
         // which refreshes the backing element with the host. A host arriving brings its backing
@@ -472,8 +469,13 @@ impl RetainedState {
         // pseudo-element, and a hint mapped from another element's attributes moves without
         // anything recorded on the element.
         let facts = self.computed_group_sets.adjustment_facts(node);
-        let root_inputs_moved =
-            scratch.root_font_inputs_changed && facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT == 0;
+        // Moved root inputs reach every row below the root. The root's font the root-input probe
+        // drove is left pending for the root's own row, which resumes it in full the same way.
+        let root_inputs_moved = if facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {
+            scratch.font_drive.is_pending_for(node)
+        } else {
+            scratch.root_font_inputs_changed
+        };
         if facts
             & (bridge::element_adjustment_fact::HAS_ANIMATIONS
                 | bridge::element_adjustment_fact::IS_SHADOW_HOST_PSEUDO_ELEMENT
@@ -785,19 +787,20 @@ impl RetainedState {
         }
         // A partial delta that reaches the font group reaches every value the font feeds, so it is
         // driven in full, as a partial drive whose driver inputs moved is below.
-        let font_moved = !full_drive && groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0;
-        if full_drive || font_moved {
-            groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
-        }
-
+        let mut font_moved = !full_drive && groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0;
         if goal == FontDriveGoal::RootInputs && !full_drive && !font_moved {
             // NB: No font property moved, but borrowing the retained font still needs the
             //     proof that only the named rule flips changed the computation's inputs.
-            let proven = match exact_flipped_rules {
-                Some(_) => Some(self.root_font_inputs_from_record(old_style_record).or_refused()?),
-                None => None,
-            };
-            return Ok(ElementAnswer::RootInputs(proven));
+            if exact_flipped_rules.is_some() {
+                return Ok(ElementAnswer::RootInputs(Some(
+                    self.root_font_inputs_from_record(old_style_record).or_refused()?,
+                )));
+            }
+            // Without that proof the root's font is computed rather than borrowed.
+            font_moved = true;
+        }
+        if full_drive || font_moved {
+            groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
         }
 
         let store = match scratch.stores.get(&(state, current_environment)) {
@@ -3937,8 +3940,6 @@ pub(super) struct EngineComputedRecordScratch {
     pub(super) prepared_root_font: Option<(StyleNodeID, ParentInputsMoved, drive::FontDriveScratch)>,
     // NB: Preserve the root's existing remaining-phase context after preparing consumer inputs.
     root_element_inputs: Option<(StyleNodeID, RootFontInputs)>,
-    // NB: A failed preparation already performed the root's unsupported computation.
-    root_computation_unsupported: Option<StyleNodeID>,
     root_font_inputs_changed: bool,
     pending_element: Option<drive::PendingElement>,
     next_pseudo: usize,
@@ -4727,11 +4728,10 @@ impl StyleEngineState {
             self.refill_font_request(node, request, counters);
             answer = probe(self, scratch, counters);
         }
-        // An unproven probe keeps the host's root-metric route; a refused one leaves the root's
-        // computation to C++.
-        let (prepared, unproven) = match answer {
-            Ok(ElementAnswer::RootInputs(prepared)) => (prepared, prepared.is_none()),
-            Ok(ElementAnswer::Delta(_)) | Err(_) => (None, false),
+        // An unproven or refused probe keeps the host's root-metric route.
+        let prepared = match answer {
+            Ok(ElementAnswer::RootInputs(prepared)) => prepared,
+            Ok(ElementAnswer::Delta(_)) | Err(_) => None,
         };
         if let Some(root_inputs) = prepared {
             scratch.root_font_inputs_changed = RootFontInputs::from_document(&inputs) != root_inputs;
@@ -4741,9 +4741,6 @@ impl StyleEngineState {
             // NB: Preserve the current host root-metric route. Unproven font inputs do not
             //     turn every descendant into a host-boundary retry.
             counters.bump(Counter::RootFontInputsUnprovenFallbacks);
-        }
-        if prepared.is_none() && !scratch.font_drive.is_pending_for(node) && !unproven {
-            scratch.root_computation_unsupported = Some(node);
         }
         if scratch.font_drive.is_pending_for(node) {
             scratch.prepared_root_font = Some((node, parent_inputs_moved, std::mem::take(&mut scratch.font_drive)));
