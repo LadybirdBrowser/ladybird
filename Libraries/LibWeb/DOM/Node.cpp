@@ -44,6 +44,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/DOM/LiveNodeList.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/MutationType.h>
@@ -2476,6 +2477,17 @@ static bool can_have_a_layout_tree_update(Node const& node)
     return node.is_element() || node.is_text() || node.is_document() || node.is_shadow_root();
 }
 
+// The identity the invalidation journal names a node's box by, or none if the node has no box. Retiring a node's
+// identity unbinds its box and clears its box presence, so a node with a box always has one.
+static NodeIdentity identity_of_box_owner(Node const& node)
+{
+    if (!node.has_layout_box())
+        return {};
+    auto identity = NodeIdentity::of(node);
+    VERIFY(identity);
+    return identity;
+}
+
 void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReason reason)
 {
     // A node with no possible box has nothing for the build to rebuild, and the mutation that
@@ -3787,10 +3799,12 @@ void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
 
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason, Layout::LayoutUpdatePropagation propagation)
 {
-    if (auto* node = unsafe_layout_node()) {
-        node->set_needs_layout_update(reason, propagation);
-        document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
-    }
+    // A node without a box has nothing to mark.
+    auto identity = identity_of_box_owner(*this);
+    if (!identity)
+        return;
+    document().invalidation_journal().note_needs_layout_update(identity, reason, propagation);
+    document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record

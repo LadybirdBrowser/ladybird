@@ -91,6 +91,7 @@
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
@@ -447,6 +448,7 @@ void StyleComputer::unregister_style_node(StyleNodeID style_node_id)
 {
     if (style_node_id == 0)
         return;
+    m_document->invalidation_journal().forget(style_node_id);
     auto index = style_node_index(style_node_id);
     if (style_node_is_text(style_node_id)) {
         if (index < m_text_style_nodes.size())

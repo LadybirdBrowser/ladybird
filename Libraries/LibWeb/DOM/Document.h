@@ -530,6 +530,10 @@ public:
     }
     [[nodiscard]] bool is_running_update_layout() const;
 
+    // The marks the DOM side has made on this document's layout and paint state but not written there yet.
+    [[nodiscard]] InvalidationJournal& invalidation_journal() { return *m_invalidation_journal; }
+    void drain_invalidation_journal() const;
+
     void invalidate_layout_tree(InvalidateLayoutTreeReason);
 
     void tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecodedImageData>);
@@ -1604,6 +1608,7 @@ private:
     GC::Ref<DOM::EventTarget> m_relevant_global_event_target;
 
     RefPtr<Layout::NodeArena> m_layout_node_arena;
+    NonnullOwnPtr<InvalidationJournal> m_invalidation_journal;
     OwnPtr<Painting::DocumentPaintState> m_paint_state;
     NonnullRefPtr<Painting::ChromeWidgetRegistry> m_chrome_widget_registry;
     bool m_may_have_content_visibility_auto_style { false };

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container"><span>first</span></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const text = document.createTextNode("short");
+        container.appendChild(text);
+        container.offsetWidth;
+
+        // Changing the data marks the text node's box for layout without laying out.
+        text.data = "a much longer text than before";
+        // Removing the node retires its identity, and the style update that follows hands it back for reuse.
+        text.remove();
+        getComputedStyle(container).color;
+        container.appendChild(document.createTextNode("reused"));
+
+        println(internals.dumpLayoutTree(container).replace(/\n$/, ""));
+        println(`Layout tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    });
+</script>
