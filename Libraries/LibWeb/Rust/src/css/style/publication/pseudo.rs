@@ -440,7 +440,9 @@ impl RetainedState {
                         scratch.next_pseudo = pseudo_index;
                         scratch.pseudo_uses_substitution = pseudo_uses_substitution;
                     }
-                    let (table, length, longhand_evaluations, font) = driven?;
+                    let FullDrive::Driven((table, length, longhand_evaluations, font)) = driven? else {
+                        unreachable!("only the root-input probe answers with root inputs");
+                    };
                     let font = font.expect("a full drive resolves the font");
                     let (record, _) = self
                         .assemble_and_publish_engine_record(
