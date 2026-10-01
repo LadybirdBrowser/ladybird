@@ -623,6 +623,17 @@ impl RetainedState {
         self.facts.note_attribute_name_forms(name, forms);
     }
 
+    /// Record the id an element answers to, or clear it with atom zero.
+    pub fn set_element_id_name(&mut self, node: StyleNodeID, name: StyleAtomID) {
+        self.tree.set_element_id_name(node, name, &mut self.memory);
+    }
+
+    /// The first element in tree order that answers to `name` inside `tree_scope`.
+    #[must_use]
+    pub fn element_by_id(&self, tree_scope: TreeScopeID, name: StyleAtomID) -> Option<StyleNodeID> {
+        self.tree.element_by_id(tree_scope, name)
+    }
+
     pub fn set_shadow_root(&mut self, host: StyleNodeID, shadow_root: StyleNodeID) {
         self.tree.set_shadow_root(host, shadow_root, &mut self.memory);
     }

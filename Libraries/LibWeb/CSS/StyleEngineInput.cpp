@@ -715,6 +715,9 @@ static void record_element_initial_features(DOM::Element& element)
             });
         });
 
+    if (auto const& id = element.id(); id.has_value())
+        style_engine->set_element_id_name(element.style_node_id(), style_engine->intern_atom(*id));
+
     if (!element.part_names().is_empty())
         record_element_parts_changed(element);
     // NB: Asking the block itself does not build the views of its declarations.
@@ -2027,6 +2030,10 @@ void record_element_id_changed(DOM::Element& element, Optional<Utf16FlyString> c
     };
 
     record_feature(element, StyleEngineFFI::FfiFeatureKind::Id, 0, kind_of(old_value), atom_of(old_value), kind_of(new_value), atom_of(new_value));
+
+    // `getElementById` is case-sensitive in every mode, so the name the inverse index is keyed by
+    // is the one written rather than the one a quirks-mode selector folds it to.
+    style_engine->set_element_id_name(element.style_node_id(), new_value.has_value() ? style_engine->intern_atom(*new_value) : StyleAtomID {});
 }
 
 void record_element_class_list_changed(DOM::Element& element, ReadonlySpan<Utf16FlyString> old_classes, ReadonlySpan<Utf16FlyString> new_classes)
