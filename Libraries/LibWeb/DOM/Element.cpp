@@ -1557,7 +1557,7 @@ static void record_element_reference_pseudo_element_inputs(Element& element)
 
 static void record_engine_container_query_effects(Element&);
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles, EnginePseudoElementRecords const* engine_pseudo_element_records)
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles, EnginePseudoElementRecords const* engine_pseudo_element_records, EngineRecordDamages const* engine_record_damages)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -1738,7 +1738,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                 style_record_identity(),
                 with_counter_style_rebuild);
         };
-        auto packed = record_damage(false);
+        // The engine answered its record with what the move from the pseudo-element record it names
+        // damages, decided against the originating record it names.
+        Optional<u32> answered_damage;
+        if (engine_record_damages && engine_record.has_value()) {
+            if (auto const& answer = engine_record_damages->pseudo_elements[to_underlying(pseudo_element)];
+                answer.has_value()
+                && answer->move.answers(style_record_delta.old_style_record, style_record_delta.new_style_record)
+                && answer->originating_style_record == style_record_identity())
+                answered_damage = answer->move.packed;
+        }
+        auto packed = answered_damage.value_or_lazy_evaluated([&] { return record_damage(false); });
         if (packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::CacheHit))
             ++document().style_invalidation_counters().style_record_property_damage_cache_hits;
         auto result = decode_style_record_invalidation(packed);
@@ -2378,7 +2388,7 @@ static void record_engine_container_query_effects(Element& element)
     });
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, Optional<EngineRecordDamage> engine_record_damage)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, EngineRecordDamages const* engine_record_damages)
 {
     VERIFY(parent());
     auto old_style_record = style_record_identity();
@@ -2449,7 +2459,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
             style_computer.update_root_element_font_metrics(*computed_style());
         counters.element_computed_style_changes++;
         auto invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
-        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, false, nullptr, nullptr, nullptr, &pseudo_element_records);
+        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, false, nullptr, nullptr, nullptr, &pseudo_element_records, engine_record_damages);
         publish_custom_property_names();
         apply_computed_style_to_layout_node_if_needed(invalidation);
         return invalidation;
@@ -2489,8 +2499,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
             .new_style_record = new_style_record,
         };
         Optional<u32> answered_damage;
-        if (engine_record_damage.has_value() && engine_record_damage->old_style_record == old_style_record && engine_record_damage->new_style_record == new_style_record)
-            answered_damage = engine_record_damage->packed;
+        if (engine_record_damages && engine_record_damages->element.has_value() && engine_record_damages->element->answers(old_style_record, new_style_record))
+            answered_damage = engine_record_damages->element->packed;
         result = compute_required_invalidation_with_cache(style_computer, *new_computed_values, old_state, abstract_element, style_record_delta, answered_damage);
         if (result.any_computed_value_changed)
             counters.element_computed_style_changes++;
@@ -2530,7 +2540,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         }
     }
     // The pseudo-element records the engine settled beside this one install with it.
-    result.invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, old_computed_values->display().is_list_item(), &*old_computed_values, nullptr, nullptr, &pseudo_element_records);
+    result.invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, old_computed_values->display().is_list_item(), &*old_computed_values, nullptr, nullptr, &pseudo_element_records, engine_record_damages);
     publish_custom_property_names();
     if (new_style_record != old_style_record || did_change_custom_properties)
         invalidate_descendant_styles_depending_on_style_container_query();
