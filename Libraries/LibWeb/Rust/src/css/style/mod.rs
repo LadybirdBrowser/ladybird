@@ -914,6 +914,9 @@ pub struct RetainedState {
     /// the columns of the ones it never installed. Group records by node so acknowledging or
     /// abandoning one element visits only its own record and pseudo-elements.
     engine_computed_records_pending: HashMap<StyleNodeID, SmallVec<[publication::PendingEngineComputedRecord; 1]>>,
+    /// The record a private demand last answered for each target it was asked about, pinned for
+    /// the host to read: no node holds it.
+    demand_records: HashMap<computed::ComputedStyleTarget, computed::FinalStyleRecordID>,
     /// First records derived earlier, by what they were derived from, for later elements alike.
     /// Pseudo-element records the engine derived, by what they were derived from, for elements
     /// alike in that to share.

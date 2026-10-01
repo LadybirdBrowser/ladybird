@@ -271,6 +271,11 @@ impl FinalStyleRecordID {
         self.0
     }
 
+    /// The record a raw identity names; none for zero.
+    pub(crate) fn from_raw(raw: u64) -> Option<Self> {
+        (raw != 0).then_some(Self(raw))
+    }
+
     fn base_record(self) -> Option<StyleRecordID> {
         if self.0 & Self::ANIMATION_OVERLAY_TAG != 0 {
             return None;

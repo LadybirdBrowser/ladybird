@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+mod demand;
 mod drive;
 mod pseudo;
 pub(super) use drive::drive_font_metric;
@@ -14,6 +15,8 @@ use winner_store::{WinnerDeclaration, WinnerStore, WinnerValue, shorthand_longha
 
 use super::*;
 use crate::css::computed_longhand_table::{ComputedLonghandTable, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS};
+pub(crate) use demand::RecordDemandAnswer;
+pub(super) use demand::WinnerRepublication;
 pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
 use drive::{DrivenTable, FontDriveGoal, FullDrive, PartialDrive};
 use retry::InstalledAncestors;
@@ -431,17 +434,19 @@ impl RetainedState {
 
     /// The winners a driven element's record is computed from. A republish admits the row whatever
     /// the memory budget, and an answer that published nothing is matched again; a row that holds
-    /// no winners even then is the host's.
+    /// no winners even then is the host's, as is one a drive without the leave to republish holds
+    /// no winners for.
     fn driven_element_winners(
         &mut self,
         node: StyleNodeID,
         winner_key: WinnerGroupKey,
+        republication: Option<WinnerRepublication>,
         counters: &mut Counters,
     ) -> Option<(u64, CascadeStateID)> {
         if let Lookup::Known(token) = self.current_winner_groups().token_for(winner_key) {
             return Some(token);
         }
-        self.rematch_driven_winners(node, counters);
+        self.rematch_driven_winners(node, republication?, counters);
         let token = match self.current_winner_groups().token_for(winner_key) {
             Lookup::Known(token) => Some(token),
             _ => None,
@@ -492,7 +497,13 @@ impl RetainedState {
             && self.current_winner_groups().row_stamp(node) != Some(self.flush_stamp))
             || !matches!(self.current_winner_groups().token_for(winner_key), Lookup::Known(_));
         if stale_element_winners {
-            cascade_winners_are_complete = self.republish_driven_winners(node, counters);
+            // A read-only demand's drive reads the rows its private traversal published. One it
+            // would have to republish is the host's: the republished row would outlive the demand.
+            let Some(republication) = scratch.winner_republication() else {
+                counters.bump(Counter::EngineComputedRecordBailWinner);
+                return Err(Unanswered::Refused);
+            };
+            cascade_winners_are_complete = self.republish_driven_winners(node, republication, counters);
         }
         // A custom property the cascade declares is no winner the columns hold; the engine
         // computes the environment it decides itself.
@@ -511,7 +522,9 @@ impl RetainedState {
         }
         // The winners the record was computed from, against the winners the node holds now: the
         // same comparison a C++ publication makes to select what it recomputes.
-        let Some((generation, state)) = self.driven_element_winners(node, winner_key, counters) else {
+        let Some((generation, state)) =
+            self.driven_element_winners(node, winner_key, scratch.winner_republication(), counters)
+        else {
             counters.bump(Counter::EngineComputedRecordBailWinner);
             return Err(Unanswered::Refused);
         };
@@ -1798,6 +1811,19 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) {
+        self.put_back_engine_computed_records(node, scratch, counters);
+        counters.bump(Counter::EngineComputedRecordsAbandoned);
+    }
+
+    /// Put back every record derived for `node` that the host has not taken: the node goes back to
+    /// the records it held, the cascade state a derived record waits to bind goes with it, and no
+    /// cohort of the drive or cache across drives keeps a derived record to share.
+    pub(super) fn put_back_engine_computed_records(
+        &mut self,
+        node: StyleNodeID,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) {
         for pending in self.engine_computed_records_pending.remove(&node).into_iter().flatten() {
             let derived = pending.new_style_record;
             if pending.pseudo_kind == u8::MAX {
@@ -1820,7 +1846,6 @@ impl RetainedState {
         }
         scratch.pseudo_deltas.clear();
         self.settle_computed_memory();
-        counters.bump(Counter::EngineComputedRecordsAbandoned);
     }
 
     /// Whether a node's record inherits from the parent it has now: each inherited group outside
@@ -4254,6 +4279,8 @@ pub(super) struct EngineComputedRecordScratch {
     pub(super) flipped_pseudo_rules: u64,
     /// Held while a retry runs after the host applied the rows before the one asked for.
     installed_ancestors: Option<InstalledAncestors>,
+    /// Whether the drive answers a read-only demand, which holds no leave to republish winners.
+    read_only: bool,
 }
 
 /// What one node tells its flat-tree children, decided where the node settles and read by the

@@ -998,6 +998,16 @@ impl StyleEngine {
         self.state.retry_engine_record_after_ancestor(node, &mut self.counters)
     }
 
+    /// Answer a read of one element's style the host makes before the next style update.
+    #[inline]
+    pub(super) fn answer_record_demand(
+        &mut self,
+        node: StyleNodeID,
+        demand: bridge::FfiRecordDemand,
+    ) -> publication::Drive<publication::RecordDemandAnswer> {
+        self.state.answer_record_demand(node, demand, &mut self.counters)
+    }
+
     /// Settle the pseudo-element records of an element whose record C++ just installed.
     #[inline]
     pub(crate) fn settle_pseudo_records_after_host_record(
