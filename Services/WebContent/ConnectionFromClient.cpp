@@ -3108,6 +3108,10 @@ void ConnectionFromClient::set_document_cookie_version_index(Web::PageId page_id
 void ConnectionFromClient::cookies_changed(Web::PageId page_id, Vector<HTTP::Cookie::Cookie> cookies)
 {
     if (auto page = this->page(page_id); page.has_value()) {
+        // Cookie notifications can arrive after a process switch has made this page's traversable remote.
+        if (!page->page().has_local_traversable())
+            return;
+
         auto window = page->page().local_traversable()->active_window();
         if (!window)
             return;
