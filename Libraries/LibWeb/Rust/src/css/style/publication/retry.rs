@@ -43,7 +43,6 @@ impl RetainedState {
         if !scratch.font_drive.is_pending()
             && !self.node_declares_custom_properties(node)
             && let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node)
-            && let Some(inputs) = self.document_style_computation_inputs
             && let Some(parent) = self.tree.inheritance_parent(node)
             && let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent)
             && let Some(environment) = self.computed_group_sets.custom_property_environment_identity(parent)
@@ -59,8 +58,8 @@ impl RetainedState {
                     facts: cold_record_facts(facts),
                     pseudo_styles,
                     environment,
-                    font_environment_generation: inputs.font_environment_generation,
-                    root_font_inputs: RootFontInputs::from_document(&inputs),
+                    font_environment_generation: self.document_style_computation_inputs.font_environment_generation,
+                    root_font_inputs: RootFontInputs::from_document(&self.document_style_computation_inputs),
                 });
             if let Some((old_record, record)) = self.assign_cached_cold_record(
                 node,
@@ -126,10 +125,12 @@ impl StyleEngineState {
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> RetriedEngineRecord {
-        if let Some(inputs) = self.retained.document_style_computation_inputs
-            && let Some(resolver) = &mut self.retained.font_resolution
-        {
-            resolver.prepare(inputs.font_environment_generation);
+        let font_environment_generation = self
+            .retained
+            .document_style_computation_inputs
+            .font_environment_generation;
+        if let Some(resolver) = &mut self.retained.font_resolution {
+            resolver.prepare(font_environment_generation);
         }
         counters.bump(Counter::RetryAfterAncestorCalls);
         let started_at = std::time::Instant::now();

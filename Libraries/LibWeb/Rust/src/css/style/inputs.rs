@@ -1245,7 +1245,7 @@ impl StyleEngineState {
                 cascade_compaction_scratch: ordering::CascadeCompactionWorkspace::default(),
                 cascade_compaction_scratch_memory: MemoryLease::new(MemoryCategory::BatchScratch),
                 next_style_transaction_version: StyleTransactionVersion(1),
-                document_style_computation_inputs: None,
+                document_style_computation_inputs: Default::default(),
                 font_resolution: None,
                 layer_topology_version: 0,
                 sheet_order_version: 0,

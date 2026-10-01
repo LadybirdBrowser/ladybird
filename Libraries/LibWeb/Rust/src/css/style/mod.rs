@@ -808,8 +808,9 @@ pub struct RetainedState {
     cascade_compaction_scratch_memory: MemoryLease,
     /// Monotonic identity assigned to each non-empty normalized style transaction.
     next_style_transaction_version: StyleTransactionVersion,
-    /// Latest document-wide scalar computation facts, copied at the transaction boundary.
-    document_style_computation_inputs: Option<bridge::FfiDocumentStyleComputationInputs>,
+    /// Latest document-wide scalar computation facts, copied at the transaction boundary. The host
+    /// publishes them with every transaction, before it asks for any row.
+    document_style_computation_inputs: bridge::FfiDocumentStyleComputationInputs,
     /// Every font resolution this document has been given. An evaluation step reads it; only a
     /// host round between passes adds to it.
     font_resolution: Option<font_resolution::FontResolutionCache>,

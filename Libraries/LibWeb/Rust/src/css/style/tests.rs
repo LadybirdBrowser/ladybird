@@ -11345,7 +11345,7 @@ fn replay_ffi_reclaims_the_non_empty_recorded_atom_set() {
     let output =
         unsafe { bridge::style_engine_take_style_transaction(engine_pointer, nodes[0].raw(), computation_inputs) };
 
-    assert_eq!(engine.document_style_computation_inputs, Some(computation_inputs));
+    assert_eq!(engine.document_style_computation_inputs, computation_inputs);
 
     assert!(output.style_atoms_swept);
     assert_eq!(output.reclaimed_style_atom_count, 1);
@@ -11740,7 +11740,7 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
     let parent_record = publish(&mut engine, nodes[0], 0);
     let record = publish(&mut engine, nodes[1], 1);
     let other_parent_record = publish(&mut engine, nodes[2], 2);
-    engine.document_style_computation_inputs = Some(bridge::FfiDocumentStyleComputationInputs::default());
+    engine.document_style_computation_inputs = bridge::FfiDocumentStyleComputationInputs::default();
     engine.begin_style_record_view_epoch();
     let context = computed::SharedComputationContext {
         parent_record,
@@ -11788,7 +11788,7 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
     ] {
         let mut inputs = bridge::FfiDocumentStyleComputationInputs::default();
         change(&mut inputs);
-        engine.document_style_computation_inputs = Some(inputs);
+        engine.document_style_computation_inputs = inputs;
         engine
             .computed_group_sets
             .remember_shared_computation_context(nodes[1], context);
@@ -11797,7 +11797,7 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
             None
         );
     }
-    engine.document_style_computation_inputs = Some(bridge::FfiDocumentStyleComputationInputs::default());
+    engine.document_style_computation_inputs = bridge::FfiDocumentStyleComputationInputs::default();
     for (environment, shape, pseudos) in [(4, [4, 5, 6, 7], 1), (3, [4, 9, 6, 7], 1), (3, [4, 5, 6, 7], 2)] {
         engine
             .computed_group_sets

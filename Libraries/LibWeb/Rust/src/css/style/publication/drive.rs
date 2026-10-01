@@ -367,8 +367,8 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
-        if self.font_resolution.is_none() {
-            counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
+        if !self.computes_records() {
+            counters.bump(Counter::EngineComputedRecordBailUnhosted);
             return Err(Unanswered::Refused);
         }
         if store

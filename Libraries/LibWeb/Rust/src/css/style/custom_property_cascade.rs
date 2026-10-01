@@ -407,9 +407,7 @@ impl RetainedState {
         if environment == 0 || environment & custom_property_environments::ENGINE_ENVIRONMENT_IDENTITY_BIT != 0 {
             return;
         }
-        let Some(inputs) = self.document_style_computation_inputs else {
-            return;
-        };
+        let inputs = self.document_style_computation_inputs;
         if !self.node_declares_custom_properties(node) {
             return;
         }
@@ -569,7 +567,7 @@ impl RetainedState {
     /// the engine does not resolve, or the environment is one the engine holds no store for.
     pub(super) fn substitute_written_value(
         environments: &mut custom_property_environments::CustomPropertyEnvironments,
-        inputs: Option<bridge::FfiDocumentStyleComputationInputs>,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
         environment: u64,
         property: u16,
         written: RetainedStyleValueData,
@@ -579,10 +577,6 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return Err(Unanswered::Refused);
         }
-        let Some(inputs) = inputs else {
-            counters.bump(Counter::EngineComputedRecordBailSubstitution);
-            return Err(Unanswered::Refused);
-        };
         let registry = inputs.custom_property_registry;
         if registry.is_none() {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
