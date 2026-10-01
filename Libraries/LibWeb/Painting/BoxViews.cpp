@@ -834,7 +834,7 @@ void apply_repaint_damage(Layout::Node const& node, InvalidateDisplayList should
         if (body_background_is_propagated_to_root(as<Layout::NodeWithStyle>(node))) {
             if (auto const* document_element = document.document_element()) {
                 if (auto const* document_element_layout_node = document_element->unsafe_layout_node())
-                    invalidate_paint_cache(*document_element_layout_node);
+                    apply_paint_cache_invalidation(*document_element_layout_node, PaintCacheInvalidation::PaintAndHitTest);
             }
         }
     }
@@ -869,9 +869,17 @@ void apply_subtree_repaint_damage(Layout::Node const& node)
     Layout::RustFFI::layout_arena_paintable_invalidate_subtree_for_repaint(node.arena_handle(), committed_row_slot(node));
 }
 
-void invalidate_paint_cache(Layout::Node const& node)
+void invalidate_propagated_text_decoration_caches(Layout::Node const& node)
 {
-    mirror_rust_invalidate_paint_cache(node);
+    if (auto identity = journal_identity_of(node))
+        const_cast<DOM::Document&>(node.document()).invalidation_journal().note_propagated_text_decoration_caches_invalidation(identity);
+    else
+        apply_paint_cache_invalidation(node, PaintCacheInvalidation::PropagatedTextDecorations);
+}
+
+void apply_paint_cache_invalidation(Layout::Node const& node, PaintCacheInvalidation invalidation)
+{
+    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), invalidation == PaintCacheInvalidation::PropagatedTextDecorations);
 }
 
 void repaint_after_style_change(Layout::Node const& node, CSS::RequiredInvalidationAfterStyleChange const& invalidation)
@@ -879,7 +887,7 @@ void repaint_after_style_change(Layout::Node const& node, CSS::RequiredInvalidat
     if (invalidation.needs_repaint())
         set_needs_repaint(node, invalidation.invalidates_hit_test_display_list() ? InvalidateDisplayList::PaintCommandsAndHitTestList : InvalidateDisplayList::PaintCommands);
     if (invalidation.repaint_propagated_text_decorations)
-        rust_invalidate_propagated_text_decoration_caches(node);
+        invalidate_propagated_text_decoration_caches(node);
     if (invalidation.needs_stacking_context_tree_rebuild()) {
         auto& document = const_cast<DOM::Document&>(node.document());
         document.schedule_accumulated_visual_context_update(node, DOM::Document::AccumulatedVisualContextUpdateScope::Structure);

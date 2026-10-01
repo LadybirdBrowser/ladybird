@@ -97,7 +97,18 @@ WEB_API void set_needs_repaint_in_subtree(Layout::Node const&);
 WEB_API void apply_repaint_damage(Layout::Node const&, InvalidateDisplayList);
 WEB_API void apply_text_repaint_damage(Layout::TextNode const&, InvalidateDisplayList);
 WEB_API void apply_subtree_repaint_damage(Layout::Node const&);
-WEB_API void invalidate_paint_cache(Layout::Node const&);
+
+enum class PaintCacheInvalidation : u8 {
+    PaintAndHitTest,
+    PropagatedTextDecorations,
+};
+
+// Notes the invalidation in the invalidation journal, which applies it when it drains.
+WEB_API void invalidate_propagated_text_decoration_caches(Layout::Node const&);
+// Invalidates the box's cached paint commands at once. This is for the journal's drain and for invalidations made where
+// nothing drains before the cache is read again: while a box is detached, and while paint facts are reconciled right
+// before recording.
+WEB_API void apply_paint_cache_invalidation(Layout::Node const&, PaintCacheInvalidation);
 WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);
 
 WEB_API Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform();

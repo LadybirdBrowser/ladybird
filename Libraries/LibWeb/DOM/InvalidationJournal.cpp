@@ -72,6 +72,12 @@ void InvalidationJournal::note_dom_paint_facts(NodeIdentity identity, u8 facts)
     drain_if_layout_is_reading();
 }
 
+void InvalidationJournal::note_propagated_text_decoration_caches_invalidation(NodeIdentity identity)
+{
+    entry_for(identity).invalidate_propagated_text_decoration_caches = true;
+    drain_if_layout_is_reading();
+}
+
 void InvalidationJournal::note_paint_facts(NodeIdentity identity, Painting::PaintFactsFamily families)
 {
     auto& entry = entry_for(identity);
@@ -127,6 +133,8 @@ void InvalidationJournal::drain()
                 }
                 if (entry.stale_paint_facts != Painting::PaintFactsFamily::None)
                     Painting::apply_paint_facts(*layout_node, entry.stale_paint_facts);
+                if (entry.invalidate_propagated_text_decoration_caches)
+                    Painting::apply_paint_cache_invalidation(*layout_node, Painting::PaintCacheInvalidation::PropagatedTextDecorations);
                 if (entry.needs_subtree_repaint)
                     Painting::apply_subtree_repaint_damage(*layout_node);
                 if (needs_repaint) {
