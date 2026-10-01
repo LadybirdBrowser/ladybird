@@ -2809,6 +2809,17 @@ pub struct FfiEffectiveColorSchemeInput {
     pub document_supported_scheme_count: usize,
 }
 
+/// The record a highlight pseudo-element inherits from, as the style engine has it assigned; what
+/// the host read when the engine assigns none.
+fn retained_highlight_inheritance_parent_style_record(
+    style_engine: &crate::css::style::StyleEngine,
+    input: &FfiComputePropertiesInput,
+) -> u64 {
+    crate::css::style::tree::StyleNodeID::from_raw(input.style_node)
+        .and_then(|node| style_engine.retained_highlight_inheritance_parent_style_record(node, input.pseudo_kind))
+        .map_or(input.highlight_parent_style_record, |record| record.raw())
+}
+
 #[repr(C)]
 pub struct FfiDocumentLonghandInput {
     pub color_scheme_input: FfiEffectiveColorSchemeInput,
@@ -5287,8 +5298,10 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
         && crate::css::property_metadata::pseudo_element_is_highlight(input.pseudo_kind))
     .then(|| HighlightInheritance {
         pseudo_kind: input.pseudo_kind,
-        snapshot: (input.highlight_parent_style_record != 0)
-            .then(|| parent_snapshot_for_style_record(style_engine, input.highlight_parent_style_record, None)),
+        snapshot: match retained_highlight_inheritance_parent_style_record(style_engine, input) {
+            0 => None,
+            record => Some(parent_snapshot_for_style_record(style_engine, record, None)),
+        },
     });
     let mut drive_input = std::mem::MaybeUninit::<FfiLonghandDriveInput>::uninit();
     let rebuilds_over_previous_properties =

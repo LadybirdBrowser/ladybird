@@ -86,6 +86,23 @@ impl RootFontInputs {
 }
 
 impl RetainedState {
+    /// The record a highlight pseudo-element inherits from: the same pseudo-element's record on its
+    /// nearest flat-tree ancestor holding one, as the engine has it assigned.
+    pub(crate) fn retained_highlight_inheritance_parent_style_record(
+        &self,
+        node: StyleNodeID,
+        pseudo_kind: u8,
+    ) -> Option<computed::FinalStyleRecordID> {
+        let mut ancestor = self.tree.inheritance_parent(node);
+        while let Some(candidate) = ancestor {
+            if let Some(record) = self.computed_group_sets.pseudo_style_record(candidate, pseudo_kind) {
+                return Some(record);
+            }
+            ancestor = self.tree.inheritance_parent(candidate);
+        }
+        None
+    }
+
     /// The inheritance parent a node's record is computed from. C++ styles an element whose
     /// inheritance parent has no style, such as a slotted element whose slot is in a `display: none`
     /// subtree, from the initial values, the way it styles the document element. A parent without
@@ -4639,6 +4656,52 @@ fn value_computes_without_document_context_but_for_resources(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retained_highlight_inheritance_parent_uses_nearest_ancestor_pseudo_record() {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut raw_nodes = [0; 4];
+        engine.allocate_style_nodes(&mut raw_nodes);
+        let [root, parent, child, slot] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
+        engine.tree.set_parent(parent, Some(root));
+        engine.tree.set_parent(child, Some(parent));
+        let retained = &mut engine.state.retained;
+        retained.tree.set_assigned_slot(child, Some(slot), &mut retained.memory);
+        retained.tree.set_parent(slot, Some(root));
+        let publish = |engine: &mut StyleEngine, node, pseudo_kind| {
+            engine
+                .publish_computed_groups(
+                    computed::ComputedStyleTarget::new(node, pseudo_kind),
+                    &[],
+                    0,
+                    0,
+                    computed::ComputedMetadataInput {
+                        pseudo_element_styles: 0,
+                        dependency_flags: 0,
+                        counter_style_environment_identity: 0,
+                        animation_overlay_identity: 0,
+                        animated_overlay: HostShared::null(),
+                        animation_overlay_payloads: &[],
+                        longhand_table: HostShared::null(),
+                    },
+                )
+                .style_record_identity
+        };
+        let root_record = publish(&mut engine, root, 0);
+        assert_eq!(
+            engine.retained_highlight_inheritance_parent_style_record(parent, 0),
+            Some(root_record)
+        );
+        assert_eq!(
+            engine.retained_highlight_inheritance_parent_style_record(child, 0),
+            Some(root_record)
+        );
+        let slot_record = publish(&mut engine, slot, 0);
+        assert_eq!(
+            engine.retained_highlight_inheritance_parent_style_record(child, 0),
+            Some(slot_record)
+        );
+    }
 
     #[test]
     fn pending_shorthand_lookup_returns_the_outermost_shorthand() {
