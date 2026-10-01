@@ -2567,7 +2567,13 @@ impl RetainedState {
                         attributes,
                         counters,
                     )?;
-                    (WinnerValue::Substituted(invalid_as_unset(value)), None)
+                    (
+                        WinnerValue::Substituted {
+                            value: invalid_as_unset(value),
+                            source: winner.source,
+                        },
+                        None,
+                    )
                 }
                 // A longhand pending its shorthand's substitution takes its part of the
                 // substituted shorthand.
@@ -2595,15 +2601,21 @@ impl RetainedState {
                         crate::css::style_value::StyleValueData::GuaranteedInvalid => unset_value(),
                         _ => expanded_longhand_value(shorthand, winner.property, &resolved).unwrap_or_else(unset_value),
                     };
-                    (WinnerValue::Substituted(value), None)
+                    (
+                        WinnerValue::Substituted {
+                            value,
+                            source: winner.source,
+                        },
+                        None,
+                    )
                 }
                 _ => (location, Some(value.data())),
             };
             let data = match &value {
-                WinnerValue::Substituted(value) => value.data(),
+                WinnerValue::Substituted { value, .. } => value.data(),
                 WinnerValue::Written { .. } => borrowed.expect("written declaration is borrowed"),
             };
-            if matches!(value, WinnerValue::Substituted(_))
+            if matches!(value, WinnerValue::Substituted { .. })
                 && matches!(
                     super::program_updates::declaration_operator(data),
                     CascadeOperator::Revert | CascadeOperator::RevertLayer
@@ -2612,16 +2624,24 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailSubstitution);
                 return Err(Unanswered::Refused);
             }
-            // A `url()` resolves against the sheet its rule came from, or the document's base URL
-            // for an element's own declaration; a substituted value has lost its sheet.
+            // A `url()` resolves against the sheet its rule came from, written or substituted, or
+            // the document's base URL for an element's own declaration.
             let resources_are_known = match &value {
                 WinnerValue::Written {
+                    source: WinnerSource::Rule(rule),
+                    ..
+                }
+                | WinnerValue::Substituted {
                     source: WinnerSource::Rule(rule),
                     ..
                 } => self
                     .rule_source_identity(*rule)
                     .is_some_and(|source| self.document_resource_contexts.for_source(source).is_some()),
                 WinnerValue::Written {
+                    source: WinnerSource::Element(_),
+                    ..
+                }
+                | WinnerValue::Substituted {
                     source: WinnerSource::Element(_),
                     ..
                 } => true,
@@ -2639,7 +2659,7 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailValue);
                 return Err(Unanswered::Refused);
             }
-            if matches!(value, WinnerValue::Substituted(_)) {
+            if matches!(value, WinnerValue::Substituted { .. }) {
                 crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreValueRetains);
             }
             declarations.push((

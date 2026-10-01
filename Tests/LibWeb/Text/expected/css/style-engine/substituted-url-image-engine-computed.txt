@@ -1,0 +1,3 @@
+engine computed the image records: true
+local: url("image.svg")
+imported: url("support/image.svg")

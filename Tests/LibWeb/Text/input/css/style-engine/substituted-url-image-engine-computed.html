@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<link rel="stylesheet" href="support/substituted-image-style.css">
+<style>
+    #container { --image: url("image.svg"); }
+    .local { background-image: var(--image); }
+    .moved { color: rgb(0, 128, 0); }
+</style>
+<div id="container"></div>
+<script>
+    // A url() a var() substitutes resolves against the sheet of the declaration that used the
+    // var(), as a written one does. The engine knows that sheet, so it computes these records.
+    test(() => {
+        const nodes = [];
+        for (const kind of ["local", "imported"]) {
+            for (let index = 0; index < 4; ++index) {
+                const node = document.createElement("div");
+                node.className = kind;
+                container.append(node);
+                nodes.push(node);
+            }
+        }
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        for (const node of nodes)
+            node.classList.add("moved");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`engine computed the image records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords >= nodes.length}`);
+        const directory = new URL(".", location.href).href;
+        for (const kind of ["local", "imported"]) {
+            const values = new Set(nodes.filter(node => node.classList.contains(kind)).map(node => getComputedStyle(node).backgroundImage.replace(directory, "")));
+            println(`${kind}: ${[...values].join(", ")}`);
+        }
+    });
+</script>

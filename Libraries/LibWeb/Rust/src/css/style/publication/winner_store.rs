@@ -20,7 +20,12 @@ pub(super) enum WinnerValue {
         source: WinnerSource,
         index: usize,
     },
-    Substituted(RetainedStyleValueData),
+    /// A value substituted from what `source` declared, which keeps the sheet a `url()` in it
+    /// resolves against.
+    Substituted {
+        value: RetainedStyleValueData,
+        source: WinnerSource,
+    },
 }
 
 pub(super) struct WinnerDeclaration {
@@ -149,7 +154,7 @@ pub(super) fn shorthand_longhand_data(property: u16, data: &StyleValueData) -> O
 impl WinnerView<'_> {
     fn value<'a>(&'a self, declaration: &'a WinnerDeclaration) -> &'a StyleValueData {
         let written = match &declaration.value {
-            WinnerValue::Substituted(value) => return value.data(),
+            WinnerValue::Substituted { value, .. } => return value.data(),
             WinnerValue::Written { node, source, index } => match source {
                 WinnerSource::Rule(rule) => &self.engine.program.written_values_of(*rule)[*index],
                 WinnerSource::Element(kind) => &self.engine.facts.element_written_declared_values(*node, *kind)[*index],
@@ -205,16 +210,21 @@ impl<'a> WinnerView<'a> {
         dependencies
     }
 
-    /// The resource context of the sheet a written rule declaration came from. An element's own
-    /// declarations resolve against the document's base URL, as they do in the host's cascade.
+    /// The resource context of the sheet a rule declaration came from, written or substituted. An
+    /// element's own declarations resolve against the document's base URL, as they do in the
+    /// host's cascade.
     fn resource_context(
         &self,
         declaration: &WinnerDeclaration,
     ) -> Option<&'a super::resource_contexts::StyleSheetResourceContext> {
-        let WinnerValue::Written {
+        let (WinnerValue::Written {
             source: WinnerSource::Rule(rule),
             ..
-        } = declaration.value
+        }
+        | WinnerValue::Substituted {
+            source: WinnerSource::Rule(rule),
+            ..
+        }) = declaration.value
         else {
             return None;
         };
