@@ -3002,7 +3002,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         DOM::AbstractElement& abstract_element;
         Vector<BlockSource> const& block_sources;
         RefPtr<CustomPropertyData const> parent_custom_property_data;
-        u64 custom_property_environment_identity { 0 };
         void const* inheritance_custom_property_store { nullptr };
         void const* (*install_custom_properties)(BulkCascadeContext&, ComputedValuesFFI::FfiCascadedCustomProperty const*, size_t, void const*&) { nullptr };
     } bulk_context {
@@ -3036,6 +3035,10 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         for (auto word : key)
             key_hash.add(word);
         auto apply_environment = [&](RefPtr<CustomPropertyData const> const& result) -> void const* {
+            // An element without a style node, such as a detached SVG shape whose geometry is read, holds no
+            // environment. Its cascade substitutes against the one it resolved, which the memo keeps alive.
+            if (bulk_context.abstract_element.element().style_node_id() == 0)
+                return result ? result->rust_store() : nullptr;
             if (!result || result == bulk_context.parent_custom_property_data) {
                 bulk_context.abstract_element.set_custom_property_data(result);
             } else {
@@ -3043,7 +3046,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                     document, bulk_context.abstract_element.custom_property_data(), result));
             }
             auto custom_property_data = bulk_context.abstract_element.custom_property_data();
-            bulk_context.custom_property_environment_identity = custom_property_data ? custom_property_data->identity() : 0;
             return custom_property_data ? custom_property_data->rust_store() : nullptr;
         };
         auto& memo_bucket = style_computer.m_cascaded_custom_property_environments.ensure(key_hash.value());

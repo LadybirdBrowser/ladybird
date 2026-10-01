@@ -485,16 +485,13 @@ impl StyleEngineState {
     /// The record of an element no rule reaches, such as one outside the document: the cascade of
     /// its own declarations alone, in cascade order, over the initial values. The element has no
     /// style node, so the drive is keyed by `subject`, the document's, which names no parent and
-    /// no siblings. A value that would substitute is C++'s, which resolves it against no custom
-    /// property, unless the declarations name some: an element without a style node holds no
-    /// environment for them, and the value is unset. No row holds the record, which comes back
-    /// pinned for the caller.
+    /// no siblings. A value that would substitute is C++'s. No row holds the record, which comes
+    /// back pinned for the caller.
     pub(in crate::css::style) fn declared_only_record(
         &mut self,
         subject: StyleNodeID,
         facts: u32,
         declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
-        declares_custom_properties: bool,
         counters: &mut Counters,
     ) -> Drive<computed::FinalStyleRecordID> {
         use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
@@ -519,10 +516,7 @@ impl StyleEngineState {
                         None => continue,
                     },
                     StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. } => {
-                        if !declares_custom_properties {
-                            return Err(Unanswered::Refused);
-                        }
-                        unset_value()
+                        return Err(Unanswered::Refused);
                     }
                     data => retained(data),
                 };
