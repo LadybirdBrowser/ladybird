@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        frame.style.cssText = "width: 300px; height: 100px; border: 0";
+        frame.srcdoc = `<!DOCTYPE html>
+            <style>
+                @property --unused {
+                    syntax: "<length>";
+                    inherits: false;
+                    initial-value: 10vw;
+                }
+                html { font-size: 10px; }
+                #target { width: 10vw; height: 2em; }
+                #fixed { width: 23px; }
+            </style>
+            <div id="target"></div><div id="fixed"></div>`;
+        const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(frame);
+        await loaded;
+
+        const child = frame.contentWindow;
+        const target = child.document.getElementById("target");
+        const fixed = child.document.getElementById("fixed");
+        println(`initial width: ${child.getComputedStyle(target).width}`);
+        const before = child.internals.styleEngineCounters();
+
+        // The registered initial value requests a document environment update even
+        // though neither element substitutes it into a winning declaration.
+        frame.style.width = "500px";
+        document.body.offsetWidth;
+        child.internals.updateStyle();
+        println(`resized width: ${child.getComputedStyle(target).width}`);
+        println(`font-relative height: ${child.getComputedStyle(target).height}`);
+        println(`fixed width: ${child.getComputedStyle(fixed).width}`);
+        const after = child.internals.styleEngineCounters();
+        println(`fresh winners accepted: ${after.engineComputedRecordBailUnchangedWinners === before.engineComputedRecordBailUnchangedWinners}`);
+        println(`engine answered: ${after.engineComputedRecordDeltas > before.engineComputedRecordDeltas}`);
+    });
+</script>
