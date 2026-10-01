@@ -3143,18 +3143,25 @@ impl RetainedState {
                 } => true,
                 _ => false,
             };
-            let context_free = checks
-                .longhand_context_free
-                .unwrap_or_else(|| value_computes_without_document_context(data))
-                || (resources_are_known && value_computes_without_document_context_but_for_resources(data).is_some())
-                || (value_computes_with_tree_counting_inputs(data, resources_are_known)
-                    && self.sibling_position(node).is_some())
-                // A substituted random function or container-relative length is not keyed by the
-                // element in the record caches.
-                || (matches!(value, WinnerValue::Written { .. })
-                    && (value_computes_with_random_base_values(data, resources_are_known)
-                        || value_computes_with_container_unit_bases(data, resources_are_known)));
-            if !context_free
+            // A value of a shape the computation does not know never reaches a winner, and the
+            // drive holds everything else a value may read beyond the record, the parent and the
+            // document's computation inputs, in any mix, but for a random function or a
+            // container-relative length that appears through a substitution: the record caches
+            // do not key those on the element.
+            let computable = checks.longhand_context_free == Some(true)
+                || crate::css::style_compute::value_is_computationally_independent(data).is_some_and(|_| {
+                    drive_holds_value_inputs(
+                        &crate::css::style_compute::external_value_dependencies(data),
+                        resources_are_known,
+                        || self.sibling_position(node).is_some(),
+                        matches!(value, WinnerValue::Written { .. }),
+                    )
+                });
+            debug_assert!(
+                computable || crate::css::style_compute::value_is_computationally_independent(data).is_some(),
+                "a cascade winner computes to a value of a known shape"
+            );
+            if !computable
                 || (pseudo_kind.is_some()
                     && winner.property == prop::CONTENT
                     && !content_value_is_engine_computable(data))
@@ -5139,53 +5146,24 @@ fn property_starts_animation_or_counter_environment(property: u16) -> bool {
                 .is_some_and(|group| usize::from(group) == crate::css::table_group_builder::group_index::ANIMATION))
 }
 
-/// Whether a value computes from the document's computation inputs and the element's place among
-/// its siblings, which the retained tree supplies to the drive, and reads that place.
-fn value_computes_with_tree_counting_inputs(value: &StyleValueData, resources_are_known: bool) -> bool {
-    if matches!(
-        value,
-        StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
-    ) || crate::css::style_compute::value_is_computationally_independent(value).is_none()
-    {
-        return false;
-    }
-    let dependencies = crate::css::style_compute::external_value_dependencies(value);
-    dependencies.uses_tree_counting_function
-        && dependencies.container_relative_length_unit_mask == 0
-        && !dependencies.has_unfixed_random_sharing
-        && !dependencies.uses_random_function
-        && (resources_are_known
-            || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
-}
-
-/// Whether a value computes from the document's computation inputs and the random base values of
-/// its random functions, which the store a drive reads draws for the element.
-fn value_computes_with_random_base_values(value: &StyleValueData, resources_are_known: bool) -> bool {
-    if crate::css::style_compute::value_is_computationally_independent(value).is_none() {
-        return false;
-    }
-    let dependencies = crate::css::style_compute::external_value_dependencies(value);
-    dependencies.uses_random_function
-        && !dependencies.uses_tree_counting_function
-        && dependencies.container_relative_length_unit_mask == 0
-        && (resources_are_known
-            || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
-}
-
-/// Whether a value computes from the document's computation inputs and the bases its
-/// container-relative lengths resolve against, which the drive reads from the element's query
-/// containers.
-fn value_computes_with_container_unit_bases(value: &StyleValueData, resources_are_known: bool) -> bool {
-    if crate::css::style_compute::value_is_computationally_independent(value).is_none() {
-        return false;
-    }
-    let dependencies = crate::css::style_compute::external_value_dependencies(value);
-    dependencies.container_relative_length_unit_mask != 0
-        && !dependencies.uses_tree_counting_function
-        && !dependencies.has_unfixed_random_sharing
-        && !dependencies.uses_random_function
-        && (resources_are_known
-            || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
+/// Whether the drive holds what a value with these dependencies reads beyond the record, the
+/// parent and the document's computation inputs: the base URLs a `url()` resolves against when
+/// `resources_are_known`, the element's place among its siblings when the retained tree knows
+/// it, and for an element-keyed value, the random base values the store draws for it and the
+/// bases its container-relative lengths resolve against.
+fn drive_holds_value_inputs(
+    dependencies: &crate::css::style_compute::ExternalValueDependencies,
+    resources_are_known: bool,
+    sibling_position_is_known: impl FnOnce() -> bool,
+    element_keyed: bool,
+) -> bool {
+    (resources_are_known
+        || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
+        && (element_keyed
+            || (!dependencies.uses_random_function
+                && !dependencies.has_unfixed_random_sharing
+                && dependencies.container_relative_length_unit_mask == 0))
+        && (!dependencies.uses_tree_counting_function || sibling_position_is_known())
 }
 
 /// Whether a value holds a random function whose random caching key names the element.
@@ -5202,31 +5180,19 @@ fn value_draws_element_random_base(value: &StyleValueData) -> bool {
 /// inputs alone: no custom-property substitution, and none of the element or sheet facts the C++
 /// computation gathers per drive.
 fn value_computes_without_document_context(value: &StyleValueData) -> bool {
-    value_computes_without_document_context_but_for_resources(value).is_some_and(|dependencies| {
-        !dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context
-    })
-}
-
-/// The same question for a value that may read the base URLs a `url()` resolves against, which
-/// the engine holds as published inputs: its dependencies, or `None` when it needs anything else.
-fn value_computes_without_document_context_but_for_resources(
-    value: &StyleValueData,
-) -> Option<crate::css::style_compute::ExternalValueDependencies> {
     // A longhand a shorthand written with a substitution declares holds a pending substitution
-    // until the shorthand resolves; both compute in C++.
-    if matches!(
+    // until the shorthand resolves.
+    !matches!(
         value,
         StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
-    ) || crate::css::style_compute::value_is_computationally_independent(value).is_none()
-    {
-        return None;
-    }
-    let dependencies = crate::css::style_compute::external_value_dependencies(value);
-    (!dependencies.uses_tree_counting_function
-        && dependencies.container_relative_length_unit_mask == 0
-        && !dependencies.has_unfixed_random_sharing
-        && !dependencies.uses_random_function)
-        .then_some(dependencies)
+    ) && crate::css::style_compute::value_is_computationally_independent(value).is_some_and(|_| {
+        drive_holds_value_inputs(
+            &crate::css::style_compute::external_value_dependencies(value),
+            false,
+            || false,
+            false,
+        )
+    })
 }
 
 #[cfg(test)]
