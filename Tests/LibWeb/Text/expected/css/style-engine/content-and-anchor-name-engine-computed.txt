@@ -3,12 +3,12 @@ counter(x, decimal), first record: property refusals 0, value refusals 0, C++ re
 named @counter-style, first record: property refusals 0, value refusals 0, C++ recomputations 0, value counter(x, thumbs)
 content flip, first record: property refusals 0, value refusals 0, C++ recomputations 0, value none
 list-style-type, first record: property refusals 0, value refusals 0, C++ recomputations 0, value thumbs
-anchor-name, first record: property refusals 1, value refusals 0, C++ recomputations 1, value --anchor
-anchor-name on ::before, first record: property refusals 1, value refusals 0, C++ recomputations 1, value --anchor
+anchor-name, first record: property refusals 0, value refusals 0, C++ recomputations 0, value --anchor
+anchor-name on ::before, first record: property refusals 0, value refusals 0, C++ recomputations 0, value --anchor
 image content, warm record: property refusals 0, value refusals 0, C++ recomputations 0, value an image
 counter(x, decimal), warm record: property refusals 0, value refusals 0, C++ recomputations 0, value counter(x)
 named @counter-style, warm record: property refusals 0, value refusals 0, C++ recomputations 0, value counter(x, thumbs)
 content flip, warm record: property refusals 0, value refusals 0, C++ recomputations 0, value none
-list-style-type, warm record: property refusals 1, value refusals 0, C++ recomputations 1, value thumbs
-anchor-name, warm record: property refusals 1, value refusals 0, C++ recomputations 1, value --anchor
-anchor-name on ::before, warm record: property refusals 1, value refusals 0, C++ recomputations 1, value --anchor
+list-style-type, warm record: property refusals 0, value refusals 0, C++ recomputations 0, value thumbs
+anchor-name, warm record: property refusals 0, value refusals 0, C++ recomputations 0, value --anchor
+anchor-name on ::before, warm record: property refusals 0, value refusals 0, C++ recomputations 0, value --anchor

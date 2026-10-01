@@ -805,9 +805,8 @@ impl RetainedState {
             }
         };
         for &property in delta.properties() {
-            // Animations and transitions start from the C++ computation, and the counter-style
-            // environment behind a moved `list-style-type` is resolved there.
-            if property_starts_animation_or_counter_environment(property) {
+            // Animations and transitions start from the C++ computation.
+            if property_starts_animation(property) {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
                 return Err(Unanswered::Refused);
             }
@@ -1719,15 +1718,10 @@ impl RetainedState {
     }
 
     /// Whether a first record's winner keeps the record's computation in C++: a property that
-    /// starts an animation or transition. A `content` or `list-style-type` names the registry it
-    /// reads on the record the engine assembles. The font-phase longhands without a group of their
-    /// own are inputs of the font group the full drive builds.
+    /// starts an animation or transition. The font-phase longhands without a group of their own are
+    /// inputs of the font group the full drive builds.
     fn first_record_winner_needs_cpp(&self, property: u16) -> bool {
-        use crate::css::property_metadata::property_id as prop;
-        if property == prop::LIST_STYLE_TYPE {
-            return false;
-        }
-        property_starts_animation_or_counter_environment(property)
+        property_starts_animation(property)
             || (computed_group_dependency_mask(property).is_none() && !font_group_carries_longhand(property))
     }
 
@@ -1803,13 +1797,6 @@ impl RetainedState {
         }
     }
 
-    /// Whether a pseudo-element's winner keeps its record in C++: the same rule as a first
-    /// record's, since a pseudo-element record the engine settles is computed in full.
-    fn pseudo_winner_needs_cpp(&self, winner: &PropertyWinner) -> bool {
-        winner.property != crate::css::property_metadata::property_id::LIST_STYLE_TYPE
-            && property_starts_animation_or_counter_environment(winner.property)
-    }
-
     fn record_requires_cpp_animation(&self, record: computed::FinalStyleRecordID) -> bool {
         self.computed_group_sets
             .style_record_view(record.raw())
@@ -1854,7 +1841,7 @@ impl RetainedState {
                 .deref()
         };
         for &property in properties {
-            if property_starts_animation_or_counter_environment(property) {
+            if property_starts_animation(property) {
                 return None;
             }
             let groups = computed_group_dependency_mask(property)?;
@@ -2969,12 +2956,14 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailWinnerAnimated);
                 return Err(Unanswered::Refused);
             }
-            // A pseudo-element's cascade keeps the properties its kind supports.
+            // A pseudo-element's cascade keeps the properties its kind supports, and one that
+            // starts an animation keeps its record in C++. Its anchor name is a plain computed
+            // value: the host registers an element's alone.
             if let Some(kind) = pseudo_kind {
                 if !crate::css::property_metadata::pseudo_element_supports_property(kind, winner.property) {
                     continue;
                 }
-                if self.pseudo_winner_needs_cpp(&winner) {
+                if property_starts_animation(winner.property) {
                     counters.bump(Counter::EngineComputedRecordBailProperty);
                     return Err(Unanswered::Refused);
                 }
@@ -5116,7 +5105,10 @@ enum StoreUse {
     Drive,
 }
 
-fn property_starts_animation_or_counter_environment(property: u16) -> bool {
+/// Whether a winner of the property keeps its record in C++, which starts animations and
+/// transitions from what it computes: a property of the animation group, and anything that is not a
+/// longhand.
+fn property_starts_animation(property: u16) -> bool {
     use crate::css::property_metadata::{
         FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_id as prop, property_style_group_index,
     };
@@ -5124,10 +5116,9 @@ fn property_starts_animation_or_counter_environment(property: u16) -> bool {
         return true;
     }
     // A view transition name is a plain computed value; it starts nothing.
-    matches!(property, prop::LIST_STYLE_TYPE | prop::ANCHOR_NAME)
-        || (property != prop::VIEW_TRANSITION_NAME
-            && property_style_group_index(property)
-                .is_some_and(|group| usize::from(group) == crate::css::table_group_builder::group_index::ANIMATION))
+    property != prop::VIEW_TRANSITION_NAME
+        && property_style_group_index(property)
+            .is_some_and(|group| usize::from(group) == crate::css::table_group_builder::group_index::ANIMATION)
 }
 
 /// Whether the drive holds what a value with these dependencies reads beyond the record, the

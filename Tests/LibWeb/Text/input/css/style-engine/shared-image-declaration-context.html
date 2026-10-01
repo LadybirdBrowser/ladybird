@@ -4,8 +4,8 @@
 <style>
     .local { background-image: url("image.svg"); }
     .changed { color: rgb(1, 2, 3); }
-    /* An anchor name keeps the computation in C++, whose style sharing this counts. */
-    #container > div { anchor-name: --shared; }
+    /* A transition keeps the computation in C++, whose style sharing this counts. */
+    #container > div { transition-delay: 0s; }
 </style>
 <div id="container"></div>
 <script>
