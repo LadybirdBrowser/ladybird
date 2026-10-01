@@ -504,6 +504,26 @@ impl RetainedState {
         self.computed_group_sets.adjustment_facts(node)
     }
 
+    /// Replace the element facts a layout row built for the element records.
+    pub fn set_element_construction_facts(&mut self, node: StyleNodeID, facts: u32) {
+        self.computed_group_sets.set_construction_facts(node, facts);
+    }
+
+    /// The facts a layout row built for the node records, as `bridge::element_construction_fact`
+    /// names them. A retired identity holds none. A text node has no element columns and holds one
+    /// of the facts on its own row: which kind of tree it sits in.
+    #[must_use]
+    pub fn element_construction_facts(&self, node: StyleNodeID) -> u32 {
+        if node.text_index().is_some() {
+            return if self.tree.text_is_in_user_agent_shadow_tree(node) {
+                super::bridge::element_construction_fact::IS_IN_USER_AGENT_SHADOW_TREE
+            } else {
+                0
+            };
+        }
+        self.computed_group_sets.construction_facts(node)
+    }
+
     /// The box facts the element's published style record holds. `None` while the element has no
     /// record: a text node, a retired identity, or an element style has not reached yet.
     #[must_use]
@@ -610,6 +630,12 @@ impl RetainedState {
     /// Record the text node's whitespace-only state, as its data now spells it.
     pub fn set_text_is_ascii_whitespace(&mut self, node: StyleNodeID, value: bool) {
         self.tree.set_text_is_ascii_whitespace(node, value, &mut self.memory);
+    }
+
+    /// Record which kind of tree the text node arrived in.
+    pub fn set_text_is_in_user_agent_shadow_tree(&mut self, node: StyleNodeID, value: bool) {
+        self.tree
+            .set_text_is_in_user_agent_shadow_tree(node, value, &mut self.memory);
     }
 
     /// Whether the element's published style record replaces its contents with a single image.
@@ -2814,6 +2840,9 @@ impl StyleEngineState {
         self.retained
             .computed_group_sets
             .set_adjustment_facts(node, arrival.adjustment_facts);
+        self.retained
+            .computed_group_sets
+            .set_construction_facts(node, arrival.construction_facts);
         self.retained
             .computed_group_sets
             .set_associated_pseudo_kind(node, arrival.associated_pseudo_kind_plus_one);

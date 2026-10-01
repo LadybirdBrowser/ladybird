@@ -682,6 +682,8 @@ pub struct FfiElementArrival {
     /// The element's `ElementStyleAdjustmentFact` bits: what the box-type transformation and the
     /// element style adjustments read of the DOM. Mirrors the C++ enum.
     pub adjustment_facts: u32,
+    /// The element's `ElementConstructionFact` bits: what a layout row built for it records.
+    pub construction_facts: u32,
 }
 
 /// The last pseudo-element kind C++ materializes as a synthetic pseudo-element; the kinds up to
@@ -766,6 +768,21 @@ pub mod element_adjustment_fact {
         | RENDERED_IN_TOP_LAYER;
     /// The facts only the damage of a record move reads. No style depends on them either.
     pub const RECORD_DAMAGE_FACTS: u32 = IS_SVG_GRAPHICS_ELEMENT | IS_HTML_BODY_ELEMENT | IS_HTML_HTML_ELEMENT;
+}
+
+/// What a layout row records about the element it is built for at the moment it is allocated, so
+/// that the tree build can read it out of the mirror rather than off the DOM node. Mirrors the C++
+/// `ElementConstructionFact`.
+pub mod element_construction_fact {
+    pub const IS_HTML_INPUT_ELEMENT: u32 = 1 << 0;
+    /// This and `IS_DOCUMENT_ELEMENT` are also `element_adjustment_fact`s. A row is built out of
+    /// this word alone, so they are published into both rather than read across two.
+    pub const IS_HTML_HTML_ELEMENT: u32 = 1 << 1;
+    pub const IS_IN_USER_AGENT_SHADOW_TREE: u32 = 1 << 2;
+    pub const USES_BUTTON_LAYOUT: u32 = 1 << 3;
+    pub const IS_EDITING_HOST: u32 = 1 << 4;
+    pub const IS_BODY: u32 = 1 << 5;
+    pub const IS_DOCUMENT_ELEMENT: u32 = 1 << 6;
 }
 
 /// Which local fact a feature delta describes.
@@ -4727,7 +4744,7 @@ mod tests {
 
     #[test]
     fn element_arrival_rows_install_intrinsic_facts() {
-        assert_eq!(size_of::<FfiElementArrival>(), 32);
+        assert_eq!(size_of::<FfiElementArrival>(), 36);
         let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
         let mut nodes = [0_u32; 2];
         engine.allocate_style_nodes(&mut nodes);
@@ -4757,6 +4774,7 @@ mod tests {
                 language_atom: 12,
                 directionality_atom: 13,
                 adjustment_facts: 0,
+                construction_facts: 0,
                 custom_state_offset: 0,
                 custom_state_count: 2,
                 heading_level: 4,
@@ -4770,6 +4788,7 @@ mod tests {
                 language_atom: 22,
                 directionality_atom: 23,
                 adjustment_facts: 0,
+                construction_facts: 0,
                 custom_state_offset: 2,
                 custom_state_count: 1,
                 heading_level: 0,
@@ -4801,6 +4820,7 @@ mod tests {
             language_atom: 2,
             directionality_atom: 3,
             adjustment_facts: 0,
+            construction_facts: 0,
             custom_state_offset,
             custom_state_count,
             heading_level: 0,

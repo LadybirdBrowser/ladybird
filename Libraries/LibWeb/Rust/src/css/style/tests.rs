@@ -12278,6 +12278,38 @@ fn a_reissued_style_node_identity_holds_no_retained_state() {
 }
 
 #[test]
+fn a_reissued_identity_holds_no_construction_facts() {
+    use super::bridge::element_construction_fact::{IS_BODY, IS_EDITING_HOST, IS_IN_USER_AGENT_SHADOW_TREE};
+    let (mut engine, nodes) = linear_document();
+    let leaving = nodes[3];
+    engine.set_element_construction_facts(leaving, IS_BODY | IS_EDITING_HOST);
+    assert_eq!(engine.element_construction_facts(leaving), IS_BODY | IS_EDITING_HOST);
+
+    let mut text = [0_u32; 1];
+    engine.allocate_text_style_nodes(&mut text);
+    let text = StyleNodeID::from_raw(text[0]).unwrap();
+    engine.set_text_is_in_user_agent_shadow_tree(text, true);
+    assert_eq!(engine.element_construction_facts(text), IS_IN_USER_AGENT_SHADOW_TREE);
+
+    engine.record_tree_delta(
+        leaving,
+        Some(relations(Some(nodes[0].raw()), Some(nodes[2].raw()), None)),
+        None,
+    );
+    engine.retire_text_style_nodes([text]);
+    discard_transaction(&mut engine);
+    engine.discard_style_transaction_outputs();
+    let mut reissued = [0_u32; 1];
+    engine.allocate_style_nodes(&mut reissued);
+    assert_eq!(reissued[0], leaving.raw());
+    assert_eq!(engine.element_construction_facts(leaving), 0);
+    let mut reissued_text = [0_u32; 1];
+    engine.allocate_text_style_nodes(&mut reissued_text);
+    assert_eq!(reissued_text[0], text.raw());
+    assert_eq!(engine.element_construction_facts(text), 0);
+}
+
+#[test]
 fn inheritance_parent_keeps_the_dom_parent_of_nodes_outside_the_flat_tree() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 7];

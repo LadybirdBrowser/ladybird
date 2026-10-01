@@ -882,15 +882,28 @@ impl StyleNodeTree {
     /// like an element's.
     pub fn retire_texts(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>, memory: &mut MemoryController) {
         let before = self.text.capacity_bytes() + self.shadow_capacity_bytes();
+        // Every column is named, so a new one cannot leave a retired identity's value behind for
+        // the next text node issued the index.
+        let TextRows {
+            parent,
+            next_sibling,
+            previous_sibling,
+            live,
+            is_ascii_whitespace,
+            is_in_user_agent_shadow_tree,
+            pending_reuse,
+            free_indexes: _,
+        } = &mut self.text;
         for node in nodes {
             let index = node.text_index().expect("retire_texts requires a text identity");
-            let (was_live, _) = self.text.live.set(index as usize, false);
+            let (was_live, _) = live.set(index as usize, false);
             assert!(was_live, "retiring a text identity that is not live");
-            self.text.is_ascii_whitespace.set(index as usize, false);
-            self.text.parent[index as usize] = None;
-            self.text.next_sibling[index as usize] = None;
-            self.text.previous_sibling[index as usize] = None;
-            self.text.pending_reuse.push(index);
+            is_ascii_whitespace.set(index as usize, false);
+            is_in_user_agent_shadow_tree.set(index as usize, false);
+            parent[index as usize] = None;
+            next_sibling[index as usize] = None;
+            previous_sibling[index as usize] = None;
+            pending_reuse.push(index);
             if let Some(shadow) = self.shadow.as_mut() {
                 shadow.retire_text(node);
             }
@@ -914,6 +927,30 @@ impl StyleNodeTree {
         };
         let before = self.text.capacity_bytes();
         self.text.is_ascii_whitespace.set(index as usize, value);
+        let current = self.text.capacity_bytes();
+        self.record_capacity_change(memory, before, current);
+    }
+
+    /// Whether the text node sits in a user agent shadow tree. Only a text node is asked; an
+    /// element records the fact among its construction facts.
+    #[must_use]
+    pub fn text_is_in_user_agent_shadow_tree(&self, node: StyleNodeID) -> bool {
+        node.text_index()
+            .is_some_and(|index| self.text.is_in_user_agent_shadow_tree.contains(index as usize))
+    }
+
+    /// Record which kind of tree the text node arrived in.
+    pub fn set_text_is_in_user_agent_shadow_tree(
+        &mut self,
+        node: StyleNodeID,
+        value: bool,
+        memory: &mut MemoryController,
+    ) {
+        let Some(index) = node.text_index() else {
+            return;
+        };
+        let before = self.text.capacity_bytes();
+        self.text.is_in_user_agent_shadow_tree.set(index as usize, value);
         let current = self.text.capacity_bytes();
         self.record_capacity_change(memory, before, current);
     }
@@ -1806,6 +1843,9 @@ struct TextRows {
     /// Whether the node's data is nothing but ASCII whitespace, which is what decides whether the
     /// layout tree build can collapse it away rather than give it a box of its own.
     is_ascii_whitespace: BitColumn,
+    /// Whether the node sits in a user agent shadow tree. An element records the same fact among
+    /// its construction facts; a text node has no element columns, so it records it here.
+    is_in_user_agent_shadow_tree: BitColumn,
     pending_reuse: Vec<u32>,
     free_indexes: Vec<u32>,
 }
@@ -1815,7 +1855,11 @@ impl TextRows {
         capacity_bytes! {
             shallow [self.parent, self.next_sibling, self.previous_sibling, self.pending_reuse, self.free_indexes];
             cached [];
-            nested [self.live.capacity_bytes(), self.is_ascii_whitespace.capacity_bytes()];
+            nested [
+                self.live.capacity_bytes(),
+                self.is_ascii_whitespace.capacity_bytes(),
+                self.is_in_user_agent_shadow_tree.capacity_bytes(),
+            ];
             skip [];
         }
     }

@@ -148,9 +148,24 @@ enum ElementStyleAdjustmentFact : u32 {
     // the root.
     IsHtmlHtmlElement = 1 << 30,
 };
+// What a layout row records about the element it is built for at the moment it is allocated, published so that the
+// tree build can read it out of the mirror rather than off the DOM node. Mirrors Rust `element_construction_fact`.
+enum ElementConstructionFact : u32 {
+    IsHtmlInputElement = 1 << 0,
+    // This and ConstructedAsDocumentElement are also ElementStyleAdjustmentFacts. A row is built out of this word
+    // alone, so they are published into both rather than read across two.
+    ConstructedAsHtmlHtmlElement = 1 << 1,
+    IsInUserAgentShadowTree = 1 << 2,
+    UsesButtonLayout = 1 << 3,
+    IsEditingHost = 1 << 4,
+    IsBody = 1 << 5,
+    ConstructedAsDocumentElement = 1 << 6,
+};
+WEB_API u32 element_construction_facts(DOM::Element const&);
 WEB_API u32 element_style_adjustment_facts(DOM::Element const&);
 WEB_API u32 element_box_type_adjustment_facts(DOM::Element const&);
 WEB_API void record_element_adjustment_facts(DOM::Element&);
+WEB_API void record_element_construction_facts(DOM::Element&);
 WEB_API bool record_element_presentational_hint_properties(DOM::Element&, ReadonlySpan<StyleProperty>);
 // Publish the element's hints again, after something they are mapped from beside its own attributes moved.
 WEB_API void republish_presentational_hints(DOM::Element&);

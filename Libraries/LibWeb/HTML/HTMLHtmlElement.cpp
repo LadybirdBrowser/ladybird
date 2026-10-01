@@ -5,7 +5,9 @@
  */
 
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
+#include <LibWeb/HTML/HTMLFrameSetElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -19,6 +21,20 @@ HTMLHtmlElement::HTMLHtmlElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 HTMLHtmlElement::~HTMLHtmlElement() = default;
+
+void HTMLHtmlElement::children_changed(ChildrenChangedMetadata const& metadata)
+{
+    Base::children_changed(metadata);
+    publish_body_construction_facts();
+}
+
+void HTMLHtmlElement::publish_body_construction_facts()
+{
+    for (auto* child = first_child(); child; child = child->next_sibling()) {
+        if (is<HTMLBodyElement>(*child) || is<HTMLFrameSetElement>(*child))
+            CSS::record_element_construction_facts(as<DOM::Element>(*child));
+    }
+}
 
 bool HTMLHtmlElement::should_use_body_background_properties() const
 {

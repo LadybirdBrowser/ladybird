@@ -871,8 +871,43 @@ impl LayoutNodeArena {
         data.flags
             .set(super::node_facts::construction_flags(&construction_facts));
         data.dom_paint_facts.set(construction_facts.dom_paint_facts);
+        #[cfg(debug_assertions)]
+        self.assert_published_construction_facts(&construction_facts);
         self.set_node_style_node(slot, StyleNodeID::from_raw(construction_facts.style_node));
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
+    }
+
+    /// The facts a row records about its node are also published in the style mirror under the
+    /// node's identity, for a tree build that builds rows without a DOM node in hand. Until one
+    /// does, the shell that hands them over checks that the two agree.
+    #[cfg(debug_assertions)]
+    fn assert_published_construction_facts(&self, facts: &FfiNodeConstructionFacts) {
+        use crate::css::style::bridge::element_construction_fact as fact;
+        let Some(style_node) = StyleNodeID::from_raw(facts.style_node) else {
+            return;
+        };
+        if self.style_record_host.get().is_none() {
+            return;
+        }
+        let expected = [
+            (fact::IS_HTML_INPUT_ELEMENT, facts.is_html_input_element),
+            (fact::IS_HTML_HTML_ELEMENT, facts.is_html_html_element),
+            (fact::IS_IN_USER_AGENT_SHADOW_TREE, facts.is_in_user_agent_shadow_tree),
+            (fact::USES_BUTTON_LAYOUT, facts.uses_button_layout),
+            (fact::IS_EDITING_HOST, facts.is_editing_host),
+            (fact::IS_BODY, facts.is_body),
+            (fact::IS_DOCUMENT_ELEMENT, facts.is_document_element),
+        ]
+        .into_iter()
+        .filter(|&(_, is_set)| is_set)
+        .fold(0, |word, (bit, _)| word | bit);
+        let published = self.with_style_store(|engine| engine.element_construction_facts(style_node));
+        assert_eq!(
+            published,
+            expected,
+            "the construction facts published for style node {} disagree with its DOM node",
+            style_node.raw()
+        );
     }
 
     #[cfg(test)]

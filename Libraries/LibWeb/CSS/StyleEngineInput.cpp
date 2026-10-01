@@ -308,6 +308,15 @@ void record_element_connected(DOM::Element& element)
     republish_assigned_slot_of(element);
 }
 
+// A text node's row records one of the facts an element's row does, whether it sits in a user agent shadow tree. A
+// text node has no element columns in the mirror, so the fact travels on its own row, published where its identity
+// arrives.
+static bool text_is_in_user_agent_shadow_tree(DOM::Text const& text)
+{
+    auto shadow_root = text.containing_shadow_root();
+    return shadow_root && shadow_root->is_user_agent_internal();
+}
+
 void record_text_connected(DOM::Text& text)
 {
     auto* style_engine = style_engine_for(text);
@@ -318,6 +327,7 @@ void record_text_connected(DOM::Text& text)
     text.set_style_node_id(identity);
     text.document().style_computer().register_style_node(identity, text);
     style_engine->set_text_is_ascii_whitespace(identity, text.data().is_ascii_whitespace());
+    style_engine->set_text_is_in_user_agent_shadow_tree(identity, text_is_in_user_agent_shadow_tree(text));
     ensure_dom_order_parent_identity(text.parent(), *style_engine);
     link_in_dom_order(*style_engine, text);
     republish_assigned_slot_of(text);
@@ -386,6 +396,7 @@ void record_subtree_connecting(DOM::Node& root)
             text_arrivals[i]->set_style_node_id(identities[i]);
             style_computer.register_style_node(identities[i], text_arrivals[i]);
             style_engine.set_text_is_ascii_whitespace(identities[i], text_arrivals[i]->data().is_ascii_whitespace());
+            style_engine.set_text_is_in_user_agent_shadow_tree(identities[i], text_is_in_user_agent_shadow_tree(*text_arrivals[i]));
         }
     }
 
@@ -509,6 +520,7 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
                                             .associated_pseudo_kind_plus_one = associated_pseudo_kind_plus_one(element),
                                             .reserved = 0,
                                             .adjustment_facts = element_style_adjustment_facts(element),
+                                            .construction_facts = element_construction_facts(element),
                                         },
         custom_states);
 }
@@ -653,6 +665,25 @@ u32 element_box_type_adjustment_facts(DOM::Element const& element)
     return facts;
 }
 
+u32 element_construction_facts(DOM::Element const& element)
+{
+    u32 facts = 0;
+    auto set = [&](bool condition, ElementConstructionFact fact) {
+        if (condition)
+            facts |= fact;
+    };
+    auto shadow_root = element.containing_shadow_root();
+    auto const* html_element = as_if<HTML::HTMLElement>(element);
+    set(is<HTML::HTMLInputElement>(element), ElementConstructionFact::IsHtmlInputElement);
+    set(element.is_html_html_element(), ElementConstructionFact::ConstructedAsHtmlHtmlElement);
+    set(shadow_root && shadow_root->is_user_agent_internal(), ElementConstructionFact::IsInUserAgentShadowTree);
+    set(html_element && html_element->uses_button_layout(), ElementConstructionFact::UsesButtonLayout);
+    set(element.is_editing_host(), ElementConstructionFact::IsEditingHost);
+    set(&element == element.document().body(), ElementConstructionFact::IsBody);
+    set(element.is_document_element(), ElementConstructionFact::ConstructedAsDocumentElement);
+    return facts;
+}
+
 u32 element_style_adjustment_facts(DOM::Element const& element)
 {
     auto facts = element_box_type_adjustment_facts(element);
@@ -686,7 +717,16 @@ void record_element_adjustment_facts(DOM::Element& element)
     if (!style_engine || element.style_node_id() == no_style_node)
         return;
     style_engine->set_element_adjustment_facts(element.style_node_id(), element_style_adjustment_facts(element));
+    style_engine->set_element_construction_facts(element.style_node_id(), element_construction_facts(element));
     style_engine->set_element_associated_pseudo_kind(element.style_node_id(), associated_pseudo_kind_plus_one(element));
+}
+
+void record_element_construction_facts(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() == no_style_node)
+        return;
+    style_engine->set_element_construction_facts(element.style_node_id(), element_construction_facts(element));
 }
 
 void publish_required_attribute_value_texts(StyleEngine& style_engine, StyleComputer& style_computer)
