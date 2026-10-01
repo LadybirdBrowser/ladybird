@@ -18,6 +18,7 @@
 #include <LibUnicode/Locale.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Settings.h>
+#include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
 
 namespace WebView {
@@ -66,6 +67,9 @@ static constexpr auto DISK_CACHE_KEY = "diskCache"sv;
 static constexpr auto DISK_CACHE_MAXIMUM_SIZE_KEY = "maxSize"sv;
 
 static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
+
+static constexpr auto USER_AGENT_PRESET_KEY = "userAgentPreset"sv;
+static constexpr auto NAVIGATOR_COMPATIBILITY_MODE_KEY = "navigatorCompatibilityMode"sv;
 
 static constexpr auto BACKGROUND_NETWORKING_KEY = "backgroundNetworking"sv;
 static constexpr auto BACKGROUND_NETWORKING_ENABLED_KEY = "enabled"sv;
@@ -317,6 +321,15 @@ Settings Settings::create(ByteString settings_path)
     if (auto global_privacy_control = settings_json.value().get_bool(GLOBAL_PRIVACY_CONTROL_KEY); global_privacy_control.has_value())
         settings.m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
 
+    // A preset that's since been dropped or renamed falls back to the default User-Agent.
+    if (auto user_agent_preset = settings_json.value().get_string(USER_AGENT_PRESET_KEY); user_agent_preset.has_value())
+        settings.m_user_agent_preset = normalize_user_agent_name(*user_agent_preset);
+
+    if (auto mode = settings_json.value().get_string(NAVIGATOR_COMPATIBILITY_MODE_KEY); mode.has_value()) {
+        if (auto parsed_mode = navigator_compatibility_mode_from_string(*mode); parsed_mode.has_value())
+            settings.m_navigator_compatibility_mode = *parsed_mode;
+    }
+
     if (auto background_networking = settings_json.value().get_object(BACKGROUND_NETWORKING_KEY); background_networking.has_value()) {
         if (auto enabled = background_networking->get_bool(BACKGROUND_NETWORKING_ENABLED_KEY); enabled.has_value())
             settings.m_background_networking_enabled = *enabled;
@@ -511,6 +524,10 @@ JsonValue Settings::serialize_json() const
     settings.set(BROWSING_DATA_KEY, move(browsing_data));
 
     settings.set(GLOBAL_PRIVACY_CONTROL_KEY, m_global_privacy_control == GlobalPrivacyControl::Yes);
+
+    if (m_user_agent_preset.has_value())
+        settings.set(USER_AGENT_PRESET_KEY, *m_user_agent_preset);
+    settings.set(NAVIGATOR_COMPATIBILITY_MODE_KEY, navigator_compatibility_mode_to_string(m_navigator_compatibility_mode));
 
     JsonObject background_network_features;
     background_network_features.set("contentBlockerSubscriptionUpdates"sv, m_filter_list_updates_enabled);
@@ -937,6 +954,18 @@ void Settings::set_global_privacy_control(GlobalPrivacyControl global_privacy_co
 
     for (auto& observer : m_observers)
         observer.global_privacy_control_changed();
+}
+
+void Settings::set_user_agent_preset(Optional<StringView> user_agent_preset_name)
+{
+    m_user_agent_preset = user_agent_preset_name.has_value() ? normalize_user_agent_name(*user_agent_preset_name) : OptionalNone {};
+    persist_settings();
+}
+
+void Settings::set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode navigator_compatibility_mode)
+{
+    m_navigator_compatibility_mode = navigator_compatibility_mode;
+    persist_settings();
 }
 
 DNSSettings Settings::parse_dns_settings(JsonValue const& dns_settings)

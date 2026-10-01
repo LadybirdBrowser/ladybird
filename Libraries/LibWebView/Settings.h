@@ -14,6 +14,7 @@
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/WebView/BrowsingBehavior.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Forward.h>
@@ -185,6 +186,12 @@ public:
     GlobalPrivacyControl global_privacy_control() const { return m_global_privacy_control; }
     void set_global_privacy_control(GlobalPrivacyControl);
 
+    Optional<StringView> user_agent_preset() const { return m_user_agent_preset; }
+    void set_user_agent_preset(Optional<StringView> user_agent_preset_name);
+
+    Web::NavigatorCompatibilityMode navigator_compatibility_mode() const { return m_navigator_compatibility_mode; }
+    void set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode);
+
     bool background_networking_enabled() const { return m_background_networking_enabled; }
     void set_background_networking_enabled(bool);
     bool filter_list_updates_enabled() const { return m_filter_list_updates_enabled; }
@@ -238,6 +245,9 @@ private:
 
     BrowsingDataSettings m_browsing_data_settings;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
+
+    Optional<StringView> m_user_agent_preset;
+    Web::NavigatorCompatibilityMode m_navigator_compatibility_mode { Web::default_navigator_compatibility_mode };
 
     bool m_background_networking_enabled { true };
     bool m_filter_list_updates_enabled { false };
