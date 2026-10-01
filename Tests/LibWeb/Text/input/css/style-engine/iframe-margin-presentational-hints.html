@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<iframe id="frame"></iframe>
+<script>
+    // An iframe's marginwidth maps to presentational hints of its content document's body, which
+    // the body's own marginwidth overrides. Move both and count who computes the body's records.
+    test(() => {
+        const body = frame.contentDocument.body;
+        const childInternals = frame.contentWindow.internals;
+        const before = childInternals.getStyleInvalidationCounters();
+        const beforeEngine = childInternals.styleEngineCounters();
+        const initial = getComputedStyle(body).marginLeft;
+        frame.setAttribute("marginwidth", "17");
+        println(`initial iframe hint: ${getComputedStyle(body).marginLeft === "17px" && getComputedStyle(body).marginRight === "17px"}`);
+        frame.setAttribute("marginwidth", "29");
+        println(`changed iframe hint: ${getComputedStyle(body).marginLeft === "29px"}`);
+        body.setAttribute("marginwidth", "5");
+        frame.setAttribute("marginwidth", "31");
+        println(`body hint wins: ${getComputedStyle(body).marginLeft === "5px"}`);
+        body.removeAttribute("marginwidth");
+        println(`iframe hint restored: ${getComputedStyle(body).marginLeft === "31px"}`);
+        frame.removeAttribute("marginwidth");
+        println(`hint removed: ${getComputedStyle(body).marginLeft === initial}`);
+        const after = childInternals.getStyleInvalidationCounters();
+        const afterEngine = childInternals.styleEngineCounters();
+        println(`child recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`child reaction gates: ${afterEngine.engineComputedRecordGateReaction - beforeEngine.engineComputedRecordGateReaction}`);
+    });
+</script>
