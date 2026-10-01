@@ -1,4 +1,4 @@
-PASS: descendant attribute stress detached: part-document: :has(.hit) after descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress detached: part-document: :has(.hit) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached-cold: part-document: :has(.hit) after descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached: part-document: :has(.HIT) after matching uppercase descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached-cold: part-document: :has(.HIT) after matching uppercase descendant class change | elementStyleRecomputations=2, elementStyleNoopRecomputations=0

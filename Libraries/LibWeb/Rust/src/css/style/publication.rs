@@ -806,7 +806,7 @@ impl RetainedState {
         };
         for &property in delta.properties() {
             // Animations and transitions start from the C++ computation, and the counter-style
-            // environment behind `content` and `list-style-type` is resolved there.
+            // environment behind a moved `list-style-type` is resolved there.
             if property_starts_animation_or_counter_environment(property) {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
                 return Err(Unanswered::Refused);
@@ -1024,8 +1024,9 @@ impl RetainedState {
             .and_then(|parent| self.computed_group_sets.assigned_style_record(parent))
             .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
             .is_some_and(|view| view.dependency_flags & (1 << 2) != 0);
-        // A delta moving `content` or `list-style-type` is C++'s, so the record keeps the
-        // counter-style registry its base names.
+        // The record names the counter-style registry its `content` or `list-style-type` reads,
+        // which a moved `content` may have started or stopped reading.
+        let counter_style_registry = self.table_counter_style_environment_identity(target, &table);
         let assembly = self.computed_group_sets.replace_engine_computed_table(
             node,
             old_style_record,
@@ -1036,7 +1037,7 @@ impl RetainedState {
             font.as_ref(),
             parent_in_display_none_subtree,
             environment,
-            None,
+            Some(counter_style_registry),
         );
         self.settle_computed_memory();
         let assembly = assembly.or_refused()?;
@@ -1061,8 +1062,12 @@ impl RetainedState {
             counters,
         );
         // A record driven in full stands for a cohort keyed by the parent's inherited inputs only
-        // when the drive was partial.
-        if !driver_input_moved && let Some(cohort) = cohort {
+        // when the drive was partial. One naming its tree scope's counter-style registry answers
+        // for no element of another scope, and the key names no scope.
+        if !driver_input_moved
+            && counter_style_registry == 0
+            && let Some(cohort) = cohort
+        {
             scratch
                 .cohorts
                 .insert(cohort, (delta.1, explicitly_inherited_groups, reads_sibling_position));
@@ -1714,10 +1719,9 @@ impl RetainedState {
     }
 
     /// Whether a first record's winner keeps the record's computation in C++: a property that
-    /// starts an animation or transition, or reads the counter-style environment through
-    /// `content`. A `list-style-type` names the registry it reads on the record the engine
-    /// assembles. The font-phase longhands without a group of their own are inputs of the font
-    /// group the full drive builds.
+    /// starts an animation or transition. A `content` or `list-style-type` names the registry it
+    /// reads on the record the engine assembles. The font-phase longhands without a group of their
+    /// own are inputs of the font group the full drive builds.
     fn first_record_winner_needs_cpp(&self, property: u16) -> bool {
         use crate::css::property_metadata::property_id as prop;
         if property == prop::LIST_STYLE_TYPE {
@@ -1728,24 +1732,32 @@ impl RetainedState {
     }
 
     /// The counter-style registry a record computed for `target` from `table` names, as C++ stamps
-    /// it: its style scope's registry whenever its `list-style-type` names a counter style that
-    /// registry may define, which for a pseudo-element is any named one. Zero otherwise.
+    /// it: its style scope's registry whenever its `content` holds a counter in a named counter
+    /// style, or its `list-style-type` names a counter style that registry may define, which for a
+    /// pseudo-element is any named one. Zero otherwise.
     fn table_counter_style_environment_identity(
         &self,
         target: computed::ComputedStyleTarget,
         table: &ComputedLonghandTable,
     ) -> u64 {
-        let value = table
-            .effective_value(None, crate::css::property_metadata::property_id::LIST_STYLE_TYPE, true)
-            .value;
-        let names_a_counter_style = match unsafe { value.cast::<StyleValueData>().as_ref() } {
-            Some(StyleValueData::CounterStyle {
-                is_symbols: false,
-                name,
-                ..
-            }) => target.is_pseudo() || !counter_style_name_is_non_overridable(name.units()),
-            _ => false,
+        use crate::css::property_metadata::property_id as prop;
+        let value = |property| unsafe {
+            table
+                .effective_value(None, property, true)
+                .value
+                .cast::<StyleValueData>()
+                .as_ref()
         };
+        let names_a_counter_style = value(prop::CONTENT)
+            .is_some_and(crate::css::style_compute::content_reads_counter_style_environment)
+            || match value(prop::LIST_STYLE_TYPE) {
+                Some(StyleValueData::CounterStyle {
+                    is_symbols: false,
+                    name,
+                    ..
+                }) => target.is_pseudo() || !counter_style_name_is_non_overridable(name.units()),
+                _ => false,
+            };
         if !names_a_counter_style {
             return 0;
         }
@@ -2935,7 +2947,6 @@ impl RetainedState {
             debug_assert!(false, "{invariant}");
             Ok(())
         };
-        use crate::css::property_metadata::property_id as prop;
         crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreBuilds);
         // Seeded in cascade order, and within one rule in declaration order, since a logical
         // property and its physical associate resolve by order of appearance.
@@ -2958,13 +2969,12 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailWinnerAnimated);
                 return Err(Unanswered::Refused);
             }
-            // A pseudo-element's cascade keeps the properties its kind supports; its `content`
-            // computes in the drive when the value needs no element or counter environment.
+            // A pseudo-element's cascade keeps the properties its kind supports.
             if let Some(kind) = pseudo_kind {
                 if !crate::css::property_metadata::pseudo_element_supports_property(kind, winner.property) {
                     continue;
                 }
-                if winner.property != prop::CONTENT && self.pseudo_winner_needs_cpp(&winner) {
+                if self.pseudo_winner_needs_cpp(&winner) {
                     counters.bump(Counter::EngineComputedRecordBailProperty);
                     return Err(Unanswered::Refused);
                 }
@@ -3161,11 +3171,7 @@ impl RetainedState {
                 computable || crate::css::style_compute::value_is_computationally_independent(data).is_some(),
                 "a cascade winner computes to a value of a known shape"
             );
-            if !computable
-                || (pseudo_kind.is_some()
-                    && winner.property == prop::CONTENT
-                    && !content_value_is_engine_computable(data))
-            {
+            if !computable {
                 counters.bump(Counter::EngineComputedRecordBailValue);
                 return Err(Unanswered::Refused);
             }
@@ -4948,28 +4954,6 @@ const PSEUDO_ELEMENT_ADJUSTMENT_FACTS: u32 = {
         | fact::HAS_ANIMATIONS
 };
 
-/// Whether a `content` value computes without the element or its counter environment: keywords,
-/// and lists of strings and keywords; counters, attributes and images resolve in C++.
-fn content_value_is_engine_computable(value: &StyleValueData) -> bool {
-    fn plain(value: &StyleValueData) -> bool {
-        match value {
-            StyleValueData::Keyword { .. } | StyleValueData::String { .. } => true,
-            StyleValueData::ValueList { values, .. } => values
-                .as_slice()
-                .iter()
-                .all(|value| value.optional_data().is_none_or(plain)),
-            _ => false,
-        }
-    }
-    match value {
-        StyleValueData::Keyword { .. } => true,
-        StyleValueData::Content { content, alt_text } => {
-            content.optional_data().is_none_or(plain) && alt_text.optional_data().is_none_or(plain)
-        }
-        _ => false,
-    }
-}
-
 /// The value a shorthand value carries for one of its longhands, through nested shorthands.
 /// The `unset` keyword, which a declaration invalid at computed-value time computes as.
 fn unset_value() -> crate::css::style_value::RetainedStyleValueData {
@@ -5140,7 +5124,7 @@ fn property_starts_animation_or_counter_environment(property: u16) -> bool {
         return true;
     }
     // A view transition name is a plain computed value; it starts nothing.
-    matches!(property, prop::CONTENT | prop::LIST_STYLE_TYPE | prop::ANCHOR_NAME)
+    matches!(property, prop::LIST_STYLE_TYPE | prop::ANCHOR_NAME)
         || (property != prop::VIEW_TRANSITION_NAME
             && property_style_group_index(property)
                 .is_some_and(|group| usize::from(group) == crate::css::table_group_builder::group_index::ANIMATION))

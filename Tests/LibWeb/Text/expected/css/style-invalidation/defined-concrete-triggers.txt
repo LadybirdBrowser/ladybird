@@ -1,1 +1,1 @@
-PASS: :defined invalidation is keyed by the defined element | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: :defined invalidation is keyed by the defined element | elementStyleRecomputations=0, elementStyleNoopRecomputations=0

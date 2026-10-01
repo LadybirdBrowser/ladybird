@@ -978,6 +978,34 @@ pub unsafe extern "C" fn rust_recascade_font_size_batch(
     )
 }
 
+/// Whether a computed `content` value reads its tree scope's counter-style registry: whether it
+/// holds a counter in a named counter style, a predefined one included. A record holding one names
+/// the registry it was computed against, whichever side computed it.
+pub(crate) fn content_reads_counter_style_environment(value: &StyleValueData) -> bool {
+    match value {
+        StyleValueData::Counter { counter_style, .. } => matches!(
+            counter_style.optional_data(),
+            Some(StyleValueData::CounterStyle { is_symbols: false, .. })
+        ),
+        StyleValueData::Content { content, alt_text } => [content, alt_text].into_iter().any(|part| {
+            part.optional_data()
+                .is_some_and(content_reads_counter_style_environment)
+        }),
+        StyleValueData::ValueList { values, .. } => values.as_slice().iter().any(|item| {
+            item.optional_data()
+                .is_some_and(content_reads_counter_style_environment)
+        }),
+        _ => false,
+    }
+}
+
+/// # Safety
+/// `value` must point to a live style value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_content_reads_counter_style_environment(value: *const c_void) -> bool {
+    content_reads_counter_style_environment(unsafe { &*value.cast::<StyleValueData>() })
+}
+
 /// Some pseudo-elements are generated regardless of CSS rules, so their
 /// styles must be computed even when no rules matched.
 #[unsafe(no_mangle)]

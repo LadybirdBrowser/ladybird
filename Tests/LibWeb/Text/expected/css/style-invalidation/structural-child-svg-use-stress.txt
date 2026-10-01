@@ -4,8 +4,8 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :em
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :empty becomes false after element append
 PASS: detached child mutation: document-styled-use-shadow: :empty becomes false after element append
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :empty becomes false after element append
-PASS: stress warm child mutation: document-styled-use-shadow: :empty becomes false after textContent | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: stress cold child mutation: document-styled-use-shadow: :empty becomes false after textContent | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :empty becomes false after textContent | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: stress cold child mutation: document-styled-use-shadow: :empty becomes false after textContent | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :empty becomes false after textContent | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :empty becomes false after textContent | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :empty becomes false after textContent | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -130,8 +130,8 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: stress cold child mutation: document-styled-use-shadow: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress cold child mutation: document-styled-use-shadow: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
@@ -160,31 +160,31 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit) after replaceChildren | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit) after replaceChildren | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit) after replaceChildren | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) becomes false after child removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) becomes false after child removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit) becomes false after child removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after child removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after child removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit) becomes false after child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after child removal | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) becomes false after removeChild | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) becomes false after removeChild | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit) becomes false after removeChild | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after removeChild | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after removeChild | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit) becomes false after removeChild | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after removeChild | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) becomes false after child moves out | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) becomes false after child moves out | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit) becomes false after child moves out | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after child moves out | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after child moves out | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit) becomes false after child moves out | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after child moves out | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
-PASS: stress warm child mutation: document-styled-use-shadow: :empty becomes true after replaceChildren | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :empty becomes true after replaceChildren | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document-styled-use-shadow: :empty becomes true after replaceChildren | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :empty becomes true after replaceChildren | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :empty becomes true after replaceChildren | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :empty becomes true after replaceChildren | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :empty becomes true after replaceChildren | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :empty becomes true after textContent clear | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :empty becomes true after textContent clear | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document-styled-use-shadow: :empty becomes true after textContent clear | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :empty becomes true after textContent clear | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :empty becomes true after textContent clear | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -196,8 +196,8 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :em
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :empty stays true after comment append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :empty stays true after comment append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :empty stays true after comment append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :empty becomes false after whitespace text append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: stress cold child mutation: document-styled-use-shadow: :empty becomes false after whitespace text append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :empty becomes false after whitespace text append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: stress cold child mutation: document-styled-use-shadow: :empty becomes false after whitespace text append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :empty becomes false after whitespace text append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :empty becomes false after whitespace text append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :empty becomes false after whitespace text append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -220,7 +220,7 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(:checked) after checked checkbox append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(:checked) after checked checkbox append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(:checked) after checked checkbox append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document-styled-use-shadow: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
@@ -256,7 +256,7 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(:optional) after optional input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(:optional) after optional input append | elementStyleRecomputations=9, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(:optional) after optional input append | elementStyleRecomputations=9, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: stress warm child mutation: document-styled-use-shadow: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: document-styled-use-shadow: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
@@ -298,7 +298,7 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(:only-child) after only child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(:only-child) after only child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(:only-child) after only child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: stress warm child mutation: document-styled-use-shadow: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: document-styled-use-shadow: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
@@ -400,7 +400,7 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit:only-child) after only child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit:only-child) after only child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit:only-child) after only child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
@@ -430,7 +430,7 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
@@ -478,7 +478,7 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
@@ -496,25 +496,25 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=2
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
-PASS: stress warm child mutation: document-styled-use-shadow: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: stress warm child mutation: document-styled-use-shadow: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: stress cold child mutation: document-styled-use-shadow: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
@@ -526,7 +526,7 @@ PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :ha
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit) after replaceWith matching child | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document-styled-use-shadow: :has(.hit) after replaceWith matching child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document-styled-use-shadow: :has(.hit) after replaceWith matching child | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: stress warm child mutation: document-styled-use-shadow: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document-styled-use-shadow: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document-styled-use-shadow: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=1, elementStyleNoopRecomputations=1

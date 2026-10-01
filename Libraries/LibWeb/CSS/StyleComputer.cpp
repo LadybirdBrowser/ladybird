@@ -64,9 +64,7 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
@@ -3644,22 +3642,10 @@ static void report_shared_custom_property_environment_change(DOM::AbstractElemen
         *did_change_custom_properties = true;
 }
 
-static bool computed_content_depends_on_counter_style_environment(StyleValue const& content)
-{
-    if (!content.is_content())
-        return false;
-    auto item_depends_on_counter_style_environment = [](auto const& item) {
-        return item->is_counter() && item->as_counter().counter_style()->as_counter_style().value().template has<Utf16FlyString>();
-    };
-    auto const& content_value = content.as_content();
-    return any_of(content_value.content().values(), item_depends_on_counter_style_environment)
-        || (content_value.alt_text() && any_of(content_value.alt_text()->values(), item_depends_on_counter_style_environment));
-}
-
 static bool computed_style_depends_on_counter_style_environment(ComputedValues const& values, bool is_pseudo)
 {
     auto const& base = values.base_values();
-    return computed_content_depends_on_counter_style_environment(base.computed_content())
+    return ComputedValuesFFI::rust_content_reads_counter_style_environment(base.computed_content()->rust_style_value_data())
         || (base.list_style_type_depends_on_counter_style_environment()
             && (is_pseudo || !base.list_style_type_uses_non_overridable_counter_style()));
 }
