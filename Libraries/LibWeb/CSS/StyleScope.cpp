@@ -1058,6 +1058,11 @@ u64 StyleScope::counter_style_environment_identity() const
 {
     if (m_needs_counter_style_cache_update && !m_is_doing_counter_style_cache_update)
         const_cast<StyleScope*>(this)->build_counter_style_cache();
+    // NB: This is asked for whenever a style that depends on the counter style environment is published, which is
+    //     what the layout tree build and the generated content counter style comparison resolve counter styles
+    //     for, against the published registry.
+    if (!m_is_doing_counter_style_cache_update)
+        publish_counter_style_lookup_chain();
     return m_counter_style_environment_identity;
 }
 

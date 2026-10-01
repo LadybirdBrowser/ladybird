@@ -26,6 +26,8 @@ fn style(name: &str, algorithm: Algorithm) -> CounterStyle {
         algorithm,
         negative_prefix: symbol("-"),
         negative_suffix: symbol(""),
+        prefix: symbol(""),
+        suffix: symbol(". "),
         range: vec![RangeEntry {
             start: i32::MIN,
             end: i32::MAX,

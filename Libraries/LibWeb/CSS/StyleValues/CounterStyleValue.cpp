@@ -26,6 +26,13 @@ namespace Web::CSS {
 static_assert(to_underlying(CounterStyleValue::CounterFunction::Counter) == 0);
 static_assert(to_underlying(CounterStyleValue::CounterFunction::Counters) == 1);
 
+// So does a symbols() function's type, which the Rust counter style resolution reads.
+static_assert(to_underlying(SymbolsType::Cyclic) == 0);
+static_assert(to_underlying(SymbolsType::Numeric) == 1);
+static_assert(to_underlying(SymbolsType::Alphabetic) == 2);
+static_assert(to_underlying(SymbolsType::Symbolic) == 3);
+static_assert(to_underlying(SymbolsType::Fixed) == 4);
+
 static StyleValueFFI::StyleValueData const* make_counter_data(CounterStyleValue::CounterFunction function, Utf16FlyString const& counter_name, ValueComparingNonnullRefPtr<StyleValue const> const& counter_style, Utf16FlyString const& join_string)
 {
     // The Rust allocation takes ownership of one strong reference to the counter style data.

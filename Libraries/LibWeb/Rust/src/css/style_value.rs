@@ -1985,8 +1985,8 @@ pub enum StyleValueData {
         name: CssString,
     },
     /// A counter style reference: either a retained counter style name, or a symbols() function
-    /// with its type (the C++ `enum class SymbolsType : u8`, opaque to Rust) and retained
-    /// symbol strings.
+    /// with its type (the C++ `enum class SymbolsType : u8`, whose values counter style
+    /// resolution reads as the `SYMBOLS_TYPE_*` constants) and retained symbol strings.
     CounterStyle {
         is_symbols: bool,
         name: CssString,

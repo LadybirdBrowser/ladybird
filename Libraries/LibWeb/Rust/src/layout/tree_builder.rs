@@ -2851,18 +2851,24 @@ pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudo
 /// Resolves the CSS counters set of `element`, or of one of its pseudo-elements, now that its box
 /// is in the layout tree.
 fn resolve_counters(host: &DomTreeBuilderHost<'_>, element: StyleNodeID, pseudo_element: FfiPseudoElement) {
+    crate::layout::counters::resolve_counters(host.arena(), counter_owner_of_pseudo_element(element, pseudo_element));
+}
+
+/// The owner of the counters set and generated content of `element`, or of one of its box-generating
+/// pseudo-elements.
+fn counter_owner_of_pseudo_element(
+    element: StyleNodeID,
+    pseudo_element: FfiPseudoElement,
+) -> crate::layout::counters::CounterOwner {
     let generated_for = match pseudo_element {
         FfiPseudoElement::None => 0,
         FfiPseudoElement::Before => GENERATED_FOR_BEFORE,
         FfiPseudoElement::After => GENERATED_FOR_AFTER,
         FfiPseudoElement::Marker => GENERATED_FOR_MARKER,
         FfiPseudoElement::Backdrop => GENERATED_FOR_BACKDROP,
-        FfiPseudoElement::Other => unreachable!("only a box-generating pseudo-element resolves counters"),
+        FfiPseudoElement::Other => unreachable!("only a box-generating pseudo-element owns counters"),
     };
-    crate::layout::counters::resolve_counters(
-        host.arena(),
-        crate::layout::counters::CounterOwner { element, generated_for },
-    );
+    crate::layout::counters::CounterOwner { element, generated_for }
 }
 
 fn create_pseudo_element(
@@ -2991,6 +2997,14 @@ fn create_pseudo_element_with_frame(
     let resolved_content =
         unsafe { (callbacks.resolve_content)(frame, element, pseudo_element, initial_quote_nesting_level) };
     state.quote_nesting_level = resolved_content.final_quote_nesting_level;
+    let marker_and_list_box = (layout_node_kind == NodeKind::ListItemMarkerBox)
+        .then_some((layout_node, facts.originating_list_box))
+        .filter(|(_, list_box)| !list_box.is_invalid());
+    crate::layout::generated_content::note_content_counter_styles_in_use(
+        host.arena(),
+        counter_owner_of_pseudo_element(element_identity, pseudo_element),
+        marker_and_list_box,
+    );
 
     if resolved_content.content_is_list && decision != FfiPseudoElementDecision::ContentReplacement {
         state.ancestor_stack.push(layout_node);
