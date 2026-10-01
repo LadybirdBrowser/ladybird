@@ -4740,6 +4740,12 @@ impl ElementFactStore {
         self.metadata_mut(node).animation_names = sorted;
     }
 
+    /// Whether this element's last style resolution called a custom function.
+    pub fn uses_custom_functions(&self, node: StyleNodeID) -> bool {
+        self.metadata_of(node)
+            .is_some_and(|metadata| metadata.uses_custom_functions)
+    }
+
     /// Whether this element's style resolution called a custom function.
     pub fn set_uses_custom_functions(&mut self, node: StyleNodeID, uses: bool, memory: &mut MemoryController) {
         if self
