@@ -649,6 +649,8 @@ pub(crate) struct LayoutNodeArena {
     nodes_enrolled_for_replaced_content_facts_sync: RefCell<Vec<NodeSlotId>>,
     /// What the running pass has to tell the document, waiting for the commit that delivers it.
     messages_reported_during_pass: RefCell<Vec<super::commit::FfiCommitMessage>>,
+    /// The rows the layout commit in progress gathers for the style engine's container queries.
+    pub(crate) layout_style_snapshot_commit: RefCell<Vec<super::style_snapshot::CommittedGeometry>>,
     /// What the DOM has asked the next layout tree build to rebuild, by style node identity.
     layout_tree_update_marks: RefCell<super::tree_update_marks::LayoutTreeUpdateMarks>,
     /// The counter styles each tree scope registers. The rule cache that settles them is C++'s,
@@ -753,6 +755,7 @@ impl LayoutNodeArena {
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
             messages_reported_during_pass: RefCell::new(Vec::new()),
+            layout_style_snapshot_commit: RefCell::new(Vec::new()),
             layout_tree_update_marks: RefCell::default(),
             counter_styles: RefCell::default(),
             counters_sets: RefCell::default(),
@@ -1915,9 +1918,14 @@ impl LayoutNodeArena {
         self.with_style_store(|engine| engine.tree().assigned_nodes_of(style_node)[index])
     }
 
+    /// Whether a style engine hosts this arena's records; a layout test's arena has none.
+    pub(crate) fn has_style_engine(&self) -> bool {
+        self.style_record_host.get().is_some()
+    }
+
     // The engine outlives the arena's live nodes. No host callback runs while this
     // native style-store borrow is active; shell notifications follow publication.
-    fn with_style_engine<T>(&self, callback: impl FnOnce(&mut StyleEngine) -> T) -> T {
+    pub(crate) fn with_style_engine<T>(&self, callback: impl FnOnce(&mut StyleEngine) -> T) -> T {
         let host = self.style_record_host();
         assert!(!host.style_engine.is_null());
         unsafe { callback(&mut *host.style_engine.cast::<StyleEngine>()) }
@@ -2337,6 +2345,9 @@ impl LayoutNodeArena {
     /// Tells the host what boxes `node` has now. No row list may be borrowed here. A
     /// pseudo-element's boxes stay unmirrored, since nothing on the DOM side reads them as a bit.
     fn notify_box_presence(&self, node: BoundNode) {
+        if let BoundNode::Identity(style_node) = node {
+            self.gather_layout_style_snapshot_box_loss(style_node);
+        }
         let Some((context, callback)) = self.box_presence_host.get() else {
             return;
         };

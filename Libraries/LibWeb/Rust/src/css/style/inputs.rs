@@ -899,6 +899,44 @@ impl RetainedState {
             .set_associated_pseudo_kind(node, pseudo_kind_plus_one);
     }
 
+    /// What the last layout commit and scroll state say of a container's box.
+    pub(crate) fn layout_style_snapshot(
+        &self,
+        node: StyleNodeID,
+    ) -> Option<crate::layout::style_snapshot::LayoutStyleSnapshotRow> {
+        self.layout_style_snapshots.get(&node).copied()
+    }
+
+    /// Take the box geometry a completed layout commit gathered, keeping each row's scroll state.
+    pub(crate) fn apply_layout_style_snapshot_commit(
+        &mut self,
+        rows: &[crate::layout::style_snapshot::CommittedGeometry],
+    ) {
+        for geometry in rows {
+            let row = self.layout_style_snapshots.entry(geometry.node).or_default();
+            row.content_width_raw = geometry.content_width_raw;
+            row.content_height_raw = geometry.content_height_raw;
+            row.has_committed_box = geometry.has_committed_box;
+        }
+    }
+
+    /// Record the scroll state a scroll-state container's queries read, as the host snapshots it
+    /// after layout, keeping the row's box geometry.
+    pub fn set_element_scroll_state(
+        &mut self,
+        node: StyleNodeID,
+        stuck: u8,
+        snapped: u8,
+        scrollable: u8,
+        scrolled: u8,
+    ) {
+        let row = self.layout_style_snapshots.entry(node).or_default();
+        row.stuck = stuck;
+        row.snapped = snapped;
+        row.scrollable = scrollable;
+        row.scrolled = scrolled;
+    }
+
     /// Record the identity of the counter-style registry a tree scope's style scope has now.
     pub fn set_counter_style_environment_identity(&mut self, tree_scope: TreeScopeID, identity: u64) {
         self.counter_style_environment_identities.insert(tree_scope, identity);
@@ -1366,6 +1404,7 @@ impl StyleEngineState {
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
                 environment_move_recompute_nodes: HashSet::default(),
+                layout_style_snapshots: HashMap::default(),
                 counter_style_environment_identities: HashMap::default(),
                 held_style_records: HashMap::default(),
                 host_var_reads: HashMap::default(),
@@ -2837,6 +2876,7 @@ impl RetainedState {
             element_custom_property_data,
             pseudo_element_custom_property_data,
             environment_move_recompute_nodes,
+            layout_style_snapshots,
             counter_style_environment_identities: _,
             held_style_records,
             host_var_reads,
@@ -2925,6 +2965,7 @@ impl RetainedState {
         element_custom_property_data.remove(&node);
         pseudo_element_custom_property_data.remove(&node);
         environment_move_recompute_nodes.remove(&node);
+        layout_style_snapshots.remove(&node);
         held_style_records.remove(&node);
         host_var_reads.remove(&node);
         css_defined_animations.retire(node);

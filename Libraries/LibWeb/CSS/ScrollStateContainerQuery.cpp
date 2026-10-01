@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
 #include <LibWeb/CSS/ScrollStateContainerQuery.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Box.h>
@@ -117,9 +118,22 @@ static u8 snapped_axes(DOM::Document& document, DOM::Element& element, Layout::N
     return axes;
 }
 
+// The style engine's container queries read the same snapshot; a container it knows of takes its
+// box geometry from every layout commit as well.
+static StyleNodeID publish_scroll_state(DOM::Element& element, ScrollStateSnapshot const& snapshot)
+{
+    if (element.style_node_id() == 0)
+        return {};
+    element.document().style_computer().style_engine().set_element_scroll_state(element.style_node_id(), snapshot.stuck, snapshot.snapped, snapshot.scrollable, snapshot.scrolled);
+    return element.style_node_id();
+}
+
 ScrollStateSnapshot ScrollStateQueryContainers::snapshot_for_query(DOM::Element& container)
 {
-    return m_containers.ensure(container).snapshot;
+    auto& entry = m_containers.ensure(container);
+    if (entry.published_style_node_id != container.style_node_id())
+        entry.published_style_node_id = publish_scroll_state(container, entry.snapshot);
+    return entry.snapshot;
 }
 
 void ScrollStateQueryContainers::did_scroll_relatively(Layout::Node const& scrolling_box, CSSPixelPoint delta)
@@ -181,9 +195,15 @@ bool ScrollStateQueryContainers::snapshot_post_layout_state(DOM::Document& docum
             snapshot.scrolled = scrolling_box->is_viewport() ? m_viewport_last_relative_scroll_direction : element->last_relative_scroll_direction();
         }
 
-        if (snapshot == container.snapshot)
+        if (snapshot == container.snapshot) {
+            // A moved element's state is published again under its new identity. The state did not change, so
+            // neither did anything that read it.
+            if (container.published_style_node_id != element->style_node_id())
+                container.published_style_node_id = publish_scroll_state(element, snapshot);
             continue;
+        }
         container.snapshot = snapshot;
+        container.published_style_node_id = publish_scroll_state(element, snapshot);
         any_state_changed = true;
         Invalidation::invalidate_descendant_styles_depending_on_size_container_query(element);
     }
@@ -192,6 +212,7 @@ bool ScrollStateQueryContainers::snapshot_post_layout_state(DOM::Document& docum
         auto container = m_containers.take(element);
         // A container that goes away with state still has styles that read it, and they read no state now.
         if (container.has_value() && container->snapshot != ScrollStateSnapshot {} && element->is_connected()) {
+            publish_scroll_state(element, {});
             any_state_changed = true;
             Invalidation::invalidate_descendant_styles_depending_on_size_container_query(element);
         }

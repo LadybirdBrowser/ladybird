@@ -66,6 +66,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         element_custom_property_data,
         pseudo_element_custom_property_data,
         environment_move_recompute_nodes,
+        layout_style_snapshots,
         counter_style_environment_identities,
         held_style_records,
         host_var_reads,
@@ -160,6 +161,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(element_custom_property_data);
     assert_member_is_sync(pseudo_element_custom_property_data);
     assert_member_is_sync(environment_move_recompute_nodes);
+    assert_member_is_sync(layout_style_snapshots);
     assert_member_is_sync(counter_style_environment_identities);
     assert_member_is_sync(held_style_records);
     assert_member_is_sync(host_var_reads);
