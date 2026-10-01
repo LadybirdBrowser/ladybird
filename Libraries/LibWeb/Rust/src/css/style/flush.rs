@@ -68,7 +68,30 @@ impl PassTimer {
     }
 }
 
+/// The named rule contexts a transaction moved. Each reaches a record by a route of its own.
+#[derive(Clone, Copy, Default)]
+struct NamedRuleContextsMoved {
+    counter_styles: bool,
+    custom_functions: bool,
+    font_feature_values: bool,
+}
+
+impl NamedRuleContextsMoved {
+    fn any(self) -> bool {
+        self.counter_styles || self.custom_functions || self.font_feature_values
+    }
+}
+
 impl RetainedState {
+    /// Whether a moved named rule context reaches the node's record: a counter style reaches only
+    /// a record that resolved one, a `@function` only an element whose style called one, and
+    /// `@font-feature-values` reaches values a record does not say it read.
+    fn named_rule_contexts_reach(&self, node: StyleNodeID, moved: NamedRuleContextsMoved) -> bool {
+        moved.font_feature_values
+            || (moved.custom_functions && self.facts.uses_custom_functions(node))
+            || (moved.counter_styles && self.node_reads_counter_styles(node))
+    }
+
     /// Whether the node's record, or the record of one of its pseudo-elements, resolved a counter
     /// style: a `content` counter or a `list-style-type` naming one that can be overridden.
     fn node_reads_counter_styles(&self, node: StyleNodeID) -> bool {
@@ -939,23 +962,18 @@ impl StyleEngineState {
             .inputs
             .iter()
             .any(|input| matches!(input.key, InputKey::RuleField(_, RuleField::Declarations)));
-        let named_rule_context_changed = transaction.program_joins.iter().any(|delta| {
-            matches!(
-                self.retained.program.rule_version(delta.rule).kind,
-                RuleKind::CounterStyle | RuleKind::FontFeatureValues | RuleKind::Function
-            )
-        });
-        // A counter style reaches only the records that resolved one; the other named rules reach
-        // values a record does not say it read.
-        let named_rule_context_is_counter_styles_only = transaction.program_joins.iter().all(|delta| {
-            !matches!(
-                self.retained.program.rule_version(delta.rule).kind,
-                RuleKind::FontFeatureValues | RuleKind::Function
-            )
-        });
+        let mut named_rules_moved = NamedRuleContextsMoved::default();
+        for delta in &transaction.program_joins {
+            match self.retained.program.rule_version(delta.rule).kind {
+                RuleKind::CounterStyle => named_rules_moved.counter_styles = true,
+                RuleKind::Function => named_rules_moved.custom_functions = true,
+                RuleKind::FontFeatureValues => named_rules_moved.font_feature_values = true,
+                _ => {}
+            }
+        }
         let pseudo_inputs_may_have_changed = environment_changed
             || rule_declarations_edited
-            || named_rule_context_changed
+            || named_rules_moved.any()
             || transaction.inputs.iter().any(|input| {
                 matches!(
                     input.key,
@@ -1819,9 +1837,7 @@ impl StyleEngineState {
                     | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
                 let reaction_is_settleable = reaction & !(transaction::STYLE_REACTION_PUBLISHED_STYLE | DERIVABLE) == 0
                     && !(reaction & DERIVABLE != 0 && style_input_nodes_for_cpp.contains(&root));
-                let can_prepare = !(named_rule_context_changed
-                    && old_record.is_some()
-                    && (!named_rule_context_is_counter_styles_only || self.node_reads_counter_styles(root)))
+                let can_prepare = !(old_record.is_some() && self.named_rule_contexts_reach(root, named_rules_moved))
                     && (reaction_is_settleable
                         || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     && !self.retained.computed_group_sets.node_answer_is_incomplete(root)
@@ -2105,9 +2121,7 @@ impl StyleEngineState {
                         // C++ only refreshes the inherited environment for a non-consumer. There
                         // is no element record to recompute or compare against the parent's groups.
                         false
-                    } else if (named_rule_context_changed
-                        && old_style_record != 0
-                        && (!named_rule_context_is_counter_styles_only || self.node_reads_counter_styles(node)))
+                    } else if (old_style_record != 0 && self.named_rule_contexts_reach(node, named_rules_moved))
                         || !(reaction_is_settleable
                             || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     {
