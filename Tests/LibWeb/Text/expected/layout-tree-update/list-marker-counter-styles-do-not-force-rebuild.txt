@@ -1,0 +1,4 @@
+RECREATED: recolouring a marker keeps the list item's box | list item
+STATS: recolouring a marker keeps the list item's box | rebuilt subtree roots=1, escaped=false
+PASS: recolouring a marker keeps the list item's box | incremental tree matches full rebuild
+1 cases; 1 matched; 0 mismatched
