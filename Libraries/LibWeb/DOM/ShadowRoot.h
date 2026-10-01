@@ -119,7 +119,7 @@ public:
     // `:host()` rule reaches. Without an identity of its own, that region has no name and every
     // route across the boundary widens to the document.
     [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
-    void set_style_node_id(CSS::StyleNodeID style_node_id) { m_style_node_id = style_node_id; }
+    void set_style_node_id(CSS::StyleNodeID);
 
     // A shadow root is also a style scope, and that is a longer-lived thing than its place in the
     // style tree. The style node identity is minted when the root joins the tree and given up when

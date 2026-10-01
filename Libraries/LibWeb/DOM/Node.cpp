@@ -2470,12 +2470,56 @@ static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateR
     }
 }
 
-// Whether a layout tree build can produce anything for this node. Only an element, a text node, the
-// document and a shadow root ever reach the build as something that keeps or gets a box; a comment,
-// a doctype or a processing instruction never does.
-static bool can_have_a_layout_tree_update(Node const& node)
+// The identity the layout arena files this node's layout tree update marks under. Only an element, a text node, the
+// document and a shadow root ever reach the build as something that keeps or gets a box, and the style mirror names
+// each of them once it tracks the tree; a comment, a doctype or a processing instruction it never names.
+static CSS::StyleNodeID mirror_identity_of(Node const& node)
 {
-    return node.is_element() || node.is_text() || node.is_document() || node.is_shadow_root();
+    if (auto const* element = as_if<Element>(node))
+        return element->style_node_id();
+    if (auto const* text = as_if<Text>(node))
+        return text->style_node_id();
+    if (auto const* shadow_root = as_if<ShadowRoot>(node))
+        return shadow_root->style_node_id();
+    if (auto const* document = as_if<Document>(node))
+        return document->style_node_id();
+    return {};
+}
+
+// A document that has made no layout arena has made no layout tree update mark either.
+static void* layout_tree_update_marks_of(Document const& document)
+{
+    auto* arena = document.layout_node_arena_if_created();
+    return arena ? arena->handle() : nullptr;
+}
+
+bool Node::needs_layout_tree_update() const
+{
+    auto identity = mirror_identity_of(*this);
+    auto* marks = layout_tree_update_marks_of(document());
+    return identity != 0 && marks && Layout::RustFFI::layout_arena_needs_layout_tree_update(marks, identity.value());
+}
+
+u8 Node::layout_tree_update_reuse_reasons() const
+{
+    auto identity = mirror_identity_of(*this);
+    auto* marks = layout_tree_update_marks_of(document());
+    if (identity == 0 || !marks)
+        return 0;
+    return Layout::RustFFI::layout_arena_layout_tree_update_reuse_reasons(marks, identity.value());
+}
+
+bool Node::child_needs_layout_tree_update() const
+{
+    auto identity = mirror_identity_of(*this);
+    auto* marks = layout_tree_update_marks_of(document());
+    return identity != 0 && marks && Layout::RustFFI::layout_arena_child_needs_layout_tree_update(marks, identity.value());
+}
+
+void Node::set_child_needs_layout_tree_update(bool value)
+{
+    if (auto identity = mirror_identity_of(*this); identity != 0)
+        (void)Layout::RustFFI::layout_arena_set_child_needs_layout_tree_update(document().layout_node_arena().handle(), identity.value(), value);
 }
 
 // The identity the invalidation journal names a node's box by, or none if the node has no box. Retiring a node's
@@ -2491,9 +2535,12 @@ static NodeIdentity identity_of_box_owner(Node const& node)
 
 void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReason reason)
 {
-    // A node with no possible box has nothing for the build to rebuild, and the mutation that
-    // reached it has already dirtied its parent, which is where the child list is read again.
-    if (value && !can_have_a_layout_tree_update(*this))
+    // A layout tree update mark names a node by its identity in the style mirror, so a node the mirror has not named
+    // has nowhere to hold one. That is every node a build can produce nothing for, whose mutation has already dirtied
+    // its parent, and of the rest only a node in a document whose tree the style engine does not track, or one whose
+    // subtree is still arriving, which the insertion that names it marks.
+    auto identity = mirror_identity_of(*this);
+    if (identity == 0)
         return;
 
     if (value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
@@ -2507,19 +2554,14 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     else if (value && reason == SetNeedsLayoutTreeUpdateReason::PseudoElementChange)
         reuse_reason = PseudoElementChange;
     // NB: Every pending reason must permit reuse. Once a full rebuild is requested, later
-    //     incremental changes cannot narrow it again.
-    if (m_needs_layout_tree_update == value) {
-        if (!reuse_reason)
-            m_layout_tree_update_reuse_reasons = 0;
-        else if (m_layout_tree_update_reuse_reasons)
-            m_layout_tree_update_reuse_reasons |= reuse_reason;
+    //     incremental changes cannot narrow it again. The arena folds both, and answers whether
+    //     this mark was a transition, which is what the widenings below hang off.
+    auto* marks = value ? document().layout_node_arena().handle() : layout_tree_update_marks_of(document());
+    if (!marks || !Layout::RustFFI::layout_arena_merge_layout_tree_update_mark(marks, identity.value(), value, reuse_reason))
         return;
-    }
-    m_needs_layout_tree_update = value;
-    m_layout_tree_update_reuse_reasons = reuse_reason;
 
     if constexpr (UPDATE_LAYOUT_DEBUG) {
-        if (m_needs_layout_tree_update) {
+        if (value) {
             // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
             auto navigable = this->navigable();
             bool any_ancestor_needs_layout_tree_update = false;
@@ -2542,7 +2584,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             host->set_needs_layout_tree_update(value, reason);
     }
 
-    if (m_needs_layout_tree_update) {
+    if (value) {
         document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
 
         bool const document_has_top_layer_elements = !document().top_layer_elements().is_empty();
@@ -2556,9 +2598,12 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
         for (auto* ancestor = flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent()) {
             if (!update_is_inside_top_layer_member && is_rendered_top_layer_element(*ancestor))
                 update_is_inside_top_layer_member = true;
-            if (ancestor->m_child_needs_layout_tree_update)
+            auto ancestor_identity = mirror_identity_of(*ancestor);
+            // An ancestor the style mirror has not named is on no path the build walks by identity.
+            if (ancestor_identity == 0)
+                continue;
+            if (Layout::RustFFI::layout_arena_set_child_needs_layout_tree_update(marks, ancestor_identity.value(), true))
                 break;
-            ancestor->m_child_needs_layout_tree_update = true;
         }
         if (update_is_inside_top_layer_member)
             document().set_child_needs_layout_tree_update(true);

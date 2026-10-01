@@ -24,6 +24,8 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/RadioButtonGroupRegistry.h>
 #include <LibWeb/HTML/XMLSerializer.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
@@ -67,6 +69,15 @@ void ShadowRoot::adopted_from(Document& old_document)
     old_document.style_computer().unregister_style_node(style_node_id());
     set_style_node_id(0);
     m_style_engine_tree_scope = 0;
+}
+
+void ShadowRoot::set_style_node_id(CSS::StyleNodeID style_node_id)
+{
+    m_style_node_id = style_node_id;
+    // The layout arena keys layout tree update marks by identity alone, so one handed to this root holds none, whatever
+    // the node that held it before left behind.
+    if (auto* arena = document().layout_node_arena_if_created(); arena && style_node_id != 0)
+        Layout::RustFFI::layout_arena_clear_layout_tree_update_marks(arena->handle(), style_node_id.value());
 }
 
 // https://fullscreen.spec.whatwg.org/#dom-document-fullscreenelement

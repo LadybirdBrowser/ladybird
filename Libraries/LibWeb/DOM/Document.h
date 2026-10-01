@@ -453,7 +453,7 @@ public:
 
     // The document's identity in the style mirror, which only names it as the root of the DOM child sequence.
     [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
-    void set_style_node_id(CSS::StyleNodeID style_node_id) { m_style_node_id = style_node_id; }
+    void set_style_node_id(CSS::StyleNodeID);
 
     Page& page();
     Page const& page() const;
@@ -878,6 +878,7 @@ public:
 
     [[nodiscard]] Layout::NodeArena& layout_node_arena();
     [[nodiscard]] Layout::NodeArena* layout_node_arena_if_created() { return m_layout_node_arena; }
+    [[nodiscard]] Layout::NodeArena const* layout_node_arena_if_created() const { return m_layout_node_arena; }
     Painting::ChromeWidgetRegistry& chrome_widget_registry() { return *m_chrome_widget_registry; }
     Painting::ChromeWidgetRegistry const& chrome_widget_registry() const { return *m_chrome_widget_registry; }
 

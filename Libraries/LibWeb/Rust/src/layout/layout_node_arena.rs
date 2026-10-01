@@ -634,6 +634,8 @@ pub(crate) struct LayoutNodeArena {
     nodes_enrolled_for_replaced_content_facts_sync: RefCell<Vec<NodeSlotId>>,
     /// What the running pass has to tell the document, waiting for the commit that delivers it.
     messages_reported_during_pass: RefCell<Vec<super::commit::FfiCommitMessage>>,
+    /// What the DOM has asked the next layout tree build to rebuild, by style node identity.
+    layout_tree_update_marks: RefCell<super::tree_update_marks::LayoutTreeUpdateMarks>,
     owner_thread: thread::ThreadId,
 }
 
@@ -717,6 +719,7 @@ impl LayoutNodeArena {
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
             messages_reported_during_pass: RefCell::new(Vec::new()),
+            layout_tree_update_marks: RefCell::default(),
             owner_thread: thread::current().id(),
         }
     }
@@ -1080,6 +1083,22 @@ impl LayoutNodeArena {
             return Some(0);
         }
         self.node_style_node(id).map(StyleNodeID::raw)
+    }
+
+    pub(crate) fn layout_tree_update_marks(&self) -> &RefCell<super::tree_update_marks::LayoutTreeUpdateMarks> {
+        &self.layout_tree_update_marks
+    }
+
+    /// Retire the layout tree update marks `style_node` holds, own and child alike.
+    pub(crate) fn clear_layout_tree_update_marks(&self, style_node: Option<StyleNodeID>) {
+        if let Some(style_node) = style_node {
+            self.layout_tree_update_marks.borrow_mut().clear(style_node);
+        }
+    }
+
+    /// Whether a flat-tree descendant of `style_node` holds a layout tree update mark.
+    pub(crate) fn child_needs_layout_tree_update(&self, style_node: Option<StyleNodeID>) -> bool {
+        style_node.is_some_and(|style_node| self.layout_tree_update_marks.borrow().child_needs(style_node))
     }
 
     /// Leaves a message about `id` for the document, to be delivered with the pass's commit. A row

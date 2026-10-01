@@ -5850,6 +5850,15 @@ void Document::set_browsing_context(GC::Ptr<HTML::BrowsingContext> browsing_cont
         ensure_style_engine_tracks_tree();
 }
 
+void Document::set_style_node_id(CSS::StyleNodeID style_node_id)
+{
+    m_style_node_id = style_node_id;
+    // The identity may have named a node that has since left, and the layout arena keys layout tree update marks by
+    // identity alone, so the document starts with none.
+    if (m_layout_node_arena && style_node_id != 0)
+        Layout::RustFFI::layout_arena_clear_layout_tree_update_marks(m_layout_node_arena->handle(), style_node_id.value());
+}
+
 void Document::ensure_style_engine_tracks_tree()
 {
     // A document without a browsing context never updates style, so its tree is not tracked until the style of an
