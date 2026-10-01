@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="sheet">
+    @counter-style stars { system: cyclic; symbols: '*'; }
+    #list { display: list-item; list-style: stars inside; width: max-content; }
+    #generated { width: max-content; }
+    #generated::before { content: counter(c, stars); }
+</style>
+<div id="list"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<div id="generated"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<script>
+    // A counter style reaches the boxes built with it: the marker and the generated content rebuild.
+    // Their elements' children resolve no counter style, so the rebuild restyles none of them again.
+    test(() => {
+        const list = document.getElementById("list");
+        const generated = document.getElementById("generated");
+        internals.updateStyle();
+        const listWidth = list.getBoundingClientRect().width;
+        const generatedWidth = generated.getBoundingClientRect().width;
+        const before = internals.getStyleInvalidationCounters();
+        document.getElementById("sheet").sheet.cssRules[0].symbols = "'++++'";
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        const elements = document.getElementsByTagName("*").length;
+        println(`elements: ${elements}`);
+        println(`records computed: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords}`);
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`transactions: ${after.styleEngineTransactionSetups - before.styleEngineTransactionSetups}`);
+        println(`marker rebuilt: ${list.getBoundingClientRect().width > listWidth}`);
+        println(`generated content rebuilt: ${generated.getBoundingClientRect().width > generatedWidth}`);
+    });
+</script>
