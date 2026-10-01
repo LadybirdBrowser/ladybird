@@ -123,6 +123,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
     // IMPLEMENTATION DEFINED: We need an object to represent the fetch response's client
     auto outside_settings = GC::Heap::the().allocate<Web::HTML::EnvironmentSettingsSnapshot>(inside_settings->realm_execution_context().copy(), outside_settings_snapshot);
+    m_outside_settings = outside_settings;
 
     // AD-HOC: Outside settings' global object is in the owner's process, so the violations of its policies, such as by
     //         the worker script fetch, are reported to the owner.

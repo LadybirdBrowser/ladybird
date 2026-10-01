@@ -95,7 +95,7 @@ void SVGFEImageElement::process_href(Optional<Utf16String> const& href)
 
     if (m_resource_request->needs_fetching()) {
         auto request = HTML::create_potential_CORS_request(*m_href, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
-        request->set_client(&document().relevant_settings_object());
+        request->set_client(document().relevant_settings_object().address());
         m_resource_request->fetch_resource(request);
     }
 }

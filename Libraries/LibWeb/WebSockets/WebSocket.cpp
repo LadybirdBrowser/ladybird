@@ -187,7 +187,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     //    redirect mode is "error".
     auto request = Fetch::Infrastructure::Request::create(client.vm());
     request->set_url(move(request_url));
-    request->set_client(&client);
+    request->set_client(client.address());
     request->set_service_workers_mode(Fetch::Infrastructure::Request::ServiceWorkersMode::None);
     request->set_referrer(Fetch::Infrastructure::Request::Referrer::NoReferrer);
     request->set_mode(Fetch::Infrastructure::Request::Mode::WebSocket);

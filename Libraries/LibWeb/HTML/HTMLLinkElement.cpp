@@ -470,7 +470,7 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
     request->set_referrer_policy(options.referrer_policy);
 
     // 10. Set request's client to options's environment.
-    request->set_client(options.environment);
+    request->set_client(options.environment->address());
 
     // 11. Set request's priority to options's fetch priority.
     request->set_priority(options.fetch_priority);
@@ -1656,7 +1656,7 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
 
     auto request = Fetch::Infrastructure::Request::create();
     request->set_url(favicon_url.release_value());
-    request->set_client(&document->relevant_settings_object());
+    request->set_client(document->relevant_settings_object().address());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
     request->set_use_url_credentials(true);

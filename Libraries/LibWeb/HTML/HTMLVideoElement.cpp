@@ -300,7 +300,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     //    and whose use-URL-credentials flag is set.
     auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url_record.release_value());
-    request->set_client(&document().relevant_settings_object());
+    request->set_client(document().relevant_settings_object().address());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Video);
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);

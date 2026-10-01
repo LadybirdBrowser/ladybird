@@ -17,6 +17,7 @@
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
@@ -103,7 +104,8 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(G
 
     // 2. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive
     //      on request’s client’s global object, policy, and directive.
-    auto violation = create_a_violation_object_for_global_policy_and_directive(request->client()->global_object(), policy, String { directive->view().to_utf8_but_should_be_ported_to_utf16() });
+    auto client = Fetch::Fetching::resolve_client(request);
+    auto violation = create_a_violation_object_for_global_policy_and_directive(client->global_object(), policy, String { directive->view().to_utf8_but_should_be_ported_to_utf16() });
 
     // 3. Set violation’s resource to request’s url.
     // Spec Note: We use request’s url, and not its current url, as the latter might contain information about redirect
@@ -113,7 +115,7 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(G
     // AD-HOC: A request whose client is a snapshot of an environment in another process, such as a worker's outside
     //         settings when the worker fetches its script, violates that environment's policies. Its global object is
     //         in that process, so the violation is reported there.
-    if (auto const* snapshot = as_if<HTML::EnvironmentSettingsSnapshot>(*request->client()); snapshot && snapshot->report_violation()) {
+    if (auto const* snapshot = as_if<HTML::EnvironmentSettingsSnapshot>(*client); snapshot && snapshot->report_violation()) {
         // NB: Request's policy container is a clone of the snapshot's, which lists the policies in the same order.
         auto const& policies = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list.policies();
         for (size_t policy_index = 0; policy_index < policies.size(); ++policy_index) {
@@ -462,7 +464,7 @@ void Violation::report_a_violation(JS::Realm& realm)
 
                         // client
                         //    violation's global object's relevant settings object
-                        request->set_client(&environment_settings_object);
+                        request->set_client(environment_settings_object.address());
 
                         // destination
                         //    "report"

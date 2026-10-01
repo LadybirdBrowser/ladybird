@@ -138,7 +138,7 @@ CORSSettingAttribute cors_setting_from_preload_scanner(RustFfiPreloadScannerCors
 void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL url, Optional<Fetch::Infrastructure::Request::Destination> destination, CORSSettingAttribute cors_setting)
 {
     auto request = create_potential_CORS_request(url, destination, cors_setting);
-    request->set_client(&document.relevant_settings_object());
+    request->set_client(document.relevant_settings_object().address());
 
     // AD-HOC: The spec expects caching rules, which are not yet fully specified, to stop the normal parser from fetching
     //         the same resource again. A response the HTTP cache can't store would be fetched twice, so once the
@@ -226,7 +226,7 @@ void issue_speculative_module_fetch(DOM::Document& document, URL::URL const& url
     request->set_url(url);
     request->set_mode(Fetch::Infrastructure::Request::Mode::CORS);
     request->set_referrer(Fetch::Infrastructure::Request::Referrer::Client);
-    request->set_client(&settings_object);
+    request->set_client(settings_object.address());
     request->set_destination(destination);
     if (first_is_one_of(destination,
             Fetch::Infrastructure::Request::Destination::Worker,

@@ -1635,7 +1635,7 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
     auto request = create_potential_CORS_request(url_record, destination, m_crossorigin);
 
     // 4. Set request's client to the media element's node document's relevant settings object.
-    request->set_client(&document().relevant_settings_object());
+    request->set_client(document().relevant_settings_object().address());
 
     // 5. Set request's initiator type to destination.
     request->set_initiator_type(destination == Fetch::Infrastructure::Request::Destination::Audio

@@ -30,6 +30,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/KeepaliveQuotaAccountant.h>
+#include <LibWeb/HTML/Scripting/EnvironmentSettingsObjectAddress.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
@@ -196,9 +197,8 @@ public:
         m_body = move(body);
     }
 
-    [[nodiscard]] GC::Ptr<HTML::EnvironmentSettingsObject const> client() const { return m_client; }
-    [[nodiscard]] GC::Ptr<HTML::EnvironmentSettingsObject> client() { return m_client; }
-    void set_client(GC::Ptr<HTML::EnvironmentSettingsObject> client) { m_client = client; }
+    [[nodiscard]] Optional<HTML::EnvironmentSettingsObjectAddress> client() const { return m_client; }
+    void set_client(Optional<HTML::EnvironmentSettingsObjectAddress> client) { m_client = client; }
 
     [[nodiscard]] ReservedClientType const& reserved_client() const { return m_reserved_client; }
     [[nodiscard]] ReservedClientType& reserved_client() { return m_reserved_client; }
@@ -400,7 +400,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-request-client
     // A request has an associated client (null or an environment settings object).
-    GC::Ptr<HTML::EnvironmentSettingsObject> m_client;
+    Optional<HTML::EnvironmentSettingsObjectAddress> m_client;
 
     // https://fetch.spec.whatwg.org/#concept-request-reserved-client
     // A request has an associated reserved client (null, an environment, or an environment settings object). Unless

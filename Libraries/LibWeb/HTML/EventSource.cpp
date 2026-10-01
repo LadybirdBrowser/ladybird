@@ -99,7 +99,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlob
     auto request = create_potential_CORS_request(event_source->m_url, {}, cors_attribute_state);
 
     // 9. Set request's client to settings.
-    request->set_client(&settings);
+    request->set_client(settings.address());
 
     // 10. User agents may set (`Accept`, `text/event-stream`) in request's header list.
     request->header_list()->set({ "Accept"sv, "text/event-stream"sv });

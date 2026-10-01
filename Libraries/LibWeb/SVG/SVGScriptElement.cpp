@@ -115,7 +115,7 @@ void SVGScriptElement::process_the_script_element()
         // FIXME: Use CORS state specified by the ‘crossorigin’ attribute.
         request->set_mode(Fetch::Infrastructure::Request::Mode::NoCORS);
         request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::SameOrigin);
-        request->set_client(&document().relevant_settings_object());
+        request->set_client(document().relevant_settings_object().address());
         request->set_parser_metadata(m_parser_inserted
                 ? Fetch::Infrastructure::Request::ParserMetadata::ParserInserted
                 : Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted);

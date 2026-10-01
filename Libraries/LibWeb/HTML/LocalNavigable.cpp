@@ -2543,7 +2543,8 @@ static void create_navigation_params_by_fetching(
     //    policy container: sourceSnapshotParams's source policy container
     auto request = Fetch::Infrastructure::Request::create(vm);
     request->set_url(entry.url);
-    request->set_client(source_snapshot_params->fetch_client);
+    if (source_snapshot_params->fetch_client)
+        request->set_client(source_snapshot_params->fetch_client->address());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Document);
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
     request->set_use_url_credentials(true);
@@ -2565,7 +2566,7 @@ static void create_navigation_params_by_fetching(
         request->set_top_level_navigation_initiator_origin(document_state.initiator_origin);
 
     // 5. If request's client is null:
-    if (request->client() == nullptr) {
+    if (!request->client().has_value()) {
         // Note: This only occurs in the case of a browser UI-initiated navigation.
 
         // 1. Set request's origin to a new opaque origin.
@@ -3479,14 +3480,16 @@ void LocalNavigable::navigate_to_a_javascript_url_from_ui_process(URL::URL const
     request->set_policy_container(source_snapshot_params->source_policy_container);
 
     // AD-HOC: See https://github.com/whatwg/html/issues/4651, requires some investigation to figure out what we should be setting here.
-    request->set_client(source_snapshot_params->fetch_client);
+    if (source_snapshot_params->fetch_client)
+        request->set_client(source_snapshot_params->fetch_client->address());
 
     //     2. Queue a global task on the navigation and traversal task source given navigable's active window to
     //        navigate to a javascript: URL given navigable, request, historyHandling, initiatorOriginSnapshot,
     //        userInvolvement, cspNavigationType, initialInsertion, and navigationId.
     // NB: initialInsertion is false for a navigation the UI process runs: it never inserts a container.
+    // NB: The task holds request's client until it runs.
     m_queued_javascript_url_navigations.append(navigation_id);
-    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*window), GC::create_function(heap(), [this, request, history_handling, initiator_origin, user_involvement, csp_navigation_type, navigation_id = move(navigation_id)] {
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*window), GC::create_function(heap(), [this, request, client = source_snapshot_params->fetch_client, history_handling, initiator_origin, user_involvement, csp_navigation_type, navigation_id = move(navigation_id)] {
         navigate_to_a_javascript_url(request, history_handling, initiator_origin, user_involvement, csp_navigation_type, InitialInsertion::No, navigation_id);
     }));
 }
@@ -3661,13 +3664,15 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         //     URL operates on a request. It will never hit the network.
         auto request = Fetch::Infrastructure::Request::create(vm);
         request->set_url(url);
-        request->set_client(source_snapshot_params->fetch_client);
+        if (source_snapshot_params->fetch_client)
+            request->set_client(source_snapshot_params->fetch_client->address());
         request->set_policy_container(source_snapshot_params->source_policy_container);
 
         // 2. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, request, historyHandling, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.
+        // NB: The task holds request's client until it runs.
         VERIFY(active_window());
         m_queued_javascript_url_navigations.append(navigation_id);
-        queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, request, history_handling, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
+        queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, request, client = source_snapshot_params->fetch_client, history_handling, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
             navigate_to_a_javascript_url(request, to_history_handling_behavior(history_handling), initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id);
         }));
 

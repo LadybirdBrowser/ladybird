@@ -6,6 +6,7 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
@@ -15,6 +16,16 @@
 #include <LibWeb/MixedContent/AbstractOperations.h>
 
 namespace Web::Fetch::Fetching {
+
+GC::Ptr<HTML::EnvironmentSettingsObject> resolve_client(Infrastructure::Request const& request)
+{
+    auto address = request.client();
+    if (!address.has_value())
+        return nullptr;
+    auto client = HTML::environment_settings_object_at(*address);
+    VERIFY(client);
+    return client;
+}
 
 // https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
 // NB: The steps of the "client" case that read environment, which is non-null.

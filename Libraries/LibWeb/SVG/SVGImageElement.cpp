@@ -191,7 +191,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
 
     if (resource_request->needs_fetching()) {
         auto request = HTML::create_potential_CORS_request(url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
-        request->set_client(&document().relevant_settings_object());
+        request->set_client(document().relevant_settings_object().address());
         resource_request->fetch_resource(request);
     }
 }
