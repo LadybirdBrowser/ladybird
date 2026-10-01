@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="parent"><div id="child">child</div></div>
+<script>
+    // A child that starts an animation of an inherited property in the same update as its parent's
+    // value of that property moves keeps the animated value: the parent's new value is not swapped
+    // in over it.
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        internals.updateStyle();
+        const animation = child.animate({ color: ["rgb(255, 0, 0)", "rgb(255, 0, 0)"] }, { duration: 1000000 });
+        animation.pause();
+        parent.style.color = "rgb(0, 128, 0)";
+        internals.updateStyle();
+        println(`child color: ${getComputedStyle(child).color}`);
+        println(`parent color: ${getComputedStyle(parent).color}`);
+    });
+</script>

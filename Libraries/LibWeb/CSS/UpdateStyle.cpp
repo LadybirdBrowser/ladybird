@@ -179,26 +179,15 @@ static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID s
     };
 }
 
-// The static inherited-group swap answers a pure inherited-style reaction without recomputing the element. That
-// is only sound while the element's computed style is a pure function of its cascade inputs and the swapped
-// groups: an element with animations may resolve keyframe values (`inherit`, neutral keyframes) against the
-// parent's style, and an element with transitions or transition-property entries must compare before-change and
-// after-change styles at every style change event. These are the conditions under which
-// Element::apply_style_engine_reaction declines its own inherited-style group swap.
-static bool element_style_depends_on_more_than_the_inherited_groups(DOM::Element& element)
+// The swapped groups are the parent's base values; a child of a parent holding animated values inherits the
+// animated ones, which the engine never sees.
+static bool parent_style_has_animated_values(DOM::Element& element)
 {
-    if (element.has_relevant_animations()
-        || element.has_css_defined_animations()
-        || !element.property_ids_with_existing_transitions({}).is_empty()
-        || element.has_matching_transition_property_entry({}))
-        return true;
-    // The swapped groups are the parent's base values; a child of an animating parent inherits
-    // the animated ones, which the engine never sees.
-    if (auto parent = DOM::AbstractElement { element }.element_to_inherit_style_from(); parent.has_value()) {
-        if (auto parent_style = parent->computed_style(); parent_style && parent_style->has_animated_values())
-            return true;
-    }
-    return false;
+    auto parent = DOM::AbstractElement { element }.element_to_inherit_style_from();
+    if (!parent.has_value())
+        return false;
+    auto parent_style = parent->computed_style();
+    return parent_style && parent_style->has_animated_values();
 }
 
 // Whether the custom-property environment an engine-computed record was published with can be
@@ -640,8 +629,11 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 VERIFY(!needs_custom_property_recompute);
                 VERIFY(reaction.pseudo_kind == NumericLimits<u8>::max());
                 // The engine swapped the element's inherited groups for its parent's: the record
-                // installs as an engine record.
-                if (element_style_depends_on_more_than_the_inherited_groups(*element))
+                // installs as an engine record. The engine refuses the swap to an element that
+                // animates, declares transitions, or inherits from an animating parent. A parent
+                // this batch recomputed may have taken animated values from its own ancestors
+                // since the engine swapped, which the element inherits in place of the base ones.
+                if (parent_style_has_animated_values(*element))
                     invalidation = element->apply_style_engine_reaction(did_change_custom_properties);
                 else
                     apply_engine_computed_records({}, false);
