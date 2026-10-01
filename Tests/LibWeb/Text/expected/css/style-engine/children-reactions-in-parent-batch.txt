@@ -1,0 +1,6 @@
+children inside the batch: transactions 2, engine records 5, C++ recomputations 0
+  first: color rgb(0, 128, 0), width 20px
+  second: color rgb(0, 128, 0), width 20px
+children inside and outside the batch: transactions 2, engine records 4, C++ recomputations 0
+  first: color rgb(0, 0, 0), width 784px
+  second: color rgb(0, 0, 0), width 20px
