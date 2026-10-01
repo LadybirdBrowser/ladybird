@@ -12,6 +12,7 @@
 #include <LibGC/Ptr.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/EasingFunction.h>
+#include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -45,6 +46,9 @@ struct AnimationProperties {
     AnimationComposition composition;
     Utf16FlyString name;
     AnimationTimelineSource timeline;
+    // The computed `animation-timing-function` the easing was parsed out of, which the style engine
+    // compares the next computation's against.
+    RustStyleValueHandle timing_function_value;
 };
 
 }

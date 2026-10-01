@@ -1065,36 +1065,30 @@ impl RetainedState {
         self.host_var_reads.insert(node, reads);
     }
 
-    /// Record the names of the CSS animations the host holds for one of an element's animation
-    /// lists, in the order it holds them. The names arrive packed into one buffer because a list is
-    /// almost always a single name, and a length per name is cheaper than a handle per name.
+    /// Record the CSS animations the host holds for one of an element's animation lists, in the
+    /// order it holds them: each one's name, and the definition the last plan applied to it. The
+    /// names arrive packed into one buffer because a list is almost always a single name, and a
+    /// length per name is cheaper than a handle per name.
     pub fn set_element_css_defined_animations(
         &mut self,
         node: StyleNodeID,
         slot: animations::AnimationSlot,
         name_lengths: &[u32],
         name_units: &[u16],
+        definitions: &[super::bridge::FfiAppliedAnimationDefinition],
     ) {
-        let mut offset = 0;
-        let names = name_lengths
-            .iter()
-            .map(|&length| {
-                let units = &name_units[offset..offset + length as usize];
-                offset += length as usize;
-                crate::css::css_string::CssString::from_utf16(units)
-            })
-            .collect();
-        self.css_defined_animations.set(node, slot, names);
+        self.css_defined_animations
+            .set(node, slot, name_lengths, name_units, definitions);
     }
 
-    /// The names of the CSS animations the host holds for one of an element's animation lists.
+    /// The CSS animations the host holds for one of an element's animation lists.
     #[must_use]
     pub(crate) fn element_css_defined_animations(
         &self,
         node: StyleNodeID,
         slot: animations::AnimationSlot,
-    ) -> &[crate::css::css_string::CssString] {
-        self.css_defined_animations.names(node, slot)
+    ) -> &[animations::CssDefinedAnimation] {
+        self.css_defined_animations.list(node, slot)
     }
 
     /// Replaces the `@keyframes` row of one style scope, as its rule cache resolved them: each name

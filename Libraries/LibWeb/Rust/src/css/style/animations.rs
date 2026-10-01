@@ -11,13 +11,15 @@
 //! animations are published here, so the computation decides the reconciliation from its own
 //! inputs and hands the host a plan: per definition, the animation it claims, or none.
 //!
-//! Only the names are mirrored: matching an animation is matching its name, and everything the
-//! host does once a definition has found its animation - applying the timing, cancelling what no
+//! Beside each name is the definition the last plan applied to that animation, so a plan that
+//! would leave every animation as it is need not be handed to the host at all. Everything the host
+//! does once a definition has found its animation - applying the timing, cancelling what no
 //! definition claimed - it does from the list it already holds.
 //!
 //! Which `@keyframes` a definition runs is decided here too, from the keyframes each style scope
 //! publishes, so the computation never reaches into a scope's rule cache.
 
+use super::bridge::{FfiAppliedAnimationDefinition, FfiAppliedAnimationValues};
 use super::tree::{StyleNodeID, TreeScopeID};
 use crate::css::css_string::CssString;
 use std::collections::HashMap;
@@ -29,11 +31,63 @@ pub(crate) type AnimationSlot = u8;
 /// The definition that claimed no existing animation and asks for a new one.
 pub(crate) const NO_MATCHED_ANIMATION: i32 = -1;
 
-/// The names of the CSS animations the host holds in one of an element's lists, in its order.
-type CssDefinedAnimationList = (AnimationSlot, Box<[CssString]>);
+impl FfiAppliedAnimationDefinition {
+    /// What the host publishes back for a definition once it has applied it: the definition's own
+    /// values, field for field.
+    #[must_use]
+    fn of(animation: &crate::css::style_compute::FfiComputedAnimation) -> Self {
+        Self {
+            values: FfiAppliedAnimationValues {
+                duration_is_auto: animation.duration_is_auto,
+                duration: animation.duration,
+                iteration_count: animation.iteration_count,
+                direction: animation.direction,
+                play_state: animation.play_state,
+                delay: animation.delay,
+                fill_mode: animation.fill_mode,
+                composition: animation.composition,
+                timeline_kind: animation.timeline_kind as u8,
+                scroll_scroller: animation.scroll_scroller,
+                scroll_axis: animation.scroll_axis,
+            },
+            keyframe_set: animation.keyframe_set,
+            timing_function: animation.timing_function,
+        }
+    }
 
-/// Per element, the names of the CSS animations the host holds for it and each of its
-/// pseudo-elements, in the order the host holds them.
+    /// Whether applying `self` to an animation that last had `published` applied would leave it
+    /// exactly as it is. A scroll timeline is rebuilt from the element's surroundings every time it
+    /// is applied, so a definition that names one is never called unchanged, and an animation no
+    /// plan has described yet publishes a null timing function, which no computed definition has.
+    /// The timing function is compared by value: a recomputed style builds a fresh allocation for
+    /// a declaration that has not changed.
+    #[must_use]
+    fn would_change_nothing(&self, published: &Self) -> bool {
+        self.values.timeline_kind != crate::css::style_compute::FfiAnimationTimelineKind::Scroll as u8
+            && !published.timing_function.is_null()
+            && self.values == published.values
+            && self.keyframe_set == published.keyframe_set
+            && unsafe {
+                crate::css::style_value::rust_style_value_equals(
+                    self.timing_function.cast(),
+                    published.timing_function.cast(),
+                )
+            }
+    }
+}
+
+/// One of the CSS animations the host holds: its name, and the definition the last plan applied
+/// to it.
+pub(crate) struct CssDefinedAnimation {
+    pub(crate) name: CssString,
+    applied_definition: FfiAppliedAnimationDefinition,
+}
+
+/// The CSS animations the host holds in one of an element's lists, in its order.
+type CssDefinedAnimationList = (AnimationSlot, Box<[CssDefinedAnimation]>);
+
+/// Per element, the CSS animations the host holds for it and each of its pseudo-elements, in the
+/// order the host holds them.
 #[derive(Default)]
 pub(crate) struct CssDefinedAnimations {
     /// Owning a CSS animation is rare, so only the elements that do have a row, and a row holds
@@ -42,31 +96,57 @@ pub(crate) struct CssDefinedAnimations {
 }
 
 impl CssDefinedAnimations {
-    /// Replace one list. An empty list drops it, so an element that stops animating stops costing
-    /// anything.
-    pub(crate) fn set(&mut self, node: StyleNodeID, slot: AnimationSlot, names: Box<[CssString]>) {
+    /// Replace one list from the names and applied definitions the host publishes: the names
+    /// packed into one buffer of code units with a length each, and a definition per animation.
+    /// An empty list drops it, so an element that stops animating stops costing anything.
+    pub(crate) fn set(
+        &mut self,
+        node: StyleNodeID,
+        slot: AnimationSlot,
+        name_lengths: &[u32],
+        name_units: &[u16],
+        definitions: &[FfiAppliedAnimationDefinition],
+    ) {
+        debug_assert_eq!(
+            definitions.len(),
+            name_lengths.len(),
+            "every published animation name comes with its applied definition"
+        );
+        let mut offset = 0;
+        let animations: Box<[CssDefinedAnimation]> = name_lengths
+            .iter()
+            .zip(definitions)
+            .map(|(&length, &applied_definition)| {
+                let units = &name_units[offset..offset + length as usize];
+                offset += length as usize;
+                CssDefinedAnimation {
+                    name: CssString::from_utf16(units),
+                    applied_definition,
+                }
+            })
+            .collect();
         let lists = self.rows.entry(node).or_default();
         let existing = lists.iter().position(|(list_slot, _)| *list_slot == slot);
-        match (existing, names.is_empty()) {
+        match (existing, animations.is_empty()) {
             (Some(index), true) => {
                 lists.swap_remove(index);
             }
-            (Some(index), false) => lists[index].1 = names,
+            (Some(index), false) => lists[index].1 = animations,
             (None, true) => {}
-            (None, false) => lists.push((slot, names)),
+            (None, false) => lists.push((slot, animations)),
         }
         if lists.is_empty() {
             self.rows.remove(&node);
         }
     }
 
-    /// The names of one of an element's lists, in the order the host holds the animations.
+    /// One of an element's lists, in the order the host holds the animations.
     #[must_use]
-    pub(crate) fn names(&self, node: StyleNodeID, slot: AnimationSlot) -> &[CssString] {
+    pub(crate) fn list(&self, node: StyleNodeID, slot: AnimationSlot) -> &[CssDefinedAnimation] {
         self.rows
             .get(&node)
             .and_then(|lists| lists.iter().find(|(list_slot, _)| *list_slot == slot))
-            .map_or(&[], |(_, names)| names)
+            .map_or(&[], |(_, animations)| animations)
     }
 
     /// Give up the lists of an identity that retires. An identity can be minted again for another
@@ -92,7 +172,7 @@ impl CssDefinedAnimations {
 /// animation for ‘a’ to become the second animation in the list and a new animation will be created
 /// for the first item in the list.
 pub(crate) fn match_existing_animations(
-    existing: &[CssString],
+    existing: &[CssDefinedAnimation],
     definition_names: &[&CssString],
     mut claim: impl FnMut(usize, usize),
 ) {
@@ -102,13 +182,34 @@ pub(crate) fn match_existing_animations(
     for (index, name) in definition_names.iter().enumerate().rev() {
         let Some(candidate) = (0..existing.len())
             .rev()
-            .find(|&candidate| !claimed[candidate] && existing[candidate] == **name)
+            .find(|&candidate| !claimed[candidate] && existing[candidate].name == **name)
         else {
             continue;
         };
         claimed[candidate] = true;
         claim(index, candidate);
     }
+}
+
+/// Whether applying a plan would leave the element's list and every animation in it as they are:
+/// every definition claims the animation already in its own place and computes for it exactly what
+/// that animation last had applied, and no animation is left for the plan to cancel. Such a plan
+/// creates, cancels and reorders nothing, and sets each animation's timing, keyframes and place to
+/// what they already are.
+#[must_use]
+pub(crate) fn plan_changes_nothing(
+    definitions: &[crate::css::style_compute::FfiComputedAnimation],
+    existing: &[CssDefinedAnimation],
+) -> bool {
+    definitions.len() == existing.len()
+        && definitions
+            .iter()
+            .zip(existing)
+            .enumerate()
+            .all(|(index, (definition, animation))| {
+                usize::try_from(definition.matched_existing_index) == Ok(index)
+                    && FfiAppliedAnimationDefinition::of(definition).would_change_nothing(&animation.applied_definition)
+            })
 }
 
 /// The `@keyframes` every style scope of the document defines, as each scope's rule cache resolved
@@ -206,28 +307,64 @@ mod tests {
             .collect()
     }
 
+    /// Publish a list of animations of the given names, each with an applied definition no plan
+    /// has described.
+    fn set(animations: &mut CssDefinedAnimations, node: StyleNodeID, slot: AnimationSlot, names: &[&str]) {
+        let lengths: Vec<u32> = names.iter().map(|name| name.encode_utf16().count() as u32).collect();
+        let units: Vec<u16> = names.iter().flat_map(|name| name.encode_utf16()).collect();
+        let undescribed = FfiAppliedAnimationDefinition {
+            values: FfiAppliedAnimationValues {
+                duration_is_auto: false,
+                duration: 0.0,
+                iteration_count: 0.0,
+                direction: 0,
+                play_state: 0,
+                delay: 0.0,
+                fill_mode: 0,
+                composition: 0,
+                timeline_kind: 0,
+                scroll_scroller: 0,
+                scroll_axis: 0,
+            },
+            keyframe_set: std::ptr::null(),
+            timing_function: std::ptr::null(),
+        };
+        animations.set(node, slot, &lengths, &units, &vec![undescribed; names.len()]);
+    }
+
+    fn list_names(animations: &CssDefinedAnimations, node: StyleNodeID, slot: AnimationSlot) -> Vec<CssString> {
+        animations
+            .list(node, slot)
+            .iter()
+            .map(|animation| animation.name.clone())
+            .collect()
+    }
+
     #[test]
     fn a_list_is_replaced_per_slot_and_dropped_when_empty() {
         let node = StyleNodeID::from_raw(1).unwrap();
         let mut animations = CssDefinedAnimations::default();
-        animations.set(node, 0, names(&["a", "b"]));
-        animations.set(node, 3, names(&["c"]));
-        animations.set(node, 0, names(&["b"]));
-        assert_eq!(animations.names(node, 0), &names(&["b"])[..]);
-        assert_eq!(animations.names(node, 3), &names(&["c"])[..]);
+        set(&mut animations, node, 0, &["a", "b"]);
+        set(&mut animations, node, 3, &["c"]);
+        set(&mut animations, node, 0, &["b"]);
+        assert_eq!(list_names(&animations, node, 0), &names(&["b"])[..]);
+        assert_eq!(list_names(&animations, node, 3), &names(&["c"])[..]);
 
-        animations.set(node, 0, names(&[]));
-        assert!(animations.names(node, 0).is_empty());
-        animations.set(node, 3, names(&[]));
+        set(&mut animations, node, 0, &[]);
+        assert!(animations.list(node, 0).is_empty());
+        set(&mut animations, node, 3, &[]);
         assert!(animations.rows.is_empty());
     }
 
     fn matches(existing: &[&str], definitions: &[&str]) -> Vec<Option<usize>> {
-        let existing = names(existing);
+        let node = StyleNodeID::from_raw(1).unwrap();
+        let mut animations = CssDefinedAnimations::default();
+        set(&mut animations, node, 0, existing);
+        let existing = animations.list(node, 0);
         let definitions = names(definitions);
         let definitions: Vec<&CssString> = definitions.iter().collect();
         let mut matches = vec![None; definitions.len()];
-        match_existing_animations(&existing, &definitions, |definition, animation| {
+        match_existing_animations(existing, &definitions, |definition, animation| {
             matches[definition] = Some(animation);
         });
         matches
@@ -261,11 +398,11 @@ mod tests {
     fn a_retired_identity_holds_no_lists_when_reissued() {
         let node = StyleNodeID::from_raw(1).unwrap();
         let mut animations = CssDefinedAnimations::default();
-        animations.set(node, 0, names(&["a"]));
-        animations.set(node, 2, names(&["b"]));
+        set(&mut animations, node, 0, &["a"]);
+        set(&mut animations, node, 2, &["b"]);
         animations.retire(node);
-        assert!(animations.names(node, 0).is_empty());
-        assert!(animations.names(node, 2).is_empty());
+        assert!(animations.list(node, 0).is_empty());
+        assert!(animations.list(node, 2).is_empty());
         assert!(animations.rows.is_empty());
     }
 

@@ -132,6 +132,11 @@ pub mod record_replay {
         pub fn write_native_u16(&mut self, _value: u16) {}
         pub fn write_native_u32(&mut self, _value: u32) {}
         pub fn write_raw_slice<T: RawRecord>(&mut self, _values: &[T]) {}
+        pub fn write_applied_animation_definitions(
+            &mut self,
+            _definitions: &[super::bridge::FfiAppliedAnimationDefinition],
+        ) {
+        }
         pub fn write_raw_rows(
             &mut self,
             _count: usize,

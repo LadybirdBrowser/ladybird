@@ -2826,10 +2826,11 @@ pub struct FfiComputedAnimation {
 }
 
 #[repr(C)]
+/// The animation definitions a computation hands the host, borrowed from the computation for the
+/// length of its callback.
 pub struct FfiComputedAnimationList {
     pub animations: *const FfiComputedAnimation,
     pub count: usize,
-    pub storage: *mut c_void,
 }
 
 #[repr(C)]
@@ -4907,7 +4908,6 @@ unsafe fn compute_longhands(
             animations: FfiComputedAnimationList {
                 animations: std::ptr::null(),
                 count: 0,
-                storage: std::ptr::null_mut(),
             },
         },
         remaining_context.input_line_height_metrics,
@@ -5192,13 +5192,9 @@ fn animation_slot(pseudo_kind: u8) -> crate::css::style::animations::AnimationSl
 fn in_display_none_subtree_for_animations(
     input: &FfiComputePropertiesInput,
     drive_input: &FfiLonghandDriveInput,
-    animations: &FfiComputedAnimationList,
+    definitions: &[FfiComputedAnimation],
     style_engine: &crate::css::style::StyleEngine,
 ) -> bool {
-    let definitions = match animations.count {
-        0 => &[][..],
-        count => unsafe { std::slice::from_raw_parts(animations.animations, count) },
-    };
     if !definitions
         .iter()
         .any(|definition| definition.matched_existing_index == crate::css::style::animations::NO_MATCHED_ANIMATION)
@@ -5228,9 +5224,10 @@ fn in_display_none_subtree_for_animations(
 // https://drafts.csswg.org/css-animations-1/#animations
 fn build_computed_animation_list(
     table: &ComputedLonghandTable,
-    existing_animation_names: &[crate::css::css_string::CssString],
+    existing_animations: &[crate::css::style::animations::CssDefinedAnimation],
     resolve_keyframes: impl Fn(&[u16]) -> Option<usize>,
-) -> FfiComputedAnimationList {
+    animations: &mut smallvec::SmallVec<[FfiComputedAnimation; 1]>,
+) {
     use crate::css::property_metadata::property_id as prop;
 
     let name_values = computed_value_list(table, prop::ANIMATION_NAME);
@@ -5244,9 +5241,8 @@ fn build_computed_animation_list(
     let composition_values = computed_value_list(table, prop::ANIMATION_COMPOSITION);
     let timeline_values = computed_value_list(table, prop::ANIMATION_TIMELINE);
 
-    let mut animations = Vec::with_capacity(name_values.len());
     // The name of each definition, for matching against the animations the host holds.
-    let mut definition_names = Vec::new();
+    let mut definition_names = smallvec::SmallVec::<[&crate::css::css_string::CssString; 1]>::new();
     for (index, name_value) in name_values.iter().enumerate() {
         let name = match name_value.data() {
             StyleValueData::Keyword { keyword } if *keyword == keyword::NONE => continue,
@@ -5254,7 +5250,7 @@ fn build_computed_animation_list(
             StyleValueData::String { string, .. } => string,
             _ => unreachable!("computed animation-name must be none or a string"),
         };
-        if !existing_animation_names.is_empty() {
+        if !existing_animations.is_empty() {
             definition_names.push(name);
         }
         let duration_value = duration_values[index % duration_values.len()].data();
@@ -5298,24 +5294,13 @@ fn build_computed_animation_list(
     // rather than by the host searching the list it holds. An index past what the host's list can
     // hold claims nothing.
     crate::css::style::animations::match_existing_animations(
-        existing_animation_names,
+        existing_animations,
         &definition_names,
         |definition, animation| {
             animations[definition].matched_existing_index =
                 i32::try_from(animation).unwrap_or(crate::css::style::animations::NO_MATCHED_ANIMATION);
         },
     );
-
-    let animations = animations.into_boxed_slice();
-    let result = FfiComputedAnimationList {
-        animations: animations.as_ptr(),
-        count: animations.len(),
-        storage: std::ptr::null_mut(),
-    };
-    FfiComputedAnimationList {
-        storage: Box::into_raw(Box::new(animations)).cast(),
-        ..result
-    }
 }
 
 fn effective_longhand_data<'a>(
@@ -5475,12 +5460,13 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
         unsafe { compute_longhands(&drive_input, parent_snapshot.as_ref(), highlight.as_ref()) };
     // The host's flag is its own precondition for holding any CSS animation, so an element without
     // it has an empty list in every one of its slots and nothing to match.
-    let existing_animation_names = match input.has_css_defined_animations {
+    let existing_animations = match input.has_css_defined_animations {
         true => crate::css::style::tree::StyleNodeID::from_raw(input.style_node).map_or(&[][..], |node| {
             style_engine.element_css_defined_animations(node, animation_slot(input.pseudo_kind))
         }),
         false => &[],
     };
+    let mut animation_definitions = smallvec::SmallVec::new();
     if !input.stop_after_longhand_drive {
         // An animation's `@keyframes` are looked for in the tree scope the winning `animation-name`
         // declaration was written in, then in the element's, then in the document's.
@@ -5490,20 +5476,27 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
             .map_or(crate::css::style::tree::TreeScopeID::DOCUMENT, |node| {
                 style_engine.tree().tree_scope(node)
             });
-        result.animations = build_computed_animation_list(
+        build_computed_animation_list(
             unsafe { &*drive_input.longhand_table },
-            existing_animation_names,
+            existing_animations,
             |name| {
                 style_engine
                     .animation_keyframes()
                     .resolve(declaration_shadow_root_identity, element_tree_scope, name)
             },
+            &mut animation_definitions,
         );
+        result.animations = FfiComputedAnimationList {
+            animations: animation_definitions.as_ptr(),
+            count: animation_definitions.len(),
+        };
     }
-    // An element with no definitions and no animations to cancel has no plan to apply.
-    let has_animation_plan = result.animations.count != 0 || !existing_animation_names.is_empty();
+    // An element with no definitions and no animations to cancel has no plan to apply, and neither
+    // has one whose plan would leave every animation it holds as it is.
+    let has_animation_plan =
+        !crate::css::style::animations::plan_changes_nothing(&animation_definitions, existing_animations);
     let in_display_none_subtree =
-        in_display_none_subtree_for_animations(input, &drive_input, &result.animations, style_engine);
+        in_display_none_subtree_for_animations(input, &drive_input, &animation_definitions, style_engine);
     let mut animated_overlay = drive_input.animated_overlay;
     let mut animation_values_applied = unsafe { animated_overlay.as_ref() }.is_some_and(|overlay| !overlay.is_empty());
     unsafe { (input.finish_longhand_drive)(input.callback_context, &raw const result) };
@@ -5942,9 +5935,6 @@ pub(crate) unsafe fn take_animation_keyframe_longhand_values(storage: *mut c_voi
 }
 
 unsafe fn destroy_style_computation_result(result: &FfiLonghandDriveResult) {
-    if !result.animations.storage.is_null() {
-        drop(unsafe { Box::from_raw(result.animations.storage.cast::<Box<[FfiComputedAnimation]>>()) });
-    }
     if !result.custom_properties.storage.is_null() {
         unsafe {
             crate::css::cascaded_properties::destroy_resolved_custom_properties(

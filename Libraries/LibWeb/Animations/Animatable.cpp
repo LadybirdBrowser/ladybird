@@ -256,7 +256,8 @@ void Animatable::on_document_changed(DOM::Document& old_document, DOM::Document&
 }
 
 // The computation of an element's animation definitions matches them against the animations the
-// element already has, so the names of those animations are an input to it.
+// element already has, so the names of those animations are an input to it, and so is the definition
+// each one last had applied: a plan that would apply the same again changes nothing.
 static void publish_css_defined_animations(Animatable& animatable, size_t index, Vector<GC::Ref<CSS::CSSAnimation>> const& animations)
 {
     auto* element = as_if<DOM::Element>(animatable);
@@ -264,10 +265,14 @@ static void publish_css_defined_animations(Animatable& animatable, size_t index,
         return;
 
     Vector<Utf16FlyString> names;
+    Vector<CSS::StyleEngineFFI::FfiAppliedAnimationDefinition> definitions;
     names.ensure_capacity(animations.size());
-    for (auto const& animation : animations)
+    definitions.ensure_capacity(animations.size());
+    for (auto const& animation : animations) {
         names.unchecked_append(animation->animation_name());
-    CSS::record_element_css_defined_animations(*element, static_cast<u8>(index), names);
+        definitions.unchecked_append(animation->applied_definition());
+    }
+    CSS::record_element_css_defined_animations(*element, static_cast<u8>(index), names, definitions);
 }
 
 void Animatable::cancel_css_animations_and_transitions()

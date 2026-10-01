@@ -12,6 +12,12 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
+namespace Web::CSS::StyleEngineFFI {
+
+struct FfiAppliedAnimationDefinition;
+
+}
+
 namespace Web::CSS {
 
 class RustRule;
@@ -149,7 +155,7 @@ WEB_API bool record_element_presentational_hint_properties(DOM::Element&, Readon
 // Publish the element's hints again, after something they are mapped from beside its own attributes moved.
 WEB_API void republish_presentational_hints(DOM::Element&);
 WEB_API void record_element_animation_names(DOM::Element&, ReadonlySpan<Utf16FlyString>);
-WEB_API void record_element_css_defined_animations(DOM::Element&, u8 slot, ReadonlySpan<Utf16FlyString> names);
+WEB_API void record_element_css_defined_animations(DOM::Element&, u8 slot, ReadonlySpan<Utf16FlyString> names, ReadonlySpan<StyleEngineFFI::FfiAppliedAnimationDefinition> definitions);
 WEB_API void record_element_custom_property_names(DOM::Element&, ReadonlySpan<Utf16FlyString>, bool uses_unnamed, bool uses_custom_functions);
 
 // The same index, from the environments the element and its pseudo-elements resolved to, plus
