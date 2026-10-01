@@ -4115,10 +4115,45 @@ impl RetainedState {
         counters: &mut Counters,
     ) -> bool {
         let complete = self.cascade_winner_inventory_is_complete(&matches, Some(node));
+        let complete_but_for_custom_properties = self.element_declarations_are_complete_but_for_custom_properties(node)
+            && matches
+                .iter()
+                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope));
         let mut effects = AnswerEffects::default();
+        // The answer's pseudo-element inventory, and the matches its custom-property cascade runs
+        // over where a record loop reads this transaction's.
+        let pseudo_style_mask = matches.iter().fold(0_u64, |mask, rule_match| {
+            mask | rule_match
+                .pseudo_element
+                .map(|pseudo| pseudo.kind.0)
+                .filter(|&kind| kind <= bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND)
+                .map_or(0, |kind| 1 << kind)
+        });
+        let custom_property_matches = self.batch_custom_property_matches.contains_key(&node).then(|| {
+            matches
+                .iter()
+                .filter(|entry| !self.program.custom_declarations_of(entry.rule).is_empty())
+                .map(|entry| BatchCustomPropertyMatch {
+                    rule: entry.rule,
+                    tree_scope: entry.tree_scope,
+                    specificity: entry.specificity,
+                    scope_proximity: entry.scope_proximity,
+                    pseudo: entry.pseudo_element.map(|target| target.kind.0),
+                })
+                .collect::<Vec<_>>()
+        });
         let compact = self.matches_for_cascade(&mut effects, matches, true, Some(node), counters);
         self.remember_cascade_input_with_effects(&mut effects, node, &compact, counters);
         self.install_answer_effects(effects);
+        // A record loop reading this transaction's answers reads the one just published instead.
+        if let Some(batch) = self.batch_answers_complete_but_for_custom_properties.get_mut(&node) {
+            *batch = complete_but_for_custom_properties;
+        }
+        if let Some(matches) = custom_property_matches {
+            self.batch_custom_property_matches.insert(node, matches);
+        }
+        self.computed_group_sets
+            .set_node_pseudo_style_mask(node, Some(pseudo_style_mask));
         let answer_is_incomplete = !complete && !self.cascade_winners_are_complete_but_for_custom_properties(node);
         self.computed_group_sets
             .set_node_answer_incomplete(node, answer_is_incomplete);

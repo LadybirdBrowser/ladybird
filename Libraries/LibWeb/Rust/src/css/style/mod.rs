@@ -779,6 +779,16 @@ impl ProgramStaging {
     }
 }
 
+/// One match of an answer a transaction publishes, as the custom-property cascade reads it.
+#[derive(Clone, Copy)]
+pub(super) struct BatchCustomPropertyMatch {
+    rule: RuleID,
+    tree_scope: TreeScopeID,
+    specificity: Specificity,
+    scope_proximity: u32,
+    pseudo: Option<u16>,
+}
+
 /// Long-lived engine state: the document, its program, derived results and cross-flush
 /// caches. This is the whole read side of an evaluation step; it holds no
 /// host handle, no journal intake and no borrowed FFI result storage.
@@ -896,6 +906,12 @@ pub struct RetainedState {
     /// box-type transformation reads it, so their record is driven again in full.
     parent_inputs_moved_nodes: HashSet<StyleNodeID>,
     engine_pseudo_record_cache: HashMap<publication::PseudoCohortKey, computed::FinalStyleRecordID>,
+    /// Whether the answer the current transaction publishes for each node has winners complete
+    /// but for custom properties, read for the record loop: the answers are installed after it.
+    batch_answers_complete_but_for_custom_properties: HashMap<StyleNodeID, bool>,
+    /// Beside them, the matches in each answer that declare custom properties, read the same way:
+    /// what the node's custom-property cascade runs over while its answer is not installed.
+    batch_custom_property_matches: HashMap<StyleNodeID, Vec<BatchCustomPropertyMatch>>,
     engine_cold_record_cache: HashMap<publication::ColdRecordKey, publication::ColdRecord>,
     engine_cold_record_donors: HashMap<publication::ColdRecordDonorKey, Vec<publication::ColdRecordDonor>>,
     computed_group_set_memory: MemoryLease,

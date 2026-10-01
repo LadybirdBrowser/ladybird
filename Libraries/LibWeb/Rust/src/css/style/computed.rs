@@ -381,6 +381,9 @@ struct PublishedComputedColumns {
     /// The element facts the style computation's adjustments read; see
     /// `bridge::element_adjustment_fact`.
     adjustment_facts: Vec<u32>,
+    /// The synthetic pseudo-elements the node's last published match answer has rules for, one
+    /// bit per kind; held while `HAS_PSEUDO_STYLE_MASK` is set.
+    pseudo_style_masks: Vec<u64>,
 }
 
 impl PublishedComputedColumns {
@@ -389,6 +392,8 @@ impl PublishedComputedColumns {
     const HAS_CASCADE_STATE: u8 = 1 << 2;
     /// The node's last published match answer declared past its winners.
     const INCOMPLETE_ANSWER: u8 = 1 << 3;
+    /// `pseudo_style_masks` holds the node's mask.
+    const HAS_PSEUDO_STYLE_MASK: u8 = 1 << 4;
 
     fn ensure(&mut self, index: usize) {
         if self.flags.len() > index {
@@ -406,6 +411,7 @@ impl PublishedComputedColumns {
         self.cascade_states.resize(len, 0);
         self.flags.resize(len, 0);
         self.adjustment_facts.resize(len, 0);
+        self.pseudo_style_masks.resize(len, 0);
     }
 
     fn is_assigned(&self, index: usize) -> bool {
@@ -504,7 +510,8 @@ impl PublishedComputedColumns {
         self.custom_properties[index] = inputs.custom_properties.0;
         self.fixed_metadata[index] = inputs.fixed_metadata.0;
         self.set_animation_overlay_slot(index, inputs.animation_overlay_slot);
-        self.flags[index] = (self.flags[index] & (Self::HAS_CASCADE_STATE | Self::INCOMPLETE_ANSWER))
+        self.flags[index] = (self.flags[index]
+            & (Self::HAS_CASCADE_STATE | Self::INCOMPLETE_ANSWER | Self::HAS_PSEUDO_STYLE_MASK))
             | Self::ASSIGNED
             | if inherited_group_swap_eligible {
                 Self::INHERITED_GROUP_SWAP_ELIGIBLE
@@ -2822,6 +2829,28 @@ impl ComputedGroupSets {
     pub(super) fn set_node_answer_incomplete(&mut self, node: StyleNodeID, incomplete: bool) {
         if let Some(index) = node.element_index() {
             self.columns.set_answer_incomplete(index as usize, incomplete);
+        }
+    }
+
+    /// The synthetic pseudo-elements the node's last published match answer has rules for.
+    pub(super) fn node_pseudo_style_mask(&self, node: StyleNodeID) -> Option<u64> {
+        let index = node.element_index()? as usize;
+        let flags = *self.columns.flags.get(index)?;
+        (flags & PublishedComputedColumns::HAS_PSEUDO_STYLE_MASK != 0).then(|| self.columns.pseudo_style_masks[index])
+    }
+
+    /// Keep the mask of the answer just published for the node; `None` when that answer cannot
+    /// say, so no earlier answer's mask stands in for it.
+    pub(super) fn set_node_pseudo_style_mask(&mut self, node: StyleNodeID, mask: Option<u64>) {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return;
+        };
+        if let Some(mask) = mask {
+            self.columns.ensure(index);
+            self.columns.pseudo_style_masks[index] = mask;
+            self.columns.flags[index] |= PublishedComputedColumns::HAS_PSEUDO_STYLE_MASK;
+        } else if let Some(flags) = self.columns.flags.get_mut(index) {
+            *flags &= !PublishedComputedColumns::HAS_PSEUDO_STYLE_MASK;
         }
     }
 

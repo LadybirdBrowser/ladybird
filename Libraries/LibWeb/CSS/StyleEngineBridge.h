@@ -271,6 +271,23 @@ public:
     void sort_style_deltas_for_direct_application(Span<PublishedStyleDelta>) const;
     void discard_style_transaction_outputs();
 
+    // While a batch's reactions are applied, a host's own style application may rewrite the declarations of an element
+    // in its shadow tree, after the engine computed that element's record from the ones it had. These name the
+    // elements whose declarations changed that way.
+    void begin_noting_declaration_changes_during_apply() { ++m_declaration_change_noting_depth; }
+    void end_noting_declaration_changes_during_apply()
+    {
+        VERIFY(m_declaration_change_noting_depth > 0);
+        if (--m_declaration_change_noting_depth == 0)
+            m_declaration_changes_during_apply.clear_with_capacity();
+    }
+    void note_element_declarations_changed(StyleNodeID node)
+    {
+        if (m_declaration_change_noting_depth > 0)
+            m_declaration_changes_during_apply.set(node);
+    }
+    [[nodiscard]] bool declarations_changed_during_apply(StyleNodeID node) const { return m_declaration_changes_during_apply.contains(node); }
+
     using RuleMatch = StyleEngineFFI::FfiRuleMatch;
 
     enum class MatchPurpose {
@@ -328,6 +345,8 @@ private:
     u64 m_attribute_value_text_requirements_version { 0 };
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
+    u32 m_declaration_change_noting_depth { 0 };
+    HashTable<StyleNodeID> m_declaration_changes_during_apply;
     size_t m_element_match_capacity { 64 };
 
     Vector<StyleEngineFFI::FfiTreeDelta> m_tree_deltas;

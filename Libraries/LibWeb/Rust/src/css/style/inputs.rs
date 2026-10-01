@@ -1372,6 +1372,8 @@ impl StyleEngineState {
                 style_input_nodes_for_cpp: HashSet::default(),
                 parent_inputs_moved_nodes: HashSet::default(),
                 engine_pseudo_record_cache: HashMap::default(),
+                batch_answers_complete_but_for_custom_properties: HashMap::default(),
+                batch_custom_property_matches: HashMap::default(),
                 engine_cold_record_cache: HashMap::default(),
                 engine_cold_record_donors: HashMap::default(),
                 computed_group_set_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
@@ -2840,6 +2842,9 @@ impl RetainedState {
             style_input_nodes_for_cpp: _,
             parent_inputs_moved_nodes: _,
             engine_pseudo_record_cache: _,
+            // Filled and cleared within one transaction's record loop.
+            batch_answers_complete_but_for_custom_properties: _,
+            batch_custom_property_matches: _,
             engine_cold_record_cache: _,
             engine_cold_record_donors: _,
             computed_group_set_memory: _,

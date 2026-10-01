@@ -202,6 +202,55 @@ impl RetainedState {
         self.try_for_each_match(node, None, visit)
     }
 
+    /// The matches declaring custom properties in the answer a transaction publishes for the node,
+    /// read before that answer is installed: the answers the lookups below find are the installed
+    /// ones, which a node published in this transaction does not have yet, or has from before.
+    pub(super) fn batch_custom_property_matches_of(
+        &self,
+        published: &PublishedMatchAnswers,
+        answer: &PublishedMatchAnswer,
+    ) -> Option<Vec<BatchCustomPropertyMatch>> {
+        let mut matches = Vec::new();
+        let mut push = |rule: RuleID,
+                        tree_scope: TreeScopeID,
+                        specificity: Specificity,
+                        scope_proximity: u32,
+                        pseudo: Option<u16>| {
+            if !self.program.custom_declarations_of(rule).is_empty() {
+                matches.push(BatchCustomPropertyMatch {
+                    rule,
+                    tree_scope,
+                    specificity,
+                    scope_proximity,
+                    pseudo,
+                });
+            }
+        };
+        if let Some(published_matches) = published.matches_for(answer) {
+            for entry in published_matches {
+                push(
+                    entry.rule,
+                    entry.tree_scope,
+                    entry.specificity,
+                    entry.scope_proximity,
+                    entry.pseudo_element.map(|target| target.kind.0),
+                );
+            }
+        } else {
+            for rule_match in self.match_answers.answer(answer.cascade_input?)?.iter() {
+                let entry = &self.programs.get(rule_match.program).entries()[rule_match.entry as usize];
+                push(
+                    rule_match.rule,
+                    rule_match.tree_scope,
+                    entry.specificity,
+                    rule_match.scope_proximity,
+                    entry.pseudo_element.map(|target| target.kind.0),
+                );
+            }
+        }
+        Some(matches)
+    }
+
     /// The element's matches when `pseudo` is `None`, else the matches for that pseudo-element.
     fn try_for_each_match(
         &self,
@@ -211,6 +260,14 @@ impl RetainedState {
     ) -> Option<ControlFlow<()>> {
         let wanted =
             |target: Option<tree::PseudoElementTarget>| target.map(|target| target.kind.0) == pseudo.map(u16::from);
+        if let Some(matches) = self.batch_custom_property_matches.get(&node) {
+            for entry in matches.iter().filter(|entry| entry.pseudo == pseudo.map(u16::from)) {
+                if visit(entry.rule, entry.tree_scope, entry.specificity, entry.scope_proximity).is_break() {
+                    return Some(ControlFlow::Break(()));
+                }
+            }
+            return Some(ControlFlow::Continue(()));
+        }
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
             self.batch_matching_traversal.as_deref(),
@@ -224,8 +281,20 @@ impl RetainedState {
             }
             return Some(ControlFlow::Continue(()));
         }
-        let Lookup::Known(answer) = self.retained_match_answer(node) else {
-            return None;
+        // An answer published by its identity alone names the matches the catalog holds for it;
+        // the answer the node retains from before is not the one it is being published with.
+        let published_identity = Self::published_answer_lookup(
+            &self.published_match_answers,
+            self.batch_matching_traversal.as_deref(),
+            node,
+        )
+        .map(|(_, answer)| answer.cascade_input);
+        let answer = match published_identity {
+            Some(identity) => identity.and_then(|identity| self.match_answers.answer(identity))?,
+            None => match self.retained_match_answer(node) {
+                Lookup::Known(answer) => answer,
+                _ => return None,
+            },
         };
         for rule_match in answer.iter() {
             let entry = &self.programs.get(rule_match.program).entries()[rule_match.entry as usize];
@@ -248,7 +317,7 @@ impl RetainedState {
 
     /// Whether anything in the document declares a custom property. Nothing declaring one means
     /// every environment is the inherited one, and no cascade need look.
-    fn any_custom_property_is_declared(&self) -> bool {
+    pub(super) fn any_custom_property_is_declared(&self) -> bool {
         self.program.any_rule_declares_custom_properties() || self.facts.any_element_declares_custom_properties()
     }
 
@@ -304,20 +373,12 @@ impl RetainedState {
     /// engine computes an environment from those itself, and a rule declaring them is otherwise as
     /// complete as any, for the element and for each of its pseudo-elements alike.
     pub(super) fn cascade_winners_are_complete_but_for_custom_properties(&self, node: StyleNodeID) -> bool {
-        if !ElementDeclarationKind::ALL.iter().all(|&kind| {
-            self.facts
-                .element_declarations_are_complete_but_for_custom_properties(node, kind)
-        }) {
+        if let Some(&complete) = self.batch_answers_complete_but_for_custom_properties.get(&node) {
+            return complete;
+        }
+        if !self.element_declarations_are_complete_but_for_custom_properties(node) {
             return false;
         }
-        // The cascade publishes the winners of the document scope's rules only while a rule from
-        // another tree scope matches (`compaction_blocked`): such a rule's declarations are in no
-        // winner state, whichever scope it decided from.
-        let rule_is_complete = |rule: RuleID, tree_scope: TreeScopeID, _pseudo: bool| {
-            tree_scope == TreeScopeID::DOCUMENT
-                && !self.program.rule_is_gated_by_container_query(rule)
-                && self.program.declarations_are_complete_but_for_custom_properties(rule)
-        };
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
             self.batch_matching_traversal.as_deref(),
@@ -326,15 +387,66 @@ impl RetainedState {
         {
             return matches
                 .iter()
-                .all(|entry| rule_is_complete(entry.rule, entry.tree_scope, entry.pseudo_element.is_some()));
+                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope));
         }
         let Lookup::Known(answer) = self.retained_match_answer(node) else {
             return false;
         };
-        answer.iter().all(|rule_match| {
-            let entry = &self.programs.get(rule_match.program).entries()[rule_match.entry as usize];
-            rule_is_complete(rule_match.rule, rule_match.tree_scope, entry.pseudo_element.is_some())
+        self.retained_matches_are_complete_but_for_custom_properties(node, answer)
+    }
+
+    /// What `cascade_winners_are_complete_but_for_custom_properties` says of the answer a
+    /// transaction publishes for the node, read before that answer is installed. `None` when the
+    /// answer holds neither its matches nor an identity the catalog materializes.
+    pub(super) fn answer_is_complete_but_for_custom_properties(
+        &self,
+        node: StyleNodeID,
+        published: &PublishedMatchAnswers,
+        answer: &PublishedMatchAnswer,
+    ) -> Option<bool> {
+        if !self.element_declarations_are_complete_but_for_custom_properties(node) {
+            return Some(false);
+        }
+        if let Some(matches) = published.matches_for(answer) {
+            return Some(
+                matches
+                    .iter()
+                    .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope)),
+            );
+        }
+        let matches = self.match_answers.answer(answer.cascade_input?)?;
+        Some(self.retained_matches_are_complete_but_for_custom_properties(node, matches))
+    }
+
+    pub(super) fn element_declarations_are_complete_but_for_custom_properties(&self, node: StyleNodeID) -> bool {
+        ElementDeclarationKind::ALL.iter().all(|&kind| {
+            self.facts
+                .element_declarations_are_complete_but_for_custom_properties(node, kind)
         })
+    }
+
+    fn retained_matches_are_complete_but_for_custom_properties(
+        &self,
+        node: StyleNodeID,
+        matches: &[RetainedRuleMatch],
+    ) -> bool {
+        matches.iter().all(|rule_match| {
+            self.match_is_complete_but_for_custom_properties(node, rule_match.rule, rule_match.tree_scope)
+        })
+    }
+
+    /// Whether the winners the cascade publishes hold a match: its scope is one they are
+    /// published for (`match_scope_is_complete_for`), no container query gates it, and its rule
+    /// declares nothing past its longhand winners but custom properties.
+    pub(super) fn match_is_complete_but_for_custom_properties(
+        &self,
+        node: StyleNodeID,
+        rule: RuleID,
+        tree_scope: TreeScopeID,
+    ) -> bool {
+        self.match_scope_is_complete_for(Some(node), tree_scope)
+            && !self.program.rule_is_gated_by_container_query(rule)
+            && self.program.declarations_are_complete_but_for_custom_properties(rule)
     }
 
     /// The custom properties the node's cascade decides, each with its winning declaration and
