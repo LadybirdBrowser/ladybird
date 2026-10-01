@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 
@@ -18,10 +19,7 @@ class SVGDefsElement final : public SVGGraphicsElement {
 public:
     virtual ~SVGDefsElement();
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override
-    {
-        return nullptr;
-    }
+    virtual CSS::ElementBoxKind box_kind() const override { return CSS::ElementBoxKind::NoBox; }
 
 private:
     SVGDefsElement(DOM::Document&, DOM::QualifiedName);

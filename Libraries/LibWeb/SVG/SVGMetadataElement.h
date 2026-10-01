@@ -17,7 +17,7 @@ class SVGMetadataElement final : public SVGElement {
 
 private:
     SVGMetadataElement(DOM::Document&, DOM::QualifiedName);
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 };
 
 }

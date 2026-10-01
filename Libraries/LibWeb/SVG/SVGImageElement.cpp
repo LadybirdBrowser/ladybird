@@ -8,6 +8,7 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/SVGImageElement.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
@@ -123,9 +124,9 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     }
 }
 
-Layout::Node* SVGImageElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind SVGImageElement::box_kind() const
 {
-    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGImageBox);
+    return CSS::ElementBoxKind::SvgImage;
 }
 
 GC::Ptr<HTML::DecodedImageData> SVGImageElement::decoded_image_data() const

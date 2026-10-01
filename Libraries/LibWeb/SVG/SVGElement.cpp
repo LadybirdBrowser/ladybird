@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -41,9 +42,9 @@ SVGElement::SVGElement(DOM::Document& document, DOM::QualifiedName qualified_nam
 {
 }
 
-Layout::Node* SVGElement::create_layout_node(CSS::LayoutStyle)
+CSS::ElementBoxKind SVGElement::box_kind() const
 {
-    return nullptr;
+    return CSS::ElementBoxKind::NoBox;
 }
 
 struct NamedPropertyID {

@@ -13,6 +13,7 @@
 #include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoSurface.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -72,11 +73,9 @@ void HTMLVideoElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
     }
 }
 
-Layout::Node* HTMLVideoElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind HTMLVideoElement::box_kind() const
 {
-    auto& video_box = Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::VideoBox);
-    video_box.set_replaced_box_can_have_children(shadow_root() != nullptr);
-    return &video_box;
+    return CSS::ElementBoxKind::Video;
 }
 
 void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> dimensions)

@@ -226,6 +226,8 @@ class SubtleCrypto;
 
 namespace Web::CSS {
 
+enum class ElementBoxKind : u8;
+
 class AbstractImageStyleValue;
 class AbstractOrHypotheticalElement;
 class AnchorStyleValue;

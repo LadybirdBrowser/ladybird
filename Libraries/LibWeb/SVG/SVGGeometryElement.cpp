@@ -7,13 +7,13 @@
 #include <AK/ScopeGuard.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Layout/Box.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 
 namespace Web::SVG {
@@ -29,9 +29,9 @@ void SVGGeometryElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_path_length);
 }
 
-Layout::Node* SVGGeometryElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind SVGGeometryElement::box_kind() const
 {
-    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGeometryBox);
+    return CSS::ElementBoxKind::SvgGeometry;
 }
 
 // The style of an element outside the document, where no rule reaches it: the style engine cascades its own

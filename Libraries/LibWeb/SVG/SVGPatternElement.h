@@ -9,6 +9,7 @@
 #include <AK/IntrusiveList.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGfx/Matrix4x4.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeParsing.h>
@@ -66,7 +67,7 @@ public:
 
     void push_paint_server_description(void* sink, Layout::Node const& target_layout_node) const;
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override { return nullptr; }
+    virtual CSS::ElementBoxKind box_kind() const override { return CSS::ElementBoxKind::NoBox; }
 
 protected:
     SVGPatternElement(DOM::Document&, DOM::QualifiedName);

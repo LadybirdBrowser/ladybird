@@ -18,7 +18,7 @@ class SVGForeignObjectElement final : public SVGGraphicsElement {
 public:
     virtual ~SVGForeignObjectElement() override;
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 
     // AD-HOC: The spec states that the x, y, width and height IDL attributes reflect the respective computed values and their
     //         corresponding presentation attributes but other browsers reflect the attribute values instead - see

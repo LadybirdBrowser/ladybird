@@ -6,8 +6,8 @@
 
 #include <AK/StringBuilder.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/Box.h>
 #include <LibWeb/SVG/SVGGElement.h>
 
 namespace Web::SVG {
@@ -19,9 +19,9 @@ SVGGElement::SVGGElement(DOM::Document& document, DOM::QualifiedName qualified_n
 {
 }
 
-Layout::Node* SVGGElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind SVGGElement::box_kind() const
 {
-    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGraphicsBox);
+    return CSS::ElementBoxKind::SvgGraphics;
 }
 
 }

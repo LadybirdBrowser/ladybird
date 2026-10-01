@@ -42,7 +42,7 @@ public:
 
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::group; }
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 
     void refresh_disabled_state_of_descendant_form_controls();
 

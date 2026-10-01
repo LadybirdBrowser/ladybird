@@ -702,7 +702,8 @@ public:
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean() const;
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean(Compositing::AccumulatedVisualContextTree const&) const;
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle);
+    // Which principal box this element asks for, before its computed style has a say.
+    virtual CSS::ElementBoxKind box_kind() const;
 
     virtual void did_receive_focus() { }
     virtual void did_lose_focus() { }

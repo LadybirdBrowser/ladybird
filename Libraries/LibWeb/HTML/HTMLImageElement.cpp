@@ -11,6 +11,7 @@
 #include <LibGC/Weak.h>
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -135,8 +136,8 @@ void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_chang
     auto layout_node = unsafe_layout_node();
     auto* image_box = layout_node && layout_node->kind() == Layout::RustFFI::NodeKind::ImageBox ? static_cast<Layout::Box*>(layout_node) : nullptr;
 
-    // The request state change may have flipped which kind of layout node create_layout_node()
-    // produces (ImageBox vs. non-replaced alt text container); if the existing node no longer
+    // The request state change may have flipped which kind of box box_kind()
+    // asks for (ImageBox vs. non-replaced alt text container); if the existing node no longer
     // matches, it has to be rebuilt, not just laid out again. (An img whose box comes from
     // `content: url(...)` reads as a mismatch here and takes a wasted rebuild — harmless.)
     if (layout_node && (image_box != nullptr) == (renders_as_alt_text() && !alt().is_empty())) {
@@ -315,14 +316,11 @@ void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString 
     }
 }
 
-Layout::Node* HTMLImageElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind HTMLImageElement::box_kind() const
 {
-    if (renders_as_alt_text() && !alt().is_empty()) {
-        auto computed_style = this->computed_style();
-        VERIFY(computed_style);
-        return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
-    }
-    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::ImageBox);
+    if (renders_as_alt_text() && !alt().is_empty())
+        return CSS::ElementBoxKind::FromDisplay;
+    return CSS::ElementBoxKind::Image;
 }
 
 void HTMLImageElement::create_alt_text_shadow_tree()

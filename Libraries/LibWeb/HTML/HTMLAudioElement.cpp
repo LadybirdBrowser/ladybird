@@ -6,10 +6,10 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/HTMLAudioElement.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/HTML/HTMLAudioElement.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Layout/Box.h>
 
 namespace Web::HTML {
 
@@ -22,11 +22,9 @@ HTMLAudioElement::HTMLAudioElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLAudioElement::~HTMLAudioElement() = default;
 
-Layout::Node* HTMLAudioElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind HTMLAudioElement::box_kind() const
 {
-    auto& audio_box = Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::AudioBox);
-    audio_box.set_replaced_box_can_have_children(shadow_root() != nullptr);
-    return &audio_box;
+    return CSS::ElementBoxKind::Audio;
 }
 
 bool HTMLAudioElement::should_paint() const

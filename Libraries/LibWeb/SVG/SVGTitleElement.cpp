@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
-#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 
@@ -19,9 +19,9 @@ SVGTitleElement::SVGTitleElement(DOM::Document& document, DOM::QualifiedName qua
 {
 }
 
-Layout::Node* SVGTitleElement::create_layout_node(CSS::LayoutStyle)
+CSS::ElementBoxKind SVGTitleElement::box_kind() const
 {
-    return nullptr;
+    return CSS::ElementBoxKind::NoBox;
 }
 
 void SVGTitleElement::children_changed(ChildrenChangedMetadata const& metadata)

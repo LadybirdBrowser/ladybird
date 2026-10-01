@@ -6,7 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Layout/Box.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGTextPathElement.h>
 
@@ -40,9 +40,9 @@ void SVGTextPathElement::visit_edges(Cell::Visitor& visitor)
     SVGURIReferenceMixin::visit_edges(visitor);
 }
 
-Layout::Node* SVGTextPathElement::create_layout_node(CSS::LayoutStyle style)
+CSS::ElementBoxKind SVGTextPathElement::box_kind() const
 {
-    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGTextPathBox);
+    return CSS::ElementBoxKind::SvgTextPath;
 }
 
 };

@@ -18,7 +18,7 @@ class SVGSwitchElement final : public SVGGraphicsElement {
 public:
     virtual ~SVGSwitchElement() override;
 
-    virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
+    virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
     SVGSwitchElement(DOM::Document&, DOM::QualifiedName);
