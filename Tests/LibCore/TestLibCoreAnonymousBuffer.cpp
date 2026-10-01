@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/NumericLimits.h>
 #include <AK/Platform.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -124,6 +125,23 @@ TEST_CASE(snapshot_has_independent_contents)
 
     original.data<char>()[0] = 'C';
     EXPECT_EQ(StringView(snapshot.data<char const>(), payload.length()), payload);
+}
+
+TEST_CASE(snapshot_copies_only_the_requested_range)
+{
+    auto original = MUST(Core::AnonymousBuffer::create_with_size(16));
+    for (u8 i = 0; i < 16; ++i)
+        original.data<u8>()[i] = i;
+    auto snapshot = MUST(original.snapshot(4, 8));
+    EXPECT_EQ(snapshot.size(), 8u);
+    for (u8 i = 0; i < 8; ++i)
+        EXPECT_EQ(snapshot.data<u8>()[i], i + 4);
+    original.data<u8>()[4] = 0;
+    EXPECT_EQ(snapshot.data<u8>()[0], 4);
+    EXPECT(original.snapshot(17, 0).is_error());
+    EXPECT(original.snapshot(4, 13).is_error());
+    EXPECT(original.snapshot(4, NumericLimits<size_t>::max()).is_error());
+    EXPECT_EQ(MUST(original.snapshot(16, 0)).size(), 0u);
 }
 
 TEST_CASE(snapshot_rejects_an_invalid_buffer)
