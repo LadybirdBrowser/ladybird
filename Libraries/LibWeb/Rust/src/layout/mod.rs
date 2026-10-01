@@ -47,7 +47,7 @@ mod text_transform;
 mod trace;
 mod tree_builder;
 mod tree_mutation;
-mod tree_update_marks;
+pub(crate) mod tree_update_marks;
 mod update_layout;
 pub mod used_values;
 mod viewport_propagation;

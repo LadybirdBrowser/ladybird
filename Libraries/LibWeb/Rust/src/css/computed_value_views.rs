@@ -509,6 +509,49 @@ impl<'a> ComputedValuesView<'a> {
         self.native_group(STYLE_GROUP_INDEX_CONTENT)
     }
 
+    /// Whether `counter-reset` names a counter counting down from its own last item, which the
+    /// layout tree build cannot renumber without visiting every item again.
+    pub(crate) fn counter_reset_has_reversed_counter(self) -> bool {
+        match self.content().counter_reset.data() {
+            Some(StyleValueData::CounterDefinitions { counter_definitions }) => counter_definitions
+                .as_slice()
+                .iter()
+                .any(crate::css::style_value::RetainedCounterDefinition::is_reversed),
+            _ => false,
+        }
+    }
+
+    /// Whether the style can move the generated-content state a later sibling reads: any counter
+    /// it touches, or a quote its content opens or closes.
+    pub(crate) fn affects_generated_content_state(self) -> bool {
+        let content = self.content();
+        let names_counters =
+            |handle: &ComputedStyleValueHandle| !matches!(handle.data(), None | Some(StyleValueData::Keyword { .. }));
+        if names_counters(&content.counter_increment)
+            || names_counters(&content.counter_reset)
+            || names_counters(&content.counter_set)
+        {
+            return true;
+        }
+        let Some(StyleValueData::Content { content, .. }) = content.content.data() else {
+            return false;
+        };
+        let Some(StyleValueData::ValueList { values, .. }) = content.optional_data() else {
+            return false;
+        };
+        values.as_slice().iter().any(|item| {
+            use crate::css::style_compute::keyword;
+            matches!(
+                item.optional_data(),
+                Some(StyleValueData::Keyword { keyword })
+                    if matches!(
+                        *keyword,
+                        keyword::OPEN_QUOTE | keyword::CLOSE_QUOTE | keyword::NO_OPEN_QUOTE | keyword::NO_CLOSE_QUOTE
+                    )
+            )
+        })
+    }
+
     /// Whether `content` is a single image, which is what makes the element a replaced element
     /// whose box renders that image instead of its children.
     pub(crate) fn content_is_single_image(self) -> bool {

@@ -14,9 +14,9 @@ use std::ffi::c_void;
 
 /// Which narrower rebuild the marks a node has collected so far still permit, as
 /// `Node::LayoutTreeUpdateReuseReason` spells them. Nothing set means only a full rebuild will do.
-mod layout_tree_update_reuse_reason {
-    pub(super) const CHILD_LIST_INSERTION: u8 = 1;
-    pub(super) const PSEUDO_ELEMENT_CHANGE: u8 = 2;
+pub(crate) mod layout_tree_update_reuse_reason {
+    pub(crate) const CHILD_LIST_INSERTION: u8 = 1;
+    pub(crate) const PSEUDO_ELEMENT_CHANGE: u8 = 2;
     pub(super) const ALL: u8 = CHILD_LIST_INSERTION | PSEUDO_ELEMENT_CHANGE;
 }
 
