@@ -212,8 +212,6 @@ void Element::RareData::visit_edges(Cell::Visitor& visitor)
         for (auto& observer : *registered_intersection_observers)
             visitor.visit(observer);
     }
-    if (counters_set)
-        counters_set->visit_edges(visitor);
 }
 
 OwnPtr<Node::RareData> Element::create_rare_data() const
@@ -6640,36 +6638,6 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
     TRY(unsafely_set_html(move(target), markup.utf16_view()));
 
     return {};
-}
-
-Optional<CSS::CountersSet const&> Element::counters_set() const
-{
-    auto const* rare_data = element_rare_data();
-    if (!rare_data || !rare_data->counters_set)
-        return {};
-    return *rare_data->counters_set;
-}
-
-CSS::CountersSet& Element::ensure_counters_set()
-{
-    auto& counters_set = ensure_element_rare_data().counters_set;
-    if (!counters_set)
-        counters_set = make<CSS::CountersSet>();
-    return *counters_set;
-}
-
-void Element::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
-{
-    if (counters_set)
-        ensure_element_rare_data().counters_set = move(counters_set);
-    else if (auto* rare_data = element_rare_data())
-        rare_data->counters_set = nullptr;
-}
-
-bool Element::has_non_empty_counters_set() const
-{
-    auto const* rare_data = element_rare_data();
-    return rare_data && rare_data->counters_set;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#the-lang-and-xml:lang-attributes

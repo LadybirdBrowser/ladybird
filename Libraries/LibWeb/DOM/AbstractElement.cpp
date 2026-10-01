@@ -134,36 +134,6 @@ Optional<AbstractElement> AbstractElement::highlight_inheritance_parent() const
     return OptionalNone {};
 }
 
-Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_method)
-{
-    // NB: Called during style recalculation.
-    Layout::Node* start_node = unsafe_layout_node();
-    if (!start_node)
-        return OptionalNone {};
-
-    auto* arena_handle = start_node->arena_handle();
-    auto slot = Layout::Node::slot_id(start_node);
-    while (true) {
-        slot = Layout::RustFFI::layout_arena_previous_dom_backed_or_generated_node(arena_handle, slot, walk_method == WalkMethod::PreviousSibling);
-        if (slot.index == Compositing::RustFFI::INVALID_NODE_SLOT_INDEX)
-            return OptionalNone {};
-
-        auto* previous_node = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena_handle, slot));
-        if (!previous_node)
-            continue;
-        // A row kept after its node or its generator was removed resolves to neither, and is skipped.
-        if (auto* previous_element = as_if<Element>(previous_node->dom_node()))
-            return AbstractElement { *previous_element };
-
-        if (previous_node->is_generated_for_pseudo_element()) {
-            auto pseudo_element = previous_node->generated_for_pseudo_element();
-            auto generator = previous_node->pseudo_element_generator();
-            if (generator && pseudo_element.has_value() && CSS::is_tree_abiding_pseudo_element(*pseudo_element))
-                return AbstractElement { *generator, pseudo_element };
-        }
-    }
-}
-
 GC::Ptr<Node> AbstractElement::root()
 {
     if (m_pseudo_element.has_value()) {
@@ -174,14 +144,6 @@ GC::Ptr<Node> AbstractElement::root()
     }
 
     return m_element->root();
-}
-
-bool AbstractElement::is_before(AbstractElement const& other) const
-{
-    // NB: Called during style recalculation.
-    auto this_node = unsafe_layout_node();
-    auto other_node = other.unsafe_layout_node();
-    return this_node && other_node && this_node->is_before(*other_node);
 }
 
 CSS::ComputedStyleRecordView AbstractElement::computed_style() const
@@ -238,36 +200,6 @@ RefPtr<CSS::StyleValue const> AbstractElement::get_custom_property(Utf16FlyStrin
     if (auto const* property = data->get(name))
         return property->value;
     return nullptr;
-}
-
-bool AbstractElement::has_non_empty_counters_set() const
-{
-    if (m_pseudo_element.has_value())
-        return m_element->get_synthetic_pseudo_element(*m_pseudo_element)->has_non_empty_counters_set();
-    return m_element->has_non_empty_counters_set();
-}
-
-Optional<CSS::CountersSet const&> AbstractElement::counters_set() const
-{
-    if (m_pseudo_element.has_value())
-        return m_element->get_synthetic_pseudo_element(*m_pseudo_element)->counters_set();
-    return m_element->counters_set();
-}
-
-CSS::CountersSet& AbstractElement::ensure_counters_set()
-{
-    if (m_pseudo_element.has_value())
-        return m_element->get_synthetic_pseudo_element(*m_pseudo_element)->ensure_counters_set();
-    return m_element->ensure_counters_set();
-}
-
-void AbstractElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counters_set)
-{
-    if (m_pseudo_element.has_value()) {
-        m_element->get_synthetic_pseudo_element(*m_pseudo_element)->set_counters_set(move(counters_set));
-    } else {
-        m_element->set_counters_set(move(counters_set));
-    }
 }
 
 Utf16String AbstractElement::debug_description() const
