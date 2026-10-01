@@ -1296,6 +1296,6 @@ fn table_names_animations(table: &ComputedLonghandTable) -> bool {
 /// A font's pixel metric as the drive resolves font-relative units against it: the C++ length
 /// resolution context carries the metrics as `CSSPixels`, so an `ex` resolves against the
 /// fixed-point x-height rather than the font's raw floating-point one.
-pub(super) fn drive_font_metric(value: f32) -> f64 {
+pub(in crate::css::style) fn drive_font_metric(value: f32) -> f64 {
     crate::css::css_pixels::CssPixels::nearest_value_for_f32(value).to_double()
 }

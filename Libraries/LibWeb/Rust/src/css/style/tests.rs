@@ -7277,8 +7277,26 @@ fn closure_identity_stop_verification_is_observer_only() {
 }
 
 #[test]
-fn a_cached_prefix_answer_preserves_incomplete_cascade_winners() {
-    let (mut engine, nodes) = nested_document();
+fn gated_prefix_answers_publish_complete_node_specific_winners() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 4];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<StyleNodeID> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+    engine.record_tree_delta(nodes[1], None, Some(relations(Some(nodes[0].raw()), None, None)));
+    engine.record_tree_delta(
+        nodes[2],
+        None,
+        Some(relations(Some(nodes[1].raw()), None, Some(nodes[3].raw()))),
+    );
+    engine.record_tree_delta(
+        nodes[3],
+        None,
+        Some(relations(Some(nodes[1].raw()), Some(nodes[2].raw()), None)),
+    );
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
     let guard = StyleAtomID(200);
     let target = StyleAtomID(201);
     let rule = add_guard_target_rule(&mut engine, guard, target);
@@ -7312,11 +7330,58 @@ fn a_cached_prefix_answer_preserves_incomplete_cascade_winners() {
             Some(&mut second_complete),
         )
         .unwrap();
-    assert!(!first_complete);
-    assert!(!second_complete);
-    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheMisses), 1);
-    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheHits), 1);
+    // A gated rule's verdict belongs to the node, so neither sibling may reuse the other's
+    // compacted prefix winners. Both exact answers must still publish complete winners.
+    assert!(first_complete);
+    assert!(second_complete);
+    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheMisses), 2);
+    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheHits), 0);
     engine.end_cold_matching_batch();
+}
+
+#[test]
+fn an_undecided_container_verdict_has_not_moved() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 3];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<StyleNodeID> = raw.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)).collect();
+    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+    engine.record_tree_delta(nodes[1], None, Some(relations(Some(nodes[0].raw()), None, None)));
+    engine.record_tree_delta(nodes[2], None, Some(relations(Some(nodes[1].raw()), None, None)));
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    // The rule holds no native conditions for the engine to read, so it cannot decide them, as for
+    // a container whose record it holds no view of.
+    let rule = add_guard_target_rule(&mut engine, guard, target);
+    engine.set_rule_declared_properties(rule, &[(1, false)], true);
+    engine.set_rule_gated_by_container_query(rule);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+    add_feature(&mut engine, nodes[2], LocalFeatureKey::Class(target));
+    discard_transaction(&mut engine);
+
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    let mut compact = None;
+    let mut complete = false;
+    let matched = engine.match_element_for_purpose_with_compact_answer(
+        nodes[2],
+        true,
+        CompletionExactness::AllowPruning,
+        Some(&mut compact),
+        Some(&mut complete),
+    );
+    assert!(matched.is_ok());
+    assert!(complete);
+    engine.end_cold_matching_batch();
+
+    // The verdict is published undecided, which keeps the node the host's, not as one that
+    // failed; a flush that still cannot decide it keeps the winners it was published with.
+    let undecided: Vec<(RuleID, Option<bool>)> = vec![(rule, None)];
+    assert_eq!(engine.published_container_verdicts.get(&nodes[2]), Some(&undecided));
+    engine.drop_winners_whose_container_verdicts_moved();
+    assert_eq!(engine.published_container_verdicts.get(&nodes[2]), Some(&undecided));
 }
 
 #[test]

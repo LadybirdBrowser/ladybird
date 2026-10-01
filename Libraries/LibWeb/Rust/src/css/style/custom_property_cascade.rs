@@ -385,9 +385,14 @@ impl RetainedState {
             node,
         ) && let Some(matches) = published.matches_for(answer)
         {
-            return matches
-                .iter()
-                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope));
+            return matches.iter().all(|entry| {
+                self.match_is_complete_but_for_custom_properties(
+                    node,
+                    entry.rule,
+                    entry.tree_scope,
+                    entry.pseudo_element.is_some(),
+                )
+            });
         }
         let Lookup::Known(answer) = self.retained_match_answer(node) else {
             return false;
@@ -408,11 +413,14 @@ impl RetainedState {
             return Some(false);
         }
         if let Some(matches) = published.matches_for(answer) {
-            return Some(
-                matches
-                    .iter()
-                    .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope)),
-            );
+            return Some(matches.iter().all(|entry| {
+                self.match_is_complete_but_for_custom_properties(
+                    node,
+                    entry.rule,
+                    entry.tree_scope,
+                    entry.pseudo_element.is_some(),
+                )
+            }));
         }
         let matches = self.match_answers.answer(answer.cascade_input?)?;
         Some(self.retained_matches_are_complete_but_for_custom_properties(node, matches))
@@ -431,21 +439,26 @@ impl RetainedState {
         matches: &[RetainedRuleMatch],
     ) -> bool {
         matches.iter().all(|rule_match| {
-            self.match_is_complete_but_for_custom_properties(node, rule_match.rule, rule_match.tree_scope)
+            let pseudo = self.programs.get(rule_match.program).entries()[rule_match.entry as usize]
+                .pseudo_element
+                .is_some();
+            self.match_is_complete_but_for_custom_properties(node, rule_match.rule, rule_match.tree_scope, pseudo)
         })
     }
 
     /// Whether the winners the cascade publishes hold a match: its scope is one they are
-    /// published for (`match_scope_is_complete_for`), no container query gates it, and its rule
-    /// declares nothing past its longhand winners but custom properties.
+    /// published for (`match_scope_is_complete_for`), they hold its container conditions
+    /// (`container_gate_is_held`), and its rule declares nothing past its longhand winners but
+    /// custom properties.
     pub(super) fn match_is_complete_but_for_custom_properties(
         &self,
         node: StyleNodeID,
         rule: RuleID,
         tree_scope: TreeScopeID,
+        pseudo: bool,
     ) -> bool {
         self.match_scope_is_complete_for(Some(node), tree_scope)
-            && !self.program.rule_is_gated_by_container_query(rule)
+            && self.container_gate_is_held(Some(node), rule, pseudo)
             && self.program.declarations_are_complete_but_for_custom_properties(rule)
     }
 
@@ -502,6 +515,13 @@ impl RetainedState {
         let mut visit = |rule: RuleID, tree_scope: TreeScopeID, specificity: Specificity, scope_proximity: u32| {
             let declared = self.program.custom_declarations_of(rule);
             if declared.is_empty() {
+                return ControlFlow::Continue(());
+            }
+            // A gated rule declares for the node where its container conditions held when its
+            // winners were published, as its longhands do.
+            if pseudo.is_some() && self.program.rule_is_gated_by_container_query(rule)
+                || !self.published_container_verdict_holds(node, rule)
+            {
                 return ControlFlow::Continue(());
             }
             let written = self.program.custom_written_values_of(rule);

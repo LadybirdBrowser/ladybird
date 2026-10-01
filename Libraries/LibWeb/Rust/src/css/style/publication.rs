@@ -6,6 +6,7 @@
 
 mod drive;
 mod pseudo;
+pub(super) use drive::drive_font_metric;
 mod retry;
 mod winner_store;
 
@@ -14,7 +15,7 @@ use winner_store::{WinnerDeclaration, WinnerStore, WinnerValue, shorthand_longha
 use super::*;
 use crate::css::computed_longhand_table::{ComputedLonghandTable, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS};
 pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
-use drive::{DrivenTable, FontDriveGoal, FullDrive, PartialDrive, drive_font_metric};
+use drive::{DrivenTable, FontDriveGoal, FullDrive, PartialDrive};
 use retry::InstalledAncestors;
 
 /// Another element's published style that a first-time computation may build over: the element
@@ -496,6 +497,15 @@ impl RetainedState {
         // A custom property the cascade declares is no winner the columns hold; the engine
         // computes the environment it decides itself.
         if !cascade_winners_are_complete && !self.cascade_winners_are_complete_but_for_custom_properties(node) {
+            counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+            return Err(Unanswered::Refused);
+        }
+        // The winners hold a gated rule where its container conditions held when they were
+        // published; they answer for the node while every one decides as it did, over containers
+        // its settled ancestors published. One a declined ancestor may still move is the host's.
+        if self.published_container_verdicts.contains_key(&node)
+            && (self.container_ancestor_is_unsettled(node, scratch) || !self.container_verdicts_stand(node))
+        {
             counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
             return Err(Unanswered::Refused);
         }
