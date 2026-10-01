@@ -1594,6 +1594,20 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
     return result;
 }
 
+// An element-backed pseudo-element is the element in the host's shadow tree that backs it, which
+// its own row styles: a host computed again drives those elements again, rather than computing
+// them beside itself.
+static void record_element_reference_pseudo_element_inputs(Element& element)
+{
+    auto& style_engine = element.document().style_computer().style_engine();
+    for (auto i = to_underlying(CSS::first_element_reference_pseudo_element); i <= to_underlying(CSS::last_element_reference_pseudo_element); ++i) {
+        if (auto pseudo_element = element.get_pseudo_element(static_cast<CSS::PseudoElement>(i)); pseudo_element.has_value()) {
+            auto& referenced_element = as<ElementReferencePseudoElement>(*pseudo_element).referenced_element();
+            style_engine.record_derived_element_style_input_change(referenced_element->style_node_id(), CSS::StyleEngine::RecomputeStyle);
+        }
+    }
+}
+
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles, EnginePseudoElementRecords const* engine_pseudo_element_records)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -1730,14 +1744,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         RefPtr<CSS::ComputedValues const> computed_pseudo_element_style;
         if (engine_record.has_value())
             style_record_delta.new_style_record = *engine_record;
-        else if (CSS::is_element_reference_pseudo_element(pseudo_element)) {
-            // An element-backed pseudo-element is the element that backs it, and that element's own style
-            // computation is the one that finalizes its box type. Compute the refreshed style as that
-            // element, so this refresh republishes the record the element's own style walk assigns it
-            // instead of a second record cascaded against the originating element.
-            auto& referenced_element = as<ElementReferencePseudoElement>(*get_pseudo_element(pseudo_element)).referenced_element();
-            computed_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ referenced_element }, did_change_custom_properties, nullptr, style_record_delta);
-        } else
+        else
             computed_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties, reusable_matches, style_record_delta);
         auto engine_pseudo_element_style = engine_record.has_value() && !!*engine_record
             ? style_computer.computed_style_record_view(*engine_record)
@@ -1829,10 +1836,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         }
 
         if (new_pseudo_element_style) {
-            if (CSS::is_element_reference_pseudo_element(pseudo_element))
-                refresh_computed_style(pseudo_element, style_record_delta.new_style_record);
-            else
-                set_computed_style(pseudo_element, style_record_delta.new_style_record);
+            set_computed_style(pseudo_element, style_record_delta.new_style_record);
             // What C++ installs beside a pseudo-element it computes: its element's inheritable
             // environment, or the one its own custom declarations resolved to over that.
             if (engine_record.has_value()) {
@@ -1864,15 +1868,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     if (had_list_marker || originating_style->display().is_list_item()
         || (engine_pseudo_element_records && engine_pseudo_element_records->at(to_underlying(CSS::PseudoElement::Marker)).has_value()))
         recompute_pseudo_element_style(CSS::PseudoElement::Marker, true);
-    // Element-backed pseudo-elements are C++'s; an engine-computed record moving an element's own
-    // properties leaves them as they were, as it did before the engine settled the synthetic ones.
-    if (!engine_pseudo_element_records || !old_originating_style || settled_after_host_record) {
-        for (auto i = to_underlying(CSS::first_element_reference_pseudo_element); i <= to_underlying(CSS::last_element_reference_pseudo_element); ++i) {
-            auto pseudo_element = static_cast<CSS::PseudoElement>(i);
-            if (get_pseudo_element(pseudo_element).has_value())
-                recompute_pseudo_element_style(pseudo_element);
-        }
-    }
     if (settled_after_host_record)
         style_computer.style_engine().acknowledge_engine_computed_record(style_node_id());
 
@@ -1885,6 +1880,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     VERIFY(computed_values);
 
     bool did_change_custom_properties = false;
+    record_element_reference_pseudo_element_inputs(*this);
     auto invalidation = recompute_pseudo_element_styles(did_change_custom_properties, computed_values->display().is_list_item(), nullptr);
     publish_custom_property_names();
     if (!invalidation.is_none())
@@ -2640,6 +2636,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
             counters.element_style_noop_recomputations++;
             return {};
         }
+        if (mode == StyleRecomputeMode::Normal)
+            record_element_reference_pseudo_element_inputs(*this);
         auto invalidation = recompute_pseudo_element_styles(
             did_change_custom_properties,
             old_computed_values->display().is_list_item(),
@@ -2769,8 +2767,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     if (element_computed_style_changed || element_custom_properties_changed)
         counters.element_computed_style_changes++;
 
-    if (!pseudo_styles_are_unchanged)
+    if (!pseudo_styles_are_unchanged) {
+        if (mode == StyleRecomputeMode::Normal)
+            record_element_reference_pseudo_element_inputs(*this);
         invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_values ? &*old_computed_values : nullptr, reusable_style_engine_matches, &preserved_pseudo_element_styles);
+    }
 
     // Which custom properties this element or one of its pseudo-elements declares or references
     // decides which `@property` registrations reach it. Pseudo-elements share the originating
