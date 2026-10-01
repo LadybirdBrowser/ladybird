@@ -1,0 +1,3 @@
+under-ex is smaller than the 13px default: true
+under-lh: 20px
+pseudo: 15.59375px

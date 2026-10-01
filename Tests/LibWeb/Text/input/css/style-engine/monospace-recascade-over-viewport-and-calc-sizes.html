@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #viewport { font-size: 5vw; }
+    #calc { font-size: calc(10px + 1em); }
+    #keyword { font-size: large; }
+    code { font-family: monospace; }
+</style>
+<div id="viewport"><div id="keyword"><code id="under-viewport">a</code></div></div>
+<div id="calc"><div><code id="under-calc">b</code></div></div>
+<script>
+    test(() => {
+        // The monospace font-size recascade reads the viewport through its ancestors, and skips a
+        // calc() it cannot recascade.
+        for (const id of ["under-viewport", "under-calc"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).fontSize}`);
+    });
+</script>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #outer { font-size: 20px; }
+    #own-size { font-family: monospace; font-size: 2em; }
+    #mono-parent { font-family: monospace; }
+    #inherits-mono { font-size: 2em; }
+    #keyword { font-size: large; }
+    #mono-under-keyword { font-family: monospace; }
+</style>
+<div id="outer"><span id="own-size">x</span></div>
+<div id="mono-parent"><span id="inherits-mono">y</span></div>
+<div id="keyword"><span id="mono-under-keyword">z</span></div>
+<script>
+    test(() => {
+        // An element whose font-family cascades to monospace has its font-size recascaded against a
+        // 13px default rather than the 16px one, including for keyword sizes an ancestor declared.
+        // The element's own font-size declaration still wins over the recascaded value, so only an
+        // element that declares none takes it.
+        internals.updateStyle();
+        const start = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        for (const id of ["outer", "own-size", "mono-parent", "inherits-mono", "keyword", "mono-under-keyword"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).fontSize}`);
+        document.getElementById("keyword").style.color = "rgb(0, 0, 255)";
+        internals.updateStyle();
+        println(`recoloured mono-under-keyword: ${getComputedStyle(document.getElementById("mono-under-keyword")).fontSize}`);
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - start}`);
+    });
+</script>
