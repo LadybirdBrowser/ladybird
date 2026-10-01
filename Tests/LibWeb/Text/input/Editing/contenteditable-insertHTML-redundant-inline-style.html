@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .matching { color: green; }
+    .important { color: green !important; }
+</style>
+<div id="editor" contenteditable></div>
+<script>
+    test(() => {
+        const insert = html => {
+            editor.innerHTML = "";
+            const selection = getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(editor);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            document.execCommand('insertHTML', false, html);
+            println(editor.innerHTML);
+        };
+
+        insert('<span class="matching" style="color: green; font-weight: bold">Hello</span>');
+        println(getComputedStyle(editor.firstElementChild).fontWeight);
+        insert('<span class="matching" style="--x: green; color: var(--x); font-style: italic">Hello</span>');
+        insert('<span class="matching" style="--x: red; color: var(--x); font-style: italic">Hello</span>');
+        insert('<span class="matching" style="color: green !important; font-style: italic">Hello</span>');
+        insert('<span class="important" style="color: red; font-style: italic">Hello</span>');
+    });
+</script>

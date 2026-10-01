@@ -3261,6 +3261,8 @@ pub struct FfiRecordDemand {
     pub targeted: bool,
     /// Leave the engine as it was: the record is only for the host to read.
     pub read_only: bool,
+    /// Compute the element as though it had no inline declaration. Only a read-only demand may.
+    pub exclude_inline_style: bool,
 }
 
 /// Answer a read of one element's style the host makes before the next style update. A zero
@@ -3299,6 +3301,7 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
             payload.write_u32(node);
             payload.write_bool(demand.targeted);
             payload.write_bool(demand.read_only);
+            payload.write_bool(demand.exclude_inline_style);
             payload.write_u64(result.style_record);
             payload.write_bool(result.uses_substitution);
             payload.write_u8(result.pseudo_records_present);

@@ -754,6 +754,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let demand = bridge::FfiRecordDemand {
                         targeted: event.payload.read_bool()?,
                         read_only: event.payload.read_bool()?,
+                        exclude_inline_style: event.payload.read_bool()?,
                     };
                     let expected = event.payload.read_u64()?;
                     let expected_uses_substitution = event.payload.read_bool()?;
