@@ -205,7 +205,7 @@ use exact_matcher::ExactMatchContext;
 use exact_matcher::ExactMatcher;
 
 pub use counter_context::StyleEngine;
-pub use inputs::{PublishedBoxFacts, PublishedTextSource, TextStyleParentFacts};
+pub use inputs::{NaturalSize, PublishedBoxFacts, PublishedTextSource, ReplacedContentInput, TextStyleParentFacts};
 
 use batch_matcher::AncestorRequirements;
 use batch_matcher::AncestorRequirementsCache;
@@ -942,6 +942,9 @@ pub struct RetainedState {
     /// The random base value each random caching key has been given, for the random functions the
     /// document's styles hold.
     random_base_values: random_bases::RandomBaseValues,
+    /// What each element that has replaced content gives its natural size, which layout resolves
+    /// against the style of the element's box.
+    replaced_content_inputs: HashMap<StyleNodeID, inputs::ReplacedContentInput>,
     /// https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
     /// Per transition target, by element and then pseudo-element kind, the before-change style its
     /// transitions are decided against for the rest of the style stabilization epoch, pinned until

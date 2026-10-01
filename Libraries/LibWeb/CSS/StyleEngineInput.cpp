@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -28,11 +29,14 @@
 #include <LibWeb/HTML/CustomElements/CustomStateSet.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
+#include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLHeadingElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
@@ -741,6 +745,79 @@ void record_element_box_kind(DOM::Element& element)
     style_engine->set_element_box_kind(element.style_node_id(), to_underlying(element.box_kind()));
 }
 
+static void set_replaced_content_input(StyleEngine& style_engine, StyleNodeID node, StyleEngineFFI::FfiReplacedContentInputKind kind, u8 present, u32 first, u32 second = 0, u32 third = 0, u32 fourth = 0)
+{
+    u32 const values[] { first, second, third, fourth };
+    style_engine.set_element_replaced_content_input(node, to_underlying(kind), present, values);
+}
+
+static void set_natural_size_input(StyleEngine& style_engine, StyleNodeID node, SizeWithAspectRatio const& natural_size)
+{
+    using Present = StyleEngineFFI::FfiReplacedContentInputPresent;
+    u8 present = 0;
+    u32 values[4] {};
+    if (natural_size.width.has_value()) {
+        present |= to_underlying(Present::First);
+        values[0] = bit_cast<u32>(natural_size.width->raw_value());
+    }
+    if (natural_size.height.has_value()) {
+        present |= to_underlying(Present::Second);
+        values[1] = bit_cast<u32>(natural_size.height->raw_value());
+    }
+    if (natural_size.aspect_ratio.has_value()) {
+        present |= to_underlying(Present::ThirdAndFourth);
+        values[2] = bit_cast<u32>(natural_size.aspect_ratio->numerator().raw_value());
+        values[3] = bit_cast<u32>(natural_size.aspect_ratio->denominator().raw_value());
+    }
+    set_replaced_content_input(style_engine, node, StyleEngineFFI::FfiReplacedContentInputKind::NaturalSize, present, values[0], values[1], values[2], values[3]);
+}
+
+// What the element gives the natural size of its replaced content, which layout resolves against the style of the
+// element's box: what its attributes say, or the size of what it has loaded.
+void record_element_replaced_content_input(DOM::Element& element)
+{
+    using Kind = StyleEngineFFI::FfiReplacedContentInputKind;
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() == no_style_node)
+        return;
+    auto node = element.style_node_id();
+    if (auto const* text_area = as_if<HTML::HTMLTextAreaElement>(element)) {
+        set_replaced_content_input(*style_engine, node, Kind::TextArea, 0, text_area->cols(), text_area->rows());
+        return;
+    }
+    if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
+        auto kind = Kind::Input;
+        switch (input->type_state()) {
+        case HTML::HTMLInputElement::TypeAttributeState::Text:
+        case HTML::HTMLInputElement::TypeAttributeState::Search:
+        case HTML::HTMLInputElement::TypeAttributeState::URL:
+        case HTML::HTMLInputElement::TypeAttributeState::Telephone:
+        case HTML::HTMLInputElement::TypeAttributeState::Email:
+        case HTML::HTMLInputElement::TypeAttributeState::Password:
+        case HTML::HTMLInputElement::TypeAttributeState::Number:
+            kind = Kind::TextEntryInput;
+            break;
+        default:
+            break;
+        }
+        set_replaced_content_input(*style_engine, node, kind, 0, input->size());
+        return;
+    }
+    if (auto const* video = as_if<HTML::HTMLVideoElement>(element)) {
+        SizeWithAspectRatio natural_size;
+        if (auto size = video->natural_element_size(); size.has_value()) {
+            if (size->is_empty())
+                natural_size = { 0, 0, {} };
+            else
+                natural_size = { size->width(), size->height(), size->width() / size->height() };
+        }
+        set_natural_size_input(*style_engine, node, natural_size);
+        return;
+    }
+    if (auto const* canvas = as_if<HTML::HTMLCanvasElement>(element))
+        set_replaced_content_input(*style_engine, node, Kind::Canvas, 0, canvas->width(), canvas->height());
+}
+
 void record_element_construction_facts(DOM::Element& element)
 {
     auto* style_engine = style_engine_for(element);
@@ -817,6 +894,7 @@ static void record_element_initial_features(DOM::Element& element)
         record_element_inline_style_properties(element);
     if (element_has_presentational_hints_to_publish(element))
         StyleComputer::collect_presentational_hint_properties({ element });
+    record_element_replaced_content_input(element);
 }
 
 void record_node_moved_in_dom_order(DOM::Node& node, DOM::Node const& old_parent)
@@ -2345,6 +2423,12 @@ void record_element_attribute_changed(DOM::Element& element, Utf16FlyString cons
     // box adjustments and whether it supports dimension attributes.
     if (old_value.has_value() != new_value.has_value() || name == HTML::AttributeNames::type)
         record_element_adjustment_facts(element);
+
+    // What the replaced content of a form control or a canvas is sized from.
+    if ((is<HTML::HTMLTextAreaElement>(element) && (name == HTML::AttributeNames::cols || name == HTML::AttributeNames::rows))
+        || (is<HTML::HTMLInputElement>(element) && (name == HTML::AttributeNames::size || name == HTML::AttributeNames::type))
+        || (is<HTML::HTMLCanvasElement>(element) && (name == HTML::AttributeNames::width || name == HTML::AttributeNames::height)))
+        record_element_replaced_content_input(element);
     // A table's border attribute moves its cells' border hints.
     if (name == HTML::AttributeNames::border && is<HTML::HTMLTableElement>(element)) {
         element.for_each_in_subtree_of_type<HTML::HTMLTableCellElement>([](auto& cell) {

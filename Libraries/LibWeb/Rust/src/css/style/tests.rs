@@ -12332,6 +12332,34 @@ fn a_reissued_identity_asks_for_no_particular_box() {
 }
 
 #[test]
+fn a_reissued_identity_has_no_replaced_content_input() {
+    use super::ReplacedContentInput;
+    let (mut engine, nodes) = linear_document();
+    let leaving = nodes[3];
+    let input = ReplacedContentInput::Canvas {
+        width: 300,
+        height: 150,
+    };
+    engine.set_element_replaced_content_input(leaving, input);
+    assert_eq!(engine.element_replaced_content_input(leaving), input);
+
+    engine.record_tree_delta(
+        leaving,
+        Some(relations(Some(nodes[0].raw()), Some(nodes[2].raw()), None)),
+        None,
+    );
+    discard_transaction(&mut engine);
+    engine.discard_style_transaction_outputs();
+    let mut reissued = [0_u32; 1];
+    engine.allocate_style_nodes(&mut reissued);
+    assert_eq!(reissued[0], leaving.raw());
+    assert_eq!(
+        engine.element_replaced_content_input(leaving),
+        ReplacedContentInput::None
+    );
+}
+
+#[test]
 fn a_text_node_holds_its_published_characters_until_its_identity_is_reissued() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 1];

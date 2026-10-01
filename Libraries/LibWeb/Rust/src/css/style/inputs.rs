@@ -19,6 +19,62 @@ pub struct PublishedTextSource {
     pub is_password_input: bool,
 }
 
+/// What an element gives the natural size of its replaced content, which layout resolves against
+/// the style of the element's box. See `bridge::FfiReplacedContentInputKind`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ReplacedContentInput {
+    #[default]
+    None,
+    /// A `<textarea>`'s `cols` and `rows`: its natural size is that many `ch` by that many `lh`.
+    TextArea { cols: u32, rows: u32 },
+    /// An `<input>`'s `size`, and whether its type makes it a text entry widget, whose default
+    /// preferred size is that many `ch` by one line.
+    Input { size: u32, is_text_entry: bool },
+    /// A `<canvas>`'s `width` and `height`, its natural size in CSS pixels.
+    Canvas { width: u32, height: u32 },
+    /// The natural size of what an element has loaded, such as a video's.
+    NaturalSize(NaturalSize),
+}
+
+/// A natural width, height and aspect ratio, any of which can be missing, as raw fixed-point CSS
+/// pixels.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct NaturalSize {
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+    /// The numerator and denominator.
+    pub aspect_ratio: Option<(i32, i32)>,
+}
+
+impl ReplacedContentInput {
+    #[must_use]
+    pub fn from_raw(kind: u8, present: u8, values: [u32; 4]) -> Self {
+        use super::bridge::{FfiReplacedContentInputKind as Kind, FfiReplacedContentInputPresent as Present};
+        let has = |value: Present| present & value as u8 != 0;
+        match kind {
+            kind if kind == Kind::NaturalSize as u8 => Self::NaturalSize(NaturalSize {
+                width: has(Present::First).then_some(values[0].cast_signed()),
+                height: has(Present::Second).then_some(values[1].cast_signed()),
+                aspect_ratio: has(Present::ThirdAndFourth)
+                    .then_some((values[2].cast_signed(), values[3].cast_signed())),
+            }),
+            kind if kind == Kind::TextArea as u8 => Self::TextArea {
+                cols: values[0],
+                rows: values[1],
+            },
+            kind if kind == Kind::Input as u8 || kind == Kind::TextEntryInput as u8 => Self::Input {
+                size: values[0],
+                is_text_entry: kind == Kind::TextEntryInput as u8,
+            },
+            kind if kind == Kind::Canvas as u8 => Self::Canvas {
+                width: values[0],
+                height: values[1],
+            },
+            _ => Self::None,
+        }
+    }
+}
+
 /// What the style mirror says about the element a text node's box takes its style from: the text's
 /// flat-tree parent, which is the slot it is assigned to or else its DOM parent. A text under a
 /// shadow root or the document has no element above it and answers with every field cleared.
@@ -518,6 +574,21 @@ impl RetainedState {
     /// Replace the element facts a layout row built for the element records.
     pub fn set_element_construction_facts(&mut self, node: StyleNodeID, facts: u32) {
         self.computed_group_sets.set_construction_facts(node, facts);
+    }
+
+    /// Record what the element gives the natural size of its replaced content.
+    pub fn set_element_replaced_content_input(&mut self, node: StyleNodeID, input: ReplacedContentInput) {
+        if input == ReplacedContentInput::None {
+            self.replaced_content_inputs.remove(&node);
+        } else {
+            self.replaced_content_inputs.insert(node, input);
+        }
+    }
+
+    /// What the element gives the natural size of its replaced content.
+    #[must_use]
+    pub fn element_replaced_content_input(&self, node: StyleNodeID) -> ReplacedContentInput {
+        self.replaced_content_inputs.get(&node).copied().unwrap_or_default()
     }
 
     /// Record which principal box the element asks for.
@@ -1660,6 +1731,7 @@ impl StyleEngineState {
                 animation_effect_descriptions: Default::default(),
                 held_root_font_inputs: None,
                 random_base_values: Default::default(),
+                replaced_content_inputs: HashMap::default(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
                 pending_element_style_computation_selections: HashMap::default(),
@@ -3178,6 +3250,7 @@ impl RetainedState {
             // takes its place.
             held_root_font_inputs: _,
             random_base_values,
+            replaced_content_inputs,
             transition_baselines,
             custom_property_registrations_changed: _,
             pending_element_style_computation_selections,
@@ -3286,6 +3359,7 @@ impl RetainedState {
         css_defined_animations.retire(node);
         animation_effect_descriptions.retire(node);
         random_base_values.retire(node);
+        replaced_content_inputs.remove(&node);
         pending_element_style_computation_selections.remove(&node);
         pending_pseudo_style_computation_selections.remove(&node);
         // A retired identity can name another element before the epoch commits.
