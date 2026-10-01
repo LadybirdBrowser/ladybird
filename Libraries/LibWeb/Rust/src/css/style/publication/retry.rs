@@ -31,7 +31,7 @@ impl RetainedState {
         else {
             return Err(Unanswered::Refused);
         };
-        if !scratch.font_drive.is_pending()
+        if !scratch.font_drive.is_pending_for(node)
             && !self.engine_pseudo_inputs_available(
                 node,
                 self.computed_group_sets.assigned_style_record(node),
@@ -40,7 +40,7 @@ impl RetainedState {
         {
             return Err(Unanswered::Refused);
         }
-        if !scratch.font_drive.is_pending()
+        if !scratch.font_drive.is_pending_for(node)
             && !self.node_declares_custom_properties(node)
             && let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node)
             && let Some(parent) = self.tree.inheritance_parent(node)
@@ -81,7 +81,9 @@ impl RetainedState {
                 if let Err(unanswered) = pseudos {
                     // A pseudo-element the engine cannot settle sends the element to C++.
                     match unanswered {
-                        Unanswered::Suspended(_) => scratch.pending_element = Some((old_record, record)),
+                        Unanswered::Suspended(_) => {
+                            scratch.pending_element = Some(drive::PendingElement::new(node, (old_record, record)));
+                        }
                         Unanswered::Refused | Unanswered::AwaitsParent => {
                             counters.bump(Counter::RetryAfterAncestorPseudoAbandons);
                             self.abandon_engine_computed_record(node, scratch, counters);
@@ -95,7 +97,7 @@ impl RetainedState {
                 return Ok(record.raw());
             }
         }
-        if !scratch.font_drive.is_pending() && self.computed_group_sets.node_answer_is_incomplete(node) {
+        if !scratch.font_drive.is_pending_for(node) && self.computed_group_sets.node_answer_is_incomplete(node) {
             return Err(Unanswered::Refused);
         }
         let cascade_winners_are_complete = self

@@ -394,6 +394,7 @@ impl RetainedState {
                 }
                 None => {
                     let subject = DriveSubject {
+                        target,
                         parent: Some(node),
                         facts,
                     };

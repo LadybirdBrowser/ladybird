@@ -358,7 +358,7 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailPseudoFlip);
             return Err(Unanswered::Refused);
         }
-        let pending_element = scratch.pending_element.take();
+        let pending_element = drive::PendingElement::take_for(&mut scratch.pending_element, node);
         if pending_element.is_none() {
             scratch.pseudo_deltas.clear();
             scratch.next_pseudo = 0;
@@ -396,7 +396,7 @@ impl RetainedState {
             self.engine_pseudo_records(node, old_style_record, delta.1, generation, scratch, counters)
         {
             match unanswered {
-                Unanswered::Suspended(_) => scratch.pending_element = Some(delta),
+                Unanswered::Suspended(_) => scratch.pending_element = Some(drive::PendingElement::new(node, delta)),
                 Unanswered::Refused | Unanswered::AwaitsParent => {
                     self.abandon_engine_computed_record(node, scratch, counters);
                 }
@@ -1200,7 +1200,7 @@ impl RetainedState {
                         .count()
                 })
         });
-        if !scratch.font_drive.is_pending()
+        if !scratch.font_drive.is_pending_for(node)
             && let Some(donor) = donor
         {
             let donor_delta = self.winner_groups.semantic_delta(Some(donor.state), state);
@@ -1256,7 +1256,7 @@ impl RetainedState {
                 }
             }
         }
-        let subject = DriveSubject { parent, facts };
+        let subject = DriveSubject { target, parent, facts };
         let (table, length, longhand_evaluations, font) =
             match self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, goal, counters)? {
                 FullDrive::Driven(driven) => driven,
@@ -1803,7 +1803,11 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
-        Ok(DriveSubject { parent, facts })
+        Ok(DriveSubject {
+            target: computed::ComputedStyleTarget::new(node, u8::MAX),
+            parent,
+            facts,
+        })
     }
 
     /// Whether a node inherits values its parent's animations sample, which C++ composes over the
@@ -3895,7 +3899,7 @@ pub(super) struct EngineComputedRecordScratch {
     // NB: A failed preparation already performed the root's unsupported computation.
     root_computation_unsupported: Option<StyleNodeID>,
     root_font_inputs_changed: bool,
-    pending_element: Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)>,
+    pending_element: Option<drive::PendingElement>,
     next_pseudo: usize,
     pseudo_uses_substitution: bool,
     /// What the element being derived noted about substituted winners, when its computation
@@ -4049,6 +4053,9 @@ impl EngineComputedRecordScratch {
 /// adjustments read.
 #[derive(Clone, Copy)]
 pub(super) struct DriveSubject {
+    /// What is being driven, element or pseudo-element. A drive that suspends to wait for a font
+    /// names it, so the suspended drive can only be resumed by the one it belongs to.
+    target: computed::ComputedStyleTarget,
     /// The flat-tree parent the element inherits from; the document element has none and
     /// inherits from the initial values.
     parent: Option<StyleNodeID>,
@@ -4691,10 +4698,10 @@ impl StyleEngineState {
             //     turn every descendant into a host-boundary retry.
             counters.bump(Counter::RootFontInputsUnprovenFallbacks);
         }
-        if prepared.is_none() && !scratch.font_drive.is_pending() && !unproven {
+        if prepared.is_none() && !scratch.font_drive.is_pending_for(node) && !unproven {
             scratch.root_computation_unsupported = Some(node);
         }
-        if scratch.font_drive.is_pending() {
+        if scratch.font_drive.is_pending_for(node) {
             scratch.prepared_root_font = Some((node, parent_inputs_moved, std::mem::take(&mut scratch.font_drive)));
         }
         self.apply_substitution_effects(scratch);

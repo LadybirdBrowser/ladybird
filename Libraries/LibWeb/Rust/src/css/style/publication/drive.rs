@@ -85,8 +85,13 @@ pub(in crate::css::style) struct FontDriveScratch {
 }
 
 impl FontDriveScratch {
-    pub(in crate::css::style) fn is_pending(&self) -> bool {
-        self.pending.is_some()
+    /// Whether the suspended drive belongs to this node's row, for the element itself or one of
+    /// its pseudo-elements. A row resumes only its own drive: the one left behind by an element
+    /// the record loop settled another way is not an answer to it.
+    pub(in crate::css::style) fn is_pending_for(&self, node: StyleNodeID) -> bool {
+        self.pending
+            .as_ref()
+            .is_some_and(|pending| pending.target.node() == node)
     }
 
     /// The font request a drive suspended on.
@@ -103,9 +108,35 @@ impl FontDriveScratch {
     }
 }
 
+/// An element's record, computed while one of its pseudo-elements waits for a font, held for the
+/// element's own row to resume. Its fields are private to the drive, so the record can only be
+/// taken back by naming the node it was computed for.
+pub(super) struct PendingElement {
+    node: StyleNodeID,
+    delta: RecordDelta,
+}
+
+impl PendingElement {
+    pub(super) fn new(node: StyleNodeID, delta: RecordDelta) -> Self {
+        Self { node, delta }
+    }
+
+    /// The record parked for `node`'s row. A row never takes up another's: the flush loop resumes
+    /// a suspended row before it drives the next one.
+    pub(super) fn take_for(slot: &mut Option<Self>, node: StyleNodeID) -> Option<RecordDelta> {
+        let pending = slot.take()?;
+        debug_assert!(pending.node == node, "a row resumed another row's pending element");
+        (pending.node == node).then_some(pending.delta)
+    }
+}
+
 /// The completed font phase owns its table. No parent/context borrow survives refill;
 /// the caller resumes the same subject before evaluating any later canonical element.
 struct PendingFontDrive {
+    /// What the suspended drive belongs to. The record loop can settle that element another way
+    /// before the retry comes, which leaves the drive behind; whoever is driven next must not
+    /// take up someone else's table.
+    target: computed::ComputedStyleTarget,
     root_font_complete: bool,
     table: ComputedLonghandTable,
     results: crate::css::style_compute::FfiLonghandDriverResults,
@@ -359,7 +390,7 @@ impl RetainedState {
         use crate::css::table_group_builder::FfiFontGroupBuildInputs;
         use bridge::element_adjustment_fact as fact;
 
-        let DriveSubject { parent, facts } = subject;
+        let DriveSubject { target, parent, facts } = subject;
         let has = |bit: u32| facts & bit != 0;
         let is_document_element = has(fact::IS_DOCUMENT_ELEMENT);
         // An element with animations composes its style with their effects in C++.
@@ -584,7 +615,8 @@ impl RetainedState {
                 subject_inline_axis_is_horizontal,
                 resolved_viewport_relative_length: resolved_viewport_relative_length_pointer,
             };
-        let resumed = font_scratch.pending.take();
+        // A drive another row left behind is dropped rather than taken up.
+        let resumed = font_scratch.pending.take().filter(|pending| pending.target == target);
         let resuming = resumed.is_some();
         let root_font_complete = resumed.as_ref().is_some_and(|pending| pending.root_font_complete);
         if !resuming {
@@ -747,6 +779,7 @@ impl RetainedState {
         else {
             font_scratch.request = Some(font_resolution::FontRequest::new(request));
             font_scratch.pending = Some(PendingFontDrive {
+                target,
                 root_font_complete: false,
                 table,
                 results,
@@ -819,6 +852,7 @@ impl RetainedState {
                 depends_on_viewport: results.font_metrics_depend_on_viewport_metrics,
             };
             font_scratch.pending = Some(PendingFontDrive {
+                target,
                 root_font_complete: true,
                 table,
                 results,
