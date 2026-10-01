@@ -19,6 +19,7 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
 namespace Web::Layout {
@@ -220,6 +221,28 @@ CSS::SizeWithAspectRatio Box::auto_content_box_size() const
 RustFFI::FfiReplacedContentFacts Box::build_replaced_content_facts_for_arena() const
 {
     RustFFI::FfiReplacedContentFacts facts {};
+    // An SVG <image> runs the default sizing algorithm over its own geometry, so it publishes the intrinsic size exactly
+    // as the image reports it, absent rather than zero while nothing has decoded, together with the default object
+    // size that applies once something has.
+    if (kind() == RustFFI::NodeKind::SVGImageBox) {
+        auto const& image_element = as<SVG::SVGImageElement>(*dom_node());
+        auto intrinsic_width = image_element.intrinsic_width();
+        auto intrinsic_height = image_element.intrinsic_height();
+        auto intrinsic_aspect_ratio = image_element.intrinsic_aspect_ratio();
+        facts.has_auto_content_width = intrinsic_width.has_value();
+        facts.auto_content_width = intrinsic_width.value_or(0);
+        facts.has_auto_content_height = intrinsic_height.has_value();
+        facts.auto_content_height = intrinsic_height.value_or(0);
+        if (intrinsic_aspect_ratio.has_value()) {
+            facts.auto_content_aspect_ratio_numerator = intrinsic_aspect_ratio->numerator();
+            facts.auto_content_aspect_ratio_denominator = intrinsic_aspect_ratio->denominator();
+        }
+        if (image_element.decoded_image_data()) {
+            facts.default_preferred_width = 300;
+            facts.default_preferred_height = 150;
+        }
+        return facts;
+    }
     auto auto_content_size = auto_content_box_size();
     facts.has_auto_content_width = auto_content_size.has_width();
     facts.auto_content_width = auto_content_size.width.value_or(0);

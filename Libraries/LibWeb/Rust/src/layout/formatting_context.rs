@@ -919,14 +919,11 @@ pub(crate) struct FlexLayoutData {
 #[repr(C)]
 pub struct FfiLayoutHostCallbacks {
     pub context: *mut c_void,
-    pub build_svg_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> svg_formatting_context::FfiSvgElementFacts,
     pub compute_svg_path: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
         svg_formatting_context::FfiSvgPathRequest,
     ) -> svg_formatting_context::FfiSvgPathResult,
-    pub svg_image_bounding_box:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, CssPixels, CssPixels) -> svg_formatting_context::FfiFloatRect,
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
     pub node_unique_id: unsafe extern "C" fn(*mut c_void) -> i64,
     /// The commit messages a finished commit leaves for the document, in the order it produced
@@ -948,6 +945,19 @@ pub unsafe extern "C" fn layout_arena_set_layout_host_callbacks(arena: *mut c_vo
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The caller keeps the arena alive for this synchronous call.
     unsafe { LayoutNodeArena::from_handle(arena) }.set_layout_host(Some(callbacks));
+}
+
+/// Records whether the document is an SVG file decoded as an image. It is fixed for the
+/// document's lifetime, so the layout stage holds it rather than asking at each SVG root.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_document_is_decoded_svg(arena: *mut c_void, is_decoded_svg: bool) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_document_is_decoded_svg(is_decoded_svg);
 }
 
 /// # Safety

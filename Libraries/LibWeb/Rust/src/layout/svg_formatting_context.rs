@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::css::style::tree::StyleNodeID;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
@@ -62,15 +63,17 @@ pub struct FfiSvgNumberPercentage {
     pub is_percentage: bool,
 }
 
+/// The values an SVG box resolves from its own computed style and the viewport it sits in. They
+/// are not element data - an ancestor's viewBox feeds a descendant's percentage basis - so the
+/// pass computes them rather than reading them from a publication.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[repr(C)]
-pub struct FfiSvgElementFacts {
-    pub is_document_element: bool,
-    pub document_is_decoded_svg: bool,
-    pub element_transform: FfiAffineTransform,
-    pub additional_element_transform: FfiAffineTransform,
-    pub visible_stroke_width: f32,
-    pub viewport_percentage_basis: CssPixels,
+struct SvgElementFacts {
+    is_document_element: bool,
+    document_is_decoded_svg: bool,
+    element_transform: FfiAffineTransform,
+    additional_element_transform: FfiAffineTransform,
+    visible_stroke_width: f32,
+    viewport_percentage_basis: CssPixels,
 }
 
 /// The SVG attributes one element parses, as the document last published them under
@@ -80,6 +83,13 @@ pub struct FfiSvgElementFacts {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct FfiSvgAttributeFacts {
+    /// The element class tests the pass cannot make from a row's NodeKind: `SVGGraphicsBox` also
+    /// stands for `<g>`, `<symbol>` and `<pattern>`, and `<rect>` carries the same computed `x`/`y`
+    /// properties that give `<use>` its additional transform.
+    pub is_graphics_element: bool,
+    pub is_use_element: bool,
+    pub is_svg_svg_element: bool,
+    pub is_symbol_element: bool,
     pub is_fit_to_view_box: bool,
     pub has_active_view_box: bool,
     pub active_view_box: FfiSvgViewBox,
@@ -470,10 +480,145 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.callbacks.arena().svg_attribute_facts(node)
     }
 
-    fn svg_facts(&self, node: Node) -> FfiSvgElementFacts {
-        // SAFETY: The callback snapshots plain data from a live node and
-        // returns no borrowed storage.
-        unsafe { (self.callbacks.host.build_svg_facts)(self.callbacks.host.context, self.callbacks.shell(node)) }
+    fn svg_facts(&self, node: Node) -> SvgElementFacts {
+        let data = self.callbacks.node_data(node);
+        let mut facts = SvgElementFacts {
+            is_document_element: node_facts::has_flag(data, NodeFlag::IsDocumentElement),
+            document_is_decoded_svg: self.callbacks.arena().document_is_decoded_svg(),
+            ..Default::default()
+        };
+        // Everything below is a graphics element's business; a <mask> or <clipPath> box answers
+        // the defaults.
+        if self.svg_attributes(node).is_graphics_element {
+            facts.additional_element_transform = self.svg_additional_element_transform(node);
+            facts.element_transform = self.svg_graphics_element_transform(node, facts.additional_element_transform);
+            facts.viewport_percentage_basis = self.viewport_percentage_basis(node);
+            facts.visible_stroke_width = self.visible_stroke_width(node, facts.viewport_percentage_basis);
+        }
+        facts
+    }
+
+    fn svg_element_transform(&self, node: Node) -> FfiAffineTransform {
+        if !self.svg_attributes(node).is_graphics_element {
+            return FfiAffineTransform::default();
+        }
+        self.svg_graphics_element_transform(node, self.svg_additional_element_transform(node))
+    }
+
+    /// The nearest flat-tree ancestor of `node` whose published attributes `matches` accepts, named
+    /// by its style node. The flat tree is the ancestry SVG resolves a viewport against, and it is
+    /// not the layout tree: a <mask> box hangs under the element that references it, and an <svg>
+    /// inside a <foreignObject> sits under a box that establishes no SVG viewport at all. An
+    /// ancestor answers from its publication whether or not it has a box.
+    fn nearest_flat_tree_ancestor(
+        &self,
+        node: Node,
+        matches: impl Fn(FfiSvgAttributeFacts) -> bool,
+    ) -> Option<StyleNodeID> {
+        let arena = self.callbacks.arena();
+        let mut style_node = arena
+            .node_style_node(node)
+            .and_then(|style_node| arena.flat_tree_parent(style_node));
+        while let Some(current) = style_node {
+            if matches(arena.style_node_svg_attribute_facts(current)) {
+                return Some(current);
+            }
+            style_node = arena.flat_tree_parent(current);
+        }
+        None
+    }
+
+    /// The user-unit size of the viewport a viewport-establishing element sets up: its view box,
+    /// or the computed width and height of its box, with nothing for an element that has none.
+    /// Percentages resolve against nothing here, since layout has not sized the element yet when a
+    /// descendant asks.
+    fn svg_viewport_element_size(&self, element: StyleNodeID) -> FfiCssPixelSize {
+        let arena = self.callbacks.arena();
+        let attributes = arena.style_node_svg_attribute_facts(element);
+        if attributes.has_active_view_box {
+            return FfiCssPixelSize {
+                width: CssPixels::nearest_value_for(attributes.active_view_box.width),
+                height: CssPixels::nearest_value_for(attributes.active_view_box.height),
+            };
+        }
+        let row = arena.bound_row(element);
+        if row.is_invalid() {
+            return FfiCssPixelSize::default();
+        }
+        let style = self.style(row);
+        FfiCssPixelSize {
+            width: style.width().to_px(CssPixels::default()),
+            height: style.height().to_px(CssPixels::default()),
+        }
+    }
+
+    // Resolved relative to the "Scaled viewport size": https://www.w3.org/TR/2017/WD-fill-stroke-3-20170413/#scaled-viewport-size
+    // FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2); this keeps
+    //        the historical (width + height) / 2 approximation.
+    // <symbol> instances establish nested viewports; percentages inside one resolve against it,
+    // not the enclosing <svg>.
+    fn viewport_percentage_basis(&self, node: Node) -> CssPixels {
+        let Some(element) =
+            self.nearest_flat_tree_ancestor(node, |facts| facts.is_svg_svg_element || facts.is_symbol_element)
+        else {
+            return CssPixels::default();
+        };
+        let viewport = self.svg_viewport_element_size(element);
+        (viewport.width + viewport.height) * CssPixels::nearest_value_for(0.5)
+    }
+
+    // https://svgwg.org/svg2-draft/struct.html#UseElement
+    // The x and y properties define an additional transformation (translate(x,y), where x and y
+    // represent the computed value of the corresponding property) to be applied to the 'use'
+    // element, after any transformations specified with other properties.
+    fn svg_additional_element_transform(&self, node: Node) -> FfiAffineTransform {
+        if !self.svg_attributes(node).is_use_element {
+            return FfiAffineTransform::default();
+        }
+        let viewport = self
+            .nearest_flat_tree_ancestor(node, |facts| facts.is_svg_svg_element)
+            .map_or_else(FfiCssPixelSize::default, |element| {
+                self.svg_viewport_element_size(element)
+            });
+        let style = self.style(node);
+        FfiAffineTransform::default().translated(
+            style.x().to_px(viewport.width).to_float(),
+            style.y().to_px(viewport.height).to_float(),
+        )
+    }
+
+    /// The element's own CSS transform, reduced to the 2D affine SVG geometry works in, with
+    /// `additional_element_transform`, a <use> element's translation, multiplied in.
+    fn svg_graphics_element_transform(
+        &self,
+        node: Node,
+        additional_element_transform: FfiAffineTransform,
+    ) -> FfiAffineTransform {
+        let style = self.style(node);
+        let matrix = crate::painting::visual_context::node_values::multiply_transform_functions(
+            libgfx_rust::FloatMatrix4x4::identity(),
+            style.transform().resolved_transforms.as_slice(),
+            CssPixelRect::default(),
+        );
+        libgfx_rust::multiply_affine(matrix.extract_2d_affine(), additional_element_transform.into()).into()
+    }
+
+    /// The stroke width the path's bounding box has to grow by: an invisible stroke takes up no
+    /// room.
+    // NB: CSS geometry-effect metadata relies on this reading only stroke color and width.
+    //     If SVG bounds begin accounting for caps, joins, miter limits, or stroke opacity,
+    //     mark those properties as affecting layout geometry as well.
+    fn visible_stroke_width(&self, node: Node, viewport_percentage_basis: CssPixels) -> f32 {
+        let style = self.style(node);
+        let svg = style.inherited_svg();
+        let stroke_is_visible =
+            crate::painting::record::paint::svg::svg_paint_color(&svg.stroke).is_some_and(|color| color >> 24 != 0);
+        if !stroke_is_visible {
+            return 0.0;
+        }
+        svg.stroke_width
+            .length_percentage()
+            .map_or(0.0, |value| value.to_px(viewport_percentage_basis).to_double() as f32)
     }
 
     fn style(&self, node: Node) -> StyleValues<'_> {
@@ -501,7 +646,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.used_values(node).rare_data_mut().svg.viewport_size = Some(viewport_size);
     }
 
-    fn commit_svg_element_facts(&self, node: Node, facts: FfiSvgElementFacts, attributes: FfiSvgAttributeFacts) {
+    fn commit_svg_element_facts(&self, node: Node, facts: SvgElementFacts, attributes: FfiSvgAttributeFacts) {
         let used = self.used_values(node);
         let mut rare = used.rare_data_mut();
         rare.svg.view_box = attributes.has_active_view_box.then_some(attributes.active_view_box);
@@ -790,7 +935,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             self.layout_image_element(graphics_box);
         } else {
             // Assume this is a path-like element.
-            self.layout_path_like_element(run, graphics_box, input);
+            self.layout_path_like_element(run, graphics_box, input, facts);
         }
 
         if let Some(mask) = self.first_child_of_kind(graphics_box, NodeKind::SVGMaskBox) {
@@ -809,8 +954,13 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
     }
 
-    fn layout_path_like_element(&mut self, run: &FormattingContextRun<'pass>, graphics_box: Node, input: LayoutInput) {
-        let facts = self.svg_facts(graphics_box);
+    fn layout_path_like_element(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        graphics_box: Node,
+        input: LayoutInput,
+        facts: SvgElementFacts,
+    ) {
         // SAFETY: The callback computes geometry synchronously and transfers
         // sole ownership of a heap-allocated path into the result.
         let result = unsafe {
@@ -856,18 +1006,53 @@ impl<'pass> SvgFormattingContext<'pass> {
         used.has_definite_block_size.set(true);
     }
 
-    fn layout_image_element(&self, image_box: Node) {
-        // SAFETY: The callback returns a POD bounding box for the live image
-        // node and requested viewport.
-        let source = unsafe {
-            (self.callbacks.host.svg_image_bounding_box)(
-                self.callbacks.host.context,
-                self.callbacks.shell(image_box),
-                self.viewport_width,
-                self.viewport_height,
-            )
+    // https://w3c.github.io/svgwg/svg2-draft/embedded.html#Placement
+    // Computation of automatically-sized values follows the Default Sizing Algorithm defined for
+    // replaced elements in CSS layout [css-images-3]. In particular, when the referenced resource
+    // does not have an intrinsic size (such as image types with no defined dimensions), it is
+    // assumed to have a width of 300px and a height of 150px.
+    fn svg_image_bounding_box(&self, image_box: Node) -> SvgCssPixelRect {
+        use crate::painting::record::paint::replaced::{Fraction, SizeWithAspectRatio, run_default_sizing_algorithm};
+        let style = self.style(image_box);
+        let specified_width = style
+            .width()
+            .is_length_percentage()
+            .then(|| style.width().to_px(self.viewport_width));
+        let specified_height = style
+            .height()
+            .is_length_percentage()
+            .then(|| style.height().to_px(self.viewport_height));
+
+        let facts = self
+            .callbacks
+            .arena()
+            .replaced_content_facts(image_box)
+            .unwrap_or_default();
+        let natural = SizeWithAspectRatio {
+            width: facts.has_auto_content_width.then_some(facts.auto_content_width),
+            height: facts.has_auto_content_height.then_some(facts.auto_content_height),
+            aspect_ratio: (facts.auto_content_aspect_ratio_denominator != CssPixels::default()).then(|| {
+                Fraction::of(
+                    facts.auto_content_aspect_ratio_numerator,
+                    facts.auto_content_aspect_ratio_denominator,
+                )
+            }),
         };
-        let bounding_box = float_rect_to_css_pixels(source);
+        // The default object size applies only once something has decoded; until then the image
+        // has no size at all.
+        let default_size = CssPixelSize::new(facts.default_preferred_width, facts.default_preferred_height);
+
+        let sizing = run_default_sizing_algorithm(specified_width, specified_height, &natural, default_size);
+        SvgCssPixelRect {
+            x: style.x().to_px(self.viewport_width),
+            y: style.y().to_px(self.viewport_height),
+            width: sizing.width,
+            height: sizing.height,
+        }
+    }
+
+    fn layout_image_element(&self, image_box: Node) {
+        let bounding_box = self.svg_image_bounding_box(image_box);
         let used_pointer = self.used_values(image_box);
         let used = &used_pointer;
         used.set_content_inline_size(bounding_box.width);
@@ -954,7 +1139,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 let child_used = child_used_pointer;
                 // The container's bounding box includes descendants' transforms; children lay out
                 // untransformed, so each child rect maps through the child's own transform here.
-                let mapped_child_rect = self.svg_facts(child).element_transform.map_rect(FfiFloatRect {
+                let mapped_child_rect = self.svg_element_transform(child).map_rect(FfiFloatRect {
                     x: child_used.content_offset.get().x.raw_value() as f32 / 64.0,
                     y: child_used.content_offset.get().y.raw_value() as f32 / 64.0,
                     width: child_used.content_inline_size.get().raw_value() as f32 / 64.0,
