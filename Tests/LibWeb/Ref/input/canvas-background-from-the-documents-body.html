@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/canvas-background-from-the-documents-body-ref.html">
+<style>
+    body { margin: 0; }
+    iframe { display: block; border: 0; width: 100px; height: 100px; }
+</style>
+<!-- The first of two bodies is removed after a layout: the second one becomes the document's body. -->
+<iframe srcdoc="<style>body { margin: 0; height: 50px; }</style><body style='background: red'></body><script>
+    const second = document.createElement('body');
+    second.style.background = 'green';
+    document.documentElement.append(second);
+    document.body.offsetWidth;
+    document.body.remove();
+</script>"></iframe>
+<!-- A second body moved before the first after a layout becomes the document's body. -->
+<iframe srcdoc="<style>body { margin: 0; height: 50px; }</style><body></body><script>
+    const second = document.createElement('body');
+    second.style.background = 'green';
+    document.documentElement.append(second);
+    document.body.offsetWidth;
+    document.documentElement.moveBefore(second, document.body);
+</script>"></iframe>
+<!-- Only the first body is the document's body: the second, below it, paints its own background. -->
+<iframe srcdoc="<style>body { margin: 0; height: 50px; }</style><body></body><script>
+    const second = document.createElement('body');
+    second.style.background = 'green';
+    document.documentElement.append(second);
+</script>"></iframe>
+<!-- A frameset before the body is the document's body: the body paints its own background. -->
+<iframe srcdoc="<style>body { margin: 0; height: 50px; } frameset { display: none; }</style><body style='background: green'></body><script>
+    document.documentElement.insertBefore(document.createElement('frameset'), document.body);
+</script>"></iframe>

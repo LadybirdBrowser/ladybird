@@ -1,0 +1,6 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x2000]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 2000 0+0+0] [BFC] children: not-inline
+    BlockContainer <div#tall> at [0,0] [0+0+0 100 0+0+700] [0+0+0 2000 0+0+0] children: not-inline
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x2000] (z-index: auto)
