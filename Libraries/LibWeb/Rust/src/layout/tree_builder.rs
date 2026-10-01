@@ -117,7 +117,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub create_principal_element_layout:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiElementLayoutKind) -> NodeSlotId,
     pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    pub principal_text_layout_facts: unsafe extern "C" fn(*mut c_void) -> FfiTextLayoutFacts,
     pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub set_principal_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, NodeSlotId),
     pub principal_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
@@ -153,16 +152,6 @@ pub struct FfiDisplayContentsFacts {
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
     pub slot_element: *mut c_void,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiTextLayoutFacts {
-    pub has_style_parent: bool,
-    pub parent_display_is_contents: bool,
-    pub text_is_ascii_whitespace: bool,
-    pub parent_collapses_whitespace: bool,
-    pub style_parent_style_record: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -1529,20 +1518,19 @@ fn construct_principal_layout_node(
             let created = unsafe { (host.callbacks.create_principal_document_layout)(frame, dom_node) };
             created_box = Some(host.layout().created(created));
         } else if entry_facts.is_text {
-            // SAFETY: The DOM text node remains live throughout the fact query.
-            let facts = unsafe { (host.callbacks.principal_text_layout_facts)(dom_node) };
+            let layout_host = host.layout();
+            let facts = layout_host.arena().text_style_parent_facts(update.style_node);
             let needs_style_wrapper = display_contents_text_needs_style_wrapper(
                 facts.has_style_parent,
                 facts.parent_display_is_contents,
-                facts.text_is_ascii_whitespace,
+                layout_host.arena().text_is_ascii_whitespace(update.style_node),
                 facts.parent_collapses_whitespace,
             );
             // SAFETY: The frame and DOM text node remain live throughout construction.
             let text_layout_node = unsafe { (host.callbacks.create_principal_text_layout)(frame, dom_node) };
-            let layout_host = host.layout();
             if needs_style_wrapper {
                 let wrapper = layout_host.create_anonymous_box_from_style_record(
-                    facts.style_parent_style_record,
+                    facts.style_record,
                     AnonymousStyleKind::InlineStyleWrapper,
                     AnonymousStyleOverrides::default(),
                     NodeKind::InlineNode,
