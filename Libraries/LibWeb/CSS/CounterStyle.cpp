@@ -8,6 +8,7 @@
 #include <AK/HashTable.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS {
 
@@ -726,6 +727,96 @@ Utf16String generate_a_counter_representation(RefPtr<CounterStyle const> const& 
 {
     HashTable<Utf16FlyString> fallback_history;
     return generate_a_counter_representation_impl(counter_style, style_scope, value, fallback_history);
+}
+
+// The algorithm descriptors travel as flat columns of `AK::Utf16FlyString` raw words; the Rust side takes ownership
+// of the one reference each leaked word carries.
+static Parser::ValueParserFFI::FfiRegisteredCounterStyle* create_rust_counter_style(CounterStyleAlgorithm const& algorithm)
+{
+    Vector<size_t> symbols;
+    Vector<i32> additive_weights;
+    u8 algorithm_kind = 0;
+    u8 generic_system = 0;
+    u8 extended_cjk_style = 0;
+    i32 fixed_first_symbol = 0;
+
+    algorithm.visit(
+        [&](AdditiveCounterStyleAlgorithm const& additive) {
+            algorithm_kind = 0;
+            symbols.ensure_capacity(additive.symbol_list.size());
+            additive_weights.ensure_capacity(additive.symbol_list.size());
+            for (auto const& tuple : additive.symbol_list) {
+                symbols.unchecked_append(tuple.symbol.to_raw_leaked());
+                additive_weights.unchecked_append(tuple.weight);
+            }
+        },
+        [&](FixedCounterStyleAlgorithm const& fixed) {
+            algorithm_kind = 1;
+            fixed_first_symbol = fixed.first_symbol;
+            for (auto const& symbol : fixed.symbol_list)
+                symbols.append(symbol.to_raw_leaked());
+        },
+        [&](GenericCounterStyleAlgorithm const& generic) {
+            algorithm_kind = 2;
+            generic_system = to_underlying(generic.type);
+            for (auto const& symbol : generic.symbol_list)
+                symbols.append(symbol.to_raw_leaked());
+        },
+        [&](EthiopicNumericCounterStyleAlgorithm const&) {
+            algorithm_kind = 3;
+        },
+        [&](ExtendedCJKCounterStyleAlgorithm const& extended_cjk) {
+            algorithm_kind = 4;
+            extended_cjk_style = to_underlying(extended_cjk.type);
+        });
+
+    // The discriminants cross as raw codes; the Rust side depends on them.
+    static_assert(to_underlying(CounterStyleSystem::Cyclic) == 0);
+    static_assert(to_underlying(CounterStyleSystem::Numeric) == 1);
+    static_assert(to_underlying(CounterStyleSystem::Alphabetic) == 2);
+    static_assert(to_underlying(CounterStyleSystem::Symbolic) == 3);
+    static_assert(to_underlying(ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal) == 0);
+    static_assert(to_underlying(ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal) == 8);
+
+    Parser::ValueParserFFI::FfiCounterStyleDescriptors descriptors {
+        .algorithm_kind = algorithm_kind,
+        .generic_system = generic_system,
+        .extended_cjk_style = extended_cjk_style,
+        .fixed_first_symbol = fixed_first_symbol,
+        .symbols = symbols.data(),
+        .symbol_count = symbols.size(),
+        .additive_weights = additive_weights.data(),
+    };
+    return Parser::ValueParserFFI::rust_counter_style_create(descriptors);
+}
+
+CounterStyle::CounterStyle(Utf16FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, Utf16FlyString prefix, Utf16FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<Utf16FlyString> fallback, CounterStylePad pad)
+    : m_name(move(name))
+    , m_algorithm(move(algorithm))
+    , m_negative_sign(move(negative_sign))
+    , m_prefix(move(prefix))
+    , m_suffix(move(suffix))
+    , m_range(move(range))
+    , m_fallback(move(fallback))
+    , m_pad(move(pad))
+{
+}
+
+CounterStyle::~CounterStyle()
+{
+    Parser::ValueParserFFI::rust_counter_style_release(m_rust_counter_style);
+}
+
+Parser::ValueParserFFI::FfiRegisteredCounterStyle const* CounterStyle::rust_counter_style() const
+{
+    if (!m_rust_counter_style)
+        m_rust_counter_style = create_rust_counter_style(m_algorithm);
+    return m_rust_counter_style;
+}
+
+bool counter_style_representation_depends_on_value(CounterStyle const& counter_style)
+{
+    return Parser::ValueParserFFI::rust_counter_style_representation_depends_on_value(counter_style.rust_counter_style());
 }
 
 }
