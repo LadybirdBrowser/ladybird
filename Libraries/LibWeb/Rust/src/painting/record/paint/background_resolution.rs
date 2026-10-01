@@ -13,7 +13,7 @@ use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
 use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
-use crate::painting::host::{FfiLayerImageList, FfiRootBackgroundSource};
+use crate::painting::host::{FfiLayerImageList, RootBackgroundSource};
 use crate::painting::paintable_geometry::{
     absolute_border_box_rect, absolute_padding_box_rect, committed_border_box_edges, committed_padding,
     committed_uses_collapsing_borders_model,
@@ -116,7 +116,7 @@ pub(crate) fn operator_erases_destination_outside_the_drawn_geometry(operator: C
 pub(crate) fn body_background_is_propagated_to_root(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-    root_background_source: FfiRootBackgroundSource,
+    root_background_source: RootBackgroundSource,
 ) -> bool {
     root_background_source.use_body_background_properties
         && layout_arena.node_flags_if_live(slot) & NodeFlag::IsBody as u32 != 0
@@ -124,7 +124,7 @@ pub(crate) fn body_background_is_propagated_to_root(
 
 fn background_layers_style(
     layout_arena: &impl PaintableRowsRead,
-    root_background_source: FfiRootBackgroundSource,
+    root_background_source: RootBackgroundSource,
     node: NodeSlotId,
 ) -> Option<ComputedValuesView<'_>> {
     if body_background_is_propagated_to_root(layout_arena, node, root_background_source) {
@@ -166,7 +166,7 @@ fn any_background_layer_has_a_fixed_attachment_image(style: ComputedValuesView<'
 
 pub(crate) fn background_depends_on_live_scroll_offset(
     layout_arena: &impl PaintableRowsRead,
-    root_background_source: crate::painting::host::FfiRootBackgroundSource,
+    root_background_source: crate::painting::host::RootBackgroundSource,
     node: NodeSlotId,
 ) -> bool {
     let Some(background_style) = background_layers_style(layout_arena, root_background_source, node) else {
@@ -177,7 +177,7 @@ pub(crate) fn background_depends_on_live_scroll_offset(
 
 pub(crate) fn background_has_fixed_attachment(
     layout_arena: &impl PaintableRowsRead,
-    root_background_source: crate::painting::host::FfiRootBackgroundSource,
+    root_background_source: crate::painting::host::RootBackgroundSource,
     node: NodeSlotId,
 ) -> bool {
     let is_root_element = style_queries::node_is_root_element(layout_arena, node);
@@ -223,7 +223,7 @@ pub(crate) struct BackgroundPaintSource<'a> {
 pub(crate) fn background_paint_source_from_style_and_geometry(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-    root_background_source: FfiRootBackgroundSource,
+    root_background_source: RootBackgroundSource,
 ) -> Option<BackgroundPaintSource<'_>> {
     let style = layout_arena.node_style_if_live(slot)?;
     if body_background_is_propagated_to_root(layout_arena, slot, root_background_source) {
@@ -398,7 +398,7 @@ fn computed_background_layers(style: ComputedValuesView<'_>, facts_owner: NodeSl
 pub(crate) fn background_color_can_be_compositor_animated(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-    root_background_source: FfiRootBackgroundSource,
+    root_background_source: RootBackgroundSource,
 ) -> bool {
     if style_queries::node_is_root_element(layout_arena, slot)
         || body_background_is_propagated_to_root(layout_arena, slot, root_background_source)
@@ -805,7 +805,7 @@ pub(crate) fn resolve_mask_layers<'a, O: Observer>(
 pub(crate) fn has_background_to_paint(
     arena: &impl PaintableRowsRead,
     paintable: NodeSlotId,
-    root_background_source: FfiRootBackgroundSource,
+    root_background_source: RootBackgroundSource,
 ) -> bool {
     if body_background_is_propagated_to_root(arena, paintable, root_background_source) {
         return false;

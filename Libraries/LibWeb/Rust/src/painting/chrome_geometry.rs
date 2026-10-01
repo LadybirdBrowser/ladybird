@@ -9,7 +9,7 @@ use crate::css::css_pixels::{CssPixelFraction, CssPixelPoint, CssPixelRect, CssP
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::ffi::{FfiChromeMetrics, ScrollDirection};
-use crate::painting::host::{FfiHitTestQueryCallbacks, FfiRootBackgroundSource};
+use crate::painting::host::{FfiHitTestQueryCallbacks, RootBackgroundSource};
 use crate::painting::paintable_data::PaintableFlag;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -434,7 +434,7 @@ impl<'a, Arena: PaintableRowsRead> ChromeGeometry<'a, Arena> {
 fn is_canvas_background_source(
     arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-    root_background_source: FfiRootBackgroundSource,
+    root_background_source: RootBackgroundSource,
 ) -> bool {
     style_queries::node_is_root_element(arena, slot)
         || (root_background_source.use_body_background_properties && root_background_source.body_layout_node == slot)
@@ -443,7 +443,7 @@ fn is_canvas_background_source(
 pub(crate) fn scrollbar_colors_for_paint(
     arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-    root_background_source: FfiRootBackgroundSource,
+    root_background_source: RootBackgroundSource,
     canvas_background_color: Color,
 ) -> (Color, Color) {
     let Some(style) = arena.node_style_if_live(slot) else {

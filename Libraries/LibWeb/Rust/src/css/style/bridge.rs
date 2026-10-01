@@ -756,6 +756,8 @@ pub mod element_adjustment_fact {
     /// An HTML `<html>`, whose first `<body>` child propagates its overflow to the viewport when it
     /// is the root.
     pub const IS_HTML_HTML_ELEMENT: u32 = 1 << 30;
+    /// An HTML `<frameset>`, which is the document's body in place of a `<body>`.
+    pub const IS_HTML_FRAMESET_ELEMENT: u32 = 1 << 31;
     /// The facts only the layout tree build reads. No style depends on them, so a style record
     /// computed for one element is as good for another that differs only in these.
     pub const LAYOUT_TREE_FACTS: u32 = IS_SVG_ELEMENT
@@ -766,7 +768,8 @@ pub mod element_adjustment_fact {
         | IS_SVG_MASK_ELEMENT
         | IS_SVG_CLIP_PATH_ELEMENT
         | IS_SVG_PATTERN_ELEMENT
-        | RENDERED_IN_TOP_LAYER;
+        | RENDERED_IN_TOP_LAYER
+        | IS_HTML_FRAMESET_ELEMENT;
     /// The facts only the damage of a record move reads. No style depends on them either.
     pub const RECORD_DAMAGE_FACTS: u32 = IS_SVG_GRAPHICS_ELEMENT | IS_HTML_BODY_ELEMENT | IS_HTML_HTML_ELEMENT;
 }

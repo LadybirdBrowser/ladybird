@@ -9,7 +9,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::UniqueNodeId;
 use crate::painting::ffi::FfiChromeMetrics;
 use crate::painting::force_dark::ForceDarkSettings;
-use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, FfiRootBackgroundSource};
+use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, RootBackgroundSource};
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::{Color, IntRect, IntSize};
 use std::borrow::Cow;
@@ -22,7 +22,7 @@ use std::borrow::Cow;
 pub(crate) struct UncapturedContentInputs {
     pub viewport_wheel_overflow_x: u8,
     pub viewport_wheel_overflow_y: u8,
-    pub root_background_source: FfiRootBackgroundSource,
+    pub root_background_source: RootBackgroundSource,
     // Scroll commands use a scrollport at the origin. Its position is compositor state.
     pub device_viewport_size: IntSize,
     pub is_recording_async_scrolling_metadata: bool,
