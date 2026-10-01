@@ -1782,6 +1782,7 @@ impl StyleEngineState {
             let style_delta_bytes = (style_deltas.capacity() * size_of::<PublishedStyleDeltaRecord>()) as u64;
             style_delta_memory.resize_required_to(&mut self.retained.memory, style_delta_bytes);
             let mut engine_computed_record_scratch = publication::EngineComputedRecordScratch::default();
+            engine_computed_record_scratch.document_environment_moved = environment_changed;
             let computation_loop_timer = PassTimer::start();
             computation_scratch_memory.resize_required_to(
                 &mut self.retained.memory,
@@ -1843,8 +1844,7 @@ impl StyleEngineState {
                                 .map(|pseudo| pseudo.kind.0)
                         })
                         .collect();
-                    let winners_are_exact = !environment_changed
-                        && !rule_declarations_edited
+                    let winners_are_exact = !rule_declarations_edited
                         && selector_truth_changes.refreshes_for(root).is_empty()
                         && (answer_is_unchanged
                             || (!flipped_rules.is_empty()
@@ -1867,6 +1867,7 @@ impl StyleEngineState {
                     engine_computed_record_scratch.capacity_bytes(),
                 );
             }
+            self.host.batch_moves_for_retries = engine_computed_record_scratch.batch_moves();
             // What the chain above a node proves, read by its children in the same pass. A
             // published ancestor's change is exact for a descendant only when none of the
             // ancestors can move anything the descendant inherits, so the fold below is the
@@ -2093,8 +2094,7 @@ impl StyleEngineState {
                                     .map(|pseudo| pseudo.kind.0)
                             })
                             .collect();
-                        let winners_are_exact = !environment_changed
-                            && !rule_declarations_edited
+                        let winners_are_exact = !rule_declarations_edited
                             && selector_truth_changes.refreshes_for(node).is_empty()
                             && (answer_is_unchanged
                                 || (!flipped_rules.is_empty()

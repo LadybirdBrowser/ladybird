@@ -1418,6 +1418,7 @@ impl StyleEngineState {
                 diagnostic_plan_capture: None,
             },
             host: HostState {
+                batch_moves_for_retries: Default::default(),
                 font_resolver: None,
                 #[cfg(feature = "style-recording")]
                 recording_id: None,

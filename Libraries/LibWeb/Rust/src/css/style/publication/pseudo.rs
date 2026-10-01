@@ -174,6 +174,7 @@ impl RetainedState {
         let facts = self.computed_group_sets.adjustment_facts(node) & PSEUDO_ELEMENT_ADJUSTMENT_FACTS;
         let originating_inputs_unchanged = inherited_inputs_unchanged
             && !scratch.root_font_inputs_changed
+            && !scratch.document_environment_moved
             && old_element_record.is_some_and(|old| {
                 let Some(old_view) = self.computed_group_sets.style_record_view(old.raw()) else {
                     return false;

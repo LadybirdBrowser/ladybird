@@ -559,8 +559,10 @@ impl RetainedState {
         // A moved environment reaches every winner written with a substitution, and so does a
         // moved custom-property registry. A winner written with `attr()` computes to what the
         // element's attributes hold now, which no winner delta shows. Such a record is driven
-        // again in full, as is one holding no current cascade state.
+        // again in full, as is one holding no current cascade state or one under a moved document
+        // environment.
         let drive_in_full = holds_no_current_cascade_state
+            || scratch.document_environment_moved
             || ((environment.is_some() || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
             || self.state_reads_attributes(node, state);
@@ -4103,9 +4105,21 @@ impl EngineComputabilityScratch {
     }
 }
 
+/// What a flush moved under every row: a row the host asks for again once it has installed the
+/// rows before it is driven under the same.
+#[derive(Clone, Copy, Default)]
+pub(super) struct BatchMoves {
+    document_environment: bool,
+    root_font_inputs: bool,
+}
+
 #[derive(Default)]
 pub(super) struct EngineComputedRecordScratch {
     pub(super) font_drive: drive::FontDriveScratch,
+    /// Whether this flush carries a document environment change. A record's winners stand
+    /// through one while the values they computed to may not, so such a record is driven again
+    /// in full against the document's inputs rather than kept.
+    pub(super) document_environment_moved: bool,
     pub(super) prepared_root_font: Option<(StyleNodeID, ParentInputsMoved, drive::FontDriveScratch)>,
     // NB: Preserve the root's existing remaining-phase context after preparing consumer inputs.
     root_element_inputs: Option<(StyleNodeID, RootFontInputs)>,
@@ -4929,6 +4943,16 @@ impl StyleEngineState {
             scratch.prepared_root_font = Some((node, parent_inputs_moved, std::mem::take(&mut scratch.font_drive)));
         }
         self.apply_substitution_effects(scratch);
+    }
+}
+
+impl EngineComputedRecordScratch {
+    /// What this flush moved under every row, for the rows the host asks for again.
+    pub(super) fn batch_moves(&self) -> BatchMoves {
+        BatchMoves {
+            document_environment: self.document_environment_moved,
+            root_font_inputs: self.root_font_inputs_changed,
+        }
     }
 }
 
