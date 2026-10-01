@@ -1,2 +1,2 @@
 ancestor container type: engine records 1, C++ recomputations 1, width: 50px
-ancestor writing mode: engine records 1, C++ recomputations 1, width: 3px, height: 7px
+ancestor writing mode: engine records 2, C++ recomputations 0, width: 3px, height: 7px

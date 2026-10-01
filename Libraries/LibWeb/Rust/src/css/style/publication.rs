@@ -515,6 +515,13 @@ impl RetainedState {
         // its settled ancestors published. One a declined ancestor may still move waits for the
         // host to install that ancestor's record, as a row waits for its parent's.
         if self.published_container_verdicts.contains_key(&node) {
+            // A descendant recompute can stand for an ancestor's moved container type, which the
+            // verdicts were decided without: the container's new record is not published yet, so
+            // nothing has dropped them. C++ decides the gated rules again.
+            if scratch.recompute_in_full {
+                counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+                return Err(Unanswered::Refused);
+            }
             if self.container_ancestor_is_unsettled(node, scratch) {
                 counters.bump(Counter::EngineComputedRecordBailRecordParent);
                 return Err(Unanswered::AwaitsParent);
@@ -633,10 +640,12 @@ impl RetainedState {
         // element's place among its siblings to where it stands now, and one written with a
         // container-relative length to what its containers measure now, which no winner delta
         // shows. Such a record is driven again in full, as is one holding no current cascade
-        // state, one under a moved document environment, and one that rolled a property back
-        // below a substituted revert keyword, to declarations no winner names.
+        // state, one under a moved document environment, one whose reaction stands for inputs no
+        // winner shows, and one that rolled a property back below a substituted revert keyword,
+        // to declarations no winner names.
         let drive_in_full = holds_no_current_cascade_state
             || scratch.document_environment_moved
+            || scratch.recompute_in_full
             || ((environment.is_some() || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
             || self.state_reads_beyond_environment(node, state)
@@ -4777,6 +4786,9 @@ pub(super) struct EngineComputedRecordScratch {
     /// font cascade out of the published `@font-face` table, which is not the one the record
     /// holds. Set beside each row the flush derives.
     pub(super) font_environment_moved: bool,
+    /// Whether the reaction of the element being derived drives its record again in full whatever
+    /// its winners did, for inputs the winners do not show. Set beside each row the flush derives.
+    pub(super) recompute_in_full: bool,
     /// Whether the row being derived had its selector answer or its declarations move this flush
     /// without its winners necessarily being published again.
     pub(super) answer_or_declarations_moved: bool,

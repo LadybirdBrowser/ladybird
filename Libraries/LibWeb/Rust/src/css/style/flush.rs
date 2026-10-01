@@ -2069,12 +2069,15 @@ impl StyleEngineState {
                     // reaction (a reaction C++ asked for through a recorded input is C++'s), and a
                     // first record takes any published-style reaction. So is a moved font
                     // environment: the `@font-face` table the record's font cascade resolves
-                    // against is a published input, and the record is driven again in full.
+                    // against is a published input, and the record is driven again in full. So is
+                    // a descendant recompute, which C++ answers with a full recompute, as the
+                    // engine does.
                     const DERIVABLE_REACTIONS: u8 = transaction::STYLE_REACTION_RECOMPUTE_STYLE
                         | transaction::STYLE_REACTION_INHERITED_STYLE
                         | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
                     const SETTLEABLE_REACTIONS: u8 = transaction::STYLE_REACTION_PUBLISHED_STYLE
                         | transaction::STYLE_REACTION_FONT_INPUTS_CHANGED
+                        | transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
                         | DERIVABLE_REACTIONS;
                     let reaction_is_settleable = reaction & !SETTLEABLE_REACTIONS == 0
                         && !(reaction & DERIVABLE_REACTIONS != 0 && style_input_nodes_for_cpp.contains(&node));
@@ -2178,6 +2181,10 @@ impl StyleEngineState {
                             || !selector_truth_changes.refreshes_for(node).is_empty();
                         engine_computed_record_scratch.font_environment_moved =
                             reaction & transaction::STYLE_REACTION_FONT_INPUTS_CHANGED != 0;
+                        // A descendant recompute stands for inputs no winner shows: the root's font
+                        // metrics, an ancestor's direction, writing mode or container type.
+                        engine_computed_record_scratch.recompute_in_full =
+                            reaction & transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES != 0;
                         let record_answer = self.engine_computed_record_delta(
                             node,
                             answer.cascade_winners_are_complete,
@@ -2187,6 +2194,7 @@ impl StyleEngineState {
                             counters,
                         );
                         engine_computed_record_scratch.font_environment_moved = false;
+                        engine_computed_record_scratch.recompute_in_full = false;
                         record_answer
                     });
                     if let Some(Err(publication::Unanswered::Suspended(publication::Suspension::Font))) =
