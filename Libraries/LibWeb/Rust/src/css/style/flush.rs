@@ -289,7 +289,7 @@ impl StyleEngineState {
         // The nodes whose containers moved under what their queries or container-relative lengths
         // read of them.
         let container_input_nodes = std::mem::take(&mut self.retained.container_input_nodes);
-        let parent_inputs_moved_nodes = std::mem::take(&mut self.retained.parent_inputs_moved_nodes);
+        let mut parent_inputs_moved_nodes = std::mem::take(&mut self.retained.parent_inputs_moved_nodes);
         self.host
             .deferred_element_style_input_memory
             .resize_required_to(&mut self.retained.memory, 0);
@@ -2036,6 +2036,9 @@ impl StyleEngineState {
             }
             let mut next_published_index = 0;
             let mut pending_parent_inputs = None;
+            // The reactions rows of the batch derived for children that are rows of it too, which
+            // join the child's own reaction.
+            let mut derived_child_reactions = HashMap::<StyleNodeID, (u8, u8)>::default();
             while next_published_index < published_nodes.len() {
                 let mut suspended_on_font = false;
                 for (published_index, node) in published_nodes.iter().copied().enumerate().skip(next_published_index) {
@@ -2055,6 +2058,12 @@ impl StyleEngineState {
                         .map_or((transaction::STYLE_REACTION_PUBLISHED_STYLE, 0), |index| {
                             (style_input_reactions[index].1, style_input_reactions[index].2)
                         });
+                    let (reaction, inherited_style_groups) = match derived_child_reactions.get(&node) {
+                        Some(&(derived_reaction, derived_groups)) => {
+                            (reaction | derived_reaction, inherited_style_groups | derived_groups)
+                        }
+                        None => (reaction, inherited_style_groups),
+                    };
                     let pseudo_inputs_may_have_changed =
                         pseudo_inputs_may_have_changed || style_input_reaction_index.is_some();
                     let old_style_record = self
@@ -2330,8 +2339,9 @@ impl StyleEngineState {
                         } else {
                             0
                         },
-                        // What the element's move damages is answered with the record it computed.
-                        record_damage: if gap == FfiStyleDeltaGap::Computed
+                        // What the element's move damages is answered with the record it computed or
+                        // the inherited groups it swapped.
+                        record_damage: if matches!(gap, FfiStyleDeltaGap::None | FfiStyleDeltaGap::Computed)
                             && old_style_record != 0
                             && old_style_record != new_style_record
                         {
@@ -2349,6 +2359,7 @@ impl StyleEngineState {
                             capacity::ShallowCapacityBytes::shallow_capacity_bytes(&style_deltas),
                         );
                     }
+                    let row_index = style_deltas.len();
                     style_deltas.push(style_delta);
                     // The pseudo-element records the engine settled beside an engine-computed record
                     // follow it, for C++ to install with it.
@@ -2388,6 +2399,38 @@ impl StyleEngineState {
                                 explicitly_inherited_groups: 0,
                                 record_damage,
                             });
+                        }
+                    }
+                    // What applying a row the engine settled derives for the element's children is read
+                    // from the row's records and their damage. A child that is a row of this batch takes
+                    // it as its own reaction before it settles, rather than in another transaction once
+                    // the host's application of this row derived it; the host still derives it for every
+                    // other child, and finds it taken for a child the batch settled with it.
+                    if matches!(gap, FfiStyleDeltaGap::None | FfiStyleDeltaGap::Computed)
+                        && self.engine_row_derives_children(node, old_style_record, new_style_record)
+                    {
+                        let mut derived = smallvec::SmallVec::<[child_reactions::DerivedChildReaction; 8]>::new();
+                        self.derive_engine_row_child_reactions(
+                            node,
+                            style_delta.reaction,
+                            old_style_record,
+                            new_style_record,
+                            style_deltas[row_index..].iter().map(|row| row.record_damage),
+                            |child| {
+                                if published_match_answers.lookup(child.child).is_some() {
+                                    derived.push(child);
+                                }
+                            },
+                        );
+                        for child in derived {
+                            if child.parent_display_moved {
+                                parent_inputs_moved_nodes.insert(child.child);
+                            }
+                            if child.reaction != 0 {
+                                let joined = derived_child_reactions.entry(child.child).or_insert((0, 0));
+                                joined.0 |= child.reaction;
+                                joined.1 |= child.inherited_style_groups;
+                            }
                         }
                     }
                     // NB: Sample scratch coexistence without scanning its containers per element.

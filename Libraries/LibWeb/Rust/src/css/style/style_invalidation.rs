@@ -135,6 +135,40 @@ impl StyleInvalidation {
     }
 }
 
+/// What the damages of a row's moves, its element's and its pseudo-elements', tell the element's
+/// children, in the shape the host reports an applied reaction with: the inherited style groups
+/// that moved, and the facts the damage decides.
+pub(super) fn child_reaction_facts_of_damage(damages: impl IntoIterator<Item = u32>) -> (u8, u32) {
+    use super::bridge::style_reaction_applied_fact as fact;
+    let mut damage = StyleInvalidation::default();
+    for packed in damages {
+        damage.merge(StyleInvalidation::unpack(packed));
+    }
+    let mut facts = 0;
+    // As the host's invalidation reads it, a computed value that moved without a consequence asks
+    // for nothing.
+    if damage.level == 0
+        && damage.visual_context == 0
+        && !damage.rebuild_stacking_context
+        && !damage.resnap_scroll_container
+        && !damage.recompute_descendants
+        && damage.inherited_groups == 0
+        && !damage.repaint_selection
+        && !damage.affects_hit_testing
+        && !damage.repaint_text_decorations
+        && !damage.non_inherited_inheritance_source
+    {
+        facts |= fact::INVALIDATION_IS_NONE;
+    }
+    if damage.level >= INVALIDATION_REBUILD_LAYOUT_TREE {
+        facts |= fact::NEEDS_LAYOUT_TREE_REBUILD;
+    }
+    if damage.recompute_descendants {
+        facts |= fact::RECOMPUTE_DESCENDANT_STYLES;
+    }
+    (damage.inherited_groups, facts)
+}
+
 /// What a record move damages when the engine cannot read one of its records, or the host names no
 /// style node for it: everything, which is always correct.
 pub(super) fn unreadable_record_damage() -> u32 {

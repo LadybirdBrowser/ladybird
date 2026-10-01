@@ -150,8 +150,8 @@ pub struct FfiStyleDelta {
     /// through an explicit `inherit`, which the host marks the parent with; all of them when
     /// `u32::MAX`.
     pub explicitly_inherited_groups: u32,
-    /// What moving an engine-computed element from the old record to the new one damages, packed as
-    /// an `FfiStyleInvalidationField` word. Only a word with `EngineComputed` set holds an answer;
+    /// What moving an element the engine settled from the old record to the new one damages, packed
+    /// as an `FfiStyleInvalidationField` word. Only a word with `EngineComputed` set holds an answer;
     /// the host asks for the damage of any other move.
     pub record_damage: u32,
 }
