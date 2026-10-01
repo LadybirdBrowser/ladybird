@@ -141,8 +141,8 @@ static JsonObject get_the_request_data(Request const& request, FetchTimingInfo c
     JsonValue body_size;
     if (auto const* bytes = request.body().get_pointer<ByteBuffer>())
         body_size = bytes->size();
-    else if (auto const* body = request.body().get_pointer<GC::Ref<Body>>(); body && (*body)->length().has_value())
-        body_size = *(*body)->length();
+    else if (auto const* body = request.body().get_pointer<FetchBody>(); body && body->length().has_value())
+        body_size = *body->length();
     result.set("bodySize"sv, move(body_size));
     result.set("destination"sv, request.destination().has_value() ? request_destination_to_string(*request.destination()) : ""sv);
     result.set("initiatorType"sv, request.initiator_type().has_value() ? JsonValue(initiator_type_to_string(*request.initiator_type()).to_utf16_string().to_utf8()) : JsonValue {});

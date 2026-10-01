@@ -1,0 +1,2 @@
+cancel: AbortError
+fetch: AbortError

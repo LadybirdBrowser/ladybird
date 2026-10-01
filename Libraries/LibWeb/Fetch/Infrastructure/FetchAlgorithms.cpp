@@ -7,6 +7,8 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -27,7 +29,8 @@ GC::Ref<FetchAlgorithms> FetchAlgorithms::create(Input input)
         process_early_hints_response,
         process_response,
         process_response_end_of_body,
-        process_response_consume_body);
+        process_response_consume_body,
+        move(input.request_body_reader));
 }
 
 GC::Ref<FetchAlgorithms> FetchAlgorithms::with_body_intent(Engine::BodyIntent body_intent) const
@@ -39,7 +42,8 @@ GC::Ref<FetchAlgorithms> FetchAlgorithms::with_body_intent(Engine::BodyIntent bo
         m_process_early_hints_response,
         m_process_response,
         m_process_response_end_of_body,
-        m_process_response_consume_body);
+        m_process_response_consume_body,
+        m_request_body_reader);
 }
 
 FetchAlgorithms::FetchAlgorithms(
@@ -49,7 +53,8 @@ FetchAlgorithms::FetchAlgorithms(
     ProcessEarlyHintsResponseHeapFunction process_early_hints_response,
     ProcessResponseHeapFunction process_response,
     ProcessResponseEndOfBodyHeapFunction process_response_end_of_body,
-    ProcessResponseConsumeBodyHeapFunction process_response_consume_body)
+    ProcessResponseConsumeBodyHeapFunction process_response_consume_body,
+    Optional<RequestBodyReader> request_body_reader)
     : m_body_intent(body_intent)
     , m_process_request_body_chunk_length(process_request_body_chunk_length)
     , m_process_request_end_of_body(process_request_end_of_body)
@@ -57,6 +62,7 @@ FetchAlgorithms::FetchAlgorithms(
     , m_process_response(process_response)
     , m_process_response_end_of_body(process_response_end_of_body)
     , m_process_response_consume_body(process_response_consume_body)
+    , m_request_body_reader(move(request_body_reader))
 {
 }
 
@@ -69,6 +75,10 @@ void FetchAlgorithms::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_process_response);
     visitor.visit(m_process_response_end_of_body);
     visitor.visit(m_process_response_consume_body);
+    if (m_request_body_reader.has_value()) {
+        visitor.visit(m_request_body_reader->body);
+        visitor.visit(m_request_body_reader->reader);
+    }
 }
 
 }

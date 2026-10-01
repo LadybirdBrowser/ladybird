@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A fetch locks its request body's stream as it starts, before the CORS preflight that a body without a source
+    // needs, so script cannot take the stream the fetch reads.
+    promiseTest(async () => {
+        const url = await httpTestServer().createEcho("POST", "/fetch-locks-a-request-body-stream", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "",
+        });
+        const stream = new ReadableStream({
+            pull(controller) {
+                controller.enqueue(new Uint8Array([1]));
+                controller.close();
+            },
+        });
+
+        const fetched = fetch(url, { method: "POST", body: stream, duplex: "half" });
+        println(`locked: ${stream.locked}`);
+        try {
+            stream.getReader();
+            println("getReader: succeeded");
+        } catch (error) {
+            println(`getReader: ${error.name}`);
+        }
+
+        await fetched;
+        println("fetch: resolved");
+    });
+</script>

@@ -798,7 +798,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
     // body
     //    This’s request body.
     if (m_request_body)
-        request->set_body(GC::Ref { *m_request_body });
+        request->set_body(m_request_body->fetch_body());
 
     // client
     //    This’s relevant settings object.

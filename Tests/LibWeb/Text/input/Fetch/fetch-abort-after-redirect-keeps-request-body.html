@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Aborting a fetch after a redirect that dropped its request's body, or extracted it again, rejects it with an
+    // AbortError. The fetch reads the Request object's body through a proxy, so that body is used either way, and is
+    // kept.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const corsHeaders = { "Access-Control-Allow-Origin": "*" };
+        const nextTask = () => new Promise(resolve => setTimeout(resolve, 0));
+
+        const createHeldEcho = (method, name) =>
+            server.createEcho(method, `/fetch-abort-after-redirect-${name}-${token}`, {
+                status: 200,
+                headers: corsHeaders,
+                wait_for_unblock: token,
+            });
+        const createRedirect = (status, name, location) =>
+            server.createEcho("POST", `/fetch-abort-after-redirect-${name}-${token}`, {
+                status,
+                headers: { ...corsHeaders, "Location": location },
+            });
+        const requestArrived = url => {
+            const recordedURL = `${server.baseURL}/recorded-request-headers${new URL(url).pathname}`;
+            return fetch(recordedURL, { cache: "no-store" }).then(
+                response => response.ok,
+                () => false
+            );
+        };
+
+        const abortWhileHeld = async (url, heldURL) => {
+            const request = new Request(url, { method: "POST", body: "body" });
+            const controller = new AbortController();
+            const fetched = fetch(request, { signal: controller.signal }).then(
+                () => "resolved",
+                error => error.name
+            );
+            while (!(await requestArrived(heldURL)))
+                await nextTask();
+            controller.abort();
+            return `${await fetched}, body used: ${request.bodyUsed}`;
+        };
+
+        // Every held echo is registered before the first request arrives.
+        const heldPostURL = await createHeldEcho("POST", "held-post");
+        const heldGetURL = await createHeldEcho("GET", "held-get");
+        const heldRedirectedPostURL = await createHeldEcho("POST", "held-redirected-post");
+        const seeOtherURL = await createRedirect(303, "see-other", heldGetURL);
+        const temporaryRedirectURL = await createRedirect(307, "temporary-redirect", heldRedirectedPostURL);
+
+        println(`no redirect: ${await abortWhileHeld(heldPostURL, heldPostURL)}`);
+        println(`303 to a GET: ${await abortWhileHeld(seeOtherURL, heldGetURL)}`);
+        println(`307 to a POST: ${await abortWhileHeld(temporaryRedirectURL, heldRedirectedPostURL)}`);
+
+        const redirectedPostURL = await server.createEcho("POST", `/fetch-abort-after-redirect-redirected-post-${token}`, {
+            status: 200,
+            headers: corsHeaders,
+        });
+        const unheldRedirectURL = await createRedirect(307, "unheld-temporary-redirect", redirectedPostURL);
+        const redirected = new Request(unheldRedirectURL, { method: "POST", body: "body" });
+        await (await fetch(redirected)).text();
+        println(`307 to a POST without an abort, body kept: ${redirected.body !== null}`);
+
+        await fetch(`${server.baseURL}/unblock/${token}`);
+    });
+</script>

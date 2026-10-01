@@ -79,7 +79,7 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(Utf16View url, Fet
     req->set_origin(origin);                             // origin: origin
     req->set_keepalive(true);                            // keepalive: true
     if (transmitted_data)
-        req->set_body(GC::Ref<Fetch::Infrastructure::Body> { *transmitted_data });       // body: transmittedData
+        req->set_body(transmitted_data->fetch_body());                                   // body: transmittedData
     req->set_mode(cors_mode);                                                            // mode: corsMode
     req->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include); // credentials mode: include
     req->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Beacon);      // initiator type: "beacon"

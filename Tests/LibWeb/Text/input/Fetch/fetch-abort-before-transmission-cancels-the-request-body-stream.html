@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Aborting a fetch before it transmits its request body cancels the body's stream, which the fetch has held a
+    // reader of since it started.
+    promiseTest(async () => {
+        const url = await httpTestServer().createEcho("POST", "/fetch-abort-before-transmission-cancels-the-request-body-stream", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "",
+        });
+        const controller = new AbortController();
+        const stream = new ReadableStream({
+            cancel(reason) {
+                println(`cancel: ${reason.name}`);
+            },
+        });
+
+        const fetched = fetch(url, { method: "POST", body: stream, duplex: "half", signal: controller.signal });
+        controller.abort();
+        try {
+            await fetched;
+            println("fetch: resolved");
+        } catch (error) {
+            println(`fetch: ${error.name}`);
+        }
+    });
+</script>
