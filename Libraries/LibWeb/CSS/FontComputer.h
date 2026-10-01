@@ -27,6 +27,7 @@
 
 namespace Web::CSS {
 
+class FontCascadeMemo;
 class FontFaceSnapshot;
 class RustRuleView;
 
@@ -192,13 +193,9 @@ private:
     void end_font_face_change_batch();
     void clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names);
 
-    struct MatchingFontCandidate;
-    RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, FontFeatureValues const& font_feature_values, bool inclusive) const;
-    RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, FontFeatureValues const& font_feature_values, bool inclusive) const;
-    NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values_impl(ReadonlySpan<ComputedFontFamily const> font_families, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const;
-    RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(Utf16FlyString const& family_name, int weight, Percentage const& font_width, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, FontFeatureValues const& font_feature_values) const;
-
     FontFeatureValues const& font_feature_values_for_family(Utf16FlyString const& family_name, TreeScopeID) const;
+    // A resolution's view of the @font-feature-values of one tree scope.
+    [[nodiscard]] Function<FontFeatureValues const&(Utf16FlyString const&)> font_feature_values_provider(TreeScopeID) const;
     FontFeatureValues font_feature_values_in_scope(Utf16FlyString const& family_name, TreeScopeID) const;
 
     GC::Ptr<DOM::Document> m_document;
@@ -206,7 +203,7 @@ private:
     HashMap<FontFaceKey, Vector<NonnullRefPtr<FontFaceState>>> m_font_faces;
     HashMap<String, GC::Ref<FontLoader>> m_loaders_by_source;
 
-    mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_computed_font_cache;
+    NonnullRefPtr<FontCascadeMemo> m_font_cascade_memo;
     // NB: Tree scopes are never numbered again, so the entries of a shadow root that is gone answer nothing. They stay
     //     until their family is next forgotten.
     mutable HashMap<FontFeatureValuesCacheKey, FontFeatureValues> m_font_feature_values_cache;

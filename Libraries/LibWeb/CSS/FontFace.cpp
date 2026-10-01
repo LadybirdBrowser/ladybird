@@ -588,6 +588,13 @@ RefPtr<Gfx::FontCascadeList const> FontFaceState::font_with_point_size(float poi
     return font_list;
 }
 
+RefPtr<Gfx::Font const> FontFaceState::font_for_rendering(float point_size, Gfx::FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
+{
+    if (m_parsed_font && !m_font_display_failed)
+        return m_parsed_font->font(point_size, variations, shape_features);
+    return {};
+}
+
 // https://drafts.csswg.org/css-fonts-4/#font-display-timeline
 Gfx::PendingFontState FontFaceState::resolve_for_rendering()
 {
