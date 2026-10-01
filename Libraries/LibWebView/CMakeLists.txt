@@ -21,7 +21,10 @@ set(SOURCES
     CompositorFontServiceConnection.cpp
     CookieJar.cpp
     CrashReport.cpp
+    CrashReportDiagnostics.cpp
+    CrashReportReview.cpp
     CrashReportStore.cpp
+    CrashReportSubmission.cpp
     DownloadPresentation.cpp
     DownloadSegmentation.cpp
     DownloadStore.cpp

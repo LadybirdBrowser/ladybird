@@ -408,10 +408,10 @@ ErrorOr<void> CrashReportStore::initialize_browser_crash_handler()
     return {};
 }
 
-ErrorOr<void> CrashReportStore::show_directory() const
+// Opens a file or directory in whatever the user's system opens it with.
+static ErrorOr<void> open_with_system_handler(ByteString const& path)
 {
-    TRY(open_report_directory(m_directory));
-    Vector<ByteString> arguments { m_directory };
+    Vector<ByteString> arguments { path };
 #    if defined(AK_OS_MACOS)
     TRY(Core::Process::spawn("/usr/bin/open"sv, arguments));
 #    else
@@ -422,6 +422,27 @@ ErrorOr<void> CrashReportStore::show_directory() const
     }));
 #    endif
     return {};
+}
+
+ErrorOr<void> CrashReportStore::show_directory() const
+{
+    TRY(open_report_directory(m_directory));
+    return open_with_system_handler(m_directory);
+}
+
+ErrorOr<void> CrashReportStore::show_report(ByteString const& name) const
+{
+    if (!is_saved_report_name(name))
+        return Error::from_string_literal("Invalid crash report name");
+    auto directory = TRY(open_report_directory(m_directory));
+    struct stat status {};
+    if (is_owned_regular_file_at(directory, name, status))
+        return open_with_system_handler(directory.path().append(name).string());
+    if (auto seen_directory = TRY(open_seen_directory_if_exists(directory)); seen_directory.has_value()) {
+        if (is_owned_regular_file_at(*seen_directory, name, status))
+            return open_with_system_handler(seen_directory->path().append(name).string());
+    }
+    return Error::from_string_literal("Crash report no longer exists");
 }
 
 #else
@@ -449,6 +470,11 @@ ErrorOr<void> CrashReportStore::initialize_browser_crash_handler()
 }
 
 ErrorOr<void> CrashReportStore::show_directory() const
+{
+    return Error::from_string_literal("Crash reports are not supported on this platform yet");
+}
+
+ErrorOr<void> CrashReportStore::show_report(ByteString const&) const
 {
     return Error::from_string_literal("Crash reports are not supported on this platform yet");
 }
