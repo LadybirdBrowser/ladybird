@@ -5,7 +5,7 @@ endif()
 
 if (APPLE)
     ladybird_test(TestSeatbelt.cpp LibSandbox LIBS LibSandbox LibCore)
-    target_link_libraries(TestSeatbelt PRIVATE "-framework CoreFoundation" "-framework CoreServices" "-framework IOKit" "-framework IOSurface")
+    target_link_libraries(TestSeatbelt PRIVATE "-framework CoreFoundation" "-framework CoreServices" "-framework IOKit" "-framework IOSurface" "-framework Security")
 
     # Applies the real sandboxes of the helpers, so it builds their sandbox sources.
     ladybird_test(TestHelperSandboxes.cpp LibSandbox LIBS LibSandbox LibCore LibWebView)
