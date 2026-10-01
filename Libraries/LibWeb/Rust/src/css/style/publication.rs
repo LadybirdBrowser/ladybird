@@ -475,7 +475,6 @@ impl RetainedState {
         use crate::css::computed_value_types::{
             STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_SURROUND,
         };
-        use crate::css::computed_values::computed_group_dependency_mask;
         use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT};
 
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
@@ -810,15 +809,9 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
                 return Err(Unanswered::Refused);
             }
-            let groups = match computed_group_dependency_mask(property) {
-                Some(groups) => groups,
-                // A longhand the font group carries feeds no group of its own; the full drive
-                // it takes rebuilds every group.
-                None if full_drive && font_group_carries_longhand(property) => 0,
-                None => {
-                    counters.bump(Counter::EngineComputedRecordBailProperty);
-                    return Err(Unanswered::Refused);
-                }
+            let Some(groups) = moved_longhand_groups(property) else {
+                counters.bump(Counter::EngineComputedRecordBailProperty);
+                return Err(Unanswered::Refused);
             };
             groups_to_rebuild |= groups;
             select(property);
@@ -831,7 +824,7 @@ impl RetainedState {
                 property
             };
             if counterpart != property {
-                let Some(groups) = computed_group_dependency_mask(counterpart) else {
+                let Some(groups) = moved_longhand_groups(counterpart) else {
                     counters.bump(Counter::EngineComputedRecordBailProperty);
                     return Err(Unanswered::Refused);
                 };
@@ -5051,6 +5044,15 @@ fn font_resolution_selects_by(property: u16) -> bool {
         property,
         prop::FONT_FAMILY | prop::FONT_STYLE | prop::FONT_WEIGHT | prop::FONT_WIDTH | prop::FONT_OPTICAL_SIZING
     )
+}
+
+/// The computed style groups a moved longhand reaches. One the font group carries feeds no group of
+/// its own and reaches every value the font feeds, through the font group: a delta moving it is
+/// driven in full.
+fn moved_longhand_groups(property: u16) -> Option<u32> {
+    use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
+    computed_group_dependency_mask(property)
+        .or_else(|| font_group_carries_longhand(property).then_some(1 << STYLE_GROUP_INDEX_FONT))
 }
 
 /// The font-phase longhands the font group carries without a group binding of their own.
