@@ -4024,6 +4024,66 @@ impl RetainedState {
         .map(|(_, answer)| answer)
     }
 
+    /// Publish a driven row's winners again from its retained selector answer, or from a fresh
+    /// match where that answer is gone. The row a drive reads next is no cache the memory budget
+    /// may decline, so it is admitted whatever the budget. Whether the winners are complete.
+    pub(super) fn republish_driven_winners(&mut self, node: StyleNodeID, counters: &mut Counters) -> bool {
+        let matches = self.matches_to_republish(node, counters);
+        self.republish_demanded_winners(node, matches, counters)
+    }
+
+    /// Publish a driven row's winners from a fresh match, for when its retained answer could not
+    /// publish them.
+    pub(super) fn rematch_driven_winners(&mut self, node: StyleNodeID, counters: &mut Counters) -> bool {
+        let matches = self.match_element_for_cascade(node, counters).unwrap_or_default();
+        self.republish_demanded_winners(node, matches, counters)
+    }
+
+    fn republish_demanded_winners(
+        &mut self,
+        node: StyleNodeID,
+        matches: Vec<RuleMatch>,
+        counters: &mut Counters,
+    ) -> bool {
+        let admitting = self.winner_groups.admit_demanded_rows();
+        let complete = self.republish_winners_from_matches(node, matches, counters);
+        self.winner_groups.restore_admission(admitting);
+        complete
+    }
+
+    fn matches_to_republish(&mut self, node: StyleNodeID, counters: &mut Counters) -> Vec<RuleMatch> {
+        let retained = self.current_answer_identity(node).and_then(|identity| {
+            let answer = Arc::clone(self.match_answers.answer(identity)?);
+            for entry in answer.iter() {
+                self.prepare_scope_program(entry.tree_scope);
+            }
+            let mut matches = Vec::new();
+            self.append_catalog_answer(identity, node, None, &mut matches)?;
+            Some(matches)
+        });
+        match retained {
+            Some(matches) => matches,
+            None => self.match_element_for_cascade(node, counters).unwrap_or_default(),
+        }
+    }
+
+    fn republish_winners_from_matches(
+        &mut self,
+        node: StyleNodeID,
+        matches: Vec<RuleMatch>,
+        counters: &mut Counters,
+    ) -> bool {
+        let complete = self.cascade_winner_inventory_is_complete(&matches, Some(node));
+        let mut effects = AnswerEffects::default();
+        let compact = self.matches_for_cascade(&mut effects, matches, true, Some(node), counters);
+        self.remember_cascade_input_with_effects(&mut effects, node, &compact, counters);
+        self.install_answer_effects(effects);
+        let answer_is_incomplete = !complete && !self.cascade_winners_are_complete_but_for_custom_properties(node);
+        self.computed_group_sets
+            .set_node_answer_incomplete(node, answer_is_incomplete);
+        complete
+    }
+
     pub(super) fn current_answer_identity(&self, node: StyleNodeID) -> Option<MatchAnswerID> {
         let effects = self
             .batch_matching_traversal

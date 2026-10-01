@@ -418,6 +418,30 @@ impl RetainedState {
         Ok(delta)
     }
 
+    /// The winners a driven element's record is computed from. A republish admits the row whatever
+    /// the memory budget, and an answer that published nothing is matched again; a row that holds
+    /// no winners even then is the host's.
+    fn driven_element_winners(
+        &mut self,
+        node: StyleNodeID,
+        winner_key: WinnerGroupKey,
+        counters: &mut Counters,
+    ) -> Option<(u64, CascadeStateID)> {
+        if let Lookup::Known(token) = self.current_winner_groups().token_for(winner_key) {
+            return Some(token);
+        }
+        self.rematch_driven_winners(node, counters);
+        let token = match self.current_winner_groups().token_for(winner_key) {
+            Lookup::Known(token) => Some(token),
+            _ => None,
+        };
+        debug_assert!(
+            token.is_some(),
+            "a driven element holds no winners after matching again"
+        );
+        token
+    }
+
     /// `exact_flipped_rules` are the rules that flipped for the node when the reaction is exactly
     /// those flips and nothing else the record depends on moved. `parent_inputs_moved` says which
     /// of the parent's inputs may have moved under the record.
@@ -425,7 +449,7 @@ impl RetainedState {
     fn engine_computed_element_record_delta(
         &mut self,
         node: StyleNodeID,
-        cascade_winners_are_complete: bool,
+        mut cascade_winners_are_complete: bool,
         exact_flipped_rules: Option<FlippedRules>,
         mut parent_inputs_moved: ParentInputsMoved,
         scratch: &mut EngineComputedRecordScratch,
@@ -439,6 +463,20 @@ impl RetainedState {
         use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT};
 
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        // A row left out of winner publication can still carry a retained selector answer.
+        // Rebuild its winners before comparing them with the record's cascade state: otherwise
+        // an empty delta can describe yesterday's answer after this flush flipped a rule. So does
+        // a row that holds no winners for the current program at all. Exact flips of
+        // pseudo-element rules alone leave the element row as it was: the pseudo rows are
+        // refreshed where the pseudo-elements settle.
+        let winner_key = WinnerGroupKey::current(node, self.program.version());
+        let stale_element_winners = (scratch.answer_or_declarations_moved
+            && exact_flipped_rules.is_none_or(|flipped| flipped.element)
+            && self.current_winner_groups().row_stamp(node) != Some(self.flush_stamp))
+            || !matches!(self.current_winner_groups().token_for(winner_key), Lookup::Known(_));
+        if stale_element_winners {
+            cascade_winners_are_complete = self.republish_driven_winners(node, counters);
+        }
         // A custom property the cascade declares is no winner the columns hold; the engine
         // computes the environment it decides itself.
         if !cascade_winners_are_complete && !self.cascade_winners_are_complete_but_for_custom_properties(node) {
@@ -447,23 +485,9 @@ impl RetainedState {
         }
         // The winners the record was computed from, against the winners the node holds now: the
         // same comparison a C++ publication makes to select what it recomputes.
-        let (generation, state) = match self
-            .current_winner_groups()
-            .token_for(WinnerGroupKey::current(node, self.program.version()))
-        {
-            Lookup::Known(token) => token,
-            Lookup::Missing(gap) => {
-                counters.bump(match gap {
-                    cascade::WinnerGroupGap::MissingNode(_) => Counter::EngineComputedRecordBailWinnerMissingNode,
-                    cascade::WinnerGroupGap::StaleProgram { .. } => Counter::EngineComputedRecordBailWinnerStaleProgram,
-                    cascade::WinnerGroupGap::StalePriority(_) => Counter::EngineComputedRecordBailWinnerStalePriority,
-                });
-                return Err(Unanswered::Refused);
-            }
-            Lookup::KnownAbsent => {
-                counters.bump(Counter::EngineComputedRecordBailWinner);
-                return Err(Unanswered::Refused);
-            }
+        let Some((generation, state)) = self.driven_element_winners(node, winner_key, counters) else {
+            counters.bump(Counter::EngineComputedRecordBailWinner);
+            return Err(Unanswered::Refused);
         };
         // An element's animations compose into its style in the C++ computation, an element
         // standing for its host's pseudo-element takes the style C++ computes for that
@@ -4120,6 +4144,9 @@ pub(super) struct EngineComputedRecordScratch {
     /// through one while the values they computed to may not, so such a record is driven again
     /// in full against the document's inputs rather than kept.
     pub(super) document_environment_moved: bool,
+    /// Whether the row being derived had its selector answer or its declarations move this flush
+    /// without its winners necessarily being published again.
+    pub(super) answer_or_declarations_moved: bool,
     pub(super) prepared_root_font: Option<(StyleNodeID, ParentInputsMoved, drive::FontDriveScratch)>,
     // NB: Preserve the root's existing remaining-phase context after preparing consumer inputs.
     root_element_inputs: Option<(StyleNodeID, RootFontInputs)>,
