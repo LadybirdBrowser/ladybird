@@ -94,6 +94,7 @@ pub mod record_replay;
 mod routing;
 mod sorted_merge;
 mod style_invalidation;
+mod transition_baselines;
 #[cfg(not(feature = "style-recording"))]
 pub mod record_replay {
     include!(concat!(env!("OUT_DIR"), "/style_engine_event_kind_stub_generated.rs"));
@@ -831,6 +832,11 @@ pub struct RetainedState {
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
     css_defined_animations: animations::CssDefinedAnimations,
+    /// https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
+    /// Per transition target, by element and then pseudo-element kind, the before-change style its
+    /// transitions are decided against for the rest of the style stabilization epoch, pinned until
+    /// the epoch commits.
+    transition_baselines: HashMap<StyleNodeID, SmallVec<[(u8, u64); 1]>>,
     /// Whether the registrations used by this transaction differ from the preceding one. A
     /// previously substituted record must then be recomputed by C++, which implements registered
     /// custom properties, even when its cascade winners did not move.
