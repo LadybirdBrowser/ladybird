@@ -122,8 +122,11 @@ def run_test(webdriver_binary, graphical):
 
             load_settings("Google")
             assert state() == [True, False, "Sends what you type to Google."]
-            select_engine("Bing")
-            assert state() == [True, True, "Search suggestions aren't available for Bing."]
+            for engine in ("Bing", "Ecosia", "Yandex"):
+                select_engine(engine)
+                assert state() == [True, False, f"Sends what you type to {engine}."]
+            select_engine("Mojeek")
+            assert state() == [True, True, "Search suggestions aren't available for Mojeek."]
             select_engine("DuckDuckGo")
             assert state() == [True, False, "Sends what you type to DuckDuckGo."]
             select_engine("Brave")
