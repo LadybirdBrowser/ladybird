@@ -107,7 +107,7 @@ TEST_CASE(capture_native_crash_without_personal_data)
         EXPECT(!text.contains(test_directory()));
         EXPECT(!text.contains("/Users/"sv));
         EXPECT(!text.contains("/home/"sv));
-        EXPECT_EQ(MUST(file->stat()).st_mode & 0777u, 0600u);
+        EXPECT_EQ(MUST(file->stat()).st_mode & 0777u, 0400u);
     }
     EXPECT_EQ(MUST(Core::System::stat(test_directory())).st_mode & 0777u, 0700u);
 }

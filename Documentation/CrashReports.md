@@ -6,7 +6,8 @@ Compositor and WasmCompiler. Reports are stored in
 `~/Library/Application Support/Ladybird/CrashReports/` on macOS and
 `~/.local/share/Ladybird/CrashReports/` on Linux, or under
 `$XDG_DATA_HOME/Ladybird/CrashReports/` if that variable is set.
-The directory is private to the current user, and report files have mode `0600`.
+The directory is private to the current user, and report files are read-only,
+with mode `0400`.
 Reports awaiting review are always kept; of the reports that have already been
 offered, the newest 20 are kept. Filenames start with a UTC date and time,
 for example

@@ -127,7 +127,7 @@ def run_test(webdriver_binary, process_name):
             assert " + 0x" in text or " at Services/" in text, text
             assert "PRIVATE_CRASH" not in text, text
             assert temporary not in text and str(Path.home()) not in text, text
-            assert reports[0].stat().st_mode & 0o777 == 0o600
+            assert reports[0].stat().st_mode & 0o777 == 0o400
             assert directory.stat().st_mode & 0o777 == 0o700
             webdriver_helpers.request(port, "DELETE", f"/session/{session}")
         finally:

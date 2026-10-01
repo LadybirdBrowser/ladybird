@@ -316,6 +316,7 @@ ErrorOr<ByteString> CrashReportStore::store_report(ProcessType process_type, Str
 
     ArmedScopeGuard remove_incomplete_report = [&] { (void)unlinkat(directory.fd(), name.characters(), 0); };
     TRY(report->write_until_depleted(text.bytes()));
+    TRY(Core::System::fchmod(report->fd(), 0400));
     if (fsync(report->fd()) < 0)
         return Error::from_errno(errno);
     // The new name is only durable once the directory holding it is.
