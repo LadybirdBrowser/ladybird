@@ -1176,11 +1176,11 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }
-        // C++ marks the originating element's parent when a pseudo-element explicitly inherits a
-        // non-inherited property, and a pseudo-element's row carries no groups to mark it with, so
-        // such a pseudo-element stays with C++.
+        // An `inherit` of a non-inherited property reads the half of the parent's style a child
+        // normally cannot see; a pseudo-element's parent is its originating element. The mark C++
+        // leaves beside it travels with the element's row.
         if results.explicitly_inherited_non_inherited_style_groups != 0
-            && (target.is_pseudo() || !self.parent_record_answers_explicit_inheritance(parent))
+            && !self.parent_record_answers_explicit_inheritance(parent)
         {
             counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
