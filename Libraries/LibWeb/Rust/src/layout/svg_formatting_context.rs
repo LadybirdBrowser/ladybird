@@ -2022,9 +2022,11 @@ fn length_resolution_context(
     // A container unit resolves against the nearest size query container on its axis, or the small viewport size
     // without one. Finding that container is style's business, so it is asked only for a length that needs it.
     let container_bases = crate::css::style_compute::length_unit_is_container_relative(unit).then(|| {
-        let host = callbacks.host;
-        // SAFETY: The registered callbacks and the box's shell stay alive for the pass.
-        unsafe { (host.container_length_bases)(host.context, callbacks.shell(node)) }
+        let element = callbacks
+            .arena()
+            .dom_node_style_node(node)
+            .expect("an SVG element's attribute length is resolved for the element's own box");
+        callbacks.container_length_bases.bases(element)
     });
     crate::css::style_compute::FfiLengthResolutionContext {
         viewport_width,

@@ -1612,7 +1612,18 @@ impl LayoutNodeArena {
         self.layout_host.set(host);
     }
 
-    pub(crate) fn layout_host(&self) -> FfiLayoutHostCallbacks {
+    /// The document's layout host, for the layout entry points before and after their pass and
+    /// for the tree build. A pass has no business calling into the document, and refuses to.
+    ///
+    /// # Safety
+    ///
+    /// The caller must not be running in a layout pass. A pass reaches the arena through
+    /// `LayoutPass`, which holds only its `ContainerLengthBasesQuery`.
+    pub(crate) unsafe fn layout_host(&self) -> FfiLayoutHostCallbacks {
+        assert!(
+            !self.layout_pass_is_running(),
+            "a layout pass asked for the layout host"
+        );
         self.layout_host.get().expect("layout node arena has no layout host")
     }
 

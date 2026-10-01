@@ -2660,9 +2660,10 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     // What the build found out goes to the document now that the walk that could clear DOM update
     // flags is complete, in the order the build found it out.
     if !state.reports.is_empty() {
-        let layout_host = host.layout().arena().layout_host();
-        // SAFETY: The document outlives the build, and no arena borrow is held here.
+        // SAFETY: The tree build runs outside any layout pass, the document outlives the build,
+        // and no arena borrow is held here.
         unsafe {
+            let layout_host = host.layout().arena().layout_host();
             (layout_host.deliver_commit_messages)(layout_host.context, state.reports.as_ptr(), state.reports.len());
         }
     }

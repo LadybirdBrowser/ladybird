@@ -923,9 +923,9 @@ pub struct FfiLayoutHostCallbacks {
     /// The commit messages a finished commit leaves for the document, in the order it produced
     /// them.
     pub deliver_commit_messages: unsafe extern "C" fn(*mut c_void, *const commit::FfiCommitMessage, usize),
-    /// What a container-relative length on the element of a live box shell resolves against.
+    /// What a container-relative length on the element with the given identity resolves against.
     pub container_length_bases:
-        unsafe extern "C" fn(*mut c_void, *mut c_void) -> svg_formatting_context::FfiContainerLengthBases,
+        unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
 }
 
 /// # Safety
@@ -2322,9 +2322,9 @@ pub(crate) unsafe fn run_root_layout(
 ) {
     assert!(!arena_handle.is_null(), "layout node arena handle is null");
     assert!(!root.is_invalid());
-    // SAFETY: The caller keeps the arena alive for this synchronous call. The host table is
-    // copied out so no arena borrow spans a host callback.
-    let host = unsafe { LayoutNodeArena::from_handle(arena_handle) }.layout_host();
+    // SAFETY: The caller keeps the arena alive for this synchronous call, and the pass has not
+    // begun. The host table is copied out so no arena borrow spans a host callback.
+    let host = unsafe { LayoutNodeArena::from_handle(arena_handle).layout_host() };
     // The style rewrites enroll the affected boxes' text children for content sync, so the sync
     // follows them, and both precede the pass, which caches decoded style.
     // SAFETY: As above; the propagation borrows the arena only for its own call.
@@ -2352,7 +2352,7 @@ pub(crate) unsafe fn run_root_layout(
     }
     let callbacks = LayoutPass::new(
         arena,
-        &host,
+        layout_pass::ContainerLengthBasesQuery::of(&host),
         CssPixels::from_raw(viewport_inline_size_raw),
         CssPixels::from_raw(viewport_block_size_raw),
         document_in_quirks_mode,
@@ -2522,16 +2522,16 @@ pub(crate) unsafe fn compute_subtree_layout(
 ) {
     assert!(!arena_handle.is_null(), "layout node arena handle is null");
     assert!(!root.is_invalid());
-    // SAFETY: The caller keeps the arena alive for this synchronous call. The host table is
-    // copied out so no arena borrow spans a host callback.
-    let host = unsafe { LayoutNodeArena::from_handle(arena_handle) }.layout_host();
+    // SAFETY: The caller keeps the arena alive for this synchronous call, and the pass has not
+    // begun. The host table is copied out so no arena borrow spans a host callback.
+    let host = unsafe { LayoutNodeArena::from_handle(arena_handle).layout_host() };
     // SAFETY: The host keeps the document's layout inputs alive and unchanged
     // while computing fragments. Nested measurements only mutate side caches.
     let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
     arena.begin_active_layout_pass();
     let callbacks = LayoutPass::new(
         arena,
-        &host,
+        layout_pass::ContainerLengthBasesQuery::of(&host),
         CssPixels::from_raw(viewport_inline_size_raw),
         CssPixels::from_raw(viewport_block_size_raw),
         document_in_quirks_mode,
