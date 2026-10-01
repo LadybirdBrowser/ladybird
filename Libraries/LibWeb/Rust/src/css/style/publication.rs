@@ -363,13 +363,6 @@ impl RetainedState {
             scratch.noted_substitution = None;
             scratch.element_explicitly_inherited_groups = 0;
             scratch.flipped_pseudo_rules = exact_flipped_rules.map_or(0, |flipped| flipped.pseudos);
-            if !self.engine_pseudo_inputs_available(
-                node,
-                self.computed_group_sets.assigned_style_record(node),
-                counters,
-            ) {
-                return Err(Unanswered::Refused);
-            }
         }
         let delta = match pending_element {
             Some(delta) => delta,
@@ -1118,10 +1111,7 @@ impl RetainedState {
             Some(parent) => self.held_custom_property_environment(parent, counters)?,
             None => 0,
         };
-        let Some(pseudo_styles) = self.pseudo_style_mask(node) else {
-            counters.bump(Counter::EngineComputedRecordBailWinner);
-            return Err(Unanswered::Refused);
-        };
+        let pseudo_styles = self.pseudo_style_mask_or_rematch(node, counters);
         // A record whose winners read the element's attributes is the element's alone.
         let cache_key = parent
             .zip(parent_record)
@@ -1428,9 +1418,6 @@ impl RetainedState {
         // only the changed groups instead of rebuilding the entire style.
         if self.record_requires_cpp_animation(record) {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-            return None;
-        }
-        if !self.engine_pseudo_inputs_available(node, Some(record), counters) {
             return None;
         }
         self.computed_group_sets
@@ -4402,12 +4389,6 @@ mod pseudo_kind {
     pub(super) fn is_highlight(kind: usize) -> bool {
         kind < SYNTHETIC_COUNT && crate::css::property_metadata::pseudo_element_is_highlight(kind as u8)
     }
-
-    pub(super) fn highlight_mask() -> u64 {
-        (0..SYNTHETIC_COUNT)
-            .filter(|&kind| is_highlight(kind))
-            .fold(0, |mask, kind| mask | 1 << kind)
-    }
 }
 
 /// The element facts a pseudo-element's computation reads: the C++ adjustments for what the
@@ -4957,11 +4938,6 @@ impl StyleEngineState {
         counters: &mut Counters,
     ) {
         let inputs = self.document_style_computation_inputs;
-        let assigned_style_record = self.computed_group_sets.assigned_style_record(node);
-        if !self.engine_pseudo_inputs_available(node, assigned_style_record, counters) {
-            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
-            return;
-        }
         scratch.root_element_inputs = Some((node, RootFontInputs::from_document(&inputs)));
         let probe = |state: &mut Self, scratch: &mut EngineComputedRecordScratch, counters: &mut Counters| {
             state.engine_computed_element_record_delta(

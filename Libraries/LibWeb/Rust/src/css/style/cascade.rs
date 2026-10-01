@@ -1035,6 +1035,70 @@ impl WinnerEffects {
         true
     }
 
+    /// A pseudo refresh may reduce the full cascade to get its pseudo winners, but the element
+    /// winner has already been compared with its computed record in this flush. Leave that row
+    /// and its identity intact when installing the refreshed pseudo rows.
+    pub(super) fn discard_element_row(&mut self, groups: &mut WinnerGroups, node: StyleNodeID) {
+        if let Some(index) = node.element_index().map(|index| index as usize)
+            && let Some(entry) = self.by_node.get(index).copied()
+            && entry != 0
+        {
+            self.entries[entry as usize - 1].element = None;
+        }
+        self.writes.retain(|write| {
+            if let WinnerNodeWrite::Set {
+                node: owner,
+                target: None,
+                state,
+                ..
+            } = write
+                && *owner == node
+            {
+                groups.release_pending(*state);
+                return false;
+            }
+            true
+        });
+    }
+
+    /// Refresh the version and stamp of an unchanged pseudo row without replacing the cascade
+    /// state shared by its cohort. Only a changed winner set needs a new state identity.
+    pub(super) fn preserve_equal_pseudo_states(&mut self, groups: &mut WinnerGroups, node: StyleNodeID) {
+        for write in &mut self.writes {
+            let WinnerNodeWrite::Set {
+                node: owner,
+                target: Some(pseudo),
+                state,
+                ..
+            } = write
+            else {
+                continue;
+            };
+            if *owner != node {
+                continue;
+            }
+            let Some((_, _, retained, _)) = groups.pseudo_states(node).find(|row| row.0 == *pseudo) else {
+                continue;
+            };
+            if retained == *state || !groups.states_are_semantically_equal(retained, *state) {
+                continue;
+            }
+            groups.retain_pending(retained);
+            groups.release_pending(*state);
+            *state = retained;
+            if let Some(index) = node.element_index().map(|index| index as usize)
+                && let Some(entry) = self.by_node.get(index).copied()
+                && entry != 0
+                && let Some(row) = self.entries[entry as usize - 1]
+                    .pseudos
+                    .iter_mut()
+                    .find(|row| row.pseudo == *pseudo)
+            {
+                row.state.0 = retained;
+            }
+        }
+    }
+
     pub(super) fn mark_pseudo_inventory_incomplete(&mut self, node: StyleNodeID, pseudo: PseudoElementTarget) {
         let index = self.by_node[node.element_index().expect("element winner") as usize] as usize - 1;
         if let Some(row) = self.entries[index].pseudos.iter_mut().find(|row| row.pseudo == pseudo) {

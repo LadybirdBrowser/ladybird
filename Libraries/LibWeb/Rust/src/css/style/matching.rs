@@ -4029,7 +4029,41 @@ impl RetainedState {
     /// may decline, so it is admitted whatever the budget. Whether the winners are complete.
     pub(super) fn republish_driven_winners(&mut self, node: StyleNodeID, counters: &mut Counters) -> bool {
         let matches = self.matches_to_republish(node, counters);
-        self.republish_demanded_winners(node, matches, counters)
+        debug_assert!(matches.is_some(), "a driven row without the facts to match it");
+        self.republish_demanded_winners(node, matches.unwrap_or_default(), counters)
+    }
+
+    /// Publish new winners from the retained selector answer, matching from published facts when
+    /// that answer has been evicted. `None` when neither can say what the node matches; else
+    /// whether the winners are complete.
+    pub(super) fn republish_winners_from_answer(&mut self, node: StyleNodeID, counters: &mut Counters) -> Option<bool> {
+        let matches = self.matches_to_republish(node, counters)?;
+        Some(self.republish_winners_from_matches(node, matches, counters))
+    }
+
+    /// Publish the pseudo-element winners again from the retained answer once the element's own
+    /// row was compared in this flush: the element row and its cascade-input identity stay, and
+    /// only the pseudo rows derived from the answer are published.
+    pub(super) fn republish_pseudo_winners_from_retained_answer(
+        &mut self,
+        node: StyleNodeID,
+        counters: &mut Counters,
+    ) -> Option<()> {
+        let identity = self.current_answer_identity(node)?;
+        let answer = Arc::clone(self.match_answers.answer(identity)?);
+        for entry in answer.iter() {
+            self.prepare_scope_program(entry.tree_scope);
+        }
+        let mut matches = Vec::new();
+        self.append_catalog_answer(identity, node, None, &mut matches)?;
+        let mut effects = AnswerEffects::default();
+        self.matches_for_cascade(&mut effects, matches, true, Some(node), counters);
+        effects.winners.discard_element_row(&mut self.winner_groups, node);
+        effects
+            .winners
+            .preserve_equal_pseudo_states(&mut self.winner_groups, node);
+        self.install_answer_effects(effects);
+        Some(())
     }
 
     /// Publish a driven row's winners from a fresh match, for when its retained answer could not
@@ -4051,7 +4085,7 @@ impl RetainedState {
         complete
     }
 
-    fn matches_to_republish(&mut self, node: StyleNodeID, counters: &mut Counters) -> Vec<RuleMatch> {
+    fn matches_to_republish(&mut self, node: StyleNodeID, counters: &mut Counters) -> Option<Vec<RuleMatch>> {
         let retained = self.current_answer_identity(node).and_then(|identity| {
             let answer = Arc::clone(self.match_answers.answer(identity)?);
             for entry in answer.iter() {
@@ -4062,8 +4096,8 @@ impl RetainedState {
             Some(matches)
         });
         match retained {
-            Some(matches) => matches,
-            None => self.match_element_for_cascade(node, counters).unwrap_or_default(),
+            Some(matches) => Some(matches),
+            None => self.match_element_for_cascade(node, counters).ok(),
         }
     }
 

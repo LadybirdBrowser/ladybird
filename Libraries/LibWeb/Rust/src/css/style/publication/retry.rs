@@ -44,15 +44,6 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         };
         if !scratch.font_drive.is_pending_for(node)
-            && !self.engine_pseudo_inputs_available(
-                node,
-                self.computed_group_sets.assigned_style_record(node),
-                counters,
-            )
-        {
-            return Err(Unanswered::Refused);
-        }
-        if !scratch.font_drive.is_pending_for(node)
             && !self.node_declares_custom_properties(node)
             && let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node)
             && let Some(parent) = self.tree.inheritance_parent(node)
