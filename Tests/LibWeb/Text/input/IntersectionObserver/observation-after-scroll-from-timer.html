@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+#scroller {
+    width: 200px;
+    height: 200px;
+    overflow: scroll;
+}
+#spacer {
+    height: 1000px;
+}
+#target {
+    width: 50px;
+    height: 50px;
+}
+</style>
+<script src="../include.js"></script>
+<div id="scroller">
+    <div id="spacer"></div>
+    <div id="target"></div>
+</div>
+<script>
+    asyncTest(done => {
+        // The target starts out of view. Scrolling it into view from a timer changes no style, so the only thing that
+        // keeps the page producing the frames that run intersection observation is the repaint the scroll asks for.
+        const scroller = document.getElementById("scroller");
+        let observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                println(`isIntersecting=${entry.isIntersecting}`);
+                if (entry.isIntersecting) {
+                    done();
+                    return;
+                }
+                setTimeout(() => {
+                    scroller.scrollTop = 1000;
+                });
+            });
+        });
+
+        observer.observe(document.getElementById("target"));
+    });
+</script>
