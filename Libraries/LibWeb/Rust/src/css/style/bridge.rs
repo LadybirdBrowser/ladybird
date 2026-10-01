@@ -139,6 +139,10 @@ pub struct FfiStyleDelta {
     pub gap: FfiStyleDeltaGap,
     /// Substitution usage for an engine-computed element, including its pseudo-elements.
     pub uses_substitution: bool,
+    /// The non-inherited style groups an engine-computed element read straight from its parent
+    /// through an explicit `inherit`, which the host marks the parent with; all of them when
+    /// `u32::MAX`.
+    pub explicitly_inherited_groups: u32,
 }
 
 /// A retried engine record and the metadata needed to install it.
@@ -147,6 +151,8 @@ pub struct FfiStyleDelta {
 pub struct FfiEngineComputedRecord {
     pub style_record: u64,
     pub uses_substitution: bool,
+    /// As [`FfiStyleDelta::explicitly_inherited_groups`].
+    pub explicitly_inherited_groups: u32,
     /// The synthetic pseudo-element kinds whose records the engine settled beside the
     /// element's, as a bit per kind; a present slot holding zero is a removal.
     pub pseudo_records_present: u8,
@@ -3054,6 +3060,7 @@ pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
         let result = FfiEngineComputedRecord {
             style_record: retried.style_record,
             uses_substitution: retried.style_record != 0 && engine.nodes_with_substituted_records.contains(&style_node),
+            explicitly_inherited_groups: retried.explicitly_inherited_groups,
             pseudo_records_present: retried.pseudo_records_present,
             pseudo_records: retried.pseudo_records,
         };

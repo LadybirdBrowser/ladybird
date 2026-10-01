@@ -2277,7 +2277,7 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_environment_of_en
     return data;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, bool& did_change_custom_properties)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties)
 {
     VERIFY(parent());
     auto old_style_record = style_record_identity();
@@ -2293,6 +2293,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     // computation notes it read them, even if the custom-property environment stayed the same.
     if (uses_substitution)
         m_style_uses_var_css_function = true;
+
+    // The parent's groups the record read through an explicit `inherit`, marked the way a C++
+    // computation marks them, so that a later change to them reaches this element again.
+    if (explicitly_inherited_non_inherited_style_groups != 0)
+        parent()->add_children_explicitly_inherited_non_inherited_style_groups(explicitly_inherited_non_inherited_style_groups == NumericLimits<u32>::max() ? CSS::ComputedValues::all_style_groups : explicitly_inherited_non_inherited_style_groups);
 
     // The environment the record was published with: what the element inherits, or what the
     // engine resolved its own custom declarations to over that.
