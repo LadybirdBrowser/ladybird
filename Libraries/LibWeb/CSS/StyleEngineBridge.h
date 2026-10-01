@@ -140,9 +140,12 @@ public:
     [[nodiscard]] bool style_records_match_for_verification(StyleNodeID, u8 pseudo_kind, StyleRecordID, StyleRecordID) const;
     // What moving between two records changes, for no element in particular.
     [[nodiscard]] u32 compare_style_records(StyleRecordID old_style_record, StyleRecordID new_style_record) const;
-    // What moving the element, or one of its pseudo-elements, from one record to another damages,
-    // which the engine reads from the records and its own facts of the element.
-    [[nodiscard]] u32 element_record_damage(StyleNodeID, bool is_pseudo_element, StyleRecordID old_style_record, StyleRecordID new_style_record) const;
+    // What moving the element from one record to another damages, which the engine reads from the
+    // records and its own facts of the element.
+    [[nodiscard]] u32 element_record_damage(StyleNodeID, StyleRecordID old_style_record, StyleRecordID new_style_record) const;
+    // The same for one of its pseudo-elements, whose box appears or goes away when either record is
+    // none. The host compares the counter styles the box was built with.
+    [[nodiscard]] u32 pseudo_element_record_damage(StyleNodeID, PseudoElement, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const;
     [[nodiscard]] bool animation_overlay_changed(StyleRecordID old_style_record, void const* animated_overlay) const;
     [[nodiscard]] Optional<u32> current_color_dependent_style_groups(StyleNodeID node, u8 pseudo_kind) const;
     [[nodiscard]] StyleEngineFFI::FfiAnimationInvalidation compare_animation_overlay(StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const;
