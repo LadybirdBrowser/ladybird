@@ -67,6 +67,8 @@ ErrorOr<Gfx::ShareableBitmap> decode(Decoder& decoder)
     if (!Gfx::is_valid_bitmap_format(raw_bitmap_format))
         return Error::from_string_literal("IPC: Invalid Gfx::ShareableBitmap format");
     auto bitmap_format = static_cast<Gfx::BitmapFormat>(raw_bitmap_format);
+    if (Gfx::Bitmap::size_would_overflow(bitmap_format, size))
+        return Error::from_string_literal("IPC: Gfx::ShareableBitmap size overflow");
 
     auto raw_alpha_type = TRY(decoder.decode<u32>());
     if (!Gfx::is_valid_alpha_type(raw_alpha_type))
@@ -74,6 +76,7 @@ ErrorOr<Gfx::ShareableBitmap> decode(Decoder& decoder)
     auto alpha_type = static_cast<Gfx::AlphaType>(raw_alpha_type);
 
     auto buffer = TRY(Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), Gfx::Bitmap::size_in_bytes(Gfx::Bitmap::minimum_pitch(size.width(), bitmap_format), size.height())));
+    TRY(buffer.validate_backing_size());
     auto bitmap = TRY(Gfx::Bitmap::create_with_anonymous_buffer(bitmap_format, alpha_type, move(buffer), size));
 
     return Gfx::ShareableBitmap { move(bitmap), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };

@@ -62,6 +62,19 @@ TEST_CASE(decode_rejects_empty_bitmap_size)
     EXPECT(result.is_error());
 }
 
+TEST_CASE(decode_rejects_overflowing_bitmap_size)
+{
+    auto result = decode_shareable_bitmap(Gfx::BitmapFormat::BGRA8888, Gfx::IntSize { 65535, 65535 }, 1);
+    EXPECT(result.is_error());
+}
+
+TEST_CASE(decode_rejects_undersized_buffer)
+{
+    // NB: Some hosts round the shared memory object's size up to a page, even when only one byte was requested.
+    auto result = decode_shareable_bitmap(Gfx::BitmapFormat::BGRA8888, Gfx::IntSize { 1, static_cast<int>(PAGE_SIZE / sizeof(u32) + 1) }, 1);
+    EXPECT(result.is_error());
+}
+
 TEST_CASE(shareable_bitmap_preserves_padded_scanlines)
 {
     Array<u32, 6> pixels { 0xffff0000, 0xff00ff00, 0, 0xff0000ff, 0xffffffff, 0 };
