@@ -705,9 +705,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             // for the move.
             if (did_change_custom_properties)
                 propagate_custom_property_environment_move(document, *element, old_custom_property_data);
-            if (invalidation.is_none())
+            // A counter-style rebuild moves no style, so it is not what the children react to.
+            if (invalidation.style_change_is_none())
                 facts |= StyleEngine::InvalidationIsNone;
-            if (invalidation.needs_layout_tree_rebuild())
+            if (invalidation.style_change_needs_layout_tree_rebuild())
                 facts |= StyleEngine::NeedsLayoutTreeRebuild;
             if (invalidation.recompute_descendant_styles)
                 facts |= StyleEngine::RecomputeDescendants;
@@ -1005,9 +1006,9 @@ static void note_targeted_style_reaction_applied(DOM::Element& element, Required
     u32 facts = 0;
     if (did_change_custom_properties)
         facts |= StyleEngine::DidChangeCustomProperties;
-    if (invalidation.is_none())
+    if (invalidation.style_change_is_none())
         facts |= StyleEngine::InvalidationIsNone;
-    if (invalidation.needs_layout_tree_rebuild())
+    if (invalidation.style_change_needs_layout_tree_rebuild())
         facts |= StyleEngine::NeedsLayoutTreeRebuild;
     if (invalidation.recompute_descendant_styles)
         facts |= StyleEngine::RecomputeDescendants;

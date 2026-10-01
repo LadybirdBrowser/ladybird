@@ -1473,17 +1473,18 @@ static void add_element_dependent_invalidation(CSS::RequiredInvalidationAfterSty
     // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant
     //     @counter-style rule was modified, or a new rule with the same name took precedence over the old one).
     // Generated content and the marker live inside the element's own layout subtree, so, like a
-    // 'content' change, they rebuild from the element rather than its parent.
+    // 'content' change, they rebuild from the element rather than its parent. The rebuild moves no
+    // style, so the element's children do not react to it.
     auto compare = [&](Optional<ValueComparingRefPtr<CSS::CounterStyle const>> const& old_list_counter_style) {
         if (content_counter_styles_changed(abstract_element))
-            invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(CSS::LayoutTreeRebuildRoot::Self);
+            invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_for_counter_styles_from(CSS::LayoutTreeRebuildRoot::Self);
 
         if (old_list_counter_style.has_value()) {
             auto new_list_style_type = new_computed_values.list_style_type(abstract_element.style_scope());
             if (new_list_style_type.has<RefPtr<CSS::CounterStyle const>>()) {
                 ValueComparingRefPtr<CSS::CounterStyle const> new_counter_style = new_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
                 if (*old_list_counter_style != new_counter_style)
-                    invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(CSS::LayoutTreeRebuildRoot::Self);
+                    invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_for_counter_styles_from(CSS::LayoutTreeRebuildRoot::Self);
             }
         }
     };
@@ -1728,19 +1729,29 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                 counter_styles_changed = !counter_style_invalidation.is_none();
             }
         }
-        auto packed = style_computer.style_engine().pseudo_element_record_damage(
-            style_node_id(),
-            pseudo_element,
-            style_record_delta.old_style_record,
-            style_record_delta.new_style_record,
-            style_record_identity(),
-            counter_styles_changed);
+        auto record_damage = [&](bool with_counter_style_rebuild) {
+            return style_computer.style_engine().pseudo_element_record_damage(
+                style_node_id(),
+                pseudo_element,
+                style_record_delta.old_style_record,
+                style_record_delta.new_style_record,
+                style_record_identity(),
+                with_counter_style_rebuild);
+        };
+        auto packed = record_damage(false);
         if (packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::CacheHit))
             ++document().style_invalidation_counters().style_record_property_damage_cache_hits;
         auto result = decode_style_record_invalidation(packed);
         if (result.any_computed_value_changed)
             document().style_invalidation_counters().element_computed_style_changes++;
         invalidation |= result.invalidation;
+        // The box rebuilt with its new counter styles is rebuilt from wherever the engine places it, but the rebuild
+        // moves no style the element's children react to.
+        if (counter_styles_changed) {
+            auto rebuild = CSS::decode_style_invalidation(record_damage(true));
+            if (rebuild.needs_layout_tree_rebuild())
+                invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_for_counter_styles_from(rebuild.layout_tree_rebuild_root());
+        }
 
         if (new_pseudo_element_style) {
             set_computed_style(pseudo_element, style_record_delta.new_style_record);

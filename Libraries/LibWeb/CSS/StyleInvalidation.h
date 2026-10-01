@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/StdLibExtras.h>
 #include <LibWeb/Forward.h>
 
@@ -52,20 +53,27 @@ struct RequiredInvalidationAfterStyleChange {
         ensure_at_least(InvalidationLevel::Repaint);
     }
 
-    [[nodiscard]] bool needs_repaint() const { return m_level >= InvalidationLevel::Repaint; }
-    [[nodiscard]] bool needs_relayout() const { return m_level >= InvalidationLevel::Relayout; }
-    [[nodiscard]] bool needs_layout_tree_rebuild() const { return m_level >= InvalidationLevel::RebuildLayoutTree; }
+    // What the boxes need, including a counter-style rebuild.
+    [[nodiscard]] bool needs_repaint() const { return m_level >= InvalidationLevel::Repaint || m_counter_style_rebuild_root.has_value(); }
+    [[nodiscard]] bool needs_relayout() const { return m_level >= InvalidationLevel::Relayout || m_counter_style_rebuild_root.has_value(); }
+    [[nodiscard]] bool needs_layout_tree_rebuild() const { return style_change_needs_layout_tree_rebuild() || m_counter_style_rebuild_root.has_value(); }
     [[nodiscard]] LayoutTreeRebuildRoot layout_tree_rebuild_root() const
     {
         VERIFY(needs_layout_tree_rebuild());
-        return m_layout_tree_rebuild_root;
+        if (!m_counter_style_rebuild_root.has_value())
+            return m_layout_tree_rebuild_root;
+        if (!style_change_needs_layout_tree_rebuild())
+            return *m_counter_style_rebuild_root;
+        return max(m_layout_tree_rebuild_root, *m_counter_style_rebuild_root);
     }
     void set_layout_tree_rebuild_root(LayoutTreeRebuildRoot rebuild_root)
     {
-        VERIFY(needs_layout_tree_rebuild());
+        VERIFY(style_change_needs_layout_tree_rebuild());
         m_layout_tree_rebuild_root = rebuild_root;
     }
-    [[nodiscard]] bool needs_stacking_context_tree_rebuild() const { return m_rebuild_stacking_context_tree; }
+    [[nodiscard]] bool needs_stacking_context_tree_rebuild() const { return m_rebuild_stacking_context_tree || m_counter_style_rebuild_root.has_value(); }
+    // What the move of style alone needs, without a counter-style rebuild: what the element's children react to.
+    [[nodiscard]] bool style_change_needs_layout_tree_rebuild() const { return m_level >= InvalidationLevel::RebuildLayoutTree; }
     [[nodiscard]] AccumulatedVisualContextInvalidation accumulated_visual_contexts() const { return m_accumulated_visual_contexts; }
     [[nodiscard]] bool invalidates_hit_test_display_list() const
     {
@@ -98,8 +106,8 @@ struct RequiredInvalidationAfterStyleChange {
 
     void operator|=(RequiredInvalidationAfterStyleChange const& other)
     {
-        if (other.needs_layout_tree_rebuild()) {
-            if (needs_layout_tree_rebuild())
+        if (other.style_change_needs_layout_tree_rebuild()) {
+            if (style_change_needs_layout_tree_rebuild())
                 m_layout_tree_rebuild_root = max(m_layout_tree_rebuild_root, other.m_layout_tree_rebuild_root);
             else
                 m_layout_tree_rebuild_root = other.m_layout_tree_rebuild_root;
@@ -107,6 +115,8 @@ struct RequiredInvalidationAfterStyleChange {
         m_level = max(m_level, other.m_level);
         m_accumulated_visual_contexts = max(m_accumulated_visual_contexts, other.m_accumulated_visual_contexts);
         m_rebuild_stacking_context_tree |= other.m_rebuild_stacking_context_tree;
+        if (auto other_root = other.m_counter_style_rebuild_root; other_root.has_value())
+            m_counter_style_rebuild_root = m_counter_style_rebuild_root.has_value() ? max(*m_counter_style_rebuild_root, *other_root) : *other_root;
         needs_scroll_container_resnap |= other.needs_scroll_container_resnap;
         recompute_descendant_styles |= other.recompute_descendant_styles;
         m_inherited_style_groups_changed |= other.m_inherited_style_groups_changed;
@@ -116,7 +126,8 @@ struct RequiredInvalidationAfterStyleChange {
         non_inherited_property_inheritance_sources_changed |= other.non_inherited_property_inheritance_sources_changed;
     }
 
-    [[nodiscard]] bool is_none() const
+    [[nodiscard]] bool is_none() const { return style_change_is_none() && !m_counter_style_rebuild_root.has_value(); }
+    [[nodiscard]] bool style_change_is_none() const
     {
         return m_level == InvalidationLevel::None
             && m_accumulated_visual_contexts == AccumulatedVisualContextInvalidation::None
@@ -146,11 +157,21 @@ struct RequiredInvalidationAfterStyleChange {
         return invalidation;
     }
 
+    // The counter styles the boxes were built with no longer resolve the same. Rebuilding them is layout work after
+    // style that moves no style, so it is kept apart from the move of style, which no child of the element reacts to.
+    static RequiredInvalidationAfterStyleChange rebuild_layout_tree_for_counter_styles_from(LayoutTreeRebuildRoot rebuild_root)
+    {
+        RequiredInvalidationAfterStyleChange invalidation;
+        invalidation.m_counter_style_rebuild_root = rebuild_root;
+        return invalidation;
+    }
+
 private:
     InvalidationLevel m_level { InvalidationLevel::None };
     AccumulatedVisualContextInvalidation m_accumulated_visual_contexts { AccumulatedVisualContextInvalidation::None };
     LayoutTreeRebuildRoot m_layout_tree_rebuild_root { LayoutTreeRebuildRoot::Parent };
     bool m_rebuild_stacking_context_tree : 1 { false };
+    Optional<LayoutTreeRebuildRoot> m_counter_style_rebuild_root;
     u8 m_inherited_style_groups_changed { 0 };
 };
 
