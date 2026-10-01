@@ -197,6 +197,22 @@ pub struct FfiSubstitutionFunctionDefinition {
 }
 
 impl CustomPropertyRegistry {
+    /// The registry of a document that registers no custom property.
+    fn empty() -> Self {
+        Self {
+            registrations: HashMap::new(),
+            document_url: Vec::new(),
+            document_base_url: Vec::new(),
+        }
+    }
+
+    /// One empty registry for every document input that names none.
+    pub(crate) fn shared_empty() -> &'static Self {
+        static EMPTY: std::sync::LazyLock<CustomPropertyRegistry> =
+            std::sync::LazyLock::new(CustomPropertyRegistry::empty);
+        &EMPTY
+    }
+
     /// Whether any custom property is registered; an unregistered name resolves without a syntax.
     pub(crate) fn has_registrations(&self) -> bool {
         !self.registrations.is_empty()
@@ -2983,12 +2999,7 @@ mod tests {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_custom_property_registry_create() -> *mut c_void {
-    Box::into_raw(Box::new(CustomPropertyRegistry {
-        registrations: HashMap::new(),
-        document_url: Vec::new(),
-        document_base_url: Vec::new(),
-    }))
-    .cast()
+    Box::into_raw(Box::new(CustomPropertyRegistry::empty())).cast()
 }
 
 /// Replaces the effective registered custom-property names for one document.

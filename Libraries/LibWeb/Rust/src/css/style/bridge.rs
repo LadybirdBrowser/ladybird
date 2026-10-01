@@ -269,6 +269,23 @@ pub struct FfiDocumentStyleComputationInputs {
     pub custom_property_registration_generation: u64,
 }
 
+impl FfiDocumentStyleComputationInputs {
+    /// The document's custom-property registry. Every document publishes the one it creates with
+    /// itself, so inputs naming none are a test's or a replay's, for a document that registers
+    /// nothing.
+    pub(crate) fn custom_property_registry(&self) -> &CustomPropertyRegistry {
+        // SAFETY: A document's registry lives as long as the document, which outlives the inputs
+        // it publishes.
+        unsafe {
+            self.custom_property_registry
+                .as_pointer()
+                .cast::<CustomPropertyRegistry>()
+                .as_ref()
+        }
+        .unwrap_or_else(|| CustomPropertyRegistry::shared_empty())
+    }
+}
+
 impl Default for FfiDocumentStyleComputationInputs {
     fn default() -> Self {
         Self {
@@ -3461,14 +3478,8 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
             for code in computation_inputs.document_supported_scheme_codes {
                 payload.write_u8(code);
             }
-            let custom_property_registry_is_engine_usable = !computation_inputs.custom_property_registry.is_none()
-                && !unsafe {
-                    &*computation_inputs
-                        .custom_property_registry
-                        .as_pointer()
-                        .cast::<CustomPropertyRegistry>()
-                }
-                .has_registrations();
+            let custom_property_registry_is_engine_usable =
+                !computation_inputs.custom_property_registry().has_registrations();
             payload.write_bool(custom_property_registry_is_engine_usable);
             payload.write_u64(computation_inputs.custom_property_registration_generation);
             payload.write_bool(computation_inputs.in_quirks_mode);
