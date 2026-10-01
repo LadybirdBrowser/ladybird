@@ -2468,10 +2468,9 @@ impl RetainedState {
         }
     }
 
-    /// Whether a winner's declaration was written with a substitution the engine resolves itself:
-    /// var() references of its own, or a longhand pending a shorthand written with them. A value
-    /// reading anything else - a custom function, an attribute, a style query - is C++'s, and what
-    /// it computes to can move without any winner moving.
+    /// Whether a winner's declaration was written with a substitution the engine resolves itself,
+    /// or is a longhand pending a shorthand written with one. A value calling a custom function or
+    /// reading an attribute is C++'s, and what it computes to can move without any winner moving.
     fn winner_is_written_with_substitution(&self, node: StyleNodeID, winner: &PropertyWinner) -> bool {
         let written = match winner.source {
             WinnerSource::Rule(rule) => self
