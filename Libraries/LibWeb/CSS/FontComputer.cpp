@@ -17,6 +17,7 @@
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/FontFaceSnapshot.h>
 #include <LibWeb/CSS/FontFaceState.h>
 #include <LibWeb/CSS/FontLoading.h>
 #include <LibWeb/CSS/RustFontFeatureValues.h>
@@ -42,11 +43,6 @@ GC_DEFINE_ALLOCATOR(FontLoader);
 }
 
 namespace AK {
-
-template<>
-struct Traits<Web::CSS::FontFaceKey> : public DefaultTraits<Web::CSS::FontFaceKey> {
-    static unsigned hash(Web::CSS::FontFaceKey const& key) { return key.hash(); }
-};
 
 template<>
 struct Traits<Web::CSS::FontFeatureValuesCacheKey> : public DefaultTraits<Web::CSS::FontFeatureValuesCacheKey> {
@@ -929,6 +925,32 @@ void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString>
 void FontComputer::bump_environment_generation()
 {
     ++m_environment_generation;
+    m_font_face_snapshot = nullptr;
+}
+
+NonnullRefPtr<FontFaceSnapshot const> FontComputer::font_face_snapshot() const
+{
+    if (m_font_face_snapshot)
+        return *m_font_face_snapshot;
+    FontFaceSnapshot::Table table;
+    table.ensure_capacity(m_font_faces.size());
+    for (auto const& [key, faces] : m_font_faces) {
+        Vector<FontFaceSnapshot::Face> snapshot_faces;
+        snapshot_faces.ensure_capacity(faces.size());
+        for (auto const& face : faces) {
+            snapshot_faces.unchecked_append({
+                .id = face->id(),
+                .typeface = face->typeface(),
+                .unicode_ranges = face->unicode_ranges(),
+                .has_urls = face->has_urls(),
+                .is_unusable = face->is_unusable_for_rendering(),
+                .has_non_default_unicode_range = face->has_non_default_unicode_range(),
+            });
+        }
+        table.set(key, move(snapshot_faces));
+    }
+    m_font_face_snapshot = FontFaceSnapshot::create(m_environment_generation, move(table));
+    return *m_font_face_snapshot;
 }
 
 void FontComputer::clear_font_feature_values_cache(Utf16FlyString const& family_name)
