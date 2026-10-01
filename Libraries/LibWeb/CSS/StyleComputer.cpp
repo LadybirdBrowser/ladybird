@@ -23,6 +23,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Utf8View.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Font/FontDatabase.h>
@@ -47,6 +48,7 @@
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/CSS/FontFaceState.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
@@ -331,11 +333,15 @@ void StyleComputer::prepare_for_style_engine_transaction() const
 void StyleComputer::begin_style_update() const
 {
     ++m_style_update_depth;
+    begin_deferred_web_face_loads();
 }
 
 void StyleComputer::end_style_update() const
 {
     VERIFY(m_style_update_depth > 0);
+    // Loading a web face a style selected runs author callbacks and starts a fetch, so it waits for the outermost
+    // update to finish.
+    ScopeGuard load_deferred_web_faces = [] { end_deferred_web_face_loads(); };
     if (--m_style_update_depth != 0)
         return;
     m_style_update_ffi_media_environment.clear();
