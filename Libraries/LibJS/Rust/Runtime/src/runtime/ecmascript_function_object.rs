@@ -17,6 +17,7 @@ use crate::gc::class::{Extends, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
+use crate::interpreter::run::should_dump_bytecode;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -293,6 +294,10 @@ impl EcmascriptFunctionObject {
                 let rust_executable = SharedFunctionInstanceData::compile_function(vm, shared_data, false)
                     .expect("an ECMAScript function compiles to an executable");
                 shared_data.set_executable(Some(rust_executable));
+                rust_executable.set_name(function.name());
+                if should_dump_bytecode() {
+                    rust_executable.dump();
+                }
                 shared_data.clear_compile_inputs();
                 rust_executable
             }

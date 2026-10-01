@@ -5,18 +5,27 @@
  */
 
 //! The functions the Rust frontend (Libraries/LibJS/Rust) calls on the runtime that embeds it, which the C++ runtime
-//! defines in Libraries/LibJS/RustIntegration.cpp.
+//! defines in Libraries/LibJS/RustIntegration.cpp: the hooks the parser calls, and the callbacks through which the
+//! frontend's bytecode dumper asks for the names and constants of an executable.
 
 use core::alloc::Layout;
 use core::ffi::c_void;
 use core::{ptr, slice};
 use std::alloc::{alloc, dealloc, handle_alloc_error};
 
+use libjs_rust::bytecode::dump::{
+    FFIBytecodeDumpCallbacks, FFIBytecodeDumpMetadata, FFIDumpExceptionHandler, FFIInterpreterHandlerRange,
+    count_basic_blocks,
+};
 use libregex_rust::ast::Flags;
 use libregex_rust::regex::Regex;
 
+use crate::bytecode::executable::{Executable, append_double_formatted_like_ak, append_value_formatted_like_ak};
+use crate::interpreter::run::should_dump_interpreter_assembly;
+use crate::layout::value::Value;
 use crate::runtime::regexp_object::parse_regex_pattern;
 use crate::runtime::value::number_to_string;
+use crate::utf16::Utf16View;
 
 /// What the frontend holds for each regular expression literal it compiled: the pattern as ParsePattern rewrote it.
 pub struct CompiledRegex {
@@ -164,4 +173,154 @@ fn allocate_error_string(message: &str) -> (*const u16, usize) {
         ptr::copy_nonoverlapping(code_units.as_ptr(), message_data, code_units.len());
         (message_data, code_units.len())
     }
+}
+
+// --- Bytecode dump callbacks ---
+
+unsafe extern "C" {
+    /// The native code of the handler of each opcode, which flapc emits with the interpreter.
+    static js_interpreter_handler_ranges: [FFIInterpreterHandlerRange; 256];
+}
+
+struct BytecodeDumpBuilder<'a> {
+    output: &'a mut Vec<u8>,
+    executable: &'a Executable,
+}
+
+/// # Safety
+///
+/// ctx must be the BytecodeDumpBuilder dump_bytecode() passes the dumper, which outlives the dump.
+unsafe fn bytecode_dump_builder<'a>(ctx: *mut c_void) -> &'a mut BytecodeDumpBuilder<'a> {
+    // SAFETY: The caller guarantees the context, which nothing else refers to while a callback runs.
+    unsafe { &mut *ctx.cast::<BytecodeDumpBuilder<'a>>() }
+}
+
+unsafe extern "C" fn bytecode_dump_append(ctx: *mut c_void, data: *const u8, len: usize) {
+    // SAFETY: The dumper passes our context and len bytes of UTF-8 at data, which comes from a Rust string.
+    let (builder, text) = unsafe { (bytecode_dump_builder(ctx), slice::from_raw_parts(data, len)) };
+    builder.output.extend_from_slice(text);
+}
+
+unsafe extern "C" fn bytecode_dump_append_local(ctx: *mut c_void, index: u32) {
+    // SAFETY: The dumper passes our context.
+    let builder = unsafe { bytecode_dump_builder(ctx) };
+    Utf16View::of_fly_string(&builder.executable.local_variable_names[index as usize])
+        .append_as_wtf8_to(builder.output);
+}
+
+unsafe extern "C" fn bytecode_dump_append_identifier(ctx: *mut c_void, index: u32, quoted: bool) {
+    // SAFETY: The dumper passes our context.
+    let builder = unsafe { bytecode_dump_builder(ctx) };
+    let identifier = Utf16View::of_fly_string(&builder.executable.identifier_table[index as usize]);
+    if quoted {
+        builder.output.extend_from_slice(b"\x1b[36m`");
+        identifier.append_as_wtf8_to(builder.output);
+        builder.output.extend_from_slice(b"`\x1b[0m");
+    } else {
+        identifier.append_as_wtf8_to(builder.output);
+    }
+}
+
+/// The table holds the property keys as the strings they were made from. Formatting a PropertyKey writes an array
+/// index key as its number, which is the same text, since only canonical index strings become numbers.
+unsafe extern "C" fn bytecode_dump_append_property_key(ctx: *mut c_void, index: u32, quoted: bool) {
+    // SAFETY: The dumper passes our context.
+    let builder = unsafe { bytecode_dump_builder(ctx) };
+    let property_key = Utf16View::of_fly_string(&builder.executable.property_key_table[index as usize]);
+    if quoted {
+        builder.output.extend_from_slice(b"\x1b[36m`");
+        property_key.append_as_wtf8_to(builder.output);
+        builder.output.extend_from_slice(b"`\x1b[0m");
+    } else {
+        property_key.append_as_wtf8_to(builder.output);
+    }
+}
+
+unsafe extern "C" fn bytecode_dump_append_string(ctx: *mut c_void, index: u32) {
+    // SAFETY: The dumper passes our context.
+    let builder = unsafe { bytecode_dump_builder(ctx) };
+    Utf16View::of_fly_string(&builder.executable.string_table[index as usize]).append_as_wtf8_to(builder.output);
+}
+
+unsafe extern "C" fn bytecode_dump_append_value_double(ctx: *mut c_void, value: f64) {
+    // SAFETY: The dumper passes our context.
+    let builder = unsafe { bytecode_dump_builder(ctx) };
+    append_double_formatted_like_ak(builder.output, value);
+}
+
+unsafe extern "C" fn bytecode_dump_append_value_string(ctx: *mut c_void, encoded: u64) {
+    // SAFETY: The dumper passes our context.
+    let builder = unsafe { bytecode_dump_builder(ctx) };
+    Utf16View::of_string(&Value(encoded).as_string().utf16_string()).append_as_wtf8_to(builder.output);
+}
+
+unsafe extern "C" fn bytecode_dump_append_value_bigint(ctx: *mut c_void, encoded: u64) {
+    // SAFETY: The dumper passes our context.
+    let builder = unsafe { bytecode_dump_builder(ctx) };
+    Utf16View::of_string(&Value(encoded).as_bigint().to_utf16_string()).append_as_wtf8_to(builder.output);
+}
+
+unsafe extern "C" fn bytecode_dump_append_value_fallback(ctx: *mut c_void, encoded: u64) {
+    // SAFETY: The dumper passes our context.
+    let builder = unsafe { bytecode_dump_builder(ctx) };
+    append_value_formatted_like_ak(builder.output, Value(encoded));
+}
+
+fn make_ffi_exception_handlers(executable: &Executable) -> Vec<FFIDumpExceptionHandler> {
+    executable
+        .exception_handlers
+        .iter()
+        .map(|handler| FFIDumpExceptionHandler {
+            start_offset: handler.start_offset as usize,
+            end_offset: handler.end_offset as usize,
+            handler_offset: handler.handler_offset as usize,
+        })
+        .collect()
+}
+
+pub fn dump_bytecode(output: &mut Vec<u8>, executable: &Executable) {
+    let exception_handlers = make_ffi_exception_handlers(executable);
+    let constants = executable.constants();
+    // SAFETY: A Value is its encoded u64.
+    let encoded_constants = unsafe { slice::from_raw_parts(constants.as_ptr().cast::<u64>(), constants.len()) };
+    let mut builder = BytecodeDumpBuilder { output, executable };
+    let callbacks = FFIBytecodeDumpCallbacks {
+        append: bytecode_dump_append,
+        append_local: bytecode_dump_append_local,
+        append_identifier: bytecode_dump_append_identifier,
+        append_property_key: bytecode_dump_append_property_key,
+        append_string: bytecode_dump_append_string,
+        append_value_double: bytecode_dump_append_value_double,
+        append_value_string: bytecode_dump_append_value_string,
+        append_value_bigint: bytecode_dump_append_value_bigint,
+        append_value_fallback: bytecode_dump_append_value_fallback,
+    };
+    let metadata = FFIBytecodeDumpMetadata {
+        number_of_registers: executable.number_of_registers,
+        registers_and_locals_count: executable.registers_and_locals_count(),
+        local_index_base: executable.local_index_base(),
+        argument_index_base: executable.argument_index_base(),
+        constants: encoded_constants.as_ptr(),
+        constant_count: encoded_constants.len(),
+        interpreter_handler_ranges: (&raw const js_interpreter_handler_ranges).cast(),
+        dump_interpreter: should_dump_interpreter_assembly(),
+    };
+
+    // SAFETY: The frontend validated the bytecode it compiled, the callbacks only read the executable, and the
+    // interpreter's handler ranges delimit its code, which is mapped for as long as the process runs.
+    unsafe {
+        libjs_rust::bytecode::dump::dump_bytecode(
+            executable.bytecode(),
+            &exception_handlers,
+            &metadata,
+            encoded_constants,
+            ptr::from_mut(&mut builder).cast(),
+            &callbacks,
+        );
+    }
+}
+
+pub fn count_bytecode_basic_blocks(executable: &Executable) -> usize {
+    let exception_handlers = make_ffi_exception_handlers(executable);
+    count_basic_blocks(executable.bytecode(), &exception_handlers)
 }

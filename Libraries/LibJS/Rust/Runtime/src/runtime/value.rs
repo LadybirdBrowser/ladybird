@@ -865,7 +865,9 @@ impl Value {
             nan_box::STRING_TAG => self.as_string().utf16_string(),
             nan_box::SYMBOL_TAG => self.as_symbol().descriptive_string(),
             nan_box::BIGINT_TAG => self.as_bigint().to_utf16_string(),
-            nan_box::OBJECT_TAG => Utf16String::from_utf8(&format!("[object {}]", self.as_object().class().name)),
+            nan_box::OBJECT_TAG => {
+                Utf16String::from_utf8(&format!("[object {}]", self.as_object().class().class_name()))
+            }
             nan_box::ACCESSOR_TAG => Utf16String::from_utf8("<accessor>"),
             nan_box::EMPTY_TAG => Utf16String::from_utf8("<empty>"),
             _ => unreachable!("a value with an unknown tag"),
