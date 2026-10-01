@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/Node.h>
@@ -126,6 +127,18 @@ void Document::update_style_and_layout_once(UpdateLayoutReason reason, Throttled
         .reason_name = ffi_utf16_view(to_string(reason)),
     };
     Layout::RustFFI::layout_arena_update_layout(arena.handle(), &inputs);
+
+    // An <object> showing this document is sized from its <svg> document element, whose natural size only this
+    // document's layout works out. Hand it over as it changes.
+    if (auto* object = as_if<HTML::HTMLObjectElement>(navigable->container().ptr())) {
+        Layout::RustFFI::FfiNaturalSize natural_size {};
+        if (Layout::RustFFI::layout_arena_take_changed_document_svg_root_natural_size(arena.handle(), &natural_size)) {
+            CSS::SizeWithAspectRatio size { natural_size.width, natural_size.height, {} };
+            if (natural_size.has_aspect_ratio)
+                size.aspect_ratio = CSSPixelFraction(natural_size.aspect_ratio_numerator, natural_size.aspect_ratio_denominator);
+            object->set_natural_size_of_content_document(size);
+        }
+    }
 }
 
 }

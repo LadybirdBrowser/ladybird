@@ -1,0 +1,44 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 81 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 65 0+0+8] children: inline
+      frag 0 from NavigableContainerViewport start: 0, length: 0, rect: [9,9 120x60] baseline: 62
+      frag 1 from TextNode start: 0, length: 1, rect: [130,57 8x16] baseline: 12.796875
+          " "
+      frag 2 from NavigableContainerViewport start: 0, length: 0, rect: [139,19 100x50] baseline: 52
+      frag 3 from TextNode start: 0, length: 1, rect: [240,57 8x16] baseline: 12.796875
+          " "
+      frag 4 from NavigableContainerViewport start: 0, length: 0, rect: [249,39 80x30] baseline: 32
+      frag 5 from TextNode start: 0, length: 1, rect: [330,57 8x16] baseline: 12.796875
+          " "
+      frag 6 from NavigableContainerViewport start: 0, length: 0, rect: [339,39 100x30] baseline: 32
+      frag 7 from TextNode start: 0, length: 1, rect: [440,57 8x16] baseline: 12.796875
+          " "
+      frag 8 from NavigableContainerViewport start: 0, length: 0, rect: [449,39 50x30] baseline: 32
+      NavigableContainerViewport <object> at [9,9] [0+1+0 120 0+1+0] [0+1+0 60 0+1+0] children: not-inline (url: data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='60'></svg>)
+        Viewport <#document> at [0,0] [0+0+0 120 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
+          SVGSVGBox <svg> at [0,0] [0+0+0 120 0+0+0] [0+0+0 60 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+
+      TextNode <#text> (not painted)
+      NavigableContainerViewport <object> at [139,19] [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] children: not-inline (url: data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 20'></svg>)
+        Viewport <#document> at [0,0] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
+          SVGSVGBox <svg> at [0,0] [0+0+0 100 0+0+0] [0+0+0 50 0+0+0] viewport-transform=[2.5 0 0 2.5 0 0] [SVG] children: not-inline
+
+      TextNode <#text> (not painted)
+      NavigableContainerViewport <object> at [249,39] [0+1+0 80 0+1+0] [0+1+0 30 0+1+0] children: not-inline (url: data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='5em' height='30'></svg>)
+        Viewport <#document> at [0,0] [0+0+0 80 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+          SVGSVGBox <svg> at [0,0] [0+0+0 80 0+0+0] [0+0+0 30 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
+
+      TextNode <#text> (not painted)
+      NavigableContainerViewport <object> at [339,39] [0+1+0 100 0+1+0] [0+1+0 30 0+1+0] children: not-inline (url: data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='5em' height='30' style='font-size: 20px'></svg>)
+        Viewport <#document> at [0,0] [0+0+0 100 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+          SVGSVGBox <svg> at [0,0] [0+0+0 100 0+0+0] [0+0+0 30 0+0+0] viewport-transform=[1 0 0 1 10 0] [SVG] children: not-inline
+
+      TextNode <#text> (not painted)
+      NavigableContainerViewport <object> at [449,39] [0+1+0 50 0+1+0] [0+1+0 30 0+1+0] children: not-inline (url: data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='5em' height='30' style='font-size: 20px'><script>document.documentElement.getBoundingClientRect(); document.documentElement.style.fontSize = '10px';</script></svg>)
+        Viewport <#document> at [0,0] [0+0+0 50 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+          SVGSVGBox <svg> at [0,0] [0+0+0 50 0+0+0] [0+0+0 30 0+0+0] viewport-transform=[0.625 0 0 0.625 0 5.625] [SVG] children: not-inline
+
+      TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x81] (z-index: auto)

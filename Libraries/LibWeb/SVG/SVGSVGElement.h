@@ -89,7 +89,6 @@ public:
     [[nodiscard]] Optional<CSS::Length> width_attribute_length() const;
     [[nodiscard]] Optional<CSS::Length> height_attribute_length() const;
 
-    static CSS::SizeWithAspectRatio negotiate_natural_metrics(SVGSVGElement const&, CSS::Length::ResolutionContext const&);
     // The natural aspect ratio the active SVG view or the viewBox gives an <svg>, which its natural size negotiation
     // falls back to where its width and height do not both give it one.
     static Optional<CSSPixelFraction> view_box_natural_aspect_ratio(SVGSVGElement const&);

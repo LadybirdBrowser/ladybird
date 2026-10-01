@@ -65,7 +65,6 @@ void Box::set_owned_image_provider(NonnullOwnPtr<ImageProvider> image_provider)
 {
     VERIFY(kind() == RustFFI::NodeKind::ImageBox);
     m_owned_image_provider = move(image_provider);
-    RustFFI::layout_arena_note_owned_image_provider(arena_handle(), Node::slot_id(this));
 }
 
 // An element's image provider outlives its box and keeps nothing about it, so only a provider the

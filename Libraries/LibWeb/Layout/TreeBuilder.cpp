@@ -118,6 +118,7 @@ public:
     void set_layout_node(Layout::Node& layout_node)
     {
         m_layout_node = layout_node;
+        publish_natural_size();
     }
 
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override
@@ -152,6 +153,7 @@ private:
         {
             if (!m_owner.m_layout_node)
                 return;
+            m_owner.publish_natural_size();
             m_owner.image_provider_contents_changed();
             m_owner.m_layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::GeneratedContentImageFinishedLoading);
         }
@@ -165,6 +167,22 @@ private:
     {
         if (auto const* image = m_image->selected_image_style_value())
             m_image_client = make<ImageClient>(*this, document, *image);
+    }
+
+    // The box's replaced content facts are derived from the natural size of the image it shows, which the provider
+    // publishes to the box's row as it is handed over and as its image loads: zero while the image is not available.
+    void publish_natural_size() const
+    {
+        auto natural_size = is_image_available() ? this->natural_size() : CSS::SizeWithAspectRatio { 0, 0, {} };
+        RustFFI::FfiNaturalSize published {};
+        published.width = natural_size.width;
+        published.height = natural_size.height;
+        if (natural_size.aspect_ratio.has_value()) {
+            published.has_aspect_ratio = true;
+            published.aspect_ratio_numerator = natural_size.aspect_ratio->numerator();
+            published.aspect_ratio_denominator = natural_size.aspect_ratio->denominator();
+        }
+        RustFFI::layout_arena_set_owned_image_natural_size(m_layout_node->arena_handle(), Node::slot_id(m_layout_node.ptr()), published);
     }
 
     CSS::SizeWithAspectRatio natural_size() const

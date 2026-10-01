@@ -683,9 +683,16 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     text_nodes_enrolled_for_content_sync: RefCell<HashSet<NodeSlotId>>,
     nodes_enrolled_for_replaced_content_facts_sync: RefCell<Vec<NodeSlotId>>,
-    /// The image boxes that own their image's provider (`content: url(...)`), which shows an image
-    /// of the box's own rather than its element's.
-    rows_with_owned_image_provider: RefCell<HashSet<NodeSlotId>>,
+    /// The natural size of the image each image box that owns its image's provider shows
+    /// (`content: url(...)`), as the provider publishes it: zero while the image is not available.
+    /// Such a box shows an image of its own rather than its element's.
+    owned_image_natural_sizes: RefCell<HashMap<NodeSlotId, crate::css::style::NaturalSize>>,
+    /// The natural size layout last negotiated for the box of an `<svg>` document element, and that
+    /// box. An `<object>` showing the document is sized from it.
+    document_svg_root_natural_size: Cell<Option<(NodeSlotId, crate::css::style::NaturalSize)>>,
+    /// The document element's natural size as it was last handed to the `<object>` showing the
+    /// document, if it has been.
+    handed_over_document_svg_root_natural_size: Cell<Option<crate::css::style::NaturalSize>>,
     /// What the running pass has to tell the document, waiting for the commit that delivers it.
     messages_reported_during_pass: RefCell<Vec<super::commit::FfiCommitMessage>>,
     /// The rows the layout commit in progress gathers for the style engine's container queries.
@@ -779,7 +786,9 @@ impl LayoutNodeArena {
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
-            rows_with_owned_image_provider: RefCell::new(HashSet::default()),
+            owned_image_natural_sizes: RefCell::new(HashMap::default()),
+            document_svg_root_natural_size: Cell::new(None),
+            handed_over_document_svg_root_natural_size: Cell::new(None),
             messages_reported_during_pass: RefCell::new(Vec::new()),
             layout_style_snapshot_commit: RefCell::new(Vec::new()),
             layout_tree_update_marks: RefCell::default(),
@@ -926,6 +935,26 @@ impl LayoutNodeArena {
     #[cfg(test)]
     pub(crate) fn set_style_node_for_test(&self, slot: NodeSlotId, style_node: Option<StyleNodeID>) {
         self.set_node_style_node(slot, style_node);
+    }
+
+    /// Derives the replaced content facts of every enrolled node from what its element, or the
+    /// image provider the node owns, published, and lets go of the nodes that died.
+    fn sync_enrolled_replaced_content_facts(&mut self) {
+        let mut enrolled_nodes = std::mem::take(self.nodes_enrolled_for_replaced_content_facts_sync.get_mut());
+        enrolled_nodes.retain(|&node| self.slot_is_live(node));
+        for &node in &enrolled_nodes {
+            let input = match self.owned_image_natural_sizes.get_mut().get(&node) {
+                Some(&natural_size) => crate::css::style::ReplacedContentInput::NaturalSize(natural_size),
+                None => self.replaced_content_input(node),
+            };
+            let facts = super::node_facts::derived_replaced_content_facts(self.data(node), input);
+            // Changed facts invalidate cached formatting-context runs regardless of which channel
+            // produced the change, including sources with no invalidation of their own.
+            if self.set_replaced_content_facts(node, facts) {
+                self.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+            }
+        }
+        *self.nodes_enrolled_for_replaced_content_facts_sync.get_mut() = enrolled_nodes;
     }
 
     pub(crate) fn enroll_node_for_replaced_content_facts_sync_if_eligible(&self, node: NodeSlotId) {
@@ -1108,7 +1137,7 @@ impl LayoutNodeArena {
         if let Some(slot) = self.replaced_content_facts.get_mut(index as usize) {
             *slot = ReplacedContentFactsSlot::default();
         }
-        self.rows_with_owned_image_provider.get_mut().remove(&id);
+        self.owned_image_natural_sizes.get_mut().remove(&id);
         // free() never interleaves with a layout pass (C++ is blocked on the
         // synchronous FFI entry), so a live record here means a run leaked.
         if let Some(slot) = self.run_used_records.get_mut().get_mut(index as usize) {
@@ -1609,6 +1638,44 @@ impl LayoutNodeArena {
 
     pub(crate) fn layout_root(&self) -> NodeSlotId {
         self.layout_root.get()
+    }
+
+    /// Whether `id` is the live box of an `<svg>` document element.
+    pub(crate) fn is_document_svg_root_box(&self, id: NodeSlotId) -> bool {
+        let layout_root = self.layout_root();
+        self.slot_is_live(id)
+            && !layout_root.is_invalid()
+            && self.data(id).kind.get() == NodeKind::SVGSVGBox
+            && self.data(id).parent.get() == layout_root
+    }
+
+    /// Note the natural size layout negotiated for the box of an `<svg>` document element.
+    pub(crate) fn note_document_svg_root_natural_size(
+        &self,
+        root_box: NodeSlotId,
+        natural_size: crate::css::style::NaturalSize,
+    ) {
+        self.document_svg_root_natural_size.set(Some((root_box, natural_size)));
+    }
+
+    /// The natural size of the document's `<svg>` document element as its last layout negotiated
+    /// it, unless it is what the last call handed over. The size is all absent if the document
+    /// element is no `<svg>` with a box.
+    pub(crate) fn take_changed_document_svg_root_natural_size(&self) -> Option<crate::css::style::NaturalSize> {
+        let current = self
+            .document_svg_root_natural_size
+            .get()
+            .filter(|&(root_box, _)| self.is_document_svg_root_box(root_box))
+            .map(|(_, natural_size)| natural_size)
+            .unwrap_or_default();
+        (self.handed_over_document_svg_root_natural_size.replace(Some(current)) != Some(current)).then_some(current)
+    }
+
+    /// Publish the natural size of the image the image box `id` owns the provider of, which the
+    /// box's replaced content facts are derived from.
+    pub(crate) fn set_owned_image_natural_size(&self, id: NodeSlotId, natural_size: crate::css::style::NaturalSize) {
+        assert_eq!(self.data(id).kind.get(), NodeKind::ImageBox);
+        self.owned_image_natural_sizes.borrow_mut().insert(id, natural_size);
     }
 
     /// Whether the tree the arena holds already reflects every pending update. A document without
@@ -4316,20 +4383,6 @@ pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
     assert_eq!(arena.live_count, 0, "layout node arena destroyed with live slots");
 }
 
-/// Notes that the image box `id` owns its image's provider, and so shows an image of its own
-/// rather than its element's.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, and `id` a live image box.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_note_owned_image_provider(arena: *mut c_void, id: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    assert_eq!(arena.data(id).kind.get(), NodeKind::ImageBox);
-    arena.rows_with_owned_image_provider.borrow_mut().insert(id);
-}
-
 /// Records the characters a generated text row renders.
 ///
 /// # Safety
@@ -5034,15 +5087,14 @@ pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(arena: *m
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle with a registered layout host, used on the document thread.
+/// `arena` must be a live handle, used on the document thread.
 pub(crate) unsafe fn sync_enrolled_content_for_layout(arena: *mut c_void) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY (for every derive below): the caller keeps the arena alive for this call and
-    // serializes all access on the document thread; no shared borrow outlives a callback.
+    // serializes all access on the document thread; no shared borrow outlives its statement.
     if unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_pass_is_running() {
         return;
     }
-    let host = unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_host();
     let enrolled_text_nodes = unsafe { &*arena.cast::<LayoutNodeArena>() }.pending_text_nodes_for_content_sync();
     for node in enrolled_text_nodes {
         if !unsafe { &*arena.cast::<LayoutNodeArena>() }.slot_is_live(node) {
@@ -5057,39 +5109,8 @@ pub(crate) unsafe fn sync_enrolled_content_for_layout(arena: *mut c_void) {
         unsafe { super::rendered_text::ensure_text_content(arena.cast(), node) };
     }
 
-    let enrolled_replaced_nodes = unsafe { &*arena.cast::<LayoutNodeArena>() }
-        .nodes_enrolled_for_replaced_content_facts_sync
-        .borrow()
-        .clone();
-    let mut live_replaced_nodes = Vec::with_capacity(enrolled_replaced_nodes.len());
-    for node in enrolled_replaced_nodes {
-        let shared = unsafe { &*arena.cast::<LayoutNodeArena>() };
-        if !shared.slot_is_live(node) {
-            continue;
-        }
-        live_replaced_nodes.push(node);
-        let data = shared.data(node);
-        let has_owned_image_provider = shared.rows_with_owned_image_provider.borrow().contains(&node);
-        let facts = if super::node_facts::replaced_content_facts_need_host(data, has_owned_image_provider) {
-            let shell = shared.node_shell(node);
-            let mut facts = FfiReplacedContentFacts::default();
-            // SAFETY: The callback receives a live shell and a valid out-pointer, and no arena
-            // borrow is used across it.
-            unsafe { (host.build_replaced_content_facts)(host.context, shell, &raw mut facts) };
-            facts
-        } else {
-            super::node_facts::derived_replaced_content_facts(data, shared.replaced_content_input(node))
-        };
-        // Changed facts invalidate cached formatting-context runs regardless of which
-        // channel produced the change, including sources with no invalidation of their own.
-        // SAFETY: As above; the shared borrows ended with their statements.
-        if unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(node, facts) {
-            unsafe { &*arena.cast::<LayoutNodeArena>() }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-        }
-    }
-    *unsafe { &*arena.cast::<LayoutNodeArena>() }
-        .nodes_enrolled_for_replaced_content_facts_sync
-        .borrow_mut() = live_replaced_nodes;
+    // SAFETY: As above; nothing below calls out of the arena.
+    unsafe { &mut *arena.cast::<LayoutNodeArena>() }.sync_enrolled_replaced_content_facts();
 }
 
 /// # Safety

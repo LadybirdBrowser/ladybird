@@ -804,7 +804,11 @@ void record_element_replaced_content_input(DOM::Element& element)
         return;
     }
     if (auto const* object = as_if<HTML::HTMLObjectElement>(element)) {
-        set_image_natural_size_input(*style_engine, node, *object);
+        // An object representing its content navigable is sized from the SVG document it shows.
+        if (object->represents_its_content_navigable())
+            set_natural_size_input(*style_engine, node, object->natural_size_of_content_document());
+        else
+            set_image_natural_size_input(*style_engine, node, *object);
         return;
     }
     if (auto const* input = as_if<HTML::HTMLInputElement>(element)) {
