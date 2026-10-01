@@ -1,5 +1,5 @@
-engine computed records: false
-C++ recomputations: 6
+engine computed records: true
+C++ recomputations: 0
 styled ::selection: rgb(1, 2, 3) on rgb(4, 5, 6)
 inner ::selection inherits: rgb(1, 2, 3) on rgb(4, 5, 6)
 plain color: rgb(0, 128, 0)
