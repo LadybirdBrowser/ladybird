@@ -1,0 +1,4 @@
+connected: "declared"
+detached: ""
+detached, new declaration: ""
+reconnected: "declared"

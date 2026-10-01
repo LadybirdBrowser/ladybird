@@ -35,6 +35,7 @@ namespace Web::CSS {
 
 enum class StyleRecordDependencyFlag : u8;
 
+class CustomPropertyData;
 class StyleComputer;
 class RustDeclarationBlock;
 struct StyleProperty;
@@ -263,6 +264,10 @@ public:
     // Reads the complete match answer published by the style transaction which opened the active
     // traversal. False means that transaction did not publish an answer for this node.
     bool consume_published_match_answer(StyleNodeID node, Vector<RuleMatch>&);
+
+    // The custom-property environment each element holds is kept here; the element keeps none of its own.
+    void set_element_custom_property_data(StyleNodeID, CustomPropertyData const*);
+    [[nodiscard]] CustomPropertyData const* element_custom_property_data(StyleNodeID) const;
 
     // Enumerates the engine's counters. Returns false once index is past the last counter.
     bool counter(size_t index, StringView& out_name, u64& out_value) const;

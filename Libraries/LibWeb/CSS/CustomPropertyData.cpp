@@ -214,3 +214,14 @@ bool CustomPropertyData::is_empty() const
 }
 
 }
+
+// The style engine keeps the custom-property environment each element holds, with a reference of its own.
+extern "C" void web_css_custom_property_data_reference(void const* data)
+{
+    static_cast<Web::CSS::CustomPropertyData const*>(data)->ref();
+}
+
+extern "C" void web_css_custom_property_data_unreference(void const* data)
+{
+    static_cast<Web::CSS::CustomPropertyData const*>(data)->unref();
+}

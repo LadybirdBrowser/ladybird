@@ -5547,10 +5547,15 @@ void Element::replace_custom_property_data(Optional<CSS::PseudoElement> pseudo_e
     install_custom_property_data(pseudo_element, move(data));
 }
 
+// The style engine keeps the custom-property environment an element holds; the element keeps none of its own. This is
+// the only place an element's environment moves.
 void Element::install_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
 {
     if (!pseudo_element.has_value()) {
-        m_custom_property_data = move(data);
+        auto style_node = style_node_id();
+        VERIFY(style_node != 0 || !data);
+        if (style_node != 0)
+            document().style_computer().style_engine().set_element_custom_property_data(style_node, data.ptr());
         return;
     }
 
@@ -5580,8 +5585,12 @@ void Element::install_custom_property_data(Optional<CSS::PseudoElement> pseudo_e
 
 RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS::PseudoElement> pseudo_element) const
 {
-    if (!pseudo_element.has_value())
-        return m_custom_property_data;
+    if (!pseudo_element.has_value()) {
+        auto style_node = style_node_id();
+        if (style_node == 0)
+            return nullptr;
+        return document().style_computer().style_engine().element_custom_property_data(style_node);
+    }
 
     if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
         return nullptr;
@@ -5600,19 +5609,20 @@ bool Element::refresh_inherited_custom_property_data()
             parent_data = data->inheritable(document());
     }
 
-    if (m_custom_property_data && m_custom_property_data->is_animation_overlay()) {
-        if (m_custom_property_data->parent() == parent_data)
+    auto current = custom_property_data({});
+    if (current && current->is_animation_overlay()) {
+        if (current->parent() == parent_data)
             return false;
         OrderedHashMap<Utf16FlyString, CSS::StyleProperty> animated_values;
-        for (auto const& [name, property] : m_custom_property_data->own_values())
+        for (auto const& [name, property] : current->own_values())
             animated_values.set(name, property);
-        m_custom_property_data = CSS::CustomPropertyData::create_animation_overlay(move(animated_values), move(parent_data));
+        install_custom_property_data({}, CSS::CustomPropertyData::create_animation_overlay(move(animated_values), move(parent_data)));
         return true;
     }
 
-    if (m_custom_property_data == parent_data)
+    if (current == parent_data)
         return false;
-    m_custom_property_data = move(parent_data);
+    install_custom_property_data({}, move(parent_data));
     return true;
 }
 

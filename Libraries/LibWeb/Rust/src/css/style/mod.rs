@@ -829,6 +829,9 @@ pub struct RetainedState {
     /// The nodes whose engine-computed record substituted a custom property into a winner: what
     /// C++ notes as reading custom properties when it installs the record.
     nodes_with_substituted_records: HashSet<StyleNodeID>,
+    /// The custom-property environment each element holds, for the elements that hold one. This is
+    /// the only copy: the element reads its environment from here.
+    element_custom_property_data: HashMap<StyleNodeID, inputs::RetainedCustomPropertyData>,
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
     css_defined_animations: animations::CssDefinedAnimations,

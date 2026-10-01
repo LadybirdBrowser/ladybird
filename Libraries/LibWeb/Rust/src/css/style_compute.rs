@@ -6918,6 +6918,10 @@ pub(crate) mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
+    extern "C" fn web_css_custom_property_data_reference(_data: *const c_void) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_custom_property_data_unreference(_data: *const c_void) {}
+    #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
     unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize {
