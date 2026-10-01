@@ -519,7 +519,12 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 // The record answers any style input the element owes, as the C++ computation it
                 // equals would: nothing is left for a later transaction to plan.
                 style_engine.consume_recorded_element_style_input_change(reaction.style_node);
-                if (verify_engine_computed_records) {
+                // A pseudo-only input kept the element's record. Its highlight records are C++'s,
+                // so running their reference computation before the installation would consume
+                // the observable pseudo-element publication the installation must report.
+                bool const pseudo_only_record_stands = reaction.reaction == (StyleEngine::PublishedStyle | StyleEngine::PseudoInputsMayHaveChanged)
+                    && reaction.new_style_record == reaction.old_style_record;
+                if (verify_engine_computed_records && !pseudo_only_record_stands) {
                     auto authoritative_custom_property_data = element->custom_property_data({});
                     if (authoritative_custom_property_data && authoritative_custom_property_data->is_animation_overlay())
                         authoritative_custom_property_data = authoritative_custom_property_data->parent();
@@ -675,13 +680,6 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 did_change_custom_properties = true;
                 element->republish_style_record_environment();
                 element->invalidate_descendant_styles_depending_on_style_container_query();
-            }
-
-            // NB: Making deferred pseudo-element styles observable changes only their inputs.
-            //     The originating element's cascade and computed style remain valid.
-            if (!needs_regular_style_recompute && !needs_inherited_style_recompute && !needs_full_custom_property_recompute
-                && (reaction.reaction & StyleEngine::PseudoInputsMayHaveChanged) && element->has_style()) {
-                invalidation |= element->recompute_pseudo_element_styles();
             }
 
             auto const* current_inherited_box_values = element->style_group<ComputedValues::InheritedBoxValues>();
@@ -1333,7 +1331,7 @@ void Document::update_selection_style_observability()
 
     auto record_element = [&](Node& node) {
         if (auto* element = as_if<Element>(node); element && element->has_style()) {
-            style_computer().style_engine().record_element_style_input_change(element->style_node_id(),
+            style_computer().style_engine().record_derived_element_style_input_change(element->style_node_id(),
                 CSS::StyleEngine::PseudoInputsMayHaveChanged);
         }
     };

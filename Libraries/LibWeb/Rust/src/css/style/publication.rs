@@ -689,8 +689,9 @@ impl RetainedState {
             if !parent_inputs_moved.any() && !root_inputs_moved && !drive_in_full {
                 // A declaration in an inherited payload group does not prove that the other
                 // properties in that group still inherit from the current parent. Re-drive the
-                // record in full when its payloads cannot prove the relationship.
-                if self.record_inherits_from_current_parent(node, state, 0) {
+                // record in full when its payloads cannot prove the relationship, unless all that
+                // moved is what the element's pseudo-elements read.
+                if scratch.pseudo_inputs_alone || self.record_inherits_from_current_parent(node, state, 0) {
                     if goal == FontDriveGoal::RootInputs {
                         // NB: This proof covers the retained font, without publishing the root's
                         //     remaining properties or custom-property environment during preparation.
@@ -4812,6 +4813,10 @@ pub(super) struct EngineComputedRecordScratch {
     /// Whether the row being derived had its selector answer or its declarations move this flush
     /// without its winners necessarily being published again.
     pub(super) answer_or_declarations_moved: bool,
+    /// Whether the row's only reaction is that the element's pseudo-element inputs may have
+    /// changed (a deferred ::selection becoming observable): its own record stands where its
+    /// winners do.
+    pub(super) pseudo_inputs_alone: bool,
     pub(super) prepared_root_font: Option<(StyleNodeID, ParentInputsMoved, drive::FontDriveScratch)>,
     // NB: Preserve the root's existing remaining-phase context after preparing consumer inputs.
     root_element_inputs: Option<(StyleNodeID, RootFontInputs)>,
