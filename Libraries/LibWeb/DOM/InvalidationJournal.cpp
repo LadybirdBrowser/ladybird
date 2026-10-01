@@ -61,6 +61,16 @@ void InvalidationJournal::note_needs_repaint_in_subtree(NodeIdentity identity)
     drain_if_layout_is_reading();
 }
 
+void InvalidationJournal::note_dom_paint_facts(NodeIdentity identity, u8 facts)
+{
+    auto& entry = entry_for(identity);
+    entry.has_dom_paint_facts = true;
+    entry.dom_paint_facts = facts;
+    // Facts that changed repaint the node when the journal drains, and the frame that drains it is asked for now.
+    m_document->request_frame_for_pending_repaint({});
+    drain_if_layout_is_reading();
+}
+
 void InvalidationJournal::forget(CSS::StyleNodeID style_node)
 {
     auto index = m_entry_index_by_identity.take(NodeIdentity::of_style_node(style_node));
@@ -93,13 +103,19 @@ void InvalidationJournal::drain()
                     continue;
                 if (entry.needs_layout_update)
                     layout_node->set_needs_layout_update(entry.layout_reason, entry.layout_propagation);
+                auto needs_repaint = entry.needs_repaint;
+                auto invalidate_display_list = entry.invalidate_display_list;
+                if (entry.has_dom_paint_facts && Layout::RustFFI::layout_arena_set_node_dom_paint_facts(arena->handle(), Layout::Node::slot_id(layout_node), entry.dom_paint_facts)) {
+                    needs_repaint = true;
+                    invalidate_display_list = InvalidateDisplayList::PaintCommandsAndHitTestList;
+                }
                 if (entry.needs_subtree_repaint)
                     Painting::apply_subtree_repaint_damage(*layout_node);
-                if (entry.needs_repaint) {
+                if (needs_repaint) {
                     if (auto* text_node = as_if<Layout::TextNode>(*layout_node))
-                        Painting::apply_text_repaint_damage(*text_node, entry.invalidate_display_list);
+                        Painting::apply_text_repaint_damage(*text_node, invalidate_display_list);
                     else
-                        Painting::apply_repaint_damage(*layout_node, entry.invalidate_display_list);
+                        Painting::apply_repaint_damage(*layout_node, invalidate_display_list);
                 }
             }
         }
