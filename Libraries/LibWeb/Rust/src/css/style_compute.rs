@@ -3191,8 +3191,8 @@ pub(crate) fn parent_snapshot_for_style_record<'a>(
 /// What a highlight pseudo-element's applicable properties inherit from: the record of the
 /// corresponding highlight pseudo-element of the originating element's parent, when it has one.
 pub(crate) struct HighlightInheritance<'a> {
-    pseudo_kind: u8,
-    snapshot: Option<ParentSnapshot<'a>>,
+    pub(crate) pseudo_kind: u8,
+    pub(crate) snapshot: Option<ParentSnapshot<'a>>,
 }
 
 fn keyframe_parent_snapshot_for_style_record(

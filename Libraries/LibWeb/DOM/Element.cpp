@@ -1630,7 +1630,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         if (!had_list_marker && !originating_style->display().is_list_item()
             && !may_have_style(CSS::PseudoElement::Before)
             && !may_have_style(CSS::PseudoElement::After)
-            && !may_have_style(CSS::PseudoElement::FirstLetter))
+            && !may_have_style(CSS::PseudoElement::FirstLetter)
+            && !(document().selection_styles_are_observable()
+                && (may_have_style(CSS::PseudoElement::Selection)
+                    || AbstractElement { *this, CSS::PseudoElement::Selection }.highlight_inheritance_parent().has_value())))
             return false;
         auto settled = style_computer.style_engine().settle_pseudo_records_after_host_record(style_node_id(), had_list_marker);
         if (settled.style_record == 0)
@@ -1661,10 +1664,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
         // A synthetic pseudo-element the style engine settled beside the element's record takes the engine's
         // answer; one the engine left alone is unchanged. The engine never settles a ::backdrop, whose
-        // materialization is the top layer's to decide, nor a highlight pseudo-element, which inherits from
-        // its parent element's.
+        // materialization is the top layer's to decide. Whether ::selection styles are observable at all
+        // stays the host's decision.
         Optional<CSS::StyleRecordID> engine_record;
-        if (engine_pseudo_element_records && CSS::is_synthetic_pseudo_element(pseudo_element) && pseudo_element != CSS::PseudoElement::Backdrop && !CSS::is_highlight_pseudo_element(pseudo_element)) {
+        if (engine_pseudo_element_records && CSS::is_synthetic_pseudo_element(pseudo_element) && pseudo_element != CSS::PseudoElement::Backdrop) {
             engine_record = engine_pseudo_element_records->at(to_underlying(pseudo_element));
             if (!engine_record.has_value())
                 return;

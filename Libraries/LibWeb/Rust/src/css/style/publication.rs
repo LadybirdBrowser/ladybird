@@ -4380,6 +4380,8 @@ pub(super) struct PseudoCohortKey {
     /// What the monospace font-size recascade gives the pseudo-element, as for an element's cohort.
     monospace_recascaded_font_size: i32,
     parent_record: u64,
+    /// For a ::selection, the record of its nearest ancestor's ::selection it inherits from.
+    highlight_parent_record: u64,
     inherited_groups: u32,
     parent_display: u32,
     dependency_flags: u8,
@@ -4405,10 +4407,6 @@ mod pseudo_kind {
     pub(super) const ELEMENT_REFERENCE_KINDS: u64 =
         ((1 << (super::bridge::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND + 1)) - 1)
             & !((1 << super::bridge::FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND) - 1);
-
-    pub(super) fn is_highlight(kind: usize) -> bool {
-        kind < SYNTHETIC_COUNT && crate::css::property_metadata::pseudo_element_is_highlight(kind as u8)
-    }
 }
 
 /// The element facts a pseudo-element's computation reads: the C++ adjustments for what the

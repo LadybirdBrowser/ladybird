@@ -774,6 +774,25 @@ impl RetainedState {
             }
             None => None,
         };
+        // A ::selection inherits its applicable properties from the nearest ancestor's ::selection.
+        let highlight = (target.pseudo_kind() == pseudo_kind::SELECTION).then(|| {
+            let snapshot = self
+                .retained_highlight_inheritance_parent_style_record(target.node(), pseudo_kind::SELECTION)
+                .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
+                .and_then(|view| {
+                    let table = unsafe { view.longhand_table.as_ref() }?;
+                    Some(crate::css::style_compute::ParentSnapshot::new(
+                        table,
+                        unsafe { view.animated_overlay.as_ref() },
+                        view.dependency_flags & (1 << 1) != 0,
+                        view.dependency_flags & (1 << 2) != 0,
+                    ))
+                });
+            crate::css::style_compute::HighlightInheritance {
+                pseudo_kind: pseudo_kind::SELECTION,
+                snapshot,
+            }
+        });
         // The subject axis is the element's own writing mode when it has one, else its parent's;
         // the initial writing mode is horizontal.
         let inherited_box_payload = old_view
@@ -892,7 +911,7 @@ impl RetainedState {
                 std::ptr::null_mut(),
                 &store,
                 snapshot.as_ref(),
-                None,
+                highlight.as_ref(),
                 &raw const environment,
                 u32::MAX,
                 std::ptr::null(),

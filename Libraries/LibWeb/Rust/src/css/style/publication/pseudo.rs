@@ -20,10 +20,10 @@ impl RetainedState {
         flipped_pseudo_rules: u64,
         counters: &mut Counters,
     ) {
-        use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER};
+        use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
         let mut required = self.pseudo_style_mask_or_rematch(node, counters)
-            & [BEFORE, AFTER, FIRST_LETTER, MARKER]
+            & [BEFORE, AFTER, FIRST_LETTER, SELECTION, MARKER]
                 .into_iter()
                 .fold(0_u64, |kinds, kind| kinds | (1 << kind));
         if let Some(deferred) = self.deferred_pseudo_element {
@@ -200,9 +200,7 @@ impl RetainedState {
             .skip(scratch.next_pseudo)
         {
             scratch.next_pseudo = pseudo_index + 1;
-            if self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind)))
-                || pseudo_kind::is_highlight(usize::from(kind))
-            {
+            if self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind))) {
                 continue;
             }
             let target = computed::ComputedStyleTarget::new(node, kind);
@@ -230,6 +228,10 @@ impl RetainedState {
                 continue;
             }
             let has_rules = kinds_with_rules & (1 << kind) != 0;
+            // A ::selection with no rules of its own still inherits its ancestor's.
+            let highlight_parent_record = (kind == SELECTION)
+                .then(|| self.retained_highlight_inheritance_parent_style_record(node, kind))
+                .flatten();
             let state = states[usize::from(kind)].filter(|_| has_rules);
             // Rules whose cascade order the row could not settle, as `:host::before` rules from
             // the host's shadow tree are, leave the kind to the host.
@@ -252,7 +254,7 @@ impl RetainedState {
                     );
                 }
             };
-            if !has_rules && !implicit {
+            if !has_rules && !implicit && highlight_parent_record.is_none() {
                 remove(self, scratch, counters);
                 continue;
             }
@@ -260,7 +262,9 @@ impl RetainedState {
             // including display transformation and explicit inheritance of non-inherited values.
             // A moved registry reaches a substitution, and attributes reach an `attr()`, without
             // moving the state.
-            if old.is_some()
+            // A ::selection reads its ancestor's as well, which nothing here proves unchanged.
+            if kind != SELECTION
+                && old.is_some()
                 && originating_inputs_unchanged
                 && (old_element_record == Some(new_element_record)
                     || !state.is_some_and(|state| self.state_explicitly_inherits_non_inherited_property(node, state)))
@@ -339,13 +343,14 @@ impl RetainedState {
                 .filter(|_| !reads_attributes)
                 .map(|(inherited_groups, parent_display)| PseudoCohortKey {
                     monospace_recascaded_font_size: state.map_or(0, |state| self.monospace_cohort_key(target, state)),
-                    parent_record: if state
-                        .is_some_and(|state| self.state_explicitly_inherits_non_inherited_property(node, state))
+                    parent_record: if kind == SELECTION
+                        || state.is_some_and(|state| self.state_explicitly_inherits_non_inherited_property(node, state))
                     {
                         new_element_record.raw()
                     } else {
                         0
                     },
+                    highlight_parent_record: highlight_parent_record.map_or(0, computed::FinalStyleRecordID::raw),
                     inherited_groups,
                     parent_display,
                     dependency_flags: new_view_dependency_flags,
