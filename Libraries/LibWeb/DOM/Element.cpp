@@ -2129,8 +2129,19 @@ void Element::set_style_uses_if_css_function()
 {
     if (m_style_uses_if_css_function)
         return;
+    bool const publishes = !style_recomputes_on_environment_move();
     m_style_uses_if_css_function = true;
     document().add_element_with_viewport_dependent_style(*this);
+    if (publishes)
+        publish_style_recomputes_on_environment_move();
+}
+
+void Element::publish_style_recomputes_on_environment_move()
+{
+    auto style_node = style_node_id();
+    if (style_node == 0)
+        return;
+    document().style_computer().style_engine().set_element_recomputes_on_environment_move(style_node, style_recomputes_on_environment_move());
 }
 
 void Element::set_style_depends_on_viewport_metrics()
@@ -2400,6 +2411,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     RefPtr<CSS::ComputedValues const> materialized_style;
     // These flags include reads by the previous pseudo styles. Recomputing just the element
     // would otherwise lose those dependencies when the flags below are reset.
+    bool const had_environment_move_dependencies = style_recomputes_on_environment_move();
     bool const had_style_context_dependencies = m_style_uses_attr_css_function
         || m_style_uses_var_css_function || m_style_uses_if_css_function
         || m_style_uses_custom_function || m_style_uses_inherit_css_function
@@ -2414,6 +2426,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     m_style_depends_on_viewport_metrics = false;
     m_style_depends_on_size_container_query = false;
     m_style_depends_on_style_container_query = false;
+    if (had_environment_move_dependencies)
+        publish_style_recomputes_on_environment_move();
     if (auto* rare_data = element_rare_data(); rare_data && rare_data->custom_property_consumer_data)
         rare_data->custom_property_consumer_data->style_query_references.clear_with_capacity();
     reusable_style_engine_matches = &style_engine_matches;

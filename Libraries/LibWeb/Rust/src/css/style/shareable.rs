@@ -62,6 +62,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         nodes_with_substituted_records,
         element_custom_property_data,
         pseudo_element_custom_property_data,
+        environment_move_recompute_nodes,
         css_defined_animations,
         transition_baselines,
         custom_property_registrations_changed,
@@ -146,6 +147,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(nodes_with_substituted_records);
     assert_member_is_sync(element_custom_property_data);
     assert_member_is_sync(pseudo_element_custom_property_data);
+    assert_member_is_sync(environment_move_recompute_nodes);
     assert_member_is_sync(css_defined_animations);
     assert_member_is_sync(transition_baselines);
     assert_member_is_sync(custom_property_registrations_changed);

@@ -379,8 +379,7 @@ private:
 
     bool needs_recompute(DOM::Element& element) const
     {
-        return element.style_uses_if_css_function() || element.style_uses_inherit_css_function() || element.style_uses_custom_function()
-            || element.style_depends_on_style_container_query() || var_reads_a_changed_name(element);
+        return m_style_engine.element_recomputes_on_environment_move(element.style_node_id()) || var_reads_a_changed_name(element);
     }
 
     void mark(DOM::Element& element)
