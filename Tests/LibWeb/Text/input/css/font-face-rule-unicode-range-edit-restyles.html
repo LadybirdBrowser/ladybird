@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: RangeAhem; src: local("Ahem"); }
+    #target { font: 20px RangeAhem; }
+</style>
+<span id="target">abc</span>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px RangeAhem");
+        const target = document.getElementById("target");
+        println(`the face renders the text: ${target.getBoundingClientRect().width === 60}`);
+        document.styleSheets[0].cssRules[0].style.unicodeRange = "U+30-39";
+        println(`a unicode-range that leaves the text out drops the face: ${target.getBoundingClientRect().width !== 60}`);
+        document.styleSheets[0].cssRules[0].style.unicodeRange = "U+61-63";
+        println(`a unicode-range that covers the text again takes it back: ${target.getBoundingClientRect().width === 60}`);
+        done();
+    });
+</script>

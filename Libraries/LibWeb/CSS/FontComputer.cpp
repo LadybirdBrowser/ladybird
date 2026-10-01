@@ -880,7 +880,7 @@ static void record_font_input_change(DOM::Element& element)
 void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names)
 {
     VERIFY(!family_names.is_empty());
-    ++m_environment_generation;
+    bump_environment_generation();
 
     // Only clear cache entries that reference the loaded font family.
     m_computed_font_cache.remove_all_matching([&](auto const& key, auto const&) {
@@ -922,6 +922,13 @@ void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString>
 
         return TraversalDecision::Continue;
     });
+}
+
+// Every change to what a font resolution would answer passes through here. Nothing else may touch
+// m_environment_generation.
+void FontComputer::bump_environment_generation()
+{
+    ++m_environment_generation;
 }
 
 void FontComputer::clear_font_feature_values_cache(Utf16FlyString const& family_name)
@@ -966,7 +973,7 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
         return;
     }
 
-    ++m_environment_generation;
+    bump_environment_generation();
     // A family can contain many faces, but one face becoming available changes only the cached
     // selections which now resolve to it. Compare those selections before discarding their cache
     // entries, then find the elements holding the discarded cascade identities.
@@ -1034,12 +1041,7 @@ void FontComputer::register_font_face(NonnullRefPtr<FontFaceState> face)
 {
     VERIFY(face->should_be_registered_with_font_computer());
 
-    FontFaceKey key {
-        .family_name = face->family_name(),
-        .weight = face->declared_weight_range(),
-        .slope = face->declared_slope(),
-        .width = face->declared_width(),
-    };
+    auto key = face->matching_key();
     auto& faces = m_font_faces.ensure(key);
     if (!faces.contains_slow(face))
         faces.append(face);
@@ -1050,12 +1052,7 @@ void FontComputer::unregister_font_face(NonnullRefPtr<FontFaceState> face)
 {
     VERIFY(face->should_be_registered_with_font_computer());
 
-    FontFaceKey key {
-        .family_name = face->family_name(),
-        .weight = face->declared_weight_range(),
-        .slope = face->declared_slope(),
-        .width = face->declared_width(),
-    };
+    auto key = face->matching_key();
     if (auto it = m_font_faces.find(key); it != m_font_faces.end()) {
         it->value.remove_all_matching([&](auto const& entry) { return entry == face; });
         if (it->value.is_empty())
