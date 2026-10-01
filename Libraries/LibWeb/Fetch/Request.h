@@ -80,6 +80,9 @@ private:
     // A Request object has an associated request (a request).
     GC::Ref<Infrastructure::Request> m_request;
 
+    // The body of this's request, with its stream.
+    GC::Ptr<Infrastructure::Body> m_body;
+
     // https://fetch.spec.whatwg.org/#request-headers
     // A Request object also has an associated headers (null or a Headers object), initially null.
     GC::Ptr<Headers> m_headers;

@@ -40,6 +40,12 @@ public:
     using ProcessResponseEndOfBodyHeapFunction = GC::Ref<GC::Function<ProcessResponseEndOfBodyFunction::FunctionType>>;
     using ProcessResponseConsumeBodyHeapFunction = GC::Ref<GC::Function<ProcessResponseConsumeBodyFunction::FunctionType>>;
 
+    // A request body whose stream is the only place its bytes are, with the reader fetch() acquired for that stream.
+    struct RequestBodyReader {
+        GC::Ref<Body> body;
+        GC::Ref<Streams::ReadableStreamDefaultReader> reader;
+    };
+
     struct Input {
         explicit Input(Engine::BodyIntent body_intent)
             : body_intent(body_intent)
@@ -53,12 +59,14 @@ public:
         ProcessResponseFunction process_response;
         ProcessResponseEndOfBodyFunction process_response_end_of_body;
         ProcessResponseConsumeBodyFunction process_response_consume_body;
+        Optional<RequestBodyReader> request_body_reader;
     };
 
     [[nodiscard]] static GC::Ref<FetchAlgorithms> create(Input);
     [[nodiscard]] GC::Ref<FetchAlgorithms> with_body_intent(Engine::BodyIntent) const;
 
     Engine::BodyIntent body_intent() const { return m_body_intent; }
+    Optional<RequestBodyReader> const& request_body_reader() const { return m_request_body_reader; }
     ProcessRequestBodyChunkLengthFunction const& process_request_body_chunk_length() const { return m_process_request_body_chunk_length->function(); }
     ProcessRequestEndOfBodyFunction const& process_request_end_of_body() const { return m_process_request_end_of_body->function(); }
     ProcessEarlyHintsResponseFunction const& process_early_hints_response() const { return m_process_early_hints_response->function(); }
@@ -76,7 +84,8 @@ private:
         ProcessEarlyHintsResponseHeapFunction process_early_hints_response,
         ProcessResponseHeapFunction process_response,
         ProcessResponseEndOfBodyHeapFunction process_response_end_of_body,
-        ProcessResponseConsumeBodyHeapFunction process_response_consume_body);
+        ProcessResponseConsumeBodyHeapFunction process_response_consume_body,
+        Optional<RequestBodyReader> request_body_reader);
 
     Engine::BodyIntent m_body_intent;
     ProcessRequestBodyChunkLengthHeapFunction m_process_request_body_chunk_length;
@@ -85,6 +94,7 @@ private:
     ProcessResponseHeapFunction m_process_response;
     ProcessResponseEndOfBodyHeapFunction m_process_response_end_of_body;
     ProcessResponseConsumeBodyHeapFunction m_process_response_consume_body;
+    Optional<RequestBodyReader> m_request_body_reader;
 };
 
 }

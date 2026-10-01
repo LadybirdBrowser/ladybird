@@ -167,7 +167,7 @@ public:
     // Members are implementation-defined
     struct InternalPriority { };
 
-    using BodyType = Variant<Empty, ByteBuffer, GC::Ref<Body>>;
+    using BodyType = Variant<Empty, ByteBuffer, FetchBody>;
     using OriginType = Variant<Origin, URL::Origin>;
     using PolicyContainerType = Variant<PolicyContainer, NonnullRefPtr<HTML::PolicyContainer const>>;
     using ReferrerType = RequestReferrerType;
@@ -346,11 +346,7 @@ public:
     [[nodiscard]] String serialize_origin() const;
     [[nodiscard]] ByteString byte_serialize_origin() const;
 
-    enum class BodyCloning : u8 {
-        Tee,
-        FromSource,
-    };
-    [[nodiscard]] GC::Ref<Request> clone(JS::Realm&, BodyCloning) const;
+    [[nodiscard]] GC::Ref<Request> clone() const;
 
     void add_range_header(u64 first, Optional<u64> const& last);
     void add_origin_header();

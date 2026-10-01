@@ -1,0 +1,4 @@
+no redirect: AbortError, body used: true
+303 to a GET: AbortError, body used: true
+307 to a POST: AbortError, body used: true
+307 to a POST without an abort, body kept: true
