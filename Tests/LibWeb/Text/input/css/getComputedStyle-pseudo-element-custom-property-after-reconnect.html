@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target:not(.later)::before { content: "x"; --x: first; }
+    #target.second::before { content: "y"; --x: second; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const read = () => `"${getComputedStyle(target, "::before").getPropertyValue("--x")}"`;
+        println(`connected: ${read()}`);
+        target.remove();
+        println(`detached: ${read()}`);
+        target.classList.add("later");
+        document.body.append(target);
+        println(`reconnected with no ::before: ${read()}`);
+        target.remove();
+        target.classList.add("second");
+        document.body.append(target);
+        println(`reconnected with another ::before: ${read()}`);
+    });
+</script>

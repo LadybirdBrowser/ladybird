@@ -722,6 +722,54 @@ impl RetainedState {
             .map_or(std::ptr::null(), RetainedCustomPropertyData::data)
     }
 
+    /// Keep the custom-property environment one of an element's synthetic pseudo-elements now
+    /// holds; a null `data` is none.
+    ///
+    /// # Safety
+    /// `data` must be null or a live `Web::CSS::CustomPropertyData`.
+    pub(crate) unsafe fn set_pseudo_element_custom_property_data(
+        &mut self,
+        node: StyleNodeID,
+        pseudo: u8,
+        data: *const std::ffi::c_void,
+    ) {
+        // Clearing is the common install, and must not make an entry only to drop it again.
+        if data.is_null() {
+            let Some(environments) = self.pseudo_element_custom_property_data.get_mut(&node) else {
+                return;
+            };
+            environments.retain(|(kind, _)| *kind != pseudo);
+            if environments.is_empty() {
+                self.pseudo_element_custom_property_data.remove(&node);
+            }
+            return;
+        }
+        let environments = self.pseudo_element_custom_property_data.entry(node).or_default();
+        match environments.iter_mut().find(|(kind, _)| *kind == pseudo) {
+            Some((_, environment)) if environment.data() == data => {}
+            Some((_, environment)) => *environment = unsafe { RetainedCustomPropertyData::retain(data) },
+            None => environments.push((pseudo, unsafe { RetainedCustomPropertyData::retain(data) })),
+        }
+    }
+
+    /// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
+    pub(crate) fn pseudo_element_custom_property_data(&self, node: StyleNodeID, pseudo: u8) -> *const std::ffi::c_void {
+        self.pseudo_element_custom_property_data
+            .get(&node)
+            .and_then(|environments| environments.iter().find(|(kind, _)| *kind == pseudo))
+            .map_or(std::ptr::null(), |(_, environment)| environment.data())
+    }
+
+    /// The kinds of an element's synthetic pseudo-elements that hold a custom-property environment,
+    /// one bit per kind.
+    pub(crate) fn pseudo_elements_with_custom_property_data(&self, node: StyleNodeID) -> u64 {
+        self.pseudo_element_custom_property_data
+            .get(&node)
+            .map_or(0, |environments| {
+                environments.iter().fold(0, |kinds, (kind, _)| kinds | (1 << kind))
+            })
+    }
+
     /// Record the names of the CSS animations the host holds for one of an element's animation
     /// lists, in the order it holds them. The names arrive packed into one buffer because a list is
     /// almost always a single name, and a length per name is cheaper than a handle per name.
@@ -1144,6 +1192,7 @@ impl StyleEngineState {
                 custom_property_environments: Default::default(),
                 nodes_with_substituted_records: HashSet::default(),
                 element_custom_property_data: HashMap::default(),
+                pseudo_element_custom_property_data: HashMap::default(),
                 css_defined_animations: Default::default(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
@@ -2598,6 +2647,7 @@ impl RetainedState {
             custom_property_environments: _,
             nodes_with_substituted_records,
             element_custom_property_data,
+            pseudo_element_custom_property_data,
             css_defined_animations,
             transition_baselines,
             custom_property_registrations_changed: _,
@@ -2676,6 +2726,7 @@ impl RetainedState {
         computed_group_sets.remove(node);
         nodes_with_substituted_records.remove(&node);
         element_custom_property_data.remove(&node);
+        pseudo_element_custom_property_data.remove(&node);
         css_defined_animations.retire(node);
         pending_element_style_computation_selections.remove(&node);
         pending_pseudo_style_computation_selections.remove(&node);

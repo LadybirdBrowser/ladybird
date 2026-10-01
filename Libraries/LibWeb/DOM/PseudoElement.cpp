@@ -6,7 +6,6 @@
 
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
@@ -20,12 +19,6 @@ GC_DEFINE_ALLOCATOR(PseudoElement);
 GC_DEFINE_ALLOCATOR(SyntheticPseudoElement);
 GC_DEFINE_ALLOCATOR(SyntheticPseudoElementTreeNode);
 GC_DEFINE_ALLOCATOR(ElementReferencePseudoElement);
-
-struct SyntheticPseudoElement::CustomPropertyDataStorage {
-    AK_ALLOC_WITH_KMALLOC;
-
-    RefPtr<CSS::CustomPropertyData const> data;
-};
 
 SyntheticPseudoElement::SyntheticPseudoElement(CSS::PseudoElement type)
     : m_type(type)
@@ -120,25 +113,6 @@ void SyntheticPseudoElement::refresh_computed_style(CSS::StyleRecordID style_rec
     VERIFY(m_style_record_identity);
 }
 
-RefPtr<CSS::CustomPropertyData const> SyntheticPseudoElement::custom_property_data() const
-{
-    if (!m_custom_property_data)
-        return nullptr;
-    return m_custom_property_data->data;
-}
-
-void SyntheticPseudoElement::set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value)
-{
-    if (!value) {
-        m_custom_property_data = nullptr;
-        return;
-    }
-
-    if (!m_custom_property_data)
-        m_custom_property_data = make<CustomPropertyDataStorage>();
-    m_custom_property_data->data = move(value);
-}
-
 SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode(CSS::PseudoElement type)
     : SyntheticPseudoElement(type)
 {
@@ -178,16 +152,6 @@ CSS::StyleRecordID ElementReferencePseudoElement::style_record_identity() const
 void ElementReferencePseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const& badge, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
 {
     m_referenced_element->update_animated_properties_for_abstract_element(badge, abstract_element, effect, context);
-}
-
-RefPtr<CSS::CustomPropertyData const> ElementReferencePseudoElement::custom_property_data() const
-{
-    return m_referenced_element->custom_property_data({});
-}
-
-void ElementReferencePseudoElement::set_custom_property_data(RefPtr<CSS::CustomPropertyData const> value)
-{
-    m_referenced_element->set_custom_property_data({}, move(value));
 }
 
 void ElementReferencePseudoElement::visit_edges(JS::Cell::Visitor& visitor)

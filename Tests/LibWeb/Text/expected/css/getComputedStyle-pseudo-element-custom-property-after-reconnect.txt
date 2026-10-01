@@ -1,0 +1,4 @@
+connected: "first"
+detached: ""
+reconnected with no ::before: ""
+reconnected with another ::before: "second"

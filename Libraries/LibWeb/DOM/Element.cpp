@@ -2164,8 +2164,13 @@ void Element::publish_custom_property_names()
         .uses_custom_function = m_style_uses_custom_function,
     };
     Vector<RefPtr<CSS::CustomPropertyData const>> published_pseudo_element_data;
+    // NB: The engine names the synthetic pseudo-elements that hold an environment in one answer.
+    auto const synthetic_pseudo_elements_with_data = style_node_id() == 0 ? 0 : document().style_computer().style_engine().pseudo_elements_with_custom_property_data(style_node_id());
     for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); ++i) {
-        if (auto data = custom_property_data(static_cast<CSS::PseudoElement>(i)))
+        auto pseudo_element = static_cast<CSS::PseudoElement>(i);
+        if (is_synthetic_pseudo_element(pseudo_element) && !((synthetic_pseudo_elements_with_data >> i) & 1))
+            continue;
+        if (auto data = custom_property_data(pseudo_element))
             published_pseudo_element_data.append(move(data));
     }
     Vector<Utf16FlyString> published_references;
@@ -5547,56 +5552,58 @@ void Element::replace_custom_property_data(Optional<CSS::PseudoElement> pseudo_e
     install_custom_property_data(pseudo_element, move(data));
 }
 
-// The style engine keeps the custom-property environment an element holds; the element keeps none of its own. This is
-// the only place an element's environment moves.
+// The style engine keeps the custom-property environments an element and its synthetic pseudo-elements hold; the
+// element keeps no copy of its own. This is the only place they move.
 void Element::install_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
 {
-    if (!pseudo_element.has_value()) {
+    if (pseudo_element.has_value() && !CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
+        return;
+
+    if (!pseudo_element.has_value() || is_synthetic_pseudo_element(pseudo_element.value())) {
         auto style_node = style_node_id();
         VERIFY(style_node != 0 || !data);
-        if (style_node != 0)
-            document().style_computer().style_engine().set_element_custom_property_data(style_node, data.ptr());
+        if (style_node == 0)
+            return;
+        auto& style_engine = document().style_computer().style_engine();
+        if (!pseudo_element.has_value()) {
+            style_engine.set_element_custom_property_data(style_node, data.ptr());
+            return;
+        }
+        if (data)
+            (void)ensure_synthetic_pseudo_element(pseudo_element.value());
+        style_engine.set_pseudo_element_custom_property_data(style_node, pseudo_element.value(), data.ptr());
         return;
     }
 
-    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
-        return;
-
-    if (data) {
-        if (is_synthetic_pseudo_element(pseudo_element.value())) {
-            ensure_synthetic_pseudo_element(pseudo_element.value()).set_custom_property_data(move(data));
-        } else {
-            if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())
-                existing_pseudo_element->set_custom_property_data(move(data));
-
-            // FIXME: In the case that an originating element doesn't support a given element-reference pseudo-element
-            //        we will end up here, we can't create an element-reference pseudo-element on demand to store the
-            //        custom property data so we just ignore it.
-            //
-            //        The issue with this is it means the relevant custom properties aren't included in
-            //        getComputedStyle, which would be fixed if we stored CustomPropertyData on the computed style
-            //        instead of on the Element/PseudoElement directly. Chrome displays this same (presumably broken)
-            //        behavior whereas Firefox includes the properties in getComputedStyle.
-        }
-
-    } else if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())
-        existing_pseudo_element->set_custom_property_data({});
+    // FIXME: In the case that an originating element doesn't support a given element-reference pseudo-element
+    //        we will end up here, we can't create an element-reference pseudo-element on demand to store the
+    //        custom property data so we just ignore it.
+    //
+    //        The issue with this is it means the relevant custom properties aren't included in
+    //        getComputedStyle, which would be fixed if we stored CustomPropertyData on the computed style
+    //        instead of on the Element/PseudoElement directly. Chrome displays this same (presumably broken)
+    //        behavior whereas Firefox includes the properties in getComputedStyle.
+    if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())
+        as<ElementReferencePseudoElement>(*existing_pseudo_element).referenced_element()->set_custom_property_data({}, move(data));
 }
 
 RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS::PseudoElement> pseudo_element) const
 {
-    if (!pseudo_element.has_value()) {
+    if (pseudo_element.has_value() && !CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
+        return nullptr;
+
+    if (!pseudo_element.has_value() || is_synthetic_pseudo_element(pseudo_element.value())) {
         auto style_node = style_node_id();
         if (style_node == 0)
             return nullptr;
-        return document().style_computer().style_engine().element_custom_property_data(style_node);
+        auto const& style_engine = document().style_computer().style_engine();
+        if (!pseudo_element.has_value())
+            return style_engine.element_custom_property_data(style_node);
+        return style_engine.pseudo_element_custom_property_data(style_node, pseudo_element.value());
     }
 
-    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
-        return nullptr;
-
     if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())
-        return existing_pseudo_element->custom_property_data();
+        return as<ElementReferencePseudoElement>(*existing_pseudo_element).referenced_element()->custom_property_data({});
 
     return nullptr;
 }
