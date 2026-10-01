@@ -113,7 +113,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
     pub register_svg_resource_reference: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub principal_node_entry_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalNodeEntryFacts,
-    pub request_top_layer_zone_rebuild: unsafe extern "C" fn(*mut c_void),
     pub push_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiPrincipalNodeFrame,
     pub pop_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub prepare_principal_element:
@@ -1814,8 +1813,10 @@ fn update_layout_tree(
                 // A member found here without an attached box was cleared together with a hidden ancestor subtree, and
                 // nothing is scheduled to rebuild it. Request another top-layer zone pass instead of stranding dirty
                 // flags below ancestors whose walks already finished.
-                // SAFETY: `dom_node` remains live throughout the call.
-                unsafe { (host.callbacks.request_top_layer_zone_rebuild)(dom_node) };
+                state.reports.push(crate::layout::commit::FfiCommitMessage {
+                    style_node: 0,
+                    kind: crate::layout::commit::FfiCommitMessageKind::TopLayerZoneRebuildNeeded,
+                });
             }
             return;
         }
