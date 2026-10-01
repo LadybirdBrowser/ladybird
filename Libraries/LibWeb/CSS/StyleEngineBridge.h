@@ -107,6 +107,9 @@ public:
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
     void set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag);
+    // The characters a text node holds. The engine shares the document's string rather than copying it, so this
+    // costs one reference.
+    void set_text_data(StyleNodeID node, Utf16String const& data);
     // Which longhand properties one of an element's own declarations covers, their canonical
     // specified values and their authored aliases, and whether the inventory has complete
     // continuation semantics.

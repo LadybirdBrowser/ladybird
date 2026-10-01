@@ -2075,6 +2075,25 @@ pub unsafe extern "C" fn style_engine_set_element_parts(
         }
     });
 }
+/// Records the characters a text node holds, as the document spells them.
+///
+/// # Safety
+/// `engine` must be live, and `data` must be a raw `AK::Utf16String` representation for which the
+/// caller transfers one reference to this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_set_text_data(engine: *mut c_void, node: u32, data: usize) {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    // SAFETY: The caller transfers one reference to a live string.
+    let data = unsafe { ak::Utf16String::from_raw_owned(data) };
+    engine.record_boundary_call(EventKind::SetTextData, |payload| {
+        payload.write_u32(node);
+        payload.write_u16_slice(&data.to_utf16());
+    });
+    if let Some(node) = StyleNodeID::from_raw(node) {
+        engine.set_text_data(node, data);
+    }
+}
+
 /// Records the element's resolved language, as its primary subtag atom.
 ///
 /// # Safety

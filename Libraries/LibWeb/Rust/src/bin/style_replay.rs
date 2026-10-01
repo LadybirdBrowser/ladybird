@@ -530,6 +530,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         bridge::style_engine_set_element_parts(engine, node, names.as_ptr(), hosts.as_ptr(), count)
                     };
                 }
+                EventKind::SetTextData => {
+                    // A text node's characters are read by the layout tree build and by nothing in
+                    // the style engine, so replay reads the record past and publishes nothing. The
+                    // string would have to be built through AK, which this binary does not link.
+                    let _ = read_engine(&mut event.payload, &live_engines)?;
+                    let _ = event.payload.read_u32()?;
+                    let _ = event.payload.read_u16_vec()?;
+                }
                 EventKind::SetElementLanguage => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
@@ -2785,6 +2793,14 @@ extern "C" fn ladybird_rust_panic_will_abort() {}
 
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
+// A text node's published characters are the only owned AK::Utf16String the engine holds, and
+// replay never publishes one, so nothing here owns a reference to release.
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_utf16_string_create_uninitialized(_length: usize, _has_ascii_storage: bool) -> usize {
+    panic!("style replay must not build strings through the document thread's allocator");
+}
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_from_utf16(_data: *const u16, _length: usize) -> usize {
     panic!("style replay must use recorded atoms instead of the document-thread string interner");

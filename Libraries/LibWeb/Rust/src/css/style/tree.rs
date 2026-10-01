@@ -709,6 +709,7 @@ impl StyleNodeTree {
         tree.text.parent.push(None);
         tree.text.next_sibling.push(None);
         tree.text.previous_sibling.push(None);
+        tree.text.data.push(ak::Utf16String::default());
         tree.capacity_bytes = tree.recompute_capacity_bytes();
         memory.reserve_required(MemoryCategory::RelationColumns, tree.capacity_bytes);
         tree
@@ -869,6 +870,7 @@ impl StyleNodeTree {
             self.text.parent.push(None);
             self.text.next_sibling.push(None);
             self.text.previous_sibling.push(None);
+            self.text.data.push(ak::Utf16String::default());
             index
         });
         self.text.live.set(index as usize, true);
@@ -891,6 +893,8 @@ impl StyleNodeTree {
             live,
             is_ascii_whitespace,
             is_in_user_agent_shadow_tree,
+            is_password_input,
+            data,
             pending_reuse,
             free_indexes: _,
         } = &mut self.text;
@@ -900,6 +904,9 @@ impl StyleNodeTree {
             assert!(was_live, "retiring a text identity that is not live");
             is_ascii_whitespace.set(index as usize, false);
             is_in_user_agent_shadow_tree.set(index as usize, false);
+            is_password_input.set(index as usize, false);
+            // Lets go of the reference the mirror held to the document's string.
+            data[index as usize] = ak::Utf16String::default();
             parent[index as usize] = None;
             next_sibling[index as usize] = None;
             previous_sibling[index as usize] = None;
@@ -953,6 +960,39 @@ impl StyleNodeTree {
         self.text.is_in_user_agent_shadow_tree.set(index as usize, value);
         let current = self.text.capacity_bytes();
         self.record_capacity_change(memory, before, current);
+    }
+
+    /// Whether the text node holds the value of a password input. Only a text node is asked; every
+    /// other identity answers no.
+    #[must_use]
+    pub fn text_is_password_input(&self, node: StyleNodeID) -> bool {
+        node.text_index()
+            .is_some_and(|index| self.text.is_password_input.contains(index as usize))
+    }
+
+    /// Record whether the text node holds the value of a password input.
+    pub fn set_text_is_password_input(&mut self, node: StyleNodeID, value: bool, memory: &mut MemoryController) {
+        let Some(index) = node.text_index() else {
+            return;
+        };
+        let before = self.text.capacity_bytes();
+        self.text.is_password_input.set(index as usize, value);
+        let current = self.text.capacity_bytes();
+        self.record_capacity_change(memory, before, current);
+    }
+
+    /// The characters the text node holds, or none for any other identity.
+    #[must_use]
+    pub fn text_data(&self, node: StyleNodeID) -> Option<&ak::Utf16String> {
+        self.text.data.get(node.text_index()? as usize)
+    }
+
+    /// Record the characters the text node now holds. The string is the document's, shared rather
+    /// than copied.
+    pub fn set_text_data(&mut self, node: StyleNodeID, data: ak::Utf16String) {
+        if let Some(index) = node.text_index() {
+            self.text.data[index as usize] = data;
+        }
     }
 
     // -- DOM child sequence ------------------------------------------------------------------
@@ -1846,6 +1886,12 @@ struct TextRows {
     /// Whether the node sits in a user agent shadow tree. An element records the same fact among
     /// its construction facts; a text node has no element columns, so it records it here.
     is_in_user_agent_shadow_tree: BitColumn,
+    /// Whether the node is the text of a password input, which renders as replacement characters.
+    is_password_input: BitColumn,
+    /// The characters the node holds, sharing the document's string rather than copying it. The
+    /// layout tree build reads them to render a text box, so they are published where the node
+    /// arrives and wherever its data is replaced.
+    data: Vec<ak::Utf16String>,
     pending_reuse: Vec<u32>,
     free_indexes: Vec<u32>,
 }
@@ -1853,12 +1899,20 @@ struct TextRows {
 impl TextRows {
     fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.parent, self.next_sibling, self.previous_sibling, self.pending_reuse, self.free_indexes];
+            shallow [
+                self.parent,
+                self.next_sibling,
+                self.previous_sibling,
+                self.data,
+                self.pending_reuse,
+                self.free_indexes,
+            ];
             cached [];
             nested [
                 self.live.capacity_bytes(),
                 self.is_ascii_whitespace.capacity_bytes(),
                 self.is_in_user_agent_shadow_tree.capacity_bytes(),
+                self.is_password_input.capacity_bytes(),
             ];
             skip [];
         }
