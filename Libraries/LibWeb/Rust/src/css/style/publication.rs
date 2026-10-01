@@ -535,12 +535,15 @@ impl RetainedState {
         // An element's animations compose into its style in the C++ computation.
         let facts = self.computed_group_sets.adjustment_facts(node);
         // Moved root inputs reach every row below the root. The root's font the root-input probe
-        // drove is left pending for the root's own row, which resumes it in full the same way.
-        let root_inputs_moved = if facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {
-            scratch.font_drive.is_pending_for(node)
-        } else {
-            scratch.root_font_inputs_changed
-        };
+        // drove is left pending for the root's own row, which resumes it in full the same way. A
+        // moved font environment of the element's own, a face its font cascade names becoming
+        // available or failing, leaves its winners as they were just the same.
+        let font_inputs_moved = scratch.font_environment_moved
+            || if facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {
+                scratch.font_drive.is_pending_for(node)
+            } else {
+                scratch.root_font_inputs_changed
+            };
         if facts & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0 {
             counters.bump(Counter::EngineComputedRecordBailWinnerElement);
             return Err(Unanswered::Refused);
@@ -663,7 +666,7 @@ impl RetainedState {
             // record: it is driven again in full against the parent as it is now. The record
             // does not say which parent display it was transformed under, and a winner's own
             // value may read the parent (a relative length, an inherit keyword).
-            if !parent_inputs_moved.any() && !root_inputs_moved && !drive_in_full {
+            if !parent_inputs_moved.any() && !font_inputs_moved && !drive_in_full {
                 // A declaration in an inherited payload group does not prove that the other
                 // properties in that group still inherit from the current parent. Re-drive the
                 // record in full when its payloads cannot prove the relationship.
@@ -718,7 +721,7 @@ impl RetainedState {
         // and the inheritance are part of the full drive, and so does a record whose registered
         // custom properties moved, which compute against the font the drive settles.
         let full_drive = parent_inputs_moved.any()
-            || root_inputs_moved
+            || font_inputs_moved
             || drive_in_full
             || (has_registered_declarations && environment.is_some())
             || delta.properties().iter().any(|&property| {
@@ -4770,6 +4773,10 @@ pub(super) struct EngineComputedRecordScratch {
     /// through one while the values they computed to may not, so such a record is driven again
     /// in full against the document's inputs rather than kept.
     pub(super) document_environment_moved: bool,
+    /// Whether the font environment of the element being derived moved: its record resolves a
+    /// font cascade out of the published `@font-face` table, which is not the one the record
+    /// holds. Set beside each row the flush derives.
+    pub(super) font_environment_moved: bool,
     /// Whether the row being derived had its selector answer or its declarations move this flush
     /// without its winners necessarily being published again.
     pub(super) answer_or_declarations_moved: bool,

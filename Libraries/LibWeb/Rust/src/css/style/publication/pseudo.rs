@@ -211,6 +211,7 @@ impl RetainedState {
         let originating_inputs_unchanged = !matches!(settlement, PseudoSettlement::Computed(_))
             && inherited_inputs_unchanged
             && !scratch.root_font_inputs_changed
+            && !scratch.font_environment_moved
             && !scratch.document_environment_moved
             && old_element_record.is_some_and(|old| {
                 let Some(old_view) = self.computed_group_sets.style_record_view(old.raw()) else {

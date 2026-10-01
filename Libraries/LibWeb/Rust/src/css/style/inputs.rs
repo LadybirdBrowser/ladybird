@@ -1827,9 +1827,9 @@ impl StyleEngineState {
 
     /// Fold the style input an element owes into the reaction C++ is about to apply to it, when
     /// that reaction covers it: a materialization covers anything, while a record delta covers
-    /// only what it already carries. The folded input is consumed; one not covered stays owed to
-    /// the next transaction. Returns the merged reaction in the low byte and the merged inherited
-    /// style groups in the next, or zero when nothing was folded.
+    /// what it already carries and a descendant recompute. The folded input is consumed; one not
+    /// covered stays owed to the next transaction. Returns the merged reaction in the low byte and
+    /// the merged inherited style groups in the next, or zero when nothing was folded.
     pub fn absorb_element_style_input(
         &mut self,
         node: StyleNodeID,
@@ -1851,8 +1851,11 @@ impl StyleEngineState {
         else {
             unreachable!();
         };
+        // A descendant recompute asks nothing of the element its own reaction does not answer, and
+        // the applied reaction carries what it asks of the descendants to the element's children.
         if !absorbs_any
-            && (pending_reaction & !reaction != 0 || pending_inherited_style_groups & !inherited_style_groups != 0)
+            && (pending_reaction & !reaction & !transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES != 0
+                || pending_inherited_style_groups & !inherited_style_groups != 0)
         {
             return 0;
         }
@@ -1869,6 +1872,32 @@ impl StyleEngineState {
             .deferred_element_style_inputs
             .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
         {
+            self.host.deferred_element_style_inputs.remove(index);
+        }
+        self.host.externally_recorded_style_input_nodes.remove(&node);
+    }
+
+    /// Drop the style input an element owes but the descendant recompute it carries: a demand
+    /// answers the element's own style, which reaches none of its descendants.
+    pub(super) fn consume_element_style_input_but_descendants(&mut self, node: StyleNodeID) {
+        let Ok(index) = self
+            .host
+            .deferred_element_style_inputs
+            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
+        else {
+            return;
+        };
+        let InputValue::ElementStyleInput {
+            reaction,
+            inherited_style_groups,
+        } = &mut self.host.deferred_element_style_inputs[index].new
+        else {
+            unreachable!();
+        };
+        if *reaction & transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES != 0 {
+            *reaction = transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES;
+            *inherited_style_groups = 0;
+        } else {
             self.host.deferred_element_style_inputs.remove(index);
         }
         self.host.externally_recorded_style_input_nodes.remove(&node);
