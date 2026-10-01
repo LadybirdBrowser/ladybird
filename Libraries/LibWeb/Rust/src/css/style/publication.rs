@@ -5091,16 +5091,16 @@ pub(super) struct PseudoCohortKey {
 }
 
 /// The synthetic pseudo-element kinds, as the C++ `PseudoElement` enumeration numbers them.
-mod pseudo_kind {
-    pub(super) const AFTER: u8 = 0;
-    pub(super) const BACKDROP: u8 = 1;
-    pub(super) const BEFORE: u8 = 2;
-    pub(super) const FIRST_LETTER: u8 = 3;
-    pub(super) const MARKER: u8 = 5;
-    pub(super) const SELECTION: u8 = 6;
-    pub(super) const SYNTHETIC_COUNT: usize = 8;
+pub(super) mod pseudo_kind {
+    pub(in crate::css::style) const AFTER: u8 = 0;
+    pub(in crate::css::style) const BACKDROP: u8 = 1;
+    pub(in crate::css::style) const BEFORE: u8 = 2;
+    pub(in crate::css::style) const FIRST_LETTER: u8 = 3;
+    pub(in crate::css::style) const MARKER: u8 = 5;
+    pub(in crate::css::style) const SELECTION: u8 = 6;
+    pub(in crate::css::style) const SYNTHETIC_COUNT: usize = 8;
     /// The kinds an element in the host's shadow tree backs, as a mask.
-    pub(super) const ELEMENT_REFERENCE_KINDS: u64 =
+    pub(in crate::css::style) const ELEMENT_REFERENCE_KINDS: u64 =
         ((1 << (super::bridge::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND + 1)) - 1)
             & !((1 << super::bridge::FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND) - 1);
 }

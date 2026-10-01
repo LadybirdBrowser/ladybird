@@ -1529,12 +1529,9 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
     }
     // The engine reads what the move damages from the two records and its own facts of the element,
     // and answers a record it computed with it.
+    VERIFY(!abstract_element.pseudo_element().has_value());
     auto packed = answered_damage.value_or_lazy_evaluated([&] {
-        return style_computer.style_engine().element_record_damage(
-            abstract_element.element().style_node_id(),
-            abstract_element.pseudo_element().has_value(),
-            style_record_delta.old_style_record,
-            style_record_delta.new_style_record);
+        return style_computer.style_engine().element_record_damage(abstract_element.element().style_node_id(), style_record_delta.old_style_record, style_record_delta.new_style_record);
     });
     if (packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::CacheHit))
         ++abstract_element.document().style_invalidation_counters().style_record_property_damage_cache_hits;
@@ -1717,84 +1714,33 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         if (style_record_is_unchanged(style_record_delta))
             ++document().style_invalidation_counters().unchanged_style_record_deltas;
 
-        // A non-inline generated box can split an inline originating element and mutate anonymous structure in its
-        // parent. Inline ::before and ::after boxes remain confined to the originating element's layout subtree.
-        auto pseudo_style_can_escape_originating_element = [&](CSS::ComputedValues const* pseudo_style) {
-            if (!pseudo_style || !originating_style->display().is_inline_outside())
-                return false;
-            auto pseudo_display = pseudo_style->display();
-            return !pseudo_display.is_none() && !pseudo_display.is_contents() && !pseudo_display.is_inline_outside();
-        };
-
-        // A marker box is always attached inside the originating box, as is a ::before or ::after
-        // box that cannot escape it, so replacing that box in place creates, removes, or rebuilds
-        // the pseudo-element box along with it.
-        auto pseudo_box_stays_inside_originating_box = [&](CSS::ComputedValues const* new_style) {
-            return pseudo_element == CSS::PseudoElement::Marker
-                || (first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After)
-                    && !pseudo_style_can_escape_originating_element(pseudo_element_values)
-                    && !pseudo_style_can_escape_originating_element(new_style));
-        };
-
-        auto can_update_pseudo_element_in_place = [&] {
-            if (!first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After))
-                return false;
-            auto has_independent_content = [](CSS::ComputedValues const* style) {
-                if (!style)
-                    return true;
-                if (style->display().is_list_item() || style->display().is_contents()
-                    || !style->counter_reset().is_empty() || !style->counter_increment().is_empty() || !style->counter_set().is_empty())
-                    return false;
-                auto content = style->computed_content();
-                return content->is_keyword() || (content->is_content() && all_of(content->as_content().content().values(), [](auto const& item) { return item->is_string(); }));
-            };
-            return has_independent_content(pseudo_element_values) && has_independent_content(new_pseudo_element_style);
-        };
-
-        // NB: Selection highlights do not generate boxes or affect layout.
-        if (pseudo_element == CSS::PseudoElement::Selection) {
-            if (!style_record_is_unchanged(style_record_delta)) {
-                document().style_invalidation_counters().element_computed_style_changes++;
-                invalidation.ensure_at_least(CSS::InvalidationLevel::Repaint);
-                invalidation.repaint_selection = true;
+        // The engine decides what the move damages from the two records and the originating element's, including a
+        // box that appears or goes away. What the pseudo-element's box was built with is the host's to compare: the
+        // counter styles it resolved.
+        bool counter_styles_changed = false;
+        if (pseudo_element != CSS::PseudoElement::Selection && pseudo_element_values && new_pseudo_element_style) {
+            if (style_record_is_unchanged(style_record_delta)) {
+                ++document().style_invalidation_counters().style_record_property_diffs_skipped;
+            } else {
+                DOM::AbstractElement abstract_element { *this, pseudo_element };
+                CSS::RequiredInvalidationAfterStyleChange counter_style_invalidation;
+                add_element_dependent_invalidation(counter_style_invalidation, *new_pseudo_element_style, old_state, abstract_element);
+                counter_styles_changed = !counter_style_invalidation.is_none();
             }
-        } else if (pseudo_element_values && new_pseudo_element_style) {
-            DOM::AbstractElement abstract_element { *this, pseudo_element };
-            auto result = compute_required_invalidation_with_cache(style_computer, *new_pseudo_element_style, old_state, abstract_element, style_record_delta);
-            // A display: contents pseudo-element has no principal layout node to receive its updated style. A
-            // list-item pseudo-element also owns a generated marker whose layout state is not updated through the
-            // originating element. Rebuild their layout subtrees when a style change otherwise requires relayout.
-            if (result.invalidation.needs_relayout()
-                && !result.invalidation.needs_layout_tree_rebuild()
-                && (pseudo_element_values->display().is_contents()
-                    || pseudo_element_values->display().is_list_item()
-                    || new_pseudo_element_style->display().is_contents()
-                    || new_pseudo_element_style->display().is_list_item())) {
-                result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
-            }
-            if (result.invalidation.needs_layout_tree_rebuild()
-                && result.invalidation.layout_tree_rebuild_root() != CSS::LayoutTreeRebuildRoot::Parent) {
-                if (!pseudo_box_stays_inside_originating_box(new_pseudo_element_style))
-                    result.invalidation.ensure_at_least(CSS::InvalidationLevel::RebuildLayoutTree);
-                else if (result.invalidation.layout_tree_rebuild_root() == CSS::LayoutTreeRebuildRoot::BoxPresenceChange)
-                    result.invalidation.set_layout_tree_rebuild_root(CSS::LayoutTreeRebuildRoot::Self);
-            }
-            if (result.invalidation.needs_layout_tree_rebuild()
-                && result.invalidation.layout_tree_rebuild_root() == CSS::LayoutTreeRebuildRoot::Self
-                && can_update_pseudo_element_in_place())
-                result.invalidation.set_layout_tree_rebuild_root(CSS::LayoutTreeRebuildRoot::PseudoElements);
-            if (result.any_computed_value_changed)
-                document().style_invalidation_counters().element_computed_style_changes++;
-            invalidation |= result.invalidation;
-        } else if (pseudo_element_values || new_pseudo_element_style) {
-            document().style_invalidation_counters().element_computed_style_changes++;
-            auto rebuild_root = pseudo_box_stays_inside_originating_box(new_pseudo_element_style)
-                ? CSS::LayoutTreeRebuildRoot::Self
-                : CSS::LayoutTreeRebuildRoot::Parent;
-            if (rebuild_root == CSS::LayoutTreeRebuildRoot::Self && can_update_pseudo_element_in_place())
-                rebuild_root = CSS::LayoutTreeRebuildRoot::PseudoElements;
-            invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(rebuild_root);
         }
+        auto packed = style_computer.style_engine().pseudo_element_record_damage(
+            style_node_id(),
+            pseudo_element,
+            style_record_delta.old_style_record,
+            style_record_delta.new_style_record,
+            style_record_identity(),
+            counter_styles_changed);
+        if (packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::CacheHit))
+            ++document().style_invalidation_counters().style_record_property_damage_cache_hits;
+        auto result = decode_style_record_invalidation(packed);
+        if (result.any_computed_value_changed)
+            document().style_invalidation_counters().element_computed_style_changes++;
+        invalidation |= result.invalidation;
 
         if (new_pseudo_element_style) {
             set_computed_style(pseudo_element, style_record_delta.new_style_record);

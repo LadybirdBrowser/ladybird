@@ -197,9 +197,14 @@ u32 StyleEngine::compare_style_records(StyleRecordID old_style_record, StyleReco
     return StyleEngineFFI::style_engine_compare_style_records(m_impl, old_style_record.value(), new_style_record.value());
 }
 
-u32 StyleEngine::element_record_damage(StyleNodeID node, bool is_pseudo_element, StyleRecordID old_style_record, StyleRecordID new_style_record) const
+u32 StyleEngine::element_record_damage(StyleNodeID node, StyleRecordID old_style_record, StyleRecordID new_style_record) const
 {
-    return StyleEngineFFI::style_engine_element_record_damage(m_impl, node.value(), is_pseudo_element, old_style_record.value(), new_style_record.value());
+    return StyleEngineFFI::style_engine_element_record_damage(m_impl, node.value(), old_style_record.value(), new_style_record.value());
+}
+
+u32 StyleEngine::pseudo_element_record_damage(StyleNodeID node, PseudoElement pseudo_element, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const
+{
+    return StyleEngineFFI::style_engine_pseudo_element_record_damage(m_impl, node.value(), to_underlying(pseudo_element), old_style_record.value(), new_style_record.value(), originating_style_record.value(), counter_styles_changed);
 }
 
 bool StyleEngine::animation_overlay_changed(StyleRecordID old_style_record, void const* animated_overlay) const

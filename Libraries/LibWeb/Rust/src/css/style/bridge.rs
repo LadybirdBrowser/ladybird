@@ -92,6 +92,8 @@ pub enum FfiStyleInvalidationField {
     AffectsHitTesting = 1 << 22,
     /// The word holds the damage the engine computed with its answer.
     EngineComputed = 1 << 23,
+    /// Selection highlights, which text descendants paint, repaint.
+    RepaintSelection = 1 << 24,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -2906,9 +2908,9 @@ pub unsafe extern "C" fn style_engine_compare_style_records(
     engine.compare_style_records(old_style_record, new_style_record, true, false, false)
 }
 
-/// Computes what moving an element, or one of its pseudo-elements, from one final style record to
-/// another damages, from the records and the facts the engine holds of the element. The counter
-/// styles its box was built with are the host's to compare.
+/// Computes what moving an element from one final style record to another damages, from the
+/// records and the facts the engine holds of the element. The counter styles its box was built
+/// with are the host's to compare.
 ///
 /// # Safety
 /// `engine` must be live and both style records must remain pinned or assigned.
@@ -2916,7 +2918,6 @@ pub unsafe extern "C" fn style_engine_compare_style_records(
 pub unsafe extern "C" fn style_engine_element_record_damage(
     engine: *mut c_void,
     node: u32,
-    is_pseudo_element: bool,
     old_style_record: u64,
     new_style_record: u64,
 ) -> u32 {
@@ -2924,7 +2925,37 @@ pub unsafe extern "C" fn style_engine_element_record_damage(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return super::style_invalidation::unreadable_record_damage();
     };
-    engine.element_record_damage(node, is_pseudo_element, old_style_record, new_style_record)
+    engine.element_record_damage(node, false, old_style_record, new_style_record)
+}
+
+/// Computes what moving one of an element's pseudo-elements from one final style record to another
+/// damages, where either record can be zero. `counter_styles_changed` is the host's comparison of
+/// the counter styles the pseudo-element's box was built with.
+///
+/// # Safety
+/// `engine` must be live and every nonzero style record must remain pinned or assigned.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_pseudo_element_record_damage(
+    engine: *mut c_void,
+    node: u32,
+    pseudo_kind: u8,
+    old_style_record: u64,
+    new_style_record: u64,
+    originating_style_record: u64,
+    counter_styles_changed: bool,
+) -> u32 {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return super::style_invalidation::unreadable_record_damage();
+    };
+    engine.pseudo_element_record_damage(
+        node,
+        pseudo_kind,
+        old_style_record,
+        new_style_record,
+        originating_style_record,
+        counter_styles_changed,
+    )
 }
 
 /// Returns whether two final style records agree where the legacy verification drive is authoritative.
