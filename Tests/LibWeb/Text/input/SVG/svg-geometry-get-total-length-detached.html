@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<template id="t"><svg><rect width="10" height="20"/></svg></template>
+<style>.wide { width: 40px; }</style>
+<div style="display: none"><svg><rect id="hidden" class="wide" width="10" height="20"/></svg></div>
+<script>
+    test(() => {
+        const ns = "http://www.w3.org/2000/svg";
+        const create = (name, attributes) => {
+            const element = document.createElementNS(ns, name);
+            for (const [attribute, value] of Object.entries(attributes))
+                element.setAttribute(attribute, value);
+            return element;
+        };
+        println(`rect: ${create("rect", { width: 10, height: 20 }).getTotalLength()}`);
+        println(`rect with inline style: ${create("rect", { width: 10, height: 20, style: "width: 30px" }).getTotalLength()}`);
+        println(`rect with var(): ${create("rect", { width: 10, height: 20, style: "width: var(--w, 15px)" }).getTotalLength()}`);
+        println(`rect with a custom property: ${create("rect", { width: 10, height: 20, style: "--w: 30px; width: var(--w)" }).getTotalLength()}`);
+        println(`circle: ${Math.round(create("circle", { r: 10 }).getTotalLength())}`);
+        println(`path: ${create("path", { d: "M0 0 L30 40" }).getTotalLength()}`);
+        const group = create("g", {});
+        group.appendChild(create("rect", { width: 5, height: 5 }));
+        println(`rect in detached subtree: ${group.firstChild.getTotalLength()}`);
+        println(`rect in template content: ${document.getElementById("t").content.querySelector("rect").getTotalLength()}`);
+        println(`rect in display: none subtree: ${document.getElementById("hidden").getTotalLength()}`);
+    });
+</script>

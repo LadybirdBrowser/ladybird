@@ -529,7 +529,7 @@ impl RetainedState {
                     // defines, so its record names its tree scope's registry, as C++ stamps it.
                     let registry = self.table_counter_style_environment_identity(target, &table);
                     let (record, _) = self.assemble_and_publish_engine_record(
-                        target,
+                        Some(target),
                         Some(new_element_record),
                         table,
                         &length,
@@ -896,7 +896,7 @@ impl RetainedState {
         let counter_style_registry =
             self.table_counter_style_environment_identity(computed::ComputedStyleTarget::new(node, u8::MAX), &table);
         let (record, _) = self.assemble_and_publish_engine_record(
-            computed::ComputedStyleTarget::new(node, u8::MAX),
+            Some(computed::ComputedStyleTarget::new(node, u8::MAX)),
             parent_record,
             table,
             &length,

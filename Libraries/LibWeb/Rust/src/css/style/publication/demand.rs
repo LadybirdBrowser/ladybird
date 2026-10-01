@@ -481,4 +481,110 @@ impl StyleEngineState {
             None => RecordDemandAnswer::Absent,
         })
     }
+
+    /// The record of an element no rule reaches, such as one outside the document: the cascade of
+    /// its own declarations alone, in cascade order, over the initial values. The element has no
+    /// style node, so the drive is keyed by `subject`, the document's, which names no parent and
+    /// no siblings. A value that would substitute is C++'s, which resolves it against no custom
+    /// property, unless the declarations name some: an element without a style node holds no
+    /// environment for them, and the value is unset. No row holds the record, which comes back
+    /// pinned for the caller.
+    pub(in crate::css::style) fn declared_only_record(
+        &mut self,
+        subject: StyleNodeID,
+        facts: u32,
+        declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
+        declares_custom_properties: bool,
+        counters: &mut Counters,
+    ) -> Drive<computed::FinalStyleRecordID> {
+        use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
+        if !self.computes_records() {
+            return Err(Unanswered::Refused);
+        }
+        let retained = |value: &StyleValueData| unsafe {
+            RetainedStyleValueData::from_retained_pointer(retain_style_value(value))
+        };
+        let mut winners: Vec<WinnerDeclaration> = Vec::with_capacity(declarations.len());
+        for important in [false, true] {
+            for &(kind, declaration) in declarations {
+                let property = declaration.property_id;
+                if declaration.important != important
+                    || property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+                {
+                    continue;
+                }
+                let value = match declaration.value.as_ref() {
+                    data @ StyleValueData::Shorthand { .. } => match shorthand_longhand_data(property, data) {
+                        Some(longhand) => retained(longhand),
+                        None => continue,
+                    },
+                    StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. } => {
+                        if !declares_custom_properties {
+                            return Err(Unanswered::Refused);
+                        }
+                        unset_value()
+                    }
+                    data => retained(data),
+                };
+                winners.retain(|winner| winner.property != property);
+                winners.push(WinnerDeclaration::new(
+                    property,
+                    important,
+                    WinnerValue::Substituted {
+                        value: invalid_as_unset(value),
+                        source: WinnerSource::Element(kind),
+                    },
+                ));
+            }
+        }
+        let store = WinnerStore::new(winners);
+        let inputs = self.retained.document_style_computation_inputs;
+        let subject = DriveSubject {
+            target: computed::ComputedStyleTarget::new(subject, u8::MAX),
+            parent: None,
+            facts: facts & !bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT,
+        };
+        let mut scratch = EngineComputedRecordScratch::default();
+        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+        let driven = loop {
+            match self.retained.engine_full_drive(
+                subject,
+                None,
+                &store,
+                &inputs,
+                &mut scratch.font_drive,
+                FontDriveGoal::Complete,
+                counters,
+            ) {
+                Err(Unanswered::Suspended(Suspension::Font)) => {
+                    let request = scratch.font_drive.take_suspended_request();
+                    suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
+                    self.refill_font_request(subject.target.node(), request, counters);
+                }
+                driven => break driven?,
+            }
+        };
+        let FullDrive::Driven(DrivenTable {
+            table, length, font, ..
+        }) = driven
+        else {
+            unreachable!("only the root-input probe answers with root inputs");
+        };
+        let font = font.expect("a full drive resolves the font");
+        let (record, _) = self.retained.assemble_and_publish_engine_record(
+            None,
+            None,
+            table,
+            &length,
+            &font,
+            0,
+            0,
+            0,
+            None,
+            &mut scratch.computability,
+            counters,
+        )?;
+        self.retained.computed_group_sets.pin_style_record(record.raw());
+        Ok(record)
+    }
 }

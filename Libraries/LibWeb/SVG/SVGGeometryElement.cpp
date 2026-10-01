@@ -4,9 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/CSS/CSSStyleProperties.h>
+#include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 
@@ -26,6 +32,33 @@ void SVGGeometryElement::visit_edges(Cell::Visitor& visitor)
 Layout::Node* SVGGeometryElement::create_layout_node(CSS::LayoutStyle style)
 {
     return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::SVGGeometryBox);
+}
+
+// The style of an element outside the document, where no rule reaches it: the style engine cascades its own
+// presentation attributes and inline style over the initial values. The record comes back pinned for the caller, or
+// zero where the engine leaves the computation to C++.
+static CSS::StyleRecordID declared_only_style_record(CSS::StyleComputer& style_computer, DOM::Document const& document, SVGGeometryElement& element)
+{
+    auto hints = CSS::StyleComputer::collect_presentational_hint_properties({ element });
+    Vector<CSS::Parser::ValueParserFFI::FfiDeclaredProperty> declarations;
+    declarations.ensure_capacity(hints.size());
+    for (auto const& hint : hints) {
+        declarations.unchecked_append({
+            .property_id = to_underlying(hint.property_id),
+            .important = hint.important == CSS::Important::Yes,
+            .value = hint.value->rust_style_value_data(),
+            .name = {},
+        });
+    }
+    auto inline_style = element.inline_style();
+    return CSS::StyleRecordID { CSS::StyleEngineFFI::style_engine_declared_only_record(
+        style_computer.style_engine().rust_handle(),
+        document.style_node_id().value(),
+        CSS::element_box_type_adjustment_facts(element),
+        CSS::StyleEngineFFI::FfiElementDeclarationKind::SvgPresentationAttribute,
+        declarations.data(),
+        declarations.size(),
+        inline_style ? inline_style->declaration_block().handle() : nullptr) };
 }
 
 // https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getTotalLength
@@ -48,6 +81,23 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     //        a fix to one copy cannot miss the other.
     if (auto computed_values = computed_style())
         return get_path({ viewport_size.width(), viewport_size.height() }, *computed_values).length();
+
+    // NB: An element with no style is either in a subtree that is not rendered, which the style engine answers
+    //     without installing anything, or outside the document, where no rule reaches it. The engine of the window's
+    //     document computes the latter, as an element's own document may never have been styled, like the one
+    //     holding a template's contents. Where the engine leaves the computation to C++, C++ computes it.
+    auto const has_no_style_node = style_node_id() == CSS::StyleNodeID {};
+    auto& style_document = has_no_style_node ? HTML::relevant_window(*this).associated_document() : document();
+    auto& style_computer = style_document.style_computer();
+    auto record = has_no_style_node
+        ? declared_only_style_record(style_computer, style_document, *this)
+        : CSS::StyleRecordID { style_computer.style_engine().answer_record_demand(style_node_id(), { .read_only = true }).record.style_record };
+    ScopeGuard unpin_record = [&] {
+        if (has_no_style_node && !!record)
+            style_computer.unpin_style_record(record);
+    };
+    if (auto view = style_computer.computed_style_record_view(record))
+        return get_path({ viewport_size.width(), viewport_size.height() }, *view).length();
 
     auto transient_values = document().style_computer().materialize_style_record({ *this });
     return get_path({ viewport_size.width(), viewport_size.height() }, *transient_values).length();
