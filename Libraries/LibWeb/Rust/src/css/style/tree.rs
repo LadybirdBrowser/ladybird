@@ -404,9 +404,12 @@ impl TreeRelationStaging {
 /// actually diverges from the DOM tree.
 #[derive(Default)]
 struct ShadowRelations {
-    /// A slotted node's slot.
+    /// A slotted element's slot.
     assigned_slot: SegmentedNodeColumn<StyleNodeID>,
-    /// A slot's assigned nodes, in assignment order.
+    /// A slotted text node's slot. Text identities have no relation columns of their own, and a
+    /// slotted text node is rare enough that a map costs less than a second column would.
+    text_assigned_slot: HashMap<StyleNodeID, StyleNodeID>,
+    /// A slot's assigned nodes, text nodes included, in the order the DOM assigned them.
     assigned_nodes: HashMap<StyleNodeID, Vec<StyleNodeID>>,
     /// A shadow host's shadow root.
     shadow_root: SegmentedNodeColumn<StyleNodeID>,
@@ -431,7 +434,11 @@ impl ShadowRelations {
         }
         if let Some(nodes) = self.assigned_nodes.remove(&node) {
             for assigned in nodes {
-                if self.assigned_slot.get(assigned) == Some(node) {
+                if assigned.text_index().is_some() {
+                    if self.text_assigned_slot.get(&assigned) == Some(&node) {
+                        self.text_assigned_slot.remove(&assigned);
+                    }
+                } else if self.assigned_slot.get(assigned) == Some(node) {
                     self.assigned_slot.remove(assigned);
                 }
             }
@@ -445,9 +452,17 @@ impl ShadowRelations {
         self.part_hosts.remove(&node);
     }
 
+    fn retire_text(&mut self, node: StyleNodeID) {
+        if let Some(slot) = self.text_assigned_slot.remove(&node)
+            && let Some(nodes) = self.assigned_nodes.get_mut(&slot)
+        {
+            nodes.retain(|&assigned| assigned != node);
+        }
+    }
+
     fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.assigned_nodes, self.part_hosts];
+            shallow [self.text_assigned_slot, self.assigned_nodes, self.part_hosts];
             cached [];
             nested [
                 self.assigned_slot.capacity_bytes(),
@@ -749,7 +764,7 @@ impl StyleNodeTree {
     /// it has no relations to stage, and its slot waits for [`Self::release_retired_identities`]
     /// like an element's.
     pub fn retire_texts(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>, memory: &mut MemoryController) {
-        let before = self.text.capacity_bytes();
+        let before = self.text.capacity_bytes() + self.shadow_capacity_bytes();
         for node in nodes {
             let index = node.text_index().expect("retire_texts requires a text identity");
             let (was_live, _) = self.text.live.set(index as usize, false);
@@ -758,8 +773,11 @@ impl StyleNodeTree {
             self.text.next_sibling[index as usize] = None;
             self.text.previous_sibling[index as usize] = None;
             self.text.pending_reuse.push(index);
+            if let Some(shadow) = self.shadow.as_mut() {
+                shadow.retire_text(node);
+            }
         }
-        let current = self.text.capacity_bytes();
+        let current = self.text.capacity_bytes() + self.shadow_capacity_bytes();
         self.record_capacity_change(memory, before, current);
     }
 
@@ -1056,14 +1074,50 @@ impl StyleNodeTree {
         }
         let before = self.shadow_capacity_bytes();
         let shadow = self.shadow_mut();
-        if let Some(previous) = shadow.assigned_slot.remove(node)
-            && let Some(nodes) = shadow.assigned_nodes.get_mut(&previous)
-        {
-            nodes.retain(|assigned| *assigned != node);
-        }
+        shadow.assigned_slot.remove(node);
         if let Some(slot) = slot {
             shadow.assigned_slot.insert(node, slot);
-            shadow.assigned_nodes.entry(slot).or_default().push(node);
+        }
+        let current = self.shadow_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
+    }
+
+    /// Replace the ordered list of nodes `slot` has assigned to it.
+    ///
+    /// The list is published whole rather than assembled from the per-element assignments above,
+    /// because neither of the two things it has to be can be recovered from them. A text node is a
+    /// slottable but holds no relation row, so its assignment cannot be staged beside an element's;
+    /// and the order is the DOM's, not the order assignments arrive in: a manual assignment orders
+    /// its nodes the way `assign()` named them, and a reorder among a slot's own assignees changes
+    /// no node's slot at all.
+    pub fn set_assigned_nodes(&mut self, slot: StyleNodeID, nodes: &[StyleNodeID], memory: &mut MemoryController) {
+        if nodes.is_empty()
+            && self
+                .shadow
+                .as_ref()
+                .is_none_or(|shadow| !shadow.assigned_nodes.contains_key(&slot))
+        {
+            return;
+        }
+        let before = self.shadow_capacity_bytes();
+        let shadow = self.shadow_mut();
+        let mut assigned = shadow.assigned_nodes.remove(&slot).unwrap_or_default();
+        // A tree-wide assignment can have moved one of the departing text nodes to another slot
+        // already, and this slot must not take that newer assignment away again.
+        for node in &assigned {
+            if shadow.text_assigned_slot.get(node) == Some(&slot) {
+                shadow.text_assigned_slot.remove(node);
+            }
+        }
+        assigned.clear();
+        assigned.extend_from_slice(nodes);
+        for &node in &assigned {
+            if node.text_index().is_some() {
+                shadow.text_assigned_slot.insert(node, slot);
+            }
+        }
+        if !assigned.is_empty() {
+            shadow.assigned_nodes.insert(slot, assigned);
         }
         let current = self.shadow_capacity_bytes();
         self.record_capacity_change(memory, before, current);
@@ -1085,7 +1139,11 @@ impl StyleNodeTree {
 
     #[must_use]
     pub fn assigned_slot_of(&self, node: StyleNodeID) -> Option<StyleNodeID> {
-        self.shadow.as_ref()?.assigned_slot.get(node)
+        let shadow = self.shadow.as_ref()?;
+        if node.text_index().is_some() {
+            return shadow.text_assigned_slot.get(&node).copied();
+        }
+        shadow.assigned_slot.get(node)
     }
 
     #[must_use]
@@ -1863,6 +1921,26 @@ mod tests {
     }
 
     #[test]
+    fn a_text_slottable_holds_a_place_in_its_slots_assigned_list() {
+        let mut fixture = TreeFixture::new();
+        let slot = fixture.element();
+        let element = fixture.element();
+        let text = fixture.tree.allocate_text(&mut fixture.memory);
+        fixture
+            .tree
+            .set_assigned_nodes(slot, &[text, element], &mut fixture.memory);
+        assert_eq!(fixture.tree.assigned_nodes_of(slot), &[text, element]);
+        assert_eq!(fixture.tree.assigned_slot_of(text), Some(slot));
+
+        fixture.tree.retire_texts([text], &mut fixture.memory);
+        assert_eq!(fixture.tree.assigned_nodes_of(slot), &[element]);
+        assert_eq!(
+            fixture.memory.bytes_in_category(MemoryCategory::RelationColumns),
+            fixture.tree.capacity_bytes()
+        );
+    }
+
+    #[test]
     fn a_relation_only_identity_roots_the_dom_child_sequence_without_counting_as_an_element() {
         let mut fixture = TreeFixture::new();
         let document = fixture.element();
@@ -1912,6 +1990,7 @@ mod tests {
         let part = StyleAtomID(1);
         fixture.tree.set_shadow_root(host, root, &mut fixture.memory);
         fixture.tree.set_assigned_slot(slotted, Some(slot), &mut fixture.memory);
+        fixture.tree.set_assigned_nodes(slot, &[slotted], &mut fixture.memory);
         fixture.tree.set_part_hosts(host, &[(part, host)], &mut fixture.memory);
 
         fixture.tree.retire_element(host, &mut fixture.memory);
@@ -2010,6 +2089,9 @@ mod tests {
 
         fixture.tree.set_assigned_slot(first, Some(slot), &mut fixture.memory);
         fixture.tree.set_assigned_slot(second, Some(slot), &mut fixture.memory);
+        fixture
+            .tree
+            .set_assigned_nodes(slot, &[first, second], &mut fixture.memory);
         assert_eq!(
             fixture.tree.flat_tree_children(slot).collect::<Vec<_>>(),
             vec![first, second],
@@ -2038,6 +2120,7 @@ mod tests {
         fixture
             .tree
             .set_assigned_slot(assigned, Some(slot), &mut fixture.memory);
+        fixture.tree.set_assigned_nodes(slot, &[assigned], &mut fixture.memory);
 
         let mut reactions = vec![light_child, assigned, fallback, slot, host];
         reactions.sort_unstable_by(|first, second| fixture.tree.compare_style_reaction_order(*first, *second));
@@ -2086,11 +2169,18 @@ mod tests {
         fixture
             .tree
             .set_assigned_slot(node, Some(first_slot), &mut fixture.memory);
+        fixture
+            .tree
+            .set_assigned_nodes(first_slot, &[node], &mut fixture.memory);
         assert_eq!(fixture.tree.assigned_nodes_of(first_slot), &[node]);
 
         fixture
             .tree
             .set_assigned_slot(node, Some(second_slot), &mut fixture.memory);
+        fixture.tree.set_assigned_nodes(first_slot, &[], &mut fixture.memory);
+        fixture
+            .tree
+            .set_assigned_nodes(second_slot, &[node], &mut fixture.memory);
         assert_eq!(
             fixture.tree.assigned_nodes_of(first_slot),
             &[],
@@ -2104,6 +2194,7 @@ mod tests {
         );
 
         fixture.tree.set_assigned_slot(node, None, &mut fixture.memory);
+        fixture.tree.set_assigned_nodes(second_slot, &[], &mut fixture.memory);
         assert_eq!(fixture.tree.assigned_nodes_of(second_slot), &[]);
         assert_eq!(fixture.tree.assigned_slot_of(node), None);
     }
@@ -2149,6 +2240,7 @@ mod tests {
         );
 
         fixture.tree.set_assigned_slot(slotted, Some(slot), &mut fixture.memory);
+        fixture.tree.set_assigned_nodes(slot, &[slotted], &mut fixture.memory);
         assert_eq!(
             fixture.memory.bytes_in_category(MemoryCategory::RelationColumns),
             fixture.tree.capacity_bytes()

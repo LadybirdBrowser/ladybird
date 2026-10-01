@@ -407,6 +407,10 @@ impl RetainedState {
             regions.add(ImpactRegion::Node(node));
             for slot in [old.assigned_slot, new.assigned_slot].into_iter().flatten() {
                 for assigned in self.tree.assigned_nodes_of(slot) {
+                    // A text slottable holds a place in the list but answers no selector.
+                    if assigned.text_index().is_some() {
+                        continue;
+                    }
                     regions.add(ImpactRegion::Node(*assigned));
                 }
             }

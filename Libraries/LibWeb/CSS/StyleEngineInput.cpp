@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/CustomElements/CustomStateSet.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
@@ -32,6 +33,7 @@ static void record_element_heading_level(DOM::Element&);
 static void record_element_initial_features(DOM::Element&);
 static void record_element_inline_style_properties(DOM::Element&);
 static void record_heading_levels_in_subtree(DOM::Element&);
+static void republish_assigned_slot_of(DOM::Node&);
 static Optional<StyleEngineFFI::FfiStateFact> state_fact_for(PseudoClass);
 static StyleAtomID intern_id_or_class_atom(StyleEngine&, DOM::Element const&, Utf16FlyString const&);
 
@@ -283,6 +285,7 @@ void record_element_connected(DOM::Element& element)
     record_element_arrival_delta(element, *style_engine, tree_scope_of(element.root()));
     ensure_dom_order_parent_identity(element.parent(), *style_engine);
     link_in_dom_order(*style_engine, element);
+    republish_assigned_slot_of(element);
 }
 
 void record_text_connected(DOM::Text& text)
@@ -296,6 +299,7 @@ void record_text_connected(DOM::Text& text)
     text.document().style_computer().register_style_node(identity, text);
     ensure_dom_order_parent_identity(text.parent(), *style_engine);
     link_in_dom_order(*style_engine, text);
+    republish_assigned_slot_of(text);
 }
 
 // The document's identity, minted before anything connects under it.
@@ -391,6 +395,9 @@ void record_subtree_connecting(DOM::Node& root)
     for (auto const& node : dom_order_arrivals)
         append_dom_order_link(links, node);
     style_engine.link_style_nodes_in_dom_order(links.span());
+
+    for (auto const& node : dom_order_arrivals)
+        republish_assigned_slot_of(node);
 }
 
 // Publish every selector-visible fact intrinsic to one element.
@@ -794,6 +801,36 @@ void record_element_assigned_slot_changed(DOM::Element& element, DOM::Element* o
         .old_relations = previous,
         .new_relations = relations,
     });
+}
+
+void record_slot_assignment_changed(HTML::HTMLSlotElement& slot)
+{
+    // A slot is named for as long as it is in the engine's tree, and assignment runs inside the insertion that connects
+    // it, before the connected flag is set. The identity is therefore the membership test here, rather than
+    // style_engine_for().
+    if (slot.style_node_id() == no_style_node || !slot.document().style_engine_tracks_tree())
+        return;
+
+    auto const& assigned = slot.assigned_nodes_internal();
+    Vector<StyleNodeID, 8> identities;
+    identities.ensure_capacity(assigned.size());
+    for (auto const& slottable : assigned) {
+        auto identity = slottable.visit([](auto const& node) { return node->style_node_id(); });
+        if (identity != no_style_node)
+            identities.unchecked_append(identity);
+    }
+    slot.document().style_computer().style_engine().set_slot_assigned_nodes(slot.style_node_id(), identities.span());
+}
+
+// Assignment runs inside the insertion that connects a node, which happens before the subtree it arrived in is named,
+// and the list published then names only the members that already had an identity. Both ends of the relation therefore
+// republish on arrival: a slottable the list it has just become a member of, and a slot the list it arrived owning.
+static void republish_assigned_slot_of(DOM::Node& node)
+{
+    if (auto slot = DOM::assigned_slot_for_node(node))
+        record_slot_assignment_changed(*slot);
+    if (auto* slot = as_if<HTML::HTMLSlotElement>(node))
+        record_slot_assignment_changed(*slot);
 }
 
 static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree_scope)

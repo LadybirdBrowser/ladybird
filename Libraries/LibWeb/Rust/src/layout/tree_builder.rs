@@ -58,6 +58,9 @@ impl Default for TreeBuilderState {
 
 #[derive(Default)]
 pub(crate) struct TreeBuilderContext {
+    /// The document's own identity, which owns the DOM child sequence its children hang from. The
+    /// document is not an element and is named by nothing else the walk carries.
+    document_style_node: Option<StyleNodeID>,
     pub(crate) has_svg_root: bool,
     pub(crate) layout_top_layer: bool,
     /// The document asked for every box to be recreated, read from the arena once per build.
@@ -162,7 +165,6 @@ pub struct FfiPreparedPrincipalElementFacts {
 pub struct FfiDisplayContentsFacts {
     pub rendered_in_top_layer: bool,
     pub content_visibility_hidden: bool,
-    pub should_layout_dom_children: bool,
     pub child_needs_layout_tree_update: bool,
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
@@ -192,7 +194,6 @@ pub struct FfiFlatTreeRenderFacts {
 pub struct FfiPrincipalDescendantFacts {
     pub is_element: bool,
     pub content_visibility_hidden: bool,
-    pub should_layout_dom_children: bool,
     pub child_needs_layout_tree_update: bool,
     pub is_svg_switch_element: bool,
     pub is_document: bool,
@@ -661,6 +662,16 @@ fn has_unrendered_flat_tree_ancestor(host: &DomTreeBuilderHost<'_>, element: *mu
     false
 }
 
+/// Whether the walk lays out the node's own DOM children. A slot lays out its children only as
+/// fallback content, when nothing is assigned to it.
+fn should_layout_dom_children(host: &DomTreeBuilderHost<'_>, style_node: Option<StyleNodeID>, is_slot: bool) -> bool {
+    let layout = host.layout();
+    if is_slot && layout.arena().assigned_node_count(style_node) != 0 {
+        return false;
+    }
+    layout.arena().has_dom_children(style_node)
+}
+
 unsafe fn dom_tree_builder_host<'a>(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     arena: *mut c_void,
@@ -826,6 +837,7 @@ unsafe fn update_layout_tree_for_display_contents(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
     element: *mut c_void,
+    style_node: Option<StyleNodeID>,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
     should_create_layout_node: bool,
@@ -834,6 +846,7 @@ unsafe fn update_layout_tree_for_display_contents(
         assert!(!element.is_null());
         // SAFETY: The element remains live for the duration of the call.
         let facts = unsafe { (host.callbacks.display_contents_facts)(host.callbacks.builder, element) };
+        let lays_out_dom_children = should_layout_dom_children(host, style_node, !facts.slot_element.is_null());
 
         // A display:contents member builds its children through this path, so the top layer flag
         // is consumed here the same way update_layout_tree does for members with a box.
@@ -878,7 +891,7 @@ unsafe fn update_layout_tree_for_display_contents(
                         must_create_children,
                     );
                 }
-            } else if facts.should_layout_dom_children {
+            } else if lays_out_dom_children {
                 assert!(!facts.dom_children_parent.is_null());
                 // SAFETY: The callback table, parent, and context remain valid.
                 unsafe {
@@ -1022,6 +1035,8 @@ fn update_svg_pattern(
 }
 
 struct PrincipalDescendantUpdate {
+    /// The node whose DOM child sequence the walk descends into.
+    dom_children_owner: Option<StyleNodeID>,
     should_create_layout_node: bool,
     update_pseudo_elements_in_place: bool,
     must_create_subtree: bool,
@@ -1054,6 +1069,8 @@ unsafe fn update_principal_node_descendants(
                 layout_host.shell(layout_node),
             )
         };
+        let lays_out_dom_children =
+            should_layout_dom_children(host, update.dom_children_owner, !facts.slot_element.is_null());
         let (layout_node_can_have_children, layout_node_is_replaced_box_with_children) = {
             let layout_node_data = layout_host.data(layout_node);
             let can_have_children = node_facts::node_can_have_children(layout_node_data);
@@ -1102,7 +1119,7 @@ unsafe fn update_principal_node_descendants(
         }
 
         if (should_create_layout_node || facts.child_needs_layout_tree_update)
-            && (!facts.shadow_root.is_null() || facts.should_layout_dom_children)
+            && (!facts.shadow_root.is_null() || lays_out_dom_children)
             && layout_node_can_have_children
             && !facts.content_visibility_hidden
         {
@@ -1134,7 +1151,7 @@ unsafe fn update_principal_node_descendants(
                 if layout_node_is_replaced_box_with_children {
                     assert!(state.ancestor_stack.pop().is_some());
                 }
-            } else if facts.should_layout_dom_children {
+            } else if lays_out_dom_children {
                 assert!(!facts.dom_children_parent.is_null());
                 if facts.is_svg_switch_element {
                     // SAFETY: The callback table, parent, and context remain valid.
@@ -1461,6 +1478,7 @@ fn construct_principal_layout_node(
                     host,
                     update.state,
                     dom_node,
+                    update.style_node,
                     context,
                     must_create_subtree,
                     should_create_layout_node,
@@ -1747,6 +1765,13 @@ fn update_principal_node_after_entry(
                 (host.callbacks.principal_layout_node)(frame),
                 context,
                 PrincipalDescendantUpdate {
+                    // The document owns a child sequence of its own; every other node is named by
+                    // the identity it carries.
+                    dom_children_owner: if entry_facts.is_document {
+                        context.document_style_node
+                    } else {
+                        update.style_node
+                    },
                     should_create_layout_node: entry_decision.should_create_layout_node,
                     update_pseudo_elements_in_place: entry_facts.may_update_pseudo_elements_in_place
                         && !entry_decision.should_create_layout_node,
@@ -1870,12 +1895,14 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     arena: *mut c_void,
     document: *mut c_void,
+    document_style_node: u32,
 ) -> FfiLayoutTreeBuildOutcome {
     assert!(!document.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
     let host = unsafe { dom_tree_builder_host(callbacks, arena) };
     let mut state = TreeBuilderState::default();
     let mut context = TreeBuilderContext {
+        document_style_node: StyleNodeID::from_raw(document_style_node),
         document_needs_full_layout_tree_update: host.layout().arena().needs_full_layout_tree_update(),
         ..Default::default()
     };

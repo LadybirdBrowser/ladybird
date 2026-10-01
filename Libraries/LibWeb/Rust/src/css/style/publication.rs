@@ -2502,8 +2502,10 @@ impl RetainedState {
     /// Whether any of the node's children, as its descendants inherit through them, explicitly
     /// inherits a non-inherited property.
     fn children_explicitly_inherit_non_inherited_properties(&self, node: StyleNodeID) -> bool {
+        // A text slottable holds a place among a slot's assigned nodes, but inherits nothing on.
         self.tree
             .flat_tree_children(node)
+            .filter(|child| child.element_index().is_some())
             .any(|child| self.node_explicitly_inherits_non_inherited_property(child))
     }
 

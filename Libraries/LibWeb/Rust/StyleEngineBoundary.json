@@ -118,7 +118,8 @@
     [117, "RetireTextStyleNodes"],
     [118, "LinkStyleNodesInDomOrder"],
     [119, "UnlinkStyleNodeFromDomOrder"],
-    [120, "MarkRelationOnlyStyleNode"]
+    [120, "MarkRelationOnlyStyleNode"],
+    [121, "SetSlotAssignedNodes"]
   ],
   "operations": [
     {"event": "TakeSharedComputationContext", "ffi": "style_engine_take_shared_computation_context", "cpp": "take_shared_computation_context", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["pseudo_elements", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.take_shared_computation_context(node, parent_record, environment, shape, pseudo_elements).unwrap_or(0);"},
@@ -132,6 +133,7 @@
     { "event": "LinkStyleNodesInDomOrder", "ffi": "style_engine_link_style_nodes_in_dom_order", "cpp": "link_style_nodes_in_dom_order", "return": "void", "args": [["links", "u32_slice"]], "body": "engine.link_style_nodes_in_dom_order(links);" },
     { "event": "UnlinkStyleNodeFromDomOrder", "ffi": "style_engine_unlink_style_node_from_dom_order", "cpp": "unlink_style_node_from_dom_order", "return": "void", "args": [["node", "style_node"], ["parent", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.unlink_style_node_from_dom_order(node, StyleNodeID::from_raw(parent));" },
     { "event": "RetireTextStyleNodes", "ffi": "style_engine_retire_text_style_nodes", "cpp": "retire_text_style_nodes", "return": "void", "args": [["nodes", "style_node_slice"]], "body": "engine.retire_text_style_nodes(nodes.iter().copied().filter_map(StyleNodeID::from_raw));" },
+    { "event": "SetSlotAssignedNodes", "ffi": "style_engine_set_slot_assigned_nodes", "cpp": "set_slot_assigned_nodes", "return": "void", "args": [["slot", "style_node"], ["assigned", "style_node_slice"]], "body": "let Some(slot) = StyleNodeID::from_raw(slot) else { return; }; let assigned: Vec<StyleNodeID> = assigned.iter().filter_map(|&node| StyleNodeID::from_raw(node)).collect(); engine.set_slot_assigned_nodes(slot, &assigned);" },
     { "event": "SetShadowRoot", "ffi": "style_engine_set_shadow_root", "cpp": "set_shadow_root", "return": "void", "args": [["host", "style_node"], ["shadow_root", "style_node"]], "body": "if let (Some(host), Some(shadow_root)) = (StyleNodeID::from_raw(host), StyleNodeID::from_raw(shadow_root)) { engine.set_shadow_root(host, shadow_root); }" },
     { "event": "NoteAttributeNameForms", "ffi": "style_engine_note_attribute_name_forms", "cpp": "note_attribute_name_forms", "return": "void", "args": [["name", "style_atom"], ["local", "style_atom"], ["folded_name", "style_atom"], ["folded_local", "style_atom"]], "body": "engine.note_attribute_name_forms(StyleAtomID(name), crate::css::style::index::AttributeNameForms { local: StyleAtomID(local), folded_name: StyleAtomID(folded_name), folded_local: StyleAtomID(folded_local) });" },
     { "event": "RecordEnvironmentChange", "ffi": "style_engine_record_environment_change", "cpp": "record_environment_change", "return": "void", "args": [], "body": "engine.record_environment_change();" },

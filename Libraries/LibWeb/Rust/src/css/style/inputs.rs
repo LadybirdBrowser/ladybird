@@ -429,6 +429,11 @@ impl RetainedState {
         self.tree.set_shadow_root(host, shadow_root, &mut self.memory);
     }
 
+    /// Replace the ordered list of nodes a slot has assigned to it, text nodes included.
+    pub fn set_slot_assigned_nodes(&mut self, slot: StyleNodeID, nodes: &[StyleNodeID]) {
+        self.tree.set_assigned_nodes(slot, nodes, &mut self.memory);
+    }
+
     /// Retire text identities as their nodes disconnect.
     pub fn retire_text_style_nodes(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>) {
         self.tree.retire_texts(nodes, &mut self.memory);

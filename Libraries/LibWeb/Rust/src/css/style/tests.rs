@@ -973,6 +973,11 @@ fn flat_tree_descendant_collection_follows_shadow_and_slot_relations() {
         .retained
         .tree
         .set_assigned_slot(*assigned, Some(*slot), &mut engine.state.retained.memory);
+    engine
+        .state
+        .retained
+        .tree
+        .set_assigned_nodes(*slot, &[*assigned], &mut engine.state.retained.memory);
 
     let mut descendants = Vec::new();
     engine.for_each_flat_tree_descendant(*host, |node| descendants.push(node));
