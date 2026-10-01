@@ -598,6 +598,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                             invalidation |= verification_invalidation;
                         else if (invalidation.is_none() && !!previous_style_record && production_computed_value_changed)
                             invalidation = verification_invalidation;
+                        // So may the root font metrics the reference pass already moved, which
+                        // every descendant reads.
+                        invalidation.recompute_descendant_styles |= verification_invalidation.recompute_descendant_styles;
                         if (production_computed_value_changed
                             && counters.element_computed_style_changes == computed_style_changes_before_application)
                             ++counters.element_computed_style_changes;

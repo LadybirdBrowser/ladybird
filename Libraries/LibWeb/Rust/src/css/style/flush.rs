@@ -2067,13 +2067,17 @@ impl StyleEngineState {
                     // A published-style reaction is the engine's to settle, as are the recompute and
                     // the inherited-style reaction the engine derived for a child of an applied
                     // reaction (a reaction C++ asked for through a recorded input is C++'s), and a
-                    // first record takes any published-style reaction.
+                    // first record takes any published-style reaction. So is a moved font
+                    // environment: the `@font-face` table the record's font cascade resolves
+                    // against is a published input, and the record is driven again in full.
                     const DERIVABLE_REACTIONS: u8 = transaction::STYLE_REACTION_RECOMPUTE_STYLE
                         | transaction::STYLE_REACTION_INHERITED_STYLE
                         | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
-                    let reaction_is_settleable =
-                        reaction & !(transaction::STYLE_REACTION_PUBLISHED_STYLE | DERIVABLE_REACTIONS) == 0
-                            && !(reaction & DERIVABLE_REACTIONS != 0 && style_input_nodes_for_cpp.contains(&node));
+                    const SETTLEABLE_REACTIONS: u8 = transaction::STYLE_REACTION_PUBLISHED_STYLE
+                        | transaction::STYLE_REACTION_FONT_INPUTS_CHANGED
+                        | DERIVABLE_REACTIONS;
+                    let reaction_is_settleable = reaction & !SETTLEABLE_REACTIONS == 0
+                        && !(reaction & DERIVABLE_REACTIONS != 0 && style_input_nodes_for_cpp.contains(&node));
                     let mut parent_inputs_moved = pending_parent_inputs.take().or(prepared_parent_inputs).unwrap_or(
                         publication::ParentInputsMoved {
                             inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
@@ -2172,14 +2176,18 @@ impl StyleEngineState {
                         engine_computed_record_scratch.answer_or_declarations_moved = rule_declarations_edited
                             || !flipped_rules.is_empty()
                             || !selector_truth_changes.refreshes_for(node).is_empty();
-                        self.engine_computed_record_delta(
+                        engine_computed_record_scratch.font_environment_moved =
+                            reaction & transaction::STYLE_REACTION_FONT_INPUTS_CHANGED != 0;
+                        let record_answer = self.engine_computed_record_delta(
                             node,
                             answer.cascade_winners_are_complete,
                             winners_are_exact.then_some(flipped),
                             parent_inputs_moved,
                             &mut engine_computed_record_scratch,
                             counters,
-                        )
+                        );
+                        engine_computed_record_scratch.font_environment_moved = false;
+                        record_answer
                     });
                     if let Some(Err(publication::Unanswered::Suspended(publication::Suspension::Font))) =
                         engine_record_answer
