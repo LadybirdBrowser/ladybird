@@ -44,5 +44,6 @@ WEB_API void push_canvas_paint_facts(HTML::HTMLCanvasElement const&);
 // from them. Replaced image and video facts that changed repaint the box.
 WEB_API void apply_paint_facts(Layout::Node const&, PaintFactsFamily);
 WEB_API void reconcile_navigable_container_paint_facts(DOM::Document const&);
+WEB_API void publish_image_map_area_facts_if_needed(DOM::Document&);
 
 }

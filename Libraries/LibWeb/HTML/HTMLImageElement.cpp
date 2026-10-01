@@ -310,6 +310,7 @@ void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString 
     if (name == HTML::AttributeNames::usemap) {
         m_cached_associated_map_element = nullptr;
         m_cached_associated_map_element_dom_tree_version.clear();
+        document().set_image_map_areas_need_publication();
     }
 }
 

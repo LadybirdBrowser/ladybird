@@ -40,6 +40,13 @@ public:
 private:
     HTMLMapElement(DOM::Document&, DOM::QualifiedName);
 
+    // ^DOM::Node
+    virtual void inserted() override;
+    virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
+
+    // ^DOM::Element
+    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
+
     template<typename Predicate>
     GC::Ptr<HTMLImageElement> first_associated_image_matching(Predicate predicate) const
     {
