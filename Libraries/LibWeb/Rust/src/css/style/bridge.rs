@@ -90,6 +90,8 @@ pub enum FfiStyleInvalidationField {
     AnyComputedValueChanged = 1 << 20,
     CacheHit = 1 << 21,
     AffectsHitTesting = 1 << 22,
+    /// The word holds the damage the engine computed with its answer.
+    EngineComputed = 1 << 23,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -146,6 +148,10 @@ pub struct FfiStyleDelta {
     /// through an explicit `inherit`, which the host marks the parent with; all of them when
     /// `u32::MAX`.
     pub explicitly_inherited_groups: u32,
+    /// What moving an engine-computed element from the old record to the new one damages, packed as
+    /// an `FfiStyleInvalidationField` word. Only a word with `EngineComputed` set holds an answer;
+    /// the host asks for the damage of any other move.
+    pub record_damage: u32,
 }
 
 /// A retried engine record and the metadata needed to install it.

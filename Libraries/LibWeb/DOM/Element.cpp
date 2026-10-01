@@ -1520,19 +1520,22 @@ bool Element::is_viewport_propagation_source() const
         && document_element->first_child_of_type<HTML::HTMLBodyElement>() == this;
 }
 
-static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_with_cache(CSS::StyleComputer& style_computer, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element, CSS::StyleEngine::StyleRecordDelta const& style_record_delta)
+static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_with_cache(CSS::StyleComputer& style_computer, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element, CSS::StyleEngine::StyleRecordDelta const& style_record_delta, Optional<u32> answered_damage = {})
 {
     CSS::StyleComputer::ComputedStyleInvalidation result;
     if (style_record_is_unchanged(style_record_delta)) {
         ++abstract_element.document().style_invalidation_counters().style_record_property_diffs_skipped;
         return result;
     }
-    // The engine reads what the move damages from the two records and its own facts of the element.
-    auto packed = style_computer.style_engine().element_record_damage(
-        abstract_element.element().style_node_id(),
-        abstract_element.pseudo_element().has_value(),
-        style_record_delta.old_style_record,
-        style_record_delta.new_style_record);
+    // The engine reads what the move damages from the two records and its own facts of the element,
+    // and answers a record it computed with it.
+    auto packed = answered_damage.value_or_lazy_evaluated([&] {
+        return style_computer.style_engine().element_record_damage(
+            abstract_element.element().style_node_id(),
+            abstract_element.pseudo_element().has_value(),
+            style_record_delta.old_style_record,
+            style_record_delta.new_style_record);
+    });
     if (packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::CacheHit))
         ++abstract_element.document().style_invalidation_counters().style_record_property_damage_cache_hits;
     result = decode_style_record_invalidation(packed);
@@ -2418,7 +2421,7 @@ static void record_engine_container_query_effects(Element& element)
     });
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const& pseudo_element_records, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, Optional<EngineRecordDamage> engine_record_damage)
 {
     VERIFY(parent());
     auto old_style_record = style_record_identity();
@@ -2528,7 +2531,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
             .old_style_record = old_style_record,
             .new_style_record = new_style_record,
         };
-        result = compute_required_invalidation_with_cache(style_computer, *new_computed_values, old_state, abstract_element, style_record_delta);
+        Optional<u32> answered_damage;
+        if (engine_record_damage.has_value() && engine_record_damage->old_style_record == old_style_record && engine_record_damage->new_style_record == new_style_record)
+            answered_damage = engine_record_damage->packed;
+        result = compute_required_invalidation_with_cache(style_computer, *new_computed_values, old_state, abstract_element, style_record_delta, answered_damage);
         if (result.any_computed_value_changed)
             counters.element_computed_style_changes++;
         // The input record's declaration half described the cascade that produced the old record, so
