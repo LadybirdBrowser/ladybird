@@ -25,8 +25,10 @@ namespace IPC {
 // Maximum size of accumulated unprocessed bytes before we disconnect the peer
 static constexpr size_t MAX_UNPROCESSED_BUFFER_SIZE = 128 * MiB;
 
-// Maximum number of accumulated unprocessed file descriptors before we disconnect the peer
-static constexpr size_t MAX_UNPROCESSED_FDS = 512;
+// Maximum number of accumulated unprocessed file descriptors before we disconnect the peer. Descriptors are parsed
+// after every read, and one read takes the descriptors of at most one sendmsg(). So, the most a well-behaved peer can
+// leave unclaimed is a whole message's, plus those that arrive with the read that completes it.
+static constexpr size_t MAX_UNPROCESSED_FDS = MAX_MESSAGE_FD_COUNT + Core::LocalSocket::MAX_TRANSFER_FDS;
 
 // Size of the buffer for one read from the socket
 static constexpr size_t READ_BUFFER_SIZE = 4096;
@@ -75,8 +77,27 @@ ErrorOr<TransportSocket::Paired> TransportSocket::create_paired()
 
 void SendQueue::enqueue_message(SocketMessageHeader header, MessageDataType payload, Vector<NonnullRefPtr<AutoCloseFileDescriptor>>&& fds)
 {
-    VERIFY(fds.size() <= Core::LocalSocket::MAX_TRANSFER_FDS);
     MutexLocker locker(m_mutex);
+
+    // Send the descriptors that do not fit in one sendmsg() with the message ahead of it, in full frames.
+    size_t fds_ahead = 0;
+    if (!fds.is_empty())
+        fds_ahead = fds.size() - ((fds.size() - 1) % Core::LocalSocket::MAX_TRANSFER_FDS + 1);
+    for (size_t offset = 0; offset < fds_ahead; offset += Core::LocalSocket::MAX_TRANSFER_FDS) {
+        SocketMessageHeader attachments_header {
+            .type = SocketMessageHeader::Type::Attachments,
+            .payload_size = 0,
+            .fd_count = static_cast<u32>(Core::LocalSocket::MAX_TRANSFER_FDS),
+        };
+        Vector<NonnullRefPtr<AutoCloseFileDescriptor>> attachment_fds;
+        attachment_fds.ensure_capacity(Core::LocalSocket::MAX_TRANSFER_FDS);
+        for (size_t i = 0; i < Core::LocalSocket::MAX_TRANSFER_FDS; ++i)
+            attachment_fds.unchecked_append(fds[offset + i]);
+        m_queued_byte_count += sizeof(SocketMessageHeader);
+        m_queued_messages.append(QueuedMessage { attachments_header, {}, move(attachment_fds) });
+    }
+    fds.remove(0, fds_ahead);
+
     m_queued_byte_count += sizeof(SocketMessageHeader) + payload.size();
     m_queued_messages.append(QueuedMessage { header, move(payload), move(fds) });
 }
@@ -86,7 +107,6 @@ SendQueue::BytesAndFds SendQueue::peek(size_t max_bytes)
     MutexLocker locker(m_mutex);
     BytesAndFds result;
 
-    static_assert(Core::LocalSocket::MAX_TRANSFER_FDS == MAX_MESSAGE_FD_COUNT, "IPC message attachments must fit in one sendmsg()");
     size_t bytes_to_send = 0;
     size_t fds_to_send = 0;
     for (auto const& queued_message : m_queued_messages) {
@@ -481,7 +501,14 @@ void TransportSocket::parse_unprocessed_messages(Vector<NonnullOwnPtr<Message>>&
     while (index + sizeof(SocketMessageHeader) <= m_unprocessed_bytes.size()) {
         SocketMessageHeader header;
         memcpy(&header, m_unprocessed_bytes.data() + index, sizeof(SocketMessageHeader));
-        if (header.type == SocketMessageHeader::Type::Payload) {
+        if (header.type == SocketMessageHeader::Type::Attachments) {
+            // NB: These descriptors were queued as they arrived. The Payload frame that follows claims them.
+            if (header.payload_size != 0 || header.fd_count > Core::LocalSocket::MAX_TRANSFER_FDS) {
+                dbgln("TransportSocket: Rejecting malformed attachments frame");
+                m_peer_eof = true;
+                break;
+            }
+        } else if (header.type == SocketMessageHeader::Type::Payload) {
             if (header.payload_size > MAX_MESSAGE_PAYLOAD_SIZE) {
                 dbgln("TransportSocket: Rejecting message with payload_size {} exceeding limit {}", header.payload_size, MAX_MESSAGE_PAYLOAD_SIZE);
                 m_peer_eof = true;

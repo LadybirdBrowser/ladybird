@@ -6,14 +6,17 @@
 
 #include <AK/MemoryStream.h>
 #include <AK/Vector.h>
+#include <LibCore/System.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Forward.h>
+#include <LibIPC/Limits.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibIPC/TransportMachPort.h>
 #include <LibTest/TestCase.h>
+#include <fcntl.h>
 
 static void post_transport_handle(IPC::TransportMachPort& carrier, IPC::TransportHandle const& handle)
 {
@@ -222,4 +225,60 @@ TEST_CASE(eof_during_read_callback_preserves_pending_messages)
     EXPECT_EQ(received, 1uz);
     EXPECT_EQ(should_shutdown, IPC::TransportMachPort::ShouldShutdown::No);
     EXPECT_EQ(read_until_eof(*peer, 43), 1uz);
+}
+
+static Vector<IPC::Attachment> make_attachments(size_t count)
+{
+    Vector<IPC::Attachment> attachments;
+    attachments.ensure_capacity(count);
+    for (size_t i = 0; i < count; ++i)
+        attachments.unchecked_append(IPC::Attachment::from_fd(MUST(Core::System::open("/dev/null"sv, O_RDONLY))));
+    return attachments;
+}
+
+TEST_CASE(message_with_the_maximum_number_of_attachments_arrives_whole)
+{
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+
+    IPC::MessageDataType payload;
+    payload.append(42);
+    auto attachments = make_attachments(IPC::MAX_MESSAGE_FD_COUNT);
+    TRY_OR_FAIL(paired.local->post_message(move(payload), attachments));
+    paired.local->flush();
+    peer->wait_until_incoming_is_current();
+
+    size_t received = 0;
+    auto should_shutdown = peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        ++received;
+        EXPECT_EQ(message.bytes.bytes().size(), 1uz);
+        EXPECT_EQ(message.attachments.size(), IPC::MAX_MESSAGE_FD_COUNT);
+        auto fd = message.attachments.dequeue().to_fd();
+        EXPECT(fd >= 0);
+        if (fd >= 0)
+            MUST(Core::System::close(fd));
+    });
+    EXPECT_EQ(received, 1uz);
+    EXPECT_EQ(should_shutdown, IPC::TransportMachPort::ShouldShutdown::No);
+}
+
+TEST_CASE(message_with_too_many_attachments_disconnects_the_peer)
+{
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+
+    IPC::MessageDataType payload;
+    payload.append(42);
+    auto attachments = make_attachments(IPC::MAX_MESSAGE_FD_COUNT + 1);
+    TRY_OR_FAIL(paired.local->post_message(move(payload), attachments));
+    paired.local->flush();
+
+    size_t received = 0;
+    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
+    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No) {
+        peer->wait_until_readable();
+        should_shutdown = peer->read_as_many_messages_as_possible_without_blocking([&](auto&&) { ++received; });
+    }
+    EXPECT_EQ(received, 0uz);
+    EXPECT(!peer->is_open());
 }
