@@ -14,6 +14,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Painting/PaintFacts.h>
 
 namespace Web::DOM {
 
@@ -39,6 +40,8 @@ public:
     void note_needs_repaint(NodeIdentity, InvalidateDisplayList);
     void note_needs_repaint_in_subtree(NodeIdentity);
     void note_dom_paint_facts(NodeIdentity, u8 facts);
+    // The node's facts of these families are stale. The drain reads them from the node.
+    void note_paint_facts(NodeIdentity, Painting::PaintFactsFamily);
 
     // The identity is retired and may name another node once it is handed out again, so what was noted for the node
     // that had it must not land on that one.
@@ -59,6 +62,7 @@ private:
         bool needs_subtree_repaint { false };
         bool has_dom_paint_facts { false };
         u8 dom_paint_facts { 0 };
+        Painting::PaintFactsFamily stale_paint_facts {};
     };
 
     Entry& entry_for(NodeIdentity);
