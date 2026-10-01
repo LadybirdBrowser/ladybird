@@ -2330,6 +2330,17 @@ impl StyleEngineState {
                         } else {
                             0
                         },
+                        // What the element's move damages is answered with the record it computed.
+                        record_damage: if gap == FfiStyleDeltaGap::Computed
+                            && old_style_record != 0
+                            && old_style_record != new_style_record
+                        {
+                            self.retained
+                                .element_record_damage(node, false, old_style_record, new_style_record)
+                                | bridge::FfiStyleInvalidationField::EngineComputed as u32
+                        } else {
+                            0
+                        },
                     };
                     if style_deltas.len() == style_deltas.capacity() {
                         style_deltas.reserve(1);
@@ -2363,6 +2374,7 @@ impl StyleEngineState {
                                 uses_substitution: false,
                                 record_reads: 0,
                                 explicitly_inherited_groups: 0,
+                                record_damage: 0,
                             });
                         }
                     }

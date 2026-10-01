@@ -176,6 +176,7 @@ static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID s
         .uses_substitution = false,
         .record_reads = 0,
         .explicitly_inherited_groups = 0,
+        .record_damage = 0,
     };
 }
 
@@ -520,6 +521,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 // The record answers any style input the element owes, as the C++ computation it
                 // equals would: nothing is left for a later transaction to plan.
                 style_engine.consume_recorded_element_style_input_change(reaction.style_node);
+                // The engine answered the record with what the move from the record it names damages.
+                Optional<DOM::Element::EngineRecordDamage> engine_record_damage;
+                if (reaction.record_damage & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::EngineComputed))
+                    engine_record_damage = DOM::Element::EngineRecordDamage { StyleRecordID { reaction.old_style_record }, StyleRecordID { reaction.new_style_record }, reaction.record_damage };
                 // A pseudo-only input kept the element's record. Its highlight records are C++'s,
                 // so running their reference computation before the installation would consume
                 // the observable pseudo-element publication the installation must report.
@@ -587,7 +592,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     counters = counters_before_verification;
                     auto const computed_style_changes_before_application = counters.element_computed_style_changes;
                     if (engine_record_is_installable) {
-                        invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties);
+                        invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, engine_record_damage);
                         // The reference pass already installed equal values, so applying the engine
                         // record may be a no-op. Preserve the invalidation it proved the originating
                         // record or pseudo-element transitions need.
@@ -624,7 +629,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                             element->set_computed_style(pseudo_element, *previous_pseudo_element_records[kind]);
                     }
                 } else {
-                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties);
+                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, engine_record_damage);
                 }
                 if (acknowledge)
                     style_engine.acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
