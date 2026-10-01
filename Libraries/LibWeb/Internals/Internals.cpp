@@ -1194,7 +1194,8 @@ Utf16String Internals::dump_accessibility_tree()
 
 Utf16String Internals::dump_layout_tree(GC::Ref<DOM::Node> node)
 {
-    node->document().update_layout(DOM::UpdateLayoutReason::Debugging);
+    if (auto navigable = node->document().navigable())
+        navigable->update_layout_of_hosted_inclusive_descendant_documents(DOM::UpdateLayoutReason::Debugging);
 
     auto* layout_node = node->layout_node();
     if (!layout_node)

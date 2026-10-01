@@ -1027,6 +1027,7 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
 
     if (request == "dump-layout-tree") {
         if (auto doc = page->page().local_traversable()->active_document()) {
+            page->page().local_traversable()->update_layout_of_hosted_inclusive_descendant_documents(Web::DOM::UpdateLayoutReason::Debugging);
             if (auto* viewport = doc->layout_node())
                 Web::dump_tree(*viewport);
         }
@@ -2410,7 +2411,7 @@ static void append_layout_tree(Web::Page& page, StringBuilder& builder)
         return;
     }
 
-    document->update_layout(Web::DOM::UpdateLayoutReason::Debugging);
+    page.local_traversable()->update_layout_of_hosted_inclusive_descendant_documents(Web::DOM::UpdateLayoutReason::Debugging);
 
     auto* layout_root = document->layout_node();
     if (!layout_root) {

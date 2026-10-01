@@ -719,6 +719,16 @@ Vector<GC::Root<LocalNavigable>> LocalNavigable::hosted_inclusive_descendant_nav
     return navigables;
 }
 
+void LocalNavigable::update_layout_of_hosted_inclusive_descendant_documents(DOM::UpdateLayoutReason reason)
+{
+    // Laying out a document can resize the navigable containers in it, which resizes the viewports of the documents
+    // they show and leaves those out of date. Tree order lays out each document after the one hosting it.
+    for (auto const& navigable : hosted_inclusive_descendant_navigables()) {
+        if (auto document = navigable->active_document())
+            document->update_layout(reason);
+    }
+}
+
 void LocalNavigable::remove_from_all_local_navigables()
 {
     cancel_hover_update_after_async_scroll();
