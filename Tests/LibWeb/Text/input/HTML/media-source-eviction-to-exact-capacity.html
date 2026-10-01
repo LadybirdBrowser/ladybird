@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<audio id="audio"></audio>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<script src="media-source-generated-opus-include.js"></script>
+<script>
+    // Coded frame eviction that frees exactly enough room for the appended data leaves the buffer able to accept it,
+    // so the buffer full flag must not stay set and reject the next append.
+    const FRAME_SIZE = 1000;
+
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        const audio = document.getElementById("audio");
+        const mediaSource = new MediaSource();
+        audio.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const sourceBuffer = mediaSource.addSourceBuffer('audio/webm;codecs="opus"');
+                const append = data => appendAndWait(sourceBuffer, data);
+
+                await append(generatedOpusInitializationSegment());
+
+                // Choose the size of the last frame of the final cluster so that appending it requires evicting
+                // exactly EVICTED_FRAMES frames from the start of the buffer.
+                const EVICTED_FRAMES = 10;
+                const FINAL_CLUSTER_FRAMES = 50;
+                const finalClusterWithoutLastFrame = generatedOpusCluster(0, new Array(FINAL_CLUSTER_FRAMES).fill(FRAME_SIZE)).length - FRAME_SIZE;
+                let lastFrameSize = (AUDIO_SOURCE_BUFFER_CAPACITY - finalClusterWithoutLastFrame) % FRAME_SIZE;
+                if (lastFrameSize === 0)
+                    lastFrameSize = FRAME_SIZE;
+                const finalClusterSize = finalClusterWithoutLastFrame + lastFrameSize;
+                const filledFrames = (AUDIO_SOURCE_BUFFER_CAPACITY - finalClusterSize) / FRAME_SIZE + EVICTED_FRAMES;
+
+                const FRAMES_PER_CLUSTER = 1000;
+                for (let firstFrame = 0; firstFrame < filledFrames; firstFrame += FRAMES_PER_CLUSTER) {
+                    const frameCount = Math.min(FRAMES_PER_CLUSTER, filledFrames - firstFrame);
+                    await append(generatedOpusCluster(firstFrame, new Array(frameCount).fill(FRAME_SIZE)));
+                }
+                println(`filled: ${timeRangesToString(sourceBuffer.buffered, 3)}`);
+
+                // Frames before the current playback position may be evicted.
+                audio.currentTime = 100;
+                await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+
+                const finalFrameSizes = new Array(FINAL_CLUSTER_FRAMES).fill(FRAME_SIZE);
+                finalFrameSizes[FINAL_CLUSTER_FRAMES - 1] = lastFrameSize;
+                const finalCluster = generatedOpusCluster(filledFrames, finalFrameSizes);
+                if (finalCluster.length !== finalClusterSize)
+                    throw new Error(`final cluster is ${finalCluster.length} bytes, expected ${finalClusterSize}`);
+                await append(finalCluster);
+                println(`after the append that evicts exactly enough: ${timeRangesToString(sourceBuffer.buffered, 3)}`);
+
+                // Size the next append so that it also requires evicting a whole number of frames exactly, so that an
+                // eviction run for it before appending cannot overshoot and clear the flag either.
+                const bufferedBytes = (filledFrames - EVICTED_FRAMES + FINAL_CLUSTER_FRAMES - 1) * FRAME_SIZE + lastFrameSize;
+                const NEXT_CLUSTER_FRAMES = 5;
+                const nextClusterWithoutLastFrame = generatedOpusCluster(0, new Array(NEXT_CLUSTER_FRAMES).fill(FRAME_SIZE)).length - FRAME_SIZE;
+                let nextLastFrameSize = (AUDIO_SOURCE_BUFFER_CAPACITY - bufferedBytes - nextClusterWithoutLastFrame) % FRAME_SIZE;
+                if (nextLastFrameSize <= 0)
+                    nextLastFrameSize += FRAME_SIZE;
+                const nextFrameSizes = new Array(NEXT_CLUSTER_FRAMES).fill(FRAME_SIZE);
+                nextFrameSizes[NEXT_CLUSTER_FRAMES - 1] = nextLastFrameSize;
+                const nextCluster = generatedOpusCluster(filledFrames + FINAL_CLUSTER_FRAMES, nextFrameSizes);
+                const nextEvictedBytes = bufferedBytes + nextCluster.length - AUDIO_SOURCE_BUFFER_CAPACITY;
+                if (nextEvictedBytes <= 0 || nextEvictedBytes % FRAME_SIZE !== 0)
+                    throw new Error(`next cluster requires evicting ${nextEvictedBytes} bytes`);
+
+                try {
+                    await append(nextCluster);
+                    println(`next append succeeded: ${timeRangesToString(sourceBuffer.buffered, 3)}`);
+                } catch (e) {
+                    println(`next append threw ${e.name}`);
+                }
+                done();
+            } catch (e) {
+                fail("sourceopen handler", e);
+            }
+        }, { once: true });
+    });
+
+</script>
