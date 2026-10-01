@@ -196,7 +196,7 @@ public:
     // see, which decides whether its answer can be offered to another element.
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, StyleRecordID previous_style_record = {}, u32 initial_computed_group_mask = ComputedValues::all_style_groups, bool use_retained_style_computation_selection = false, bool stop_after_longhand_drive = false, u32* selected_computed_group_mask = nullptr, bool* computation_reads_unkeyed_context = nullptr, bool* computation_reads_resource_context = nullptr) const;
 
-    void process_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions) const;
+    void apply_animation_definitions(ComputedStyleWorkingSet const& computed_properties, CascadedProperties const&, DOM::AbstractElement& abstract_element, ReadonlySpan<AnimationProperties> animation_definitions, ReadonlySpan<i32> definition_matches) const;
 
     enum class DeclaredValueSource : u8 {
         PublishedEnvironment,

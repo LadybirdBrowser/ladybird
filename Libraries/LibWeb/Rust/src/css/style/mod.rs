@@ -50,7 +50,7 @@ macro_rules! define_id {
     };
 }
 
-mod animations;
+pub(crate) mod animations;
 mod atoms;
 pub mod batch_matcher;
 pub mod bridge;
