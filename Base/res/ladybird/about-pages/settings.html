@@ -11,12 +11,6 @@
                 line-height: 1.5;
             }
 
-            @media (prefers-color-scheme: light) {
-                :root {
-                    --input-background-color: white;
-                }
-            }
-
             hr {
                 height: 1px;
                 background-color: var(--border-color);
@@ -684,6 +678,13 @@
         </div>
 
         <div class="tab-panel" id="tab-blocking">
+            <div class="card card-body">
+                <div class="inline-container">
+                    <label for="enable-content-blocking">Enable ad blocking</label>
+                    <input id="enable-content-blocking" type="checkbox" switch />
+                </div>
+                <p class="description">Use filter lists to block ads, trackers, and other unwanted content.</p>
+            </div>
             <template id="filter-list-row">
                 <div class="card-group card-separator inline-container filter-list-row">
                     <div>

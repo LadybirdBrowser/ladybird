@@ -23,6 +23,7 @@
 
 namespace WebView {
 
+static constexpr auto FIRST_RUN_COMPLETE_KEY = "firstRunComplete"sv;
 static constexpr auto NEW_TAB_PAGE_URL_KEY = "newTabPageURL"sv;
 
 static constexpr auto LANGUAGES_KEY = "languages"sv;
@@ -248,6 +249,8 @@ Settings Settings::create(ByteString settings_path)
         return settings;
     }
 
+    settings.m_first_run_complete = settings_json.value().get_bool(FIRST_RUN_COMPLETE_KEY).value_or(false);
+
     if (auto new_tab_page_url = settings_json.value().get_string(NEW_TAB_PAGE_URL_KEY); new_tab_page_url.has_value()) {
         if (auto parsed_new_tab_page_url = URL::Parser::basic_parse(*new_tab_page_url); parsed_new_tab_page_url.has_value())
             settings.m_new_tab_page_url = parsed_new_tab_page_url.release_value();
@@ -350,6 +353,7 @@ Settings Settings::create(ByteString settings_path)
     }
 
     if (auto content_blockers = settings_json.value().get_object(CONTENT_BLOCKERS_KEY); content_blockers.has_value()) {
+        settings.m_content_blocker_enabled = content_blockers->get_bool(CONTENT_BLOCKER_ENABLED_KEY).value_or(false);
         if (auto built_in_lists = content_blockers->get_object(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY); built_in_lists.has_value()) {
             for (auto& list : settings.m_content_blocker_lists)
                 list.enabled = built_in_lists->get_bool(list.identifier).value_or(list.enabled);
@@ -445,6 +449,7 @@ Settings::Settings(ByteString settings_path)
 JsonValue Settings::serialize_json() const
 {
     JsonObject settings;
+    settings.set(FIRST_RUN_COMPLETE_KEY, m_first_run_complete);
     settings.set(NEW_TAB_PAGE_URL_KEY, m_new_tab_page_url.serialize());
 
     JsonArray languages;
@@ -563,6 +568,7 @@ JsonValue Settings::serialize_json() const
     }
 
     JsonObject content_blockers;
+    content_blockers.set(CONTENT_BLOCKER_ENABLED_KEY, m_content_blocker_enabled);
     content_blockers.set(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY, move(built_in_content_blocker_lists));
     content_blockers.set(CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY, move(custom_content_blocker_subscriptions));
     content_blockers.set(CONTENT_BLOCKER_LOCAL_LISTS_KEY, move(local_content_blocker_lists));
@@ -599,6 +605,18 @@ JsonValue Settings::serialize_json() const
     settings.set(CONFIG_VARIABLES_KEY, move(config_variables));
 
     return settings;
+}
+
+ErrorOr<void> Settings::complete_first_run()
+{
+    auto was_complete = m_first_run_complete;
+    m_first_run_complete = true;
+    auto result = write_json_file(m_settings_path, serialize_json());
+    if (result.is_error()) {
+        m_first_run_complete = was_complete;
+        return result.release_error();
+    }
+    return {};
 }
 
 void Settings::set_new_tab_page_url(URL::URL new_tab_page_url)
@@ -1017,6 +1035,16 @@ Optional<ContentBlockerList const&> Settings::content_blocker_list(StringView id
             return list;
     }
     return {};
+}
+
+void Settings::set_content_blocker_enabled(bool enabled)
+{
+    if (m_content_blocker_enabled == enabled)
+        return;
+    m_content_blocker_enabled = enabled;
+    persist_settings();
+    for (auto& observer : m_observers)
+        observer.content_blocker_settings_changed();
 }
 
 void Settings::set_content_blocker_list_enabled(StringView identifier, bool enabled)

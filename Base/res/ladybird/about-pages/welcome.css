@@ -1,0 +1,343 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+body {
+    max-width: 1080px;
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+header {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 28px;
+    text-align: center;
+}
+
+.welcome-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+header img {
+    width: 64px;
+    height: 64px;
+    margin: 0;
+}
+
+header h1 {
+    font-size: 30px;
+    line-height: 1.2;
+}
+
+header > p {
+    font-size: 16px;
+    color: var(--secondary-text-color);
+}
+
+fieldset {
+    min-width: 0;
+    border: none;
+}
+
+.setup-section {
+    display: grid;
+    grid-template-columns: 38% minmax(0, 1fr);
+    gap: 32px;
+    padding: 16px 24px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.setup-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.section-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    color: var(--icon-color);
+    background-color: var(--icon-background-color);
+    border-radius: 12px;
+}
+
+.section-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+h2 {
+    margin: 2px 0 8px;
+    font-size: 18px;
+}
+
+.section-heading p,
+.section-controls p,
+.tab-option p {
+    color: var(--secondary-text-color);
+}
+
+.tab-options {
+    display: flex;
+    gap: 16px;
+}
+
+.tab-option {
+    flex: 1;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.tab-option:hover {
+    background-color: var(--item-hover-color);
+}
+
+.tab-option:has(:checked) {
+    border-color: var(--violet-100);
+    box-shadow: 0 0 0 1px var(--violet-100);
+}
+
+.tab-option:has(:focus-visible) {
+    outline: 2px solid var(--violet-100);
+    outline-offset: 4px;
+}
+
+.tab-option-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 500;
+}
+
+input[type="radio"] {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--violet-100);
+}
+
+.tab-option p {
+    margin: 4px 0 0 32px;
+    font-size: 12px;
+}
+
+.tab-preview {
+    position: relative;
+    width: 100%;
+    max-width: 170px;
+    height: 48px;
+    margin: 0 auto 8px;
+    overflow: hidden;
+    background-color: var(--input-background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px 4px 0 0;
+}
+
+.preview-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    padding: 4px 6px;
+    background-color: var(--card-header-background-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.preview-toolbar i {
+    flex-shrink: 0;
+    width: 4px;
+    height: 4px;
+    background-color: var(--secondary-text-color);
+    border-radius: 50%;
+}
+
+.preview-tab {
+    display: block;
+    width: 44px;
+    height: 10px;
+    padding: 3px 5px;
+    background-color: var(--item-hover-color);
+    border-radius: 2px;
+}
+
+.preview-tab::before {
+    content: "";
+    display: block;
+    height: 3px;
+    background-color: var(--secondary-text-color);
+    border-radius: 2px;
+    opacity: 0.5;
+}
+
+.horizontal-preview .preview-tab:first-of-type {
+    background-color: var(--item-selected-color);
+}
+
+.vertical-preview .preview-toolbar {
+    width: 60px;
+}
+
+.preview-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 60px;
+    height: 36px;
+    padding: 3px 6px;
+    background-color: var(--card-header-background-color);
+}
+
+.vertical-preview .preview-content {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 60px;
+    border-left: 1px solid var(--border-color);
+}
+
+select {
+    width: 100%;
+    background-color: var(--input-background-color);
+    border: 1px solid var(--border-color);
+}
+
+.checkbox-option {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.checkbox-option input {
+    margin-top: 4px;
+}
+
+.checkbox-option:has(input:disabled) {
+    cursor: default;
+    color: var(--secondary-text-color);
+}
+
+.search-suggestions {
+    margin-top: 12px;
+}
+
+.blocking-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.blocking-toggle input {
+    flex-shrink: 0;
+}
+
+#content-blocker-lists {
+    margin-top: 8px;
+}
+
+.filter-list {
+    display: grid;
+    grid-template-columns: 18px minmax(140px, 1fr) minmax(0, 1.6fr);
+    align-items: start;
+    gap: 12px;
+    padding: 6px 0;
+    cursor: pointer;
+}
+
+.filter-list + .filter-list {
+    border-top: 1px solid var(--border-color);
+}
+
+.filter-list input {
+    margin-top: 3px;
+}
+
+.filter-list p {
+    font-size: 12px;
+}
+
+input[type="checkbox"]:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--violet-100);
+    outline-offset: 4px;
+}
+
+footer {
+    margin-top: 36px;
+    text-align: center;
+}
+
+#save-status:empty {
+    display: none;
+}
+
+#save-status {
+    margin-bottom: 12px;
+}
+
+#start-browsing {
+    min-width: 200px;
+    padding: 10px 24px;
+    border-radius: 8px;
+}
+
+@media (max-width: 760px) {
+    .setup-section {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 20px;
+        padding: 16px 20px;
+    }
+
+    .section-heading {
+        gap: 16px;
+    }
+}
+
+@media (max-width: 440px) {
+    body {
+        padding: 24px 16px;
+    }
+
+    .welcome-title {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    header h1 {
+        font-size: 26px;
+    }
+
+    .tab-options {
+        flex-direction: column;
+    }
+
+    .filter-list {
+        grid-template-columns: 18px minmax(0, 1fr);
+    }
+
+    .filter-list p {
+        grid-column: 2;
+    }
+}
