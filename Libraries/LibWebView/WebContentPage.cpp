@@ -262,6 +262,48 @@ Optional<CanonicalEnvironmentSettingsObject const&> WebContentPage::hosted_envir
     return document->relevant_global_object().relevant_settings_object();
 }
 
+static Optional<URL::Origin> origin_of_environment_hosted_by_any_process(Web::HTML::EnvironmentId const& environment_id)
+{
+    Optional<URL::Origin> origin;
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        auto environment = client.hosted_environment(environment_id);
+        if (!environment.has_value())
+            return IterationDecision::Continue;
+        origin = environment->origin();
+        return IterationDecision::Break;
+    });
+    return origin;
+}
+
+// A process reads a file for an environment it hosts with a file origin, or to populate a navigation of its tab to the
+// file that has no source document or has one with a file origin.
+bool WebContentPage::may_read_file(Optional<Web::HTML::EnvironmentId> const& environment_id, ByteString const& path) const
+{
+    if (environment_id.has_value()) {
+        if (auto environment = hosted_environment(*environment_id); environment.has_value())
+            return environment->origin().is_file_origin();
+    }
+
+    bool populates_a_navigation_to_the_file = false;
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto const& navigation = navigable.ongoing_navigation();
+        if (!navigation.has_value() || !navigation->loader || !navigable.navigation_population_worker_matches(*this))
+            return IterationDecision::Continue;
+        auto const& request = navigation->loader->request();
+        if (request.history_entry.url.scheme() != "file"sv || request.history_entry.url.file_path() != path)
+            return IterationDecision::Continue;
+        auto const& fetch_client = request.source_snapshot_params.fetch_client;
+        if (!fetch_client.has_value()) {
+            populates_a_navigation_to_the_file = true;
+            return IterationDecision::Break;
+        }
+        auto source_origin = origin_of_environment_hosted_by_any_process(fetch_client->id);
+        populates_a_navigation_to_the_file = source_origin.has_value() && source_origin->is_file_origin();
+        return populates_a_navigation_to_the_file ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return populates_a_navigation_to_the_file;
+}
+
 void WebContentPage::spoof_document_origin_for_testing(Web::HTML::EnvironmentId const& environment_id, URL::Origin origin)
 {
     if (auto document = document_with_hosted_environment(environment_id); document.has_value())
@@ -1204,13 +1246,31 @@ void WebContentPage::did_request_exit_fullscreen()
         view().on_exit_fullscreen_window();
 }
 
-void WebContentPage::did_request_file(ByteString path, i32 request_id)
+void WebContentPage::reply_with_file(ByteString const& path, i32 request_id)
 {
     auto file = Core::File::open(path, Core::File::OpenMode::Read);
     if (file.is_error())
         async_handle_file_return(file.error().code(), {}, request_id);
     else
         async_handle_file_return(0, IPC::File::adopt_file(file.release_value()), request_id);
+}
+
+void WebContentPage::did_request_file(Optional<Web::HTML::EnvironmentId> environment_id, ByteString path, i32 request_id)
+{
+    if (!may_read_file(environment_id, path)) {
+        async_handle_file_return(EACCES, {}, request_id);
+        return;
+    }
+    reply_with_file(path, request_id);
+}
+
+void WebContentPage::did_request_file_for_webdriver(ByteString path, i32 request_id)
+{
+    if (!Application::browser_options().webdriver_browser_endpoint.has_value()) {
+        client().did_misbehave("did_request_file_for_webdriver"sv, "not driven by WebDriver"sv);
+        return;
+    }
+    reply_with_file(path, request_id);
 }
 
 void WebContentPage::did_request_color_picker(Color current_color)
@@ -1603,15 +1663,7 @@ static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_
             return {};
         return given_origin;
     }
-    Optional<URL::Origin> origin;
-    WebContentClient::for_each_client([&](WebContentClient& client) {
-        auto source_settings = client.hosted_environment(source_snapshot_params.fetch_client->id);
-        if (!source_settings.has_value())
-            return IterationDecision::Continue;
-        origin = source_settings->origin();
-        return IterationDecision::Break;
-    });
-    return origin;
+    return origin_of_environment_hosted_by_any_process(source_snapshot_params.fetch_client->id);
 }
 
 void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request)

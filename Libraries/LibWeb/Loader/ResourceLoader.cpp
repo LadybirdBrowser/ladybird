@@ -207,7 +207,7 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
 
     auto const& url = request.url().value();
 
-    FileRequest file_request(url.file_path(), [request, on_file, on_error, url](ErrorOr<i32> file_or_error) mutable {
+    FileRequest file_request(url.file_path(), request.client_id(), [request, on_file, on_error, url](ErrorOr<i32> file_or_error) mutable {
         if (file_or_error.is_error()) {
             auto const message = ByteString::formatted("{}", file_or_error.error());
             on_error(message);

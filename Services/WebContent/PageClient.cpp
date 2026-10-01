@@ -1696,6 +1696,11 @@ void PageClient::request_file(Web::FileRequest file_request)
     client().request_file(m_id, move(file_request));
 }
 
+void PageClient::request_file_for_webdriver(Web::FileRequest file_request)
+{
+    client().request_file_for_webdriver(m_id, move(file_request));
+}
+
 URL::BlobURLEntry::Token PageClient::page_did_add_blob_url_entry(Web::HTML::EnvironmentSettingsObject const& environment, Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const& entry)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidAddBlobUrlEntry>(m_id, environment.id, url, entry);

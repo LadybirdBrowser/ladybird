@@ -489,6 +489,11 @@ void WorkerProcessManager::worker_did_request_file(Web::HTML::WorkerAgentId agen
     if (maybe_agent == m_agents.end())
         return;
 
+    if (!maybe_agent->value.inside_settings->origin().is_file_origin()) {
+        maybe_agent->value.client->async_handle_file_return(EACCES, {}, request_id);
+        return;
+    }
+
     auto file = Core::File::open(path, Core::File::OpenMode::Read);
     if (file.is_error())
         maybe_agent->value.client->async_handle_file_return(file.error().code(), {}, request_id);

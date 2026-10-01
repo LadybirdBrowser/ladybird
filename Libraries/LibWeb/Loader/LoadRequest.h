@@ -17,6 +17,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web {
@@ -64,6 +65,9 @@ public:
     Optional<URL::URL> const& source_url() const { return m_source_url; }
     void set_source_url(URL::URL source_url) { m_source_url = move(source_url); }
 
+    Optional<HTML::EnvironmentId> const& client_id() const { return m_client_id; }
+    void set_client_id(Optional<HTML::EnvironmentId> client_id) { m_client_id = move(client_id); }
+
     void start_timer() { m_load_timer.start(); }
     AK::Duration load_time() const { return m_load_timer.elapsed_time(); }
 
@@ -88,6 +92,7 @@ private:
     bool m_is_navigation_request { false };
     Fetch::Infrastructure::Request::Priority m_priority { Fetch::Infrastructure::Request::Priority::Auto };
     Optional<URL::URL> m_source_url;
+    Optional<HTML::EnvironmentId> m_client_id;
 };
 
 }

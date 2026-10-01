@@ -125,6 +125,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(blob_url_store.resolve(victim_blob_url, {}).has_value());
     }
 
+    // A process reads a file for a document it hosts only when the document's origin is a file origin.
+    auto& page = *view->client().page(page_id);
+    auto secret_path = LexicalPath::join(test_config_directory, "secret"sv).string();
+    VERIFY(!page.may_read_file({}, secret_path));
+    VERIFY(!page.may_read_file(Web::HTML::EnvironmentId::generate(), secret_path));
+    VERIFY(!page.may_read_file(page_environment_id, secret_path));
+    page.spoof_document_origin_for_testing(page_environment_id, URL::Parser::basic_parse("file:///"sv)->origin());
+    VERIFY(page.may_read_file(page_environment_id, secret_path));
+
     auto expect_rejected = [&](StringView what, Function<void(WebContentClientStub&, Web::PageId)> send) {
         auto view = create_view();
         Optional<WebView::ViewImplementation::WebContentCrashReason> crash_reason;
@@ -160,7 +169,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         cookie.value = "attacker"_string;
         stub.did_update_cookie(move(cookie));
     });
+    expect_rejected("reading a file for WebDriver"sv, [&](auto& stub, auto page_id) {
+        stub.did_request_file_for_webdriver(page_id, secret_path, 0);
+    });
 
-    outln("PASS: renderers cannot read, store or update cookies the way HTTP responses and WebDriver do, nor reach another origin's cookies or blob URL entries");
+    outln("PASS: renderers cannot read, store or update cookies the way HTTP responses and WebDriver do, nor reach another origin's cookies or blob URL entries, nor read files without a file origin");
     return 0;
 }
