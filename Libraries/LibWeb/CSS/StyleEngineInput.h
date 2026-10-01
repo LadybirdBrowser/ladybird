@@ -147,6 +147,8 @@ enum ElementStyleAdjustmentFact : u32 {
     // An HTML <html>, whose first <body> child propagates its overflow to the viewport when it is
     // the root.
     IsHtmlHtmlElement = 1 << 30,
+    // An HTML <frameset>, which is the document's body in place of a <body>.
+    IsHtmlFramesetElement = 1u << 31,
 };
 // What a layout row records about the element it is built for at the moment it is allocated, published so that the
 // tree build can read it out of the mirror rather than off the DOM node. Mirrors Rust `element_construction_fact`.

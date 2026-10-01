@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/HTMLFrameSetElement.h>
 #include <LibWeb/HTML/HTMLHeadingElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -727,6 +728,7 @@ u32 element_style_adjustment_facts(DOM::Element const& element)
     set(is<SVG::SVGClipPathElement>(element), ElementStyleAdjustmentFact::IsSvgClipPathElement);
     set(is<SVG::SVGPatternElement>(element), ElementStyleAdjustmentFact::IsSvgPatternElement);
     set(element.rendered_in_top_layer(), ElementStyleAdjustmentFact::RenderedInTopLayer);
+    set(is<HTML::HTMLFrameSetElement>(element), ElementStyleAdjustmentFact::IsHtmlFramesetElement);
     return facts;
 }
 

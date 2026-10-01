@@ -129,6 +129,59 @@ pub(crate) fn viewport_propagation_facts(arena: &LayoutNodeArena) -> ViewportPro
     facts
 }
 
+// https://drafts.csswg.org/css-backgrounds-3/#body-background
+/// The boxes the canvas background is painted from: the document element's and the document's
+/// body's, whose background the canvas takes over when the root's is transparent and has no image.
+pub(crate) fn root_background_source(arena: &LayoutNodeArena) -> crate::painting::host::RootBackgroundSource {
+    let mut source = crate::painting::host::RootBackgroundSource::default();
+    let Some(root_element) = document_element(arena) else {
+        return source;
+    };
+    source.root_layout_node = arena.bound_row(root_element);
+    arena.with_style_store(|engine| {
+        // The document's body is the first child of its <html> document element that is a <body>
+        // or a <frameset>.
+        let root_is_html_html_element =
+            engine.element_construction_facts(root_element) & element_construction_fact::IS_HTML_HTML_ELEMENT != 0;
+        let body_or_frameset =
+            element_adjustment_fact::IS_HTML_BODY_ELEMENT | element_adjustment_fact::IS_HTML_FRAMESET_ELEMENT;
+        if root_is_html_html_element
+            && let Some(body) = engine
+                .tree()
+                .dom_children(root_element)
+                .find(|&child| engine.element_adjustment_facts(child) & body_or_frameset != 0)
+        {
+            source.body_layout_node = arena.bound_row(body);
+        }
+
+        // https://drafts.csswg.org/css-contain-2/#contain-property
+        // Additionally, when any containments are active on either the HTML <html> or <body> elements, propagation of
+        // properties from the <body> element to the initial containing block, the viewport, or the canvas background,
+        // is disabled.
+        if source.root_layout_node.is_invalid() || !root_is_html_html_element {
+            return;
+        }
+        let Some(root_style) = published_style(engine, root_element) else {
+            return;
+        };
+        if has_any_containment(root_style) {
+            return;
+        }
+        let Some(body_element) = first_html_body_child(engine, root_element) else {
+            return;
+        };
+        if arena.bound_row(body_element).is_invalid()
+            || published_style(engine, body_element).is_none_or(has_any_containment)
+        {
+            return;
+        }
+        source.use_body_background_properties =
+            !crate::painting::style_queries::background_layers_have_image(root_style)
+                && root_style.background().background_color == 0;
+    });
+    source
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PropagatedViewportStyles {
     pub(crate) writing_mode: u8,

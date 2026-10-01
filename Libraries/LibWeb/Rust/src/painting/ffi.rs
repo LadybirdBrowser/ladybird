@@ -565,10 +565,23 @@ pub struct FfiRenderingPreparationOutcome {
 pub unsafe extern "C" fn layout_arena_prepare_for_rendering(
     arena: *mut c_void,
     callbacks: FfiVisualContextHostCallbacks,
-    root_background_source: crate::painting::host::FfiRootBackgroundSource,
     visual_context_update_pending: bool,
 ) -> FfiRenderingPreparationOutcome {
     let arena = unsafe { arena_from_handle(arena) };
+    prepare_for_rendering(
+        arena,
+        &callbacks,
+        crate::layout::viewport_propagation::root_background_source(arena),
+        visual_context_update_pending,
+    )
+}
+
+fn prepare_for_rendering(
+    arena: &LayoutNodeArena,
+    callbacks: &FfiVisualContextHostCallbacks,
+    root_background_source: crate::painting::host::RootBackgroundSource,
+    visual_context_update_pending: bool,
+) -> FfiRenderingPreparationOutcome {
     let background_source_changed = arena
         .paint_state()
         .borrow_mut()
@@ -864,13 +877,12 @@ pub unsafe extern "C" fn layout_arena_visual_context_pending_dirty_box_count(are
 pub unsafe extern "C" fn layout_arena_background_color_can_be_compositor_animated(
     arena: *mut c_void,
     slot: NodeSlotId,
-    root_background_source: crate::painting::host::FfiRootBackgroundSource,
 ) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
     crate::painting::record::paint::background_resolution::background_color_can_be_compositor_animated(
         &arena.paintable_rows(),
         slot,
-        root_background_source,
+        crate::layout::viewport_propagation::root_background_source(arena),
     )
 }
 
@@ -3586,7 +3598,7 @@ mod tests {
     use crate::layout::LayoutNodeArena;
     use crate::layout::node_data::NodeKind;
     use crate::painting::hit_test::HitTestList;
-    use crate::painting::host::FfiRootBackgroundSource;
+    use crate::painting::host::RootBackgroundSource;
     use crate::painting::paintable_data::FfiOverflowData;
     use crate::painting::record::damage::PaintDamage;
     use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
@@ -3605,7 +3617,7 @@ mod tests {
             *arena.hit_test_list.borrow_mut() = Some(HitTestList::default());
             {
                 let mut state = arena.paint_state().borrow_mut();
-                state.root_background_source = Some(FfiRootBackgroundSource {
+                state.root_background_source = Some(RootBackgroundSource {
                     root_layout_node: root,
                     ..Default::default()
                 });
@@ -3713,23 +3725,20 @@ mod tests {
         arena.paintable_side_data(root).overflow_measured_this_commit.set(true);
         arena.paint_state().borrow_mut().visual_context.dirty_boxes.clear();
 
-        let handle = std::ptr::from_mut(&mut arena).cast();
-        let outcome = unsafe {
-            layout_arena_prepare_for_rendering(
-                handle,
-                FfiVisualContextHostCallbacks {
-                    context: std::ptr::null_mut(),
-                    tree_inputs,
-                    scroll_offset,
-                    node_identity,
-                },
-                FfiRootBackgroundSource {
-                    root_layout_node: root,
-                    ..Default::default()
-                },
-                false,
-            )
-        };
+        let outcome = prepare_for_rendering(
+            &arena,
+            &FfiVisualContextHostCallbacks {
+                context: std::ptr::null_mut(),
+                tree_inputs,
+                scroll_offset,
+                node_identity,
+            },
+            RootBackgroundSource {
+                root_layout_node: root,
+                ..Default::default()
+            },
+            false,
+        );
         assert!(outcome.requires_visual_context_update);
         assert!(
             arena.paint_state().borrow().visual_context.dirty_boxes.boxes[&root]

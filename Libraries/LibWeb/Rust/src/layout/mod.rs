@@ -53,7 +53,7 @@ mod tree_mutation;
 pub(crate) mod tree_update_marks;
 mod update_layout;
 pub mod used_values;
-mod viewport_propagation;
+pub(crate) mod viewport_propagation;
 
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::css::style::fast_hash::FastSet as HashSet;

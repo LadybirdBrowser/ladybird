@@ -14,15 +14,15 @@ pub use paint::*;
 pub use replay::*;
 pub use visual_context::*;
 
+/// The boxes the canvas background is painted from, and whether it takes over the body's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiRootBackgroundSource {
+pub struct RootBackgroundSource {
     pub use_body_background_properties: bool,
     pub root_layout_node: crate::layout::node_data::NodeSlotId,
     pub body_layout_node: crate::layout::node_data::NodeSlotId,
 }
 
-impl Default for FfiRootBackgroundSource {
+impl Default for RootBackgroundSource {
     fn default() -> Self {
         Self {
             use_body_background_properties: false,

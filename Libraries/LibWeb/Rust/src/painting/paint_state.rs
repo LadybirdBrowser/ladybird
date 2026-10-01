@@ -24,7 +24,7 @@ pub struct PaintState {
     pub(crate) pending_recording_trace: Option<PendingRecordingTrace>,
     pub(crate) pending_recording: Option<PendingRecording>,
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
-    pub(crate) root_background_source: Option<crate::painting::host::FfiRootBackgroundSource>,
+    pub(crate) root_background_source: Option<crate::painting::host::RootBackgroundSource>,
     pub(crate) hit_test_list_generation: u64,
     pub(crate) last_recording: Option<Arc<crate::painting::record::RecordingOutput>>,
     pub(crate) published_frame: Option<Arc<crate::painting::record::RecordingOutput>>,
@@ -43,7 +43,7 @@ impl PaintState {
     pub(crate) fn update_root_background_source(
         &mut self,
         arena: &crate::layout::LayoutNodeArena,
-        source: crate::painting::host::FfiRootBackgroundSource,
+        source: crate::painting::host::RootBackgroundSource,
     ) -> bool {
         let Some(previous) = self.root_background_source.replace(source) else {
             return false;

@@ -185,20 +185,6 @@ static Layout::NodeWithStyle::ImageObserver const* layer_image_observer(Layout::
     VERIFY_NOT_REACHED();
 }
 
-static Layout::RustFFI::FfiRootBackgroundSource rust_root_background_source(DOM::Document const& document)
-{
-    Layout::RustFFI::FfiRootBackgroundSource source {};
-    source.root_layout_node = Compositing::RustFFI::NodeSlotId { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
-    source.body_layout_node = Compositing::RustFFI::NodeSlotId { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
-    if (auto const* root = document.document_element(); root && root->unsafe_layout_node())
-        source.root_layout_node = Layout::Node::slot_id(root->unsafe_layout_node());
-    auto const* html_element = document.html_element();
-    source.use_body_background_properties = html_element && html_element->should_use_body_background_properties();
-    if (auto const* body = document.body(); body && body->unsafe_layout_node())
-        source.body_layout_node = Layout::Node::slot_id(body->unsafe_layout_node());
-    return source;
-}
-
 Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM::Document& document)
 {
     return {
@@ -284,7 +270,7 @@ bool rust_background_color_can_be_compositor_animated(Layout::Node const& layout
     if (!has_committed_box(layout_node))
         return false;
     return Layout::RustFFI::layout_arena_background_color_can_be_compositor_animated(
-        layout_node.arena_handle(), committed_row_slot(layout_node), rust_root_background_source(layout_node.document()));
+        layout_node.arena_handle(), committed_row_slot(layout_node));
 }
 
 void const* retain_rust_main_visual_context_tree(DOM::Document const& document)
@@ -326,7 +312,7 @@ void register_geometry_host(Layout::NodeArena& arena)
 Layout::RustFFI::FfiRenderingPreparationOutcome rust_prepare_for_rendering(DOM::Document& document, bool visual_context_update_pending)
 {
     return Layout::RustFFI::layout_arena_prepare_for_rendering(
-        layout_arena_handle(document), visual_context_host_callbacks(document), rust_root_background_source(document), visual_context_update_pending);
+        layout_arena_handle(document), visual_context_host_callbacks(document), visual_context_update_pending);
 }
 
 static CSS::PreferredColorScheme image_color_scheme(Layout::NodeWithStyle const& layout_node)

@@ -68,7 +68,7 @@ impl FfiRecordingInputs {
     pub(crate) unsafe fn borrow_recording_inputs(
         &self,
         tree_inputs: super::FfiVisualContextTreeInputs,
-        root_background_source: super::FfiRootBackgroundSource,
+        root_background_source: super::RootBackgroundSource,
     ) -> crate::painting::record::inputs::RecordingInputs<'_> {
         use crate::painting::display_list::commands::UniqueNodeId;
         use crate::painting::force_dark::ForceDarkSettings;
