@@ -1468,91 +1468,6 @@ static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::
     properties.append({ .property_id = property_id, .value = parsed_value.release_nonnull() });
 }
 
-static void compute_transitioned_properties(Vector<TransitionProperties> transitions, bool delay_and_duration_are_single_zero, DOM::AbstractElement abstract_element)
-{
-    // FIXME: For now we don't bother registering transitions on the first computation since they can't run (because
-    //        there is nothing to transition from) but this will change once we implement @starting-style
-    if (!abstract_element.has_style())
-        return;
-    // FIXME: Add transition helpers on AbstractElement.
-    auto& element = abstract_element.element();
-    auto pseudo_element = abstract_element.pseudo_element();
-
-    element.clear_registered_transitions(pseudo_element);
-
-    // OPTIMIZATION: Registered transitions with a "combined duration" of less than or equal to 0s are equivalent to not
-    //               having a transition registered at all, except in the case that we already have an associated
-    //               transition for that property, so we can skip registering them. This implementation intentionally
-    //               ignores some of those cases (e.g. transitions being registered but for other properties, multiple
-    //               transitions, negative delays, etc) since it covers the common (initial property values) case and
-    //               the other cases are rare enough that the cost of identifying them would likely more than offset any
-    //               gains.
-    if (
-        element.property_ids_with_existing_transitions(pseudo_element).is_empty()
-        && delay_and_duration_are_single_zero) {
-        return;
-    }
-
-    element.add_transitioned_properties(pseudo_element, move(transitions));
-}
-
-static void compute_transitioned_properties(ComputedValues const& style, DOM::AbstractElement abstract_element)
-{
-    if (!abstract_element.has_style())
-        return;
-
-    auto& element = abstract_element.element();
-    auto pseudo_element = abstract_element.pseudo_element();
-    element.clear_registered_transitions(pseudo_element);
-
-    if (element.property_ids_with_existing_transitions(pseudo_element).is_empty()
-        && style.transition_delay_and_duration_are_single_zero()) {
-        return;
-    }
-
-    auto const& delays = style.transition_delays();
-    auto const& durations = style.transition_durations();
-    auto const& properties = style.transition_properties();
-    auto const& timing_functions = style.transition_timing_functions();
-    auto const& behaviors = style.transition_behaviors();
-    VERIFY(!delays.is_empty());
-    VERIFY(!durations.is_empty());
-    VERIFY(!timing_functions.is_empty());
-    VERIFY(!behaviors.is_empty());
-
-    Vector<TransitionProperties> transitions;
-    transitions.ensure_capacity(properties.size());
-    for (size_t i = 0; i < properties.size(); ++i) {
-        Vector<PropertyID> transition_properties;
-        if (properties[i].has_value()) {
-            auto maybe_property = property_id_from_string(*properties[i]);
-            if (maybe_property.has_value()) {
-                auto append_property_mapping_logical_aliases = [&](PropertyID property_id) {
-                    if (property_is_logical_alias(property_id))
-                        transition_properties.append(map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { style.writing_mode(), style.direction() }));
-                    else if (property_id != PropertyID::Custom)
-                        transition_properties.append(property_id);
-                };
-                auto transition_property = maybe_property.release_value();
-                if (property_is_shorthand(transition_property)) {
-                    for (auto property_id : expanded_longhands_for_shorthand(transition_property))
-                        append_property_mapping_logical_aliases(property_id);
-                } else {
-                    append_property_mapping_logical_aliases(transition_property);
-                }
-            }
-        }
-        transitions.append({
-            .properties = move(transition_properties),
-            .duration = durations[i % durations.size()].to_milliseconds(),
-            .timing_function = timing_functions[i % timing_functions.size()],
-            .delay = delays[i % delays.size()].to_milliseconds(),
-            .transition_behavior = behaviors[i % behaviors.size()],
-        });
-    }
-    element.add_transitioned_properties(pseudo_element, transitions);
-}
-
 // https://drafts.csswg.org/css-transitions/#starting
 Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style, DOM::AbstractElement abstract_element) const
 {
@@ -1595,12 +1510,26 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
     VERIFY(current_time->type == Animations::TimeValue::Type::Milliseconds);
     auto style_change_event_time = current_time->value;
 
+    // The after-change style's transition declarations, per longhand they name. A declaration
+    // whose delay and duration are each the single value 0s starts nothing, so it is read only
+    // when the element holds a transition such an entry could cancel.
+    auto const* after_change_table = new_style.computed_longhand_table();
+    auto existing_transition_property_ids = element.property_ids_with_existing_transitions(pseudo_element);
+    StyleValueFFI::FfiTransitionEntries transition_entries {};
+    if (!StyleValueFFI::rust_transition_delay_and_duration_are_single_zero(after_change_table) || !existing_transition_property_ids.is_empty())
+        transition_entries = StyleValueFFI::rust_transition_entries(after_change_table);
+    ScopeGuard release_transition_entries = [&] {
+        if (transition_entries.entries)
+            StyleValueFFI::rust_transition_entries_release(transition_entries);
+    };
+    ReadonlySpan<StyleValueFFI::FfiTransitionEntry> matching_entries { transition_entries.entries, transition_entries.count };
+
     // OPTIMIZATION: The two lists below are what this decides over, and an element with neither
     //               starts nothing. Answering that first is worth doing because the after-change
     //               style is a whole computed style built for the comparison, and every recompute
     //               of every element that has a style at all reaches here.
-    if (abstract_element.element().property_ids_with_matching_transition_property_entry(abstract_element.pseudo_element()).is_empty()
-        && abstract_element.element().property_ids_with_existing_transitions(abstract_element.pseudo_element()).is_empty()
+    if (matching_entries.is_empty()
+        && existing_transition_property_ids.is_empty()
         && existing_stabilization_state_indices.is_empty())
         return {};
 
@@ -1646,14 +1575,11 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
         RefPtr<StyleValue const> after_change_value;
         RefPtr<StyleValue const> current_value;
         GC::Ptr<CSSTransition> existing_transition;
+        StyleValueFFI::StyleValueData const* timing_function;
     };
     Vector<PreparedTransition> prepared_transitions;
     Vector<StyleValueFFI::FfiTransitionPropertyInput> ffi_properties;
 
-    enum class HasMatchingTransition {
-        No,
-        Yes,
-    };
     auto ensure_stabilization_state = [&](PropertyID property_id) -> size_t {
         Optional<u64> state_key;
         if (transition_target_key.has_value()) {
@@ -1687,7 +1613,7 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
         }
         return index;
     };
-    auto append_transition_input = [&](PropertyID property_id, HasMatchingTransition has_matching_transition) {
+    auto append_transition_input = [&](PropertyID property_id, StyleValueFFI::FfiTransitionEntry const* matching_entry) {
         auto stabilization_state_index = ensure_stabilization_state(property_id);
         auto const& stabilization_state = m_provisional_transition_states[stabilization_state_index];
         auto existing_transition = stabilization_state.committed_transition;
@@ -1699,11 +1625,10 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
         double old_timing_function_output = 0;
         double old_reversing_shortening_factor = 1;
 
-        if (has_matching_transition == HasMatchingTransition::Yes) {
-            auto transition_attributes = element.property_transition_attributes(pseudo_element, property_id).value();
-            delay = transition_attributes.delay;
-            duration = transition_attributes.duration;
-            allow_discrete = transition_attributes.transition_behavior == TransitionBehavior::AllowDiscrete;
+        if (matching_entry) {
+            delay = matching_entry->delay;
+            duration = matching_entry->duration;
+            allow_discrete = static_cast<TransitionBehavior>(matching_entry->behavior) == TransitionBehavior::AllowDiscrete;
             if (existing_transition) {
                 old_reversing_shortening_factor = existing_transition->reversing_shortening_factor();
                 if (has_running_transition)
@@ -1718,7 +1643,7 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
             .current_value = nullptr,
             .existing_end_value = existing_transition ? existing_transition->transition_end_value()->rust_style_value_data() : nullptr,
             .reversing_adjusted_start_value = existing_transition ? existing_transition->reversing_adjusted_start_value()->rust_style_value_data() : nullptr,
-            .has_matching_transition = has_matching_transition == HasMatchingTransition::Yes,
+            .has_matching_transition = matching_entry != nullptr,
             .allow_discrete = allow_discrete,
             .has_running_transition = has_running_transition,
             .has_completed_transition = has_completed_transition,
@@ -1734,16 +1659,17 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
             .after_change_value = {},
             .current_value = {},
             .existing_transition = existing_transition,
+            .timing_function = matching_entry ? matching_entry->timing_function : nullptr,
         });
     };
 
     // OPTIMIZATION: Instead of iterating over all properties we collect properties which appear in
     //               transition-property, followed by existing transitions without a matching entry.
-    for (auto property_id : element.property_ids_with_matching_transition_property_entry(pseudo_element))
-        append_transition_input(property_id, HasMatchingTransition::Yes);
-    for (auto property_id : element.property_ids_with_existing_transitions(pseudo_element)) {
-        if (!element.property_transition_attributes(pseudo_element, property_id).has_value())
-            append_transition_input(property_id, HasMatchingTransition::No);
+    for (auto const& entry : matching_entries)
+        append_transition_input(static_cast<PropertyID>(entry.property_id), &entry);
+    for (auto property_id : existing_transition_property_ids) {
+        if (!any_of(matching_entries, [&](auto const& entry) { return entry.property_id == to_underlying(property_id); }))
+            append_transition_input(property_id, nullptr);
     }
 
     for (auto stabilization_state_index : existing_stabilization_state_indices) {
@@ -1826,8 +1752,9 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Proposing a transition of {} from {} to {}", string_from_property_id(property_id), start_value.to_string(SerializationMode::Normal), end_value.to_string(SerializationMode::Normal));
             auto start_time = style_change_event_time;
             auto end_time = start_time + action.active_duration;
+            auto timing_function = EasingFunction::from_style_value(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(prepared_transition.timing_function)));
             auto transition = CSSTransition::start_a_transition(abstract_element, property_id,
-                document().transition_generation(), action.delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, action.reversing_shortening_factor, CSSTransition::Publication::Provisional);
+                document().transition_generation(), action.delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, action.reversing_shortening_factor, move(timing_function), CSSTransition::Publication::Provisional);
             stabilization_state.proposed_transition = transition;
             newly_started_transition_effects.append(as<Animations::KeyframeEffect>(*transition->effect()));
         };
@@ -1934,7 +1861,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions_on_share
 {
     auto& element = abstract_element.element();
     auto pseudo_element = abstract_element.pseudo_element();
-    if (element.property_ids_with_matching_transition_property_entry(pseudo_element).is_empty()
+    if (shared_values.transition_delay_and_duration_are_single_zero()
         && element.property_ids_with_existing_transitions(pseudo_element).is_empty()
         && !has_provisional_transition_states(abstract_element))
         return {};
@@ -3759,7 +3686,7 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
             && !values.has_animated_values() && !values.animated_properties()
             && !element.has_relevant_animations() && !element.has_css_defined_animations()
             && element.property_ids_with_existing_transitions({}).is_empty()
-            && element.property_ids_with_matching_transition_property_entry({}).is_empty();
+            && !element.has_matching_transition_property_entry({}, base.computed_longhand_table());
     }
     u64 counter_style_environment_identity = 0;
     if (abstract_element.has_value()
@@ -3826,7 +3753,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM:
             && values.property_inheritance_is_standard()
             && !values.display().is_list_item()
             && element.property_ids_with_existing_transitions({}).is_empty()
-            && element.property_ids_with_matching_transition_property_entry({}).is_empty();
+            && !element.has_matching_transition_property_entry({}, values.base_values().computed_longhand_table());
         auto publication = const_cast<StyleComputer&>(*this).style_engine().assign_shared_style_record(
             abstract_element.element().style_node_id(),
             pseudo_element_to_ffi(abstract_element.pseudo_element()),
@@ -4257,7 +4184,7 @@ static Optional<SharedStyleRecordContext> shared_style_record_context(StyleCompu
         || element.has_relevant_animations()
         || element.has_css_defined_animations()
         || !element.property_ids_with_existing_transitions({}).is_empty()
-        || !element.property_ids_with_matching_transition_property_entry({}).is_empty()
+        || element.has_matching_transition_property_entry({})
         || element.custom_property_data({}))
         return {};
     DOM::AbstractElement abstract_element { element };
@@ -5026,7 +4953,6 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 if (auto* parent = abstract_element.element().parent())
                     parent->add_children_explicitly_inherited_non_inherited_style_groups(entry.explicitly_inherited_non_inherited_style_groups);
             }
-            compute_transitioned_properties(*sharing->shared_values, abstract_element);
             // A style built from the shared values when a transition starts on them records these.
             sharing->computation_reads_unkeyed_context = entry.read_beyond_the_record;
             sharing->computation_reads_resource_context = entry.style_reads_resource_context;
@@ -5583,8 +5509,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         // Per definition, the index of the CSS animation it claims in the list the element already
         // holds, or -1 where the style computation asks for a new one.
         Vector<i32> animation_definition_matches;
-        Vector<TransitionProperties> transitions;
-        bool transition_delay_and_duration_are_single_zero { false };
         u64 container_relative_length_unit_mask { 0 };
 
         explicit NativeLonghandState(NonnullRefPtr<ComputedStyleWorkingSet> working_set)
@@ -5905,23 +5829,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                     resolution_state.data->set_cached_resolution(resolution_state.document_identity, resolution_state.registration_generation, resolution_state.color_scheme.value(), resolved);
                 context.abstract_element.set_custom_property_data(move(resolved));
             }
-            state.transitions.ensure_capacity(longhand_result->transitions.count);
-            for (auto const& transition : ReadonlySpan<ComputedValuesFFI::FfiComputedTransition> { longhand_result->transitions.transitions, longhand_result->transitions.count }) {
-                Vector<PropertyID> properties;
-                properties.ensure_capacity(transition.property_count);
-                for (auto property : ReadonlySpan<u16> { transition.properties, transition.property_count })
-                    properties.unchecked_append(static_cast<PropertyID>(property));
-                auto timing_function = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                    static_cast<StyleValueFFI::StyleValueData const*>(transition.timing_function)));
-                state.transitions.unchecked_append({
-                    .properties = move(properties),
-                    .duration = transition.duration,
-                    .timing_function = EasingFunction::from_style_value(timing_function),
-                    .delay = transition.delay,
-                    .transition_behavior = static_cast<TransitionBehavior>(transition.behavior),
-                });
-            }
-            state.transition_delay_and_duration_are_single_zero = longhand_result->transitions.delay_and_duration_are_single_zero;
             state.animation_definitions.ensure_capacity(longhand_result->animations.count);
             state.animation_definition_matches.ensure_capacity(longhand_result->animations.count);
             for (auto const& animation : ReadonlySpan<ComputedValuesFFI::FfiComputedAnimation> { longhand_result->animations.animations, longhand_result->animations.count }) {
@@ -6020,9 +5927,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             if (context.stop_after_longhand_drive)
                 return;
 
-            // Transition declarations [css-transitions-1]
-            // Theoretically this should be part of the cascade, but it works with computed values.
-            compute_transitioned_properties(move(context.state->transitions), context.state->transition_delay_and_duration_are_single_zero, context.abstract_element);
             if (auto previous_style = context.abstract_element.computed_style()) {
                 // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
                 if (!previous_style->in_display_none_subtree() && !parent_style_in_display_none_subtree)

@@ -26,13 +26,6 @@ namespace Web::Animations {
 // https://drafts.csswg.org/web-animations-1/#animatable
 class WEB_API Animatable {
 public:
-    struct TransitionAttributes {
-        double delay;
-        double duration;
-        CSS::EasingFunction timing_function;
-        CSS::TransitionBehavior transition_behavior;
-    };
-
     virtual ~Animatable() = default;
 
     enum class GetAnimationsSorted {
@@ -72,14 +65,15 @@ public:
     Vector<GC::Ref<CSS::CSSAnimation>> const* css_defined_animations(Optional<CSS::PseudoElement>);
     void set_css_defined_animations(Optional<CSS::PseudoElement>, Vector<GC::Ref<CSS::CSSAnimation>>&&);
 
-    void add_transitioned_properties(Optional<CSS::PseudoElement>, Vector<CSS::TransitionProperties> const& transitions);
     Vector<CSS::PropertyID> property_ids_with_matching_transition_property_entry(Optional<CSS::PseudoElement>) const;
-    Optional<TransitionAttributes const&> property_transition_attributes(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
+    // Whether the installed style, or a style with the given computed longhand table, gives any longhand a matching
+    // transition-property entry, answered without listing them.
+    bool has_matching_transition_property_entry(Optional<CSS::PseudoElement>) const;
+    bool has_matching_transition_property_entry(Optional<CSS::PseudoElement>, void const* longhand_table) const;
     void set_transition(Optional<CSS::PseudoElement>, CSS::PropertyID, GC::Ref<CSS::CSSTransition>);
     void remove_transition(Optional<CSS::PseudoElement>, CSS::PropertyID);
     Vector<CSS::PropertyID> property_ids_with_existing_transitions(Optional<CSS::PseudoElement>) const;
     GC::Ptr<CSS::CSSTransition> property_transition(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
-    void clear_registered_transitions(Optional<CSS::PseudoElement>);
 
 protected:
     void visit_edges(JS::Cell::Visitor&);

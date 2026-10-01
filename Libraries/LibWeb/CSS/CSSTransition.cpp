@@ -29,10 +29,11 @@ GC::Ref<CSSTransition> CSSTransition::start_a_transition(
     NonnullRefPtr<StyleValue const> end_value,
     NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
     double reversing_shortening_factor,
+    EasingFunction timing_function,
     Publication publication)
 {
     auto& environment = abstract_element.document().relevant_settings_object();
-    return GC::Heap::the().allocate<CSSTransition>(environment, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor, publication);
+    return GC::Heap::the().allocate<CSSTransition>(environment, abstract_element, property_id, transition_generation, delay, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor, move(timing_function), publication);
 }
 
 Utf16FlyString const& CSSTransition::transition_property() const
@@ -99,6 +100,7 @@ CSSTransition::CSSTransition(
     NonnullRefPtr<StyleValue const> end_value,
     NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
     double reversing_shortening_factor,
+    EasingFunction timing_function,
     Publication publication)
     : Animations::Animation(environment)
     , m_transition_property(property_id)
@@ -132,7 +134,7 @@ CSSTransition::CSSTransition(
     // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
     // timing requires rerunning the procedure to normalize specified timing.
     m_keyframe_effect->normalize_specified_timing();
-    m_keyframe_effect->set_timing_function(abstract_element.element().property_transition_attributes(abstract_element.pseudo_element(), property_id)->timing_function);
+    m_keyframe_effect->set_timing_function(move(timing_function));
 
     auto key_frame_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
     Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame initial_keyframe;
