@@ -829,6 +829,8 @@ pub struct RetainedState {
     document_resource_contexts: resource_contexts::DocumentResourceContexts,
     /// The document's media features, copied from each transaction's inputs.
     document_media: custom_property_cascade::DocumentMediaSnapshot,
+    /// The `@function` definitions each scope sees, retained from each transaction's inputs.
+    document_functions: custom_property_cascade::DocumentFunctionSnapshot,
     /// Every font resolution this document has been given. An evaluation step reads it; only a
     /// host round between passes adds to it.
     font_resolution: Option<font_resolution::FontResolutionCache>,

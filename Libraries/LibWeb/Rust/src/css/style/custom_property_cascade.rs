@@ -24,9 +24,12 @@ use crate::css::cascaded_properties::{
     destroy_resolved_custom_properties, drive_custom_property_resolution, parse_substituted_source,
     parse_substituted_without_callbacks,
 };
-use crate::css::custom_properties::{CustomPropertyStore, NativeVarResolution, prepare_var_resolution_environment};
+use crate::css::custom_properties::{
+    CustomPropertyStore, FfiSubstitutionFunctionVisibility, NativeVarResolution, prepare_var_resolution_environment,
+};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::value_parser::ParseOutcome;
+use crate::css::rule::CompiledFunction;
 use crate::css::style_compute::keyword;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData, release_style_value, retain_style_value};
 use custom_property_environments::{CascadedCustomProperty, CustomPropertyName};
@@ -138,6 +141,143 @@ impl DocumentMediaSnapshot {
     }
 }
 
+/// The `@function` definitions each scope sees, as the host published them with a transaction's
+/// inputs: what a custom function call resolves against. A scope is a host `StyleScope`, named by
+/// its identity, as the resolver names the scope of a call and of a definition.
+#[derive(Default)]
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "style engine records read it once they resolve custom functions"
+    )
+)]
+pub(super) struct DocumentFunctionSnapshot {
+    /// Each definition some scope sees, by its identity, with the scope that defines it.
+    definitions: HashMap<u64, (Arc<CompiledFunction>, usize)>,
+    /// Which definition each scope's calls name, a name at a time.
+    visibilities: Vec<FfiSubstitutionFunctionVisibility>,
+    /// The scope of each tree scope that sees a definition.
+    caller_scopes: HashMap<TreeScopeID, usize>,
+}
+
+/// What a call from one tree scope may reach: the definitions its scope sees, and those the
+/// defining scope of each of them sees, which the calls in its body name.
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "style engine records read it once they resolve custom functions"
+    )
+)]
+pub(super) struct VisibleFunctions<'a> {
+    pub caller_scope: usize,
+    /// Each reachable definition, with the scope that defines it.
+    pub definitions: Vec<(&'a CompiledFunction, usize)>,
+    pub visibilities: Vec<FfiSubstitutionFunctionVisibility>,
+}
+
+impl DocumentFunctionSnapshot {
+    /// Take in what the host lent with the inputs, retaining each definition, and clear the
+    /// borrowed fields so the inputs compare by value from here on.
+    ///
+    /// # Safety
+    /// The borrowed fields must name a live array of their stated length, or nothing, for this
+    /// call, and each entry a live compiled function.
+    pub(super) unsafe fn take_in(&mut self, inputs: &mut bridge::FfiDocumentStyleComputationInputs) {
+        self.definitions.clear();
+        self.visibilities.clear();
+        self.caller_scopes.clear();
+        let entries = if inputs.custom_functions.is_none() || inputs.custom_function_count == 0 {
+            &[]
+        } else {
+            unsafe {
+                std::slice::from_raw_parts(
+                    inputs
+                        .custom_functions
+                        .as_pointer()
+                        .cast::<bridge::FfiCustomFunctionEntry>(),
+                    inputs.custom_function_count,
+                )
+            }
+        };
+        for entry in entries {
+            let function = entry.function.cast::<CompiledFunction>();
+            // SAFETY: The host lends a live compiled function, which is shared by reference count.
+            let Some(identity) = (unsafe { function.as_ref() }).map(|function| function.identity) else {
+                debug_assert!(false, "a published custom function names its definition");
+                continue;
+            };
+            self.definitions.entry(identity).or_insert_with(|| {
+                // SAFETY: As above; the snapshot keeps a reference of its own.
+                let function = unsafe {
+                    Arc::increment_strong_count(function);
+                    Arc::from_raw(function)
+                };
+                (function, entry.definition_scope)
+            });
+            self.visibilities.push(FfiSubstitutionFunctionVisibility {
+                caller_scope_identity: entry.caller_scope,
+                function_identity: identity,
+            });
+            self.caller_scopes
+                .insert(TreeScopeID(entry.tree_scope), entry.caller_scope);
+        }
+        inputs.custom_functions = bridge::FfiHostHandle::default();
+        inputs.custom_function_count = 0;
+    }
+
+    /// What a call from an element of `tree_scope` may reach. A tree scope whose scope sees no
+    /// definition reaches none, and each of its calls names nothing.
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "style engine records read it once they resolve custom functions"
+        )
+    )]
+    pub(super) fn visible_from(&self, tree_scope: TreeScopeID) -> VisibleFunctions<'_> {
+        let caller_scope = self.caller_scopes.get(&tree_scope).copied().unwrap_or(0);
+        let mut scopes = vec![caller_scope];
+        let mut definitions: Vec<(&CompiledFunction, usize)> = Vec::new();
+        let mut index = 0;
+        while let Some(&scope) = scopes.get(index) {
+            for visibility in self
+                .visibilities
+                .iter()
+                .filter(|visibility| visibility.caller_scope_identity == scope)
+            {
+                let Some((function, definition_scope)) = self.definitions.get(&visibility.function_identity) else {
+                    debug_assert!(false, "a visible custom function is published with its definition");
+                    continue;
+                };
+                if definitions
+                    .iter()
+                    .any(|(reached, _)| reached.identity == function.identity)
+                {
+                    continue;
+                }
+                definitions.push((&**function, *definition_scope));
+                if !scopes.contains(definition_scope) {
+                    scopes.push(*definition_scope);
+                }
+            }
+            index += 1;
+        }
+        let visibilities = self
+            .visibilities
+            .iter()
+            .filter(|visibility| scopes.contains(&visibility.caller_scope_identity))
+            .copied()
+            .collect();
+        VisibleFunctions {
+            caller_scope,
+            definitions,
+            visibilities,
+        }
+    }
+}
+
 /// The resolution context the engine substitutes under: the stores alone, with no callback into
 /// C++ - what the engine cannot resolve without one is left to C++ before this is built.
 fn engine_resolution_context(
@@ -170,9 +310,10 @@ fn engine_resolution_context(
         custom_functions: std::ptr::null(),
         custom_function_count: 0,
         custom_function_scope_identity: 0,
+        custom_function_visibilities: std::ptr::null(),
+        custom_function_visibility_count: 0,
         callback_context: std::ptr::null_mut(),
         install_custom_properties: None,
-        resolve_custom_function: None,
         style_query_inputs: style_query.map_or(std::ptr::null(), std::ptr::from_ref),
         load_style_query_inputs: None,
         style_query_dependencies: style_query_references
@@ -1235,6 +1376,8 @@ impl RetainedState {
                 std::ptr::null(),
                 0,
                 0,
+                std::ptr::null(),
+                0,
             )
         }) else {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
@@ -1260,7 +1403,6 @@ impl RetainedState {
                 written.pointer().cast(),
                 &mut resolution_environment,
                 attributes.is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
-                None,
                 std::ptr::null_mut(),
                 inputs.style_query,
                 None,
@@ -1306,5 +1448,79 @@ impl RetainedState {
             environments.remember_substitution(written, property, environment.own, value.clone_retained());
         }
         Ok(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_call_reaches_what_its_scope_and_the_scope_of_each_reached_definition_see() {
+        let functions: Vec<_> = crate::css::rule::compile_functions_for_testing(
+            "@function --outer() { result: --inner(); }
+            @function --inner() { result: 2px; }
+            @function --local() { result: 1px; }",
+        )
+        .into_iter()
+        .map(Arc::new)
+        .collect();
+        let [outer, inner, local] = [&functions[0], &functions[1], &functions[2]];
+        // The document's scope (1) sees --local and --outer, which a shadow tree's scope (2)
+        // defines; the shadow tree's sees --outer and --inner.
+        let entry = |function: &Arc<CompiledFunction>, caller_scope, definition_scope, tree_scope| {
+            bridge::FfiCustomFunctionEntry {
+                function: Arc::as_ptr(function).cast(),
+                caller_scope,
+                definition_scope,
+                tree_scope,
+            }
+        };
+        let entries = [
+            entry(outer, 1, 2, 0),
+            entry(local, 1, 1, 0),
+            entry(outer, 2, 2, 5),
+            entry(inner, 2, 2, 5),
+        ];
+        let mut inputs = bridge::FfiDocumentStyleComputationInputs {
+            custom_functions: bridge::FfiHostHandle::from_pointer(entries.as_ptr().cast()),
+            custom_function_count: entries.len(),
+            ..Default::default()
+        };
+        let mut snapshot = DocumentFunctionSnapshot::default();
+        unsafe { snapshot.take_in(&mut inputs) };
+        assert_eq!(inputs, bridge::FfiDocumentStyleComputationInputs::default());
+        let reached = |visible: &VisibleFunctions<'_>| {
+            visible
+                .definitions
+                .iter()
+                .map(|(function, scope)| (function.identity, *scope))
+                .collect::<Vec<_>>()
+        };
+
+        // A call in the document reaches --inner through the body of --outer.
+        let document = snapshot.visible_from(TreeScopeID(0));
+        assert_eq!(document.caller_scope, 1);
+        assert_eq!(
+            reached(&document),
+            [(outer.identity, 2), (local.identity, 1), (inner.identity, 2)]
+        );
+        assert_eq!(document.visibilities.len(), entries.len());
+
+        // A call in the shadow tree never reaches what only the document sees.
+        let shadow = snapshot.visible_from(TreeScopeID(5));
+        assert_eq!(shadow.caller_scope, 2);
+        assert_eq!(reached(&shadow), [(outer.identity, 2), (inner.identity, 2)]);
+        assert!(
+            shadow
+                .visibilities
+                .iter()
+                .all(|visibility| visibility.caller_scope_identity == 2)
+        );
+
+        // A tree scope whose scope sees no definition reaches none.
+        let elsewhere = snapshot.visible_from(TreeScopeID(9));
+        assert_eq!(elsewhere.caller_scope, 0);
+        assert!(elsewhere.definitions.is_empty() && elsewhere.visibilities.is_empty());
     }
 }

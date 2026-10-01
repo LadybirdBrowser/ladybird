@@ -36,6 +36,10 @@ pub struct MediaList {
 }
 
 impl MediaList {
+    pub(crate) fn data(&self) -> Arc<MediaListData> {
+        self.owner.borrow().data.clone()
+    }
+
     pub(crate) fn share(&self) -> Self {
         Self::new(self.owner.borrow().data.clone())
     }

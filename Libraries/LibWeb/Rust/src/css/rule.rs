@@ -37,6 +37,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 mod compilation;
 mod function;
+pub(crate) use function::CompiledFunction;
+#[cfg(test)]
+pub(crate) use function::compile_functions_for_testing;
 pub(crate) mod mutation;
 pub(crate) mod read;
 use read::RuleRef;

@@ -286,6 +286,23 @@ pub struct FfiDocumentStyleComputationInputs {
     pub media_feature_values: FfiHostHandle,
     pub media_feature_value_count: usize,
     pub media_length_resolution_context: FfiHostHandle,
+    /// What a custom function call reads, lent for the boundary call only: an
+    /// `FfiCustomFunctionEntry` for each definition a scope sees. None where no scope holds an
+    /// `@function` rule. The engine retains the definitions and clears these fields before it
+    /// keeps the inputs.
+    pub custom_functions: FfiHostHandle,
+    pub custom_function_count: usize,
+}
+
+/// That a scope sees a custom function definition: the compiled function its name dereferences
+/// to there, the scope (a `StyleScope`'s identity) whose calls see it, the scope defining it, and
+/// the tree scope of the scope whose calls see it.
+#[repr(C)]
+pub struct FfiCustomFunctionEntry {
+    pub function: *const c_void,
+    pub caller_scope: usize,
+    pub definition_scope: usize,
+    pub tree_scope: u32,
 }
 
 /// One style sheet's resource context, keyed by the identity of its native sheet: the base URL a
@@ -349,6 +366,8 @@ impl Default for FfiDocumentStyleComputationInputs {
             media_feature_values: FfiHostHandle { address: 0 },
             media_feature_value_count: 0,
             media_length_resolution_context: FfiHostHandle { address: 0 },
+            custom_functions: FfiHostHandle { address: 0 },
+            custom_function_count: 0,
         }
     }
 }
@@ -3840,6 +3859,8 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     let resource_contexts_moved = unsafe { engine.document_resource_contexts.take_in(&mut computation_inputs) };
     // SAFETY: The host lends the media environment the inputs name for this call.
     unsafe { engine.document_media.take_in(&mut computation_inputs) };
+    // SAFETY: The host lends the custom functions the inputs name for this call.
+    unsafe { engine.document_functions.take_in(&mut computation_inputs) };
     engine.custom_property_registrations_changed = engine
         .document_style_computation_inputs
         .custom_property_registration_generation

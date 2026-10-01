@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashTable.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Time.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -708,6 +709,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
     // Lent to the engine for the call below, which copies them.
     String document_base_url;
     Vector<StyleEngineFFI::FfiStyleSheetResourceContextEntry> resource_contexts;
+    Vector<StyleEngineFFI::FfiCustomFunctionEntry> custom_functions;
     if (m_style_computer) {
         auto& document = m_style_computer->document();
         document_base_url = document.serialized_base_url();
@@ -734,6 +736,38 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
         }
         auto const viewport_rect = m_style_computer->viewport_rect_for_style_environment();
         auto const& media_environment = *m_style_computer->ensure_media_environment_for_style_update();
+        // What each scope's custom function calls name, published after the media environment is
+        // settled: a media change rebuilds the definitions. A definition is seen only below a
+        // scope holding @function rules, which most documents have none of.
+        auto has_function_rules = [](StyleScope const& scope) { return !scope.rule_cache().function_rules_by_name.is_empty(); };
+        bool document_has_function_rules = has_function_rules(document.style_scope());
+        document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
+            document_has_function_rules = document_has_function_rules || has_function_rules(shadow_root.style_scope());
+        });
+        if (document_has_function_rules) {
+            // A call in a function's body names what the function's own scope sees, so the scopes
+            // that define what another sees publish what they see too.
+            HashTable<StyleScope const*> visited_scopes;
+            Vector<StyleScope const*> scopes;
+            auto append_scope = [&](StyleScope const& scope) {
+                if (visited_scopes.set(&scope) == AK::HashSetResult::InsertedNewEntry)
+                    scopes.append(&scope);
+            };
+            append_scope(document.style_scope());
+            document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) { append_scope(shadow_root.style_scope()); });
+            for (size_t index = 0; index < scopes.size(); ++index) {
+                auto const& scope = *scopes[index];
+                scope.for_each_visible_function_definition([&](StyleScope::FunctionDefinitionAndScope const& definition) {
+                    custom_functions.append({
+                        .function = definition.function.handle(),
+                        .caller_scope = bit_cast<FlatPtr>(&scope),
+                        .definition_scope = bit_cast<FlatPtr>(&definition.scope),
+                        .tree_scope = scope.style_engine_tree_scope().value(),
+                    });
+                    append_scope(definition.scope);
+                });
+            }
+        }
         auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
         auto const& initial_font = m_style_computer->document().font_computer().initial_font();
         Length::FontMetrics const initial_font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font.pixel_metrics(), InitialValues::line_height() };
@@ -768,6 +802,8 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
             .media_feature_values = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(media_environment.values),
             .media_feature_value_count = media_environment.value_count,
             .media_length_resolution_context = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(media_environment.length_resolution_context),
+            .custom_functions = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(custom_functions.data()),
+            .custom_function_count = custom_functions.size(),
         };
         if (auto supported = m_style_computer->document().supported_color_schemes(); supported.has_value()) {
             computation_inputs.has_document_supported_schemes = true;

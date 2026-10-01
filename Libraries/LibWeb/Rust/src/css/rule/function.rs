@@ -10,21 +10,34 @@ use crate::css::container_conditions::ContainerConditionsData;
 use crate::css::descriptor_block::DescriptorBlockData;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::function_signature::FunctionSignature;
+use crate::css::media_list::MediaListData;
 use std::ffi::c_void;
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
-struct FunctionDeclarationInput {
-    declarations: Arc<DescriptorBlockData>,
-    containers: Vec<Arc<ContainerConditionsData>>,
+/// One block of a function's declarations, with the conditions that gate it.
+pub(crate) struct FunctionDeclarationInput {
+    pub(crate) declarations: Arc<DescriptorBlockData>,
+    /// The container conditions around the block, nearest first, which hold for an element or not.
+    pub(crate) containers: Vec<Arc<ContainerConditionsData>>,
+    /// The `@media` lists around the block, which hold for the document or not.
+    #[allow(
+        dead_code,
+        reason = "style engine records read it once they resolve custom functions"
+    )]
+    pub(crate) media: Vec<Arc<MediaListData>>,
+    /// Whether every one of those lists matched when the function was compiled. A media change
+    /// invalidates the host's definition cache, so the host reads this; the style engine
+    /// evaluates the lists against the media features of the transaction it computes for.
+    media_matched_at_compilation: bool,
 }
 
-// Immutable compilation output. Media changes invalidate the definition cache; container
-// conditions remain element-dependent. No live rule, sheet, or descriptor owner is retained.
+// Immutable compilation output. Media and container conditions stay inputs, evaluated where the
+// function is called. No live rule, sheet, or descriptor owner is retained.
 pub struct CompiledFunction {
-    identity: u64,
-    signature: Arc<FunctionSignature>,
-    inputs: Vec<FunctionDeclarationInput>,
+    pub(crate) identity: u64,
+    pub(crate) signature: Arc<FunctionSignature>,
+    pub(crate) inputs: Vec<FunctionDeclarationInput>,
 }
 
 impl CompiledFunction {
@@ -33,6 +46,8 @@ impl CompiledFunction {
             rule: RuleRef<'_>,
             outer_containers: &[Arc<ContainerConditionsData>],
             containers: &mut Vec<Arc<ContainerConditionsData>>,
+            media: &mut Vec<Arc<MediaListData>>,
+            media_matched: bool,
             inputs: &mut Vec<FunctionDeclarationInput>,
         ) {
             match rule.rule_type() {
@@ -52,19 +67,29 @@ impl CompiledFunction {
                     inputs.push(FunctionDeclarationInput {
                         declarations: rule.descriptors().unwrap(),
                         containers: conditions,
+                        media: media.clone(),
+                        media_matched_at_compilation: media_matched,
                     });
                     return;
                 }
                 NativeRuleType::Container => containers.push(rule.container().unwrap().clone()),
-                NativeRuleType::Media | NativeRuleType::Supports if rule.cached_condition_holds() => {}
+                NativeRuleType::Media => media.push(rule.media_data()),
+                NativeRuleType::Supports if rule.cached_condition_holds() => {}
                 _ => return,
             }
+            let media_matched = media_matched && (rule.rule_type() != NativeRuleType::Media || rule.media_matches());
             let _ = rule.visit_children(&mut |child| {
-                walk(child, outer_containers, containers, inputs);
+                walk(child, outer_containers, containers, media, media_matched, inputs);
                 ControlFlow::Continue(())
             });
-            if rule.rule_type() == NativeRuleType::Container {
-                containers.pop();
+            match rule.rule_type() {
+                NativeRuleType::Container => {
+                    containers.pop();
+                }
+                NativeRuleType::Media => {
+                    media.pop();
+                }
+                _ => {}
             }
         }
         let mut result = Self {
@@ -73,7 +98,14 @@ impl CompiledFunction {
             inputs: Vec::new(),
         };
         let _ = view.rule.visit_children(&mut |child| {
-            walk(child, view.containers, &mut Vec::new(), &mut result.inputs);
+            walk(
+                child,
+                view.containers,
+                &mut Vec::new(),
+                &mut Vec::new(),
+                true,
+                &mut result.inputs,
+            );
             ControlFlow::Continue(())
         });
         result
@@ -124,6 +156,9 @@ pub unsafe extern "C" fn rust_compiled_function_visit_declarations(
     visit: unsafe extern "C" fn(*mut c_void, FfiUtf16View, *const c_void),
 ) {
     for input in &function.inputs {
+        if !input.media_matched_at_compilation {
+            continue;
+        }
         if !input.containers.is_empty() {
             let pointers: Vec<_> = input.containers.iter().map(Arc::as_ptr).collect();
             if !unsafe { matches_container(context, pointers.as_ptr(), pointers.len()) } {
@@ -147,12 +182,31 @@ pub unsafe extern "C" fn rust_compiled_function_visit_declarations(
     }
 }
 
+/// The functions a style sheet's top-level `@function` rules compile to, in order, with no rule
+/// owner left alive.
+#[cfg(test)]
+pub(crate) fn compile_functions_for_testing(source: &str) -> Vec<CompiledFunction> {
+    let units: Vec<_> = source.encode_utf16().collect();
+    let context: crate::css::parser::value_parser::ParseContext = unsafe { std::mem::zeroed() };
+    let parsed = unsafe {
+        crate::css::parser::syntax_parser::parse_shared_stylesheet(
+            crate::css::css_tokenizer::TokenizerInput::Utf16(&units),
+            &raw const context,
+        )
+    };
+    let rules = super::NativeRuleList::from_parsed(parsed);
+    let mut compiled = Vec::new();
+    let _ = rules.visit_rules(&mut |rule| {
+        compiled.push(CompiledFunction::compile(&NativeRuleView { rule, containers: &[] }));
+        ControlFlow::Continue(())
+    });
+    compiled
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::css::container_conditions::rust_container_conditions_name;
-    use crate::css::parser::syntax_parser::parse_shared_stylesheet;
-    use crate::css::parser::value_parser::ParseContext;
     use crate::css::rule::RULE_OWNER_ALLOCATIONS;
     use crate::css::serialize::serialize_style_value_to_utf16;
     use crate::css::style_value::StyleValueData;
@@ -160,23 +214,14 @@ mod tests {
     #[test]
     fn declarations_preserve_conditions_and_value_lifetimes_without_rule_owners() {
         let owners = RULE_OWNER_ALLOCATIONS.get();
-        let units: Vec<_> = "@function --値() { --基: 1px; @media not all { --隠: 2px; }
+        let compiled = compile_functions_for_testing(
+            "@function --値() { --基: 1px; @media not all { --隠: 2px; }
             @supports (unknown: value) { --無: 3px; } @supports (display: block) { --有: 4px; }
             @container 外 (width > 100px) { --外: 5px; @container 内 (width > 10px) { --内: 6px; } }
-            result: var(--基); }"
-            .encode_utf16()
-            .collect();
-        let context: ParseContext = unsafe { std::mem::zeroed() };
-        let parsed =
-            unsafe { parse_shared_stylesheet(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), &context) };
-        let rules = crate::css::rule::NativeRuleList::from_parsed(parsed);
-        let mut compiled = None;
-        let _ = rules.visit_rules(&mut |rule| {
-            compiled = Some(CompiledFunction::compile(&NativeRuleView { rule, containers: &[] }));
-            ControlFlow::Continue(())
-        });
-        let compiled = compiled.unwrap();
-        drop(rules);
+            result: var(--基); }",
+        )
+        .pop()
+        .unwrap();
         #[derive(Default)]
         struct Visited {
             names: Vec<Vec<u16>>,
