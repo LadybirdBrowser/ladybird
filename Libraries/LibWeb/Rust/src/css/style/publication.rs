@@ -5253,10 +5253,20 @@ fn property_starts_animation(property: u16) -> bool {
     if !(FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property) {
         return true;
     }
-    // A view transition name is a plain computed value; it starts nothing.
-    property != prop::VIEW_TRANSITION_NAME
-        && property_style_group_index(property)
-            .is_some_and(|group| usize::from(group) == crate::css::table_group_builder::group_index::ANIMATION)
+    // A view transition name is a plain computed value; it starts nothing. So is a named timeline:
+    // what finds it is an animation that names it in `animation-timeline`, which reads it from
+    // whichever record the element holds when the animation starts.
+    !matches!(
+        property,
+        prop::VIEW_TRANSITION_NAME
+            | prop::SCROLL_TIMELINE_NAME
+            | prop::SCROLL_TIMELINE_AXIS
+            | prop::TIMELINE_SCOPE
+            | prop::VIEW_TIMELINE_NAME
+            | prop::VIEW_TIMELINE_AXIS
+            | prop::VIEW_TIMELINE_INSET
+    ) && property_style_group_index(property)
+        .is_some_and(|group| usize::from(group) == crate::css::table_group_builder::group_index::ANIMATION)
 }
 
 /// Whether the drive holds what a value with these dependencies reads beyond the record, the

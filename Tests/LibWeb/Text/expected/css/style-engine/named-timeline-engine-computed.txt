@@ -1,12 +1,12 @@
 scroll timeline named: --scroller inline
-  engine records: 0
-  C++ recomputations: 1
+  engine records: 1
+  C++ recomputations: 0
 view timeline named: --viewed 10px
-  engine records: 0
-  C++ recomputations: 1
+  engine records: 1
+  C++ recomputations: 0
 scroll timeline unnamed: none block
-  engine records: 0
-  C++ recomputations: 1
+  engine records: 1
+  C++ recomputations: 0
 view timeline unnamed: none auto
-  engine records: 0
-  C++ recomputations: 1
+  engine records: 1
+  C++ recomputations: 0
