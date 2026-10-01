@@ -872,7 +872,7 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
     // https://w3c.github.io/media-source/#dfn-coded-frame-removal
     // 4. If the [[buffer full flag]] equals true and this object is ready to accept more bytes, then set the
     //    [[buffer full flag]] to false.
-    if (total_buffered_bytes() + new_data_size < current_capacity_in_bytes)
+    if (total_buffered_bytes() + new_data_size <= current_capacity_in_bytes)
         m_buffer_full_flag = false;
 }
 

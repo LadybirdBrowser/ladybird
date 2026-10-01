@@ -1,0 +1,3 @@
+filled: [0.000-250.860]
+after the append that evicts exactly enough: [0.200-251.860]
+next append succeeded: [0.280-251.960]
