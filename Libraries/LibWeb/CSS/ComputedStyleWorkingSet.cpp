@@ -781,8 +781,11 @@ FontFeatureData ComputedStyleWorkingSet::font_feature_data() const
 
 Optional<FontVariantAlternates> ComputedStyleWorkingSet::font_variant_alternates() const
 {
-    auto const& value = property(PropertyID::FontVariantAlternates);
+    return font_variant_alternates_from_style_value(property(PropertyID::FontVariantAlternates));
+}
 
+Optional<FontVariantAlternates> font_variant_alternates_from_style_value(StyleValue const& value)
+{
     // normal
     if (value.is_keyword()) {
         VERIFY(value.to_keyword() == Keyword::Normal);
@@ -822,8 +825,11 @@ FontVariantCaps ComputedStyleWorkingSet::font_variant_caps() const
 
 Optional<FontVariantEastAsian> ComputedStyleWorkingSet::font_variant_east_asian() const
 {
-    auto const& value = property(PropertyID::FontVariantEastAsian);
+    return font_variant_east_asian_from_style_value(property(PropertyID::FontVariantEastAsian));
+}
 
+Optional<FontVariantEastAsian> font_variant_east_asian_from_style_value(StyleValue const& value)
+{
     if (value.to_keyword() == Keyword::Normal)
         return {};
 
@@ -851,8 +857,11 @@ FontVariantEmoji ComputedStyleWorkingSet::font_variant_emoji() const
 
 Optional<FontVariantLigatures> ComputedStyleWorkingSet::font_variant_ligatures() const
 {
-    auto const& value = property(PropertyID::FontVariantLigatures);
+    return font_variant_ligatures_from_style_value(property(PropertyID::FontVariantLigatures));
+}
 
+Optional<FontVariantLigatures> font_variant_ligatures_from_style_value(StyleValue const& value)
+{
     if (value.to_keyword() == Keyword::Normal)
         return {};
 
@@ -880,8 +889,11 @@ Optional<FontVariantLigatures> ComputedStyleWorkingSet::font_variant_ligatures()
 
 Optional<FontVariantNumeric> ComputedStyleWorkingSet::font_variant_numeric() const
 {
-    auto const& value = property(PropertyID::FontVariantNumeric);
+    return font_variant_numeric_from_style_value(property(PropertyID::FontVariantNumeric));
+}
 
+Optional<FontVariantNumeric> font_variant_numeric_from_style_value(StyleValue const& value)
+{
     if (value.to_keyword() == Keyword::Normal)
         return {};
 
@@ -915,8 +927,11 @@ FontVariantPosition ComputedStyleWorkingSet::font_variant_position() const
 
 HashMap<Utf16FlyString, u8> ComputedStyleWorkingSet::font_feature_settings() const
 {
-    auto const& value = property(PropertyID::FontFeatureSettings);
+    return font_feature_settings_from_style_value(property(PropertyID::FontFeatureSettings));
+}
 
+HashMap<Utf16FlyString, u8> font_feature_settings_from_style_value(StyleValue const& value)
+{
     if (value.is_keyword())
         return {}; // normal
 
@@ -937,8 +952,11 @@ HashMap<Utf16FlyString, u8> ComputedStyleWorkingSet::font_feature_settings() con
 
 HashMap<Utf16FlyString, double> ComputedStyleWorkingSet::font_variation_settings() const
 {
-    auto const& value = property(PropertyID::FontVariationSettings);
+    return font_variation_settings_from_style_value(property(PropertyID::FontVariationSettings));
+}
 
+HashMap<Utf16FlyString, double> font_variation_settings_from_style_value(StyleValue const& value)
+{
     if (value.is_keyword())
         return {}; // normal
 

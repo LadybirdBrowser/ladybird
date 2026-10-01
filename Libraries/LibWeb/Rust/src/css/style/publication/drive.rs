@@ -672,25 +672,25 @@ impl RetainedState {
                     .as_ref()
             }
         };
-        // The font resolver supplies default feature and variation settings. Check computed
-        // values here because non-default settings can also come from inheritance.
-        for (property, default_keyword) in [
-            (prop::FONT_FEATURE_SETTINGS, keyword::NORMAL),
-            (prop::FONT_VARIATION_SETTINGS, keyword::NORMAL),
-            (prop::FONT_VARIANT_ALTERNATES, keyword::NORMAL),
-            (prop::FONT_VARIANT_CAPS, keyword::NORMAL),
-            (prop::FONT_VARIANT_EAST_ASIAN, keyword::NORMAL),
-            (prop::FONT_VARIANT_EMOJI, keyword::NORMAL),
-            (prop::FONT_VARIANT_LIGATURES, keyword::NORMAL),
-            (prop::FONT_VARIANT_NUMERIC, keyword::NORMAL),
-            (prop::FONT_VARIANT_POSITION, keyword::NORMAL),
-            (prop::FONT_KERNING, keyword::AUTO),
-            (prop::TEXT_RENDERING, keyword::AUTO),
-        ] {
-            if !matches!(value_of(&table, property), Some(StyleValueData::Keyword { keyword }) if *keyword == default_keyword)
+        // `font-variant-alternates` names features through the tree scope's `@font-feature-values`,
+        // which the engine's resolver has no table of. Such an element keeps its record in C++.
+        if !matches!(
+            value_of(&table, prop::FONT_VARIANT_ALTERNATES),
+            Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL
+        ) {
+            counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            return Err(Unanswered::Refused);
+        }
+        // The resolver reads these beside the family, so the request names each one whose computed
+        // value is not the initial one and nothing for the rest. A non-initial value can also come
+        // from inheritance.
+        let mut font_feature_values = [bridge::FfiHostHandle::default(); bridge::FONT_RESOLUTION_FEATURE_INPUT_COUNT];
+        for (input, property, initial_keyword) in FONT_RESOLUTION_FEATURE_PROPERTIES {
+            if !matches!(value_of(&table, property),
+                Some(StyleValueData::Keyword { keyword }) if *keyword == initial_keyword)
             {
-                counters.bump(Counter::EngineComputedRecordBailFontPhase);
-                return Err(Unanswered::Refused);
+                font_feature_values[input as usize] =
+                    bridge::FfiHostHandle::from_pointer(table.effective_value(None, property, true).value.cast());
             }
         }
         // The font size the element's own lengths resolve against is the C++ working set's, a
@@ -732,6 +732,7 @@ impl RetainedState {
         };
         let request = bridge::FfiFontResolutionRequest {
             font_family: bridge::FfiHostHandle::from_pointer(font_family.cast()),
+            font_feature_values,
             font_size_raw,
             font_slope,
             font_weight,
@@ -925,6 +926,37 @@ impl RetainedState {
         )))
     }
 }
+
+/// The property behind each value a font resolution request names, with the initial keyword for
+/// which the request names nothing.
+const FONT_RESOLUTION_FEATURE_PROPERTIES: [(bridge::FontResolutionFeatureInput, u16, u16);
+    bridge::FONT_RESOLUTION_FEATURE_INPUT_COUNT] = {
+    use crate::css::property_metadata::property_id as prop;
+    use crate::css::style_compute::keyword::{AUTO, NORMAL};
+    use bridge::FontResolutionFeatureInput as Input;
+    [
+        (Input::FontFeatureSettings, prop::FONT_FEATURE_SETTINGS, NORMAL),
+        (Input::FontVariationSettings, prop::FONT_VARIATION_SETTINGS, NORMAL),
+        (Input::FontVariantCaps, prop::FONT_VARIANT_CAPS, NORMAL),
+        (Input::FontVariantEastAsian, prop::FONT_VARIANT_EAST_ASIAN, NORMAL),
+        (Input::FontVariantEmoji, prop::FONT_VARIANT_EMOJI, NORMAL),
+        (Input::FontVariantLigatures, prop::FONT_VARIANT_LIGATURES, NORMAL),
+        (Input::FontVariantNumeric, prop::FONT_VARIANT_NUMERIC, NORMAL),
+        (Input::FontVariantPosition, prop::FONT_VARIANT_POSITION, NORMAL),
+        (Input::FontVariantAlternates, prop::FONT_VARIANT_ALTERNATES, NORMAL),
+        (Input::FontKerning, prop::FONT_KERNING, AUTO),
+        (Input::TextRendering, prop::TEXT_RENDERING, AUTO),
+    ]
+};
+
+// Every input appears once, at its own index, so no slot of a request goes unwritten.
+const _: () = {
+    let mut index = 0;
+    while index < FONT_RESOLUTION_FEATURE_PROPERTIES.len() {
+        assert!(FONT_RESOLUTION_FEATURE_PROPERTIES[index].0 as usize == index);
+        index += 1;
+    }
+};
 
 /// Whether a computed table's `animation-name` names any animation.
 fn table_names_animations(table: &ComputedLonghandTable) -> bool {

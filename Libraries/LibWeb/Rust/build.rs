@@ -3016,6 +3016,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Only the host's font resolver, which the engine reaches by name, takes these.
         "FfiFontResolutionRequest".to_string(),
         "FfiResolvedFont".to_string(),
+        "FontResolutionFeatureInput".to_string(),
     ];
 
     generate_ffi_header(

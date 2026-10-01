@@ -293,10 +293,37 @@ impl Default for FfiDocumentStyleComputationInputs {
     }
 }
 
+/// The computed values the font resolver reads beside the family, each at its own index in a
+/// resolution request. C++ reads the request through this same enum, so the two sides cannot
+/// disagree about which value is which.
+#[repr(u8)]
+#[derive(Clone, Copy)]
+pub enum FontResolutionFeatureInput {
+    FontFeatureSettings,
+    FontVariationSettings,
+    FontVariantCaps,
+    FontVariantEastAsian,
+    FontVariantEmoji,
+    FontVariantLigatures,
+    FontVariantNumeric,
+    FontVariantPosition,
+    FontVariantAlternates,
+    FontKerning,
+    TextRendering,
+}
+
+/// How many values a resolution request names, one per `FontResolutionFeatureInput`.
+pub const FONT_RESOLUTION_FEATURE_INPUT_COUNT: usize = 11;
+const _: () = assert!(FontResolutionFeatureInput::TextRendering as usize + 1 == FONT_RESOLUTION_FEATURE_INPUT_COUNT);
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FfiFontResolutionRequest {
     pub font_family: FfiHostHandle,
+    /// The computed values the resolver reads beside the family, by `FontResolutionFeatureInput`,
+    /// each null when the property has its initial value. They select shaping features and
+    /// variations, so two elements differing only in one of them resolve to different fonts.
+    pub font_feature_values: [FfiHostHandle; FONT_RESOLUTION_FEATURE_INPUT_COUNT],
     pub font_size_raw: i32,
     pub font_slope: i32,
     pub font_weight: f64,

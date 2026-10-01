@@ -54,6 +54,13 @@ using FontFeatureValuesProvider = Function<FontFeatureValues const&(Utf16FlyStri
 // The font-family list as font matching wants it: generic families kept apart from names, and a name's syntax kept.
 [[nodiscard]] Vector<ComputedFontFamily> computed_font_families_from_style_value(StyleValue const& font_family);
 
+// The computed values a style engine resolution request names beside the family, by FontResolutionFeatureInput; a
+// null one has its property's initial value.
+using FontResolutionFeatureInput = StyleEngineFFI::FontResolutionFeatureInput;
+using FontResolutionFeatureValues = Array<RefPtr<StyleValue const>, StyleEngineFFI::FONT_RESOLUTION_FEATURE_INPUT_COUNT>;
+[[nodiscard]] FontFeatureData font_feature_data_from_style_values(FontResolutionFeatureValues const&);
+[[nodiscard]] HashMap<Utf16FlyString, double> font_variation_settings_from_style_values(FontResolutionFeatureValues const&);
+
 // Resolve a request against a document's @font-face table, through the cascades it has resolved before. Outside a
 // style update, the web faces the resolution selects start loading here.
 [[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_for_style_values(FontComputer const&, ComputedFontCacheKey);
