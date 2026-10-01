@@ -63,6 +63,33 @@ pub struct FfiSvgNumberPercentage {
     pub is_percentage: bool,
 }
 
+/// A `<number> | <length> | <percentage>` attribute value, exactly as the element parsed it. A
+/// relative length follows the element's font rather than its attributes, so the pass - not the
+/// publication - is what turns one into pixels.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[repr(C)]
+pub struct FfiSvgLengthValue {
+    pub value: f64,
+    pub kind: u8,
+    /// The `CSS::LengthUnit` a length was written in; meaningless for the other kinds.
+    pub unit: u8,
+}
+
+/// The sizes a container-relative length on an element resolves against, as style answers them
+/// for that element: per axis, the committed content box of its nearest size query container, or
+/// the small viewport size.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiContainerLengthBases {
+    pub width: f64,
+    pub height: f64,
+}
+
+pub const SVG_LENGTH_KIND_NONE: u8 = 0;
+pub const SVG_LENGTH_KIND_NUMBER: u8 = 1;
+pub const SVG_LENGTH_KIND_LENGTH: u8 = 2;
+pub const SVG_LENGTH_KIND_PERCENTAGE: u8 = 3;
+
 /// The values an SVG box resolves from its own computed style and the viewport it sits in. They
 /// are not element data - an ancestor's viewBox feeds a descendant's percentage basis - so the
 /// pass computes them rather than reading them from a publication.
@@ -90,6 +117,7 @@ pub struct FfiSvgAttributeFacts {
     pub is_use_element: bool,
     pub is_svg_svg_element: bool,
     pub is_symbol_element: bool,
+    pub is_text_element: bool,
     pub is_fit_to_view_box: bool,
     pub has_active_view_box: bool,
     pub active_view_box: FfiSvgViewBox,
@@ -111,6 +139,12 @@ pub struct FfiSvgAttributeFacts {
     pub line_y1: FfiSvgNumberPercentage,
     pub line_x2: FfiSvgNumberPercentage,
     pub line_y2: FfiSvgNumberPercentage,
+    /// The text positioning attributes of a `<text>` or `<tspan>`.
+    /// FIXME: These only carry a single value each, not a list.
+    pub text_x: FfiSvgLengthValue,
+    pub text_y: FfiSvgLengthValue,
+    pub text_dx: FfiSvgLengthValue,
+    pub text_dy: FfiSvgLengthValue,
 }
 
 pub const SVG_GEOMETRY_KIND_NONE: u8 = 0;
@@ -192,14 +226,12 @@ impl FfiSvgNumberPercentage {
 pub struct FfiSvgPathRequest {
     pub viewport_width: CssPixels,
     pub viewport_height: CssPixels,
-    pub current_text_position: FfiFloatPoint,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct FfiSvgPathResult {
     pub path_handle: *mut c_void,
-    pub text_position_after: FfiFloatPoint,
 }
 
 pub(crate) const PRESERVE_ASPECT_RATIO_NONE: u8 = 0;
@@ -415,6 +447,50 @@ pub(crate) fn scale_and_align_viewbox_content(
     }
 
     result
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct SvgTextChunkMeasurement {
+    advance: f32,
+    anchor: u8,
+}
+
+impl Default for SvgTextChunkMeasurement {
+    fn default() -> Self {
+        Self {
+            advance: 0.0,
+            anchor: text_anchor::START,
+        }
+    }
+}
+
+/// Strips the ASCII whitespace AK's Utf16String::trim_ascii_whitespace() strips from both ends.
+fn trim_ascii_whitespace(text: &mut Vec<u16>) {
+    let is_whitespace = |unit: &u16| matches!(unit, 0x09..=0x0d | 0x20);
+    let end = text
+        .iter()
+        .rposition(|unit| !is_whitespace(unit))
+        .map_or(0, |last| last + 1);
+    text.truncate(end);
+    let start = text.iter().position(|unit| !is_whitespace(unit)).unwrap_or(end);
+    text.drain(..start);
+}
+
+fn code_point_length_at(text: &[u16], offset: usize) -> usize {
+    let is_leading_surrogate = (0xd800..0xdc00).contains(&text[offset]);
+    let has_trailing_surrogate = offset + 1 < text.len() && (0xdc00..0xe000).contains(&text[offset + 1]);
+    if is_leading_surrogate && has_trailing_surrogate {
+        2
+    } else {
+        1
+    }
+}
+
+fn code_point_at(text: &[u16], offset: usize) -> u32 {
+    if code_point_length_at(text, offset) == 2 {
+        return 0x10000 + ((u32::from(text[offset]) - 0xd800) << 10) + (u32::from(text[offset + 1]) - 0xdc00);
+    }
+    u32::from(text[offset])
 }
 
 pub(super) struct SvgFormattingContext<'pass> {
@@ -831,6 +907,370 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut path = shape.path.to_gfx_path();
         path.set_fill_type(i32::from(shape.fill_rule));
         path
+    }
+
+    /// The pixel value one of the text positioning attributes resolves to. A relative length is
+    /// absolutized against the element's own style, exactly as the attribute's parse used to be.
+    fn resolve_svg_text_length(&self, node: Node, value: FfiSvgLengthValue, reference: CssPixels) -> f32 {
+        match value.kind {
+            SVG_LENGTH_KIND_NUMBER => value.value as f32,
+            SVG_LENGTH_KIND_PERCENTAGE => {
+                CssPixels::truncated_value_for(reference.to_double() * value.value / 100.0).to_float()
+            }
+            SVG_LENGTH_KIND_LENGTH => {
+                let context = self.length_resolution_context(node, value.unit);
+                let absolutized =
+                    crate::css::style_compute::absolutize_length_for_calc(value.value, value.unit as usize, &context);
+                CssPixels::nearest_value_for(absolutized.px).to_float()
+            }
+            _ => 0.0,
+        }
+    }
+
+    fn font_metrics_for_length_resolution(style: StyleValues<'_>) -> crate::css::style_compute::FfiFontMetrics {
+        let font = style.font();
+        crate::css::style_compute::FfiFontMetrics {
+            font_size: style.font_size().to_double(),
+            x_height: CssPixels::nearest_value_for_f32(font.font_x_height).to_double(),
+            // FIXME: This is only approximately the cap height, exactly as Length::FontMetrics has it.
+            cap_height: CssPixels::nearest_value_for_f32(font.font_ascent).to_double(),
+            zero_advance: CssPixels::nearest_value_for_f32(font.font_zero_advance).to_double(),
+            line_height: style.line_height().to_double(),
+        }
+    }
+
+    fn length_resolution_context(&self, node: Node, unit: u8) -> crate::css::style_compute::FfiLengthResolutionContext {
+        let style = self.style(node);
+        let root_style = self.document_element_style(node).unwrap_or(style);
+        let viewport_width = self.callbacks.initial_containing_block_inline_size.to_double();
+        let viewport_height = self.callbacks.initial_containing_block_block_size.to_double();
+        // A container unit resolves against the nearest size query container on its axis, or the small viewport size
+        // without one. Finding that container is style's business, so it is asked only for a length that needs it.
+        let container_bases = crate::css::style_compute::length_unit_is_container_relative(unit).then(|| {
+            let host = self.callbacks.host;
+            // SAFETY: The registered callbacks and the box's shell stay alive for the pass.
+            unsafe { (host.container_length_bases)(host.context, self.callbacks.shell(node)) }
+        });
+        crate::css::style_compute::FfiLengthResolutionContext {
+            viewport_width,
+            viewport_height,
+            font_metrics: Self::font_metrics_for_length_resolution(style),
+            root_font_metrics: Self::font_metrics_for_length_resolution(root_style),
+            // Only the out-flag below consumes these, and this resolution reports no dependency.
+            font_metrics_depend_on_viewport_metrics: false,
+            root_font_metrics_depend_on_viewport_metrics: false,
+            has_container_width_basis: container_bases.is_some(),
+            has_container_height_basis: container_bases.is_some(),
+            container_width_basis: container_bases.map_or(0.0, |bases| bases.width),
+            container_height_basis: container_bases.map_or(0.0, |bases| bases.height),
+            container_width_basis_depends_on_viewport_metrics: false,
+            container_height_basis_depends_on_viewport_metrics: false,
+            subject_inline_axis_is_horizontal: style.writing_mode() == writing_mode::HORIZONTAL_TB,
+            resolved_viewport_relative_length: std::ptr::null_mut(),
+        }
+    }
+
+    /// The style of the document element, which a root-relative length resolves against.
+    fn document_element_style(&self, node: Node) -> Option<StyleValues<'pass>> {
+        let mut ancestor = node;
+        while !ancestor.is_invalid() {
+            let data = self.callbacks.node_data(ancestor);
+            if node_facts::has_flag(data, NodeFlag::IsDocumentElement) {
+                return self.callbacks.arena().style_payloads(ancestor).map(StyleValues::new);
+            }
+            ancestor = data.parent.get();
+        }
+        None
+    }
+
+    /// The character data an SVG text content element renders: its direct child text, as written.
+    /// SVG shapes the element's own characters, not the white-space-collapsed text a line box
+    /// would lay out, so this reads the source text the row kept beside its rendering.
+    fn svg_text_contents(&self, node: Node) -> Vec<u16> {
+        let mut text: Vec<u16> = Vec::new();
+        let mut child = self.first_child(node);
+        while !child.is_invalid() {
+            if node_facts::kind_is_text(self.node_kind(child)) {
+                self.append_svg_source_text(child, &mut text);
+            }
+            child = self.next_sibling(child);
+        }
+        trim_ascii_whitespace(&mut text);
+        text
+    }
+
+    fn append_svg_source_text(&self, text_node: Node, out: &mut Vec<u16>) {
+        let content = self.callbacks.arena().text_content(text_node);
+        debug_assert!(content.is_some(), "SVG text child was not synced before layout");
+        if let Some(source) = content.and_then(|content| content.svg_source_text.as_deref()) {
+            out.extend_from_slice(source);
+        }
+    }
+
+    /// https://svgwg.org/svg2-draft/text.html#TermTextChunk
+    /// Each new absolute positioning adjustment (due to an 'x' or 'y' attribute, or forced line
+    /// break) creates a new text chunk.
+    /// https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
+    /// NB: The initial value of 'x' and 'y' is "0 for 'text'; (none) for 'tspan'". So, a <text>
+    ///     element always positions its first character absolutely, and so always starts a chunk.
+    fn svg_text_box_starts_text_chunk(&self, text_box: Node) -> bool {
+        let attributes = self.svg_attributes(text_box);
+        attributes.is_text_element
+            || attributes.text_x.kind != SVG_LENGTH_KIND_NONE
+            || attributes.text_y.kind != SVG_LENGTH_KIND_NONE
+    }
+
+    fn apply_svg_text_positioning(&mut self, text_box: Node, attributes: FfiSvgAttributeFacts) {
+        let viewport_width = self.viewport_width;
+        let viewport_height = self.viewport_height;
+        if attributes.text_x.kind != SVG_LENGTH_KIND_NONE {
+            self.current_text_position.x = self.resolve_svg_text_length(text_box, attributes.text_x, viewport_width);
+        }
+        if attributes.text_y.kind != SVG_LENGTH_KIND_NONE {
+            self.current_text_position.y = self.resolve_svg_text_length(text_box, attributes.text_y, viewport_height);
+        }
+        self.current_text_position.x += self.resolve_svg_text_length(text_box, attributes.text_dx, viewport_width);
+        self.current_text_position.y += self.resolve_svg_text_length(text_box, attributes.text_dy, viewport_height);
+    }
+
+    /// https://drafts.csswg.org/css-inline/#dominant-baseline-property
+    fn svg_dominant_baseline_offset(&self, style: StyleValues<'_>) -> f32 {
+        let svg = style.inherited_svg();
+        let metric = if svg.has_dominant_baseline {
+            svg.dominant_baseline
+        } else {
+            // https://drafts.csswg.org/css-inline/#valdef-dominant-baseline-auto
+            // Equivalent to alphabetic in horizontal writing modes and in vertical writing modes
+            // when text-orientation is sideways. Equivalent to central in vertical writing modes
+            // when text-orientation is mixed or upright.
+            // FIXME: Take text-orientation into account once it is implemented.
+            match style.writing_mode() {
+                writing_mode::VERTICAL_RL | writing_mode::VERTICAL_LR => baseline_metric::CENTRAL,
+                _ => baseline_metric::ALPHABETIC,
+            }
+        };
+        // NB: The dominant-baseline offset is resolved against the metrics of the first available
+        //     font - while each glyph is rendered with the first font in the cascade that contains
+        //     its code point.
+        let font = style.font();
+        match metric {
+            baseline_metric::CENTRAL => (font.font_ascent - font.font_descent) / 2.0,
+            baseline_metric::MIDDLE => font.font_x_height / 2.0,
+            // FIXME: Read the hanging baseline from the font's BASE table.
+            baseline_metric::HANGING => font.font_ascent * 0.8,
+            // FIXME: Read the ideographic baseline from the font's BASE table.
+            baseline_metric::IDEOGRAPHIC => -font.font_descent,
+            // FIXME: Read the math baseline from the font's BASE table.
+            baseline_metric::MATHEMATICAL => font.font_ascent * 0.5,
+            // FIXME: Support text-top and text-bottom.
+            _ => 0.0,
+        }
+    }
+
+    /// Calls `run` with each stretch of `text` the cascade resolves to one font, in order.
+    fn for_each_svg_font_run(
+        style: StyleValues<'_>,
+        text: &[u16],
+        mut run: impl FnMut(&libgfx_rust::font::FontHandle, &[u16]),
+    ) {
+        if text.is_empty() {
+            return;
+        }
+        let cascade_list = style.font_cascade_list();
+        // Neighbouring code points nearly always share a font, so the last one is the hint.
+        let font_for = |offset: usize, hint: Option<&libgfx_rust::font::FontHandle>| {
+            cascade_list.font_for_code_point(
+                code_point_at(text, offset),
+                libgfx_rust::font::EmojiPresentation {
+                    is_emoji: false,
+                    forced: false,
+                },
+                hint,
+            )
+        };
+        let mut last_font = font_for(0, None);
+        let mut run_start = 0;
+        let mut offset = code_point_length_at(text, 0);
+        while offset < text.len() {
+            let font = font_for(offset, Some(&last_font));
+            if font != last_font {
+                run(&last_font, &text[run_start..offset]);
+                last_font = font;
+                run_start = offset;
+            }
+            offset += code_point_length_at(text, offset);
+        }
+        run(&last_font, &text[run_start..]);
+    }
+
+    /// Mirrors Gfx::shape_text(baseline_start, text, font_cascade_list): one run per stretch of
+    /// text the cascade resolves to the same font, each starting where the last one ended.
+    fn shape_svg_text(
+        &self,
+        style: StyleValues<'_>,
+        text: &[u16],
+        baseline_start: FfiFloatPoint,
+    ) -> (Vec<libgfx_rust::path::GlyphRun>, f32) {
+        let mut runs = Vec::new();
+        let mut advance = 0.0f32;
+        Self::for_each_svg_font_run(style, text, |font, run_text| {
+            let shaped = libgfx_rust::text_layout::shape_text(
+                font,
+                run_text,
+                libgfx_rust::text_layout::TextType::Common,
+                baseline_start.x + advance,
+                0.0,
+                0.0,
+            );
+            advance += shaped.width();
+            let mut glyph_buffer = shaped.into_glyphs();
+            let glyphs = glyph_buffer.to_mut();
+            if baseline_start.y != 0.0 {
+                for glyph in glyphs.iter_mut() {
+                    glyph.y += baseline_start.y;
+                }
+            }
+            runs.push(libgfx_rust::path::GlyphRun {
+                font: font.clone(),
+                glyphs: std::mem::take(glyphs),
+            });
+        });
+        (runs, advance)
+    }
+
+    /// The advance of the text run rendered by the given box; that is, of its direct child text.
+    fn svg_text_run_advance(&self, text_box: Node, text: &[u16]) -> f32 {
+        let mut advance = 0.0f32;
+        Self::for_each_svg_font_run(self.style(text_box), text, |font, run_text| {
+            advance += libgfx_rust::text_layout::shape_text(
+                font,
+                run_text,
+                libgfx_rust::text_layout::TextType::Common,
+                0.0,
+                0.0,
+                0.0,
+            )
+            .width();
+        });
+        advance
+    }
+
+    /// Measures the total advance of the text chunk that starts at the given box, and determines
+    /// the 'text-anchor' value that applies to the chunk. The chunk extends in document order
+    /// through the subtree of the containing <text> element until the next box that starts a chunk
+    /// of its own.
+    fn measure_svg_text_chunk(&self, chunk_start_box: Node) -> SvgTextChunkMeasurement {
+        let mut subtree_root = chunk_start_box;
+        let mut ancestor = self.parent(chunk_start_box);
+        while !ancestor.is_invalid() && self.node_kind(ancestor) == NodeKind::SVGTextBox {
+            subtree_root = ancestor;
+            ancestor = self.parent(ancestor);
+        }
+
+        let mut measurement = SvgTextChunkMeasurement::default();
+        let mut found_chunk_start = false;
+        let mut found_first_rendered_text = false;
+        let mut current = subtree_root;
+        'walk: loop {
+            let kind = self.node_kind(current);
+            // AD-HOC: Text on a path is laid out independently; see compute_path_for_svg_text_path().
+            let descend = kind != NodeKind::SVGTextPathBox;
+            if kind == NodeKind::SVGTextBox {
+                if current == chunk_start_box {
+                    found_chunk_start = true;
+                } else if found_chunk_start && self.svg_text_box_starts_text_chunk(current) {
+                    break 'walk;
+                }
+                if found_chunk_start {
+                    let text = self.svg_text_contents(current);
+                    if !text.is_empty() {
+                        if !found_first_rendered_text {
+                            // https://svgwg.org/svg2-draft/text.html#TextLayoutAlgorithm
+                            // Adjust shift based on the value of 'text-anchor' and 'direction' of
+                            // the element the character at index i.
+                            // FIXME: Take text direction into account.
+                            measurement.anchor = self.style(current).inherited_svg().text_anchor;
+                            found_first_rendered_text = true;
+                        }
+                        measurement.advance += self.svg_text_run_advance(current, &text);
+                    }
+                }
+            }
+            if descend {
+                let child = self.first_child(current);
+                if !child.is_invalid() {
+                    current = child;
+                    continue;
+                }
+            }
+            loop {
+                if current == subtree_root {
+                    break 'walk;
+                }
+                let sibling = self.next_sibling(current);
+                if !sibling.is_invalid() {
+                    current = sibling;
+                    break;
+                }
+                current = self.parent(current);
+            }
+        }
+        measurement
+    }
+
+    /// The glyph outlines a <text> or <tspan> renders, and the current text position it leaves.
+    fn svg_text_box_path(&mut self, text_box: Node) -> libgfx_rust::path::OwnedPath {
+        let attributes = self.svg_attributes(text_box);
+        // https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
+        // the starting X (Y) coordinate for rendering the glyphs corresponding to the given
+        // character is the X (Y) coordinate of the resulting current text position from the most
+        // recently rendered glyph for the current 'text' element.
+        // NB: The initial value of 'x' and 'y' is "0 for 'text'; (none) for 'tspan'": a <text>
+        //     element starts at (0, 0) regardless of the current text position, while a <tspan>
+        //     without 'x'/'y' continues at the current text position.
+        if attributes.is_text_element {
+            self.current_text_position = FfiFloatPoint::default();
+        }
+        self.apply_svg_text_positioning(text_box, attributes);
+        if self.svg_text_box_starts_text_chunk(text_box) {
+            // https://svgwg.org/svg2-draft/text.html#TextAnchoringProperties
+            // The 'text-anchor' property is applied to each individual text chunk within a given
+            // 'text' element.
+            // AD-HOC: The spec applies 'text-anchor' as a shift of the chunk's rendered glyphs
+            //         after layout; shifting the chunk's starting position up front by the chunk's
+            //         total advance is equivalent for horizontal text - since every run in the
+            //         chunk is laid out sequentially from this position.
+            let chunk = self.measure_svg_text_chunk(text_box);
+            match chunk.anchor {
+                // The rendered characters are aligned such that the start of the resulting
+                // rendered text is at the initial current text position.
+                text_anchor::START => {}
+                // The rendered characters are shifted such that the geometric middle of the
+                // resulting rendered text (determined from the initial and final current text
+                // position before applying the 'text-anchor' property) is at the initial current
+                // text position.
+                text_anchor::MIDDLE => self.current_text_position.x -= chunk.advance / 2.0,
+                // The rendered characters are shifted such that the end of the resulting rendered
+                // text (final current text position before applying the 'text-anchor' property) is
+                // at the initial current text position.
+                text_anchor::END => self.current_text_position.x -= chunk.advance,
+                _ => unreachable!("invalid text-anchor value"),
+            }
+        }
+
+        let style = self.style(text_box);
+        let text_offset = FfiFloatPoint {
+            x: self.current_text_position.x,
+            y: self.current_text_position.y + self.svg_dominant_baseline_offset(style),
+        };
+        let text = self.svg_text_contents(text_box);
+        let (runs, advance) = self.shape_svg_text(style, &text, text_offset);
+        // https://svgwg.org/svg2-draft/text.html#TextLayoutIntroduction
+        // After each glyph is placed, the current text position is advanced by the glyph's advance
+        // value (typically the width for horizontal text or height for vertical text).
+        // FIXME: Take writing mode and text direction into account.
+        self.current_text_position.x += advance;
+        libgfx_rust::path::OwnedPath::from_glyph_runs(&runs)
     }
 
     fn svg_attributes(&self, node: Node) -> FfiSvgAttributeFacts {
@@ -1318,30 +1758,30 @@ impl<'pass> SvgFormattingContext<'pass> {
         input: LayoutInput,
         facts: SvgElementFacts,
     ) {
-        // A shape's geometry is its own attributes and computed style against the viewport, so the
-        // pass draws it. Text still asks the document: shaping it needs the font cascade and the
-        // running text position, which is a computation to move rather than data to publish.
-        let path = if self.node_kind(graphics_box) == NodeKind::SVGGeometryBox {
-            self.svg_geometry_path(graphics_box)
-        } else {
-            // SAFETY: The callback computes geometry synchronously and transfers
-            // sole ownership of a heap-allocated path into the result.
-            let result = unsafe {
-                (self.callbacks.host.compute_svg_path)(
-                    self.callbacks.host.context,
-                    self.callbacks.shell(graphics_box),
-                    FfiSvgPathRequest {
-                        viewport_width: self.viewport_width,
-                        viewport_height: self.viewport_height,
-                        current_text_position: self.current_text_position,
-                    },
-                )
-            };
-            // Descendant and following text elements continue from the text position after this
-            // element's own text run.
-            self.current_text_position = result.text_position_after;
-            // SAFETY: The callback just handed over its one owning pointer.
-            unsafe { libgfx_rust::path::OwnedPath::adopt(result.path_handle) }
+        // A shape's geometry is its own attributes and computed style against the viewport, and
+        // text is its own character data shaped with its own font cascade, so the pass draws both.
+        let path = match self.node_kind(graphics_box) {
+            NodeKind::SVGGeometryBox => self.svg_geometry_path(graphics_box),
+            NodeKind::SVGTextBox => self.svg_text_box_path(graphics_box),
+            // Text on a path still asks the document: the shape it follows is named by an `href`
+            // that can reach an element with no box at all, whose attributes nothing publishes.
+            NodeKind::SVGTextPathBox => {
+                // SAFETY: The callback computes geometry synchronously and transfers
+                // sole ownership of a heap-allocated path into the result.
+                let result = unsafe {
+                    (self.callbacks.host.compute_svg_path)(
+                        self.callbacks.host.context,
+                        self.callbacks.shell(graphics_box),
+                        FfiSvgPathRequest {
+                            viewport_width: self.viewport_width,
+                            viewport_height: self.viewport_height,
+                        },
+                    )
+                };
+                // SAFETY: The callback just handed over its one owning pointer.
+                unsafe { libgfx_rust::path::OwnedPath::adopt(result.path_handle) }
+            }
+            _ => libgfx_rust::path::PathBuilder::new().build(),
         };
 
         if self.node_kind(graphics_box) == NodeKind::SVGTextBox {

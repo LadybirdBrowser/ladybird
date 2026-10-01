@@ -8,7 +8,6 @@
 
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGAnimatedLengthList.h>
@@ -52,36 +51,26 @@ void SVGTextPositioningElement::attribute_changed(Utf16FlyString const& name, Op
         m_rotate = {};
 }
 
-TextPositioning SVGTextPositioningElement::text_positioning() const
+SVGTextPositioningElement::ParsedTextPositioning SVGTextPositioningElement::parsed_text_positioning() const
 {
     CSS::Parser::ParsingParams const parsing_params { document() };
 
     // https://svgwg.org/svg2-draft/text.html#TSpanAttributes
     // FIXME: This only handles single values, not lists.
-    auto resolve_value = [&](Utf16FlyString const& attribute) -> Vector<TextPositioning::Position> {
+    auto parse_value = [&](Utf16FlyString const& attribute) -> Optional<SVGLengthValue> {
         auto raw_value = get_attribute_value(attribute);
 
-        auto resolution_context = CSS::Length::ResolutionContext::for_element(*this);
-
         // FIXME: Should we support tree-counting and/or calculated values here?
-
-        auto style_value = parse_css_type(parsing_params, raw_value, CSS::ValueType::LengthPercentage);
-        if (style_value) {
-            if (auto value = SVGLengthValue::from_style_value(*style_value); value.has_value()) {
-                if (value->kind() == SVGLengthValue::Kind::Length) {
-                    auto length = value->to_length();
-                    return { CSS::LengthPercentage { length.absolutize(resolution_context).value_or(length) } };
-                }
-
-                if (value->kind() == SVGLengthValue::Kind::Percentage)
-                    return { CSS::LengthPercentage { value->to_percentage() } };
-            }
+        if (auto style_value = parse_css_type(parsing_params, raw_value, CSS::ValueType::LengthPercentage)) {
+            if (auto value = SVGLengthValue::from_style_value(*style_value);
+                value.has_value() && value->kind() != SVGLengthValue::Kind::Number)
+                return value;
         }
 
-        style_value = parse_css_type(parsing_params, raw_value, CSS::ValueType::Number);
-        if (style_value) {
-            if (auto value = SVGLengthValue::from_style_value(*style_value); value.has_value() && value->kind() == SVGLengthValue::Kind::Number)
-                return { CSS::Number { CSS::Number::Type::Number, value->value() } };
+        if (auto style_value = parse_css_type(parsing_params, raw_value, CSS::ValueType::Number)) {
+            if (auto value = SVGLengthValue::from_style_value(*style_value);
+                value.has_value() && value->kind() == SVGLengthValue::Kind::Number)
+                return value;
         }
 
         return {};
@@ -89,11 +78,10 @@ TextPositioning SVGTextPositioningElement::text_positioning() const
 
     // FIXME: Implement support for the rotate attribute.
     return {
-        .x = resolve_value(AttributeNames::x),
-        .y = resolve_value(AttributeNames::y),
-        .dx = resolve_value(AttributeNames::dx),
-        .dy = resolve_value(AttributeNames::dy),
-        .rotate = Vector<float> {},
+        .x = parse_value(AttributeNames::x),
+        .y = parse_value(AttributeNames::y),
+        .dx = parse_value(AttributeNames::dx),
+        .dy = parse_value(AttributeNames::dy),
     };
 }
 
