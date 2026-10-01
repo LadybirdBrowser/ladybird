@@ -1,2 +1,2 @@
-root font size: engine records 1, C++ recomputations 9, width: 40px
-ancestor direction: engine records 1, C++ recomputations 1, margin-right: 3px, margin-left: 0px
+root font size: engine records 9, C++ recomputations 0, width: 40px
+ancestor direction: engine records 2, C++ recomputations 0, margin-right: 3px, margin-left: 0px
