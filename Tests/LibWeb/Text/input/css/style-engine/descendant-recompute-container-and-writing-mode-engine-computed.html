@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container { container-type: inline-size; }
+    @container (min-width: 100px) {
+        .gated { width: 50px; }
+    }
+    .vertical { writing-mode: vertical-rl; }
+    .logical { inline-size: 7px; block-size: 3px; }
+</style>
+<div id="container-parent" style="width: 200px"><div class="gated" id="gated"></div></div>
+<div id="writing-mode-parent"><div class="logical" id="logical"></div></div>
+<script>
+    // A reaction that recomputes an element's descendants also stands for an ancestor's moved
+    // container type or writing mode, which no winner of the descendant shows. A descendant whose
+    // rule is gated by a container query has it decided again over the container as it is now,
+    // whose box is the one laid out before it became a container. Count who computes the records.
+    test(() => {
+        document.body.offsetWidth;
+        internals.updateStyle();
+        const measure = (label, mutate, check) => {
+            const before = internals.getStyleInvalidationCounters();
+            mutate();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            const engineRecords = after.engineComputedStyleRecords - before.engineComputedStyleRecords;
+            const recomputations = after.elementStyleRecomputations - before.elementStyleRecomputations;
+            println(`${label}: engine records ${engineRecords}, C++ recomputations ${recomputations}, ${check()}`);
+        };
+        measure("ancestor container type", () => document.getElementById("container-parent").classList.add("container"),
+            () => `width: ${getComputedStyle(gated).width}`);
+        measure("ancestor writing mode", () => document.getElementById("writing-mode-parent").classList.add("vertical"),
+            () => `width: ${getComputedStyle(logical).width}, height: ${getComputedStyle(logical).height}`);
+    });
+</script>

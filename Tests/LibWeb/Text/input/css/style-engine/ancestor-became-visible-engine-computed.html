@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .hidden { display: none; }
+    #child { width: 40px; height: 20px; }
+    #child::before { content: "x"; display: inline-block; width: 1em; }
+    #grandchild { color: rgb(0, 128, 0); }
+    .toggled { font-weight: 700; }
+</style>
+<div id="hidden-ancestor" class="hidden"><div id="child"><span id="grandchild">text</span></div></div>
+<script>
+    // An element whose ancestor leaves display:none had its style cleared on the way in. Count who
+    // computes its record again, and check the element takes it: its box is there for a hit test.
+    // Its pseudo-element comes back with it, and a change made inside the subtree while it was
+    // hidden shows once it is revealed.
+    test(() => {
+        internals.updateStyle();
+        grandchild.classList.add("toggled");
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        document.getElementById("hidden-ancestor").classList.remove("hidden");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`engine records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords}`);
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`grandchild color: ${getComputedStyle(grandchild).color}`);
+        const rect = child.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + 1, rect.top + 1);
+        println(`hit test finds the child: ${hit === child || child.contains(hit)}`);
+        println(`child::before width: ${getComputedStyle(child, "::before").width}`);
+        println(`grandchild font-weight: ${getComputedStyle(grandchild).fontWeight}`);
+    });
+</script>
