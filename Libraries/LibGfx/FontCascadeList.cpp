@@ -270,6 +270,7 @@ extern "C" {
 void const* ladybird_gfx_font_cascade_list_font_for_code_point(void const*, u32, bool, bool);
 void ladybird_gfx_font_cascade_list_ref(void const*);
 void ladybird_gfx_font_cascade_list_unref(void const*);
+bool ladybird_gfx_font_cascade_list_equals(void const*, void const*);
 u8 ladybird_gfx_emoji_presentation_for_code_point(u32, u32, bool);
 }
 
@@ -293,6 +294,13 @@ extern "C" void ladybird_gfx_font_cascade_list_unref(void const* list)
 {
     VERIFY(list);
     static_cast<Gfx::FontCascadeList const*>(list)->unref();
+}
+
+extern "C" bool ladybird_gfx_font_cascade_list_equals(void const* list, void const* other)
+{
+    VERIFY(list);
+    VERIFY(other);
+    return static_cast<Gfx::FontCascadeList const*>(list)->equals(*static_cast<Gfx::FontCascadeList const*>(other));
 }
 
 extern "C" u8 ladybird_gfx_emoji_presentation_for_code_point(u32 code_point, u32 next_code_point, bool has_next_code_point)

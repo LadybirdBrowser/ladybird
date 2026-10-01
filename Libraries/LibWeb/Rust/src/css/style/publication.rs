@@ -4627,9 +4627,10 @@ fn rolled_back_bit(pseudo_kind: Option<u8>) -> u64 {
 }
 
 /// The element facts a cold record is keyed by: every fact but the ones only the layout tree build
-/// reads, which no style depends on.
+/// or a record move's damage reads, which no style depends on.
 fn cold_record_facts(facts: u32) -> u32 {
-    facts & !bridge::element_adjustment_fact::LAYOUT_TREE_FACTS
+    use bridge::element_adjustment_fact::{LAYOUT_TREE_FACTS, RECORD_DAMAGE_FACTS};
+    facts & !(LAYOUT_TREE_FACTS | RECORD_DAMAGE_FACTS)
 }
 
 /// The bit a node's own record holds among what its records read of its place among its siblings,

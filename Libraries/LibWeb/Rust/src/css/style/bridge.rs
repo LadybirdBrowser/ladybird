@@ -693,9 +693,15 @@ pub mod element_adjustment_fact {
     pub const IS_TH: u32 = 1 << 15;
     pub const IS_DOCUMENT_ELEMENT: u32 = 1 << 16;
     pub const HAS_ANIMATIONS: u32 = 1 << 17;
+    /// An SVG graphics element folds its own transform into its SVG container's layout, which the
+    /// damage of the element's record moves reads.
+    pub const IS_SVG_GRAPHICS_ELEMENT: u32 = 1 << 18;
     /// The element stands for an element-reference pseudo-element of its shadow host, whose
     /// style C++ computes and installs on it.
     pub const IS_SHADOW_HOST_PSEUDO_ELEMENT: u32 = 1 << 19;
+    /// An HTML `<body>`. The first one among an HTML `<html>` root's children propagates its
+    /// overflow to the viewport, which the damage of the element's record moves reads.
+    pub const IS_HTML_BODY_ELEMENT: u32 = 1 << 20;
     // The element types layout tree construction branches on. An element's type is fixed when it
     // is created, so the store holds these rather than the tree builder asking the DOM for them.
     pub const IS_SVG_ELEMENT: u32 = 1 << 21;
@@ -709,6 +715,9 @@ pub mod element_adjustment_fact {
     /// Whether the element is rendered in the top layer. Unlike the type facts above it moves
     /// during the element's lifetime, and every move is recorded where the element's flag is set.
     pub const RENDERED_IN_TOP_LAYER: u32 = 1 << 29;
+    /// An HTML `<html>`, whose first `<body>` child propagates its overflow to the viewport when it
+    /// is the root.
+    pub const IS_HTML_HTML_ELEMENT: u32 = 1 << 30;
     /// The facts only the layout tree build reads. No style depends on them, so a style record
     /// computed for one element is as good for another that differs only in these.
     pub const LAYOUT_TREE_FACTS: u32 = IS_SVG_ELEMENT
@@ -720,6 +729,8 @@ pub mod element_adjustment_fact {
         | IS_SVG_CLIP_PATH_ELEMENT
         | IS_SVG_PATTERN_ELEMENT
         | RENDERED_IN_TOP_LAYER;
+    /// The facts only the damage of a record move reads. No style depends on them either.
+    pub const RECORD_DAMAGE_FACTS: u32 = IS_SVG_GRAPHICS_ELEMENT | IS_HTML_BODY_ELEMENT | IS_HTML_HTML_ELEMENT;
 }
 
 /// Which local fact a feature delta describes.
@@ -2873,7 +2884,9 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
         .unwrap_or(0)
 }
 
-/// Computes the property-dependent damage between two final style records.
+/// Computes the property-dependent damage between two final style records of no element in
+/// particular: their font cascades count as equal, and no SVG container or viewport reads them.
+/// What moving an element's record damages is `style_engine_element_record_damage`'s.
 ///
 /// # Safety
 /// `engine` must be live and both style records must remain pinned or assigned.
@@ -2882,18 +2895,30 @@ pub unsafe extern "C" fn style_engine_compare_style_records(
     engine: *mut c_void,
     old_style_record: u64,
     new_style_record: u64,
-    font_lists_equal: bool,
-    element_folds_transform_into_layout: bool,
-    element_propagates_overflow_to_viewport: bool,
 ) -> u32 {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    engine.compare_style_records(
-        old_style_record,
-        new_style_record,
-        font_lists_equal,
-        element_folds_transform_into_layout,
-        element_propagates_overflow_to_viewport,
-    )
+    engine.compare_style_records(old_style_record, new_style_record, true, false, false)
+}
+
+/// Computes what moving an element, or one of its pseudo-elements, from one final style record to
+/// another damages, from the records and the facts the engine holds of the element. The counter
+/// styles its box was built with are the host's to compare.
+///
+/// # Safety
+/// `engine` must be live and both style records must remain pinned or assigned.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_element_record_damage(
+    engine: *mut c_void,
+    node: u32,
+    is_pseudo_element: bool,
+    old_style_record: u64,
+    new_style_record: u64,
+) -> u32 {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return super::style_invalidation::unreadable_record_damage();
+    };
+    engine.element_record_damage(node, is_pseudo_element, old_style_record, new_style_record)
 }
 
 /// Returns whether two final style records agree where the legacy verification drive is authoritative.

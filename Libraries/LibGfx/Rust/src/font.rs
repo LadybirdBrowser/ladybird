@@ -28,6 +28,7 @@ unsafe extern "C" {
     fn ladybird_gfx_font_unref(font: *const c_void);
     fn ladybird_gfx_font_cascade_list_ref(list: *const c_void);
     fn ladybird_gfx_font_cascade_list_unref(list: *const c_void);
+    fn ladybird_gfx_font_cascade_list_equals(list: *const c_void, other: *const c_void) -> bool;
     fn ladybird_gfx_emoji_presentation_for_code_point(
         code_point: u32,
         next_code_point: u32,
@@ -242,6 +243,18 @@ impl FontCascadeListHandle {
     #[inline]
     pub fn as_raw(&self) -> *const c_void {
         self.pointer
+    }
+
+    /// Whether both cascades resolve every code point to the same fonts. A cascade still waiting
+    /// on a face may resolve differently once it loads, so it equals no other, not even itself.
+    /// This is not `==`, which compares the lists' identities.
+    pub fn resolves_like(&self, other: &Self) -> bool {
+        assert!(
+            !self.pointer.is_null() && !other.pointer.is_null(),
+            "Gfx::FontCascadeList pointer must not be null"
+        );
+        // SAFETY: Both handles keep their lists live.
+        unsafe { ladybird_gfx_font_cascade_list_equals(self.pointer, other.pointer) }
     }
 
     pub fn font_for_code_point(
