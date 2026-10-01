@@ -2167,12 +2167,6 @@ impl StyleEngineState {
         }
         // Held back rather than owed: without a root there is no transaction to take them.
         self.host.deferred_element_style_inputs_are_pending = false;
-        self.host.externally_recorded_style_input_nodes.extend(
-            self.host
-                .deferred_element_style_inputs
-                .iter()
-                .filter_map(|input| input.key.style_node()),
-        );
         self.release_transaction(transaction);
     }
 

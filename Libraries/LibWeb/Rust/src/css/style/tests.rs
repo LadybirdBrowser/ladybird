@@ -11880,12 +11880,11 @@ fn engine_atom_reuse_replaces_custom_property_names() {
 fn owed_element_style_inputs_fold_into_covering_reactions() {
     use super::transaction::{STYLE_REACTION_INHERITED_STYLE, STYLE_REACTION_RECOMPUTE_STYLE};
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
-    let mut raw_nodes = [0; 2];
+    let mut raw_nodes = [0; 1];
     engine.allocate_style_nodes(&mut raw_nodes);
     let node = StyleNodeID::from_raw(raw_nodes[0]).unwrap();
-    let other = StyleNodeID::from_raw(raw_nodes[1]).unwrap();
 
-    engine.record_element_style_input(node, STYLE_REACTION_INHERITED_STYLE, 0b0010);
+    engine.record_derived_element_style_input(node, STYLE_REACTION_INHERITED_STYLE, 0b0010);
     assert!(engine.has_deferred_element_style_input(node));
     // A record delta covers only what it already carries.
     assert_eq!(
@@ -11900,7 +11899,7 @@ fn owed_element_style_inputs_fold_into_covering_reactions() {
     assert!(!engine.has_deferred_element_style_input(node));
 
     // A materialization covers anything, and the merge carries both sides.
-    engine.record_element_style_input(node, STYLE_REACTION_INHERITED_STYLE, 0b0010);
+    engine.record_derived_element_style_input(node, STYLE_REACTION_INHERITED_STYLE, 0b0010);
     let merged = engine.absorb_element_style_input(node, STYLE_REACTION_RECOMPUTE_STYLE, 0b0100, true);
     assert_eq!(
         merged & 0xff,
@@ -11908,19 +11907,6 @@ fn owed_element_style_inputs_fold_into_covering_reactions() {
     );
     assert_eq!(merged >> 8, 0b0110);
     assert!(!engine.has_deferred_element_style_input(node));
-
-    // Inputs the engine derived make the next transaction one more generation of the same style
-    // change; one C++ records for a node the engine did not derive makes it a new pass.
-    engine.record_derived_element_style_input(other, STYLE_REACTION_RECOMPUTE_STYLE, 0);
-    assert!(engine.host.externally_recorded_style_input_nodes.is_empty());
-    engine.record_element_style_input(other, STYLE_REACTION_INHERITED_STYLE, 0);
-    assert!(engine.host.externally_recorded_style_input_nodes.is_empty());
-    engine.record_element_style_input(node, STYLE_REACTION_RECOMPUTE_STYLE, 0);
-    assert!(engine.host.externally_recorded_style_input_nodes.contains(&node));
-    engine.record_element_style_input(node, STYLE_REACTION_INHERITED_STYLE, 0);
-    assert!(engine.host.externally_recorded_style_input_nodes.contains(&node));
-    engine.consume_element_style_input(node);
-    assert!(engine.host.externally_recorded_style_input_nodes.is_empty());
 }
 
 #[test]

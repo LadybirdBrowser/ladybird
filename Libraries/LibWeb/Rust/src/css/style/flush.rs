@@ -278,7 +278,6 @@ impl StyleEngineState {
         self.retained.last_transaction_only_derived_child_reactions =
             self.host.deferred_element_style_inputs_are_pending
                 && !self.host.deferred_element_style_inputs.is_empty()
-                && self.host.externally_recorded_style_input_nodes.is_empty()
                 && self.host.journal.is_empty()
                 && self.host.tree_staging.is_empty()
                 && !self.host.program_staging.is_dirty()
@@ -287,10 +286,6 @@ impl StyleEngineState {
             self.record_input(input.key, input.old, input.new, counters);
         }
         self.host.deferred_element_style_inputs_are_pending = false;
-        self.host.externally_recorded_style_input_nodes.clear();
-        // A style input C++ recorded for itself asks for no more than one the engine derived, and
-        // the engine settles both alike.
-        self.retained.style_input_nodes_for_cpp.clear();
         // The nodes whose containers moved under what their queries or container-relative lengths
         // read of them.
         let container_input_nodes = std::mem::take(&mut self.retained.container_input_nodes);
