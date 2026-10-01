@@ -35,8 +35,16 @@ ErrorOr<AnonymousBuffer> AnonymousBuffer::create_from_anon_fd(int fd, size_t siz
 
 ErrorOr<AnonymousBuffer> AnonymousBuffer::snapshot(Sealability sealability) const
 {
+    return snapshot(0, size(), sealability);
+}
+
+ErrorOr<AnonymousBuffer> AnonymousBuffer::snapshot(size_t offset, size_t size, Sealability sealability) const
+{
     if (!is_valid())
         return Error::from_string_literal("Cannot snapshot an invalid anonymous buffer");
+
+    if (offset > this->size() || size > this->size() - offset)
+        return Error::from_string_literal("Anonymous buffer snapshot range is out of bounds");
 
     bool is_size_sealed = false;
 
@@ -55,12 +63,12 @@ ErrorOr<AnonymousBuffer> AnonymousBuffer::snapshot(Sealability sealability) cons
 
     TRY(validate_backing_size());
 
-    auto copy = TRY(create_with_size(size(), sealability));
-    if (size() == 0)
+    auto copy = TRY(create_with_size(size, sealability));
+    if (size == 0)
         return copy;
 
     if (is_size_sealed) {
-        bytes().copy_to({ copy.data<u8>(), copy.size() });
+        bytes().slice(offset, size).copy_to({ copy.data<u8>(), copy.size() });
         return copy;
     }
 
@@ -70,18 +78,18 @@ ErrorOr<AnonymousBuffer> AnonymousBuffer::snapshot(Sealability sealability) cons
     mach_vm_size_t copied_size = 0;
 
     auto result = mach_vm_read_overwrite(mach_task_self(),
-        reinterpret_cast<mach_vm_address_t>(data<void>()), size(),
+        reinterpret_cast<mach_vm_address_t>(data<u8>() + offset), size,
         reinterpret_cast<mach_vm_address_t>(copy.data<void>()), &copied_size);
 
-    if (result != KERN_SUCCESS || copied_size != size())
+    if (result != KERN_SUCCESS || copied_size != size)
         return Error::from_string_literal("Failed to snapshot anonymous buffer");
 #else
     // Unlike bytes().copy_to(), pread() reports a concurrent truncation as a short read instead of raising SIGBUS
     // while reading the unsealed mapping.
     size_t copied_size = 0;
 
-    while (copied_size < size()) {
-        auto bytes_read = ::pread(fd(), copy.data<u8>() + copied_size, size() - copied_size, static_cast<off_t>(copied_size));
+    while (copied_size < size) {
+        auto bytes_read = ::pread(fd(), copy.data<u8>() + copied_size, size - copied_size, static_cast<off_t>(offset + copied_size));
         if (bytes_read < 0) {
             if (errno == EINTR)
                 continue;

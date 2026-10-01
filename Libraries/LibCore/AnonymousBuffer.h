@@ -50,6 +50,7 @@ public:
     bool is_valid() const { return m_impl; }
 
     ErrorOr<AnonymousBuffer> snapshot(Sealability = Sealability::Unsealable) const;
+    ErrorOr<AnonymousBuffer> snapshot(size_t offset, size_t size, Sealability = Sealability::Unsealable) const;
 
     // The size of a received buffer is whatever the peer claimed in the message. If the backing store is
     // smaller than that, reading the mapping past its end faults, so check before trusting the size.
