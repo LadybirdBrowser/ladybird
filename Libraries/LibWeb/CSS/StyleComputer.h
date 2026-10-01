@@ -497,9 +497,6 @@ private:
     mutable Vector<ProvisionalTransitionState> m_provisional_transition_states;
     mutable HashMap<u64, size_t> m_provisional_transition_state_indices;
     mutable HashMap<u64, Vector<size_t>> m_provisional_transition_state_indices_by_target;
-    // Style, layout, or animation feedback can introduce a transition for any property in a later
-    // pass. Pin the authoritative before-change record until the stabilization epoch commits.
-    mutable HashMap<u64, StyleRecordID> m_transition_stabilization_baselines;
 
     ComputationContext make_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
     ComputationContext const& get_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;

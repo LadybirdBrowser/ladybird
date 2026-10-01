@@ -1083,6 +1083,7 @@ impl StyleEngineState {
                 custom_property_environments: Default::default(),
                 nodes_with_substituted_records: HashSet::default(),
                 css_defined_animations: Default::default(),
+                transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
                 pending_element_style_computation_selections: HashMap::default(),
                 pending_pseudo_style_computation_selections: HashMap::default(),
@@ -2535,6 +2536,7 @@ impl RetainedState {
             custom_property_environments: _,
             nodes_with_substituted_records,
             css_defined_animations,
+            transition_baselines,
             custom_property_registrations_changed: _,
             pending_element_style_computation_selections,
             pending_pseudo_style_computation_selections,
@@ -2613,5 +2615,9 @@ impl RetainedState {
         css_defined_animations.retire(node);
         pending_element_style_computation_selections.remove(&node);
         pending_pseudo_style_computation_selections.remove(&node);
+        // A retired identity can name another element before the epoch commits.
+        for (_, style_record) in transition_baselines.remove(&node).into_iter().flatten() {
+            computed_group_sets.unpin_style_record(style_record);
+        }
     }
 }
