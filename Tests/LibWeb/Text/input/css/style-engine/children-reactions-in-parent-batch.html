@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #parent.changed { color: rgb(0, 128, 0); }
+    .child.changed { width: 20px; }
+</style>
+<div id="parent"><div class="child" id="first"></div><div class="child" id="second"></div></div>
+<script>
+    // A parent whose inherited style moves reaches its children. A child that is a row of the
+    // parent's batch takes that reaction before it settles; any other child takes it in the next
+    // transaction.
+    test(() => {
+        const parent = document.getElementById("parent");
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        function measure(label, change) {
+            internals.updateStyle();
+            const before = internals.getStyleInvalidationCounters();
+            change();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label}: transactions ${after.styleEngineTransactionSetups - before.styleEngineTransactionSetups}, engine records ${after.engineComputedStyleRecords - before.engineComputedStyleRecords}, C++ recomputations ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+            for (const child of [first, second])
+                println(`  ${child.id}: color ${getComputedStyle(child).color}, width ${getComputedStyle(child).width}`);
+        }
+        // Every child is a row of the parent's batch.
+        measure("children inside the batch", () => {
+            parent.classList.add("changed");
+            first.classList.add("changed");
+            second.classList.add("changed");
+        });
+        // One child is a row of the parent's batch, the other is not.
+        measure("children inside and outside the batch", () => {
+            parent.classList.remove("changed");
+            first.classList.remove("changed");
+        });
+    });
+</script>
