@@ -333,6 +333,15 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
     }
 
     note_attribute_name_forms(name, any_namespace, folded_name, folded_local);
+    // An attr() reads an attribute in no namespace by its local name.
+    if (namespace_atom == 0) {
+        auto local_name_view = local_name.view();
+        Vector<u16> local_name_code_units;
+        local_name_code_units.ensure_capacity(local_name_view.length_in_code_units());
+        for (size_t i = 0; i < local_name_view.length_in_code_units(); ++i)
+            local_name_code_units.unchecked_append(local_name_view.code_unit_at(i));
+        note_attribute_substitution_name(name, local_name_code_units);
+    }
     names_by_namespace.set(namespace_atom, name);
     return name;
 }

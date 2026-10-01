@@ -3567,8 +3567,12 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved_from_source(
     } else {
         &value_comparison_text
     };
+    let components = RetainedComponentValueList::from_source(component_source);
+    if presence_attr {
+        crate::css::parser::arbitrary_substitution::note_attr_names_read_by(components.as_slice());
+    }
     Arc::into_raw(Arc::new(StyleValueData::Unresolved {
-        components: RetainedComponentValueList::from_source(component_source),
+        components,
         source_text: CssString::from_utf16(&source_text),
         value_comparison_text: CssString::from_utf16(&value_comparison_text),
         presence_attr,

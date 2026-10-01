@@ -7,6 +7,9 @@
 use crate::css::css_tokenizer::ParserTokenKind;
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::value_parser::equals_ascii_case_insensitive;
+use std::collections::HashSet;
+use std::sync::RwLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Clone, Copy)]
 enum ArbitrarySubstitutionFunction {
@@ -291,6 +294,107 @@ pub(crate) fn collect_arbitrary_substitution_function_presence(
     Ok(())
 }
 
+/// The attribute names an `attr()` anywhere in the process can read, ASCII-lowercased, or every
+/// name once one computes its name. A style engine copies an attribute's value text only for names
+/// a selector or this set can read, and backfills its elements when the set grows.
+struct AttrNamesRead {
+    any_name: bool,
+    names: HashSet<Box<[u16]>>,
+}
+
+static ATTR_NAMES_READ: RwLock<Option<AttrNamesRead>> = RwLock::new(None);
+static ATTR_NAMES_READ_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Grows with every name an `attr()` can newly read.
+pub(crate) fn attr_names_read_generation() -> u64 {
+    ATTR_NAMES_READ_GENERATION.load(Ordering::Acquire)
+}
+
+/// Whether an `attr()` may read an attribute with this local name.
+pub(crate) fn attr_may_read_name(local_name: &[u16]) -> bool {
+    let read = ATTR_NAMES_READ.read().expect("attr() name set poisoned");
+    read.as_ref()
+        .is_some_and(|read| read.any_name || read.names.contains(ascii_lowercase(local_name).as_slice()))
+}
+
+fn ascii_lowercase(text: &[u16]) -> Vec<u16> {
+    text.iter()
+        .map(|&unit| {
+            if (u16::from(b'A')..=u16::from(b'Z')).contains(&unit) {
+                unit + 32
+            } else {
+                unit
+            }
+        })
+        .collect()
+}
+
+// https://drafts.csswg.org/css-values-5/#attr-notation
+// attr( <attr-name> <attr-type>? , <declaration-value>?), where <attr-name> = [ <ident-token>? '|' ]? <ident-token>
+fn collect_attr_names_read(values: &[ComponentValue], names: &mut Vec<Vec<u16>>, any_name: &mut bool) {
+    for value in values {
+        let nested = match &value.kind {
+            ComponentKind::Function { name, values } => {
+                if equals_ascii_case_insensitive(name, b"attr") {
+                    let mut position = 0;
+                    discard_whitespace(values, &mut position);
+                    let first = values.get(position);
+                    let mut local = first.and_then(ComponentValue::ident);
+                    if first.is_some_and(|first| first.ident().is_some() || first.is_delim(b'*'))
+                        && values.get(position + 1).is_some_and(|value| value.is_delim(b'|'))
+                    {
+                        local = values.get(position + 2).and_then(ComponentValue::ident);
+                    } else if first.is_some_and(|first| first.is_delim(b'|')) {
+                        local = values.get(position + 1).and_then(ComponentValue::ident);
+                    }
+                    match local {
+                        Some(local) => names.push(ascii_lowercase(local)),
+                        // A name that substitution computes can be any name.
+                        None => *any_name = true,
+                    }
+                    // An attribute value read with a syntax is substituted in turn, so an attr() in
+                    // it can name any attribute.
+                    *any_name |= values.iter().take_while(|value| !value.is_comma()).any(|value| {
+                        matches!(&value.kind, ComponentKind::Function { name, .. } if equals_ascii_case_insensitive(name, b"type"))
+                    });
+                }
+                values.as_ref()
+            }
+            ComponentKind::SimpleBlock { values, .. } => values.as_ref(),
+            ComponentKind::Token(_) => continue,
+        };
+        collect_attr_names_read(nested, names, any_name);
+    }
+}
+
+/// Record what the `attr()` functions of a declared value can read, before any engine resolves it.
+pub(crate) fn note_attr_names_read_by(values: &[ComponentValue]) {
+    let mut names = Vec::new();
+    let mut any_name = false;
+    collect_attr_names_read(values, &mut names, &mut any_name);
+    {
+        let read = ATTR_NAMES_READ.read().expect("attr() name set poisoned");
+        if read.as_ref().is_some_and(|read| {
+            read.any_name || (!any_name && names.iter().all(|name| read.names.contains(name.as_slice())))
+        }) {
+            return;
+        }
+    }
+    let mut read = ATTR_NAMES_READ.write().expect("attr() name set poisoned");
+    let read = read.get_or_insert_with(|| AttrNamesRead {
+        any_name: false,
+        names: HashSet::new(),
+    });
+    let mut grew = any_name && !read.any_name;
+    read.any_name |= any_name;
+    for name in names {
+        grew |= read.names.insert(name.into_boxed_slice());
+    }
+    if grew {
+        ATTR_NAMES_READ_GENERATION.fetch_add(1, Ordering::AcqRel);
+    }
+}
+
 pub(crate) fn declaration_value_is_valid(values: &[ComponentValue]) -> bool {
     let mut position = 0;
     consume_declaration_value_as_span(values, &mut position, None, false) && position == values.len()
@@ -299,10 +403,42 @@ pub(crate) fn declaration_value_is_valid(values: &[ComponentValue]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        SubstitutionFunctionsPresence, collect_arbitrary_substitution_function_presence, declaration_value_is_valid,
+        SubstitutionFunctionsPresence, collect_arbitrary_substitution_function_presence, collect_attr_names_read,
+        declaration_value_is_valid,
     };
     use crate::css::css_tokenizer::tokenize_for_parser;
     use crate::css::parser::component_value::consume_a_list_of_component_values;
+
+    fn attr_names_read(source: &str) -> (Vec<String>, bool) {
+        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
+        let mut names = Vec::new();
+        let mut any_name = false;
+        collect_attr_names_read(&values, &mut names, &mut any_name);
+        (
+            names.iter().map(|name| String::from_utf16_lossy(name)).collect(),
+            any_name,
+        )
+    }
+
+    #[test]
+    fn attr_reads_the_names_it_names_and_any_name_through_a_syntax() {
+        assert_eq!(
+            attr_names_read("attr(Data-Size px)"),
+            (vec!["data-size".to_string()], false)
+        );
+        assert_eq!(
+            attr_names_read("attr(*|foo, attr(bar)) var(--x, attr(|baz))"),
+            (vec!["foo".to_string(), "bar".to_string(), "baz".to_string()], false)
+        );
+        // The value read with a syntax is substituted in turn, so it can name any attribute.
+        assert_eq!(
+            attr_names_read("attr(data-foo type(*))"),
+            (vec!["data-foo".to_string()], true)
+        );
+        // A name that substitution computes can be any name; a type() in the fallback is not a syntax.
+        assert!(attr_names_read("attr(var(--name))").1);
+        assert!(!attr_names_read("attr(data-foo, type(*))").1);
+    }
 
     fn collect(source: &str) -> Result<SubstitutionFunctionsPresence, ()> {
         let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
