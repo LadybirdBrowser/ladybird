@@ -9,6 +9,7 @@
 #include <AK/Utf16View.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Forward.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/ImageProvider.h>
 
@@ -34,6 +35,13 @@ public:
     virtual void form_associated_element_was_removed(DOM::Node*) override;
 
     Utf16String type() const { return get_attribute_value(HTML::AttributeNames::type); }
+
+    bool represents_its_content_navigable() const { return m_representation == Representation::ContentNavigable; }
+
+    // The natural size of the <svg> document element of the document the element shows as its content navigable's,
+    // which that document's layout works out and hands over here. Nothing if that document element is no <svg>.
+    CSS::SizeWithAspectRatio const& natural_size_of_content_document() const { return m_natural_size_of_content_document; }
+    void set_natural_size_of_content_document(CSS::SizeWithAspectRatio const&);
 
     // ^FormAssociatedElement
     virtual bool is_form_associated_element() const override { return true; }
@@ -86,6 +94,7 @@ private:
     GC::Ptr<DecodedImageData> image_data() const;
 
     Representation m_representation { Representation::Unknown };
+    CSS::SizeWithAspectRatio m_natural_size_of_content_document;
 
     GC::Ptr<SharedResourceRequest> m_resource_request;
 

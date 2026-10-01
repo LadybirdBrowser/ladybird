@@ -252,36 +252,6 @@ GC::Ref<SVGTransform> SVGSVGElement::create_svg_transform() const
     return SVGTransform::create();
 }
 
-CSS::SizeWithAspectRatio SVGSVGElement::negotiate_natural_metrics(SVG::SVGSVGElement const& svg_root, CSS::Length::ResolutionContext const& resolution_context)
-{
-    // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
-
-    CSS::SizeWithAspectRatio natural_metrics;
-
-    // The intrinsic dimensions must also be determined from the width and height sizing properties.
-    // If either width or height are not specified, the used value is the initial value 'auto'.
-    // 'auto' and percentage lengths must not be used to determine an intrinsic width or intrinsic height.
-
-    if (auto width = svg_root.width_attribute_length(); width.has_value())
-        natural_metrics.width = width->to_px(resolution_context);
-
-    if (auto height = svg_root.height_attribute_length(); height.has_value())
-        natural_metrics.height = height->to_px(resolution_context);
-
-    // The intrinsic aspect ratio must be calculated using the following algorithm. If the algorithm returns null, then there is no intrinsic aspect ratio.
-    // 1. If the width and height sizing properties on the ‘svg’ element are both absolute values:
-    if (natural_metrics.width.has_value() && natural_metrics.height.has_value()) {
-        if (natural_metrics.width != 0 && natural_metrics.height != 0) {
-            // 1. return width / height
-            natural_metrics.aspect_ratio = *natural_metrics.width / *natural_metrics.height;
-        }
-    } else {
-        natural_metrics.aspect_ratio = view_box_natural_aspect_ratio(svg_root);
-    }
-
-    return natural_metrics;
-}
-
 // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
 Optional<CSSPixelFraction> SVGSVGElement::view_box_natural_aspect_ratio(SVGSVGElement const& svg_root)
 {

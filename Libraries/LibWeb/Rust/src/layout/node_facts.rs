@@ -43,18 +43,6 @@ fn style_has_size_containment(style: ComputedValuesView<'_>) -> bool {
     style.has_size_containment() || style.is_size_container()
 }
 
-/// Whether the node's replaced content facts still come from its layout node, because what it
-/// shows is not published: an image the box owns the provider of (`content: url(...)`), or a
-/// navigable container.
-pub(crate) fn replaced_content_facts_need_host(data: &NodeData, has_owned_image_provider: bool) -> bool {
-    let needs_host = match data.kind.get() {
-        NodeKind::ImageBox => has_owned_image_provider,
-        NodeKind::NavigableContainerViewport => true,
-        _ => false,
-    };
-    needs_host && !node_style_view(data).is_some_and(style_has_size_containment)
-}
-
 /// The replaced content facts of an enrolled node, from its kind, its computed style and what its
 /// element published as the input of its replaced content.
 pub(crate) fn derived_replaced_content_facts(data: &NodeData, input: ReplacedContentInput) -> FfiReplacedContentFacts {
@@ -269,10 +257,16 @@ fn auto_content_size(kind: NodeKind, style: ReplacedContentStyle, input: Replace
         }
         NodeKind::ImageBox => {
             let ReplacedContentInput::NaturalSize(natural_size) = input else {
-                panic!("an image box's element publishes its image's natural size as it arrives");
+                panic!("an image box's element or its provider publishes its image's natural size");
             };
             AutoContentSize::natural(natural_size)
         }
+        // An <object> showing an SVG document is sized from the document's root. Any other navigable container has
+        // no natural size.
+        NodeKind::NavigableContainerViewport => match input {
+            ReplacedContentInput::NaturalSize(natural_size) => AutoContentSize::natural(natural_size),
+            _ => AutoContentSize::default(),
+        },
         _ => AutoContentSize::default(),
     }
 }
@@ -692,9 +686,28 @@ impl<'pass> NodeFacts<'pass> {
     #[cold]
     fn svg_root_replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
         let mut facts = derived_replaced_content_facts(self.data(), ReplacedContentInput::None);
-        if !self.node_has_size_containment() {
-            let (width, height, aspect_ratio) =
-                super::svg_formatting_context::svg_root_natural_size(&self.callbacks, self.node);
+        let arena = self.callbacks.arena();
+        let is_document_element_box = arena.is_document_svg_root_box(self.node);
+        let size_contained = self.node_has_size_containment();
+        if size_contained && !is_document_element_box {
+            return facts;
+        }
+        let (width, height, aspect_ratio) =
+            super::svg_formatting_context::svg_root_natural_size(&self.callbacks, self.node);
+        // An <object> showing the document is sized from what its <svg> document element would be
+        // without size containment.
+        if is_document_element_box {
+            arena.note_document_svg_root_natural_size(
+                self.node,
+                NaturalSize {
+                    width: width.map(CssPixels::raw_value),
+                    height: height.map(CssPixels::raw_value),
+                    aspect_ratio: aspect_ratio
+                        .map(|(numerator, denominator)| (numerator.raw_value(), denominator.raw_value())),
+                },
+            );
+        }
+        if !size_contained {
             set_auto_content_size(
                 &mut facts,
                 AutoContentSize {
@@ -1341,4 +1354,42 @@ mod node_facts_tests {
         );
         assert_eq!(auto_content_size(contained), Some((5, 0)));
     }
+}
+
+/// Publishes the natural size of the image the image box `id` owns the provider of, which the
+/// box's replaced content facts are derived from.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, and `id` a live image box.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_owned_image_natural_size(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    natural_size: crate::painting::host::FfiNaturalSize,
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_owned_image_natural_size(id, natural_size.into());
+}
+
+/// Writes the natural size of the document's `<svg>` document element as its last layout
+/// negotiated it to `natural_size` and returns true, unless it is what the last call handed over.
+/// The size is all absent if the document element is no `<svg>` with a box.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, and `natural_size` writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_take_changed_document_svg_root_natural_size(
+    arena: *mut c_void,
+    natural_size: *mut crate::painting::host::FfiNaturalSize,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let Some(changed) = unsafe { LayoutNodeArena::from_handle(arena) }.take_changed_document_svg_root_natural_size()
+    else {
+        return false;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { natural_size.write(changed.into()) };
+    true
 }

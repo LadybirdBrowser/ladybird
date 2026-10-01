@@ -722,10 +722,22 @@ Vector<GC::Root<LocalNavigable>> LocalNavigable::hosted_inclusive_descendant_nav
 void LocalNavigable::update_layout_of_hosted_inclusive_descendant_documents(DOM::UpdateLayoutReason reason)
 {
     // Laying out a document can resize the navigable containers in it, which resizes the viewports of the documents
-    // they show and leaves those out of date. Tree order lays out each document after the one hosting it.
-    for (auto const& navigable : hosted_inclusive_descendant_navigables()) {
-        if (auto document = navigable->active_document())
+    // they show and leaves those out of date. Tree order lays out each document after the one hosting it. Laying out
+    // an SVG document an <object> shows can resize the <object> in turn, which leaves the document hosting it out of
+    // date, so later rounds lay out what is out of date again. Each round brings at least one more level of nesting
+    // to rest, which bounds the rounds by the number of documents.
+    auto navigables = hosted_inclusive_descendant_navigables();
+    for (size_t round = 0; round <= navigables.size(); ++round) {
+        bool laid_out_any = false;
+        for (auto const& navigable : navigables) {
+            auto document = navigable->active_document();
+            if (!document || (round > 0 && document->layout_is_up_to_date()))
+                continue;
             document->update_layout(reason);
+            laid_out_any = true;
+        }
+        if (!laid_out_any)
+            return;
     }
 }
 

@@ -34,6 +34,32 @@ pub struct FfiReplacedContentFacts {
     pub default_preferred_height: CssPixels,
 }
 
+impl From<crate::painting::host::FfiNaturalSize> for crate::css::style::NaturalSize {
+    fn from(size: crate::painting::host::FfiNaturalSize) -> Self {
+        Self {
+            width: size.width.has_value.then_some(size.width.value.raw_value()),
+            height: size.height.has_value.then_some(size.height.value.raw_value()),
+            aspect_ratio: size.has_aspect_ratio.then_some((
+                size.aspect_ratio_numerator.raw_value(),
+                size.aspect_ratio_denominator.raw_value(),
+            )),
+        }
+    }
+}
+
+impl From<crate::css::style::NaturalSize> for crate::painting::host::FfiNaturalSize {
+    fn from(size: crate::css::style::NaturalSize) -> Self {
+        let (numerator, denominator) = size.aspect_ratio.unwrap_or_default();
+        Self {
+            width: size.width.map(CssPixels::from_raw).into(),
+            height: size.height.map(CssPixels::from_raw).into(),
+            has_aspect_ratio: size.aspect_ratio.is_some(),
+            aspect_ratio_numerator: CssPixels::from_raw(numerator),
+            aspect_ratio_denominator: CssPixels::from_raw(denominator),
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStylePayloads {

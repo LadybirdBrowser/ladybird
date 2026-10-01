@@ -556,8 +556,9 @@ void HTMLObjectElement::update_layout_and_child_objects(Representation represent
     }
 
     m_representation = representation;
-    // The representation decides which box the element asks for.
+    // The representation decides which box the element asks for, and what that box is sized from.
     CSS::record_element_box_kind(*this);
+    CSS::record_element_replaced_content_input(*this);
 
     if (auto parent_element = this->parent_element())
         parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLObjectElementUpdateLayoutAndChildObjects);
@@ -568,6 +569,13 @@ i32 HTMLObjectElement::default_tab_index_value() const
 {
     // See the base function for the spec comments.
     return 0;
+}
+
+void HTMLObjectElement::set_natural_size_of_content_document(CSS::SizeWithAspectRatio const& natural_size)
+{
+    m_natural_size_of_content_document = natural_size;
+    CSS::record_element_replaced_content_input(*this);
+    set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLObjectElementContentDocumentResized);
 }
 
 GC::Ptr<DecodedImageData> HTMLObjectElement::image_data() const
