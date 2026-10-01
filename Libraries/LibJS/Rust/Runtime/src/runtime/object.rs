@@ -228,6 +228,9 @@ pub type InternalConstruct = fn(&Object, &Vm, &ExecutionContext, Gc<FunctionObje
 /// FunctionObject virtuals that calls go through. Exotic objects override some of them, as in
 /// `ObjectMethods { internal_get: ..., ..ORDINARY_OBJECT_METHODS }`.
 pub struct ObjectMethods {
+    /// Cell::initialize(Realm&), which C++ calls once an object is allocated through Realm::create and which defines
+    /// the properties of built-in objects. Subclasses call the method of the class they extend first.
+    pub initialize: fn(&Object, &Vm, Gc<Realm>),
     pub internal_get_prototype_of: fn(&Object, &Vm) -> ThrowCompletionOr<Option<Gc<Object>>>,
     pub internal_set_prototype_of: fn(&Object, &Vm, Option<Gc<Object>>) -> ThrowCompletionOr<bool>,
     pub internal_is_extensible: fn(&Object, &Vm) -> ThrowCompletionOr<bool>,
@@ -259,6 +262,7 @@ pub struct ObjectMethods {
 }
 
 pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
+    initialize: |_, _, _| {},
     internal_get_prototype_of: Object::ordinary_get_prototype_of,
     internal_set_prototype_of: Object::ordinary_set_prototype_of,
     internal_is_extensible: Object::ordinary_is_extensible,
@@ -423,6 +427,54 @@ mod heap_value_storage {
     fn allocation_start(storage: *mut Value) -> *mut u8 {
         // SAFETY: The header is part of the same allocation.
         unsafe { storage.cast::<u8>().sub(HEADER_SIZE) }
+    }
+}
+
+/// Defines the class of an object type that extends `$parent` and overrides Cell::initialize() and the internal methods
+/// in `methods`, as most built-in prototypes do. The type keeps its parent in a field named `base` and derefs to it.
+macro_rules! define_object_class {
+    ($type:ident, extends: [$parent:ident $(, $ancestor:ident)*], methods: { $($method:ident: $value:expr,)* ..$parent_methods:path }) => {
+        const _: () = {
+            static METHODS: $crate::runtime::object::ObjectMethods = $crate::runtime::object::ObjectMethods {
+                $($method: $value,)*
+                ..$parent_methods
+            };
+            define_cell!($type, Object, extends: [$parent $(, $ancestor)*], methods: METHODS);
+        };
+
+        impl core::ops::Deref for $type {
+            type Target = $parent;
+
+            fn deref(&self) -> &$parent {
+                &self.base
+            }
+        }
+    };
+}
+
+pub(crate) use define_object_class;
+
+/// Object::IntrinsicAccessor: computes the value of a property defined with define_intrinsic_accessor().
+pub type IntrinsicAccessor = fn(&Vm, Gc<Realm>) -> Value;
+
+/// Takes the intrinsic accessor of a property that has not been read yet, which is used at most once.
+fn find_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKey) -> Option<IntrinsicAccessor> {
+    if !property_key.is_string() {
+        return None;
+    }
+
+    let mut intrinsic_accessors = vm.intrinsic_accessors().borrow_mut();
+    let intrinsics = intrinsic_accessors.get_mut(&(core::ptr::from_ref(object) as usize))?;
+    intrinsics.remove(property_key.as_string())
+}
+
+fn remove_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKey) {
+    if let Some(intrinsics) = vm
+        .intrinsic_accessors()
+        .borrow_mut()
+        .get_mut(&(core::ptr::from_ref(object) as usize))
+    {
+        intrinsics.remove(property_key.as_string());
     }
 }
 
@@ -1535,6 +1587,10 @@ impl Object {
         (self.methods().eligible_for_own_property_enumeration_fast_path)(self)
     }
 
+    pub fn initialize(&self, vm: &Vm, realm: Gc<Realm>) {
+        (self.methods().initialize)(self, vm, realm);
+    }
+
     pub fn has_constructor(&self) -> bool {
         (self.methods().has_constructor)(self)
     }
@@ -1641,11 +1697,11 @@ impl Object {
     // 10.1.5.1 OrdinaryGetOwnProperty ( O, P ) https://tc39.es/ecma262/#sec-ordinarygetownproperty
     pub fn ordinary_get_own_property(
         &self,
-        _vm: &Vm,
+        vm: &Vm,
         property_key: &PropertyKey,
     ) -> ThrowCompletionOr<Option<PropertyDescriptor>> {
         // 1. If O does not have an own property with key P, return undefined.
-        let Some(storage_entry) = self.storage_get(property_key) else {
+        let Some(storage_entry) = self.storage_get(vm, property_key) else {
             // AD-HOC: Report accesses to unimplemented IDL properties without making them observable to JavaScript.
             if self.is_unimplemented_property(property_key) {
                 unimplemented_runtime_function("VM::on_unimplemented_property_access", 0);
@@ -1889,7 +1945,7 @@ impl Object {
             && receiver_uses_holder_cache
             && let Some(cached_value_key) = accessor.cached_value_key()
         {
-            let property = self.storage_get(property_key);
+            let property = self.storage_get(vm, property_key);
             if property.is_some_and(|property| property.value.is_accessor() && property.value.as_accessor() == accessor)
             {
                 self.set_engine_private_property(vm, cached_value_key, result);
@@ -2234,7 +2290,7 @@ impl Object {
 
     // Implementation-specific storage abstractions
 
-    pub fn storage_get(&self, property_key: &PropertyKey) -> Option<ValueAndAttributes> {
+    pub fn storage_get(&self, vm: &Vm, property_key: &PropertyKey) -> Option<ValueAndAttributes> {
         if property_key.is_number()
             && let Some(value_and_attributes) = self.indexed_get(property_key.as_number())
         {
@@ -2247,10 +2303,24 @@ impl Object {
 
         let metadata = self.shape().lookup(property_key)?;
 
-        if self.has_intrinsic_accessors() {
-            unimplemented_runtime_function("the intrinsic accessors of Object::define_intrinsic_accessor", 0);
+        if self.has_intrinsic_accessors()
+            && let Some(accessor) = find_intrinsic_accessor(vm, self, property_key)
+        {
+            let value = accessor(vm, self.shape().realm());
+            self.put_direct(metadata.offset, value);
         }
 
+        Some(ValueAndAttributes {
+            value: self.get_direct(metadata.offset),
+            attributes: metadata.attributes,
+            property_offset: Some(metadata.offset),
+        })
+    }
+
+    /// storage_get() for a symbol key, which never has an intrinsic accessor.
+    fn storage_get_symbol(&self, property_key: &PropertyKey) -> Option<ValueAndAttributes> {
+        assert!(property_key.is_symbol());
+        let metadata = self.shape().lookup(property_key)?;
         Some(ValueAndAttributes {
             value: self.get_direct(metadata.offset),
             attributes: metadata.attributes,
@@ -2283,7 +2353,7 @@ impl Object {
         };
 
         if self.has_intrinsic_accessors() && property_key.is_string() {
-            unimplemented_runtime_function("the intrinsic accessors of Object::define_intrinsic_accessor", 0);
+            remove_intrinsic_accessor(vm, self, property_key);
         }
 
         if attributes != metadata.attributes {
@@ -2342,7 +2412,7 @@ impl Object {
         }
 
         if self.has_intrinsic_accessors() && property_key.is_string() {
-            unimplemented_runtime_function("the intrinsic accessors of Object::define_intrinsic_accessor", 0);
+            remove_intrinsic_accessor(vm, self, property_key);
         }
 
         let metadata = self.shape().lookup(property_key).expect("the object has the property");
@@ -2449,10 +2519,10 @@ impl Object {
     }
 
     // Simple side-effect free property lookup, following the prototype chain. Non-standard.
-    pub fn get_without_side_effects(&self, property_key: &PropertyKey) -> Value {
+    pub fn get_without_side_effects(&self, vm: &Vm, property_key: &PropertyKey) -> Value {
         let mut object = Some(self.as_gc());
         while let Some(current) = object {
-            if let Some(value_and_attributes) = current.storage_get(property_key) {
+            if let Some(value_and_attributes) = current.storage_get(vm, property_key) {
                 return value_and_attributes.value;
             }
             object = current.prototype();
@@ -2514,9 +2584,30 @@ impl Object {
         self.storage_set(vm, property_key, ValueAndAttributes::new(value, attributes));
     }
 
+    /// Defines a property whose value an intrinsic accessor computes the first time the property is read, so that the
+    /// intrinsics a realm's global object exposes are only created when a script uses them.
+    pub fn define_intrinsic_accessor(
+        &self,
+        vm: &Vm,
+        property_key: &PropertyKey,
+        attributes: PropertyAttributes,
+        accessor: IntrinsicAccessor,
+    ) {
+        assert!(property_key.is_string());
+
+        self.storage_set(vm, property_key, ValueAndAttributes::new(Value::UNDEFINED, attributes));
+
+        self.set_has_intrinsic_accessors();
+        vm.intrinsic_accessors()
+            .borrow_mut()
+            .entry(core::ptr::from_ref(self) as usize)
+            .or_default()
+            .insert(property_key.as_string().clone(), accessor);
+    }
+
     pub fn get_engine_private_property(&self, key: Gc<Symbol>) -> Option<ValueAndAttributes> {
         assert!(key.is_private());
-        self.storage_get(&PropertyKey::from(key))
+        self.storage_get_symbol(&PropertyKey::from(key))
     }
 
     pub fn set_engine_private_property(&self, vm: &Vm, key: Gc<Symbol>, value: Value) {
@@ -2562,7 +2653,7 @@ impl Object {
         setter: Option<Gc<FunctionObject>>,
         attributes: PropertyAttributes,
     ) {
-        let existing_property = self.storage_get(property_key).unwrap_or_default().value;
+        let existing_property = self.storage_get(vm, property_key).unwrap_or_default().value;
         if existing_property.is_accessor() {
             let accessor = existing_property.as_accessor();
             if getter.is_some() {
@@ -2589,7 +2680,9 @@ impl Object {
         self.clear_cached_accessor_value(vm, property_key);
         self.define_direct_accessor(vm, property_key, getter, setter, attributes);
 
-        let property = self.storage_get(property_key).expect("the accessor was just defined");
+        let property = self
+            .storage_get(vm, property_key)
+            .expect("the accessor was just defined");
         assert!(property.value.is_accessor());
         let accessor = property.value.as_accessor();
         if accessor.cached_value_key().is_none() {
@@ -2598,7 +2691,7 @@ impl Object {
     }
 
     pub fn clear_cached_accessor_value(&self, vm: &Vm, property_key: &PropertyKey) {
-        let Some(property) = self.storage_get(property_key) else {
+        let Some(property) = self.storage_get(vm, property_key) else {
             return;
         };
         if !property.value.is_accessor() {

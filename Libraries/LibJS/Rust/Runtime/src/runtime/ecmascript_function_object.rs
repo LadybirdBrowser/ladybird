@@ -35,6 +35,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::function_object::{FUNCTION_OBJECT_METHODS, FunctionObject};
+use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::{
     MayInterfereWithIndexedPropertyAccess, ObjectMethods, PrivateElement, StackFrameInfo, allocate_object,
 };
@@ -382,7 +383,7 @@ impl EcmascriptFunctionObject {
                 vm,
                 function.realm().expect("an ECMAScript function has a realm"),
                 new_target,
-                Realm::object_prototype,
+                Intrinsics::object_prototype,
             )?);
         }
 

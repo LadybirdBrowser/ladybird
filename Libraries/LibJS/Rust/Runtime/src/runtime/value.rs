@@ -29,13 +29,18 @@ use crate::runtime::accessor::Accessor;
 use crate::runtime::array::Array;
 use crate::runtime::big_int::{BigInt, SignedBigInteger};
 use crate::runtime::big_int_algorithms::{self, CompareResult};
+use crate::runtime::big_int_object::BigIntObject;
+use crate::runtime::boolean_object::BooleanObject;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::number_object::NumberObject;
 use crate::runtime::object::PropertyLookupPhase;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::string_object::StringObject;
 use crate::runtime::symbol::Symbol;
+use crate::runtime::symbol_object::SymbolObject;
 use crate::runtime::value_conversions::{self, string_to_number};
 use crate::utf16::Utf16View;
 use libjs_abi::Builtin;
@@ -451,18 +456,51 @@ impl Value {
 
     #[inline(never)]
     fn to_object_slow(self, vm: &Vm) -> ThrowCompletionOr<Gc<Object>> {
+        let realm = vm
+            .current_realm()
+            .expect("ToObject runs in an execution context with a realm");
         assert!(!self.is_empty());
 
-        // Undefined
-        // Null
-        if self.is_nullish() {
-            // Throw a TypeError exception.
-            return vm.throw_completion(ErrorKind::TypeError, ErrorType::ToObjectNullOrUndefined, &[]);
+        // Number
+        if self.is_number() {
+            // Return a new Number object whose [[NumberData]] internal slot is set to argument. See 21.1 for a description of Number objects.
+            return Ok(NumberObject::create(vm, realm, self.as_f64()).upcast());
         }
 
-        // Number, Boolean, String, Symbol, BigInt
-        // Return a new wrapper object whose internal slot is set to argument. See 20.3, 20.4, 21.1, 21.2 and 22.1.
-        unimplemented_runtime_function("ToObject of a primitive, which needs the wrapper object classes", 0)
+        match self.tag() {
+            // Undefined
+            // Null
+            nan_box::UNDEFINED_TAG | nan_box::NULL_TAG => {
+                // Throw a TypeError exception.
+                vm.throw_completion(ErrorKind::TypeError, ErrorType::ToObjectNullOrUndefined, &[])
+            }
+            // Boolean
+            nan_box::BOOLEAN_TAG => {
+                // Return a new Boolean object whose [[BooleanData]] internal slot is set to argument. See 20.3 for a description of Boolean objects.
+                Ok(BooleanObject::create(vm, realm, self.as_bool()).upcast())
+            }
+            // String
+            nan_box::STRING_TAG => {
+                // Return a new String object whose [[StringData]] internal slot is set to argument. See 22.1 for a description of String objects.
+                Ok(StringObject::create(vm, realm, self.as_string(), realm.intrinsics().string_prototype(vm)).upcast())
+            }
+            // Symbol
+            nan_box::SYMBOL_TAG => {
+                // Return a new Symbol object whose [[SymbolData]] internal slot is set to argument. See 20.4 for a description of Symbol objects.
+                Ok(SymbolObject::create(vm, realm, self.as_symbol()).upcast())
+            }
+            // BigInt
+            nan_box::BIGINT_TAG => {
+                // Return a new BigInt object whose [[BigIntData]] internal slot is set to argument. See 21.2 for a description of BigInt objects.
+                Ok(BigIntObject::create(vm, realm, self.as_bigint()).upcast())
+            }
+            // Object
+            nan_box::OBJECT_TAG => {
+                // Return argument.
+                Ok(self.as_object())
+            }
+            _ => unreachable!("ToObject of a value that is not a language value"),
+        }
     }
 
     // 7.1.4 ToNumber ( argument ), https://tc39.es/ecma262/#sec-tonumber
@@ -898,15 +936,15 @@ impl Value {
             //               directly into prototype where requested property is located.
             let current_realm = || vm.current_realm().expect("there is a current realm");
             if self.is_string() && *property_key != vm.names.length {
-                current_realm().string_prototype()
+                current_realm().string_prototype(vm)
             } else if self.is_boolean() {
-                current_realm().boolean_prototype()
+                current_realm().boolean_prototype(vm)
             } else if self.is_number() {
-                current_realm().number_prototype()
+                current_realm().number_prototype(vm)
             } else if self.is_bigint() {
-                current_realm().bigint_prototype()
+                current_realm().bigint_prototype(vm)
             } else if self.is_symbol() {
-                current_realm().symbol_prototype()
+                current_realm().symbol_prototype(vm)
             } else {
                 self.to_object(vm)?
             }

@@ -337,15 +337,15 @@ impl Reference {
                 if let Some(string_value) = string_value {
                     return Ok(string_value);
                 }
-                realm().string_prototype()
+                realm().string_prototype(vm)
             } else if self.base_value.is_number() {
-                realm().number_prototype()
+                realm().number_prototype(vm)
             } else if self.base_value.is_boolean() {
-                realm().boolean_prototype()
+                realm().boolean_prototype(vm)
             } else if self.base_value.is_bigint() {
-                realm().bigint_prototype()
+                realm().bigint_prototype(vm)
             } else if self.base_value.is_symbol() {
-                realm().symbol_prototype()
+                realm().symbol_prototype(vm)
             } else {
                 self.base_value.to_object(vm)?
             };

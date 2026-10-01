@@ -31,7 +31,7 @@ use crate::layout::value::Value;
 use crate::parser_error::ParserError;
 use crate::script::Script;
 use crate::utf16::{string_from_utf8_with_replacement_character, utf16_from_wtf8};
-use crate::utilities::initialize_realm_without_intrinsics;
+use crate::utilities::initialize_realm;
 use libjs_rust::ast::ProgramType;
 use libjs_rust::compile::parse;
 
@@ -554,7 +554,9 @@ fn run_test(
     }
 
     let vm = Vm::create();
-    let realm = initialize_realm_without_intrinsics(&vm);
+    // NB: The C++ runner's global object is a Test262::GlobalObject, which comes with $262.
+    let root_execution_context = initialize_realm(&vm);
+    let realm = root_execution_context.realm();
     let program = parse_program(&vm, realm, decoded_source(source, "The test"), metadata.program_type)?;
 
     let mut harness_source = Vec::new();

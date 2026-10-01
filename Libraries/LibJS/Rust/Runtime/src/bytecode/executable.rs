@@ -36,6 +36,8 @@ use crate::runtime::primitive_string::u64_hash;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::source_code::SourceCode;
+use crate::source_range::{Position, SourceRange};
+use libjs_rust::bytecode::basic_block::SourceMapEntry;
 use libjs_rust::bytecode::constant::WellKnownSymbolKind;
 use libjs_rust::bytecode::executable::ExecutableData;
 use libjs_rust::bytecode::generator::{ConstantValue, ExceptionHandler};
@@ -874,6 +876,9 @@ pub struct Executable {
     shared_function_data: Box<[Gc<SharedFunctionInstanceData>]>,
     class_blueprints: Box<[ClassBlueprint]>,
     pub length_identifier: Option<PropertyKeyTableIndex>,
+    /// Sorted by bytecode offset: where in the source code the instructions from each offset on came from.
+    pub source_map: Box<[SourceMapEntry]>,
+    pub source_code: Option<Rc<SourceCode>>,
 }
 
 define_cell!(Executable, Other);
@@ -1007,6 +1012,8 @@ impl Executable {
             shared_function_data: Box::new([]),
             class_blueprints: Box::new([]),
             length_identifier: None,
+            source_map: Box::new([]),
+            source_code: None,
         }
     }
 
@@ -1089,6 +1096,8 @@ impl Executable {
             data.cache_counts.object_property_iterator,
         );
         executable.length_identifier = data.length_identifier.map(|index| PropertyKeyTableIndex(index.0));
+        executable.source_map = data.source_map.into_boxed_slice();
+        executable.source_code = source_code.cloned();
         let executable = Self::create_from_parts(vm, executable);
         drop(rooted_constants);
         drop(rooted_literal_values);
@@ -1132,6 +1141,38 @@ impl Executable {
             })
             .ok()
             .map(|index| &self.exception_handlers[index])
+    }
+
+    pub fn source_range_at(&self, offset: u32) -> Option<SourceRange> {
+        if offset as usize >= self.bytecode.len() {
+            return None;
+        }
+        if self.source_map.is_empty() {
+            return None;
+        }
+        let entries_at_or_before_offset = self.source_map.partition_point(|entry| entry.bytecode_offset <= offset);
+        if entries_at_or_before_offset == 0 {
+            return None;
+        }
+        let entry = &self.source_map[entries_at_or_before_offset - 1];
+        Some(SourceRange {
+            code: self
+                .source_code
+                .clone()
+                .unwrap_or_else(|| SourceCode::create(ak::Utf16String::default(), ak::Utf16String::default())),
+            start: Position {
+                line: entry.line,
+                column: entry.column,
+            },
+        })
+    }
+
+    /// The source range at `program_counter`, or an empty one if the source map has none.
+    pub fn get_source_range(&self, program_counter: u32) -> SourceRange {
+        self.source_range_at(program_counter).unwrap_or_else(|| SourceRange {
+            code: SourceCode::create(ak::Utf16String::default(), ak::Utf16String::default()),
+            start: Position::default(),
+        })
     }
 
     pub fn bytecode(&self) -> &[u8] {
