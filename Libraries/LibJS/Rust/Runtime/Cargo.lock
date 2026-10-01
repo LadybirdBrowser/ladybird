@@ -435,6 +435,9 @@ dependencies = [
  "libjs_runtime_macros",
  "libjs_rust",
  "libregex_rust",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
  "rustc-demangle",
 ]
 

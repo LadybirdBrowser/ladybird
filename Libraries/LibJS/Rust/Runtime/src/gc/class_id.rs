@@ -19,4 +19,10 @@ macro_rules! define_class_ids {
 
 define_class_ids! {
     Executable,
+    PrimitiveString,
+    RopeString,
+    Substring,
+    Symbol,
+    BigInt,
+    Accessor,
 }

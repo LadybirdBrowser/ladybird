@@ -112,9 +112,49 @@ impl Vm {
                 0,
             );
         }
-        let executable = self
-            .heap()
-            .allocate(Executable::from_executable_data(script.compiled.executable));
+        let executable = Executable::create(self, script.compiled.executable);
         self.run_script_executable(executable).map_err(Throw::new)
     }
+
+    /// Unwinds to the innermost handler of an exception thrown at `program_counter` in the running frame, leaving
+    /// frames the interpreter entered without returning to the runtime.
+    pub fn handle_exception(&self, mut program_counter: u32, exception: Value) -> HandleExceptionResponse {
+        loop {
+            let context_pointer = self
+                .running_execution_context()
+                .expect("an exception is thrown in a running frame");
+            // SAFETY: The running context is live until it is deallocated below.
+            let context = unsafe { context_pointer.as_ref() };
+            let executable = context.executable.get().expect("a running frame has an executable");
+            // SAFETY: Executables start with their head.
+            let executable = unsafe { executable.as_non_null().cast::<Executable>().as_ref() };
+            if let Some(handler) = executable.exception_handlers_for_offset(program_counter) {
+                context.register(register::EXCEPTION).set(exception);
+                context.program_counter.set(handler.handler_offset);
+                return HandleExceptionResponse::ContinueInThisExecutable;
+            }
+
+            // If we're in an inline frame, unwind to the caller and try its handlers.
+            let caller_frame = context.caller_frame.get();
+            if !caller_frame.is_null() {
+                let caller_pc = context.caller_return_pc.get();
+                self.interpreter_stack().deallocate(context_pointer.as_ptr().cast());
+                self.head.running_execution_context.set(caller_frame);
+
+                // The caller's return address is one past the Call instruction, and handler ranges exclude their end
+                // offset, so look up the handler for an offset inside the Call.
+                program_counter = caller_pc - 1;
+                continue;
+            }
+
+            context.register(register::EXCEPTION).set(exception);
+            return HandleExceptionResponse::ExitFromExecutable;
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HandleExceptionResponse {
+    ExitFromExecutable,
+    ContinueInThisExecutable,
 }

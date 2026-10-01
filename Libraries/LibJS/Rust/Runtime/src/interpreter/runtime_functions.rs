@@ -10,6 +10,7 @@
 use core::cell::Cell;
 
 use crate::bytecode::op;
+use crate::interpreter::run::HandleExceptionResponse;
 use crate::interpreter::vm::Vm;
 use crate::layout::value::Value;
 
@@ -45,6 +46,19 @@ pub struct AsmSlowPathResult {
 
 /// The runtime's implementation of the functions the interpreter calls.
 pub struct Runtime;
+
+/// Hands an exception a slow path threw to the interpreter: it continues at the handler, or leaves.
+#[cold]
+pub fn handle_asm_exception(vm: &Vm, pc: u32, exception: Value) -> SlowPathControl {
+    match vm.handle_exception(pc, exception) {
+        HandleExceptionResponse::ExitFromExecutable => SlowPathControl::EXIT,
+        HandleExceptionResponse::ContinueInThisExecutable => {
+            let context = vm.running_execution_context().expect("the handler's frame is running");
+            // SAFETY: The running context is live.
+            SlowPathControl::dispatch_at(unsafe { context.as_ref() }.program_counter.get())
+        }
+    }
+}
 
 /// Stops the process at a runtime function or operation that is not implemented yet. This panics, so that a tool can
 /// report it through its panic hook.

@@ -14,6 +14,9 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::primitive_string::PrimitiveString;
 use crate::layout::value::Value;
+use crate::runtime::accessor::Accessor;
+use crate::runtime::big_int::BigInt;
+use crate::runtime::symbol::Symbol;
 use libjs_abi::value as nan_box;
 
 /// Makes the whole encoded value live up to this point. The conservative stack scan recognizes a cell by its tagged
@@ -126,6 +129,23 @@ impl Value {
         f64::from_bits(self.0)
     }
 
+    pub fn is_integral_number(self) -> bool {
+        if self.is_int32() {
+            return true;
+        }
+        self.is_finite_number() && self.as_f64().trunc() == self.as_f64()
+    }
+
+    pub fn is_finite_number(self) -> bool {
+        if !self.is_number() {
+            return false;
+        }
+        if self.is_int32() {
+            return true;
+        }
+        self.as_f64().is_finite()
+    }
+
     fn with_cell_tag<T>(tag: u64, cell: Gc<T>) -> Self {
         let address = cell.as_ptr() as usize as u64;
         Self((tag << nan_box::TAG_SHIFT) | (address & HEAP_REGION_OFFSET_MASK))
@@ -152,6 +172,18 @@ impl Value {
         Self::with_cell_tag(nan_box::STRING_TAG, string)
     }
 
+    pub fn from_symbol(symbol: Gc<Symbol>) -> Self {
+        Self::with_cell_tag(nan_box::SYMBOL_TAG, symbol)
+    }
+
+    pub fn from_bigint(bigint: Gc<BigInt>) -> Self {
+        Self::with_cell_tag(nan_box::BIGINT_TAG, bigint)
+    }
+
+    pub fn from_accessor(accessor: Gc<Accessor>) -> Self {
+        Self::with_cell_tag(nan_box::ACCESSOR_TAG, accessor)
+    }
+
     pub fn as_object(self) -> Gc<Object> {
         assert!(self.is_object());
         // SAFETY: The tag says the value holds an object.
@@ -161,6 +193,24 @@ impl Value {
     pub fn as_string(self) -> Gc<PrimitiveString> {
         assert!(self.is_string());
         // SAFETY: The tag says the value holds a string.
+        unsafe { self.cell() }
+    }
+
+    pub fn as_symbol(self) -> Gc<Symbol> {
+        assert!(self.is_symbol());
+        // SAFETY: The tag says the value holds a symbol.
+        unsafe { self.cell() }
+    }
+
+    pub fn as_bigint(self) -> Gc<BigInt> {
+        assert!(self.is_bigint());
+        // SAFETY: The tag says the value holds a BigInt.
+        unsafe { self.cell() }
+    }
+
+    pub fn as_accessor(self) -> Gc<Accessor> {
+        assert!(self.is_accessor());
+        // SAFETY: The tag says the value holds an accessor.
         unsafe { self.cell() }
     }
 }

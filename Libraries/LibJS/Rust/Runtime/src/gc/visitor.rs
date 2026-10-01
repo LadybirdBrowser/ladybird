@@ -86,6 +86,8 @@ impl_trace_for_cell_free_types!(
     String,
     ak::Utf16String,
     ak::Utf16FlyString,
+    num_bigint::BigInt,
+    crate::layout::cell::CellHeader,
 );
 
 // SAFETY: Holds nothing.

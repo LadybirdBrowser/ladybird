@@ -8,18 +8,24 @@ use core::cell::Cell;
 
 use crate::frontend_host::rust_free_compiled_regex;
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
+use crate::interpreter::vm::Vm;
 use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::CellHeader;
+use crate::layout::cell::Gc;
 use crate::layout::executable::ExecutableHead;
 use crate::layout::property_lookup_cache::{
     EnvironmentCoordinate, GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntry,
     PropertyLookupCacheEntryType,
 };
 use crate::layout::value::Value;
+use crate::runtime::big_int::{BigInt, SignedBigInteger};
+use crate::runtime::primitive_string::PrimitiveString;
+use libjs_rust::bytecode::constant::WellKnownSymbolKind;
 use libjs_rust::bytecode::executable::ExecutableData;
-use libjs_rust::bytecode::generator::ConstantValue;
+use libjs_rust::bytecode::generator::{ConstantValue, ExceptionHandler};
 
 /// A unit of bytecode: a script, a module, a function body or an eval, with what the interpreter needs to run it.
 #[repr(C)]
@@ -36,6 +42,8 @@ pub struct Executable {
     pub identifier_table: Vec<ak::Utf16FlyString>,
     pub property_key_table: Vec<ak::Utf16FlyString>,
     pub string_table: Vec<ak::Utf16FlyString>,
+    /// Sorted by start offset, and not overlapping.
+    pub exception_handlers: Box<[ExceptionHandler]>,
 }
 
 define_cell!(Executable, Other);
@@ -127,11 +135,12 @@ impl Executable {
             identifier_table: Vec::new(),
             property_key_table: Vec::new(),
             string_table: Vec::new(),
+            exception_handlers: Box::new([]),
         }
     }
 
-    /// Builds the executable for what the frontend compiled.
-    pub fn from_executable_data(data: ExecutableData) -> Self {
+    /// Creates the executable for what the frontend compiled.
+    pub fn create(vm: &Vm, data: ExecutableData) -> Gc<Executable> {
         if !data.shared_function_data.is_empty() {
             unimplemented_runtime_function("creating the functions an executable declares", 0);
         }
@@ -143,7 +152,12 @@ impl Executable {
             // SAFETY: Each handle came from rust_compile_regex and is freed once.
             unsafe { rust_free_compiled_regex(regex) };
         }
-        let constants: Box<[Value]> = data.constants.iter().map(constant_value).collect();
+        // The constants stay rooted until the executable that holds them is allocated.
+        let rooted_constants = MarkedVec::with_capacity(vm, data.constants.len());
+        for constant in &data.constants {
+            rooted_constants.push(constant_value(vm, constant));
+        }
+        let constants: Box<[Value]> = rooted_constants.to_vec().into_boxed_slice();
         let counts = ExecutableCacheCounts {
             property_lookup_caches: data.cache_counts.property_lookup,
             global_variable_caches: data.cache_counts.global_variable,
@@ -162,7 +176,26 @@ impl Executable {
         executable.identifier_table = data.identifier_table;
         executable.property_key_table = data.property_key_table;
         executable.string_table = data.string_table;
+        executable.exception_handlers = data.exception_handlers.into_boxed_slice();
+        let executable = vm.heap().allocate(executable);
+        drop(rooted_constants);
         executable
+    }
+
+    /// The handler whose range holds the instruction at `offset`.
+    pub fn exception_handlers_for_offset(&self, offset: u32) -> Option<&ExceptionHandler> {
+        self.exception_handlers
+            .binary_search_by(|handler| {
+                if offset < handler.start_offset {
+                    core::cmp::Ordering::Greater
+                } else if offset >= handler.end_offset {
+                    core::cmp::Ordering::Less
+                } else {
+                    core::cmp::Ordering::Equal
+                }
+            })
+            .ok()
+            .map(|index| &self.exception_handlers[index])
     }
 
     pub fn bytecode(&self) -> &[u8] {
@@ -178,18 +211,37 @@ impl Executable {
     }
 }
 
-fn constant_value(constant: &ConstantValue) -> Value {
+fn constant_value(vm: &Vm, constant: &ConstantValue) -> Value {
     match constant {
         ConstantValue::Number(number) => Value::from_f64(*number),
         ConstantValue::Boolean(boolean) => Value::from_bool(*boolean),
         ConstantValue::Null => Value::NULL,
         ConstantValue::Undefined => Value::UNDEFINED,
         ConstantValue::Empty => Value::EMPTY,
-        ConstantValue::String(_) => unimplemented_runtime_function("string constants", 0),
-        ConstantValue::BigInt(_) => unimplemented_runtime_function("BigInt constants", 0),
-        ConstantValue::WellKnownSymbol(_) => unimplemented_runtime_function("well-known symbol constants", 0),
+        ConstantValue::String(string) => {
+            Value::from_string(PrimitiveString::create(vm, ak::Utf16String::from_utf16(&string.0)))
+        }
+        ConstantValue::BigInt(literal) => Value::from_bigint(BigInt::create(vm, parse_big_int_literal(literal))),
+        ConstantValue::WellKnownSymbol(WellKnownSymbolKind::SymbolIterator) => {
+            Value::from_symbol(vm.well_known_symbols().iterator)
+        }
+        ConstantValue::WellKnownSymbol(WellKnownSymbolKind::SymbolAsyncIterator) => {
+            Value::from_symbol(vm.well_known_symbols().async_iterator)
+        }
         ConstantValue::AbstractOperation(_) => unimplemented_runtime_function("abstract operation constants", 0),
     }
+}
+
+/// The value of a BigInt literal without its `n` suffix, in any of the radixes a literal can use.
+fn parse_big_int_literal(literal: &str) -> SignedBigInteger {
+    let bytes = literal.as_bytes();
+    let (radix, digits) = match bytes {
+        [b'0', b'x' | b'X', _, ..] => (16, &bytes[2..]),
+        [b'0', b'o' | b'O', _, ..] => (8, &bytes[2..]),
+        [b'0', b'b' | b'B', _, ..] => (2, &bytes[2..]),
+        _ => (10, bytes),
+    };
+    SignedBigInteger::parse_bytes(digits, radix).expect("the frontend only emits valid BigInt literals")
 }
 
 // SAFETY: The constants are the only cells an executable holds so far. The inline caches do not keep the shapes

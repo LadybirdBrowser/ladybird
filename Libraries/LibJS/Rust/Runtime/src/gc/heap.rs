@@ -82,6 +82,17 @@ impl Heap {
         unsafe { capi::gc_heap_collect_garbage(self.raw.as_ptr(), capi::GC_COLLECTION_TYPE_COLLECT_GARBAGE, false) };
     }
 
+    /// Calls `callback` with `context` during every collection, after marking and finalization and before dead cells
+    /// are swept, so that weak holders can drop the cells whose mark is clear.
+    ///
+    /// # Safety
+    ///
+    /// `context` must stay valid for as long as the heap exists, including while it is being destroyed.
+    pub unsafe fn register_sweep_callback(&self, callback: capi::GCCallback, context: *mut c_void) {
+        // SAFETY: The heap is live, and the caller keeps the context alive for its lifetime.
+        unsafe { capi::gc_heap_register_sweep_callback(self.raw.as_ptr(), callback, context) };
+    }
+
     pub fn set_should_collect_on_every_allocation(&self, should_collect: bool) {
         // SAFETY: The heap is live.
         unsafe { capi::gc_heap_set_should_collect_on_every_allocation(self.raw.as_ptr(), should_collect) };
