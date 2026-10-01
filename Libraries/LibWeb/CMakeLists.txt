@@ -170,6 +170,7 @@ set(SOURCES
     CSS/FontComputer.cpp
     CSS/FontFace.cpp
     CSS/FontLoading.cpp
+    CSS/FontResolution.cpp
     CSS/FontFaceSet.cpp
     CSS/FontFaceSetLoadEvent.cpp
     CSS/FontFeatureData.cpp

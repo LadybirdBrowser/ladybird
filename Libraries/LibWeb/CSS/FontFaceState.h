@@ -124,6 +124,8 @@ public:
     bool should_be_registered_with_font_computer() const;
 
     RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size, Gfx::FontVariationSettings const&, Gfx::ShapeFeatures const&) const;
+    // The font this face renders with right now: its typeface while its font-display period has not failed.
+    RefPtr<Gfx::Font const> font_for_rendering(float point_size, Gfx::FontVariationSettings const&, Gfx::ShapeFeatures const&) const;
 
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     bool has_urls() const { return !m_urls.is_empty(); }
