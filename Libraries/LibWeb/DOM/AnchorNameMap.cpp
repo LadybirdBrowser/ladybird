@@ -71,16 +71,4 @@ void AnchorNameMap::publish(Utf16FlyString const& name, Document& document, Opti
         style_nodes.size());
 }
 
-GC::Ptr<Element> AnchorNameMap::last_element_by_name_matching(Utf16FlyString const& name, Function<bool(Element&)> const& is_acceptable) const
-{
-    auto it = m_map.find(name);
-    if (it == m_map.end())
-        return {};
-    for (auto i = it->value.size(); i-- > 0;) {
-        if (is_acceptable(it->value[i]))
-            return it->value[i];
-    }
-    return {};
-}
-
 }

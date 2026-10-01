@@ -369,23 +369,57 @@ struct AnchorCalcCallbackContext<'pass> {
 }
 
 impl AbsposEngine<'_> {
+    /// The box `anchor_name` names for `positioned_box`.
+    ///
+    /// https://drafts.csswg.org/css-shadow-1/#tree-scoped-name
+    /// An anchor name is tree-scoped: the search starts in the tree scope the querying element is
+    /// in, and when that is a shadow tree and nothing acceptable is found there, it continues in the
+    /// tree scope of the shadow host, up to the document tree.
     fn anchor_lookup(&self, positioned_box: Node, anchor_name: usize) -> Option<Node> {
-        let eligible_anchor_shells = self
-            .fragments
-            .as_deref()
-            .map(|fragments| fragments.anchor_candidate_shells(&self.callbacks))
-            .unwrap_or_default();
-        // SAFETY: The name handle is retained by either the style snapshot or
-        let anchor_box = unsafe {
-            (self.callbacks.host.anchor_lookup)(
-                self.callbacks.host.context,
-                self.callbacks.shell(positioned_box),
-                anchor_name,
-                eligible_anchor_shells.as_ptr(),
-                eligible_anchor_shells.len(),
-            )
-        };
-        (!anchor_box.is_invalid()).then_some(anchor_box)
+        let arena = self.callbacks.arena();
+        // A pseudo-element queries from its generator. Any other anonymous box stands for no element
+        // and has no tree scope to search.
+        let querying_element = if arena.node_is_generated_for_pseudo_element(positioned_box) {
+            arena.node_style_node(positioned_box)
+        } else {
+            arena.dom_node_style_node(positioned_box)
+        }?;
+        let containing_block = arena.node_containing_block_if_live(positioned_box)?;
+        let mut scope_host = arena.tree_scope_host(querying_element);
+        loop {
+            let found = arena.last_element_with_anchor_name(scope_host, anchor_name, |&element| {
+                self.anchor_is_acceptable(arena.bound_row(element), positioned_box, containing_block)
+            });
+            if let Some(element) = found {
+                return Some(arena.bound_row(element));
+            }
+            scope_host = arena.tree_scope_host(scope_host?);
+        }
+    }
+
+    /// Whether `anchor_box` may act as the anchor of `positioned_box`: it must have used values
+    /// from this pass, and its containing block chain must reach the positioned box's own.
+    fn anchor_is_acceptable(&self, anchor_box: Node, positioned_box: Node, containing_block: Node) -> bool {
+        let arena = self.callbacks.arena();
+        if anchor_box == positioned_box
+            || !arena
+                .node_kind_if_live(anchor_box)
+                .is_some_and(super::node_facts::kind_is_box)
+            || !self
+                .fragments
+                .as_deref()
+                .is_some_and(|fragments| fragments.find_anchor_candidate(anchor_box).is_some())
+        {
+            return false;
+        }
+        let mut ancestor = arena.node_containing_block_if_live(anchor_box);
+        while let Some(block) = ancestor {
+            if block == containing_block {
+                return true;
+            }
+            ancestor = arena.node_containing_block_if_live(block);
+        }
+        false
     }
 
     fn nearest_scroll_container_ancestor(&self, node: Node) -> Node {

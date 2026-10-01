@@ -1395,6 +1395,32 @@ impl LayoutNodeArena {
         }
     }
 
+    /// The last element in tree order registered under `anchor_name` in the tree scope hosted by
+    /// `scope_host` that `is_acceptable` accepts.
+    pub(crate) fn last_element_with_anchor_name(
+        &self,
+        scope_host: Option<StyleNodeID>,
+        anchor_name: usize,
+        is_acceptable: impl FnMut(&StyleNodeID) -> bool,
+    ) -> Option<StyleNodeID> {
+        let names = self.style_node_tables.anchor_name_elements.borrow();
+        names
+            .get(&ScopedAnchorName {
+                scope_host,
+                name: anchor_name,
+            })?
+            .iter()
+            .rev()
+            .copied()
+            .find(is_acceptable)
+    }
+
+    /// The shadow host of the shadow tree `element` is in, or none in the document tree. A shadow
+    /// root has no layout row, so the tree scope is named by its host.
+    pub(crate) fn tree_scope_host(&self, element: StyleNodeID) -> Option<StyleNodeID> {
+        self.with_style_store(|engine| engine.tree().shadow_host_of(element))
+    }
+
     /// Clears a retired identity from every row still carrying it, and from every table keyed by
     /// it, including rows of a removed subtree that outlive the element's disconnection.
     pub(crate) fn forget_style_node(&self, style_node: StyleNodeID) {
@@ -5050,6 +5076,22 @@ mod tests {
 
         arena.set_anchor_name_elements(None, name, std::iter::empty());
         assert!(arena.style_node_tables.anchor_name_elements.borrow().is_empty());
+    }
+
+    #[test]
+    fn an_anchor_name_answers_the_last_acceptable_element_of_its_tree_scope() {
+        use crate::css::style::tree::StyleNodeID;
+        let arena = LayoutNodeArena::new();
+        let [first, second, third] = [7, 8, 9].map(StyleNodeID::element);
+        let name = 0x2000;
+        arena.set_anchor_name_elements(None, name, [first, second, third].into_iter());
+        assert_eq!(arena.last_element_with_anchor_name(None, name, |_| true), Some(third));
+        assert_eq!(
+            arena.last_element_with_anchor_name(None, name, |&element| element != third),
+            Some(second)
+        );
+        assert_eq!(arena.last_element_with_anchor_name(Some(first), name, |_| true), None);
+        assert_eq!(arena.last_element_with_anchor_name(None, name + 1, |_| true), None);
     }
 
     #[test]
