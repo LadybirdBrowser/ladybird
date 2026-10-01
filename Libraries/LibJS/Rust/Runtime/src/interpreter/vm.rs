@@ -7,6 +7,7 @@
 use core::cell::{Cell, OnceCell, RefCell};
 use core::ffi::c_void;
 use core::ptr::NonNull;
+use std::collections::HashMap;
 
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
@@ -16,19 +17,33 @@ use crate::build_configuration::VM_STACK_SPACE_LIMIT;
 use crate::bytecode::executable::{
     Executable, PropertyLookupCache, StaticPropertyLookupCacheSite, StaticPropertyLookupCaches,
 };
+use crate::bytecode::property_access::Strict;
 use crate::gc::capi::{self, GCVisitor};
 use crate::gc::heap::{Heap, cell_is_dead};
 use crate::gc::root::RootSet;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::layout::cell::Gc;
-use crate::layout::execution_context::ExecutionContext;
-use crate::layout::function_object::NativeFunctionTableEntry;
+use crate::layout::environment::Environment;
+use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
+use crate::layout::function_object::{FunctionObject, NativeFunctionTableEntry, NativeFunctionType};
 use crate::layout::object::Object;
 use crate::layout::realm::Realm;
+use crate::layout::value::Value;
 use crate::layout::vm::{InterpreterStack, VmHead};
+use crate::layout_forward::RawNativeFunctionPointer;
+use crate::runtime::abstract_operations::get_this_environment;
 use crate::runtime::common_property_names::CommonPropertyNames;
 use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::declarative_environment::DeclarativeEnvironment;
+use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
+use crate::runtime::environment_coordinate::EnvironmentCoordinate;
+use crate::runtime::error::ErrorKind;
+use crate::runtime::error_types::ErrorType;
+use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::primitive_string::PrimitiveString;
+use crate::runtime::property_key::PropertyKey;
+use crate::runtime::reference::{BaseType, Reference};
+use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::symbol::{self, Symbol, enumerate_well_known_symbols};
 
 /// HostEnsureCanAddPrivateElement, which hosts that are web browsers may override.
@@ -116,6 +131,8 @@ pub struct Vm {
     /// The context that was running when each context on the stack was pushed.
     previous_running_execution_contexts: RefCell<Vec<*mut ExecutionContext>>,
     native_function_table: RefCell<Vec<NativeFunctionTableEntry>>,
+    /// The index of each function in the native function table, by its address and type.
+    native_function_indices: RefCell<HashMap<(usize, u32), u32>>,
     roots: RootSet,
 
     pub names: CommonPropertyNames,
@@ -164,6 +181,7 @@ impl Vm {
             execution_context_stack: RefCell::new(Vec::new()),
             previous_running_execution_contexts: RefCell::new(Vec::new()),
             native_function_table: RefCell::new(native_function_table),
+            native_function_indices: RefCell::new(HashMap::new()),
             roots: RootSet::default(),
             names: CommonPropertyNames::new(),
             string_to_atom_cache: RefCell::default(),
@@ -412,10 +430,220 @@ impl Vm {
     }
 
     pub fn register_native_function(&self, entry: NativeFunctionTableEntry) -> u32 {
+        let function = entry.function.expect("a native function has a function pointer");
+        let key = (function as usize, entry.function_type as u32);
+        if let Some(index) = self.native_function_indices.borrow().get(&key) {
+            return *index;
+        }
+
         let mut table = self.native_function_table.borrow_mut();
+        assert!(table.len() < u32::MAX as usize);
+        let index = u32::try_from(table.len()).expect("native function index fits in u32");
         table.push(entry);
+        self.native_function_indices.borrow_mut().insert(key, index);
         self.head.native_function_table_data.set(table.as_ptr());
-        u32::try_from(table.len() - 1).expect("native function index fits in u32")
+        index
+    }
+
+    pub fn native_function(&self, index: u32, expected_type: NativeFunctionType) -> RawNativeFunctionPointer {
+        let table = self.native_function_table.borrow();
+        let entry = &table[index as usize];
+        assert!(entry.function_type == expected_type);
+        assert!(entry.function.is_some());
+        entry.function
+    }
+
+    /// Pushes `context`, unless so little of the native stack is left that the next call could overflow it.
+    pub fn push_execution_context_checking_stack_space(
+        &self,
+        context: NonNull<ExecutionContext>,
+    ) -> ThrowCompletionOr<()> {
+        // Ensure we got some stack space left, so the next function call doesn't kill us.
+        if self.did_reach_stack_space_limit() {
+            return self.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+        }
+        self.push_execution_context(context);
+        Ok(())
+    }
+
+    // 9.4.1 GetActiveScriptOrModule ( ), https://tc39.es/ecma262/#sec-getactivescriptormodule
+    pub fn get_active_script_or_module(&self) -> ScriptOrModule {
+        // 1. If the execution context stack is empty, return null.
+        if self.running_execution_context().is_none() {
+            return ScriptOrModule::Empty;
+        }
+
+        // 2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
+        let mut script_or_module = ScriptOrModule::Empty;
+        self.for_each_execution_context_top_to_bottom(|execution_context| {
+            if matches!(script_or_module, ScriptOrModule::Empty) {
+                script_or_module = execution_context.script_or_module.get();
+            }
+        });
+
+        // 3. If no such execution context exists, return null. Otherwise, return ec's ScriptOrModule.
+        script_or_module
+    }
+
+    fn running_execution_context_ref(&self) -> &ExecutionContext {
+        let context = self
+            .running_execution_context()
+            .expect("there is a running execution context");
+        // SAFETY: The running execution context is live while it runs, which outlasts any use of this reference by
+        // the code running in it.
+        unsafe { context.as_ref() }
+    }
+
+    /// The number of arguments the running execution context has slots for.
+    pub fn argument_count(&self) -> usize {
+        self.running_execution_context_ref().argument_count.get() as usize
+    }
+
+    pub fn argument(&self, index: usize) -> Value {
+        self.running_execution_context_ref().argument(index)
+    }
+
+    pub fn this_value(&self) -> Value {
+        let this_value = self.running_execution_context_ref().this_value.get();
+        assert!(!this_value.is_empty(), "the running execution context has a this value");
+        this_value
+    }
+
+    pub fn lexical_environment(&self) -> Option<Gc<Environment>> {
+        self.running_execution_context_ref().lexical_environment.get()
+    }
+
+    pub fn active_function_object(&self) -> Option<Gc<FunctionObject>> {
+        self.running_execution_context_ref().function.get()
+    }
+
+    pub fn active_shared_function_data(&self) -> Option<Gc<SharedFunctionInstanceData>> {
+        let function = self.active_function_object()?;
+        // NB: NativeJavaScriptBackedFunction has shared data as well, once the runtime has it.
+        as_ecmascript_function_object(function).map(|function| function.shared_data())
+    }
+}
+
+impl Vm {
+    pub fn execution_context_stack_is_empty(&self) -> bool {
+        self.execution_context_stack.borrow().is_empty()
+    }
+
+    pub fn variable_environment(&self) -> Option<Gc<Environment>> {
+        self.running_execution_context_ref().variable_environment.get()
+    }
+
+    /// The Realm of the running execution context, which C++ VM::realm() dereferences.
+    fn running_realm(&self) -> Gc<Realm> {
+        self.current_realm().expect("the running execution context has a realm")
+    }
+
+    pub fn global_object(&self) -> Gc<Object> {
+        self.running_realm().global_object()
+    }
+
+    pub fn global_declarative_environment(&self) -> Gc<DeclarativeEnvironment> {
+        self.running_realm().global_declarative_environment()
+    }
+
+    // 9.1.2.1 GetIdentifierReference ( env, name, strict ), https://tc39.es/ecma262/#sec-getidentifierreference
+    pub fn get_identifier_reference(
+        &self,
+        environment: Option<Gc<Environment>>,
+        name: Utf16FlyString,
+        strict: Strict,
+        hops: usize,
+    ) -> ThrowCompletionOr<Reference> {
+        // 1. If env is the value null, then
+        let Some(environment) = environment else {
+            // a. Return the Reference Record { [[Base]]: unresolvable, [[ReferencedName]]: name, [[Strict]]: strict, [[ThisValue]]: empty }.
+            return Ok(Reference::with_base_type(
+                BaseType::Unresolvable,
+                PropertyKey::from(name),
+                strict,
+            ));
+        };
+
+        // 2. Let exists be ? env.HasBinding(name).
+        let mut index = None;
+        let exists = environment.has_binding(self, &name, Some(&mut index))?;
+
+        // Note: This is an optimization for looking up the same reference.
+        let environment_coordinate = index.map(|index| EnvironmentCoordinate {
+            hops: u32::try_from(hops).expect("the hop count fits in u32"),
+            index: u32::try_from(index).expect("the binding index fits in u32"),
+        });
+
+        // 3. If exists is true, then
+        if exists {
+            // a. Return the Reference Record { [[Base]]: env, [[ReferencedName]]: name, [[Strict]]: strict, [[ThisValue]]: empty }.
+            return Ok(Reference::with_base_environment(
+                environment,
+                name,
+                strict,
+                environment_coordinate,
+            ));
+        }
+        // 4. Else,
+        // a. Let outer be env.[[OuterEnv]].
+        // b. Return ? GetIdentifierReference(outer, name, strict).
+        self.get_identifier_reference(environment.outer_environment(), name, strict, hops + 1)
+    }
+
+    // 9.4.2 ResolveBinding ( name [ , env ] ), https://tc39.es/ecma262/#sec-resolvebinding
+    pub fn resolve_binding(
+        &self,
+        name: &Utf16FlyString,
+        strict: Strict,
+        environment: Option<Gc<Environment>>,
+    ) -> ThrowCompletionOr<Reference> {
+        // 1. If env is not present or if env is undefined, then
+        //     a. Set env to the running execution context's LexicalEnvironment.
+        let environment = environment.or_else(|| self.lexical_environment());
+
+        // 2. Assert: env is an Environment Record.
+        let environment = environment.expect("ResolveBinding has an environment to resolve in");
+
+        // 3. If the source text matched by the syntactic production that is being evaluated is contained in strict mode code, let strict be true; else let strict be false.
+        // NOTE: We take this as a parameter.
+
+        // 4. Return ? GetIdentifierReference(env, name, strict).
+        self.get_identifier_reference(Some(environment), name.clone(), strict, 0)
+
+        // NOTE: The spec says:
+        //       Note: The result of ResolveBinding is always a Reference Record whose [[ReferencedName]] field is name.
+        //       But this is not actually correct as GetIdentifierReference (or really the methods it calls) can throw.
+    }
+
+    // 9.4.4 ResolveThisBinding ( ), https://tc39.es/ecma262/#sec-resolvethisbinding
+    pub fn resolve_this_binding(&self) -> ThrowCompletionOr<Value> {
+        // 1. Let envRec be GetThisEnvironment().
+        let environment = get_this_environment(self);
+
+        // 2. Return ? envRec.GetThisBinding().
+        environment.get_this_binding(self)
+    }
+
+    // 9.4.5 GetNewTarget ( ), https://tc39.es/ecma262/#sec-getnewtarget
+    pub fn get_new_target(&self) -> Value {
+        // 1. Let envRec be GetThisEnvironment().
+        let environment = get_this_environment(self);
+
+        // 2. Assert: envRec has a [[NewTarget]] field.
+        // 3. Return envRec.[[NewTarget]].
+        environment
+            .downcast::<FunctionEnvironment>()
+            .expect("the this environment of new.target is a function environment")
+            .new_target()
+    }
+
+    // 9.4.5 GetGlobalObject ( ), https://tc39.es/ecma262/#sec-getglobalobject
+    pub fn get_global_object(&self) -> Gc<Object> {
+        // 1. Let currentRealm be the current Realm Record.
+        let current_realm = self.current_realm().expect("there is a current realm");
+
+        // 2. Return currentRealm.[[GlobalObject]].
+        current_realm.global_object()
     }
 }
 

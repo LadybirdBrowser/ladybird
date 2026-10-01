@@ -16,6 +16,7 @@ use crate::parser_error::ParserError;
 use crate::runtime::print::{PrintContext, print_value};
 use crate::script::Script;
 use crate::utf16::utf16_from_wtf8;
+use crate::utilities::initialize_realm_without_intrinsics;
 use libjs_rust::ast::ProgramType;
 use libjs_rust::compile::parse;
 
@@ -107,17 +108,18 @@ fn run(options: &Options, output: &mut impl Write) -> c_int {
     if options.as_module {
         unimplemented_runtime_function("running modules", 0);
     }
-    let script = Script::compile_parsed_program(parsed, source.len());
-
     let vm = Vm::create();
     if options.gc_on_every_allocation {
         vm.heap().set_should_collect_on_every_allocation(true);
     }
+    let realm = initialize_realm_without_intrinsics(&vm);
+    let script = Script::compile_parsed_program(&vm, parsed, &source, realm);
+
     let print_context = PrintContext {
         strip_ansi: options.disable_ansi_colors,
         raw_strings: options.raw_strings,
     };
-    match vm.run_script(script) {
+    match vm.run_script(script, None) {
         Ok(value) => {
             if options.print_last_result {
                 let mut text = String::new();

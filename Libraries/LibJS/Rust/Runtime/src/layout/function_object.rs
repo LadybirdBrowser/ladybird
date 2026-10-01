@@ -28,6 +28,8 @@ pub struct FunctionObject {
 #[repr(C)]
 pub struct NativeFunction {
     pub base: FunctionObject,
+    /// The name call stacks show, which only some native functions have.
+    pub name: FlyStringSlot,
     pub initial_name: FlyStringSlot,
     pub realm: Cell<Gc<Realm>>,
 }
