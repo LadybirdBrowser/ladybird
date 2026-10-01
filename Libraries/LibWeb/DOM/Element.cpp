@@ -58,7 +58,6 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
@@ -3724,9 +3723,22 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     auto old_style_node_id = m_style_node_id;
     m_style_node_id = style_node_id;
     Layout::Node::dom_node_style_node_changed(*this, old_style_node_id);
+    // An element keeps the random base values of its own keys for its whole life: it holds them while it has no style
+    // node, and its next one takes them back.
+    auto& style_engine = document().style_computer().style_engine();
+    if (style_node_id == 0) {
+        RareData::RandomBaseValues values;
+        style_engine.element_random_base_values(old_style_node_id, values.name_lengths, values.name_units, values.value_bits);
+        if (!values.value_bits.is_empty())
+            ensure_element_rare_data().random_base_values_without_style_node = move(values);
+    } else if (auto* rare_data = element_rare_data(); rare_data && !rare_data->random_base_values_without_style_node.value_bits.is_empty()) {
+        auto values = move(rare_data->random_base_values_without_style_node);
+        rare_data->random_base_values_without_style_node = {};
+        style_engine.set_element_random_base_values(style_node_id, values.name_lengths, values.name_units, values.value_bits);
+    }
     // A newly minted identity holds none of what the element held under its previous one.
     if (style_node_id != 0 && !!m_style_record_identity) {
-        document().style_computer().style_engine().set_held_style_record(style_node_id, m_style_record_identity);
+        style_engine.set_held_style_record(style_node_id, m_style_record_identity);
         publish_var_reads();
     }
 }
@@ -7205,19 +7217,6 @@ GC::Ref<CSS::StylePropertyMapReadOnly> Element::computed_style_map()
 
     // 2. Return this’s [[computedStyleMapCache]] internal slot.
     return *computed_style_map_cache;
-}
-
-double Element::ensure_css_random_base_value(CSS::RandomCachingKey const& random_caching_key)
-{
-    // NB: We cache element-shared random base values on the Document and non-element-shared ones on the Element itself
-    //     so that when an element is removed it takes its non-shared cache with it.
-    if (!random_caching_key.element_id.has_value())
-        return document().ensure_element_shared_css_random_base_value(random_caching_key);
-
-    return ensure_element_rare_data().element_specific_css_random_base_value_cache.ensure(random_caching_key, []() {
-        static XorShift128PlusRNG random_number_generator;
-        return random_number_generator.get();
-    });
 }
 
 WebIDL::ExceptionOr<void> Element::request_pointer_lock(PointerLockOptions const&)

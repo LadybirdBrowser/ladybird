@@ -80,6 +80,13 @@ public:
 
 #include <LibWeb/StyleEngineBridgeGenerated.h>
 
+    // https://drafts.csswg.org/css-values-5/#random-caching
+    // The random base value of a random caching key: the name, and the element unless the sharing is element-shared.
+    [[nodiscard]] double ensure_random_base_value(StyleNodeID, Utf16View name, bool element_shared);
+    // The random base values of the keys that name an element, as one buffer of name code units with a length and a
+    // value per name.
+    void element_random_base_values(StyleNodeID, Vector<u32>& name_lengths, Vector<u16>& name_units, Vector<u64>& value_bits) const;
+
     // Identity 0 is never returned; it means "no node".
     StyleNodeID allocate_style_node();
     void allocate_style_nodes(Span<StyleNodeID> nodes);

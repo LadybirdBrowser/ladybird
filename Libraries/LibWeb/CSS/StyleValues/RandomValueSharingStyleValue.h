@@ -11,11 +11,6 @@
 
 namespace Web::CSS {
 
-struct RandomCachingKey {
-    Utf16FlyString name;
-    Optional<Web::UniqueNodeID> element_id;
-};
-
 class RandomValueSharingStyleValue : public StyleValueWithDefaultOperators<RandomValueSharingStyleValue> {
 public:
     static ValueComparingNonnullRefPtr<RandomValueSharingStyleValue const> create_fixed(NonnullRefPtr<StyleValue const> const& fixed_value)
@@ -58,26 +53,6 @@ private:
         return css_string_from_rust(&m_value->random_value_sharing.name);
     }
     bool element_shared() const { return m_value->random_value_sharing.element_shared; }
-};
-
-}
-
-namespace AK {
-
-template<>
-struct Traits<Web::CSS::RandomCachingKey> : public DefaultTraits<Web::CSS::RandomCachingKey> {
-    static unsigned hash(Web::CSS::RandomCachingKey const& key)
-    {
-        if (!key.element_id.has_value())
-            return key.name.hash();
-
-        return pair_int_hash(key.name.hash(), Traits<i64>::hash(key.element_id->value()));
-    }
-
-    static bool equals(Web::CSS::RandomCachingKey const& a, Web::CSS::RandomCachingKey const& b)
-    {
-        return a.element_id == b.element_id && a.name == b.name;
-    }
 };
 
 }
