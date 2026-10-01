@@ -611,7 +611,13 @@ public:
             publish_style_recomputes_on_environment_move();
     }
     bool style_depends_on_size_container_query() const { return m_style_depends_on_size_container_query; }
-    void set_style_depends_on_size_container_query() { m_style_depends_on_size_container_query = true; }
+    void set_style_depends_on_size_container_query()
+    {
+        if (m_style_depends_on_size_container_query)
+            return;
+        m_style_depends_on_size_container_query = true;
+        publish_size_container_query_facts();
+    }
     bool style_depends_on_style_container_query() const { return m_style_depends_on_style_container_query; }
     void set_style_depends_on_style_container_query()
     {
@@ -637,7 +643,16 @@ public:
     void set_is_style_query_container() { m_is_style_query_container = true; }
     bool is_style_query_container() const { return m_is_style_query_container; }
     bool is_size_query_container() const { return m_is_size_query_container; }
-    void set_is_size_query_container() { m_is_size_query_container = true; }
+    void set_is_size_query_container()
+    {
+        if (m_is_size_query_container)
+            return;
+        m_is_size_query_container = true;
+        publish_size_container_query_facts();
+    }
+    // Tell the style engine what this element's styles asked of size query containers, which is what
+    // finds the dependents a container's new box moves.
+    void publish_size_container_query_facts();
     void invalidate_descendant_styles_depending_on_style_container_query();
 
     bool child_style_uses_tree_counting_function() const { return m_child_style_uses_tree_counting_function; }

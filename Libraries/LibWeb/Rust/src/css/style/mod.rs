@@ -154,6 +154,7 @@ pub mod selector_evaluation;
 mod shareable;
 mod shared_vector;
 mod sheet_occurrences;
+mod size_container_invalidation;
 mod specified_value;
 pub mod transaction;
 mod transaction_view;
@@ -877,6 +878,9 @@ pub struct RetainedState {
     /// What the last layout commit and scroll state say of each container's box, for the
     /// container queries that ask about it: a size container's, and a scroll-state container's.
     layout_style_snapshots: HashMap<StyleNodeID, crate::layout::style_snapshot::LayoutStyleSnapshotRow>,
+    /// What the host learned about size container queries, which finds the elements a size
+    /// query container's new box moves.
+    size_container_queries: size_container_invalidation::SizeContainerQueryFacts,
     /// The counter-style registry each tree scope's style scope has, as one identity per scope:
     /// what a record whose `list-style-type` names a counter style the registry may define names,
     /// so that an edit to `@counter-style` moves it.

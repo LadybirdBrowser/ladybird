@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #scroller { container-type: scroll-state; overflow: auto; width: 100px; height: 100px }
+    #filler { height: 300px }
+    @container scroll-state(scrollable: y) {
+        #dependent { color: rgb(1, 2, 3) }
+    }
+</style>
+<div id="from"><div id="scroller"><div id="filler"><span></span><span></span><span id="dependent"></span></div></div></div>
+<div id="to"></div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+        const filler = document.getElementById("filler");
+        const dependent = document.getElementById("dependent");
+        await animationFrame();
+        await animationFrame();
+        println(`dependent before the move: ${getComputedStyle(dependent).color}`);
+
+        // A moved container has a new identity, under which its scroll state is published again
+        // once the next layout has snapshotted it. The state itself did not change, so nothing
+        // that read it did either, and the container's subtree is not walked for dependents.
+        dependent.remove();
+        document.getElementById("to").appendChild(scroller);
+        internals.resetStyleInvalidationCounters();
+        await animationFrame();
+        await animationFrame();
+        println(`elements walked after moving the container: ${internals.getStyleInvalidationCounters().sizeQueryContainerScanVisits}`);
+
+        // A query asking about the container now reads the state published under its new identity.
+        filler.appendChild(dependent);
+        println(`dependent after the move: ${getComputedStyle(dependent).color}`);
+    });
+</script>

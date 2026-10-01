@@ -508,6 +508,24 @@ void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID st
     record_flat_tree_descendant_style_inputs(style_node, reaction, inherited_style_groups);
 }
 
+void StyleEngine::record_size_container_query_dependents(StyleNodeID container)
+{
+    if (container == 0)
+        return;
+    flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
+    request_frame_for_first_recorded_input(*this, m_style_computer);
+    record_size_container_query_dependent_inputs(container);
+}
+
+void StyleEngine::evaluate_size_containers_needing_evaluation_after_layout()
+{
+    if (!has_size_containers_needing_evaluation_after_layout())
+        return;
+    flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
+    request_frame_for_first_recorded_input(*this, m_style_computer);
+    record_dependent_inputs_of_size_containers_needing_evaluation_after_layout();
+}
+
 Vector<StyleNodeID> StyleEngine::viewport_dependent_style_nodes()
 {
     auto view = StyleEngineFFI::style_engine_viewport_dependent_nodes(m_impl);

@@ -987,6 +987,56 @@ fn flat_tree_descendant_collection_follows_shadow_and_slot_relations() {
 }
 
 #[test]
+fn size_container_dependents_are_found_along_the_flat_tree() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 7];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)).collect();
+    let [host, assigned, unassigned, shadow_root, wrapper, slot, assigned_child]: [StyleNodeID; 7] =
+        std::array::from_fn(|index| nodes[index]);
+
+    engine.tree.set_first_element_child(host, Some(assigned));
+    engine.tree.set_parent(assigned, Some(host));
+    engine.tree.set_next_element_sibling(assigned, Some(unassigned));
+    engine.tree.set_previous_element_sibling(unassigned, Some(assigned));
+    engine.tree.set_parent(unassigned, Some(host));
+    engine.tree.set_first_element_child(shadow_root, Some(wrapper));
+    engine.tree.set_parent(wrapper, Some(shadow_root));
+    engine.tree.set_first_element_child(wrapper, Some(slot));
+    engine.tree.set_parent(slot, Some(wrapper));
+    engine.tree.set_first_element_child(assigned, Some(assigned_child));
+    engine.tree.set_parent(assigned_child, Some(assigned));
+    let retained = &mut engine.state.retained;
+    retained.tree.set_shadow_root(host, shadow_root, &mut retained.memory);
+    retained
+        .tree
+        .set_assigned_slot(assigned, Some(slot), &mut retained.memory);
+    retained
+        .tree
+        .set_assigned_nodes(slot, &[assigned], &mut retained.memory);
+
+    // The host is the container: its shadow tree, and the light child its slot renders, are what
+    // the container's box decides. Its light child no slot takes is in no box below it.
+    engine.set_element_size_container_query_facts(host, true, false);
+    for dependent in [slot, assigned_child, unassigned] {
+        engine.set_element_size_container_query_facts(dependent, false, true);
+    }
+    engine.record_size_container_query_dependents(host);
+
+    assert_eq!(engine.size_query_container_scan_visits(true), 4);
+    let recorded = &engine.state.retained.style_input_nodes_for_cpp;
+    assert!(recorded.contains(&slot));
+    assert!(recorded.contains(&assigned_child));
+    assert!(!recorded.contains(&unassigned));
+    assert!(!recorded.contains(&wrapper));
+
+    // A container nothing asked about has no dependents to find.
+    engine.set_element_size_container_query_facts(host, false, false);
+    engine.record_size_container_query_dependents(host);
+    assert_eq!(engine.size_query_container_scan_visits(true), 0);
+}
+
+#[test]
 fn delta_batch_keeps_singletons_inline_and_consolidates_larger_batches() {
     let mut batch = DeltaBatch::default();
     batch.push(2_u32);

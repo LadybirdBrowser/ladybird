@@ -871,6 +871,7 @@ public:
     }
     void set_needs_registered_properties_cache_update() { m_needs_registered_properties_cache_update = true; }
     void set_needs_container_query_evaluation_after_layout(Element const& query_container);
+    [[nodiscard]] bool has_size_containers_needing_evaluation_after_layout() const;
 
     [[nodiscard]] bool needs_full_layout_tree_update() const;
     void set_needs_full_layout_tree_update(bool);
@@ -1170,7 +1171,6 @@ public:
         u64 registered_properties_cache_rebuilds { 0 };
         u64 scope_rule_cache_builds { 0 };
         u64 style_query_container_scans { 0 };
-        u64 size_query_container_scan_visits { 0 };
         u64 style_engine_transaction_setups { 0 };
         u64 style_engine_transaction_setup_microseconds { 0 };
         // Exclusive intervals within style_update_microseconds. Rust phases subdivide bridge.
@@ -1790,7 +1790,6 @@ private:
     GC::WeakHashSet<Element> m_elements_with_dirty_style_attributes;
     GC::WeakHashSet<Element> m_elements_with_viewport_dependent_style;
     bool m_suppresses_attribute_style_invalidation { false };
-    HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;
     CSS::ScrollStateQueryContainers m_scroll_state_query_containers;
 
     bool m_is_decoded_svg { false };
