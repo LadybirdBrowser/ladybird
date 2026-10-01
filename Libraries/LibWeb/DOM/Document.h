@@ -1313,6 +1313,10 @@ public:
         set_needs_repaint(should_invalidate_display_list);
     }
 
+    // A repaint mark the journal holds applies its damage when the journal drains, but the frame that drains it has to
+    // be asked for when the mark is made.
+    void request_frame_for_pending_repaint(Badge<InvalidationJournal>) { request_frame_for_pending_repaint(); }
+
     RefPtr<Compositing::DisplayList> record_display_list(HTML::PaintConfig, Compositing::DisplayListResourceStorage&, Painting::PaintCommandCacheMode);
     Painting::HitTestDisplayList const* hit_test_display_list() const { return m_hit_test_display_list.ptr(); }
     Painting::HitTestDisplayList const* ensure_hit_test_display_list();

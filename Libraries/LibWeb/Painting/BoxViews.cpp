@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
@@ -801,7 +802,25 @@ public:
     }
 };
 
+DOM::NodeIdentity journal_identity_of(Layout::Node const& node)
+{
+    auto identity = node.dom_node_identity();
+    if (!identity || identity.bound_layout_node(node.node_arena()) != &node)
+        return {};
+    return identity;
+}
+
 void set_needs_repaint(Layout::Node const& node, InvalidateDisplayList should_invalidate_display_list)
+{
+    if (!has_committed_box(node))
+        return;
+    if (auto identity = journal_identity_of(node))
+        const_cast<DOM::Document&>(node.document()).invalidation_journal().note_needs_repaint(identity, should_invalidate_display_list);
+    else
+        apply_repaint_damage(node, should_invalidate_display_list);
+}
+
+void apply_repaint_damage(Layout::Node const& node, InvalidateDisplayList should_invalidate_display_list)
 {
     if (!has_committed_box(node))
         return;
@@ -822,12 +841,32 @@ void set_needs_repaint(Layout::Node const& node, InvalidateDisplayList should_in
     BoxViewRepaintAccess::set_document_needs_repaint(document, should_invalidate_display_list);
 }
 
+void apply_text_repaint_damage(Layout::TextNode const& node, InvalidateDisplayList should_invalidate_display_list)
+{
+    if (auto* containing_block = node.containing_block())
+        apply_repaint_damage(*containing_block, should_invalidate_display_list);
+
+    if (should_invalidate_display_list != InvalidateDisplayList::No)
+        Layout::RustFFI::layout_arena_invalidate_nearest_self_painting_inline_paint_cache(node.arena_handle(), Layout::Node::slot_id(&node));
+}
+
 void set_needs_repaint_in_subtree(Layout::Node const& node)
 {
     if (!has_committed_box(node))
         return;
+    if (auto identity = journal_identity_of(node)) {
+        const_cast<DOM::Document&>(node.document()).invalidation_journal().note_needs_repaint_in_subtree(identity);
+        return;
+    }
+    apply_subtree_repaint_damage(node);
+    apply_repaint_damage(node, InvalidateDisplayList::PaintCommandsAndHitTestList);
+}
+
+void apply_subtree_repaint_damage(Layout::Node const& node)
+{
+    if (!has_committed_box(node))
+        return;
     Layout::RustFFI::layout_arena_paintable_invalidate_subtree_for_repaint(node.arena_handle(), committed_row_slot(node));
-    set_needs_repaint(node);
 }
 
 void invalidate_paint_cache(Layout::Node const& node)

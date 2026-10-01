@@ -86,8 +86,17 @@ WEB_API Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(DOM:
 WEB_API void push_selection_pseudo_style(DOM::Element const&);
 WEB_API void push_selection_pseudo_style_of_parent(Layout::TextNode&);
 
+// The identity a mark on this box goes into the document's invalidation journal under: its node's, if the box is the one
+// the layout node arena binds to that node. Any other box (anonymous, generated for a pseudo-element, or one of several
+// built for one node) has nothing an entry could name, so a mark on it is applied at once.
+WEB_API DOM::NodeIdentity journal_identity_of(Layout::Node const&);
+
+// These note the mark in the invalidation journal, which applies it with the apply_* functions below when it drains.
 WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList);
 WEB_API void set_needs_repaint_in_subtree(Layout::Node const&);
+WEB_API void apply_repaint_damage(Layout::Node const&, InvalidateDisplayList);
+WEB_API void apply_text_repaint_damage(Layout::TextNode const&, InvalidateDisplayList);
+WEB_API void apply_subtree_repaint_damage(Layout::Node const&);
 WEB_API void invalidate_paint_cache(Layout::Node const&);
 WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);
 

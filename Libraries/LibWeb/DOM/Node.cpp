@@ -3782,14 +3782,9 @@ Layout::Node const* Node::unsafe_layout_node() const
 
 void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
-    if (auto* layout_node = unsafe_layout_node()) {
-        if (auto* text_node = as_if<Layout::TextNode>(*layout_node)) {
-            text_node->set_needs_repaint(should_invalidate_display_list);
-            return;
-        }
-        if (Painting::has_committed_box(*layout_node))
-            Painting::set_needs_repaint(*layout_node, should_invalidate_display_list);
-    }
+    // A node without a box has nothing to repaint.
+    if (auto identity = identity_of_box_owner(*this))
+        document().invalidation_journal().note_needs_repaint(identity, should_invalidate_display_list);
 }
 
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
