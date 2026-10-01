@@ -899,6 +899,329 @@ impl RuntimeFunctions for Runtime {
         calls::create_arguments(vm, pc, instruction, values)
     }
 
+    fn stack_overflow(vm: &Vm, pc: u32) -> SlowPathControl {
+        calls::stack_overflow(vm, pc)
+    }
+
+    fn get_super_constructor(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::GetSuperConstructor,
+        values: &mut op::GetSuperConstructorValues,
+    ) -> SlowPathControl {
+        calls::get_super_constructor(vm, pc, values)
+    }
+
+    fn new_class(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::NewClass,
+        values: &mut op::NewClassValues,
+        element_keys: &mut [Value],
+    ) -> SlowPathControl {
+        calls::new_class(vm, pc, instruction, values, element_keys)
+    }
+
+    fn call(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::Call,
+        values: &mut op::CallValues,
+        arguments: &mut [Value],
+    ) -> SlowPathControl {
+        calls::call(vm, pc, instruction, values, arguments)
+    }
+
+    fn call_direct_eval(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallDirectEval,
+        values: &mut op::CallDirectEvalValues,
+        arguments: &mut [Value],
+    ) -> SlowPathControl {
+        calls::call_direct_eval(vm, pc, instruction, values, arguments)
+    }
+
+    fn call_with_argument_array(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallWithArgumentArray,
+        values: &mut op::CallWithArgumentArrayValues,
+    ) -> SlowPathControl {
+        calls::call_with_argument_array(vm, pc, instruction, values)
+    }
+
+    fn call_direct_eval_with_argument_array(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallDirectEvalWithArgumentArray,
+        values: &mut op::CallDirectEvalWithArgumentArrayValues,
+    ) -> SlowPathControl {
+        calls::call_direct_eval_with_argument_array(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_abs(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathAbs,
+        values: &mut op::CallBuiltinMathAbsValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_abs(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_log(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathLog,
+        values: &mut op::CallBuiltinMathLogValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_log(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_pow(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathPow,
+        values: &mut op::CallBuiltinMathPowValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_pow(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_exp(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathExp,
+        values: &mut op::CallBuiltinMathExpValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_exp(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_ceil(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathCeil,
+        values: &mut op::CallBuiltinMathCeilValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_ceil(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_floor(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathFloor,
+        values: &mut op::CallBuiltinMathFloorValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_floor(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_imul(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathImul,
+        values: &mut op::CallBuiltinMathImulValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_imul(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_random(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathRandom,
+        values: &mut op::CallBuiltinMathRandomValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_random(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_round(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathRound,
+        values: &mut op::CallBuiltinMathRoundValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_round(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_sqrt(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathSqrt,
+        values: &mut op::CallBuiltinMathSqrtValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_sqrt(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_sin(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathSin,
+        values: &mut op::CallBuiltinMathSinValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_sin(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_cos(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathCos,
+        values: &mut op::CallBuiltinMathCosValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_cos(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_math_tan(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMathTan,
+        values: &mut op::CallBuiltinMathTanValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_math_tan(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_regexp_prototype_exec(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinRegExpPrototypeExec,
+        values: &mut op::CallBuiltinRegExpPrototypeExecValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_regexp_prototype_exec(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_regexp_prototype_replace(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinRegExpPrototypeReplace,
+        values: &mut op::CallBuiltinRegExpPrototypeReplaceValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_regexp_prototype_replace(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_regexp_prototype_split(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinRegExpPrototypeSplit,
+        values: &mut op::CallBuiltinRegExpPrototypeSplitValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_regexp_prototype_split(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_ordinary_has_instance(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinOrdinaryHasInstance,
+        values: &mut op::CallBuiltinOrdinaryHasInstanceValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_ordinary_has_instance(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_array_iterator_prototype_next(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinArrayIteratorPrototypeNext,
+        values: &mut op::CallBuiltinArrayIteratorPrototypeNextValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_array_iterator_prototype_next(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_map_iterator_prototype_next(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinMapIteratorPrototypeNext,
+        values: &mut op::CallBuiltinMapIteratorPrototypeNextValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_map_iterator_prototype_next(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_set_iterator_prototype_next(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinSetIteratorPrototypeNext,
+        values: &mut op::CallBuiltinSetIteratorPrototypeNextValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_set_iterator_prototype_next(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_string_iterator_prototype_next(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinStringIteratorPrototypeNext,
+        values: &mut op::CallBuiltinStringIteratorPrototypeNextValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_string_iterator_prototype_next(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_string_from_char_code(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinStringFromCharCode,
+        values: &mut op::CallBuiltinStringFromCharCodeValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_string_from_char_code(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_string_prototype_char_code_at(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinStringPrototypeCharCodeAt,
+        values: &mut op::CallBuiltinStringPrototypeCharCodeAtValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_string_prototype_char_code_at(vm, pc, instruction, values)
+    }
+
+    fn call_builtin_string_prototype_char_at(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallBuiltinStringPrototypeCharAt,
+        values: &mut op::CallBuiltinStringPrototypeCharAtValues,
+    ) -> SlowPathControl {
+        calls::call_builtin_string_prototype_char_at(vm, pc, instruction, values)
+    }
+
+    fn call_construct(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallConstruct,
+        values: &mut op::CallConstructValues,
+        arguments: &mut [Value],
+    ) -> SlowPathControl {
+        calls::call_construct(vm, pc, instruction, values, arguments)
+    }
+
+    fn call_construct_with_argument_array(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::CallConstructWithArgumentArray,
+        values: &mut op::CallConstructWithArgumentArrayValues,
+    ) -> SlowPathControl {
+        calls::call_construct_with_argument_array(vm, pc, instruction, values)
+    }
+
+    fn super_call_with_argument_array(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::SuperCallWithArgumentArray,
+        values: &mut op::SuperCallWithArgumentArrayValues,
+    ) -> SlowPathControl {
+        calls::super_call_with_argument_array(vm, pc, instruction, values)
+    }
+
+    fn set_function_name(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::SetFunctionName,
+        values: &mut op::SetFunctionNameValues,
+    ) -> SlowPathControl {
+        calls::set_function_name(vm, pc, instruction, values)
+    }
+
+    fn new_function(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::NewFunction,
+        values: &mut op::NewFunctionValues,
+    ) -> SlowPathControl {
+        calls::new_function(vm, pc, instruction, values)
+    }
+
     fn helper_handle_raw_native_exception(vm: u64, encoded_exception: u64) -> u64 {
         // SAFETY: The interpreter passes its VM.
         let vm = unsafe { &*core::ptr::with_exposed_provenance::<Vm>(vm as usize) };
@@ -906,6 +1229,159 @@ impl RuntimeFunctions for Runtime {
     }
 
     // Literals, iterators, generators and control flow: control.rs.
+
+    fn debugger_check_breakpoint(vm: &Vm, pc: u32) {
+        control::debugger_check_breakpoint(vm, pc);
+    }
+
+    fn fallback_handler(_vm: &Vm, pc: u32, _instruction: *const u8) -> SlowPathControl {
+        control::fallback_handler(pc)
+    }
+
+    fn new_array(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::NewArray,
+        values: &mut op::NewArrayValues,
+        elements: &mut [Value],
+    ) -> SlowPathControl {
+        control::new_array(vm, pc, instruction, values, elements)
+    }
+
+    fn new_primitive_array(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::NewPrimitiveArray,
+        values: &mut op::NewPrimitiveArrayValues,
+    ) -> SlowPathControl {
+        control::new_primitive_array(vm, pc, instruction, values)
+    }
+
+    fn new_array_with_length(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::NewArrayWithLength,
+        values: &mut op::NewArrayWithLengthValues,
+    ) -> SlowPathControl {
+        control::new_array_with_length(vm, pc, values)
+    }
+
+    fn array_append(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::ArrayAppend,
+        values: &mut op::ArrayAppendValues,
+    ) -> SlowPathControl {
+        control::array_append(vm, pc, instruction, values)
+    }
+
+    fn get_template_object(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetTemplateObject,
+        values: &mut op::GetTemplateObjectValues,
+        strings: &mut [Value],
+    ) -> SlowPathControl {
+        control::get_template_object(vm, pc, instruction, values, strings)
+    }
+
+    fn new_regexp(vm: &Vm, pc: u32, instruction: &op::NewRegExp, _values: &mut op::NewRegExpValues) -> SlowPathControl {
+        control::new_regexp(vm, pc, instruction)
+    }
+
+    fn new_reference_error(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::NewReferenceError,
+        values: &mut op::NewReferenceErrorValues,
+    ) -> SlowPathControl {
+        control::new_reference_error(vm, pc, instruction, values)
+    }
+
+    fn new_type_error(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::NewTypeError,
+        values: &mut op::NewTypeErrorValues,
+    ) -> SlowPathControl {
+        control::new_type_error(vm, pc, instruction, values)
+    }
+
+    fn get_iterator(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::GetIterator,
+        values: &mut op::GetIteratorValues,
+    ) -> SlowPathControl {
+        control::get_iterator(vm, pc, instruction, values)
+    }
+
+    fn iterator_close(
+        vm: &Vm,
+        pc: u32,
+        instruction: &op::IteratorClose,
+        values: &mut op::IteratorCloseValues,
+    ) -> SlowPathControl {
+        control::iterator_close_slow_path(vm, pc, instruction, values)
+    }
+
+    fn iterator_next(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::IteratorNext,
+        values: &mut op::IteratorNextValues,
+    ) -> SlowPathControl {
+        control::iterator_next_slow_path(vm, pc, values)
+    }
+
+    fn iterator_next_unpack(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::IteratorNextUnpack,
+        values: &mut op::IteratorNextUnpackValues,
+    ) -> SlowPathControl {
+        control::iterator_next_unpack(vm, pc, values)
+    }
+
+    fn iterator_to_array(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::IteratorToArray,
+        values: &mut op::IteratorToArrayValues,
+    ) -> SlowPathControl {
+        control::iterator_to_array(vm, pc, values)
+    }
+
+    fn create_async_from_sync_iterator(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::CreateAsyncFromSyncIterator,
+        values: &mut op::CreateAsyncFromSyncIteratorValues,
+    ) -> SlowPathControl {
+        control::create_async_from_sync_iterator_slow_path(vm, pc, values)
+    }
+
+    fn get_completion_fields(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::GetCompletionFields,
+        values: &mut op::GetCompletionFieldsValues,
+    ) -> SlowPathControl {
+        control::get_completion_fields(vm, pc, values)
+    }
+
+    fn set_completion_type(
+        vm: &Vm,
+        pc: u32,
+        _instruction: &op::SetCompletionType,
+        values: &mut op::SetCompletionTypeValues,
+    ) -> SlowPathControl {
+        control::set_completion_type(vm, pc, values)
+    }
+
+    fn debugger(_vm: &Vm, pc: u32, _instruction: &op::Debugger, _values: &mut op::DebuggerValues) -> SlowPathControl {
+        control::debugger(pc)
+    }
 
     fn throw(vm: &Vm, pc: u32, _instruction: &op::Throw, values: &mut op::ThrowValues) -> SlowPathControl {
         handle_asm_exception(vm, pc, values.src)

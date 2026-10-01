@@ -41,6 +41,7 @@ use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::indexed_properties::{GenericIndexedPropertyStorage, ValueAndAttributes};
+use crate::runtime::iterator::BuiltinIteratorNext;
 use crate::runtime::native_function::{NativeFunction, NativeFunctionMethods, RawNativeFunction};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::private_environment::PrivateName;
@@ -259,6 +260,9 @@ pub struct ObjectMethods {
     pub is_cacheable_for_property_absence: fn(&Object) -> bool,
     pub is_cacheable_for_inherited_property: fn(&Object) -> bool,
     pub eligible_for_own_property_enumeration_fast_path: fn(&Object) -> bool,
+    /// The step of a built-in iterator whose next method is the original one, which IteratorStep takes without calling
+    /// it; given the iterator and the next method of its iterator record.
+    pub as_builtin_iterator_if_next_is_not_redefined: fn(&Object, Value) -> Option<BuiltinIteratorNext>,
 }
 
 pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
@@ -285,6 +289,7 @@ pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     is_cacheable_for_property_absence: |_| true,
     is_cacheable_for_inherited_property: |_| true,
     eligible_for_own_property_enumeration_fast_path: |_| true,
+    as_builtin_iterator_if_next_is_not_redefined: |_, _| None,
 };
 
 define_cell!(Object, Object, methods: ORDINARY_OBJECT_METHODS);
@@ -1589,6 +1594,10 @@ impl Object {
 
     pub fn initialize(&self, vm: &Vm, realm: Gc<Realm>) {
         (self.methods().initialize)(self, vm, realm);
+    }
+
+    pub fn as_builtin_iterator_if_next_is_not_redefined(&self, next_method: Value) -> Option<BuiltinIteratorNext> {
+        (self.methods().as_builtin_iterator_if_next_is_not_redefined)(self, next_method)
     }
 
     pub fn has_constructor(&self) -> bool {
@@ -3501,6 +3510,33 @@ impl Object {
 
         for (index, value) in values.iter().enumerate() {
             self.set_indexed_element(old_size + index as u32, *value);
+        }
+
+        self.indexed_storage_kind.set(IndexedStorageKind::Packed);
+        self.indexed_array_like_size.set(new_size);
+    }
+
+    /// indexed_append(source.indexed_packed_elements_span()): appends the elements of an object whose indexed storage
+    /// is packed, reading each from that storage as it is written.
+    pub fn indexed_append_packed_elements_of(&self, source: &Object) {
+        assert!(source.indexed_storage_kind() == IndexedStorageKind::Packed);
+        let values_size = source.indexed_packed_element_count();
+        assert!(matches!(
+            self.indexed_storage_kind(),
+            IndexedStorageKind::None | IndexedStorageKind::Packed
+        ));
+        assert!(values_size <= u32::MAX - self.indexed_array_like_size());
+
+        if values_size == 0 {
+            return;
+        }
+
+        let old_size = self.indexed_array_like_size();
+        let new_size = old_size + values_size;
+        self.ensure_indexed_elements(new_size);
+
+        for index in 0..values_size {
+            self.set_indexed_element(old_size + index, source.indexed_element(index));
         }
 
         self.indexed_storage_kind.set(IndexedStorageKind::Packed);
