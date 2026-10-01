@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/MemoryStream.h>
 #include <AK/Queue.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -59,4 +60,15 @@ TEST_CASE(decode_rejects_empty_bitmap_size)
 {
     auto result = decode_shareable_bitmap(Gfx::BitmapFormat::BGRA8888, Gfx::IntSize {}, 1);
     EXPECT(result.is_error());
+}
+
+TEST_CASE(shareable_bitmap_preserves_padded_scanlines)
+{
+    Array<u32, 6> pixels { 0xffff0000, 0xff00ff00, 0, 0xff0000ff, 0xffffffff, 0 };
+    auto bitmap = MUST(Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 2, 2 }, 3 * sizeof(u32), pixels.data()));
+    auto shared_bitmap = MUST(bitmap->to_bitmap_backed_by_anonymous_buffer());
+    EXPECT_EQ(shared_bitmap->get_pixel(0, 0), Gfx::Color::Red);
+    EXPECT_EQ(shared_bitmap->get_pixel(1, 0), Gfx::Color::Green);
+    EXPECT_EQ(shared_bitmap->get_pixel(0, 1), Gfx::Color::Blue);
+    EXPECT_EQ(shared_bitmap->get_pixel(1, 1), Gfx::Color::White);
 }
