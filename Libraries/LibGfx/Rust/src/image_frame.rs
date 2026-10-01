@@ -6,7 +6,7 @@
 
 use std::ffi::c_void;
 use std::ptr::NonNull;
-use std::rc::Rc;
+use std::sync::Arc;
 
 unsafe extern "C" {
     fn ladybird_gfx_decoded_image_frame_retain(
@@ -29,6 +29,13 @@ struct ImageFrameEntry {
     raw: NonNull<c_void>,
 }
 
+// SAFETY: The entry owns an immutable Gfx::DecodedImageFrame copy. Its bitmap is
+// atomically reference counted, and neither the frame nor its color space is
+// mutated while the entry is live.
+unsafe impl Send for ImageFrameEntry {}
+// SAFETY: See the Send implementation above.
+unsafe impl Sync for ImageFrameEntry {}
+
 impl Drop for ImageFrameEntry {
     fn drop(&mut self) {
         // SAFETY: ImageFrameHandle::retain took the copy this releases.
@@ -37,7 +44,7 @@ impl Drop for ImageFrameEntry {
 }
 
 #[derive(Clone)]
-pub struct ImageFrameHandle(Rc<ImageFrameEntry>);
+pub struct ImageFrameHandle(Arc<ImageFrameEntry>);
 
 impl ImageFrameHandle {
     /// # Safety
@@ -49,7 +56,7 @@ impl ImageFrameHandle {
         // addresses a local. The returned copy is owned by the entry.
         let raw = unsafe { ladybird_gfx_decoded_image_frame_retain(frame, &raw mut snapshot) };
         let raw = NonNull::new(raw).expect("Gfx::DecodedImageFrame copy must not be null");
-        Self(Rc::new(ImageFrameEntry { snapshot, raw }))
+        Self(Arc::new(ImageFrameEntry { snapshot, raw }))
     }
 
     #[inline]

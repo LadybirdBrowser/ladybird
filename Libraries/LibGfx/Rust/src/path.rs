@@ -195,6 +195,13 @@ pub struct OwnedPath {
     identity: u64,
 }
 
+// SAFETY: OwnedPath uniquely owns its Gfx::Path. Every operation on a shared reference is a const
+// query, which PathImplSkia makes safe to run concurrently by publishing its lazily built SkPath
+// with a compare-and-swap.
+unsafe impl Send for OwnedPath {}
+// SAFETY: See the Send implementation above.
+unsafe impl Sync for OwnedPath {}
+
 impl std::fmt::Debug for OwnedPath {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter

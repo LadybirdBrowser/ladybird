@@ -6,7 +6,7 @@
 
 use crate::font::FontHandle;
 use std::ffi::c_void;
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -125,7 +125,7 @@ pub fn glyph_run_glyph_intercepts(
 
 #[derive(Clone, Debug)]
 pub enum GlyphBuffer {
-    Shared(Rc<[DrawGlyph]>),
+    Shared(Arc<[DrawGlyph]>),
     Owned(Vec<DrawGlyph>),
 }
 
@@ -227,7 +227,7 @@ impl ShapeParams {
 }
 
 struct CachedShape {
-    glyphs: Rc<[DrawGlyph]>,
+    glyphs: Arc<[DrawGlyph]>,
     width: f32,
     trailing_whitespace_length_in_code_units: usize,
     trailing_whitespace_advance: f32,
@@ -378,11 +378,11 @@ fn shape_text_uncached(
         let shape = unsafe { &mut *sink.cast::<Option<CachedShape>>() };
         assert!(glyph_count == 0 || !glyphs.is_null());
         let glyphs = if glyph_count == 0 {
-            Rc::from([])
+            Arc::from([])
         } else {
             // SAFETY: The C++ side hands a pointer to glyph_count glyphs that
             // outlive the callback.
-            Rc::from(unsafe { std::slice::from_raw_parts(glyphs, glyph_count) })
+            Arc::from(unsafe { std::slice::from_raw_parts(glyphs, glyph_count) })
         };
         *shape = Some(CachedShape {
             glyphs,
@@ -527,7 +527,7 @@ mod shaping_cache_tests {
 
     fn shape_with_glyph_count(glyph_count: usize) -> CachedShape {
         CachedShape {
-            glyphs: Rc::from(vec![DrawGlyph::default(); glyph_count]),
+            glyphs: Arc::from(vec![DrawGlyph::default(); glyph_count]),
             width: glyph_count as f32,
             trailing_whitespace_length_in_code_units: 0,
             trailing_whitespace_advance: 0.0,

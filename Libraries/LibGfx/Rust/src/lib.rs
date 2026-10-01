@@ -31,3 +31,12 @@ pub use corner_radii::*;
 pub use geometry::*;
 pub use matrix::*;
 pub use paint_enums::*;
+
+// The handles that layout and painting keep in their output, so that output can cross threads.
+const _: () = {
+    const fn assert_send_and_sync<T: Send + Sync>() {}
+    assert_send_and_sync::<font::FontHandle>();
+    assert_send_and_sync::<path::OwnedPath>();
+    assert_send_and_sync::<image_frame::ImageFrameHandle>();
+    assert_send_and_sync::<text_layout::GlyphBuffer>();
+};
