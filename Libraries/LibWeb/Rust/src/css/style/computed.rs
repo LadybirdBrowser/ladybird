@@ -1432,11 +1432,9 @@ impl ComputedGroupSets {
     /// follows the table's dependency flags. The font group is never rebuilt here: it needs
     /// platform font resources the table does not hold.
     ///
-    /// This decides only whether the record can be assembled here: the node must hold a retained
-    /// longhand table, must not carry an animation overlay, and must have published under the
-    /// same eligibility the inherited-group swap needs. Its pseudo-elements' records are
-    /// untouched: they inherit from the element, and the caller has proven that nothing they
-    /// inherit moved.
+    /// The node's assigned record is the base the table was driven from; the table it held, if
+    /// any, only seeds the new table's identity. Its pseudo-elements' records are untouched: they
+    /// inherit from the element, and the caller has proven that nothing they inherit moved.
     #[allow(clippy::arc_with_non_send_sync, clippy::too_many_arguments)]
     pub(super) fn replace_engine_computed_table(
         &mut self,
@@ -1449,34 +1447,35 @@ impl ComputedGroupSets {
         font: Option<&crate::css::table_group_builder::FfiFontGroupBuildInputs>,
         parent_in_display_none_subtree: bool,
         environment: Option<u64>,
-    ) -> Option<EngineComputedAssembly> {
-        use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
-        if groups_to_rebuild == 0 || (groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0 && font.is_none()) {
-            return None;
-        }
-        let index = node.element_index()? as usize;
-        if self.columns.animation_overlay_slot(index).is_some() {
-            return None;
-        }
-        let base_style_record_identity = base_style_record.base_record()?;
-        if !self.style_record_generation_is_live(base_style_record_identity, base_style_record.base_generation()) {
-            return None;
-        }
-        let old_record = *self.style_records.get_index(base_style_record_identity.index())?;
-        let old_table = old_record.longhand_table?;
-        let old_group_set = self.sets.get_index(old_record.groups.0 as usize)?;
-        if groups_to_rebuild >> old_group_set.payloads.len() != 0
-            || old_group_set.payloads.len() <= crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_UI
-        {
-            return None;
-        }
-        let Ok(used_color_scheme) = u8::try_from(table.effective_color_scheme()) else {
-            return None;
-        };
+    ) -> EngineComputedAssembly {
+        let index = node.element_index().expect("an engine-computed record is an element's") as usize;
+        debug_assert!(
+            self.columns.animation_overlay_slot(index).is_none(),
+            "a record composing animations is not driven"
+        );
+        let base_style_record_identity = base_style_record
+            .base_record()
+            .expect("the base of a record is a base record");
+        assert!(
+            self.style_record_generation_is_live(base_style_record_identity, base_style_record.base_generation()),
+            "a table is driven from a live record"
+        );
+        let old_record = *self
+            .style_records
+            .get_index(base_style_record_identity.index())
+            .expect("a live record");
+        let old_table = old_record.longhand_table;
+        debug_assert_eq!(
+            self.sets
+                .get_index(old_record.groups.0 as usize)
+                .map(|set| set.payloads.len()),
+            Some(crate::css::table_group_builder::group_index::COUNT),
+            "an element's record holds every style group"
+        );
         // The builders take the element's own color from the caller, so it is resolved from the
         // driven table before any group reads it.
-        let current_color =
-            crate::css::table_group_builder::own_color_from_table(&table, used_color_scheme, Some(length))?;
+        let color_inputs = crate::css::table_group_builder::assembly_color_inputs(&table, length);
+        let (used_color_scheme, current_color) = color_inputs;
         for property in [
             crate::css::property_metadata::property_id::STOP_COLOR,
             crate::css::property_metadata::property_id::FLOOD_COLOR,
@@ -1500,7 +1499,11 @@ impl ComputedGroupSets {
                 length: Some(length),
                 channels: None,
             };
-            let resolved = crate::css::color_resolution::to_color(specified.data(), &input)?;
+            // A value that does not resolve keeps what the drive computed for it.
+            let Some(resolved) = crate::css::color_resolution::to_color(specified.data(), &input) else {
+                debug_assert!(false, "a currentcolor-relative color does not resolve");
+                continue;
+            };
             let resolved = unsafe {
                 RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(std::sync::Arc::new(
                     crate::css::color_resolution::resolved_srgb_style_value(resolved),
@@ -1523,27 +1526,16 @@ impl ComputedGroupSets {
                 continue;
             }
             let old_payload = self.groups[*group_identity].payload;
-            let payload = if group == STYLE_GROUP_INDEX_FONT {
-                unsafe {
-                    crate::css::table_group_builder::rebuild_font_group_from_table(
-                        &table,
-                        font.expect("a font group rebuild carries the resolved font"),
-                        old_payload.as_ptr(),
-                    )
-                }
-            } else {
-                unsafe {
-                    crate::css::table_group_builder::rebuild_group_from_table(
-                        &table,
-                        group,
-                        old_payload.as_ptr(),
-                        current_color,
-                        used_color_scheme,
-                        Some(length),
-                    )
-                }
-            };
-            let payload = SharedPayload::new(payload?);
+            let payload = SharedPayload::new(unsafe {
+                crate::css::table_group_builder::assemble_group_from_table(
+                    &table,
+                    group,
+                    font,
+                    old_payload.as_ptr(),
+                    color_inputs,
+                    length,
+                )
+            });
             // An equal payload keeps the old identity, as a C++ build adopts its parent's and
             // predecessor's identical payloads.
             let identity = if payload == old_payload
@@ -1580,7 +1572,7 @@ impl ComputedGroupSets {
             })
             .0
         };
-        let longhand_table = self.intern_owned_longhand_table(table, Some(old_table), None);
+        let longhand_table = self.intern_owned_longhand_table(table, old_table, None);
         // The environment moves with the record when the node's custom declarations resolved to
         // another; a record keeps its environment otherwise.
         let custom_properties = match environment {
@@ -1615,11 +1607,11 @@ impl ComputedGroupSets {
             self.style_record_column.resize(index + 1, None);
         }
         self.style_record_column[index] = Some(new_style_record);
-        Some(EngineComputedAssembly {
+        EngineComputedAssembly {
             delta: (previous_style_record, self.final_base_style_record(new_style_record)),
             canonicalized_groups,
             group_set_unchanged: group_set == old_record.groups,
-        })
+        }
     }
 
     /// Put a node back on the record it held before an engine derivation C++ never installed,

@@ -628,13 +628,10 @@ impl RetainedState {
                     }
                     // Only the environment moved: the record keeps its groups and takes the new one.
                     if let Some(environment) = environment {
-                        let Some(delta) = self
+                        let delta = self
                             .computed_group_sets
                             .republish_engine_record_with_environment(node, environment)
-                        else {
-                            counters.bump(Counter::EngineComputedRecordBailAssemble);
-                            return Err(Unanswered::Refused);
-                        };
+                            .expect("an assigned record without an overlay moves to any environment");
                         counters.bump(Counter::EngineComputedRecordUnchangedWinners);
                         self.note_engine_computed_record(node, delta, (generation, state), 0, 0, counters);
                         return Ok(ElementAnswer::Delta(delta));
@@ -921,7 +918,7 @@ impl RetainedState {
             .and_then(|parent| self.computed_group_sets.assigned_style_record(parent))
             .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
             .is_some_and(|view| view.dependency_flags & (1 << 2) != 0);
-        let Some(assembly) = self.computed_group_sets.replace_engine_computed_table(
+        let assembly = self.computed_group_sets.replace_engine_computed_table(
             node,
             old_style_record,
             old_style_record,
@@ -931,10 +928,7 @@ impl RetainedState {
             font.as_ref(),
             parent_in_display_none_subtree,
             environment,
-        ) else {
-            counters.bump(Counter::EngineComputedRecordBailAssemble);
-            return Err(Unanswered::Refused);
-        };
+        );
         self.settle_computed_memory();
         counters.add(
             Counter::ComputedOutputGroupsCanonicalized,
@@ -1295,7 +1289,7 @@ impl RetainedState {
                 let parent_in_display_none_subtree = parent_record
                     .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
                     .is_some_and(|view| view.dependency_flags & (1 << 2) != 0);
-                if let Some(assembly) = self.computed_group_sets.replace_engine_computed_table(
+                let assembly = self.computed_group_sets.replace_engine_computed_table(
                     node,
                     donor.record.record,
                     computed::FinalStyleRecordID::NONE,
@@ -1305,33 +1299,32 @@ impl RetainedState {
                     None,
                     parent_in_display_none_subtree,
                     Some(environment),
-                ) {
-                    self.computed_group_sets
-                        .set_pending_cascade_state(target, cascade_state);
-                    self.settle_computed_memory();
-                    self.note_node_substitution(node, scratch, state, environment);
-                    self.note_engine_computed_record(
-                        node,
-                        assembly.delta,
-                        cascade_state,
-                        delta_property_count,
-                        longhand_evaluations,
-                        counters,
-                    );
-                    // The key names the parent's environment: a record whose own declarations
-                    // resolved another is no answer for an element declaring none.
-                    if let Some(cache_key) = cache_key.filter(|key| key.environment == environment) {
-                        let record = ColdRecord {
-                            record: assembly.delta.1,
-                            swap_eligible: self.computed_group_sets.node_inherited_group_swap_eligible(node),
-                            explicitly_inherited_groups,
-                        };
-                        scratch.cold_cohorts.insert(cache_key, record);
-                        self.remember_cold_record(cache_key, record);
-                    }
-                    scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
-                    return Ok(ElementAnswer::Delta(assembly.delta));
+                );
+                self.computed_group_sets
+                    .set_pending_cascade_state(target, cascade_state);
+                self.settle_computed_memory();
+                self.note_node_substitution(node, scratch, state, environment);
+                self.note_engine_computed_record(
+                    node,
+                    assembly.delta,
+                    cascade_state,
+                    delta_property_count,
+                    longhand_evaluations,
+                    counters,
+                );
+                // The key names the parent's environment: a record whose own declarations
+                // resolved another is no answer for an element declaring none.
+                if let Some(cache_key) = cache_key.filter(|key| key.environment == environment) {
+                    let record = ColdRecord {
+                        record: assembly.delta.1,
+                        swap_eligible: self.computed_group_sets.node_inherited_group_swap_eligible(node),
+                        explicitly_inherited_groups,
+                    };
+                    scratch.cold_cohorts.insert(cache_key, record);
+                    self.remember_cold_record(cache_key, record);
                 }
+                scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
+                return Ok(ElementAnswer::Delta(assembly.delta));
             }
         }
         let subject = DriveSubject { target, parent, facts };
@@ -1679,7 +1672,6 @@ impl RetainedState {
         scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
     ) -> Drive<(computed::FinalStyleRecordID, bool)> {
-        use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
         use crate::css::table_group_builder::group_index;
 
         // The document element's groups build against no parent payloads.
@@ -1694,59 +1686,31 @@ impl RetainedState {
             }
             None => (&[SharedPayload::null(); group_index::COUNT][..], false),
         };
-        let Ok(used_color_scheme) = u8::try_from(table.effective_color_scheme()) else {
-            counters.bump(Counter::EngineComputedRecordBailDrive);
-            return Err(Unanswered::Refused);
-        };
         let display_is_none = crate::css::style_compute::effective_display(&table, None).is_none();
         table.set_in_display_none_subtree(parent_in_display_none_subtree || display_is_none);
         table.freeze();
         let swap_eligible = table.property_inheritance_is_standard()
             && !table.display_is_list_item()
             && !crate::css::style_compute::has_active_transition_properties(&table);
+        let color_inputs = crate::css::table_group_builder::assembly_color_inputs(&table, length);
         let table = table.into_raw_shared();
-        let release_table = |table: *const ComputedLonghandTable| unsafe {
-            crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
-        };
-        let Some(current_color) =
-            crate::css::table_group_builder::own_color_from_table(unsafe { &*table }, used_color_scheme, Some(length))
-        else {
-            release_table(table);
-            counters.bump(Counter::EngineComputedRecordBailAssemble);
-            return Err(Unanswered::Refused);
-        };
-        let mut payloads = Vec::with_capacity(group_index::COUNT);
-        for (group, &parent_payload) in parent_payloads.iter().enumerate().take(group_index::COUNT) {
-            let payload = if group == STYLE_GROUP_INDEX_FONT {
-                unsafe {
-                    crate::css::table_group_builder::rebuild_font_group_from_table(
-                        &*table,
-                        font,
-                        parent_payload.as_ptr(),
-                    )
-                }
-            } else {
-                unsafe {
-                    crate::css::table_group_builder::rebuild_group_from_table(
+        let payloads = parent_payloads
+            .iter()
+            .enumerate()
+            .take(group_index::COUNT)
+            .map(|(group, &parent_payload)| {
+                SharedPayload::new(unsafe {
+                    crate::css::table_group_builder::assemble_group_from_table(
                         &*table,
                         group,
+                        Some(font),
                         parent_payload.as_ptr(),
-                        current_color,
-                        used_color_scheme,
-                        Some(length),
+                        color_inputs,
+                        length,
                     )
-                }
-            };
-            let Some(payload) = payload.map(SharedPayload::new) else {
-                for (group, payload) in payloads.into_iter().enumerate() {
-                    crate::css::computed_values::release_group_payload(group, SharedPayload::as_ptr(payload));
-                }
-                release_table(table);
-                counters.bump(Counter::EngineComputedRecordBailAssemble);
-                return Err(Unanswered::Refused);
-            };
-            payloads.push(payload);
-        }
+                })
+            })
+            .collect::<Vec<_>>();
         let holds_image_values = crate::css::computed_values::style_group_payloads_hold_image_values(
             HostShared::as_pointer_slice(&payloads),
         );
@@ -1789,7 +1753,9 @@ impl RetainedState {
             }
         }
         if !transferred.table {
-            release_table(table);
+            unsafe {
+                crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
+            }
         }
         Ok((publication.style_record_identity, swap_eligible))
     }
