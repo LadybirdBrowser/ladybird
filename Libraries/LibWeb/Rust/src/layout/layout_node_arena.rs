@@ -1535,14 +1535,23 @@ impl LayoutNodeArena {
         query(unsafe { &*host.style_engine.cast::<StyleEngine>() })
     }
 
-    /// Whether the style mirror's DOM child sequence holds a child for `style_node`. Only an
-    /// element, a shadow root and the document own a sequence; a text node owns none. Nodes that
-    /// can never have a box (a comment, a doctype, a processing instruction) hold no place in it,
-    /// so a parent whose children are all of those answers no.
-    pub(crate) fn has_dom_children(&self, style_node: Option<StyleNodeID>) -> bool {
-        style_node.is_some_and(|style_node| {
-            self.with_style_store(|engine| engine.tree().dom_children(style_node).next().is_some())
-        })
+    /// The first child the style mirror's DOM child sequence holds for `style_node`, text nodes
+    /// included. Only an element, a shadow root and the document own a sequence; a text node owns
+    /// none. Nodes that can never have a box (a comment, a doctype, a processing instruction) hold
+    /// no place in it.
+    pub(crate) fn first_dom_child(&self, style_node: StyleNodeID) -> Option<StyleNodeID> {
+        self.with_style_store(|engine| engine.tree().dom_children(style_node).next())
+    }
+
+    /// The shadow root the element `host` hosts, if any. The style mirror names a root the moment it
+    /// is attached to a host in the document.
+    pub(crate) fn shadow_root_of(&self, host: StyleNodeID) -> Option<StyleNodeID> {
+        self.with_style_store(|engine| engine.tree().shadow_root_of(host))
+    }
+
+    /// The node after `style_node` in its parent's DOM child sequence.
+    pub(crate) fn next_dom_sibling(&self, style_node: StyleNodeID) -> Option<StyleNodeID> {
+        self.with_style_store(|engine| engine.tree().next_sibling_in_dom_order(style_node))
     }
 
     /// The element facts the style mirror holds for `style_node`, as
@@ -1610,6 +1619,11 @@ impl LayoutNodeArena {
         style_node.map_or(0, |style_node| {
             self.with_style_store(|engine| engine.tree().assigned_nodes_of(style_node).len())
         })
+    }
+
+    /// The node assigned to the slot `style_node` names at `index`, in flat-tree order.
+    pub(crate) fn assigned_node_at(&self, style_node: StyleNodeID, index: usize) -> StyleNodeID {
+        self.with_style_store(|engine| engine.tree().assigned_nodes_of(style_node)[index])
     }
 
     // The engine outlives the arena's live nodes. No host callback runs while this
