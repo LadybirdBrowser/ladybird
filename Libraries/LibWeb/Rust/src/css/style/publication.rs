@@ -313,13 +313,16 @@ impl RetainedState {
     /// their declarations were written with, against the record's own font, the document's
     /// computation inputs, and the parent's record. Every node of one cohort - the same old
     /// record moved to the same winner state - derives the same record, so the second and later
-    /// members take the first one's answer.
+    /// members take the first one's answer. `full_drive_reason` says why the row's reaction
+    /// drives the record again in full whatever its winners did, if it does.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn engine_computed_record_delta(
         &mut self,
         node: StyleNodeID,
         cascade_winners_are_complete: bool,
         exact_flipped_rules: Option<FlippedRules>,
         parent_inputs_moved: ParentInputsMoved,
+        full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<RecordDelta> {
@@ -328,6 +331,7 @@ impl RetainedState {
             cascade_winners_are_complete,
             exact_flipped_rules,
             parent_inputs_moved,
+            full_drive_reason,
             scratch,
             counters,
         );
@@ -358,6 +362,7 @@ impl RetainedState {
         cascade_winners_are_complete: bool,
         exact_flipped_rules: Option<FlippedRules>,
         parent_inputs_moved: ParentInputsMoved,
+        full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<RecordDelta> {
@@ -393,6 +398,7 @@ impl RetainedState {
                     cascade_winners_are_complete,
                     exact_flipped_rules,
                     parent_inputs_moved,
+                    full_drive_reason,
                     scratch,
                     FontDriveGoal::Complete,
                     counters,
@@ -404,9 +410,16 @@ impl RetainedState {
         // sends the whole element to C++.
         let old_style_record = (delta.0 != computed::FinalStyleRecordID::NONE).then_some(delta.0);
         let generation = self.winner_groups.generation();
-        if let Err(unanswered) =
-            self.engine_pseudo_records(node, old_style_record, None, delta.1, generation, scratch, counters)
-        {
+        if let Err(unanswered) = self.engine_pseudo_records(
+            node,
+            old_style_record,
+            None,
+            delta.1,
+            generation,
+            full_drive_reason,
+            scratch,
+            counters,
+        ) {
             match unanswered {
                 Unanswered::Suspended(_) => scratch.pending_element = Some(drive::PendingElement::new(node, delta)),
                 Unanswered::Refused | Unanswered::AwaitsParent => {
@@ -468,6 +481,7 @@ impl RetainedState {
         mut cascade_winners_are_complete: bool,
         exact_flipped_rules: Option<FlippedRules>,
         mut parent_inputs_moved: ParentInputsMoved,
+        full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         goal: FontDriveGoal,
         counters: &mut Counters,
@@ -515,10 +529,10 @@ impl RetainedState {
         // its settled ancestors published. One a declined ancestor may still move waits for the
         // host to install that ancestor's record, as a row waits for its parent's.
         if self.published_container_verdicts.contains_key(&node) {
-            // A descendant recompute can stand for an ancestor's moved container type, which the
-            // verdicts were decided without: the container's new record is not published yet, so
-            // nothing has dropped them. C++ decides the gated rules again.
-            if scratch.recompute_in_full {
+            // An ancestor change can stand for a container whose type moved or that left
+            // display:none, which the verdicts were decided without: the container's new record is
+            // not published yet, so nothing has dropped them. C++ decides the gated rules again.
+            if full_drive_reason == Some(FullDriveReason::AncestorChange) {
                 counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
                 return Err(Unanswered::Refused);
             }
@@ -542,15 +556,12 @@ impl RetainedState {
         // An element's animations compose into its style in the C++ computation.
         let facts = self.computed_group_sets.adjustment_facts(node);
         // Moved root inputs reach every row below the root. The root's font the root-input probe
-        // drove is left pending for the root's own row, which resumes it in full the same way. A
-        // moved font environment of the element's own, a face its font cascade names becoming
-        // available or failing, leaves its winners as they were just the same.
-        let font_inputs_moved = scratch.font_environment_moved
-            || if facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {
-                scratch.font_drive.is_pending_for(node)
-            } else {
-                scratch.root_font_inputs_changed
-            };
+        // drove is left pending for the root's own row, which resumes it in full the same way.
+        let root_inputs_moved = if facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {
+            scratch.font_drive.is_pending_for(node)
+        } else {
+            scratch.root_font_inputs_changed
+        };
         if facts & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0 {
             counters.bump(Counter::EngineComputedRecordBailWinnerElement);
             return Err(Unanswered::Refused);
@@ -645,7 +656,7 @@ impl RetainedState {
         // to declarations no winner names.
         let drive_in_full = holds_no_current_cascade_state
             || scratch.document_environment_moved
-            || scratch.recompute_in_full
+            || full_drive_reason.is_some()
             || ((environment.is_some() || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
             || self.state_reads_beyond_environment(node, state)
@@ -675,7 +686,7 @@ impl RetainedState {
             // record: it is driven again in full against the parent as it is now. The record
             // does not say which parent display it was transformed under, and a winner's own
             // value may read the parent (a relative length, an inherit keyword).
-            if !parent_inputs_moved.any() && !font_inputs_moved && !drive_in_full {
+            if !parent_inputs_moved.any() && !root_inputs_moved && !drive_in_full {
                 // A declaration in an inherited payload group does not prove that the other
                 // properties in that group still inherit from the current parent. Re-drive the
                 // record in full when its payloads cannot prove the relationship.
@@ -730,7 +741,7 @@ impl RetainedState {
         // and the inheritance are part of the full drive, and so does a record whose registered
         // custom properties moved, which compute against the font the drive settles.
         let full_drive = parent_inputs_moved.any()
-            || font_inputs_moved
+            || root_inputs_moved
             || drive_in_full
             || (has_registered_declarations && environment.is_some())
             || delta.properties().iter().any(|&property| {
@@ -4715,6 +4726,22 @@ impl ParentInputsMoved {
     }
 }
 
+/// Why a row's record is driven again in full, its pseudo-elements with it, while its winners
+/// stand: its reaction moved inputs no winner shows.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum FullDriveReason {
+    /// A descendant recompute, for the root's font metrics or an ancestor's direction, writing
+    /// mode or container type, or an ancestor leaving display:none, which cleared the element's
+    /// style on the way in.
+    AncestorChange,
+    /// A `@function` the element calls, or a counter style its record or a pseudo-element's
+    /// resolved, moved.
+    NamedRuleContext,
+    /// A face the element's font cascade names became available or failed, or the document's
+    /// `@font-feature-values` moved.
+    FontEnvironment,
+}
+
 /// Static checks attached to the original declaration spelling at input preparation.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) struct WrittenValueChecks {
@@ -4782,13 +4809,6 @@ pub(super) struct EngineComputedRecordScratch {
     /// through one while the values they computed to may not, so such a record is driven again
     /// in full against the document's inputs rather than kept.
     pub(super) document_environment_moved: bool,
-    /// Whether the font environment of the element being derived moved: its record resolves a
-    /// font cascade out of the published `@font-face` table, which is not the one the record
-    /// holds. Set beside each row the flush derives.
-    pub(super) font_environment_moved: bool,
-    /// Whether the reaction of the element being derived drives its record again in full whatever
-    /// its winners did, for inputs the winners do not show. Set beside each row the flush derives.
-    pub(super) recompute_in_full: bool,
     /// Whether the row being derived had its selector answer or its declarations move this flush
     /// without its winners necessarily being published again.
     pub(super) answer_or_declarations_moved: bool,
@@ -5628,14 +5648,14 @@ impl StyleEngineState {
 impl StyleEngineState {
     /// Establish the document element's font input before the consumer pass. The root's
     /// remaining properties and pseudos complete in their normal canonical position.
-    /// Establish the document element's font input before the consumer pass. The root's
-    /// remaining properties and pseudos complete in their normal canonical position.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn prepare_root_font_inputs(
         &mut self,
         node: StyleNodeID,
         cascade_winners_are_complete: bool,
         exact_flipped_rules: Option<FlippedRules>,
         parent_inputs_moved: ParentInputsMoved,
+        full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) {
@@ -5647,6 +5667,7 @@ impl StyleEngineState {
                 cascade_winners_are_complete,
                 exact_flipped_rules,
                 parent_inputs_moved,
+                full_drive_reason,
                 scratch,
                 FontDriveGoal::RootInputs,
                 counters,

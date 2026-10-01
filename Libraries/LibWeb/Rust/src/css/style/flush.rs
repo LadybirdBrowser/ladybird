@@ -82,6 +82,26 @@ impl NamedRuleContextsMoved {
     }
 }
 
+/// The reactions the engine derives for a child of an applied reaction. The same reactions C++
+/// asked for through a recorded input are C++'s.
+const DERIVABLE_REACTIONS: u8 = transaction::STYLE_REACTION_RECOMPUTE_STYLE
+    | transaction::STYLE_REACTION_INHERITED_STYLE
+    | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
+
+/// Whether the engine settles a row with this reaction. A published-style reaction is the engine's,
+/// as are the derivable ones. So is a moved font environment: the `@font-face` table the record's
+/// font cascade resolves against is a published input, and the record is driven again in full. So
+/// are a descendant recompute and an ancestor becoming visible, which C++ answers with a full
+/// recompute, as the engine does.
+fn reaction_is_settleable(reaction: u8, recorded_for_cpp: bool) -> bool {
+    const SETTLEABLE_REACTIONS: u8 = transaction::STYLE_REACTION_PUBLISHED_STYLE
+        | transaction::STYLE_REACTION_FONT_INPUTS_CHANGED
+        | transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
+        | transaction::STYLE_REACTION_ANCESTOR_BECAME_VISIBLE
+        | DERIVABLE_REACTIONS;
+    reaction & !SETTLEABLE_REACTIONS == 0 && !(reaction & DERIVABLE_REACTIONS != 0 && recorded_for_cpp)
+}
+
 impl RetainedState {
     /// Whether a moved named rule context drives the node's record again in full, its winners
     /// standing as they were: a `@function` reaches an element whose style called one, and a
@@ -90,6 +110,34 @@ impl RetainedState {
     fn named_rule_contexts_drive_in_full(&self, node: StyleNodeID, moved: NamedRuleContextsMoved) -> bool {
         (moved.custom_functions && self.facts.uses_custom_functions(node))
             || (moved.counter_styles && self.node_reads_counter_styles(node))
+    }
+
+    /// Why the row's reaction and the moved named rule contexts drive its record again in full
+    /// without its winners showing it, if they do.
+    fn full_drive_reason(
+        &self,
+        node: StyleNodeID,
+        reaction: u8,
+        named_rules_moved: NamedRuleContextsMoved,
+    ) -> Option<publication::FullDriveReason> {
+        use super::publication::FullDriveReason;
+        // A descendant recompute stands for inputs no winner shows: the root's font metrics, an
+        // ancestor's direction, writing mode or container type. An ancestor becoming visible
+        // stands for a record whose style was cleared on entry to display:none.
+        if reaction
+            & (transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
+                | transaction::STYLE_REACTION_ANCESTOR_BECAME_VISIBLE)
+            != 0
+        {
+            return Some(FullDriveReason::AncestorChange);
+        }
+        if self.named_rule_contexts_drive_in_full(node, named_rules_moved) {
+            return Some(FullDriveReason::NamedRuleContext);
+        }
+        // The element's font environment moved, or the published feature-value table every font
+        // resolution of the font-environment generation reads.
+        (named_rules_moved.font_feature_values || reaction & transaction::STYLE_REACTION_FONT_INPUTS_CHANGED != 0)
+            .then_some(FullDriveReason::FontEnvironment)
     }
 
     /// Whether the node's record, or the record of one of its pseudo-elements, resolved a counter
@@ -1837,12 +1885,8 @@ impl StyleEngineState {
                     inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
                     display: parent_inputs_moved_nodes.contains(&root),
                 };
-                const DERIVABLE: u8 = transaction::STYLE_REACTION_RECOMPUTE_STYLE
-                    | transaction::STYLE_REACTION_INHERITED_STYLE
-                    | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
-                let reaction_is_settleable = reaction & !(transaction::STYLE_REACTION_PUBLISHED_STYLE | DERIVABLE) == 0
-                    && !(reaction & DERIVABLE != 0 && style_input_nodes_for_cpp.contains(&root));
-                let can_prepare = (reaction_is_settleable
+                // The probe settles what the root's own row settles, under the same unseen inputs.
+                let can_prepare = (reaction_is_settleable(reaction, style_input_nodes_for_cpp.contains(&root))
                     || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     && !self.retained.computed_group_sets.node_answer_is_incomplete(root)
                     && !selector_truth_changes.deltas_for(root).iter().any(|delta| {
@@ -1875,19 +1919,16 @@ impl StyleEngineState {
                     engine_computed_record_scratch.answer_or_declarations_moved = rule_declarations_edited
                         || !flipped_rules.is_empty()
                         || !selector_truth_changes.refreshes_for(root).is_empty();
-                    engine_computed_record_scratch.recompute_in_full =
-                        self.named_rule_contexts_drive_in_full(root, named_rules_moved);
-                    engine_computed_record_scratch.font_environment_moved = named_rules_moved.font_feature_values;
+                    let full_drive_reason = self.full_drive_reason(root, reaction, named_rules_moved);
                     self.prepare_root_font_inputs(
                         root,
                         answer.cascade_winners_are_complete,
                         winners_are_exact.then_some(flipped),
                         parent_inputs,
+                        full_drive_reason,
                         &mut engine_computed_record_scratch,
                         counters,
                     );
-                    engine_computed_record_scratch.recompute_in_full = false;
-                    engine_computed_record_scratch.font_environment_moved = false;
                 } else {
                     counters.bump(Counter::RootFontInputsUnprovenFallbacks);
                 }
@@ -2089,24 +2130,6 @@ impl StyleEngineState {
                     // ancestor is settled as well.
                     // A refreshed answer cannot say which entries moved, so the flag stays conservative
                     // for C++; the pseudo winner states themselves are current here and settle it.
-                    // A published-style reaction is the engine's to settle, as are the recompute and
-                    // the inherited-style reaction the engine derived for a child of an applied
-                    // reaction (a reaction C++ asked for through a recorded input is C++'s), and a
-                    // first record takes any published-style reaction. So is a moved font
-                    // environment: the `@font-face` table the record's font cascade resolves
-                    // against is a published input, and the record is driven again in full. So are
-                    // a descendant recompute and an ancestor becoming visible, which C++ answers
-                    // with a full recompute, as the engine does.
-                    const DERIVABLE_REACTIONS: u8 = transaction::STYLE_REACTION_RECOMPUTE_STYLE
-                        | transaction::STYLE_REACTION_INHERITED_STYLE
-                        | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
-                    const SETTLEABLE_REACTIONS: u8 = transaction::STYLE_REACTION_PUBLISHED_STYLE
-                        | transaction::STYLE_REACTION_FONT_INPUTS_CHANGED
-                        | transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
-                        | transaction::STYLE_REACTION_ANCESTOR_BECAME_VISIBLE
-                        | DERIVABLE_REACTIONS;
-                    let reaction_is_settleable = reaction & !SETTLEABLE_REACTIONS == 0
-                        && !(reaction & DERIVABLE_REACTIONS != 0 && style_input_nodes_for_cpp.contains(&node));
                     let mut parent_inputs_moved = pending_parent_inputs.take().or(prepared_parent_inputs).unwrap_or(
                         publication::ParentInputsMoved {
                             inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
@@ -2130,7 +2153,8 @@ impl StyleEngineState {
                         // C++ only refreshes the inherited environment for a non-consumer. There
                         // is no element record to recompute or compare against the parent's groups.
                         false
-                    } else if !(reaction_is_settleable
+                    } else if !(reaction_is_settleable(reaction, style_input_nodes_for_cpp.contains(&node))
+                        // A first record takes any published-style reaction.
                         || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     {
                         counters.bump(Counter::EngineComputedRecordGateReaction);
@@ -2202,31 +2226,16 @@ impl StyleEngineState {
                         engine_computed_record_scratch.answer_or_declarations_moved = rule_declarations_edited
                             || !flipped_rules.is_empty()
                             || !selector_truth_changes.refreshes_for(node).is_empty();
-                        // A moved `@font-feature-values` moves the font input of every record the
-                        // same way: the font resolver holds the published feature-value table of
-                        // the font-environment generation.
-                        engine_computed_record_scratch.font_environment_moved = named_rules_moved.font_feature_values
-                            || reaction & transaction::STYLE_REACTION_FONT_INPUTS_CHANGED != 0;
-                        // A descendant recompute stands for inputs no winner shows: the root's font
-                        // metrics, an ancestor's direction, writing mode or container type. An
-                        // ancestor becoming visible stands for a record whose style was cleared on
-                        // entry to display:none.
-                        engine_computed_record_scratch.recompute_in_full = reaction
-                            & (transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
-                                | transaction::STYLE_REACTION_ANCESTOR_BECAME_VISIBLE)
-                            != 0
-                            || self.named_rule_contexts_drive_in_full(node, named_rules_moved);
-                        let record_answer = self.engine_computed_record_delta(
+                        let full_drive_reason = self.full_drive_reason(node, reaction, named_rules_moved);
+                        self.engine_computed_record_delta(
                             node,
                             answer.cascade_winners_are_complete,
                             winners_are_exact.then_some(flipped),
                             parent_inputs_moved,
+                            full_drive_reason,
                             &mut engine_computed_record_scratch,
                             counters,
-                        );
-                        engine_computed_record_scratch.font_environment_moved = false;
-                        engine_computed_record_scratch.recompute_in_full = false;
-                        record_answer
+                        )
                     });
                     if let Some(Err(publication::Unanswered::Suspended(publication::Suspension::Font))) =
                         engine_record_answer

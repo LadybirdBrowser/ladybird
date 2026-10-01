@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    html { font-family: "RootFace", serif; }
+    .rem { width: 2rem; height: 1px; }
+    .rlh { width: 2rlh; height: 1px; }
+</style>
+<div class="rem" id="rem"></div>
+<div class="rlh" id="rlh"></div>
+<script>
+    // The document element names a face that loads, and its children are sized in units that
+    // resolve against the root's font inputs. Count who computes the records, and check each child
+    // agrees with one computed from scratch against the loaded face.
+    promiseTest(async () => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        const face = new FontFace("RootFace", 'url("../../../../Assets/HashSans.woff")');
+        document.fonts.add(face);
+        await face.load();
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`engine computed records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords > 0}`);
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        const fresh = className => {
+            const element = document.body.appendChild(document.createElement("div"));
+            element.className = className;
+            const width = getComputedStyle(element).width;
+            element.remove();
+            return width;
+        };
+        println(`rem child matches a fresh one: ${getComputedStyle(rem).width === fresh("rem")}`);
+        println(`rlh child matches a fresh one: ${getComputedStyle(rlh).width === fresh("rlh")}`);
+        println(`face loaded: ${face.status}`);
+    });
+</script>

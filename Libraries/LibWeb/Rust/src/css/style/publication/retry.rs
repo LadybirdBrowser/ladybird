@@ -56,6 +56,7 @@ impl RetainedState {
                     backing_answer_is_complete,
                     None,
                     parent_inputs_moved,
+                    None,
                     scratch,
                     counters,
                 )
@@ -111,6 +112,7 @@ impl RetainedState {
                     None,
                     record,
                     cascade_state.0,
+                    None,
                     scratch,
                     counters,
                 );
@@ -150,6 +152,7 @@ impl RetainedState {
                 inherited_style: true,
                 display: true,
             },
+            None,
             scratch,
             counters,
         )?;
