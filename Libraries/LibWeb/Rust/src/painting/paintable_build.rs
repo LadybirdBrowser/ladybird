@@ -205,11 +205,8 @@ impl<'a> PaintableCommit<'a> {
         std::mem::take(&mut self.row_reset_notifications)
     }
 
-    pub(crate) fn committed_navigable_container_viewport_shells(&self) -> Vec<*mut std::ffi::c_void> {
-        self.committed_navigable_container_viewports
-            .iter()
-            .map(|node| self.arena().node_shell(*node))
-            .collect()
+    pub(crate) fn committed_navigable_container_viewports(&self) -> &[NodeSlotId] {
+        &self.committed_navigable_container_viewports
     }
 
     pub(crate) fn replace_committed_fragment_link(

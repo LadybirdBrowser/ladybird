@@ -534,9 +534,6 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
                 commit_messages.append(messages[index]);
             // The pass that produced them reads back what they change before it ends.
             commit_messages.apply(); },
-        .finish_commit = [](void*, void* const* viewport_shells, size_t viewport_count) {
-            for (size_t index = 0; index < viewport_count; ++index)
-                as<Box>(*static_cast<Node*>(viewport_shells[index])).notify_content_navigable_of_committed_viewport(); },
         .build_replaced_content_facts = [](void*, void* node_shell, RustFFI::FfiReplacedContentFacts* facts) {
             auto const& node = *static_cast<Node const*>(node_shell);
             if (auto const* box = as_if<Box>(node))

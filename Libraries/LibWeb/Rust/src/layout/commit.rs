@@ -12,6 +12,8 @@ use super::*;
 pub enum FfiCommitMessageKind {
     /// The node is a size query container whose content size changed.
     ContentSizeChangedForContainerQueries,
+    /// The node is a navigable container whose viewport committed.
+    NavigableContainerViewportCommitted,
 }
 
 /// One thing layout has to tell the document. The node it is about is named by the style node the
@@ -28,7 +30,6 @@ pub struct FfiCommitMessage {
 pub(crate) struct CommitNotifications {
     row_resets: Vec<crate::painting::paintable_rows::PaintableRowReset>,
     messages: Vec<FfiCommitMessage>,
-    viewport_shells: Vec<*mut c_void>,
 }
 
 impl CommitNotifications {
@@ -43,7 +44,6 @@ impl CommitNotifications {
         if !self.messages.is_empty() {
             unsafe { (host.deliver_commit_messages)(host.context, self.messages.as_ptr(), self.messages.len()) };
         }
-        unsafe { (host.finish_commit)(host.context, self.viewport_shells.as_ptr(), self.viewport_shells.len()) };
     }
 }
 
@@ -183,9 +183,16 @@ pub(crate) fn commit_replacing(
         Default::default(),
     );
     paintables.discard_absolute_rects_memoized_during_commit();
+    for &viewport in paintables.committed_navigable_container_viewports() {
+        if let Some(style_node) = paintables.arena().commit_message_style_node(viewport) {
+            messages.push(FfiCommitMessage {
+                style_node,
+                kind: FfiCommitMessageKind::NavigableContainerViewportCommitted,
+            });
+        }
+    }
     CommitNotifications {
         row_resets: paintables.take_row_reset_notifications(),
         messages,
-        viewport_shells: paintables.committed_navigable_container_viewport_shells(),
     }
 }

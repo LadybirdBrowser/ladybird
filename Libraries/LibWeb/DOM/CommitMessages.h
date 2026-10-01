@@ -40,6 +40,7 @@ public:
 private:
     enum class Kind : u8 {
         ContentSizeChangedForContainerQueries,
+        NavigableContainerViewportCommitted,
     };
 
     struct Message {
@@ -48,6 +49,7 @@ private:
     };
 
     void apply(Message const&);
+    Layout::Node* bound_layout_node(NodeIdentity) const;
 
     GC::Ref<Document> m_document;
     Vector<Message> m_messages;
