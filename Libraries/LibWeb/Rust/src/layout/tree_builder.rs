@@ -105,11 +105,12 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut FfiIdentifiedDomNode, usize),
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
-    pub push_principal_frame: unsafe extern "C" fn(*mut c_void, u32) -> FfiPrincipalNodeFrame,
-    pub pop_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub prepare_principal_element: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool),
+    /// The DOM node the walk's identity names. The walk navigates by identity and resolves the
+    /// node once per visit rather than once per payload callback.
+    pub principal_dom_node: unsafe extern "C" fn(*mut c_void, u32) -> *mut c_void,
+    pub prepare_principal_element: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
     pub create_principal_element_layout:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiElementLayoutKind) -> NodeSlotId,
+        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiElementLayoutKind) -> NodeSlotId,
     pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     /// Attaches the image observers a box's style asks for. Principal and pseudo-element boxes
@@ -126,17 +127,6 @@ pub struct FfiDomTreeBuilderCallbacks {
 pub struct FfiIdentifiedDomNode {
     pub node: *mut c_void,
     pub style_node: u32,
-}
-
-/// The C++ frame that retains a principal node's old and new layout boxes, paired with the old
-/// box's arena slot so Rust can reason about in-place replacement.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPrincipalNodeFrame {
-    pub frame: *mut c_void,
-    /// The DOM node the walk's identity names. The walk navigates by identity and takes the pointer
-    /// from here, so the node is resolved once per visit rather than once per payload callback.
-    pub dom_node: *mut c_void,
 }
 
 #[derive(Clone, Copy)]
@@ -2022,7 +2012,6 @@ struct PrincipalNodeUpdate<'host, 'callbacks, 'state, 'context> {
     reuse: LayoutNodeReuse,
     host: &'host DomTreeBuilderHost<'callbacks>,
     state: &'state mut TreeBuilderState,
-    frame: *mut c_void,
     old_layout_node: LayoutNode,
     dom_node: *mut c_void,
     /// The node's identity in the style mirror, the document's own for the document.
@@ -2080,7 +2069,6 @@ fn construct_principal_layout_node(
     // The box this visit leaves the node with: the one it entered with when the node keeps it,
     // otherwise the one the host just built. Nothing between the entry and here rebinds the node.
     let mut layout_node = NodeSlotId::INVALID;
-    let frame = update.frame;
     let dom_node = update.dom_node;
     let old_layout_node = update.old_layout_node;
     let must_create_subtree = update.must_create_subtree;
@@ -2105,14 +2093,9 @@ fn construct_principal_layout_node(
                 layout_host.free_subtree(old_backdrop);
             }
         }
-        // SAFETY: The frame, builder, and DOM element remain live throughout the call.
+        // SAFETY: The builder and DOM element remain live throughout the call.
         unsafe {
-            (host.callbacks.prepare_principal_element)(
-                host.callbacks.builder,
-                frame,
-                dom_node,
-                should_create_layout_node,
-            );
+            (host.callbacks.prepare_principal_element)(host.callbacks.builder, dom_node, should_create_layout_node);
         }
         let display = host.published_display(update.style_node);
         let generation = principal_box_generation_decision(
@@ -2150,9 +2133,9 @@ fn construct_principal_layout_node(
                 context.layout_svg_mask_or_clip_path,
                 context.layout_svg_pattern,
             );
-            // SAFETY: The builder, frame, and element remain live throughout construction.
+            // SAFETY: The builder and element remain live throughout construction.
             let created = unsafe {
-                (host.callbacks.create_principal_element_layout)(host.callbacks.builder, frame, dom_node, layout_kind)
+                (host.callbacks.create_principal_element_layout)(host.callbacks.builder, dom_node, layout_kind)
             };
             layout_node = created;
             if !created.is_invalid() {
@@ -2173,8 +2156,9 @@ fn construct_principal_layout_node(
         }
     } else if should_create_layout_node {
         if update.kind.is_document() {
-            // SAFETY: The frame and DOM document remain live throughout construction.
-            let created = unsafe { (host.callbacks.create_principal_document_layout)(frame, dom_node) };
+            // SAFETY: The builder and DOM document remain live throughout construction.
+            let created =
+                unsafe { (host.callbacks.create_principal_document_layout)(host.callbacks.builder, dom_node) };
             layout_node = created;
             created_box = Some(host.layout().created(created));
         } else if update.kind.is_text() {
@@ -2280,7 +2264,7 @@ fn update_principal_node_after_entry(
         }
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
-            // SAFETY: The frame owns a live NodeWithStyle.
+            // SAFETY: The box the host just built is a live NodeWithStyle.
             apply_replaced_display_adjustment(host.layout().arena(), layout_node, adjustment);
         }
 
@@ -2382,7 +2366,7 @@ fn update_principal_node_after_entry(
                     arena.set_committed_fragment_link(new_data, link, None);
                 }
                 transfer_fragments_to_replacement_box(arena, old_layout_node, layout_node);
-                // SAFETY: The frame retains the attached old layout node.
+                // SAFETY: The old layout node is still attached and still has its shell.
                 unsafe {
                     (layout_host.callbacks.prepare_subtree_for_detach)(
                         layout_host.callbacks.context,
@@ -2495,13 +2479,8 @@ fn update_layout_tree_from(
         // The document's identity only roots the style mirror's child sequence; it has no style.
         let style_node = (!kind.is_document()).then_some(identity);
 
-        // The pointer rides back on the frame push, so the node is resolved once per visit rather
-        // than once per payload callback.
-        // SAFETY: The builder remains live, the identity names a live DOM node, and the callback
-        // retains frame-owned C++ objects.
-        let pushed_frame = unsafe { (host.callbacks.push_principal_frame)(host.callbacks.builder, identity.raw()) };
-        assert!(!pushed_frame.frame.is_null());
-        let dom_node = pushed_frame.dom_node;
+        // SAFETY: The builder remains live and the identity names a live DOM node.
+        let dom_node = unsafe { (host.callbacks.principal_dom_node)(host.callbacks.builder, identity.raw()) };
         assert!(!dom_node.is_null());
         // The box the node already has is the row the arena binds to its identity; the document is
         // bound through the viewport row instead.
@@ -2531,8 +2510,6 @@ fn update_layout_tree_from(
                     crate::layout::commit::FfiCommitMessageKind::TopLayerZoneRebuildNeeded,
                 ));
             }
-            // SAFETY: `frame` is the most recently pushed principal frame and is no longer used by Rust.
-            unsafe { (host.callbacks.pop_principal_frame)(host.callbacks.builder, pushed_frame.frame) };
             return;
         }
 
@@ -2541,7 +2518,6 @@ fn update_layout_tree_from(
             reuse,
             host,
             state,
-            frame: pushed_frame.frame,
             old_layout_node,
             dom_node,
             identity,
@@ -2552,8 +2528,6 @@ fn update_layout_tree_from(
             insertion_mode,
         };
         update_principal_node_after_entry(&mut update, entry_facts, entry_decision);
-        // SAFETY: `frame` is the most recently pushed principal frame and is no longer used by Rust.
-        unsafe { (host.callbacks.pop_principal_frame)(host.callbacks.builder, pushed_frame.frame) };
     });
 }
 
