@@ -14,7 +14,10 @@ use std::ffi::c_void;
 #[repr(C)]
 pub struct FfiLayoutTreeUpdateClassification {
     pub marks_partial_relayout_boundary_self_only: bool,
-    pub nearest_non_anonymous_ancestor_when_parent_is_anonymous: NodeSlotId,
+    /// Whether the rebuild escalates past anonymous parents, and the node it escalates to, named the
+    /// way a commit message names it.
+    pub escalates_past_anonymous_parents: bool,
+    pub escalation_target_style_node: u32,
 }
 
 impl LayoutNodeArena {
@@ -62,9 +65,11 @@ impl LayoutNodeArena {
             }
         }
 
+        let escalation_target = self.commit_message_style_node(nearest_non_anonymous_ancestor);
         FfiLayoutTreeUpdateClassification {
             marks_partial_relayout_boundary_self_only: marks_boundary_self_only,
-            nearest_non_anonymous_ancestor_when_parent_is_anonymous: nearest_non_anonymous_ancestor,
+            escalates_past_anonymous_parents: escalation_target.is_some(),
+            escalation_target_style_node: escalation_target.unwrap_or(0),
         }
     }
 
@@ -799,6 +804,7 @@ pub unsafe extern "C" fn layout_arena_set_needs_layout_update(
 #[cfg(test)]
 mod tests {
     use super::FfiPartialRelayoutHostFacts;
+    use crate::css::style::tree::StyleNodeID;
     use crate::layout::layout_node_arena::{LayoutNodeArena, NodeAllocation};
     use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 
@@ -983,20 +989,16 @@ mod tests {
             .set(arena.data(anonymous_parent.slot).flags.get() | (NodeFlag::Anonymous as u32));
         arena.insert_child(grandparent.slot, anonymous_parent.slot, NodeSlotId::INVALID);
         arena.insert_child(anonymous_parent.slot, child.slot, NodeSlotId::INVALID);
+        arena.set_style_node_for_test(grandparent.slot, StyleNodeID::from_raw(7));
 
         let classification = arena.classify_layout_tree_update(child.slot, false);
         assert!(!arena.pending_updates_escape_partial_relayout.get());
         assert!(!classification.marks_partial_relayout_boundary_self_only);
-        assert_eq!(
-            classification.nearest_non_anonymous_ancestor_when_parent_is_anonymous,
-            grandparent.slot
-        );
+        assert!(classification.escalates_past_anonymous_parents);
+        assert_eq!(classification.escalation_target_style_node, 7);
 
         let parent_classification = arena.classify_layout_tree_update(anonymous_parent.slot, false);
-        assert_eq!(
-            parent_classification.nearest_non_anonymous_ancestor_when_parent_is_anonymous,
-            NodeSlotId::INVALID
-        );
+        assert!(!parent_classification.escalates_past_anonymous_parents);
 
         arena.classify_layout_tree_update(grandparent.slot, false);
         assert!(arena.pending_updates_escape_partial_relayout.get());

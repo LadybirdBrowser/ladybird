@@ -31,7 +31,12 @@ pub(crate) struct TreeBuilderState {
     additional_table_fixup_roots: Vec<LayoutNode>,
     layout_tree_update_escaped_rebuild_roots: bool,
     new_subtree_root: LayoutNode,
-    layout_tree_rebuild_requests: Vec<*mut c_void>,
+    /// The elements a finished build asks the document to rebuild. `None` asks for the whole tree:
+    /// the container the box escaped into stands for no element.
+    layout_tree_rebuild_requests: Vec<Option<StyleNodeID>>,
+    /// What the build found out that the document has to be told, in the order it found it out.
+    /// Delivered when the walk ends: nothing inside the build reads any of it back.
+    reports: Vec<crate::layout::commit::FfiCommitMessage>,
 }
 
 impl Default for TreeBuilderState {
@@ -46,6 +51,7 @@ impl Default for TreeBuilderState {
             layout_tree_update_escaped_rebuild_roots: false,
             new_subtree_root: NodeSlotId::INVALID,
             layout_tree_rebuild_requests: Vec::new(),
+            reports: Vec::new(),
         }
     }
 }
@@ -106,10 +112,8 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub flat_tree_render_facts: unsafe extern "C" fn(*mut c_void) -> FfiFlatTreeRenderFacts,
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
     pub register_svg_resource_reference: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub layout_node_dom_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub principal_node_entry_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalNodeEntryFacts,
     pub request_top_layer_zone_rebuild: unsafe extern "C" fn(*mut c_void),
-    pub request_layout_tree_rebuild: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub push_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiPrincipalNodeFrame,
     pub pop_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub prepare_principal_element:
@@ -1920,13 +1924,25 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     }
 
     for &element in &state.layout_tree_rebuild_requests {
-        // A request that names no element asks for the whole tree.
-        if element.is_null() {
+        // A request that names no element asks for the whole tree, which the arena answers itself.
+        let Some(element) = element else {
             host.layout().arena().set_needs_full_layout_tree_update(true);
             continue;
+        };
+        state.reports.push(crate::layout::commit::FfiCommitMessage {
+            style_node: element.raw(),
+            kind: crate::layout::commit::FfiCommitMessageKind::LayoutTreeRebuildRequested,
+        });
+    }
+
+    // What the build found out goes to the document now that the walk that could clear DOM update
+    // flags is complete, in the order the build found it out.
+    if !state.reports.is_empty() {
+        let layout_host = host.layout().arena().layout_host();
+        // SAFETY: The document outlives the build, and no arena borrow is held here.
+        unsafe {
+            (layout_host.deliver_commit_messages)(layout_host.context, state.reports.as_ptr(), state.reports.len());
         }
-        // SAFETY: The builder remains live, and the walk that could clear DOM update flags is complete.
-        unsafe { (host.callbacks.request_layout_tree_rebuild)(host.callbacks.builder, element) };
     }
 
     if rebuilt_subtrees_were_updated_individually {
@@ -2980,8 +2996,11 @@ fn insertion_parent_for_block_node(
 
     if new_parent != parent && !is_inclusive_layout_ancestor_of(&layout, state.new_subtree_root, new_parent) {
         let container = nearest_rebuildable_container(&layout, new_parent);
-        // SAFETY: `container` is a live, attached layout node.
-        let element = unsafe { (host.callbacks.layout_node_dom_element)(layout.shell(container)) };
+        let element = layout
+            .arena()
+            .commit_message_style_node(container)
+            .and_then(StyleNodeID::from_raw)
+            .filter(|style_node| style_node.element_index().is_some());
         if !state.layout_tree_rebuild_requests.contains(&element) {
             state.layout_tree_rebuild_requests.push(element);
         }

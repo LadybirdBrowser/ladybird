@@ -35,6 +35,14 @@ Layout::Node* CommitMessages::bound_layout_node(NodeIdentity identity) const
     return arena ? identity.bound_layout_node(*arena) : nullptr;
 }
 
+void CommitMessages::note_needs_layout_tree_update(NodeIdentity identity, SetNeedsLayoutTreeUpdateReason reason)
+{
+    m_messages.append({ .identity = identity, .kind = Kind::NeedsLayoutTreeUpdate, .layout_tree_update_reason = reason });
+    // The mark decides what the next tree build does, and the DOM side reads that back as soon as the mutation that
+    // made it returns.
+    apply();
+}
+
 // A message from layout names its node by the style node the style tree gave it, with 0 for the document.
 void CommitMessages::append(Layout::RustFFI::FfiCommitMessage const& message)
 {
@@ -55,6 +63,13 @@ void CommitMessages::append(Layout::RustFFI::FfiCommitMessage const& message)
         return;
     case Layout::RustFFI::FfiCommitMessageKind::UnexpectedFragmentedInline:
         m_messages.append({ .identity = identity, .kind = Kind::UnexpectedFragmentedInline });
+        return;
+    case Layout::RustFFI::FfiCommitMessageKind::LayoutTreeRebuildRequested:
+        m_messages.append({
+            .identity = identity,
+            .kind = Kind::NeedsLayoutTreeUpdate,
+            .layout_tree_update_reason = SetNeedsLayoutTreeUpdateReason::PseudoElementBoxEscapedRebuildRoot,
+        });
         return;
     }
     VERIFY_NOT_REACHED();
@@ -91,6 +106,10 @@ void CommitMessages::apply(Message const& message)
             if (auto* content_navigable = local_content_navigable(*box))
                 content_navigable->set_viewport_size(Painting::content_size(*box));
         }
+        return;
+    case Kind::NeedsLayoutTreeUpdate:
+        if (auto node = message.identity.resolve(m_document))
+            node->set_needs_layout_tree_update(true, message.layout_tree_update_reason);
         return;
     case Kind::UnexpectedFragmentedInline:
         if (auto* box = bound_layout_node(message.identity)) {
