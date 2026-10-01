@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container { container-type: size; height: 20px; }
+    #first { width: 200px; }
+    #second { width: 300px; }
+    .target { width: 1px; }
+    .target.direct { width: 20cqw; }
+    .target.mixed { width: calc(1cqw * sibling-index()); }
+</style>
+<div class="container" id="first"><div class="target" id="firstTarget"></div></div>
+<div class="container" id="second"><span></span><div class="target" id="secondTarget"></div></div>
+<script>
+    // Switches container-relative lengths on in two elements that already have records, under
+    // containers of different widths, and prints how often the style engine refused their values
+    // and how many elements C++ computed instead.
+    test(() => {
+        const width = element => getComputedStyle(element).width;
+        const widths = () => `${width(firstTarget)}, ${width(secondTarget)}`;
+        document.body.offsetWidth;
+        println(`initial: ${widths()}`);
+        for (const className of ["direct", "mixed"]) {
+            const before = Object.assign({}, internals.styleEngineCounters());
+            internals.resetStyleInvalidationCounters();
+            firstTarget.className = `target ${className}`;
+            secondTarget.className = `target ${className}`;
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+            println(`${className}: value refusals ${after.engineComputedRecordBailValue - before.engineComputedRecordBailValue}, C++ recomputations ${recomputations}, widths ${widths()}`);
+        }
+        first.style.width = "250px";
+        document.body.offsetWidth;
+        println(`resized: ${widths()}`);
+    });
+</script>

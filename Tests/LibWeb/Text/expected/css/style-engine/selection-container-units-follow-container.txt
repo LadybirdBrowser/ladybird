@@ -1,0 +1,4 @@
+initial narrowSubject: 10px
+initial wideSubject: 30px
+resized narrowSubject: 20px
+resized wideSubject: 30px

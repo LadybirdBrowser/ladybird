@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    .container {
+        container-type: inline-size;
+    }
+    #narrow {
+        width: 100px;
+    }
+    #wide {
+        width: 300px;
+    }
+    .subject::selection {
+        text-underline-offset: 10cqw;
+    }
+</style>
+<div class="container" id="narrow"><div class="subject" id="narrowSubject">narrow</div></div>
+<div class="container" id="wide"><div class="subject" id="wideSubject">wide</div></div>
+<script src="../../include.js"></script>
+<script>
+    // The same ::selection rule under two containers of different widths, one of which is resized:
+    // each pseudo-element's container units follow its own originating element's container.
+    test(() => {
+        const report = label => {
+            for (const subject of [narrowSubject, wideSubject])
+                println(`${label} ${subject.id}: ${getComputedStyle(subject, "::selection").textUnderlineOffset}`);
+        };
+        document.body.offsetWidth;
+        report("initial");
+        narrow.style.width = "200px";
+        document.body.offsetWidth;
+        report("resized");
+    });
+</script>
