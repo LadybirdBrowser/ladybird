@@ -8,7 +8,6 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/Bindings/SVGImageElement.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
@@ -105,7 +104,6 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
             m_load_event_delayer.clear();
             register_with_decoded_image_data_if_needed();
             image_provider_contents_changed();
-            document().style_computer().style_engine().record_element_style_input_change(style_node_id());
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 
             dispatch_event(DOM::Event::create(HTML::EventNames::load,

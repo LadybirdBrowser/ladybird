@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<svg width="200" height="200">
+    <filter id="filter"><feImage id="fe" width="10" height="10" /></filter>
+    <image id="image" />
+</svg>
+<script>
+    // An SVG image's resource arriving moves no style declaration: layout sizes the <image> from
+    // its replaced content, and an <feImage> repaints through the SVG paint resources. Count the
+    // style computations the arrival causes, and check the image is sized from what arrived.
+    promiseTest(async () => {
+        const loaded = new Promise(resolve => image.addEventListener("load", resolve));
+        fe.setAttribute("href", "../../../../Assets/120.png");
+        image.setAttribute("href", "../../../../Assets/120.png");
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        await loaded;
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`image width: ${image.getBoundingClientRect().width}`);
+    });
+</script>
