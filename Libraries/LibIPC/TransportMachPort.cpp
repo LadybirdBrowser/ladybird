@@ -12,6 +12,7 @@
 #include <LibCore/Notifier.h>
 #include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/System.h>
+#include <LibIPC/Limits.h>
 #include <LibIPC/TransportMachPort.h>
 #include <LibThreading/Thread.h>
 
@@ -521,6 +522,14 @@ void TransportMachPort::process_received_message(u8* buffer)
         }
 
         message->bytes = move(payload_bytes);
+    }
+
+    // NB: The rights and the payload region are ours once received, so adopt them first. Dropping the message then
+    //     releases them.
+    if (message->attachments.size() > MAX_MESSAGE_FD_COUNT) {
+        dbgln("TransportMachPort: Rejecting message with {} attachments exceeding limit {}", message->attachments.size(), MAX_MESSAGE_FD_COUNT);
+        mark_peer_eof();
+        return;
     }
 
     if (message->bytes.is_empty() && message->attachments.is_empty())

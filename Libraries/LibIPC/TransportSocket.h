@@ -31,9 +31,13 @@
 
 namespace IPC {
 
+// NB: One sendmsg() carries a limited number of descriptors, and at least one byte with them. A message with more
+//     descriptors sends the rest ahead of it, in Attachments frames that have no payload. A Payload frame's fd_count
+//     counts every descriptor of its message, including those that arrived ahead of it.
 struct SocketMessageHeader {
     enum class Type : u8 {
         Payload = 0,
+        Attachments = 1,
     };
     Type type { Type::Payload };
     u32 payload_size { 0 };
