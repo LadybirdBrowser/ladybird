@@ -1931,16 +1931,24 @@ pub(super) struct ScopeDispatchKey {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(super) struct ScopeDispatchShape(pub(super) SharedVector<(SelectorProgramID, bool)>);
 
-thread_local! {
-    static SHARED_SCOPE_DISPATCH_SHAPES: RefCell<SharedVectorPool<(SelectorProgramID, bool)>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
-    static SHARED_SCOPE_CASCADE_ORIGINS: RefCell<SharedVectorPool<(u8, CascadeLayerID)>> =
-        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+/// The pools for the shapes scope dispatches are keyed by.
+pub(super) struct ScopeShapePools {
+    dispatch_shapes: SharedVectorPool<(SelectorProgramID, bool)>,
+    cascade_origins: SharedVectorPool<(u8, CascadeLayerID)>,
+}
+
+impl Default for ScopeShapePools {
+    fn default() -> Self {
+        Self {
+            dispatch_shapes: SharedVectorPool::new(MemoryCategory::RuleProgram),
+            cascade_origins: SharedVectorPool::new(MemoryCategory::RuleProgram),
+        }
+    }
 }
 
 impl ScopeDispatchShape {
-    pub(super) fn share(&mut self) {
-        self.0.share(&SHARED_SCOPE_DISPATCH_SHAPES);
+    pub(super) fn share(&mut self, pools: &mut ScopeShapePools) {
+        self.0.share(&mut pools.dispatch_shapes);
     }
 }
 
@@ -1955,11 +1963,11 @@ pub(super) struct ScopeCascadeShape {
 }
 
 impl ScopeCascadeShape {
-    pub(super) fn share(&mut self) {
-        // Cache keys contain immutable numeric identities. Equal scopes and documents can
-        // share these arrays without retaining a document or any mutable cascade result.
-        self.dispatch.share();
-        self.rule_origins_and_layers.share(&SHARED_SCOPE_CASCADE_ORIGINS);
+    pub(super) fn share(&mut self, pools: &mut ScopeShapePools) {
+        // Cache keys contain immutable numeric identities. Equal scopes can share these arrays
+        // without retaining any mutable cascade result.
+        self.dispatch.share(pools);
+        self.rule_origins_and_layers.share(&mut pools.cascade_origins);
     }
 }
 

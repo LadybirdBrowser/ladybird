@@ -36,10 +36,14 @@ pub(super) struct PrefixRelationProgram {
     memory: super::super::memory::MemoryLease,
 }
 
-thread_local! {
-    static RELATION_PROGRAM_MEMORY: std::cell::RefCell<super::super::memory::MemoryController> =
-        std::cell::RefCell::new(super::super::memory::MemoryController::new(super::super::memory::DeviceClass::ForegroundDesktop));
-}
+/// The ledger relation programs are charged to, once each however many scopes share one. It has its
+/// own lock so that building a relation never holds the dispatch pools.
+static RELATION_PROGRAM_MEMORY: std::sync::LazyLock<std::sync::Mutex<super::super::memory::MemoryController>> =
+    std::sync::LazyLock::new(|| {
+        std::sync::Mutex::new(super::super::memory::MemoryController::new(
+            super::super::memory::DeviceClass::ForegroundDesktop,
+        ))
+    });
 
 /// A step in dependency order, with what an update reads of it as it runs: how it is reached, its compound and its
 /// predecessor (`u32::MAX` for none). Updates run steps in this order, so they read these one after another.
@@ -1462,9 +1466,10 @@ impl PrefixAutomaton {
                 terminal_steps,
                 memory: super::super::memory::MemoryLease::new(super::super::memory::MemoryCategory::RuleProgram),
             };
-            RELATION_PROGRAM_MEMORY.with_borrow_mut(|memory| {
-                program.memory.resize_required_to(memory, program.capacity_bytes());
-            });
+            let mut memory = RELATION_PROGRAM_MEMORY
+                .lock()
+                .expect("the relation program ledger is never held across a panic");
+            program.memory.resize_required_to(&mut memory, program.capacity_bytes());
             std::sync::Arc::new(program)
         }));
         let mut relation = PrefixRelation {

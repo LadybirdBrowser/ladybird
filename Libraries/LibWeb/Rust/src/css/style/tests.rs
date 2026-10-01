@@ -10060,15 +10060,15 @@ fn a_scope_dispatch_can_extend_a_finished_prefix_template() {
 
     let mut template = RuleDispatch::new();
     insert_scope_rule(&mut template, &programs, rules[0], base, true);
-    template.finish_prefixes();
+    template.finish_prefixes(&mut Default::default());
     let mut extended = RuleDispatch::rebind_rules_for_extension(&template, &rules[..1]);
     insert_scope_rule(&mut extended, &programs, rules[1], suffix, true);
-    extended.finish_prefixes();
+    extended.finish_prefixes(&mut Default::default());
 
     let mut cold = RuleDispatch::new();
     insert_scope_rule(&mut cold, &programs, rules[0], base, true);
     insert_scope_rule(&mut cold, &programs, rules[1], suffix, true);
-    cold.finish_prefixes();
+    cold.finish_prefixes(&mut Default::default());
 
     assert_eq!(extended.entry_count(), cold.entry_count());
     for index in 0..extended.entry_count() {

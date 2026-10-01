@@ -5,6 +5,7 @@
  */
 
 use smallvec::SmallVec;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use super::batch_matcher::{append_selector_truth_matches, insert_scope_rule};
 use super::cascade::CascadeContinuationID;
@@ -51,19 +52,28 @@ struct SharedDispatches {
     memory: memory::MemoryController,
 }
 
-thread_local! {
-    static SHARED_DISPATCHES: RefCell<SharedDispatches> = RefCell::new(SharedDispatches {
-        templates: HashMap::default(),
-        memory: memory::MemoryController::new(memory::DeviceClass::ForegroundDesktop),
-    });
+impl Default for SharedDispatches {
+    fn default() -> Self {
+        Self {
+            templates: HashMap::default(),
+            memory: memory::MemoryController::new(memory::DeviceClass::ForegroundDesktop),
+        }
+    }
 }
 
-pub(super) fn forget_dead_shared_dispatches() {
-    let _ = SHARED_DISPATCHES.try_with(|shared| {
-        if let Ok(mut shared) = shared.try_borrow_mut() {
-            shared.templates.retain(|_, template| template.is_alive());
-        }
-    });
+/// The interning pools of selector dispatches, shared by every engine in the process.
+#[derive(Default)]
+struct DispatchPools {
+    dispatches: SharedDispatches,
+    scope_shapes: catalog::ScopeShapePools,
+    storage: index::DispatchStoragePools,
+}
+
+fn dispatch_pools() -> MutexGuard<'static, DispatchPools> {
+    // Every engine interns through the same pools, from whichever thread runs it. Values never
+    // reach back into a pool when they are dropped, so the lock is only held while interning.
+    static DISPATCH_POOLS: OnceLock<Mutex<DispatchPools>> = OnceLock::new();
+    DISPATCH_POOLS.get_or_init(Mutex::default).lock().unwrap()
 }
 
 fn verify_match_answer_against_cold(
@@ -792,26 +802,26 @@ impl RetainedState {
                 .collect(),
             layer_order: self.program.layer_order_key(scope),
         };
-        cascade_shape.share();
+        cascade_shape.share(&mut dispatch_pools().scope_shapes);
         // Preserve source ordering in the cascade key, while equivalent selector multisets
         // share matching topology regardless of stylesheet order.
         super::batch_matcher::canonicalize_scope_dispatch(&mut shape, &mut rules, &self.programs);
-        shape.share();
+        shape.share(&mut dispatch_pools().scope_shapes);
         let cascade_template = self.scope_cascade_templates.get(&cascade_shape).cloned();
         // Document-local selector and entry numbers are embedded in the topology. Share only
-        // when those numbers AND their process-interned semantic payloads agree. Rule bindings,
+        // when those numbers AND their interned semantic payloads agree. Rule bindings,
         // cascade ranks, and every element-dependent result are rebuilt for this document.
         let shared_key = SharedDispatchKey::new(&shape, &self.programs);
         let exact_template = self.scope_dispatch_templates.get(&shape).cloned().or_else(|| {
             let key = shared_key.as_ref()?;
-            SHARED_DISPATCHES.with_borrow_mut(|shared| {
-                shared.templates.retain(|_, template| template.is_alive());
-                shared
-                    .templates
-                    .get(key)
-                    .and_then(index::WeakRuleDispatch::upgrade)
-                    .map(Arc::new)
-            })
+            let mut pools = dispatch_pools();
+            let shared = &mut pools.dispatches;
+            shared.templates.retain(|_, template| template.is_alive());
+            shared
+                .templates
+                .get(key)
+                .and_then(index::WeakRuleDispatch::upgrade)
+                .map(Arc::new)
         });
         let extension_template = exact_template.is_none().then(|| {
             // Extending a template copies its topology first. Require the retained prefix to cover
@@ -845,7 +855,7 @@ impl RetainedState {
                     rule_index = dispatch.entry_count();
                 }
                 assert_eq!(rule_index, rules.len());
-                dispatch.finish_prefixes();
+                dispatch.finish_prefixes(&mut dispatch_pools().storage.prefixes);
                 dispatch
             }
             (None, None) => {
@@ -865,7 +875,7 @@ impl RetainedState {
                     rule_index = dispatch.entry_count();
                 }
                 assert_eq!(rule_index, rules.len());
-                dispatch.finish_prefixes();
+                dispatch.finish_prefixes(&mut dispatch_pools().storage.prefixes);
                 let ancestor_shape = dispatch.ancestor_dispatch_shape();
                 if let Some(template) = self.ancestor_dispatch_templates.get(&ancestor_shape) {
                     dispatch.share_ancestor_topology_with(template);
@@ -885,6 +895,7 @@ impl RetainedState {
         // A rule declaring custom properties beside its longhands contributes those longhands
         // as any rule does: the environment its custom properties decide is computed apart.
         dispatch.assign_cascade_properties(
+            &mut dispatch_pools().storage,
             |candidate| {
                 self.program.rule_is_gated_by_container_query(candidate.rule)
                     || !self.program.declarations_are_complete_for(candidate.rule)
@@ -908,14 +919,12 @@ impl RetainedState {
             },
         );
         if shared_key.is_some() {
-            SHARED_DISPATCHES.with_borrow_mut(|shared| dispatch.settle_topology_memory(&mut shared.memory));
+            dispatch.settle_topology_memory(&mut dispatch_pools().dispatches.memory);
         }
         dispatch.settle_memory(&mut self.memory);
         let dispatch = Arc::new(dispatch);
         if let Some(key) = shared_key {
-            SHARED_DISPATCHES.with_borrow_mut(|shared| {
-                shared.templates.insert(key, dispatch.downgrade());
-            });
+            dispatch_pools().dispatches.templates.insert(key, dispatch.downgrade());
         }
         self.scope_cascade_templates
             .entry(cascade_shape)
