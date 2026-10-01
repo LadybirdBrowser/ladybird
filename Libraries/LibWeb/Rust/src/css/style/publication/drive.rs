@@ -365,6 +365,10 @@ impl RetainedState {
         installed_ancestors: Option<&InstalledAncestors>,
         counters: &mut Counters,
     ) -> Drive<PartialDrive> {
+        let random_base_values = store
+            .drive_random_base_values(self, node)
+            .or_refused()
+            .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailValue))?;
         let resource_contexts = store.drive_resource_contexts(self);
         let document_base_url = &self.document_resource_contexts.document_base_url;
         let store = store.view(self);
@@ -480,8 +484,8 @@ impl RetainedState {
             has_tree_counting_context: sibling_position.is_some(),
             sibling_count: sibling_position.map_or(0, |position| u64::from(position.count)),
             sibling_index: sibling_position.map_or(0, |position| u64::from(position.index)),
-            random_base_values: std::ptr::null(),
-            random_base_value_count: 0,
+            random_base_values: random_base_values.as_ptr(),
+            random_base_value_count: random_base_values.len(),
             document_base_url: document_base_url.as_ptr(),
             document_base_url_length: document_base_url.len(),
             style_sheet_resource_contexts: resource_contexts.as_ptr(),
@@ -603,6 +607,10 @@ impl RetainedState {
         awaits_registered_context: bool,
         counters: &mut Counters,
     ) -> Drive<FullDrive> {
+        let random_base_values = store
+            .drive_random_base_values(self, subject.target.node())
+            .or_refused()
+            .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailValue))?;
         let resource_contexts = store.drive_resource_contexts(self);
         let document_base_url = &self.document_resource_contexts.document_base_url;
         let store = store.view(self);
@@ -847,8 +855,8 @@ impl RetainedState {
             has_tree_counting_context: sibling_position.is_some(),
             sibling_count: sibling_position.map_or(0, |position| u64::from(position.count)),
             sibling_index: sibling_position.map_or(0, |position| u64::from(position.index)),
-            random_base_values: std::ptr::null(),
-            random_base_value_count: 0,
+            random_base_values: random_base_values.as_ptr(),
+            random_base_value_count: random_base_values.len(),
             document_base_url: document_base_url.as_ptr(),
             document_base_url_length: document_base_url.len(),
             style_sheet_resource_contexts: resource_contexts.as_ptr(),
