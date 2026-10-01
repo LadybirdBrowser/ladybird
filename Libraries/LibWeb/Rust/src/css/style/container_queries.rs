@@ -49,6 +49,56 @@ unsafe extern "C" fn no_style_feature_callback(_: *mut c_void, _: FfiContainerSt
 }
 
 impl RetainedState {
+    /// What lengths resolve against as a record computes them, as the host takes them from an
+    /// element's computed style: the record's font metrics and writing mode, the root's font
+    /// metrics and the viewport, with no container to resolve container-relative lengths
+    /// against. `None` for a record without a font.
+    pub(super) fn record_length_resolution_context(
+        &self,
+        view: &computed::StyleRecordView<'_>,
+    ) -> Option<crate::css::style_compute::FfiLengthResolutionContext> {
+        let document = &self.document_style_computation_inputs;
+        let font = unsafe {
+            view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT]
+                .cast::<crate::css::computed_value_types::FontValues>()
+                .as_ref()
+        }?;
+        let values = crate::css::computed_value_views::ComputedValuesView::new(
+            crate::css::host_shared::SharedPayload::as_pointer_slice(view.payloads),
+        );
+        Some(crate::css::style_compute::FfiLengthResolutionContext {
+            viewport_width: document.viewport_width,
+            viewport_height: document.viewport_height,
+            font_metrics: crate::css::style_compute::FfiFontMetrics {
+                font_size: font.font_size.to_double(),
+                x_height: super::publication::drive_font_metric(font.font_x_height),
+                // The C++ metrics approximate the cap height with the ascent.
+                cap_height: super::publication::drive_font_metric(font.font_ascent),
+                zero_advance: super::publication::drive_font_metric(font.font_zero_advance),
+                line_height: font.line_height_used.to_double(),
+            },
+            root_font_metrics: crate::css::style_compute::FfiFontMetrics {
+                font_size: document.root_font_size,
+                x_height: document.root_font_x_height,
+                cap_height: document.root_font_cap_height,
+                zero_advance: document.root_font_zero_advance,
+                line_height: document.root_line_height,
+            },
+            font_metrics_depend_on_viewport_metrics: view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS
+                != 0,
+            root_font_metrics_depend_on_viewport_metrics: document.root_font_metrics_depend_on_viewport_metrics,
+            has_container_width_basis: false,
+            has_container_height_basis: false,
+            container_width_basis: 0.0,
+            container_height_basis: 0.0,
+            container_width_basis_depends_on_viewport_metrics: false,
+            container_height_basis_depends_on_viewport_metrics: false,
+            subject_inline_axis_is_horizontal: values.writing_mode()
+                == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+            resolved_viewport_relative_length: std::ptr::null_mut(),
+        })
+    }
+
     /// Evaluate a rule's container conditions for a subject, as the host evaluates them. `None`
     /// when the engine cannot decide them: the rule has no target, or a container it asks about
     /// holds no record or custom-property environment to read.
@@ -167,11 +217,7 @@ impl RetainedState {
             let snapshot = self.layout_style_snapshot(candidate).unwrap_or_default();
             let document = &self.document_style_computation_inputs;
             let view = self.computed_group_sets.style_record_view(inputs.style_record)?;
-            let font = unsafe {
-                view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT]
-                    .cast::<crate::css::computed_value_types::FontValues>()
-                    .as_ref()
-            }?;
+            let mut length = self.record_length_resolution_context(&view)?;
             // A container-relative length in the query resolves against the container's own query
             // container, the nearest above it eligible for the axis, or the viewport.
             let container_unit_basis = |horizontal: bool| {
@@ -217,37 +263,14 @@ impl RetainedState {
             let (container_height_basis, height_basis_depends_on_viewport, height_basis_node) =
                 container_unit_basis(false);
             let mut resolved_viewport_relative_length = false;
-            let length = crate::css::style_compute::FfiLengthResolutionContext {
-                viewport_width: document.viewport_width,
-                viewport_height: document.viewport_height,
-                font_metrics: crate::css::style_compute::FfiFontMetrics {
-                    font_size: font.font_size.to_double(),
-                    x_height: super::publication::drive_font_metric(font.font_x_height),
-                    // The C++ metrics approximate the cap height with the ascent.
-                    cap_height: super::publication::drive_font_metric(font.font_ascent),
-                    zero_advance: super::publication::drive_font_metric(font.font_zero_advance),
-                    line_height: font.line_height_used.to_double(),
-                },
-                root_font_metrics: crate::css::style_compute::FfiFontMetrics {
-                    font_size: document.root_font_size,
-                    x_height: document.root_font_x_height,
-                    cap_height: document.root_font_cap_height,
-                    zero_advance: document.root_font_zero_advance,
-                    line_height: document.root_line_height,
-                },
-                font_metrics_depend_on_viewport_metrics: view.dependency_flags
-                    & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS
-                    != 0,
-                root_font_metrics_depend_on_viewport_metrics: document.root_font_metrics_depend_on_viewport_metrics,
-                has_container_width_basis: true,
-                has_container_height_basis: true,
-                container_width_basis,
-                container_height_basis,
-                container_width_basis_depends_on_viewport_metrics: width_basis_depends_on_viewport,
-                container_height_basis_depends_on_viewport_metrics: height_basis_depends_on_viewport,
-                subject_inline_axis_is_horizontal: inline_axis_horizontal,
-                resolved_viewport_relative_length: &raw mut resolved_viewport_relative_length,
-            };
+            length.has_container_width_basis = true;
+            length.has_container_height_basis = true;
+            length.container_width_basis = container_width_basis;
+            length.container_height_basis = container_height_basis;
+            length.container_width_basis_depends_on_viewport_metrics = width_basis_depends_on_viewport;
+            length.container_height_basis_depends_on_viewport_metrics = height_basis_depends_on_viewport;
+            length.subject_inline_axis_is_horizontal = inline_axis_horizontal;
+            length.resolved_viewport_relative_length = &raw mut resolved_viewport_relative_length;
             let opposite = |side: u8| (side + 2) % 4;
             let (block_start_side, mut inline_start_side) = match inputs.writing_mode {
                 crate::css::css_enums::writing_mode::HORIZONTAL_TB => (SCROLL_STATE_SIDE_TOP, SCROLL_STATE_SIDE_LEFT),
@@ -380,7 +403,7 @@ impl RetainedState {
 
     /// Keep what a row the engine answers read of its containers for the host, which records it
     /// when it installs the element's record, as it does for a row it computes itself.
-    fn note_container_effects_for_host(&mut self, node: StyleNodeID, verdict: ContainerVerdict) {
+    pub(super) fn note_container_effects_for_host(&mut self, node: StyleNodeID, verdict: ContainerVerdict) {
         let noted = self.container_effects_for_host.entry(node).or_default();
         noted.depends_on_size |= verdict.depends_on_size;
         noted.depends_on_style |= verdict.depends_on_style;

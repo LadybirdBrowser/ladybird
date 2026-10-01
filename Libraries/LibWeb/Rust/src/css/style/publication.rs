@@ -616,7 +616,8 @@ impl RetainedState {
         // A moved environment reaches every winner written with a substitution, and so does a
         // moved custom-property registry. A winner written with `attr()` computes to what the
         // element's attributes hold now, one written with `inherit()` to what the parent's
-        // environment holds now, and one reading the element's place among its siblings
+        // environment holds now, one written with `if()` to what its conditions say now, and one
+        // reading the element's place among its siblings
         // to where it stands now, which no winner delta shows. Such a record is driven again in
         // full, as is one holding no current cascade state or one under a moved document
         // environment.
@@ -2564,6 +2565,9 @@ impl RetainedState {
             if custom_property_cascade::value_reads_inherited_values(value.data()) {
                 reads |= cascade::STATE_READS_INHERIT_FUNCTION;
             }
+            if custom_property_cascade::value_reads_conditions(value.data()) {
+                reads |= cascade::STATE_READS_IF_FUNCTION;
+            }
         }
         if self
             .winner_groups
@@ -2582,10 +2586,15 @@ impl RetainedState {
 
     /// Whether any of a state's longhand winners, itself or through the shorthand it is pending,
     /// substitutes what the node's own custom-property environment does not decide: the element's
-    /// attributes through `attr()`, or the parent's environment through `inherit()`. What such a
-    /// state substitutes to is the element's alone.
+    /// attributes through `attr()`, the parent's environment through `inherit()`, or the
+    /// document's media features and the element's lengths through `if()`. What such a state
+    /// substitutes to is the element's alone.
     pub(super) fn state_reads_beyond_environment(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
-        self.state_reads(node, state) & (cascade::STATE_READS_ATTRIBUTES | cascade::STATE_READS_INHERIT_FUNCTION) != 0
+        self.state_reads(node, state)
+            & (cascade::STATE_READS_ATTRIBUTES
+                | cascade::STATE_READS_INHERIT_FUNCTION
+                | cascade::STATE_READS_IF_FUNCTION)
+            != 0
     }
 
     /// The element whose attributes `attr()` reads for a node's record or one of its
@@ -2763,6 +2772,9 @@ impl RetainedState {
         // pseudo-element's reads its originating element's.
         let mut attributes = None;
         let attribute_element = self.substitution_attribute_element(node, pseudo_kind);
+        // What a `style()` query in an `if()` resolves against, likewise.
+        let mut style_query = None;
+        let style_query_references = std::cell::RefCell::new(None);
         for winner in self.winner_groups.winners_in_state(state) {
             // A revert whose continuation resumes at nothing leaves the property undeclared.
             let Some(winner) = self.winner_groups.resolved_winner(winner) else {
@@ -2809,6 +2821,11 @@ impl RetainedState {
                 source: winner.source,
                 index,
             };
+            if style_query.is_none() && custom_property_cascade::value_reads_conditions(value.data()) {
+                style_query = Some(
+                    self.style_query_inputs(computed::ComputedStyleTarget::new(node, pseudo_kind.unwrap_or(u8::MAX))),
+                );
+            }
             let (value, borrowed) = match value.data() {
                 crate::css::style_value::StyleValueData::Shorthand { .. } => {
                     let Some(value) = shorthand_longhand_data(winner.property, value.data()) else {
@@ -2835,14 +2852,19 @@ impl RetainedState {
                             .or_refused()?,
                         );
                     }
-                    let attributes = attributes.as_ref().filter(|_| *presence_attr);
+                    let inputs = custom_property_cascade::SubstitutionInputs {
+                        document: &self.document_style_computation_inputs,
+                        media: &self.document_media,
+                        environment,
+                        attributes: attributes.as_ref().filter(|_| *presence_attr),
+                        style_query: style_query.as_ref().and_then(Option::as_ref),
+                        style_query_references: Some(&style_query_references),
+                    };
                     let value = Self::substitute_written_value(
                         &mut self.custom_property_environments,
-                        &self.document_style_computation_inputs,
-                        environment,
+                        &inputs,
                         winner.property,
                         value,
-                        attributes,
                         counters,
                     )?;
                     (
@@ -2866,13 +2888,19 @@ impl RetainedState {
                         continue;
                     };
                     // The store caches do not key a shorthand's `attr()` on the attributes it read.
+                    let inputs = custom_property_cascade::SubstitutionInputs {
+                        document: &self.document_style_computation_inputs,
+                        media: &self.document_media,
+                        environment,
+                        attributes: None,
+                        style_query: style_query.as_ref().and_then(Option::as_ref),
+                        style_query_references: Some(&style_query_references),
+                    };
                     let resolved = Self::substitute_written_value(
                         &mut self.custom_property_environments,
-                        &self.document_style_computation_inputs,
-                        environment,
+                        &inputs,
                         shorthand,
                         written,
-                        None,
                         counters,
                     )?;
                     let value = match resolved.data() {
@@ -2949,12 +2977,26 @@ impl RetainedState {
             ));
         }
         declarations.sort_by_key(|(priority, index, ..)| (*priority, *index));
-        Ok(WinnerStore::new(
+        let store = WinnerStore::new(
             declarations
                 .into_iter()
                 .map(|(_, _, declaration)| declaration)
                 .collect(),
-        ))
+        );
+        // The custom properties its `style()` queries read are the element's style query
+        // references, which the host records with its record.
+        if store_use == StoreUse::Drive
+            && let Some(references) = style_query_references.into_inner()
+        {
+            self.note_container_effects_for_host(
+                node,
+                super::container_queries::ContainerVerdict {
+                    style_query_references: Some(references),
+                    ..Default::default()
+                },
+            );
+        }
+        Ok(store)
     }
 
     /// Whether every cascade winner that moved on this node since its record was computed is a

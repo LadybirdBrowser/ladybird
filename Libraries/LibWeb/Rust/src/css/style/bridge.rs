@@ -279,6 +279,13 @@ pub struct FfiDocumentStyleComputationInputs {
     pub document_base_url_length: usize,
     pub style_sheet_resource_contexts: FfiHostHandle,
     pub style_sheet_resource_context_count: usize,
+    /// What `media()` conditions in `if()` read, lent for the boundary call only as the style
+    /// update's media environment holds them: an `FfiMediaFeatureValue` for each media feature,
+    /// and the `FfiLengthResolutionContext` lengths in a media query resolve against. The engine
+    /// copies them and clears these fields before it keeps the inputs.
+    pub media_feature_values: FfiHostHandle,
+    pub media_feature_value_count: usize,
+    pub media_length_resolution_context: FfiHostHandle,
 }
 
 /// One style sheet's resource context, keyed by the identity of its native sheet: the base URL a
@@ -339,6 +346,9 @@ impl Default for FfiDocumentStyleComputationInputs {
             document_base_url_length: 0,
             style_sheet_resource_contexts: FfiHostHandle { address: 0 },
             style_sheet_resource_context_count: 0,
+            media_feature_values: FfiHostHandle { address: 0 },
+            media_feature_value_count: 0,
+            media_length_resolution_context: FfiHostHandle { address: 0 },
         }
     }
 }
@@ -2776,6 +2786,10 @@ pub enum FfiNodeRecordReads {
     /// An `inherit()` substitution, in the element's winners, its pseudo-elements' or the custom
     /// properties either declares: a moved environment of the parent reaches the records.
     InheritFunction = 1 << 2,
+    /// An `if()` substitution, in the element's winners, its pseudo-elements' or the custom
+    /// properties either declares: a change of the media features or of the element's
+    /// environment reaches the records.
+    IfFunction = 1 << 3,
 }
 
 /// The raw custom-property environment identity a style record was published with.
@@ -3824,6 +3838,8 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
     // SAFETY: The host lends the buffers the inputs name for this call.
     let resource_contexts_moved = unsafe { engine.document_resource_contexts.take_in(&mut computation_inputs) };
+    // SAFETY: The host lends the media environment the inputs name for this call.
+    unsafe { engine.document_media.take_in(&mut computation_inputs) };
     engine.custom_property_registrations_changed = engine
         .document_style_computation_inputs
         .custom_property_registration_generation
