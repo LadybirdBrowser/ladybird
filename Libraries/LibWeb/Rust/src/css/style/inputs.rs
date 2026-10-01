@@ -1246,6 +1246,15 @@ impl StyleEngineState {
                 cascade_compaction_scratch_memory: MemoryLease::new(MemoryCategory::BatchScratch),
                 next_style_transaction_version: StyleTransactionVersion(1),
                 document_style_computation_inputs: Default::default(),
+                monospace_font_family: RetainedStyleValueData::from_owned(
+                    crate::css::parser::value_parser::value_list(
+                        vec![StyleValueData::Keyword {
+                            keyword: crate::css::style_compute::keyword::MONOSPACE,
+                        }],
+                        1,
+                        true,
+                    ),
+                ),
                 font_resolution: None,
                 layer_topology_version: 0,
                 sheet_order_version: 0,
@@ -2703,6 +2712,7 @@ impl RetainedState {
             next_style_transaction_version: _,
             document_style_computation_inputs: _,
             font_resolution: _,
+            monospace_font_family: _,
             layer_topology_version: _,
             sheet_order_version: _,
             specified_values: _,

@@ -34,6 +34,15 @@ pub(in crate::css::style) enum Suspension {
 /// A row's answer from the engine, or why there is none.
 pub(in crate::css::style) type Drive<T> = Result<T, Unanswered>;
 
+/// What the monospace font-size recascade answers for a drive target.
+pub(super) enum MonospaceRecascade {
+    /// The font size the recascade reaches, and whether reaching it read the viewport.
+    Size(i32, bool),
+    /// A length in the ancestor chain resolves against the monospace font at the size reached so
+    /// far, which the font resolver has not resolved yet.
+    AwaitsFont(bridge::FfiFontResolutionRequest),
+}
+
 /// A missing value on the way to a record is the engine declining the row.
 pub(in crate::css::style) trait OrRefused<T> {
     fn or_refused(self) -> Drive<T>;
@@ -80,11 +89,24 @@ pub(super) enum FullDrive {
 
 #[derive(Default)]
 pub(in crate::css::style) struct FontDriveScratch {
-    pub(in crate::css::style) request: Option<font_resolution::FontRequest>,
+    request: Option<font_resolution::FontRequest>,
     pending: Option<PendingFontDrive>,
 }
 
 impl FontDriveScratch {
+    /// Suspend the drive for `target` on a font: the request and the drive it suspends are set
+    /// together, so a retry always knows it resumes a drive whose entry gates passed.
+    fn suspend(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+        request: bridge::FfiFontResolutionRequest,
+        progress: Option<DriveProgress>,
+    ) -> Unanswered {
+        self.request = Some(font_resolution::FontRequest::new(request));
+        self.pending = Some(PendingFontDrive { target, progress });
+        Unanswered::Suspended(Suspension::Font)
+    }
+
     /// Whether the suspended drive belongs to this node's row, for the element itself or one of
     /// its pseudo-elements. A row resumes only its own drive: the one left behind by an element
     /// the record loop settled another way is not an answer to it.
@@ -104,7 +126,8 @@ impl FontDriveScratch {
     pub(in crate::css::style) fn capacity_bytes(&self) -> u64 {
         self.pending
             .as_ref()
-            .map_or(0, |pending| pending.table.owned_capacity_bytes())
+            .and_then(|pending| pending.progress.as_ref())
+            .map_or(0, |progress| progress.table.owned_capacity_bytes())
     }
 }
 
@@ -130,13 +153,20 @@ impl PendingElement {
     }
 }
 
-/// The completed font phase owns its table. No parent/context borrow survives refill;
-/// the caller resumes the same subject before evaluating any later canonical element.
+/// A drive left for its target's retry. No parent/context borrow survives refill; the caller
+/// resumes the same subject before evaluating any later canonical element.
 struct PendingFontDrive {
     /// What the suspended drive belongs to. The record loop can settle that element another way
     /// before the retry comes, which leaves the drive behind; whoever is driven next must not
     /// take up someone else's table.
     target: computed::ComputedStyleTarget,
+    /// What the drive completed, or nothing when the monospace recascade waited on a font before
+    /// the drive began: the retry then starts the drive afresh.
+    progress: Option<DriveProgress>,
+}
+
+/// The completed font phase owns its table.
+struct DriveProgress {
     root_font_complete: bool,
     /// The monospace recascade's size the table already holds, which the remaining phases read.
     recascaded_font_size: Option<i32>,
@@ -147,50 +177,151 @@ struct PendingFontDrive {
 }
 
 impl RetainedState {
-    /// The font size the monospace recascade gives a drive target, and whether reaching it read the
-    /// viewport: the cascaded font-size of every ancestor it inherits from, root first, walked again
-    /// from a 13px default. A pseudo-element inherits from its originating element. `None` when a
-    /// length on the way needs font metrics only C++ resolves yet; a `calc()` is skipped as C++
-    /// skips it.
+    /// The font size the monospace recascade gives a drive target: the cascaded font-size of every
+    /// ancestor it inherits from, root first, walked again from a 13px default. A pseudo-element
+    /// inherits from its originating element. A length the walk cannot resolve from the document's
+    /// inputs alone resolves against the monospace font at the size reached so far and the line
+    /// height its ancestor inherits; a `calc()` is skipped as C++ skips it. `None` when a length
+    /// still does not resolve, which C++ resolves.
     pub(super) fn monospace_recascaded_font_size(
         &self,
         target: computed::ComputedStyleTarget,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
-    ) -> Option<(i32, bool)> {
+    ) -> Option<MonospaceRecascade> {
+        use crate::css::computed_value_types::{STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
         use crate::css::css_pixels::CssPixels;
         use crate::css::style_compute::{
-            FfiFontSizeRecascadeDocumentInputs, FontSizeRecascadeStatus, recascade_font_size_batch,
+            FfiFontMetrics, FfiFontSizeRecascadeDocumentInputs, FfiLengthResolutionContext, FontSizeRecascadeStatus,
+            recascade_font_size_batch,
         };
 
-        let mut tables = Vec::new();
+        let mut views = Vec::new();
         let mut ancestor = match target.is_pseudo() {
             true => Some(target.node()),
             false => self.tree.inheritance_parent(target.node()),
         };
         while let Some(node) = ancestor {
-            tables.push(
+            views.push(
                 self.computed_group_sets
                     .assigned_style_record(node)
-                    .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
-                    .and_then(|view| unsafe { view.longhand_table.as_ref() })
-                    .map_or(std::ptr::null(), ComputedLonghandTable::raw_cascaded_font_size),
+                    .and_then(|record| self.computed_group_sets.style_record_view(record.raw())),
             );
             ancestor = self.tree.inheritance_parent(node);
         }
-        tables.reverse();
+        views.reverse();
+        let value_at = |index: usize| {
+            views[index]
+                .as_ref()
+                .and_then(|view| unsafe { view.longhand_table.as_ref() })
+                .map_or(std::ptr::null(), ComputedLonghandTable::raw_cascaded_font_size)
+        };
         let default_size = CssPixels::from_integer(13).raw_value();
-        let batch = recascade_font_size_batch(
-            tables.len(),
-            |index| tables[index],
+        let document_inputs = FfiFontSizeRecascadeDocumentInputs::from_document(inputs);
+        let mut batch = recascade_font_size_batch(
+            views.len(),
+            value_at,
             0,
             default_size,
             false,
             default_size,
-            FfiFontSizeRecascadeDocumentInputs::from_document(inputs),
+            document_inputs,
             std::ptr::null(),
         );
-        (batch.status == FontSizeRecascadeStatus::Complete)
-            .then_some((batch.current_size_raw, batch.depends_on_viewport_metrics))
+        while batch.status != FontSizeRecascadeStatus::Complete {
+            let index = batch.next_index;
+            // AD-HOC: C++ measures the platform's monospace font directly, where this resolves the
+            //         generic `monospace` family like any other request. The two differ only where
+            //         an @font-face takes the platform monospace font's name.
+            let request = bridge::FfiFontResolutionRequest {
+                font_family: bridge::FfiHostHandle::from_pointer(self.monospace_font_family.pointer().cast()),
+                font_feature_values: [bridge::FfiHostHandle::default(); bridge::FONT_RESOLUTION_FEATURE_INPUT_COUNT],
+                font_size_raw: batch.current_size_raw,
+                font_slope: 0,
+                font_weight: 400.0,
+                font_width: 100.0,
+                font_optical_sizing: 0,
+                font_environment_generation: inputs.font_environment_generation,
+            };
+            let Some(resolved) = self
+                .font_resolution
+                .as_ref()
+                .and_then(|resolutions| resolutions.lookup(request))
+            else {
+                return Some(MonospaceRecascade::AwaitsFont(request));
+            };
+            // The ancestor's own font is the one being recascaded; its line height is the one it
+            // inherits, and the initial one is zero.
+            let (line_height, inherited_font_metrics_depend_on_viewport_metrics) = index
+                .checked_sub(1)
+                .and_then(|parent| views[parent].as_ref())
+                .map_or((0.0, false), |view| {
+                    let font = unsafe {
+                        view.payloads[STYLE_GROUP_INDEX_FONT]
+                            .cast::<crate::css::computed_value_types::FontValues>()
+                            .deref()
+                    };
+                    (
+                        font.line_height_used.to_double(),
+                        view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS != 0,
+                    )
+                });
+            let subject_inline_axis_is_horizontal = views[index].as_ref().is_none_or(|view| {
+                let inherited_box = unsafe {
+                    view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX]
+                        .cast::<crate::css::computed_values::InheritedBoxValues>()
+                        .deref()
+                };
+                inherited_box.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB
+            });
+            let context = FfiLengthResolutionContext {
+                viewport_width: inputs.viewport_width,
+                viewport_height: inputs.viewport_height,
+                font_metrics: FfiFontMetrics {
+                    font_size: CssPixels::from_raw(batch.current_size_raw).to_double(),
+                    x_height: drive_font_metric(resolved.x_height),
+                    cap_height: drive_font_metric(resolved.ascent),
+                    zero_advance: drive_font_metric(resolved.zero_advance),
+                    line_height,
+                },
+                root_font_metrics: FfiFontMetrics {
+                    font_size: inputs.root_font_size,
+                    x_height: inputs.root_font_x_height,
+                    cap_height: inputs.root_font_cap_height,
+                    zero_advance: inputs.root_font_zero_advance,
+                    line_height: inputs.root_line_height,
+                },
+                font_metrics_depend_on_viewport_metrics: batch.depends_on_viewport_metrics
+                    || inherited_font_metrics_depend_on_viewport_metrics,
+                root_font_metrics_depend_on_viewport_metrics: inputs.root_font_metrics_depend_on_viewport_metrics,
+                has_container_width_basis: false,
+                has_container_height_basis: false,
+                container_width_basis: 0.0,
+                container_height_basis: 0.0,
+                container_width_basis_depends_on_viewport_metrics: false,
+                container_height_basis_depends_on_viewport_metrics: false,
+                subject_inline_axis_is_horizontal,
+                resolved_viewport_relative_length: std::ptr::null_mut(),
+            };
+            batch = recascade_font_size_batch(
+                views.len(),
+                value_at,
+                index,
+                batch.current_size_raw,
+                batch.depends_on_viewport_metrics,
+                default_size,
+                document_inputs,
+                &raw const context,
+            );
+            // A length the context does not resolve either, such as a container-relative one, is
+            // left to C++.
+            if batch.status == FontSizeRecascadeStatus::NeedsCppLengthResolution {
+                return None;
+            }
+        }
+        Some(MonospaceRecascade::Size(
+            batch.current_size_raw,
+            batch.depends_on_viewport_metrics,
+        ))
     }
 
     /// Run the drive's remaining phase for the selected longhands over a copy of the node's
@@ -284,7 +415,8 @@ impl RetainedState {
                 zero_advance: inputs.root_font_zero_advance,
                 line_height: inputs.root_line_height,
             },
-            font_metrics_depend_on_viewport_metrics: view.dependency_flags & (1 << 1) != 0,
+            font_metrics_depend_on_viewport_metrics: view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS
+                != 0,
             root_font_metrics_depend_on_viewport_metrics: inputs.root_font_metrics_depend_on_viewport_metrics,
             has_container_width_basis: false,
             has_container_height_basis: false,
@@ -455,22 +587,33 @@ impl RetainedState {
         //       changes what a keyword size an ancestor declared means. See
         //       `StyleComputer::recascade_font_size_if_needed`.
         let mut recascaded_font_size_reads_viewport = false;
-        let recascaded_font_size =
-            if let Some(pending) = font_scratch.pending.as_ref().filter(|pending| pending.target == target) {
-                pending.recascaded_font_size
-            } else if store
-                .winning_declaration(prop::FONT_FAMILY)
-                .is_some_and(|(value, ..)| font_family_is_monospace(unsafe { &*value.cast::<StyleValueData>() }))
-            {
-                let Some((recascaded, reads_viewport)) = self.monospace_recascaded_font_size(target, inputs) else {
+        let recascaded_font_size = if let Some(progress) = font_scratch
+            .pending
+            .as_ref()
+            .filter(|pending| pending.target == target)
+            .and_then(|pending| pending.progress.as_ref())
+        {
+            progress.recascaded_font_size
+        } else if store
+            .winning_declaration(prop::FONT_FAMILY)
+            .is_some_and(|(value, ..)| font_family_is_monospace(unsafe { &*value.cast::<StyleValueData>() }))
+        {
+            match self.monospace_recascaded_font_size(target, inputs) {
+                Some(MonospaceRecascade::Size(recascaded, reads_viewport)) => {
+                    recascaded_font_size_reads_viewport = reads_viewport;
+                    Some(recascaded)
+                }
+                Some(MonospaceRecascade::AwaitsFont(request)) => {
+                    return Err(font_scratch.suspend(target, request, None));
+                }
+                None => {
                     counters.bump(Counter::EngineComputedRecordBailMonospaceQuirk);
                     return Err(Unanswered::Refused);
-                };
-                recascaded_font_size_reads_viewport = reads_viewport;
-                Some(recascaded)
-            } else {
-                None
-            };
+                }
+            }
+        } else {
+            None
+        };
         let old_table = match old_style_record {
             Some(old_style_record) => {
                 let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
@@ -542,7 +685,7 @@ impl RetainedState {
                             zero_advance: drive_font_metric(parent_font.font_zero_advance),
                             line_height: parent_font.line_height_used.to_double(),
                         },
-                        parent_view.dependency_flags & (1 << 1) != 0,
+                        parent_view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS != 0,
                         parent_font.line_height_used.to_double(),
                     )
                 }
@@ -678,7 +821,11 @@ impl RetainedState {
                 resolved_viewport_relative_length: resolved_viewport_relative_length_pointer,
             };
         // A drive another row left behind is dropped rather than taken up.
-        let resumed = font_scratch.pending.take().filter(|pending| pending.target == target);
+        let resumed = font_scratch
+            .pending
+            .take()
+            .filter(|pending| pending.target == target)
+            .and_then(|pending| pending.progress);
         let resuming = resumed.is_some();
         let root_font_complete = resumed.as_ref().is_some_and(|pending| pending.root_font_complete);
         if !resuming {
@@ -862,17 +1009,15 @@ impl RetainedState {
             .as_ref()
             .and_then(|resolutions| resolutions.lookup(request))
         else {
-            font_scratch.request = Some(font_resolution::FontRequest::new(request));
-            font_scratch.pending = Some(PendingFontDrive {
-                target,
+            let progress = DriveProgress {
                 root_font_complete: false,
                 recascaded_font_size,
                 table,
                 results,
                 effective_color_scheme,
                 resolved_viewport_relative_length,
-            });
-            return Err(Unanswered::Suspended(Suspension::Font));
+            };
+            return Err(font_scratch.suspend(target, request, Some(progress)));
         };
         let own_metrics = |line_height: f64| FfiFontMetrics {
             font_size,
@@ -939,12 +1084,14 @@ impl RetainedState {
             };
             font_scratch.pending = Some(PendingFontDrive {
                 target,
-                root_font_complete: true,
-                recascaded_font_size,
-                table,
-                results,
-                effective_color_scheme,
-                resolved_viewport_relative_length,
+                progress: Some(DriveProgress {
+                    root_font_complete: true,
+                    recascaded_font_size,
+                    table,
+                    results,
+                    effective_color_scheme,
+                    resolved_viewport_relative_length,
+                }),
             });
             return Ok(FullDrive::RootInputs(root_inputs));
         }
