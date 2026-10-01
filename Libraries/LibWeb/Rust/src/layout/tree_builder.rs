@@ -2748,12 +2748,27 @@ pub struct FfiPseudoElementFacts {
     pub marker_position_is_inside: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiGeneratedContentItemKind {
+    Text,
+    /// An `<image>` in the pseudo-element's `content` list.
+    ContentImage,
+    /// The marker box's `list-style-image`.
+    ListStyleImage,
+}
+
+/// One node the host allocates for the generated content of a pseudo-element.
 #[repr(C)]
-pub struct FfiResolvedPseudoContentFacts {
-    pub final_quote_nesting_level: u32,
-    pub content_is_list: bool,
-    pub content_item_count: usize,
+pub struct FfiGeneratedContentItem {
+    pub kind: FfiGeneratedContentItemKind,
+    /// For `Text`: the text, as an `AK::Utf16String` reference the host adopts.
+    pub text: usize,
+    /// For `ContentImage`: the image's index in the `content` list.
+    pub content_index: usize,
+    /// The list marker a list-item pseudo-element nests, when the item is that marker's content;
+    /// invalid for the pseudo-element's own content.
+    pub nested_marker: NodeSlotId,
 }
 
 #[repr(C)]
@@ -2770,12 +2785,9 @@ pub struct FfiPseudoTreeBuilderCallbacks {
         FfiPseudoElementDecision,
     ) -> NodeSlotId,
     pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement) -> NodeSlotId,
-    pub create_nested_list_marker_content:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, *mut c_void) -> NodeSlotId,
     pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement),
-    pub resolve_content:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32) -> FfiResolvedPseudoContentFacts,
-    pub create_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, usize) -> NodeSlotId,
+    pub create_content_item:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, FfiGeneratedContentItem) -> NodeSlotId,
 }
 
 pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
@@ -2849,9 +2861,15 @@ pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudo
 }
 
 /// Resolves the CSS counters set of `element`, or of one of its pseudo-elements, now that its box
-/// is in the layout tree.
-fn resolve_counters(host: &DomTreeBuilderHost<'_>, element: StyleNodeID, pseudo_element: FfiPseudoElement) {
-    crate::layout::counters::resolve_counters(host.arena(), counter_owner_of_pseudo_element(element, pseudo_element));
+/// is in the layout tree, and answers whose set it is.
+fn resolve_counters(
+    host: &DomTreeBuilderHost<'_>,
+    element: StyleNodeID,
+    pseudo_element: FfiPseudoElement,
+) -> crate::layout::counters::CounterOwner {
+    let owner = counter_owner_of_pseudo_element(element, pseudo_element);
+    crate::layout::counters::resolve_counters(host.arena(), owner);
+    owner
 }
 
 /// The owner of the counters set and generated content of `element`, or of one of its box-generating
@@ -2869,6 +2887,47 @@ fn counter_owner_of_pseudo_element(
         FfiPseudoElement::Other => unreachable!("only a box-generating pseudo-element owns counters"),
     };
     crate::layout::counters::CounterOwner { element, generated_for }
+}
+
+/// Tells the document the content of `owner` shows the `list-item` counter's value.
+fn report_list_item_counter_rendering(
+    state: &mut TreeBuilderState,
+    owner: crate::layout::counters::CounterOwner,
+    renders_list_item_counter_value: bool,
+) {
+    if renders_list_item_counter_value {
+        state.reports.push(crate::layout::commit::FfiCommitMessage::new(
+            owner.element.raw(),
+            crate::layout::commit::FfiCommitMessageKind::ListItemCounterValueRendered,
+        ));
+    }
+}
+
+fn generated_content_item(
+    item: crate::layout::generated_content::ContentItem,
+    nested_marker: NodeSlotId,
+) -> FfiGeneratedContentItem {
+    use crate::layout::generated_content::ContentItem;
+    match item {
+        ContentItem::Text(text) => FfiGeneratedContentItem {
+            kind: FfiGeneratedContentItemKind::Text,
+            text: ak::Utf16String::from_utf16(&text).into_raw(),
+            content_index: 0,
+            nested_marker,
+        },
+        ContentItem::Image(content_index) => FfiGeneratedContentItem {
+            kind: FfiGeneratedContentItemKind::ContentImage,
+            text: 0,
+            content_index,
+            nested_marker,
+        },
+        ContentItem::ListStyleImage => FfiGeneratedContentItem {
+            kind: FfiGeneratedContentItemKind::ListStyleImage,
+            text: 0,
+            content_index: 0,
+            nested_marker,
+        },
+    }
 }
 
 fn create_pseudo_element(
@@ -2966,7 +3025,7 @@ fn create_pseudo_element_with_frame(
             None,
         );
     }
-    resolve_counters(host, element_identity, pseudo_element);
+    let owner = resolve_counters(host, element_identity, pseudo_element);
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
     if layout_node_kind == NodeKind::ListItemBox {
@@ -2976,13 +3035,20 @@ fn create_pseudo_element_with_frame(
         let marker_slot = marker.slot();
         let first_child = layout_host.first_child(layout_node);
         layout_host.attach_child(layout_node, marker, first_child);
-        // SAFETY: The frame, element, and marker remain live throughout content creation.
+        let marker_content = crate::layout::generated_content::resolve_nested_marker_content(
+            layout_host.arena(),
+            owner,
+            marker_slot,
+            layout_node,
+        );
+        report_list_item_counter_rendering(state, owner, marker_content.renders_list_item_counter_value);
+        // SAFETY: The frame and element remain live throughout content creation.
         let content = unsafe {
-            (callbacks.create_nested_list_marker_content)(
+            (callbacks.create_content_item)(
                 frame,
                 element,
                 pseudo_element,
-                layout_host.shell(marker_slot),
+                generated_content_item(marker_content.item, marker_slot),
             )
         };
         if !content.is_invalid() {
@@ -2993,24 +3059,34 @@ fn create_pseudo_element_with_frame(
 
     // Resolve content after insertion because counter() and counters() items read the counters established by this
     // pseudo-element's box.
-    // SAFETY: The frame and element remain live throughout content resolution.
-    let resolved_content =
-        unsafe { (callbacks.resolve_content)(frame, element, pseudo_element, initial_quote_nesting_level) };
-    state.quote_nesting_level = resolved_content.final_quote_nesting_level;
-    let marker_and_list_box = (layout_node_kind == NodeKind::ListItemMarkerBox)
-        .then_some((layout_node, facts.originating_list_box))
-        .filter(|(_, list_box)| !list_box.is_invalid());
-    crate::layout::generated_content::note_content_counter_styles_in_use(
-        host.arena(),
-        counter_owner_of_pseudo_element(element_identity, pseudo_element),
+    let marker_and_list_box = (layout_node_kind == NodeKind::ListItemMarkerBox).then(|| {
+        assert!(
+            !facts.originating_list_box.is_invalid(),
+            "a list marker box belongs to a list item box"
+        );
+        (layout_node, facts.originating_list_box)
+    });
+    let resolved_content = crate::layout::generated_content::resolve_content(
+        layout_host.arena(),
+        owner,
         marker_and_list_box,
+        initial_quote_nesting_level,
     );
+    report_list_item_counter_rendering(state, owner, resolved_content.renders_list_item_counter_value);
+    state.quote_nesting_level = resolved_content.final_quote_nesting_level;
 
-    if resolved_content.content_is_list && decision != FfiPseudoElementDecision::ContentReplacement {
+    if resolved_content.is_list && decision != FfiPseudoElementDecision::ContentReplacement {
         state.ancestor_stack.push(layout_node);
-        for index in 0..resolved_content.content_item_count {
-            // SAFETY: `index` is below the resolved content item count and the frame retains any returned node.
-            let content_item = unsafe { (callbacks.create_content_item)(frame, element, pseudo_element, index) };
+        for item in resolved_content.items {
+            // SAFETY: The frame and element remain live throughout content creation.
+            let content_item = unsafe {
+                (callbacks.create_content_item)(
+                    frame,
+                    element,
+                    pseudo_element,
+                    generated_content_item(item, NodeSlotId::INVALID),
+                )
+            };
             if content_item.is_invalid() {
                 continue;
             }

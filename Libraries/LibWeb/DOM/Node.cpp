@@ -109,6 +109,16 @@ static bool final_direct_list_item_does_not_renumber_existing_content(Element co
     return CSS::innermost_list_item_counter_is_own_forward_counter(*list_owner);
 }
 
+// The text the pseudo-element's content resolved to when its box was built: its alt text when it has one, otherwise
+// every string in it.
+static Utf16String generated_content_accessible_text(Element const& element, CSS::PseudoElement pseudo_element)
+{
+    auto* arena = element.document().layout_node_arena_if_created();
+    VERIFY(arena);
+    return Utf16String::adopt_raw(Layout::RustFFI::layout_arena_generated_content_accessible_text(
+        const_cast<Layout::NodeArena*>(arena)->handle(), element.style_node_id().value(), Layout::Node::encode_generated_for(pseudo_element)));
+}
+
 static UniqueNodeID s_next_unique_id;
 static GC::WeakHashMap<UniqueNodeID, Node>& node_directory()
 {
@@ -4391,19 +4401,10 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
 
             // FIXME: Do we need to update layout before checking this? If so we can avoid using the unsafe layout node
             //        getter here.
-            if (auto before = element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::Before)) {
+            if (element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::Before)) {
                 // NB: The build that registers this box also resolves its content — and it stays put until the box is
                 //     rebuilt. So, a registered box in an up-to-date layout tree always has one.
-                auto const& content = before->content().value();
-
-                if (content.alt_text.has_value()) {
-                    total_accumulated_text.append(content.alt_text.value());
-                } else {
-                    for (auto const& item : content.data) {
-                        if (auto const* string = item.get_pointer<Utf16String>())
-                            total_accumulated_text.append(*string);
-                    }
-                }
+                total_accumulated_text.append(generated_content_accessible_text(*element, CSS::PseudoElement::Before));
             }
 
             // iii. Determine Child Nodes: Determine the rendered child nodes of the current node:
@@ -4459,18 +4460,9 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
             // NOTE: See step ii.b above.
             // FIXME: Do we need to update layout before checking this? If so we can avoid using the unsafe layout node
             //        getter here.
-            if (auto after = element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::After)) {
+            if (element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::After)) {
                 // NB: See the ::before case above.
-                auto const& content = after->content().value();
-
-                if (content.alt_text.has_value()) {
-                    total_accumulated_text.append(content.alt_text.value());
-                } else {
-                    for (auto& item : content.data) {
-                        if (auto const* string = item.get_pointer<Utf16String>())
-                            total_accumulated_text.append(*string);
-                    }
-                }
+                total_accumulated_text.append(generated_content_accessible_text(*element, CSS::PseudoElement::After));
             }
 
             // v. Return the accumulated text if it is not the empty string ("").

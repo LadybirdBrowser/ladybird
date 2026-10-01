@@ -75,6 +75,9 @@ void CommitMessages::append(Layout::RustFFI::FfiCommitMessage const& message)
     case Layout::RustFFI::FfiCommitMessageKind::TopLayerZoneRebuildNeeded:
         m_messages.append({ .identity = identity, .kind = Kind::TopLayerZoneRebuildNeeded });
         return;
+    case Layout::RustFFI::FfiCommitMessageKind::ListItemCounterValueRendered:
+        m_messages.append({ .identity = identity, .kind = Kind::ListItemCounterValueRendered });
+        return;
     case Layout::RustFFI::FfiCommitMessageKind::SvgResourceReferenced:
         m_messages.append({
             .identity = identity,
@@ -124,6 +127,10 @@ void CommitMessages::apply(Message const& message)
         return;
     case Kind::TopLayerZoneRebuildNeeded:
         m_document->set_top_layer_needs_layout_zone_rebuild();
+        return;
+    case Kind::ListItemCounterValueRendered:
+        if (auto* element = as_if<Element>(message.identity.resolve(m_document).ptr()))
+            m_document->did_render_list_item_counter_value(*element);
         return;
     case Kind::SvgResourceReferenced: {
         // Either element may have left the document since the build placed the resource box; the registration only

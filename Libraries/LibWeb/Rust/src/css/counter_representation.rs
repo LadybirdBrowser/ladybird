@@ -274,6 +274,19 @@ fn wrapping_index(value: i64, modulus: usize) -> usize {
 }
 
 impl CounterStyle {
+    /// Whether every counter value this style represents produces the same text, which is what
+    /// makes a list marker built from it independent of its list item's counter value.
+    pub(crate) fn representation_is_constant(&self) -> bool {
+        let Algorithm::Generic {
+            system: GenericSystem::Cyclic,
+            symbols,
+        } = &self.algorithm
+        else {
+            return false;
+        };
+        symbols.len() == 1 && self.range.len() == 1 && self.range[0].start == i32::MIN && self.range[0].end == i32::MAX
+    }
+
     /// https://drafts.csswg.org/css-counter-styles-3/#counter-style-negative
     /// Not all system values use a negative sign. In particular, a counter style uses a negative
     /// sign if its system value is symbolic, alphabetic, numeric, additive, or extends if the

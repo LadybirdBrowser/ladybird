@@ -586,7 +586,6 @@ public:
     CSS::TextTransform text_transform() const { return style_group<CSS::ComputedValues::InheritedTextValues>().text_transform_value(); }
     CSS::WhiteSpaceCollapse white_space_collapse() const { return style_group<CSS::ComputedValues::InheritedTextValues>().white_space_collapse_value(); }
     Color text_decoration_color() const { return Color::from_bgra(style_group<CSS::ComputedValues::TextResetValues>().text_decoration_color); }
-    Optional<CSS::ContentData> const& content() const { return m_content; }
     CSSPixels line_height() const { return style_group<CSS::ComputedValues::FontValues>().line_height_used; }
     CSSPixels font_size() const { return style_group<CSS::ComputedValues::FontValues>().font_size; }
     Gfx::FontCascadeList const& font_list() const { return style_group<CSS::ComputedValues::FontValues>().font_list_value(); }
@@ -681,7 +680,6 @@ public:
     void bind_generated_style_record(CSS::StyleRecordID);
 
     void set_display(CSS::Display);
-    void set_content(CSS::ContentData const&);
 
 private:
     CSS::ComputedStyleRecordView computed_style_record_view() const;
@@ -714,9 +712,6 @@ private:
     mutable Optional<CSS::BorderImageData> m_border_image;
     mutable Optional<CSS::ListStyleType> m_list_style_type;
     mutable Optional<RefPtr<CSS::AbstractImageStyleValue const>> m_list_style_image;
-    // The generated content this box was built from, kept for the accessible-name code. Not derived from the style
-    // record: An in-place restyle must leave it alone — since only a layout-tree rebuild can re-resolve it.
-    Optional<CSS::ContentData> m_content;
 };
 
 template<>

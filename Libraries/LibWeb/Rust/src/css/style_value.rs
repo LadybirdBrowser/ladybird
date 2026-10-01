@@ -1784,6 +1784,11 @@ impl Drop for OwnedBasicShapeData {
     }
 }
 
+/// The `function` of `StyleValueData::Counter`, as the C++ `CounterStyleValue::CounterFunction`
+/// enum numbers it.
+pub(crate) const COUNTER_FUNCTION_COUNTER: u8 = 0;
+pub(crate) const COUNTER_FUNCTION_COUNTERS: u8 = 1;
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
@@ -2111,8 +2116,8 @@ pub enum StyleValueData {
         implicit_start_name: CssString,
         implicit_end_name: CssString,
     },
-    /// counter() or counters(). The function is the C++ CounterFunction enum, opaque to Rust;
-    /// the join string is empty for counter().
+    /// counter() or counters(). The function is `COUNTER_FUNCTION_COUNTER` or
+    /// `COUNTER_FUNCTION_COUNTERS`; the join string is empty for counter().
     Counter {
         function: u8,
         counter_name: CssString,
