@@ -16,7 +16,7 @@ use crate::css::css_string::CssString;
 use crate::css::style::StyleEngine;
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::css::style::tree::StyleNodeID;
-use std::rc::Rc;
+use std::sync::Arc;
 
 // "UAs may have implementation-specific limits on the maximum or minimum value of a counter.
 // If a counter reset, set, or increment would push the value outside of that range, the value
@@ -105,7 +105,7 @@ struct Counter {
 
 // https://drafts.csswg.org/css-lists-3/#css-counters-set
 // NB: Most elements inherit their parent's set unchanged, so a set is shared until it is written.
-type CountersSet = Rc<Vec<Counter>>;
+type CountersSet = Arc<Vec<Counter>>;
 
 /// Every non-empty counters set, keyed by its owner. An empty set is simply absent.
 #[derive(Default)]
@@ -163,7 +163,7 @@ impl CountersSets {
     //     tree order.
     fn instantiate_unused_counter(&mut self, owner: CounterOwner, name: &CounterName<'_>) {
         let name = name.to_css_string();
-        Rc::make_mut(self.sets.entry(owner).or_default()).push(Counter {
+        Arc::make_mut(self.sets.entry(owner).or_default()).push(Counter {
             name,
             originating_element: owner,
             reversed: false,
@@ -542,7 +542,7 @@ fn inherit_counters(
         let element_counters = element_counters.get_or_insert_with(Default::default);
         for counter in sibling_counters.iter() {
             if !element_counters.iter().any(|existing| existing.name == counter.name) {
-                Rc::make_mut(element_counters).push(counter.clone());
+                Arc::make_mut(element_counters).push(counter.clone());
             }
         }
     }
@@ -562,7 +562,7 @@ fn inherit_counters(
             if let Some(index) = existing
                 && element_counters[index].value != source_counter.value
             {
-                Rc::make_mut(element_counters)[index].value = source_counter.value;
+                Arc::make_mut(element_counters)[index].value = source_counter.value;
             }
         }
     }
@@ -594,7 +594,7 @@ pub(crate) fn resolve_counters(arena: &LayoutNodeArena, element: CounterOwner) {
                 instantiate_a_counter(
                     arena,
                     engine,
-                    Rc::make_mut(counters.get_or_insert_with(Default::default)),
+                    Arc::make_mut(counters.get_or_insert_with(Default::default)),
                     counter.name().clone(),
                     element,
                     counter.is_reversed(),
@@ -613,7 +613,7 @@ pub(crate) fn resolve_counters(arena: &LayoutNodeArena, element: CounterOwner) {
                 increment_a_counter(
                     arena,
                     engine,
-                    Rc::make_mut(counters.get_or_insert_with(Default::default)),
+                    Arc::make_mut(counters.get_or_insert_with(Default::default)),
                     counter.name(),
                     element,
                     counter.integer().expect("an increment has a value"),
@@ -622,7 +622,7 @@ pub(crate) fn resolve_counters(arena: &LayoutNodeArena, element: CounterOwner) {
 
             if style_has_implicit_list_item_increment(style) {
                 let list_item_counter_name = sets.list_item_counter_name();
-                let counters = Rc::make_mut(counters.get_or_insert_with(Default::default));
+                let counters = Arc::make_mut(counters.get_or_insert_with(Default::default));
                 let reversed = counters
                     .iter()
                     .rev()
@@ -643,7 +643,7 @@ pub(crate) fn resolve_counters(arena: &LayoutNodeArena, element: CounterOwner) {
                 set_a_counter(
                     arena,
                     engine,
-                    Rc::make_mut(counters.get_or_insert_with(Default::default)),
+                    Arc::make_mut(counters.get_or_insert_with(Default::default)),
                     counter.name(),
                     element,
                     counter.integer().expect("a counter-set has a value"),

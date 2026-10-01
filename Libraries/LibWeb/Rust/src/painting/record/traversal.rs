@@ -27,7 +27,6 @@ use crate::painting::record::scratch::RecordingScratch;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::record::trace::{Action, Operation};
 use crate::painting::record::{PublishedHitTestItems, RecordingOutput, RecordingResult};
-use std::rc::Rc;
 use std::sync::Arc;
 
 #[allow(clippy::too_many_arguments)]
@@ -39,8 +38,8 @@ pub(crate) fn record_display_list(
     viewport: NodeSlotId,
     inputs: &RecordingInputs<'_>,
     hit_test_list_generation: u64,
-    source_frame: Option<Rc<RecordingOutput>>,
-    source_items: Option<Rc<PublishedHitTestItems>>,
+    source_frame: Option<Arc<RecordingOutput>>,
+    source_items: Option<Arc<PublishedHitTestItems>>,
     plan_from_prepared_inputs: bool,
     trace: bool,
 ) -> RecordingResult {
@@ -79,8 +78,8 @@ fn record_display_list_impl<O: Observer>(
     viewport: NodeSlotId,
     inputs: &RecordingInputs<'_>,
     hit_test_list_generation: u64,
-    source_frame: Option<Rc<RecordingOutput>>,
-    source_items: Option<Rc<PublishedHitTestItems>>,
+    source_frame: Option<Arc<RecordingOutput>>,
+    source_items: Option<Arc<PublishedHitTestItems>>,
     plan_from_prepared_inputs: bool,
 ) -> RecordingResult {
     debug_assert!(

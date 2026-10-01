@@ -122,13 +122,13 @@ fn publish_recording_output(arena: &LayoutNodeArena, mut output: RecordingOutput
         debug_assert_eq!(list.generation, paint_state.hit_test_list_generation);
         if publishes_recording {
             paint_state.published_hit_test_items =
-                Some(std::rc::Rc::new(crate::painting::record::PublishedHitTestItems {
+                Some(std::sync::Arc::new(crate::painting::record::PublishedHitTestItems {
                     items: list.items.clone(),
                 }));
         }
         *hit_test_list = Some(list);
     }
-    let output = std::rc::Rc::new(output);
+    let output = std::sync::Arc::new(output);
     if publishes_recording {
         paint_state.published_frame = Some(output.clone());
         // Read-only recordings publish no frame and must not consume the damage.
@@ -144,7 +144,7 @@ mod tests {
     use super::*;
     use crate::painting::hit_test::HitTestList;
     use crate::painting::record::damage::PaintDamage;
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     #[test]
     fn read_only_publication_keeps_the_source_frame_and_the_pending_damage() {
@@ -175,11 +175,11 @@ mod tests {
                     arena.push_paint_damage(row, PaintDamage::DRAW_FOREGROUND);
                 }
                 2 => {
-                    assert!(Rc::ptr_eq(original_source.as_ref().unwrap(), &source));
+                    assert!(Arc::ptr_eq(original_source.as_ref().unwrap(), &source));
                     assert_eq!(arena.paint_damage_of_row(row), PaintDamage::DRAW_FOREGROUND);
                 }
                 3 => {
-                    assert!(!Rc::ptr_eq(original_source.as_ref().unwrap(), &source));
+                    assert!(!Arc::ptr_eq(original_source.as_ref().unwrap(), &source));
                     assert_eq!(arena.paint_damage_of_row(row), PaintDamage::NONE);
                 }
                 _ => unreachable!(),

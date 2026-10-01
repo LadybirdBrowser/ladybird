@@ -27,6 +27,11 @@ pub struct ComputedStyleValueHandle {
     pub pointer: *const std::ffi::c_void,
 }
 
+// SAFETY: A non-null handle owns an Arc reference to immutable style value data and only exposes
+// shared access to it, as `RetainedStyleValueData` does.
+unsafe impl Send for ComputedStyleValueHandle where crate::css::style_value::StyleValueData: Send + Sync {}
+unsafe impl Sync for ComputedStyleValueHandle where crate::css::style_value::StyleValueData: Send + Sync {}
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct ComputedSize {
