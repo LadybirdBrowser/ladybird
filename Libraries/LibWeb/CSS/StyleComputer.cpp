@@ -219,9 +219,23 @@ struct SubstitutionData {
                         }); });
                 functions.append(move(snapshot));
             };
-            element.style_scope().for_each_visible_function_definition(append_function);
+            // A call names the definition its scope sees, and a call in a function's body the one
+            // the function's own scope sees: publish what each of those scopes sees.
+            HashTable<StyleScope const*> visited_scopes;
+            auto append_visible_functions = [&](StyleScope const& scope) {
+                if (visited_scopes.set(&scope) == AK::HashSetResult::KeptExistingEntry)
+                    return;
+                scope.for_each_visible_function_definition([&](StyleScope::FunctionDefinitionAndScope const& definition) {
+                    append_function(definition);
+                    function_visibilities.append({
+                        .caller_scope_identity = bit_cast<FlatPtr>(&scope),
+                        .function_identity = definition.function.identity(),
+                    });
+                });
+            };
+            append_visible_functions(element.style_scope());
             for (size_t index = 0; index < functions.size(); ++index)
-                functions[index].scope->for_each_visible_function_definition(append_function);
+                append_visible_functions(*functions[index].scope);
         }
         ffi_functions.ensure_capacity(functions.size());
         for (auto& definition : functions) {
@@ -249,14 +263,8 @@ struct SubstitutionData {
     Vector<ComputedValuesFFI::FfiSubstitutionAttribute> ffi_attributes;
     Vector<FunctionDefinition> functions;
     Vector<ComputedValuesFFI::FfiSubstitutionFunctionDefinition> ffi_functions;
+    Vector<ComputedValuesFFI::FfiSubstitutionFunctionVisibility> function_visibilities;
 };
-
-static u64 resolve_custom_function_for_substitution(size_t scope_identity, ComputedValuesFFI::FfiUtf16View name)
-{
-    auto& scope = *bit_cast<StyleScope const*>(scope_identity);
-    auto definition = scope.get_function_definition(Utf16FlyString::from_utf16(utf16_view(name)));
-    return definition.has_value() ? definition->function.identity() : 0;
-}
 
 // The custom properties the style queries of a substitution read are the element's style query
 // references, as a style query in a container condition records them.
@@ -3136,12 +3144,13 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         .custom_functions = substitution_data.ffi_functions.data(),
         .custom_function_count = substitution_data.ffi_functions.size(),
         .custom_function_scope_identity = bit_cast<FlatPtr>(&abstract_element.style_scope()),
+        .custom_function_visibilities = substitution_data.function_visibilities.data(),
+        .custom_function_visibility_count = substitution_data.function_visibilities.size(),
         .callback_context = &bulk_context,
         .install_custom_properties = [](void* context, ComputedValuesFFI::FfiCascadedCustomProperty const* properties, size_t count, void const** rust_store) -> void const* {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
             return bulk_context.install_custom_properties(bulk_context, properties, count, *rust_store);
         },
-        .resolve_custom_function = resolve_custom_function_for_substitution,
         .style_query_inputs = nullptr,
         .load_style_query_inputs = [](void* context) -> ComputedValuesFFI::FfiStyleQueryInputs const* {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
@@ -5807,9 +5816,10 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                         .custom_functions = resolution.substitution_data.ffi_functions.data(),
                         .custom_function_count = resolution.substitution_data.ffi_functions.size(),
                         .custom_function_scope_identity = bit_cast<FlatPtr>(&resolution.resolution_element.style_scope()),
+                        .custom_function_visibilities = resolution.substitution_data.function_visibilities.data(),
+                        .custom_function_visibility_count = resolution.substitution_data.function_visibilities.size(),
                         .callback_context = &resolution,
                         .install_custom_properties = nullptr,
-                        .resolve_custom_function = resolve_custom_function_for_substitution,
                         .style_query_inputs = nullptr,
                         .load_style_query_inputs = [](void* context) -> ComputedValuesFFI::FfiStyleQueryInputs const* {
                             auto& resolution = *static_cast<CustomPropertyResolutionState*>(context);
@@ -6088,9 +6098,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::resolve_unresolved_style_value(Ab
         .custom_functions = substitution_data.ffi_functions.data(),
         .custom_function_count = substitution_data.ffi_functions.size(),
         .custom_function_scope_identity = bit_cast<FlatPtr>(&element.style_scope()),
+        .custom_function_visibilities = substitution_data.function_visibilities.data(),
+        .custom_function_visibility_count = substitution_data.function_visibilities.size(),
         .callback_context = &callback_context,
         .install_custom_properties = nullptr,
-        .resolve_custom_function = resolve_custom_function_for_substitution,
         .style_query_inputs = nullptr,
         .load_style_query_inputs = [](void* context) -> ComputedValuesFFI::FfiStyleQueryInputs const* {
             auto& callback_context = *static_cast<ResolutionCallbackContext*>(context);

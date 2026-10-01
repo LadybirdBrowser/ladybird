@@ -3015,6 +3015,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiStyleInvalidationField".to_string(),
         "FfiNodeRecordReads".to_string(),
         "FfiStyleSheetResourceContextEntry".to_string(),
+        "FfiCustomFunctionEntry".to_string(),
         // Only the host's font resolver, which the engine reaches by name, takes these.
         "FfiFontResolutionRequest".to_string(),
         "FfiResolvedFont".to_string(),

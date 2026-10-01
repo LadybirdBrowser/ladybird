@@ -419,6 +419,16 @@ impl<'a> RuleRef<'a> {
         }
     }
 
+    pub(crate) fn media_data(self) -> Arc<crate::css::media_list::MediaListData> {
+        match self {
+            Self::Materialized(rule) => match &rule.payload {
+                RulePayload::Media { list } => list.data(),
+                _ => unreachable!(),
+            },
+            Self::Shared(rule, _) => rule.media_data(),
+        }
+    }
+
     pub(crate) fn evaluate_media(self, environment: MediaEnvironment<'_>) -> bool {
         match self {
             Self::Materialized(rule) => match &rule.payload {

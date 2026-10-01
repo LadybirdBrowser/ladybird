@@ -140,6 +140,9 @@ struct CustomFunctionDefinition {
 struct CustomFunctionRegistry {
     caller_scope_identity: usize,
     definitions: Vec<CustomFunctionDefinition>,
+    /// Which definition a call names from each scope that sees one: the caller scope and the
+    /// index of the definition its name resolves to there.
+    visible: Vec<(usize, usize)>,
 }
 
 #[derive(Clone)]
@@ -198,6 +201,15 @@ pub struct FfiSubstitutionFunctionDefinition {
     pub signature: *const c_void,
     pub declarations: *const FfiSubstitutionFunctionDeclaration,
     pub declaration_count: usize,
+}
+
+/// That a call from a scope names a function: the definition its name dereferences to there, as
+/// a tree-scoped reference.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FfiSubstitutionFunctionVisibility {
+    pub caller_scope_identity: usize,
+    pub function_identity: u64,
 }
 
 impl CustomPropertyRegistry {
@@ -519,7 +531,6 @@ struct ASFResolutionContext<'a> {
     attribute_names_are_ascii_case_insensitive: bool,
     contains_attr_tainted_values: bool,
     custom_functions: Option<&'a CustomFunctionRegistry>,
-    resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> CustomFunctionIdentity>,
     parse_context: Option<&'a ParseContext>,
     media_environment: Option<&'a FfiMediaEnvironment>,
     load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
@@ -836,16 +847,23 @@ fn tokens_for_function_value(data: &StyleValueData) -> Option<(Vec<OwnedToken>, 
     Some((tokenize_owned(&source), false))
 }
 
-unsafe fn custom_function_registry_from_ffi(
-    definitions: *const FfiSubstitutionFunctionDefinition,
-    definition_count: usize,
-    caller_scope_identity: usize,
-) -> Option<CustomFunctionRegistry> {
-    let definitions = if definition_count == 0 {
+/// An array the host lends, empty when it has no entries.
+///
+/// # Safety
+/// A non-empty array must be live for `'a`.
+unsafe fn ffi_slice<'a, T>(items: *const T, count: usize) -> &'a [T] {
+    if count == 0 {
         &[]
     } else {
-        unsafe { std::slice::from_raw_parts(definitions, definition_count) }
-    };
+        unsafe { std::slice::from_raw_parts(items, count) }
+    }
+}
+
+unsafe fn custom_function_registry_from_ffi(
+    definitions: &[FfiSubstitutionFunctionDefinition],
+    caller_scope_identity: usize,
+    visibilities: &[FfiSubstitutionFunctionVisibility],
+) -> Option<CustomFunctionRegistry> {
     let mut parsed_definitions = Vec::with_capacity(definitions.len());
     for definition in definitions {
         let signature = definition.signature.cast::<FunctionSignature>();
@@ -883,9 +901,20 @@ unsafe fn custom_function_registry_from_ffi(
             declarations: parsed_declarations,
         });
     }
+    let visible = visibilities
+        .iter()
+        .filter_map(|visibility| {
+            let index = definitions
+                .iter()
+                .position(|definition| definition.identity == visibility.function_identity);
+            debug_assert!(index.is_some(), "a visible function is published with its definition");
+            Some((visibility.caller_scope_identity, index?))
+        })
+        .collect();
     Some(CustomFunctionRegistry {
         caller_scope_identity,
         definitions: parsed_definitions,
+        visible,
     })
 }
 
@@ -899,13 +928,10 @@ pub(crate) unsafe fn prepare_var_resolution_environment(
     custom_functions: *const FfiSubstitutionFunctionDefinition,
     custom_function_count: usize,
     custom_function_scope_identity: usize,
+    custom_function_visibilities: *const FfiSubstitutionFunctionVisibility,
+    custom_function_visibility_count: usize,
 ) -> Option<VarResolutionEnvironment> {
-    let attributes = if attribute_count == 0 {
-        &[]
-    } else {
-        unsafe { std::slice::from_raw_parts(attributes, attribute_count) }
-    };
-    let attributes = attributes
+    let attributes = unsafe { ffi_slice(attributes, attribute_count) }
         .iter()
         .filter_map(|attribute| {
             Some((unsafe { attribute.name.to_utf16() }?, unsafe {
@@ -914,7 +940,11 @@ pub(crate) unsafe fn prepare_var_resolution_environment(
         })
         .collect();
     let custom_functions = unsafe {
-        custom_function_registry_from_ffi(custom_functions, custom_function_count, custom_function_scope_identity)
+        custom_function_registry_from_ffi(
+            ffi_slice(custom_functions, custom_function_count),
+            custom_function_scope_identity,
+            ffi_slice(custom_function_visibilities, custom_function_visibility_count),
+        )
     }?;
     Some(VarResolutionEnvironment {
         attributes,
@@ -2465,30 +2495,12 @@ fn replace_a_dashed_function(
                 .map(|definition| definition.scope_identity)
         })
         .unwrap_or(functions.caller_scope_identity);
-    let resolved_identity = context.resolve_custom_function.map(|resolve| unsafe {
-        resolve(
-            caller_scope_identity,
-            FfiUtf16View {
-                ascii: std::ptr::null(),
-                utf16: name.as_ptr(),
-                length: name.len(),
-            },
-        )
-    });
-    let definition = resolved_identity
-        .and_then(|identity| {
-            functions
-                .definitions
-                .iter()
-                .find(|definition| definition.identity == identity)
-        })
-        .or_else(|| {
-            resolved_identity.is_none().then(|| {
-                functions.definitions.iter().find(|definition| {
-                    definition.signature.name.units() == name && definition.scope_identity == caller_scope_identity
-                })
-            })?
-        });
+    let definition = functions
+        .visible
+        .iter()
+        .filter(|&&(scope, _)| scope == caller_scope_identity)
+        .map(|&(_, index)| &functions.definitions[index])
+        .find(|definition| definition.signature.name.units() == name);
     let Some(function) = definition else {
         return TokenResolution::Invalid;
     };
@@ -2969,7 +2981,6 @@ pub(crate) unsafe fn resolve_vars(
     value_data: *const c_void,
     environment: &mut VarResolutionEnvironment,
     attribute_names_are_ascii_case_insensitive: bool,
-    resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> u64>,
     callback_context: *mut c_void,
     style_query_inputs: Option<&crate::css::cascaded_properties::FfiStyleQueryInputs>,
     load_style_query_inputs: Option<LoadStyleQueryInputs>,
@@ -3016,7 +3027,6 @@ pub(crate) unsafe fn resolve_vars(
         attribute_names_are_ascii_case_insensitive,
         contains_attr_tainted_values: false,
         custom_functions: Some(custom_functions),
-        resolve_custom_function,
         parse_context,
         media_environment,
         load_media_environment,
@@ -3221,6 +3231,7 @@ mod tests {
                 parameter_defaults: vec![None],
                 declarations: vec![(utf16("result"), tokenize_owned(b"var(--value)"), true)],
             }],
+            visible: vec![(1, 0)],
         };
         let mut context = ASFResolutionContext {
             custom_functions: Some(&functions),
@@ -3232,6 +3243,47 @@ mod tests {
             panic!("expected custom function substitution");
         };
         assert_eq!(serialize_tokens(&tokens), utf16("12px"));
+    }
+
+    #[test]
+    fn a_nested_call_names_the_function_its_caller_s_scope_sees() {
+        let definition = |identity, scope_identity, name: &str, result: &[u8]| CustomFunctionDefinition {
+            identity,
+            scope_identity,
+            signature: Arc::new(FunctionSignature {
+                name: crate::css::css_string::CssString::from_utf16(&utf16(name)),
+                parameters: Box::default(),
+                return_type: Arc::new(SyntaxNode::Universal),
+            }),
+            parameter_defaults: Vec::new(),
+            declarations: vec![(utf16("result"), tokenize_owned(result), true)],
+        };
+        // The document (scope 1) defines --inner, a shadow tree (scope 2) defines --outer and an
+        // --inner of its own. A call from the document reaches --outer, whose body calls --inner
+        // as the shadow tree names it.
+        let functions = CustomFunctionRegistry {
+            caller_scope_identity: 1,
+            definitions: vec![
+                definition(10, 2, "--outer", b"--inner()"),
+                definition(11, 2, "--inner", b"2px"),
+                definition(12, 1, "--inner", b"1px"),
+            ],
+            visible: vec![(1, 0), (1, 2), (2, 0), (2, 1)],
+        };
+        let substitute = |source: &[u8]| {
+            let mut context = ASFResolutionContext {
+                custom_functions: Some(&functions),
+                ..Default::default()
+            };
+            let TokenResolution::Resolved(tokens) =
+                substitute_tokens(None, None, &tokenize_owned(source), &mut context, 0)
+            else {
+                panic!("expected custom function substitution");
+            };
+            serialize_tokens(&tokens)
+        };
+        assert_eq!(substitute(b"--outer()"), utf16("2px"));
+        assert_eq!(substitute(b"--inner()"), utf16("1px"));
     }
 
     #[test]
