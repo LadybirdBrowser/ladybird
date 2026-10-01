@@ -1260,9 +1260,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .requires_svg_container = node.requires_svg_container(),
                 .is_svg_foreign_object = node.is_svg_foreign_object_element(),
             }; },
-        .request_top_layer_zone_rebuild = [](void* node_pointer) {
-            VERIFY(node_pointer);
-            static_cast<DOM::Node*>(node_pointer)->document().set_top_layer_needs_layout_zone_rebuild(); },
         .push_principal_frame = [](void* builder_pointer, void* node_pointer) -> RustFFI::FfiPrincipalNodeFrame {
             VERIFY(builder_pointer);
             VERIFY(node_pointer);

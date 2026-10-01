@@ -19,6 +19,9 @@ pub enum FfiCommitMessageKind {
     /// The node is the element a box escaped its rebuild root under, so its layout tree has to be
     /// built again.
     LayoutTreeRebuildRequested,
+    /// A top layer member was reached with no box and nothing scheduled to rebuild it, so the
+    /// document has to run another top layer zone pass. This one is about the document itself.
+    TopLayerZoneRebuildNeeded,
 }
 
 /// One thing layout has to tell the document. The node it is about is named by the style node the

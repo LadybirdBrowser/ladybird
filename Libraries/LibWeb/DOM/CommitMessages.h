@@ -48,6 +48,7 @@ private:
         NavigableContainerViewportCommitted,
         UnexpectedFragmentedInline,
         NeedsLayoutTreeUpdate,
+        TopLayerZoneRebuildNeeded,
     };
 
     struct Message {

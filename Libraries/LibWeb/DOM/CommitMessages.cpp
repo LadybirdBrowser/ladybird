@@ -71,6 +71,9 @@ void CommitMessages::append(Layout::RustFFI::FfiCommitMessage const& message)
             .layout_tree_update_reason = SetNeedsLayoutTreeUpdateReason::PseudoElementBoxEscapedRebuildRoot,
         });
         return;
+    case Layout::RustFFI::FfiCommitMessageKind::TopLayerZoneRebuildNeeded:
+        m_messages.append({ .identity = identity, .kind = Kind::TopLayerZoneRebuildNeeded });
+        return;
     }
     VERIFY_NOT_REACHED();
 }
@@ -110,6 +113,9 @@ void CommitMessages::apply(Message const& message)
     case Kind::NeedsLayoutTreeUpdate:
         if (auto node = message.identity.resolve(m_document))
             node->set_needs_layout_tree_update(true, message.layout_tree_update_reason);
+        return;
+    case Kind::TopLayerZoneRebuildNeeded:
+        m_document->set_top_layer_needs_layout_zone_rebuild();
         return;
     case Kind::UnexpectedFragmentedInline:
         if (auto* box = bound_layout_node(message.identity)) {
