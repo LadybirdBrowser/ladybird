@@ -6,6 +6,7 @@
 
 pub mod executable;
 pub mod operand;
+pub mod property_access;
 
 /// Views of the bytecode instructions and of the operand records their slow paths receive.
 pub mod op {

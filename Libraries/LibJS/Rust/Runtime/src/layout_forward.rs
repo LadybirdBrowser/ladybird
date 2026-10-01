@@ -6,10 +6,14 @@
 
 //! The types outside the layout module that it names. build.rs has stand-ins for each of them.
 
-use core::cell::{Cell, UnsafeCell};
+use core::cell::UnsafeCell;
 use core::ffi::c_void;
 
 pub use crate::gc::class::Class;
+pub use crate::runtime::object::PrivateElements;
+pub use crate::runtime::private_environment::PrivateEnvironmentStorage;
+pub use crate::runtime::realm::RealmStorage;
+pub use crate::runtime::shape::ShapeStorage;
 pub use crate::runtime::symbol::Symbol;
 pub use ak::Utf16StringDataHeader;
 
@@ -18,10 +22,6 @@ pub enum Script {}
 pub enum Module {}
 pub enum ObjectEnvironment {}
 pub enum Intrinsics {}
-
-/// An object's private elements, allocated on first use.
-#[repr(transparent)]
-pub struct PrivateElements(pub Cell<*mut c_void>);
 
 /// An optional fly string that is written at most once.
 #[repr(transparent)]
@@ -47,9 +47,6 @@ pub type RawNativeFunctionPointer = Option<unsafe extern "C" fn(vm: *mut c_void)
 pub type RawNativeFunctionPointer = Option<unsafe extern "C" fn(result: *mut RawNativeFunctionResult, vm: *mut c_void)>;
 
 #[derive(Default)]
-pub struct ShapeStorage {}
-
-#[derive(Default)]
 pub struct ObjectPropertyIteratorCacheDataStorage {}
 
 #[derive(Default)]
@@ -59,13 +56,7 @@ pub struct DeclarativeEnvironmentRareDataStorage {}
 pub struct EnvironmentShapeStorage {}
 
 #[derive(Default)]
-pub struct PrivateEnvironmentStorage {}
-
-#[derive(Default)]
 pub struct EcmascriptFunctionObjectStorage {}
 
 #[derive(Default)]
 pub struct SharedFunctionInstanceDataStorage {}
-
-#[derive(Default)]
-pub struct RealmStorage {}

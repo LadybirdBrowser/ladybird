@@ -25,4 +25,13 @@ define_class_ids! {
     Symbol,
     BigInt,
     Accessor,
+    Shape,
+    PrototypeChainValidity,
+    DescriptorArray,
+    PrivateEnvironment,
+    Realm,
+    Object,
+    Array,
+    // Reserved for the Proxy exotic object, which OrdinarySetPrototypeOf already recognizes by its class.
+    ProxyObject,
 }

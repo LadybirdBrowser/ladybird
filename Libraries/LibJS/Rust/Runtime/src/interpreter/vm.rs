@@ -13,17 +13,42 @@ use libjs_runtime_macros::Trace;
 
 use super::interpreter_stack::InterpreterStackMemory;
 use crate::build_configuration::VM_STACK_SPACE_LIMIT;
+use crate::bytecode::executable::{
+    Executable, PropertyLookupCache, StaticPropertyLookupCacheSite, StaticPropertyLookupCaches,
+};
 use crate::gc::capi::{self, GCVisitor};
-use crate::gc::heap::Heap;
+use crate::gc::heap::{Heap, cell_is_dead};
 use crate::gc::root::RootSet;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::NativeFunctionTableEntry;
+use crate::layout::object::Object;
+use crate::layout::realm::Realm;
 use crate::layout::vm::{InterpreterStack, VmHead};
 use crate::runtime::common_property_names::CommonPropertyNames;
+use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::symbol::{self, Symbol, enumerate_well_known_symbols};
+
+/// HostEnsureCanAddPrivateElement, which hosts that are web browsers may override.
+pub type HostEnsureCanAddPrivateElement = fn(&Vm, &Object) -> ThrowCompletionOr<()>;
+
+#[allow(clippy::unnecessary_wraps, reason = "the hook's type lets other hosts throw")]
+fn default_host_ensure_can_add_private_element(_: &Vm, _: &Object) -> ThrowCompletionOr<()> {
+    // The host-defined abstract operation HostEnsureCanAddPrivateElement takes argument O (an Object)
+    // and returns either a normal completion containing unused or a throw completion.
+    // It allows host environments to prevent the addition of private elements to particular host-defined exotic objects.
+    // An implementation of HostEnsureCanAddPrivateElement must conform to the following requirements:
+    // - If O is not a host-defined exotic object, this abstract operation must return NormalCompletion(unused) and perform no other steps.
+    // - Any two calls of this abstract operation with the same argument must return the same kind of Completion Record.
+    // The default implementation of HostEnsureCanAddPrivateElement is to return NormalCompletion(unused).
+    Ok(())
+
+    // This abstract operation is only invoked by ECMAScript hosts that are web browsers.
+    // NOTE: Since LibJS has no way of knowing whether the current environment is a browser we always
+    //       call HostEnsureCanAddPrivateElement when needed.
+}
 
 pub const STRING_TO_ATOM_CACHE_SIZE: usize = 2;
 pub const FLY_STRING_CACHE_SIZE: usize = 1024;
@@ -103,6 +128,15 @@ pub struct Vm {
     cached_strings: OnceCell<CachedStrings>,
     single_ascii_character_strings: OnceCell<[Gc<PrimitiveString>; SINGLE_ASCII_CHARACTER_STRING_COUNT]>,
     well_known_symbols: OnceCell<WellKnownSymbols>,
+
+    /// The executables whose inline caches the sweep callback prunes. The list is weak: the callback drops the
+    /// executables that die.
+    executables: RefCell<Vec<Gc<Executable>>>,
+    static_property_lookup_caches: StaticPropertyLookupCaches,
+    host_ensure_can_add_private_element: Cell<HostEnsureCanAddPrivateElement>,
+    /// The id the next PrivateEnvironment gives its names, the C++ static PrivateEnvironment::s_next_id. It starts
+    /// at one such that 0 can be invalid / default initialized.
+    next_private_environment_id: Cell<u64>,
 }
 
 const _: () = assert!(core::mem::offset_of!(Vm, head) == 0);
@@ -147,6 +181,10 @@ impl Vm {
             cached_strings: OnceCell::new(),
             single_ascii_character_strings: OnceCell::new(),
             well_known_symbols: OnceCell::new(),
+            executables: RefCell::new(Vec::new()),
+            static_property_lookup_caches: StaticPropertyLookupCaches::new(),
+            host_ensure_can_add_private_element: Cell::new(default_host_ensure_can_add_private_element),
+            next_private_environment_id: Cell::new(1),
         });
         let context = core::ptr::from_ref::<Vm>(&vm).cast_mut().cast();
         // SAFETY: The VM is boxed, so its address is stable, and it destroys the heap before anything else.
@@ -201,6 +239,13 @@ impl Vm {
 
     pub fn running_execution_context(&self) -> Option<NonNull<ExecutionContext>> {
         NonNull::new(self.head.running_execution_context.get())
+    }
+
+    /// The Realm of the running execution context.
+    pub fn current_realm(&self) -> Option<Gc<Realm>> {
+        let context = self.running_execution_context()?;
+        // SAFETY: The running execution context is live.
+        unsafe { context.as_ref() }.realm.get()
     }
 
     /// Whether so little of the native stack is left that running more JavaScript could overflow it.
@@ -296,6 +341,39 @@ impl Vm {
         }
     }
 
+    /// Forgets the cells that died in this collection from the inline caches of executables and static call sites, as
+    /// the C++ heap does when it prunes its weak containers.
+    fn remove_dead_cells_from_property_lookup_caches(&self) {
+        self.executables.borrow_mut().retain(|executable| {
+            if cell_is_dead(*executable) {
+                return false;
+            }
+            executable.remove_dead_cells();
+            true
+        });
+        self.static_property_lookup_caches.remove_dead_entries();
+    }
+
+    pub fn register_executable(&self, executable: Gc<Executable>) {
+        self.executables.borrow_mut().push(executable);
+    }
+
+    pub fn static_property_lookup_cache(&self, site: StaticPropertyLookupCacheSite) -> &PropertyLookupCache {
+        self.static_property_lookup_caches.get(site)
+    }
+
+    pub fn host_ensure_can_add_private_element(&self) -> HostEnsureCanAddPrivateElement {
+        self.host_ensure_can_add_private_element.get()
+    }
+
+    pub fn set_host_ensure_can_add_private_element(&self, hook: HostEnsureCanAddPrivateElement) {
+        self.host_ensure_can_add_private_element.set(hook);
+    }
+
+    pub fn next_private_environment_id(&self) -> &Cell<u64> {
+        &self.next_private_environment_id
+    }
+
     pub fn string_to_atom_cache(&self) -> &RefCell<[StringToAtomCacheEntry; STRING_TO_ATOM_CACHE_SIZE]> {
         &self.string_to_atom_cache
     }
@@ -358,4 +436,5 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     // SAFETY: The sweep callback was registered with the VM as its context.
     let vm = unsafe { &*context.cast::<Vm>() };
     vm.remove_dead_strings_from_weak_caches();
+    vm.remove_dead_cells_from_property_lookup_caches();
 }

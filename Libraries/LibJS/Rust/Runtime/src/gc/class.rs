@@ -10,6 +10,7 @@ use super::capi::GCVisitor;
 use super::class_id::ClassId;
 use super::visitor::{Trace, Visitor};
 use crate::layout::cell::{CellHeader, CellKind, CellState};
+use crate::runtime::object::ObjectMethods;
 
 /// Mirrors GCCellTypeInfo from Libraries/LibGC/CAPI.h, which LibGC dispatches every per-cell operation through.
 #[repr(C)]
@@ -33,6 +34,9 @@ pub struct Class {
     pub id: ClassId,
     /// The class of the cell type this one extends.
     pub parent: Option<&'static Class>,
+    /// The internal methods of the objects of this class, the Rust form of the C++ Object vtable. Cells that are not
+    /// objects have none.
+    pub object_methods: Option<&'static ObjectMethods>,
 }
 
 /// LibGC hands out cells in the slots of fixed-size blocks, whose free list needs room for its own entry in each.
@@ -45,11 +49,16 @@ impl Class {
         id: ClassId,
         kind: CellKind,
         parent: Option<&'static Class>,
+        object_methods: Option<&'static ObjectMethods>,
         finalize: Option<unsafe extern "C" fn(cell: *mut c_void)>,
     ) -> Self {
         assert!(size_of::<T>() >= MIN_CELL_SIZE);
         assert!(size_of::<T>().is_multiple_of(8));
         assert!(align_of::<T>() <= MAX_CELL_ALIGNMENT);
+        assert!(
+            matches!(kind, CellKind::Object) == object_methods.is_some(),
+            "exactly the object classes have internal methods"
+        );
         Self {
             type_info: CellTypeInfo {
                 cell_size: size_of::<T>() as u32,
@@ -68,6 +77,7 @@ impl Class {
             name,
             id,
             parent,
+            object_methods,
         }
     }
 
@@ -150,6 +160,12 @@ pub fn class_of<T>(cell: crate::layout::cell::Gc<T>) -> &'static Class {
     unsafe { cell.as_ptr().cast::<&'static Class>().read() }
 }
 
+impl<T: ?Sized> core::fmt::Debug for crate::layout::cell::Gc<T> {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(formatter, "Gc({:p})", self.as_non_null())
+    }
+}
+
 /// Cells are only ever mutated through interior mutability, so a shared reference is all a Gc hands out.
 impl<T: GcCell> core::ops::Deref for crate::layout::cell::Gc<T> {
     type Target = T;
@@ -201,16 +217,19 @@ impl CellHeader {
 }
 
 /// Defines the class of a cell type, named after the type and its ClassId. `extends` names the cell types it
-/// extends, nearest first, and `finalize` opts into running its Finalize implementation.
+/// extends, nearest first. `methods` gives an object class its internal methods, and `finalize` opts into running its
+/// Finalize implementation. A class that names neither inherits them from the class it extends, as C++ subclasses
+/// inherit virtual methods, so the Finalize implementation of a subclass has to finalize its base as well.
 macro_rules! define_cell {
-    ($type:ident, $kind:ident $(, extends: [$parent:ident $(, $ancestor:ident)*])? $(, finalize: $finalize:ident)?) => {
+    ($type:ident, $kind:ident $(, extends: [$parent:ident $(, $ancestor:ident)*])? $(, methods: $methods:path)? $(, finalize: $finalize:ident)?) => {
         const _: () = {
             static CLASS: $crate::gc::class::Class = $crate::gc::class::Class::new::<$type>(
                 stringify!($type),
                 $crate::gc::class_id::ClassId::$type,
                 $crate::layout::cell::CellKind::$kind,
                 define_cell!(@parent $($parent)?),
-                define_cell!(@finalize $type $($finalize)?),
+                define_cell!(@methods [$($parent)?] [$($methods)?]),
+                define_cell!(@finalize $type [$($parent)?] [$($finalize)?]),
             );
 
             // SAFETY: Checked by the asserts in Class::new and the cell's #[repr(C)] layout.
@@ -227,8 +246,12 @@ macro_rules! define_cell {
     };
     (@parent) => { None };
     (@parent $parent:ident) => { Some(<$parent as $crate::gc::class::GcCell>::CLASS) };
-    (@finalize $type:ident) => { None };
-    (@finalize $type:ident finalize) => { Some($crate::gc::class::finalize::<$type>) };
+    (@methods [] []) => { None };
+    (@methods [$parent:ident] []) => { <$parent as $crate::gc::class::GcCell>::CLASS.object_methods };
+    (@methods [$($parent:ident)?] [$methods:path]) => { Some(&$methods) };
+    (@finalize $type:ident [] []) => { None };
+    (@finalize $type:ident [$parent:ident] []) => { <$parent as $crate::gc::class::GcCell>::CLASS.type_info.finalize };
+    (@finalize $type:ident [$($parent:ident)?] [finalize]) => { Some($crate::gc::class::finalize::<$type>) };
 }
 
 pub(crate) use define_cell;
