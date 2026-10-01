@@ -29,6 +29,7 @@ set(SOURCES
     Gradients.cpp
     Matrix4x4.cpp
     DecodedImageFrame.cpp
+    RustProcessState.cpp
     ImageFormats/BMPWriter.cpp
     ImageFormats/JPEGWriter.cpp
     ImageFormats/PNGWriter.cpp

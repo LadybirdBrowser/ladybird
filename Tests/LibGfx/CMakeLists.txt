@@ -30,6 +30,11 @@ ladybird_test(TestFilter.cpp LibGfx LIBS LibGfx skia)
 ladybird_test(TestYUVData.cpp LibGfx LIBS LibGfx skia)
 ladybird_test(TestPaintingSurface.cpp LibGfx LIBS LibGfx skia)
 
+# Opens LibWeb by name to reach its copy of the Rust graphics crate.
+if (APPLE OR LINUX)
+    ladybird_test(TestRustCrateCopies.cpp LibGfx LIBS LibGfx LibWeb)
+endif()
+
 if (APPLE)
     ladybird_test(TestVideoSurfaceImage.mm LibGfx LIBS LibGfx skia)
     target_link_libraries(TestVideoSurfaceImage PRIVATE "-framework CoreVideo")

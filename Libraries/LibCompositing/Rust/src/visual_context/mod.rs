@@ -11,7 +11,6 @@ pub mod serialize;
 pub mod visual_animations;
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::node_slot_id::NodeSlotId;
 use crate::visual_animation::VisualAnimation;
@@ -596,10 +595,16 @@ pub fn resolve_sorting_contexts_over_nodes(
     contexts
 }
 
-static NEXT_STRUCTURAL_EPOCH: AtomicU64 = AtomicU64::new(1);
+unsafe extern "C" {
+    fn ladybird_gfx_process_next_structural_epoch() -> u64;
+}
 
 pub fn allocate_structural_epoch() -> u64 {
-    NEXT_STRUCTURAL_EPOCH.fetch_add(1, Ordering::Relaxed)
+    // The counter is LibGfx's: this crate is compiled into more than one library, and a counter
+    // here would let a tree one copy built and a plan the other prepared agree on an epoch they do
+    // not share. See `LibGfx/RustProcessState.cpp`.
+    // SAFETY: The counter is an atomic on the other side of the boundary.
+    unsafe { ladybird_gfx_process_next_structural_epoch() }
 }
 
 pub fn resolve_leaf_to_context_matrices(
