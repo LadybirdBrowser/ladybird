@@ -6,13 +6,18 @@
     test(() => {
         const style = addStyle(document.head, `.leaf { ${MATCH_DECLARATION} }`);
 
+        // Either style computer may be the one that shares a style, so count both.
+        const engineShared = () => (internals.styleEngineCounters().engineComputedRecordSharedHits ?? 0)
+            + (internals.styleEngineCounters().engineComputedRecordCohortHits ?? 0);
+
         function sharedWhileAdding(build) {
             const box = makeElement("section");
             build(box);
             document.body.append(box);
             resetStyleCounters();
+            const engineSharedBefore = engineShared();
             internals.updateStyle();
-            const shared = styleCounters().elementStyleSharedComputations;
+            const shared = styleCounters().elementStyleSharedComputations + engineShared() - engineSharedBefore;
             const probe = readProbe(box.firstChild);
             box.remove();
             internals.updateStyle();
