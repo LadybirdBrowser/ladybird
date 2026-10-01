@@ -1,0 +1,3 @@
+resolving reference follows a shape: true
+dangling reference follows a shape: false
+dangling reference follows a shape after name churn: false

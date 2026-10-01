@@ -45,8 +45,9 @@ pub(crate) struct TextContent {
     grapheme_segmenter: OnceCell<super::text_chunker::GraphemeSegmenter>,
     chunks: RefCell<Option<Rc<CachedTextChunks>>>,
     pub(super) rendering_key: Option<TextRenderingKey>,
-    /// The DOM text as it was written, kept only under an SVG text box: SVG text shapes the
-    /// element's raw character data, not the white-space-collapsed rendering every other box uses.
+    /// The DOM text as it was written, kept only under an SVG box: SVG text shapes the element's
+    /// raw character data, not the white-space-collapsed rendering every other box uses. Text on a
+    /// path also reads text whose parent is not a text box, such as an <a> inside a <textPath>.
     pub(crate) svg_source_text: Option<Box<[u16]>>,
 }
 
@@ -369,7 +370,7 @@ unsafe fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId, input: 
         let source = unsafe { input.text.to_utf16() }.expect("text source carries no storage");
         let untransformed_text_is_ascii_whitespace = source.iter().all(|unit| matches!(unit, 0x09..=0x0d | 0x20));
         let svg_source_text =
-            super::node_facts::kind_is_svg_text(arena.data(parent).kind.get()).then(|| Box::from(&source[..]));
+            super::node_facts::kind_is_svg_box(arena.data(parent).kind.get()).then(|| Box::from(&source[..]));
         let rendered = render_text(source, key.locale.as_deref(), key.options);
         let content = TextContent {
             svg_source_text,

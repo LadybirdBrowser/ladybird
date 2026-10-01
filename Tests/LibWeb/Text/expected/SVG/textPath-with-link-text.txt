@@ -1,0 +1,2 @@
+plain text path has a width: true
+text inside a link is laid out along the path: true

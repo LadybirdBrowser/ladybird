@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="400" height="100">
+    <defs>
+        <path id="line" d="M 10 50 L 390 50" />
+    </defs>
+    <text><textPath id="plain" href="#line">go here</textPath></text>
+    <text><textPath id="linked" href="#line">go <a href="#">here</a></textPath></text>
+</svg>
+<script>
+    // Text on a path renders every text node in its subtree, including those inside an <a>, whose
+    // box is not a text box.
+    test(() => {
+        const width = id => document.getElementById(id).getBoundingClientRect().width;
+        println(`plain text path has a width: ${width("plain") > 0}`);
+        println(`text inside a link is laid out along the path: ${width("linked") === width("plain")}`);
+    });
+</script>

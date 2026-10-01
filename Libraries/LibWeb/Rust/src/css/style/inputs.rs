@@ -634,6 +634,30 @@ impl RetainedState {
         self.tree.element_by_id(tree_scope, name)
     }
 
+    /// The style group payloads the element's published record holds, for a reader that reaches an
+    /// element by identity rather than through a layout row. `None` while the element has no
+    /// record.
+    #[must_use]
+    pub fn element_published_style_payloads(&self, node: StyleNodeID) -> Option<&[*const std::ffi::c_void]> {
+        let record = self.computed_group_sets.assigned_style_record(node)?;
+        let payloads = self.computed_group_sets.style_record_payloads(record.raw())?;
+        Some(SharedPayload::as_pointer_slice(payloads))
+    }
+
+    /// Keep the atom a layout publication names live for as long as the publication does.
+    ///
+    /// A published SVG reference names an id that may name no element at all, and an atom nothing
+    /// answers to has no other owner: a sweep would reclaim it and hand its number to the next
+    /// name interned, which the publication would then read as the element it points at.
+    pub fn retain_published_atom(&mut self, atom: StyleAtomID) {
+        self.atoms.retain_published(atom);
+    }
+
+    /// Give up the retention `retain_published_atom` took, as a publication is cleared or replaced.
+    pub fn release_published_atom(&mut self, atom: StyleAtomID) {
+        self.atoms.release_published(atom);
+    }
+
     pub fn set_shadow_root(&mut self, host: StyleNodeID, shadow_root: StyleNodeID) {
         self.tree.set_shadow_root(host, shadow_root, &mut self.memory);
     }

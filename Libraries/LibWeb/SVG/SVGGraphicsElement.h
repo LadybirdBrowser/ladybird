@@ -64,16 +64,9 @@ protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
 
     GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
-    GC::Ptr<DOM::Element> resolve_url_to_element(Utf16String const& url) const;
 
     template<typename T>
     GC::Ptr<T> try_resolve_url_to(CSS::URL const& url) const
-    {
-        return as_if<T>(resolve_url_to_element(url).ptr());
-    }
-
-    template<typename T>
-    GC::Ptr<T> try_resolve_url_to(Utf16String const& url) const
     {
         return as_if<T>(resolve_url_to_element(url).ptr());
     }

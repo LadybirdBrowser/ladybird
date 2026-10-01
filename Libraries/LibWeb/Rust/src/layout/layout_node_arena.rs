@@ -1610,7 +1610,48 @@ impl LayoutNodeArena {
 
     /// The `points` list a <polyline> or <polygon> parsed.
     pub(crate) fn svg_points(&self, id: NodeSlotId) -> Option<&[super::svg_formatting_context::FfiFloatPoint]> {
-        self.svg_points.get(&self.node_style_node(id)?).map(|points| &**points)
+        self.style_node_svg_points(self.node_style_node(id)?)
+    }
+
+    pub(crate) fn style_node_svg_points(
+        &self,
+        style_node: StyleNodeID,
+    ) -> Option<&[super::svg_formatting_context::FfiFloatPoint]> {
+        self.svg_points.get(&style_node).map(|points| &**points)
+    }
+
+    /// The element an SVG reference resolves to, named by the atom its URL fragment interned to.
+    /// `SVGGraphicsElement::resolve_fragment_identifier_to_element` asks the document first and the
+    /// shadow tree the referring element sits in second, so the lookup is made in that order.
+    pub(crate) fn element_by_svg_reference(&self, referrer: StyleNodeID, name: u32) -> Option<StyleNodeID> {
+        let name = crate::css::style::index::StyleAtomID(name);
+        if name.is_none() {
+            return None;
+        }
+        self.with_style_store(|engine| {
+            let scope = engine.tree().tree_scope(referrer);
+            engine
+                .element_by_id(crate::css::style::tree::TreeScopeID::DOCUMENT, name)
+                .or_else(|| {
+                    (scope != crate::css::style::tree::TreeScopeID::DOCUMENT)
+                        .then(|| engine.element_by_id(scope, name))
+                        .flatten()
+                })
+        })
+    }
+
+    /// The published computed style of an element the style tree names, which a box's own style
+    /// pointer cannot reach: a `<defs>` builds no box, so nothing under it has a row.
+    ///
+    /// The group pointers are copied out rather than borrowed, since the style store's borrow ends
+    /// with the query while the record they address is retained for the pass.
+    pub(crate) fn style_node_style_payloads(&self, style_node: StyleNodeID) -> Option<FfiStylePayloads> {
+        self.with_style_store(|engine| {
+            let groups = engine.element_published_style_payloads(style_node)?;
+            let mut payloads = FfiStylePayloads::default();
+            payloads.groups.copy_from_slice(groups);
+            Some(payloads)
+        })
     }
 
     pub(crate) fn set_style_node_svg_attribute_facts(
@@ -1620,7 +1661,12 @@ impl LayoutNodeArena {
         points: &[super::svg_formatting_context::FfiFloatPoint],
     ) {
         self.assert_owner_thread();
-        self.svg_attribute_facts.insert(style_node, facts);
+        let retained = facts.reference_fragment_atom;
+        let replaced = self
+            .svg_attribute_facts
+            .insert(style_node, facts)
+            .map_or(0, |published| published.reference_fragment_atom);
+        self.retain_published_reference_atom(retained, replaced);
         if points.is_empty() {
             self.svg_points.remove(&style_node);
         } else {
@@ -1630,8 +1676,31 @@ impl LayoutNodeArena {
 
     pub(crate) fn clear_style_node_svg_attribute_facts(&mut self, style_node: StyleNodeID) {
         self.assert_owner_thread();
-        self.svg_attribute_facts.remove(&style_node);
+        if let Some(removed) = self.svg_attribute_facts.remove(&style_node) {
+            self.retain_published_reference_atom(0, removed.reference_fragment_atom);
+        }
         self.svg_points.remove(&style_node);
+    }
+
+    /// Hand the retention a published SVG reference holds from the name it used to carry to the
+    /// name it carries now, so the style engine's atom sweep cannot reissue either number while a
+    /// publication still reads it. The atom an id names is otherwise rooted only by the element
+    /// answering to it, and a reference to an id that is in no document has no such element.
+    fn retain_published_reference_atom(&mut self, retained: u32, released: u32) {
+        if retained == released {
+            return;
+        }
+        // A document being torn down drops its style record host before the last publication is
+        // cleared. The engine it named is going with it, so there is nothing left to retain for.
+        let Some(host) = self.style_record_host.get() else {
+            return;
+        };
+        assert!(!host.style_engine.is_null());
+        // SAFETY: As with `with_style_store`, the engine outlives the arena's live nodes, and a
+        // publication is written outside any pass, so nothing else borrows the engine meanwhile.
+        let engine = unsafe { &mut *host.style_engine.cast::<StyleEngine>() };
+        engine.retain_published_atom(crate::css::style::index::StyleAtomID(retained));
+        engine.release_published_atom(crate::css::style::index::StyleAtomID(released));
     }
 
     pub(crate) fn with_counter_style_registry<T>(

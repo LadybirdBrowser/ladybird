@@ -1,0 +1,54 @@
+<!DOCTYPE quirks>
+<script src="../include.js"></script>
+<style>
+    .rebuild-me { display: none; }
+</style>
+<svg width="400" height="400">
+    <defs id="defs">
+        <path id="MixedCasePath" d="M 10 200 L 390 200" />
+    </defs>
+    <text><textPath id="text-path">HELLO WORLD</textPath></text>
+</svg>
+<div id="churn"></div>
+<script>
+    // This document is in quirks mode, where an id selector matches without regard to case, so the
+    // style engine's id facts hold an id only in its lowercase form. An SVG reference has to match
+    // the id as written, so that name has to stay live through sweeps of interned names: were it
+    // reclaimed, a reference made after the sweep would intern a fresh number for the name and find
+    // no element under it.
+    test(() => {
+        const svg = document.querySelector("svg");
+        const textPath = document.getElementById("text-path");
+        const churn = document.getElementById("churn");
+        const defs = document.getElementById("defs");
+        // A reference is resolved as the box that reads it is built, so the box has to go and come
+        // back for a fresh answer.
+        const followsAShape = () => {
+            svg.classList.add("rebuild-me");
+            svg.getBoundingClientRect();
+            svg.classList.remove("rebuild-me");
+            return textPath.getBoundingClientRect().width > 0;
+        };
+
+        println(`compatMode: ${document.compatMode}`);
+        println(`unreferenced text path follows a shape: ${followsAShape()}`);
+
+        for (let round = 0; round < 4; ++round) {
+            // Retire enough names to make the style engine sweep its interned-name table.
+            for (let i = 0; i < 300; ++i) {
+                churn.className = `churned-name-${round}-${i}`;
+                churn.getBoundingClientRect();
+            }
+            // Intern new names, which take any number the sweep reclaimed.
+            for (let i = 0; i < 300; ++i) {
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("id", `recycled-name-${round}-${i}`);
+                defs.appendChild(path);
+            }
+            followsAShape();
+        }
+
+        textPath.setAttribute("href", "#MixedCasePath");
+        println(`reference to the mixed-case id after name churn follows a shape: ${followsAShape()}`);
+    });
+</script>

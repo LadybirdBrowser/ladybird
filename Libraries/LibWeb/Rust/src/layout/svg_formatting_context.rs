@@ -145,6 +145,12 @@ pub struct FfiSvgAttributeFacts {
     pub text_y: FfiSvgLengthValue,
     pub text_dx: FfiSvgLengthValue,
     pub text_dy: FfiSvgLengthValue,
+    /// The element this one's `href` names, as the style mirror's id index answers for it: the
+    /// URL's decoded fragment, interned as the atom an element's id is indexed under. Zero when
+    /// the element names nothing, or names a URL with no fragment.
+    pub reference_fragment_atom: u32,
+    /// The `startOffset` of a `<textPath>`, against the length of the path it follows.
+    pub text_path_start_offset: FfiSvgNumberPercentage,
 }
 
 pub const SVG_GEOMETRY_KIND_NONE: u8 = 0;
@@ -219,19 +225,6 @@ impl FfiSvgNumberPercentage {
             self.value
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[repr(C)]
-pub struct FfiSvgPathRequest {
-    pub viewport_width: CssPixels,
-    pub viewport_height: CssPixels,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[repr(C)]
-pub struct FfiSvgPathResult {
-    pub path_handle: *mut c_void,
 }
 
 pub(crate) const PRESERVE_ASPECT_RATIO_NONE: u8 = 0;
@@ -868,9 +861,9 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     /// As above, from an element's published attributes and computed style rather than from its
     /// box.
-    // FIXME: The DOM's getTotalLength() and the layout of a <textPath> still build the same geometry
-    //        from the C++ SVG*Element::get_path() implementations. Route them through this, so a fix
-    //        to one copy cannot miss the other.
+    // FIXME: The DOM's getTotalLength() still builds the same geometry from the C++
+    //        SVG*Element::get_path() implementations. Route it through this, so a fix to one copy
+    //        cannot miss the other.
     fn svg_geometry_path_of(
         &self,
         attributes: FfiSvgAttributeFacts,
@@ -997,6 +990,35 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
         trim_ascii_whitespace(&mut text);
         text
+    }
+
+    /// The character data text on a path renders: the source text of every text node in its
+    /// subtree whose parent has a box, rather than of its direct children alone.
+    fn rendered_svg_text_contents(&self, root: Node) -> Vec<u16> {
+        let mut text: Vec<u16> = Vec::new();
+        let mut current = root;
+        loop {
+            if node_facts::kind_is_text(self.node_kind(current)) {
+                self.append_svg_source_text(current, &mut text);
+            }
+            let child = self.first_child(current);
+            if !child.is_invalid() {
+                current = child;
+                continue;
+            }
+            loop {
+                if current == root {
+                    trim_ascii_whitespace(&mut text);
+                    return text;
+                }
+                let sibling = self.next_sibling(current);
+                if !sibling.is_invalid() {
+                    current = sibling;
+                    break;
+                }
+                current = self.parent(current);
+            }
+        }
     }
 
     fn append_svg_source_text(&self, text_node: Node, out: &mut Vec<u16>) {
@@ -1271,6 +1293,53 @@ impl<'pass> SvgFormattingContext<'pass> {
         // FIXME: Take writing mode and text direction into account.
         self.current_text_position.x += advance;
         libgfx_rust::path::OwnedPath::from_glyph_runs(&runs)
+    }
+
+    /// The glyph outlines a <textPath> renders: its whole subtree's text, shaped from the origin
+    /// and then laid along the shape its `href` names.
+    /// https://svgwg.org/svg2-draft/text.html#TextPathElement
+    fn svg_text_path_box_path(&self, text_path_box: Node) -> libgfx_rust::path::OwnedPath {
+        let empty = || libgfx_rust::path::PathBuilder::new().build();
+        let Some(shape_path) = self.svg_referenced_shape_path(text_path_box) else {
+            return empty();
+        };
+
+        let style = self.style(text_path_box);
+        let text = self.rendered_svg_text_contents(text_path_box);
+        let (runs, total_advance) = self.shape_svg_text(style, &text, FfiFloatPoint::default());
+
+        // https://svgwg.org/svg2-draft/text.html#TextPathElementStartOffsetAttribute
+        let mut start_offset = self
+            .svg_attributes(text_path_box)
+            .text_path_start_offset
+            .resolve_relative_to(shape_path.length());
+        // FIXME: Take writing mode and text direction into account.
+        match style.inherited_svg().text_anchor {
+            text_anchor::START => {}
+            text_anchor::MIDDLE => start_offset -= total_advance / 2.0,
+            text_anchor::END => start_offset -= total_advance,
+            _ => unreachable!("invalid text-anchor value"),
+        }
+
+        shape_path.place_glyph_runs_along(&runs, start_offset)
+    }
+
+    /// The geometry of the shape element an SVG reference names, read from what that element
+    /// published rather than from a box: a `<textPath>`'s target is normally a `<path>` inside a
+    /// `<defs>`, and a `<defs>` builds no box at all.
+    fn svg_referenced_shape_path(&self, referring_box: Node) -> Option<libgfx_rust::path::OwnedPath> {
+        let arena = self.callbacks.arena();
+        let referrer = arena.node_style_node(referring_box)?;
+        let atom = self.svg_attributes(referring_box).reference_fragment_atom;
+        let shape = arena.element_by_svg_reference(referrer, atom)?;
+        let attributes = arena.style_node_svg_attribute_facts(shape);
+        // Only a geometry element is followed; every other element answers with no shape at all.
+        if attributes.geometry_kind == SVG_GEOMETRY_KIND_NONE {
+            return None;
+        }
+        let payloads = arena.style_node_style_payloads(shape)?;
+        let points = arena.style_node_svg_points(shape);
+        Some(self.svg_geometry_path_of(attributes, StyleValues::new(&payloads), points))
     }
 
     fn svg_attributes(&self, node: Node) -> FfiSvgAttributeFacts {
@@ -1763,24 +1832,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let path = match self.node_kind(graphics_box) {
             NodeKind::SVGGeometryBox => self.svg_geometry_path(graphics_box),
             NodeKind::SVGTextBox => self.svg_text_box_path(graphics_box),
-            // Text on a path still asks the document: the shape it follows is named by an `href`
-            // that can reach an element with no box at all, whose attributes nothing publishes.
-            NodeKind::SVGTextPathBox => {
-                // SAFETY: The callback computes geometry synchronously and transfers
-                // sole ownership of a heap-allocated path into the result.
-                let result = unsafe {
-                    (self.callbacks.host.compute_svg_path)(
-                        self.callbacks.host.context,
-                        self.callbacks.shell(graphics_box),
-                        FfiSvgPathRequest {
-                            viewport_width: self.viewport_width,
-                            viewport_height: self.viewport_height,
-                        },
-                    )
-                };
-                // SAFETY: The callback just handed over its one owning pointer.
-                unsafe { libgfx_rust::path::OwnedPath::adopt(result.path_handle) }
-            }
+            NodeKind::SVGTextPathBox => self.svg_text_path_box_path(graphics_box),
             _ => libgfx_rust::path::PathBuilder::new().build(),
         };
 

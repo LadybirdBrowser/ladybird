@@ -121,12 +121,6 @@ private:
     bool m_is_percentage { false };
 };
 
-enum class TextAnchor {
-    Start,
-    Middle,
-    End
-};
-
 WEB_API Optional<i32> parse_integer(Utf16View);
 WEB_API Optional<NumberPercentage> parse_number_percentage(Utf16View);
 WEB_API Vector<Gfx::FloatPoint> parse_points(Utf16View);

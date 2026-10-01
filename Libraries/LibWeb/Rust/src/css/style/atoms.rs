@@ -162,6 +162,13 @@ pub(super) struct DocumentAtoms {
     cpp_memoized_raws: HashSet<usize>,
     qualified: HashMap<(u32, u32), StyleAtomID>,
     scope: AtomScope,
+    /// Atoms a layout publication names, and how many publications name each.
+    ///
+    /// A name the document carries is kept live by the state that carries it, but a published
+    /// fact can name an atom no live element answers to - an SVG reference to an id that is not
+    /// in the document. Nothing else roots such an atom, so a sweep would hand its number out
+    /// again and the publication would then read as naming whatever took it.
+    published: HashMap<StyleAtomID, u64>,
     #[cfg(test)]
     available: BTreeSet<u32>,
     #[cfg(test)]
@@ -194,6 +201,7 @@ impl DocumentAtoms {
             cpp_memoized_raws: HashSet::new(),
             qualified: HashMap::new(),
             scope,
+            published: HashMap::new(),
             #[cfg(test)]
             available: BTreeSet::new(),
             #[cfg(test)]
@@ -253,11 +261,34 @@ impl DocumentAtoms {
         self.raw.len() + self.qualified.len() >= self.sweep_at
     }
 
-    /// Add the raw components of every live qualified name.
+    /// Keep `atom` out of every sweep until the publication naming it is cleared or replaced.
+    pub(super) fn retain_published(&mut self, atom: StyleAtomID) {
+        if atom.is_none() {
+            return;
+        }
+        *self.published.entry(atom).or_default() += 1;
+    }
+
+    pub(super) fn release_published(&mut self, atom: StyleAtomID) {
+        if atom.is_none() {
+            return;
+        }
+        let Entry::Occupied(mut entry) = self.published.entry(atom) else {
+            unreachable!("a published atom must have a live count");
+        };
+        let count = entry.get_mut();
+        *count = count.checked_sub(1).expect("published atom count underflow");
+        if *count == 0 {
+            entry.remove();
+        }
+    }
+
+    /// Add published names and the raw components of every live qualified name.
     pub(super) fn mark_sweep_dependencies<S>(&self, live: &mut HashSet<StyleAtomID, S>)
     where
         S: BuildHasher,
     {
+        live.extend(self.published.keys().copied());
         for (&(namespace, name), &qualified) in &self.qualified {
             if live.contains(&qualified) {
                 if namespace != 0 {
@@ -467,6 +498,37 @@ mod tests {
         let mut live = HashSet::from([qualified]);
         assert!(prepare_sweep(&atoms, &mut live).is_empty());
         assert_eq!(live, HashSet::from([namespace, name, qualified]));
+    }
+
+    #[test]
+    fn a_published_name_survives_a_sweep_that_no_other_owner_reaches() {
+        let mut atoms = DocumentAtoms::for_live_engine();
+        let referenced = atoms.intern_cpp_raw(0x1000);
+        let other = atoms.intern_cpp_raw(0x2000);
+        atoms.retain_published(referenced);
+        assert_eq!(prepare_sweep(&atoms, &mut HashSet::new()), [other]);
+
+        // The publication is replaced by one naming a different name, so the old one becomes
+        // reclaimable and its number can be issued again.
+        let replacement = atoms.intern_cpp_raw(0x3000);
+        atoms.retain_published(replacement);
+        atoms.release_published(referenced);
+        let reclaimable = prepare_sweep(&atoms, &mut HashSet::new());
+        assert_eq!(reclaimable, [referenced, other]);
+        atoms.finish_sweep(&reclaimable);
+        assert_eq!(atoms.intern_raw(0x4000), referenced);
+    }
+
+    #[test]
+    fn two_publications_of_one_name_each_keep_it() {
+        let mut atoms = DocumentAtoms::for_live_engine();
+        let referenced = atoms.intern_cpp_raw(0x1000);
+        atoms.retain_published(referenced);
+        atoms.retain_published(referenced);
+        atoms.release_published(referenced);
+        assert!(prepare_sweep(&atoms, &mut HashSet::new()).is_empty());
+        atoms.release_published(referenced);
+        assert_eq!(prepare_sweep(&atoms, &mut HashSet::new()), [referenced]);
     }
 
     #[test]

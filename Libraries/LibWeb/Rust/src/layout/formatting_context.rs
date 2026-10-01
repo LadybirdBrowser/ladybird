@@ -919,11 +919,6 @@ pub(crate) struct FlexLayoutData {
 #[repr(C)]
 pub struct FfiLayoutHostCallbacks {
     pub context: *mut c_void,
-    pub compute_svg_path: unsafe extern "C" fn(
-        *mut c_void,
-        *mut c_void,
-        svg_formatting_context::FfiSvgPathRequest,
-    ) -> svg_formatting_context::FfiSvgPathResult,
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
     pub node_unique_id: unsafe extern "C" fn(*mut c_void) -> i64,
     /// The commit messages a finished commit leaves for the document, in the order it produced
