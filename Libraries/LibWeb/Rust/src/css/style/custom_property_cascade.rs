@@ -208,7 +208,7 @@ impl RetainedState {
     /// keeps the parent's whatever its reaction computes.
     pub(super) fn node_environment_may_move(&self, node: StyleNodeID) -> bool {
         let own = self.computed_group_sets.custom_property_environment_identity(node);
-        let parent = self.tree.flat_tree_parent(node).map_or(Some(0), |parent| {
+        let parent = self.tree.inheritance_parent(node).map_or(Some(0), |parent| {
             self.computed_group_sets.custom_property_environment_identity(parent)
         });
         own != parent || self.node_declares_custom_properties(node)
@@ -425,7 +425,7 @@ impl RetainedState {
         {
             return;
         }
-        let parent_environment = match self.tree.flat_tree_parent(node) {
+        let parent_environment = match self.tree.inheritance_parent(node) {
             Some(parent) => match self.computed_group_sets.custom_property_environment_identity(parent) {
                 Some(parent_environment) => parent_environment,
                 None => return,

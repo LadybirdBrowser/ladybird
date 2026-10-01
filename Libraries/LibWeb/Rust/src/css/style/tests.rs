@@ -12025,3 +12025,47 @@ fn a_reissued_style_node_identity_holds_no_retained_state() {
             .contains_key(&leaving)
     );
 }
+
+#[test]
+fn inheritance_parent_keeps_the_dom_parent_of_nodes_outside_the_flat_tree() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 7];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<_> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    let [host, assigned, unassigned, shadow_root, wrapper, slot, fallback] = nodes.as_slice() else {
+        unreachable!()
+    };
+
+    engine.tree.set_first_element_child(*host, Some(*assigned));
+    engine.tree.set_parent(*assigned, Some(*host));
+    engine.tree.set_next_element_sibling(*assigned, Some(*unassigned));
+    engine.tree.set_previous_element_sibling(*unassigned, Some(*assigned));
+    engine.tree.set_parent(*unassigned, Some(*host));
+    engine.tree.set_first_element_child(*shadow_root, Some(*wrapper));
+    engine.tree.set_parent(*wrapper, Some(*shadow_root));
+    engine.tree.set_first_element_child(*wrapper, Some(*slot));
+    engine.tree.set_parent(*slot, Some(*wrapper));
+    engine.tree.set_first_element_child(*slot, Some(*fallback));
+    engine.tree.set_parent(*fallback, Some(*slot));
+    let retained = &mut engine.state.retained;
+    retained.tree.set_shadow_root(*host, *shadow_root, &mut retained.memory);
+    retained
+        .tree
+        .set_assigned_slot(*assigned, Some(*slot), &mut retained.memory);
+    retained
+        .tree
+        .set_assigned_nodes(*slot, &[*assigned], &mut retained.memory);
+
+    let tree = &engine.state.retained.tree;
+    // A slotted element inherits from its slot, and a shadow tree's top-level element from the host.
+    assert_eq!(tree.inheritance_parent(*assigned), Some(*slot));
+    assert_eq!(tree.inheritance_parent(*wrapper), Some(*host));
+    assert_eq!(tree.inheritance_parent(*slot), Some(*wrapper));
+    assert_eq!(tree.inheritance_parent(*host), None);
+    // A host's child no slot takes, and a slot's fallback while it has assigned nodes, are outside
+    // the flat tree but still inherit from their DOM parent.
+    assert_eq!(tree.flat_tree_parent(*unassigned), None);
+    assert_eq!(tree.inheritance_parent(*unassigned), Some(*host));
+    assert_eq!(tree.flat_tree_parent(*fallback), None);
+    assert_eq!(tree.inheritance_parent(*fallback), Some(*slot));
+}
