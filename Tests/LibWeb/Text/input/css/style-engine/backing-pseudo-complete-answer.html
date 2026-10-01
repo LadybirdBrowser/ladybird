@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    input::placeholder { color: red; }
+    input.changed::placeholder { color: green; }
+</style>
+<input id="input" placeholder="text">
+<script>
+    test(() => {
+        // The element standing for the input's ::placeholder is cascaded from the input's rules.
+        internals.updateStyle();
+        const recomputations = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        const before = recomputations();
+        input.classList.add("changed");
+        internals.updateStyle();
+        println(`C++ recomputations: ${recomputations() - before}`);
+        println(`placeholder color: ${getComputedStyle(input, "::placeholder").color}`);
+    });
+</script>
