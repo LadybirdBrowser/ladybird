@@ -240,7 +240,7 @@ pub struct GlyphRunForRecording<'a> {
 pub struct IsolatedGroupEffects {
     pub clip_rect: Option<FloatRect>,
     pub opacity: f32,
-    pub filter: Option<std::rc::Rc<Vec<u8>>>,
+    pub filter: Option<std::sync::Arc<Vec<u8>>>,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
     pub mask_kind: MaskKind,
 }

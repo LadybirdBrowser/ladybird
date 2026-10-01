@@ -15,7 +15,6 @@ use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
 use libgfx_rust::{FloatPoint, FloatRect, FloatSize};
-use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ResolvedStickyInsets {
@@ -161,7 +160,7 @@ pub(crate) fn compute_sticky_data(
 pub(crate) fn refresh_sticky_constraints(
     layout_arena: &impl PaintableRowsRead,
     scroll_state: &ScrollState,
-    tree: &mut Rc<VisualContextTree>,
+    tree: &mut std::sync::Arc<VisualContextTree>,
     tree_inputs: &FfiVisualContextTreeInputs,
 ) -> bool {
     let mut refreshed_sticky_payloads = Vec::new();
@@ -182,7 +181,7 @@ pub(crate) fn refresh_sticky_constraints(
     if refreshed_sticky_payloads.is_empty() {
         return false;
     }
-    let tree = Rc::make_mut(tree);
+    let tree = std::sync::Arc::make_mut(tree);
     for (node_index, refreshed) in refreshed_sticky_payloads {
         tree.spatial_nodes[node_index.0 as usize].data = SpatialData::Sticky(refreshed);
     }

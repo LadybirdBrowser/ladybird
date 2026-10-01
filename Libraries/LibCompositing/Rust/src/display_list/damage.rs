@@ -23,7 +23,6 @@ use crate::visual_context::{
 use libgfx_rust::{AffineTransform, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::mem::offset_of;
-use std::rc::Rc;
 
 struct CommandReference<'a> {
     header: DisplayListCommandHeader,
@@ -350,7 +349,7 @@ fn clip_data_is_equal(a: &ClipNodeData, b: &ClipNodeData) -> bool {
         (ClipNodeData::Path(data), ClipNodeData::Path(other)) => {
             data.bounding_rect == other.bounding_rect
                 && data.fill_rule == other.fill_rule
-                && (Rc::ptr_eq(&data.path, &other.path) || *data.path == *other.path)
+                && (std::sync::Arc::ptr_eq(&data.path, &other.path) || *data.path == *other.path)
         }
         _ => false,
     }
@@ -1658,7 +1657,7 @@ mod tests {
         EffectNodeData::Effects(EffectsData {
             opacity: 1.0,
             blend_mode: CompositingAndBlendingOperator::Normal,
-            filter: Some(Rc::new(filter)),
+            filter: Some(std::sync::Arc::new(filter)),
             backdrop_filter: None,
         })
     }
@@ -2280,7 +2279,7 @@ mod tests {
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,
             backdrop_filter: Some(BackdropFilterData {
-                filter: Rc::new(filter),
+                filter: std::sync::Arc::new(filter),
                 region,
                 corner_radii: CornerRadii::default(),
             }),
@@ -2625,7 +2624,7 @@ mod tests {
             let context = clip_context(
                 &mut tree,
                 ClipNodeData::Path(ClipPathData {
-                    path: Rc::new(OwnedPath::from_serialized_bytes(path_bytes)),
+                    path: std::sync::Arc::new(OwnedPath::from_serialized_bytes(path_bytes)),
                     bounding_rect: rect,
                     fill_rule: WindingRule::Nonzero,
                 }),

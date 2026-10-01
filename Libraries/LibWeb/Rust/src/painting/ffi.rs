@@ -23,7 +23,6 @@ use crate::painting::svg_filter::SvgFilterPrimitive;
 use libcompositing_rust::ffi::{ffi_slice, tree_from_handle};
 use libgfx_rust::filter::Filter;
 use std::ffi::c_void;
-use std::rc::Rc;
 
 /// SAFETY: `arena` must be a live handle from `layout_arena_create`, borrowed for this call on
 /// the document thread.
@@ -966,7 +965,7 @@ fn fresh_visual_context_tree_build(
         paintable_rows.drop_all_visual_context_records();
         fresh_tree.viewport_assignment.apply(&mut paintable_rows);
     }
-    state.tree = Some(Rc::new(fresh_tree.tree));
+    state.tree = Some(std::sync::Arc::new(fresh_tree.tree));
     state.dirty_boxes.clear();
     state.build_count += 1;
     let mut outcome = {
@@ -1185,7 +1184,7 @@ pub unsafe extern "C" fn layout_arena_update_visual_viewport_transform(
         return false;
     };
     let inputs = callbacks.tree_inputs();
-    Rc::make_mut(tree).set_visual_viewport_transform(
+    std::sync::Arc::make_mut(tree).set_visual_viewport_transform(
         crate::painting::visual_context::node_values::visual_viewport_transform_data(&inputs),
     );
     true
@@ -1866,7 +1865,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
         consume(
             context,
             std::sync::Arc::into_raw(std::sync::Arc::new(recorded)).cast(),
-            Rc::into_raw(Rc::new(tree)).cast(),
+            std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
         );
     }
 }
@@ -2729,7 +2728,9 @@ pub unsafe extern "C" fn layout_arena_main_visual_context_tree_retain(arena: *mu
         .visual_context
         .tree
         .as_ref()
-        .map_or(std::ptr::null(), |tree| Rc::into_raw(Rc::clone(tree)).cast())
+        .map_or(std::ptr::null(), |tree| {
+            std::sync::Arc::into_raw(std::sync::Arc::clone(tree)).cast()
+        })
 }
 
 /// # Safety
@@ -3608,7 +3609,7 @@ mod tests {
                     root_layout_node: root,
                     ..Default::default()
                 });
-                state.visual_context.tree = Some(Rc::new(VisualContextTree::create(TransformData {
+                state.visual_context.tree = Some(std::sync::Arc::new(VisualContextTree::create(TransformData {
                     matrix: libgfx_rust::FloatMatrix4x4::identity(),
                     origin: Default::default(),
                     sorting_context_root_index: None,

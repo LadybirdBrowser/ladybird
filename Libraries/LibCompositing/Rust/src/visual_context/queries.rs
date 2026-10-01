@@ -1038,7 +1038,7 @@ mod tests {
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
                 backdrop_filter: Some(crate::visual_context::BackdropFilterData {
-                    filter: std::rc::Rc::new(vec![1]),
+                    filter: std::sync::Arc::new(vec![1]),
                     region: IntRect::new(0, 0, 10, 10),
                     corner_radii: libgfx_rust::CornerRadii::default(),
                 }),

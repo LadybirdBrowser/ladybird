@@ -26,7 +26,6 @@ use libgfx_rust::{
     Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatMatrix4x4, FloatPoint,
     FloatRect, FloatSize, IntRect, MaskKind, WindingRule,
 };
-use std::rc::Rc;
 
 const SERIALIZED_TREE_MAGIC: u32 = 0x5443_5641;
 const SERIALIZED_TREE_FORMAT: u32 = 6;
@@ -442,7 +441,7 @@ fn read_clip_data(reader: &mut TreeByteReader<'_>) -> Option<ClipNodeData> {
             let fill_rule = reader.winding_rule()?;
             let path = OwnedPath::from_serialized_bytes(reader.length_prefixed_bytes()?);
             ClipNodeData::Path(ClipPathData {
-                path: Rc::new(path),
+                path: std::sync::Arc::new(path),
                 bounding_rect,
                 fill_rule,
             })
@@ -489,7 +488,7 @@ fn read_effect_data(reader: &mut TreeByteReader<'_>) -> Option<EffectNodeData> {
                 Some(BackdropFilterData {
                     region: reader.int_rect()?,
                     corner_radii: reader.corner_radii()?,
-                    filter: Rc::new(reader.length_prefixed_bytes()?.to_vec()),
+                    filter: std::sync::Arc::new(reader.length_prefixed_bytes()?.to_vec()),
                 })
             } else {
                 None
@@ -497,7 +496,7 @@ fn read_effect_data(reader: &mut TreeByteReader<'_>) -> Option<EffectNodeData> {
             EffectNodeData::Effects(EffectsData {
                 opacity,
                 blend_mode,
-                filter: has_filter.then(|| Rc::new(filter_bytes.to_vec())),
+                filter: has_filter.then(|| std::sync::Arc::new(filter_bytes.to_vec())),
                 backdrop_filter,
             })
         }
@@ -1075,7 +1074,7 @@ mod tests {
         );
         let clip_path = tree.append_clip(
             ClipNodeData::Path(ClipPathData {
-                path: Rc::new(OwnedPath::from_serialized_bytes(&[])),
+                path: std::sync::Arc::new(OwnedPath::from_serialized_bytes(&[])),
                 bounding_rect: IntRect::new(5, 6, 7, 8),
                 fill_rule: WindingRule::EvenOdd,
             }),
@@ -1097,9 +1096,9 @@ mod tests {
             EffectNodeData::Effects(EffectsData {
                 opacity: 0.25,
                 blend_mode: CompositingAndBlendingOperator::PlusLighter,
-                filter: Some(Rc::new(vec![1, 2, 3, 4])),
+                filter: Some(std::sync::Arc::new(vec![1, 2, 3, 4])),
                 backdrop_filter: Some(BackdropFilterData {
-                    filter: Rc::new(vec![5, 6, 7]),
+                    filter: std::sync::Arc::new(vec![5, 6, 7]),
                     region: IntRect::new(9, 10, 11, 12),
                     corner_radii: CornerRadii {
                         top_left: CornerRadius {
