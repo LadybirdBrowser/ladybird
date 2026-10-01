@@ -300,6 +300,7 @@ set(SOURCES
     DOM/CaretPosition.cpp
     DOM/CharacterData.cpp
     DOM/Comment.cpp
+    DOM/CommitMessages.cpp
     DOM/CustomEvent.cpp
     DOM/Document.cpp
     DOM/DocumentFragment.cpp

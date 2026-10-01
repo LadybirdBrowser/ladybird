@@ -6,11 +6,28 @@
 
 use super::*;
 
+/// What a commit message tells the document.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiCommitMessageKind {
+    /// The node is a size query container whose content size changed.
+    ContentSizeChangedForContainerQueries,
+}
+
+/// One thing layout has to tell the document. The node it is about is named by the style node the
+/// style tree gave it, with 0 for the document; no pointer crosses the boundary.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiCommitMessage {
+    pub style_node: u32,
+    pub kind: FfiCommitMessageKind,
+}
+
 /// Host notifications contain no arena borrows. Dispatch them only after the
 /// mutation phase returns, since C++ can reenter Rust to read or update paint state.
 pub(crate) struct CommitNotifications {
     row_resets: Vec<crate::painting::paintable_rows::PaintableRowReset>,
-    resized_container_shells: Vec<*mut c_void>,
+    messages: Vec<FfiCommitMessage>,
     viewport_shells: Vec<*mut c_void>,
 }
 
@@ -23,8 +40,8 @@ impl CommitNotifications {
         for reset in self.row_resets {
             reset.invoke_callback();
         }
-        for shell in self.resized_container_shells {
-            unsafe { (host.content_size_changed_for_container_queries)(host.context, shell) };
+        if !self.messages.is_empty() {
+            unsafe { (host.deliver_commit_messages)(host.context, self.messages.as_ptr(), self.messages.len()) };
         }
         unsafe { (host.finish_commit)(host.context, self.viewport_shells.as_ptr(), self.viewport_shells.len()) };
     }
@@ -32,7 +49,7 @@ impl CommitNotifications {
 
 fn commit_subtree(
     node: Node,
-    resized_container_shells: &mut Vec<*mut c_void>,
+    messages: &mut Vec<FfiCommitMessage>,
     paintables: &mut crate::painting::paintable_build::PaintableCommit<'_>,
     links_by_slot: &HashMap<u32, &FragmentLink>,
     pass_fragments: &fragment_tree::CompletedPassFragments,
@@ -84,8 +101,12 @@ fn commit_subtree(
             && crate::layout::node_facts::node_style_view(paintables.arena().data(node)).is_some_and(|style| {
                 content_size_change_affects_container_queries(style, old_content_size, new_content_size)
             })
+            && let Some(style_node) = paintables.arena().commit_message_style_node(node)
         {
-            resized_container_shells.push(paintables.arena().node_shell(node));
+            messages.push(FfiCommitMessage {
+                style_node,
+                kind: FfiCommitMessageKind::ContentSizeChangedForContainerQueries,
+            });
         }
 
         if !reuses_committed_subtree && let Some(line_data) = &fragment.line_data {
@@ -108,7 +129,7 @@ fn commit_subtree(
         let next = paintables.arena().data(child).next_sibling.get();
         commit_subtree(
             child,
-            resized_container_shells,
+            messages,
             &mut *paintables,
             links_by_slot,
             pass_fragments,
@@ -152,10 +173,10 @@ pub(crate) fn commit_replacing(
     let links_by_slot = pass_fragments.links_by_slot();
     let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena, root);
     paintables.begin_commit();
-    let mut resized_container_shells = Vec::new();
+    let mut messages = Vec::new();
     commit_subtree(
         root,
-        &mut resized_container_shells,
+        &mut messages,
         &mut paintables,
         &links_by_slot,
         pass_fragments,
@@ -164,7 +185,7 @@ pub(crate) fn commit_replacing(
     paintables.discard_absolute_rects_memoized_during_commit();
     CommitNotifications {
         row_resets: paintables.take_row_reset_notifications(),
-        resized_container_shells,
+        messages,
         viewport_shells: paintables.committed_navigable_container_viewport_shells(),
     }
 }

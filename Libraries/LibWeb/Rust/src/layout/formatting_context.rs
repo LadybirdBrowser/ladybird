@@ -930,9 +930,10 @@ pub struct FfiLayoutHostCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, CssPixels, CssPixels) -> svg_formatting_context::FfiFloatRect,
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
     pub node_unique_id: unsafe extern "C" fn(*mut c_void) -> i64,
-    /// Commit notifications: a box whose content size changed for container queries, and the
-    /// viewport shells whose committed size their content navigables must learn about.
-    pub content_size_changed_for_container_queries: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    /// Commit notifications: the commit messages a finished commit leaves for the document, in the
+    /// order it produced them, and the viewport shells whose committed size their content
+    /// navigables must learn about.
+    pub deliver_commit_messages: unsafe extern "C" fn(*mut c_void, *const commit::FfiCommitMessage, usize),
     pub finish_commit: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize),
     /// Fills the replaced-content facts of a live box shell ahead of a pass.
     pub build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiReplacedContentFacts),

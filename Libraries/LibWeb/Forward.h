@@ -515,6 +515,7 @@ class CDATASection;
 class CaretPosition;
 class CharacterData;
 class Comment;
+class CommitMessages;
 class CustomEvent;
 class Document;
 class DocumentFragment;
