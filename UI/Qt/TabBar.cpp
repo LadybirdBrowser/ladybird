@@ -2216,10 +2216,12 @@ void TabWidget::update_vertical_tabs_resize_handle()
     }
 
     auto handle_width = VERTICAL_TABS_RESIZE_HIT_AREA_WIDTH;
-    auto divider_x = vertical_tabs_are_on_right() ? width() - vertical_tabs_layout_width() : vertical_tabs_layout_width() - 1;
+    auto divider_x = vertical_tabs_are_on_right() ? width() - vertical_tabs_layout_width() : vertical_tabs_layout_width();
     auto chrome_rect = vertical_tabs_chrome_rect();
+    // NB: Keep the handle inside the sidebar. Native handles copy Qt's backing store, which does not contain the
+    //     separately composited page on macOS.
     m_vertical_tabs_resize_handle->setGeometry(
-        divider_x - (handle_width / 2),
+        vertical_tabs_are_on_right() ? divider_x : divider_x - handle_width,
         chrome_rect.y(),
         handle_width,
         chrome_rect.height());
