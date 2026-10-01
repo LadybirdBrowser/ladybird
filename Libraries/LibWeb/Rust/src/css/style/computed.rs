@@ -1639,9 +1639,12 @@ impl ComputedGroupSets {
         if self.final_base_style_record(current) != derived_style_record {
             return;
         }
-        // A first record never installed leaves the node the way it was: unassigned.
+        // A first record never installed leaves the node the way it was: unassigned, with the
+        // element facts the host published for it, which the layout tree reads.
         if previous_style_record == FinalStyleRecordID::NONE {
+            let adjustment_facts = self.columns.adjustment_facts[index];
             self.remove(node);
+            self.columns.adjustment_facts[index] = adjustment_facts;
             return;
         }
         let Some(previous_base) = previous_style_record.base_record() else {
