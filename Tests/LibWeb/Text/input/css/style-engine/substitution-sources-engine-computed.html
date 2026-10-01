@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --registered { syntax: "<length>"; inherits: true; initial-value: 0px; }
+    @function --double(--x) { result: calc(var(--x) * 2); }
+    @function --by-media() { result: 1px; @media (width >= 0px) { result: 10px; } }
+    @function --by-container() { result: 1px; @container (width >= 0px) { result: 10px; } }
+    .parent { container-type: inline-size; font-size: 10px; --a: 3px; --flag: on; --n: 5; --registered: 2em; }
+    .on.inherit-custom-property { --b: inherit(--a, 1px); }
+    .on.inherit-longhand { width: inherit(--a, 1px); }
+    .on.if-media { width: if(media(width >= 0px): 10px; else: 20px); }
+    .on.if-supports { width: if(supports(display: grid): 10px; else: 20px); }
+    .on.if-style { width: if(style(--flag: on): 10px; else: 20px); }
+    .on.if-style-range { width: if(style(--n > 3): 10px; else: 20px); }
+    .on.if-style-registered { width: if(style(--registered: 20px): 10px; else: 20px); }
+    .on.env { width: env(unknown-environment-variable, 10px); }
+    .on.custom-function { width: --double(5px); }
+    .on.custom-function-media { width: --by-media(); }
+    .on.custom-function-container { width: --by-container(); }
+    .on.registered-em { --registered: 3em; }
+    .on.random-shared { width: random(element-shared, 1px, 100px); }
+    .on.random-per-element { width: random(1px, 100px); }
+    .on.mixed { --b: if(media(width >= 0px): inherit(--a, 1px); else: env(unknown-environment-variable, 2px)); width: var(--b); }
+</style>
+<script>
+    // One reader of each substitution source, switched on in an element that already has a record.
+    // Each line prints how often the style engine refused the reader's record and how many elements
+    // C++ computed instead.
+    const cases = [
+        ["inherit() in a custom property", "inherit-custom-property", "--b"],
+        ["inherit() in a longhand", "inherit-longhand", "width"],
+        ["if(media())", "if-media", "width"],
+        ["if(supports())", "if-supports", "width"],
+        ["if(style())", "if-style", "width"],
+        ["if(style()) range", "if-style-range", "width"],
+        ["if(style()) registered", "if-style-registered", "width"],
+        ["env()", "env", "width"],
+        ["custom function", "custom-function", "width"],
+        ["custom function with @media", "custom-function-media", "width"],
+        ["custom function with @container", "custom-function-container", "width"],
+        ["registered <length> in em", "registered-em", "--registered"],
+        ["random() shared", "random-shared", "width"],
+        ["random() per element", "random-per-element", "width"],
+        ["mixed", "mixed", "width"],
+    ];
+
+    test(() => {
+        const targets = cases.map(([, className]) => {
+            const parent = document.createElement("div");
+            parent.className = "parent";
+            const target = document.createElement("div");
+            target.className = className;
+            parent.appendChild(target);
+            document.body.appendChild(parent);
+            return target;
+        });
+        internals.updateStyle();
+
+        cases.forEach(([name, , property], index) => {
+            const target = targets[index];
+            const before = Object.assign({}, internals.styleEngineCounters());
+            internals.resetStyleInvalidationCounters();
+            target.classList.add("on");
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+            let value = getComputedStyle(target).getPropertyValue(property);
+            if (name.startsWith("random()"))
+                value = /^\d+(\.\d+)?px$/.test(value) ? "a length" : value;
+            println(`${name}: substitution refusals ${after.engineComputedRecordBailSubstitution - before.engineComputedRecordBailSubstitution}, environment refusals ${after.engineCustomPropertyEnvironmentBails - before.engineCustomPropertyEnvironmentBails}, C++ recomputations ${recomputations}, value ${value}`);
+        });
+    });
+</script>

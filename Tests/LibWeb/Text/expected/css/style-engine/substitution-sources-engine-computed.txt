@@ -1,0 +1,15 @@
+inherit() in a custom property: substitution refusals 0, environment refusals 1, C++ recomputations 1, value 3px
+inherit() in a longhand: substitution refusals 1, environment refusals 0, C++ recomputations 1, value 3px
+if(media()): substitution refusals 1, environment refusals 0, C++ recomputations 1, value 10px
+if(supports()): substitution refusals 1, environment refusals 0, C++ recomputations 1, value 10px
+if(style()): substitution refusals 1, environment refusals 0, C++ recomputations 1, value 10px
+if(style()) range: substitution refusals 1, environment refusals 0, C++ recomputations 1, value 10px
+if(style()) registered: substitution refusals 1, environment refusals 0, C++ recomputations 1, value 10px
+env(): substitution refusals 1, environment refusals 0, C++ recomputations 1, value 10px
+custom function: substitution refusals 1, environment refusals 0, C++ recomputations 1, value 10px
+custom function with @media: substitution refusals 1, environment refusals 0, C++ recomputations 1, value 10px
+custom function with @container: substitution refusals 1, environment refusals 0, C++ recomputations 1, value 10px
+registered <length> in em: substitution refusals 0, environment refusals 1, C++ recomputations 1, value 30px
+random() shared: substitution refusals 0, environment refusals 0, C++ recomputations 1, value a length
+random() per element: substitution refusals 0, environment refusals 0, C++ recomputations 1, value a length
+mixed: substitution refusals 0, environment refusals 1, C++ recomputations 1, value 3px

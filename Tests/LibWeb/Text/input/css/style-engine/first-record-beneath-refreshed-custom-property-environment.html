@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<main id=main></main>
+<template id=declaring><style>:root { --z: 2; }</style><div id=target></div></template>
+<template id=reading><style>#target { z-index: var(--z, 4); --w: inherit(--z, 5); }</style><div id=target></div></template>
+<script>
+    test(() => {
+        main.append(declaring.content.cloneNode(true));
+        println(`declared: ${getComputedStyle(target).getPropertyValue("--z")}`);
+        // Removing the root's declaration and inserting a reader in the same update: the reader's first
+        // record resolves over the environment its ancestors hold after the update, not before it.
+        main.replaceChildren();
+        main.append(reading.content.cloneNode(true));
+        println(`var(): ${getComputedStyle(target).zIndex}`);
+        println(`inherit(): ${getComputedStyle(target).getPropertyValue("--w")}`);
+        println(`own: '${getComputedStyle(target).getPropertyValue("--z")}'`);
+    });
+</script>
