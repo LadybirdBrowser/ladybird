@@ -6,6 +6,27 @@
 
 use super::*;
 
+/// Which of an element's pseudo-elements a settlement settles.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum PseudoSettlement {
+    /// Every kind the element generates, as a style update settles them.
+    Generated,
+    /// The one kind a style read asks for, settled as a style update would settle it.
+    Read(u8),
+    /// The one kind a read-only style read asks for: what it computes to, whether or not it
+    /// generates a box, for the read alone.
+    Computed(u8),
+}
+
+impl PseudoSettlement {
+    fn selects(self, kind: u8) -> bool {
+        match self {
+            Self::Generated => true,
+            Self::Read(selected) | Self::Computed(selected) => selected == kind,
+        }
+    }
+}
+
 impl RetainedState {
     /// The pseudo winner rows a settlement reads, republished from the node's answer wherever one
     /// predates it, is missing, or predates the rules that flipped for its kind: settling then
@@ -93,6 +114,33 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<()> {
+        // The records earlier reads of the node's styles were answered with are no style's now.
+        self.release_demand_records(node);
+        self.settle_pseudo_records(
+            node,
+            old_element_record,
+            old_is_list_item,
+            new_element_record,
+            generation,
+            PseudoSettlement::Generated,
+            scratch,
+            counters,
+        )
+    }
+
+    /// Settle the pseudo-elements `settlement` selects; see `engine_pseudo_records`.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn settle_pseudo_records(
+        &mut self,
+        node: StyleNodeID,
+        old_element_record: Option<computed::FinalStyleRecordID>,
+        old_is_list_item: Option<bool>,
+        new_element_record: computed::FinalStyleRecordID,
+        generation: u64,
+        settlement: PseudoSettlement,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> Drive<()> {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
         // Only an element's settled record leads here, which an unhosted engine never computes.
@@ -159,7 +207,9 @@ impl RetainedState {
             None => false,
         };
         let facts = self.computed_group_sets.adjustment_facts(node) & PSEUDO_ELEMENT_ADJUSTMENT_FACTS;
-        let originating_inputs_unchanged = inherited_inputs_unchanged
+        // A read-only read derives its record afresh.
+        let originating_inputs_unchanged = !matches!(settlement, PseudoSettlement::Computed(_))
+            && inherited_inputs_unchanged
             && !scratch.root_font_inputs_changed
             && !scratch.document_environment_moved
             && old_element_record.is_some_and(|old| {
@@ -203,13 +253,17 @@ impl RetainedState {
             .skip(scratch.next_pseudo)
         {
             scratch.next_pseudo = pseudo_index + 1;
-            if self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind))) {
+            if !settlement.selects(kind)
+                || self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind)))
+            {
                 continue;
             }
-            // The backdrop of a node outside the top layer generates no box, whatever its rules.
-            // The host holds the record it installed until it installs the removal.
-            if kind == BACKDROP && !in_top_layer {
+            // The backdrop of a node outside the top layer generates no box, whatever its rules;
+            // a read of it computes it as its rules say. The host holds the record it installed
+            // until it installs the removal.
+            if kind == BACKDROP && !in_top_layer && settlement == PseudoSettlement::Generated {
                 if let Some(old) = self.computed_group_sets.pseudo_style_record(node, kind) {
+                    counters.bump(Counter::EngineComputedPseudoRecords);
                     self.note_engine_computed_pseudo_record(
                         node,
                         kind,
@@ -219,7 +273,6 @@ impl RetainedState {
                         false,
                         0,
                         scratch,
-                        counters,
                     );
                 }
                 continue;
@@ -245,10 +298,11 @@ impl RetainedState {
             // rules, which the answer names: a winner row outlives the last rule as an empty
             // state, and a rule without declarations is an empty state that generates.
             let implicit = kind == MARKER && (new_is_list_item || old_is_list_item);
-            if kind == MARKER && !implicit {
+            let has_rules = kinds_with_rules & (1 << kind) != 0;
+            // A read of a marker computes it, list item or not.
+            if kind == MARKER && !implicit && settlement == PseudoSettlement::Generated {
                 continue;
             }
-            let has_rules = kinds_with_rules & (1 << kind) != 0;
             // A ::selection with no rules of its own still inherits its ancestor's.
             let highlight_parent_record = (kind == SELECTION)
                 .then(|| self.retained_highlight_inheritance_parent_style_record(node, kind))
@@ -263,6 +317,9 @@ impl RetainedState {
             let old_record = old.unwrap_or(computed::FinalStyleRecordID::NONE);
             let remove = |engine: &mut Self, scratch: &mut EngineComputedRecordScratch, counters: &mut Counters| {
                 if old.is_some() {
+                    if settlement == PseudoSettlement::Generated {
+                        counters.bump(Counter::EngineComputedPseudoRecords);
+                    }
                     engine.note_engine_computed_pseudo_record(
                         node,
                         kind,
@@ -272,11 +329,14 @@ impl RetainedState {
                         false,
                         0,
                         scratch,
-                        counters,
                     );
                 }
             };
-            if !has_rules && !implicit && highlight_parent_record.is_none() {
+            if !has_rules
+                && !implicit
+                && highlight_parent_record.is_none()
+                && !matches!(settlement, PseudoSettlement::Computed(_))
+            {
                 remove(self, scratch, counters);
                 continue;
             }
@@ -352,7 +412,14 @@ impl RetainedState {
             };
             pseudo_uses_substitution |=
                 state.is_some_and(|state| scratch.substituted_states.contains(&(state, environment)));
-            if pseudo_content_generates_nothing(&store.view(self), kind) {
+            if !matches!(settlement, PseudoSettlement::Computed(_))
+                && pseudo_content_generates_nothing(&store.view(self), kind)
+            {
+                // A read of a kind its rules style without a box still reads the custom properties
+                // they declare, which only the host's computation installs.
+                if matches!(settlement, PseudoSettlement::Read(_)) {
+                    return Err(Unanswered::Refused);
+                }
                 remove(self, scratch, counters);
                 continue;
             }
@@ -486,6 +553,10 @@ impl RetainedState {
                     (record, longhand_evaluations)
                 }
             };
+            // A read's record is the read's, which no style update installs.
+            if settlement == PseudoSettlement::Generated {
+                counters.bump(Counter::EngineComputedPseudoRecords);
+            }
             let reads_sibling_position = store.uses_tree_counting_function(self);
             self.note_engine_computed_pseudo_record(
                 node,
@@ -496,7 +567,6 @@ impl RetainedState {
                 reads_sibling_position,
                 longhand_evaluations,
                 scratch,
-                counters,
             );
         }
         scratch.pseudo_uses_substitution = pseudo_uses_substitution;
@@ -518,10 +588,8 @@ impl RetainedState {
         reads_sibling_position: bool,
         longhand_evaluations: u32,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
     ) {
         self.note_sibling_position_reads(node, pseudo_kind, reads_sibling_position);
-        counters.bump(Counter::EngineComputedPseudoRecords);
         self.engine_computed_records_pending
             .entry(node)
             .or_default()
@@ -963,7 +1031,7 @@ impl RetainedState {
     /// Whether the winners hold every match the node's answer has for a pseudo-element, as
     /// `match_is_complete_but_for_custom_properties` reads a pseudo-element's: custom properties
     /// are resolved into the pseudo-element's own environment.
-    fn pseudo_winners_are_complete(&self, node: StyleNodeID) -> bool {
+    pub(super) fn pseudo_winners_are_complete(&self, node: StyleNodeID) -> bool {
         let is_complete = |rule: RuleID, tree_scope: TreeScopeID| {
             self.match_is_complete_but_for_custom_properties(node, rule, tree_scope, true)
         };

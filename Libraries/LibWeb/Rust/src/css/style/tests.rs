@@ -2490,9 +2490,8 @@ fn a_read_only_record_demand_leaves_the_match_state_as_it_was() {
 
     // An engine no document hosts computes no records: the demand matches, then declines.
     let demand = bridge::FfiRecordDemand {
-        targeted: false,
         read_only: true,
-        exclude_inline_style: false,
+        ..bridge::FfiRecordDemand::default()
     };
     assert!(engine.answer_record_demand(nodes[1], demand).is_err());
     assert_eq!(engine.retained_match_answers.column, retained_answers);
@@ -2504,6 +2503,40 @@ fn a_read_only_record_demand_leaves_the_match_state_as_it_was() {
     assert_eq!(engine.published_match_answers.entries.len(), published_count);
     assert!(engine.batch_matching_traversal.is_none());
     assert!(engine.demand_records.is_empty());
+}
+
+#[test]
+fn a_pseudo_record_demand_answers_absence_without_rules() {
+    let (mut engine, nodes) = linear_document();
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    discard_transaction(&mut engine);
+    engine.publish_computed_groups(
+        computed::ComputedStyleTarget::new(nodes[1], u8::MAX),
+        &[],
+        0,
+        0,
+        computed::ComputedMetadataInput {
+            pseudo_element_styles: 0,
+            dependency_flags: 0,
+            counter_style_environment_identity: 0,
+            animation_overlay_identity: 0,
+            animated_overlay: HostShared::null(),
+            animation_overlay_payloads: &[],
+            longhand_table: HostShared::null(),
+        },
+    );
+    // ::before, which no rule styles.
+    let demand = bridge::FfiRecordDemand {
+        pseudo_kind_plus_one: 3,
+        ..bridge::FfiRecordDemand::default()
+    };
+    let answer = engine.answer_record_demand(nodes[1], demand);
+    assert!(
+        matches!(answer, Ok(publication::RecordDemandAnswer::Absent)),
+        "{answer:?}"
+    );
 }
 
 /// Builds `root -> outer -> inner -> target`.

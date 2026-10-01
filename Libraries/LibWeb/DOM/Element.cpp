@@ -1839,17 +1839,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
         if (new_pseudo_element_style) {
             set_computed_style(pseudo_element, style_record_delta.new_style_record);
-            // What C++ installs beside a pseudo-element it computes: its element's inheritable
-            // environment, or the one its own custom declarations resolved to over that.
-            if (engine_record.has_value()) {
-                auto element_data = custom_property_data({});
-                auto inherited = element_data ? element_data->inheritable(document()) : nullptr;
-                auto environment = style_computer.style_engine().style_record_custom_property_environment(*engine_record);
-                auto data = inherited;
-                if (CSS::StyleEngine::is_engine_custom_property_environment(environment) && environment != (inherited ? inherited->identity() : 0))
-                    data = style_computer.engine_custom_property_environment(environment, inherited);
-                set_custom_property_data(pseudo_element, move(data));
-            }
+            if (engine_record.has_value())
+                install_engine_pseudo_element_custom_property_data(pseudo_element, *engine_record);
         } else if (auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element); existing_pseudo_element.has_value())
             existing_pseudo_element->clear_computed_style(move(style_to_preserve_for_detachment));
 
@@ -5605,6 +5596,20 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
     // attributes for the layout tree build to resolve, so they follow every record the element takes.
     if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity)
         Layout::publish_svg_style_references(*this);
+}
+
+// What C++ installs beside a pseudo-element it computes: its element's inheritable environment, or the one its own
+// custom declarations resolved to over that.
+void Element::install_engine_pseudo_element_custom_property_data(CSS::PseudoElement pseudo_element, CSS::StyleRecordID style_record)
+{
+    auto& style_computer = document().style_computer();
+    auto element_data = custom_property_data({});
+    auto inherited = element_data ? element_data->inheritable(document()) : nullptr;
+    auto environment = style_computer.style_engine().style_record_custom_property_environment(style_record);
+    auto data = inherited;
+    if (CSS::StyleEngine::is_engine_custom_property_environment(environment) && environment != (inherited ? inherited->identity() : 0))
+        data = style_computer.engine_custom_property_environment(environment, inherited);
+    set_custom_property_data(pseudo_element, move(data));
 }
 
 void Element::set_computed_style(Optional<CSS::PseudoElement> pseudo_element_type, CSS::StyleRecordID style_record_identity)

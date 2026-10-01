@@ -3261,12 +3261,24 @@ pub struct FfiRecordDemand {
     pub targeted: bool,
     /// Leave the engine as it was: the record is only for the host to read.
     pub read_only: bool,
-    /// Compute the element as though it had no inline declaration. Only a read-only demand may.
+    /// Compute the element as though it had no inline declaration. Only a read-only demand of an
+    /// element may.
     pub exclude_inline_style: bool,
+    /// The pseudo-element read, as its kind plus one; zero reads the element.
+    pub pseudo_kind_plus_one: u8,
 }
 
-/// Answer a read of one element's style the host makes before the next style update. A zero
-/// `style_record` leaves the read to C++.
+/// The answer to a record demand: the record, or that the pseudo-element read generates no box.
+/// A zero `style_record` that is not absent leaves the read to C++.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiRecordDemandAnswer {
+    pub record: FfiEngineComputedRecord,
+    pub is_absent: bool,
+}
+
+/// Answer a read of one element's style, or one of its pseudo-elements', the host makes before
+/// the next style update.
 ///
 /// # Safety
 /// `engine` must be live.
@@ -3275,36 +3287,48 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
     engine: *mut c_void,
     node: u32,
     demand: FfiRecordDemand,
-) -> FfiEngineComputedRecord {
+) -> FfiRecordDemandAnswer {
     abort_on_panic(|| {
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
         let Some(style_node) = StyleNodeID::from_raw(node) else {
-            return FfiEngineComputedRecord::default();
+            return FfiRecordDemandAnswer::default();
         };
         let result = match engine.answer_record_demand(style_node, demand) {
-            Ok(answer) => FfiEngineComputedRecord {
-                style_record: answer.record.style_record,
-                uses_substitution: answer.uses_substitution,
-                // A read-only answer is the host's to read, never to install.
-                record_reads: if answer.record.style_record != 0 && !demand.read_only {
-                    engine.node_record_reads(style_node)
-                } else {
-                    0
+            Ok(super::publication::RecordDemandAnswer::Record {
+                record,
+                uses_substitution,
+            }) => FfiRecordDemandAnswer {
+                record: FfiEngineComputedRecord {
+                    style_record: record.style_record,
+                    uses_substitution,
+                    // A read-only answer is the host's to read, never to install.
+                    record_reads: if record.style_record != 0 && !demand.read_only {
+                        engine.node_record_reads(style_node)
+                    } else {
+                        0
+                    },
+                    explicitly_inherited_groups: record.explicitly_inherited_groups,
+                    pseudo_records_present: record.pseudo_records_present,
+                    pseudo_records: record.pseudo_records,
                 },
-                explicitly_inherited_groups: answer.record.explicitly_inherited_groups,
-                pseudo_records_present: answer.record.pseudo_records_present,
-                pseudo_records: answer.record.pseudo_records,
+                is_absent: false,
             },
-            Err(_) => FfiEngineComputedRecord::default(),
+            Ok(super::publication::RecordDemandAnswer::Absent) => FfiRecordDemandAnswer {
+                record: FfiEngineComputedRecord::default(),
+                is_absent: true,
+            },
+            Err(_) => FfiRecordDemandAnswer::default(),
         };
         engine.record_boundary_call(EventKind::AnswerRecordDemand, |payload| {
             payload.write_u32(node);
             payload.write_bool(demand.targeted);
             payload.write_bool(demand.read_only);
             payload.write_bool(demand.exclude_inline_style);
-            payload.write_u64(result.style_record);
-            payload.write_bool(result.uses_substitution);
-            payload.write_u8(result.pseudo_records_present);
+            payload.write_u8(demand.pseudo_kind_plus_one);
+            payload.write_u64(result.record.style_record);
+            payload.write_bool(result.is_absent);
+            payload.write_bool(result.record.uses_substitution);
+            payload.write_u8(result.record.pseudo_records_present);
         });
         result
     })

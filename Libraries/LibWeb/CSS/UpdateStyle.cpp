@@ -1035,7 +1035,7 @@ static void apply_targeted_style_invalidation(DOM::Element& element, RequiredInv
 static Optional<RequiredInvalidationAfterStyleChange> install_targeted_record_demand_answer(DOM::Element& element, bool& did_change_custom_properties)
 {
     auto& style_engine = element.document().style_computer().style_engine();
-    auto answer = style_engine.answer_record_demand(element.style_node_id(), { .targeted = true, .read_only = false });
+    auto answer = style_engine.answer_record_demand(element.style_node_id(), { .targeted = true, .read_only = false }).record;
     if (answer.style_record == 0)
         return {};
     // The engine resolved the record's environment over the parent's own; when the parent's inheritable environment

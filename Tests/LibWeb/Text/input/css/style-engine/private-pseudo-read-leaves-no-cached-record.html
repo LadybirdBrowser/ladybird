@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { color: rgb(0, 128, 0); }
+</style>
+<div><span class="item">a</span><span class="item">b</span></div>
+<script>
+    // A read of a pseudo-element no rule styles is answered privately: the engine derives the
+    // record for that read alone and leaves itself as it found it. A read of an alike sibling's
+    // pseudo-element does the same work again, rather than taking the first read's record from a
+    // cache the first read left behind.
+    test(() => {
+        internals.updateStyle();
+        const [first, second] = document.querySelectorAll(".item");
+        const read = (element) => {
+            const before = internals.styleEngineCounters();
+            const color = getComputedStyle(element, "::before").color;
+            const after = internals.styleEngineCounters();
+            return {
+                color,
+                drives: after.engineFullDrivesStarted - before.engineFullDrivesStarted,
+                hits: after.engineComputedRecordCohortHits - before.engineComputedRecordCohortHits,
+            };
+        };
+        const firstRead = read(first);
+        const secondRead = read(second);
+        println(`first ::before color: ${firstRead.color}`);
+        println(`second ::before color: ${secondRead.color}`);
+        println(`first read derived a record: ${firstRead.drives > 0}`);
+        println(`second read derived its own: ${secondRead.drives === firstRead.drives && secondRead.hits === firstRead.hits}`);
+    });
+</script>

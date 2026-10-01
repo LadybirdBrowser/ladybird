@@ -69,7 +69,7 @@ void remove_redundant_styles_from_inserted_content(InsertedContent& inserted_con
         auto style_with_inline_declaration = style_computer.reconstruct_computed_properties(*computed_values);
         // What the element would compute to without its inline declaration, which the style engine answers privately
         // without touching the live element. Where it leaves the read to C++, C++ computes it.
-        auto answer = style_computer.style_engine().answer_record_demand(element->style_node_id(), { .targeted = true, .read_only = true, .exclude_inline_style = true });
+        auto answer = style_computer.style_engine().answer_record_demand(element->style_node_id(), { .targeted = true, .read_only = true, .exclude_inline_style = true }).record;
         auto view = style_computer.computed_style_record_view(CSS::StyleRecordID { answer.style_record });
         auto style_without_inline_declaration = view
             ? style_computer.reconstruct_computed_properties(*view)
