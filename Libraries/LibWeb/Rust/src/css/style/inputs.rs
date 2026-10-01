@@ -62,6 +62,28 @@ impl RetainedCustomPropertyData {
     }
 }
 
+/// The custom-property environment an element or one of its synthetic pseudo-elements holds, with
+/// what a move of the environment it inherits reads of it.
+pub(crate) struct HeldCustomPropertyEnvironment {
+    /// The identity the host's object names the environment by.
+    pub(crate) identity: u64,
+    /// Whether it is the element's animation overlay, over the environment its style resolves to.
+    pub(crate) is_animation_overlay: bool,
+    /// Whether the environment the style resolves to declares custom properties of its own, over
+    /// the one it inherits.
+    pub(crate) declares: bool,
+    pub(crate) data: RetainedCustomPropertyData,
+}
+
+/// What the style C++ computed for an element reads of its custom-property environment through
+/// `var()`, kept while the element holds that computation's input record.
+pub(crate) enum HostVarReads {
+    /// The names it reads, sorted.
+    Names(Box<[StyleAtomID]>),
+    /// Reads no list of names can say, such as a `var()` whose name is itself substituted.
+    Unknown,
+}
+
 impl Drop for RetainedCustomPropertyData {
     fn drop(&mut self) {
         // SAFETY: The row owns exactly one reference, taken in `retain`.
@@ -761,8 +783,15 @@ impl RetainedState {
     /// elements that hold one have an entry.
     ///
     /// # Safety
-    /// `data` must be null or a live `Web::CSS::CustomPropertyData`.
-    pub(crate) unsafe fn set_element_custom_property_data(&mut self, node: StyleNodeID, data: *const std::ffi::c_void) {
+    /// `data` must be null or a live `Web::CSS::CustomPropertyData` named by `identity`.
+    pub(crate) unsafe fn set_element_custom_property_data(
+        &mut self,
+        node: StyleNodeID,
+        data: *const std::ffi::c_void,
+        identity: u64,
+        is_animation_overlay: bool,
+        declares: bool,
+    ) {
         if data.is_null() {
             self.element_custom_property_data.remove(&node);
             return;
@@ -770,31 +799,39 @@ impl RetainedState {
         if self
             .element_custom_property_data
             .get(&node)
-            .is_some_and(|existing| existing.data() == data)
+            .is_some_and(|existing| existing.data.data() == data)
         {
             return;
         }
-        self.element_custom_property_data
-            .insert(node, unsafe { RetainedCustomPropertyData::retain(data) });
+        self.element_custom_property_data.insert(
+            node,
+            HeldCustomPropertyEnvironment {
+                identity,
+                is_animation_overlay,
+                declares,
+                data: unsafe { RetainedCustomPropertyData::retain(data) },
+            },
+        );
     }
 
     /// The custom-property environment an element holds, or null.
     pub(crate) fn element_custom_property_data(&self, node: StyleNodeID) -> *const std::ffi::c_void {
         self.element_custom_property_data
             .get(&node)
-            .map_or(std::ptr::null(), RetainedCustomPropertyData::data)
+            .map_or(std::ptr::null(), |held| held.data.data())
     }
 
     /// Keep the custom-property environment one of an element's synthetic pseudo-elements now
     /// holds; a null `data` is none.
     ///
     /// # Safety
-    /// `data` must be null or a live `Web::CSS::CustomPropertyData`.
+    /// `data` must be null or a live `Web::CSS::CustomPropertyData` named by `identity`.
     pub(crate) unsafe fn set_pseudo_element_custom_property_data(
         &mut self,
         node: StyleNodeID,
         pseudo: u8,
         data: *const std::ffi::c_void,
+        identity: u64,
     ) {
         // Clearing is the common install, and must not make an entry only to drop it again.
         if data.is_null() {
@@ -807,11 +844,17 @@ impl RetainedState {
             }
             return;
         }
+        let held = || HeldCustomPropertyEnvironment {
+            identity,
+            is_animation_overlay: false,
+            declares: false,
+            data: unsafe { RetainedCustomPropertyData::retain(data) },
+        };
         let environments = self.pseudo_element_custom_property_data.entry(node).or_default();
         match environments.iter_mut().find(|(kind, _)| *kind == pseudo) {
-            Some((_, environment)) if environment.data() == data => {}
-            Some((_, environment)) => *environment = unsafe { RetainedCustomPropertyData::retain(data) },
-            None => environments.push((pseudo, unsafe { RetainedCustomPropertyData::retain(data) })),
+            Some((_, environment)) if environment.data.data() == data => {}
+            Some((_, environment)) => *environment = held(),
+            None => environments.push((pseudo, held())),
         }
     }
 
@@ -820,7 +863,7 @@ impl RetainedState {
         self.pseudo_element_custom_property_data
             .get(&node)
             .and_then(|environments| environments.iter().find(|(kind, _)| *kind == pseudo))
-            .map_or(std::ptr::null(), |(_, environment)| environment.data())
+            .map_or(std::ptr::null(), |(_, environment)| environment.data.data())
     }
 
     /// The kinds of an element's synthetic pseudo-elements that hold a custom-property environment,
@@ -847,6 +890,33 @@ impl RetainedState {
     #[must_use]
     pub fn element_recomputes_on_environment_move(&self, node: StyleNodeID) -> bool {
         self.environment_move_recompute_nodes.contains(&node)
+    }
+
+    /// Record the style record an element holds; zero is none. Only elements that hold one have an
+    /// entry.
+    pub fn set_held_style_record(&mut self, node: StyleNodeID, style_record: u64) {
+        if style_record == 0 {
+            self.held_style_records.remove(&node);
+        } else {
+            self.held_style_records.insert(node, style_record);
+        }
+    }
+
+    /// Record what the style C++ computed for an element reads through `var()`: nothing held when
+    /// the element holds no input record of that computation, else the names it reads, sorted, or
+    /// that it reads more than they say.
+    pub fn set_element_var_reads(&mut self, node: StyleNodeID, held: bool, complete: bool, name_atoms: &[StyleAtomID]) {
+        if !held {
+            self.host_var_reads.remove(&node);
+            return;
+        }
+        debug_assert!(name_atoms.is_sorted(), "an input record's reads are sorted");
+        let reads = if complete {
+            HostVarReads::Names(name_atoms.into())
+        } else {
+            HostVarReads::Unknown
+        };
+        self.host_var_reads.insert(node, reads);
     }
 
     /// Record the names of the CSS animations the host holds for one of an element's animation
@@ -1283,6 +1353,8 @@ impl StyleEngineState {
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
                 environment_move_recompute_nodes: HashSet::default(),
+                held_style_records: HashMap::default(),
+                host_var_reads: HashMap::default(),
                 css_defined_animations: Default::default(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
@@ -2741,6 +2813,8 @@ impl RetainedState {
             element_custom_property_data,
             pseudo_element_custom_property_data,
             environment_move_recompute_nodes,
+            held_style_records,
+            host_var_reads,
             css_defined_animations,
             transition_baselines,
             custom_property_registrations_changed: _,
@@ -2822,6 +2896,8 @@ impl RetainedState {
         element_custom_property_data.remove(&node);
         pseudo_element_custom_property_data.remove(&node);
         environment_move_recompute_nodes.remove(&node);
+        held_style_records.remove(&node);
+        host_var_reads.remove(&node);
         css_defined_animations.retire(node);
         pending_element_style_computation_selections.remove(&node);
         pending_pseudo_style_computation_selections.remove(&node);

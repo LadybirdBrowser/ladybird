@@ -2107,7 +2107,37 @@ void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS
 
 void Element::set_style_input_record(OwnPtr<CSS::StyleInputRecord> record)
 {
+    // Most recomputations read what the last one did, which the engine already holds.
+    bool const reads_unchanged = m_style_input_record && record
+        && m_style_input_record->custom_property_reads_are_complete == record->custom_property_reads_are_complete
+        && m_style_input_record->custom_property_reads == record->custom_property_reads;
     m_style_input_record = move(record);
+    if (!reads_unchanged)
+        publish_var_reads();
+}
+
+// What the style C++ computed reads through var(), which a move of the environment the element
+// inherits asks the engine about. A record the engine computed has no input record, and the engine
+// knows its reads itself.
+void Element::publish_var_reads()
+{
+    auto style_node = style_node_id();
+    if (style_node == 0)
+        return;
+    auto& style_engine = document().style_computer().style_engine();
+    if (!m_style_input_record) {
+        style_engine.set_element_var_reads(style_node, false, false, {});
+        return;
+    }
+    // The reads are sorted and deduplicated names; interning keeps their order only by chance.
+    Vector<CSS::StyleAtomID> atoms;
+    if (m_style_input_record->custom_property_reads_are_complete) {
+        atoms.ensure_capacity(m_style_input_record->custom_property_reads.size());
+        for (auto const& name : m_style_input_record->custom_property_reads)
+            atoms.unchecked_append(style_engine.intern_atom(name));
+        quick_sort(atoms);
+    }
+    style_engine.set_element_var_reads(style_node, true, m_style_input_record->custom_property_reads_are_complete, atoms);
 }
 
 OwnPtr<CSS::StyleInputRecord> Element::take_style_input_record()
@@ -2710,6 +2740,7 @@ void Element::clear_computed_styles_from_display_none_descendants()
         if (auto* layout_node = element->unsafe_layout_node())
             layout_node->pin_style_record_for_detachment();
         element->m_style_record_identity = 0;
+        element->document().style_computer().style_engine().set_held_style_record(element->style_node_id(), {});
 
         // NB: SVG resources can still affect rendering when a DOM ancestor has display:none.
         //     Recompute their styles in this style update, including any missing inheritance
@@ -3534,6 +3565,11 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     auto old_style_node_id = m_style_node_id;
     m_style_node_id = style_node_id;
     Layout::Node::dom_node_style_node_changed(*this, old_style_node_id);
+    // A newly minted identity holds none of what the element held under its previous one.
+    if (style_node_id != 0 && !!m_style_record_identity) {
+        document().style_computer().style_engine().set_held_style_record(style_node_id, m_style_record_identity);
+        publish_var_reads();
+    }
 }
 
 // The top layer is one of the few element facts the tree build reads that moves during the element's lifetime, so the
@@ -5436,6 +5472,8 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
     if (old_style_record_identity == style_record_identity)
         return;
     m_style_record_identity = style_record_identity;
+    if (style_node_id() != 0)
+        document().style_computer().style_engine().set_held_style_record(style_node_id(), style_record_identity);
     if (auto* layout_node = unsafe_layout_node())
         layout_node->set_style_record_identity(style_record_identity);
     // The resources an SVG graphics element's `mask`, `clip-path`, `fill` and `stroke` name are published beside its
