@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/lang-of-element-moved-while-detached-ref.html">
+<style>
+    span { text-transform: uppercase; }
+    span:lang(tr) { color: red; }
+    span:lang(en) { color: green; }
+</style>
+<div id="turkish" lang="tr"><span id="moved">i</span></div>
+<div id="english" lang="en"></div>
+<script>
+    // Laying out the text reads the language of its parent element, which the element then keeps.
+    document.body.offsetWidth;
+    const moved = document.getElementById("moved");
+    moved.remove();
+    document.getElementById("english").append(moved);
+</script>
