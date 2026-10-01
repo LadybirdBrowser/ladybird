@@ -551,7 +551,7 @@ impl RetainedState {
         // The environment the node's own custom declarations resolve to over the parent's. A node
         // declaring none keeps its record's, which is the parent's; a moved environment
         // republishes the record under the new one.
-        let environment = {
+        let (environment, current_environment) = {
             let parent = self
                 .record_inheritance_parent(node, scratch.installed_ancestors.as_ref())
                 .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
@@ -564,21 +564,21 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailCustomProperties);
                 return Err(Unanswered::Refused);
             };
-            let Some(old_environment) = self
+            // Every installed record is published with an environment; a record without is
+            // republished as moved.
+            let old_environment = self
                 .computed_group_sets
-                .style_record_custom_property_environment(old_style_record.raw())
-            else {
-                counters.bump(Counter::EngineComputedRecordBailRecord);
-                return Err(Unanswered::Refused);
-            };
-            (environment != old_environment).then_some(environment)
-        };
-        let Some(current_environment) = environment.or_else(|| {
-            self.computed_group_sets
-                .style_record_custom_property_environment(old_style_record.raw())
-        }) else {
-            counters.bump(Counter::EngineComputedRecordBailRecord);
-            return Err(Unanswered::Refused);
+                .style_record_custom_property_environment(old_style_record.raw());
+            debug_assert!(
+                old_environment.is_some(),
+                "an installed record was published with a custom-property environment"
+            );
+            // An unmoved environment is the one the record holds, so the current one is always
+            // what the declarations resolved to.
+            (
+                (old_environment != Some(environment)).then_some(environment),
+                environment,
+            )
         };
         // A moved environment reaches every winner written with a substitution, and so does a
         // moved custom-property registry. A winner written with `attr()` computes to what the
@@ -728,17 +728,26 @@ impl RetainedState {
             let index = usize::from(property - FIRST_LONGHAND_PROPERTY_ID);
             selected[index / 64] |= 1 << (index % 64);
         };
-        let (writing_mode, direction) = {
-            let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
-                counters.bump(Counter::EngineComputedRecordBailRecord);
-                return Err(Unanswered::Refused);
-            };
-            let inherited_box = unsafe {
-                view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
-                    .cast::<crate::css::computed_values::InheritedBoxValues>()
-                    .deref()
-            };
-            (inherited_box.writing_mode, inherited_box.direction)
+        // The record being driven again has a view. A record without one cannot say what a
+        // partial drive would leave standing: it is driven in full.
+        let mut old_record_is_unreadable = false;
+        let (writing_mode, direction) = match self.computed_group_sets.style_record_view(old_style_record.raw()) {
+            Some(view) => {
+                let inherited_box = unsafe {
+                    view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
+                        .cast::<crate::css::computed_values::InheritedBoxValues>()
+                        .deref()
+                };
+                (inherited_box.writing_mode, inherited_box.direction)
+            }
+            None => {
+                debug_assert!(false, "the record being driven again has a view");
+                old_record_is_unreadable = true;
+                (
+                    crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+                    crate::css::css_enums::direction::LTR,
+                )
+            }
         };
         for &property in delta.properties() {
             // Animations and transitions start from the C++ computation, and the counter-style
@@ -784,18 +793,15 @@ impl RetainedState {
             .properties()
             .contains(&crate::css::property_metadata::property_id::COLOR)
         {
-            let Some(dependencies) = self.computed_group_sets.current_color_dependency_mask(target) else {
-                counters.bump(Counter::EngineComputedRecordBailRecord);
-                return Err(Unanswered::Refused);
-            };
-            groups_to_rebuild |= dependencies;
+            // A record holding no table cannot say which values read currentcolor: it is driven
+            // in full, as a partial drive of it is.
+            let dependencies = self.computed_group_sets.current_color_dependency_mask(target);
+            let dependent_properties = self.computed_group_sets.current_color_dependency_properties(target);
+            old_record_is_unreadable |= dependencies.is_none() || dependent_properties.is_none();
+            groups_to_rebuild |= dependencies.unwrap_or(0);
             // The dependents compute again from their specified values, so the table spells them
             // the way a fresh computation does, not the way an inherited-group swap resolved them.
-            let Some(dependent_properties) = self.computed_group_sets.current_color_dependency_properties(target)
-            else {
-                counters.bump(Counter::EngineComputedRecordBailRecord);
-                return Err(Unanswered::Refused);
-            };
+            let dependent_properties = dependent_properties.unwrap_or_default();
             for (word, &bits) in dependent_properties.iter().enumerate() {
                 let mut bits = bits;
                 while bits != 0 {
@@ -817,9 +823,11 @@ impl RetainedState {
             }
         }
         // A partial delta that reaches the font group reaches every value the font feeds, so it is
-        // driven in full, as a partial drive whose driver inputs moved is below.
-        let mut font_moved = !full_drive && groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0;
-        if goal == FontDriveGoal::RootInputs && !full_drive && !font_moved {
+        // driven in full, as a partial drive whose driver inputs moved is below, and so is one of
+        // a record that cannot say what it would leave standing.
+        let mut in_full_after_all =
+            !full_drive && (old_record_is_unreadable || groups_to_rebuild & (1 << STYLE_GROUP_INDEX_FONT) != 0);
+        if goal == FontDriveGoal::RootInputs && !full_drive && !in_full_after_all {
             // NB: No font property moved, but borrowing the retained font still needs the
             //     proof that only the named rule flips changed the computation's inputs.
             if exact_flipped_rules.is_some() {
@@ -828,9 +836,9 @@ impl RetainedState {
                 )));
             }
             // Without that proof the root's font is computed rather than borrowed.
-            font_moved = true;
+            in_full_after_all = true;
         }
-        if full_drive || font_moved {
+        if full_drive || in_full_after_all {
             groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
         }
 
@@ -864,7 +872,7 @@ impl RetainedState {
             }
         };
         self.note_node_substitution(node, scratch, state, current_environment);
-        let partial = if full_drive || font_moved {
+        let partial = if full_drive || in_full_after_all {
             None
         } else {
             Some(self.engine_driven_table(
@@ -2004,7 +2012,15 @@ impl RetainedState {
         }
         let mut substituted = false;
         let admitted = self
-            .cascaded_store_for_state(node, cascade_state.1, None, environment, &mut substituted, counters)
+            .cascaded_store_for_state_in(
+                node,
+                cascade_state.1,
+                None,
+                environment,
+                &mut substituted,
+                StoreUse::Admission,
+                counters,
+            )
             .is_ok();
         scratch.remember(key, admitted);
         admitted
@@ -2498,6 +2514,40 @@ impl RetainedState {
         substituted: &mut bool,
         counters: &mut Counters,
     ) -> Drive<WinnerStore> {
+        self.cascaded_store_for_state_in(
+            node,
+            state,
+            pseudo_kind,
+            environment,
+            substituted,
+            StoreUse::Drive,
+            counters,
+        )
+    }
+
+    /// `cascaded_store_for_state`, for a drive or for the admission that proves a drive can
+    /// read every winner's written declaration: admission refuses a winner the drive asserts it
+    /// finds.
+    #[allow(clippy::too_many_arguments)]
+    fn cascaded_store_for_state_in(
+        &mut self,
+        node: StyleNodeID,
+        state: CascadeStateID,
+        pseudo_kind: Option<u8>,
+        environment: u64,
+        substituted: &mut bool,
+        store_use: StoreUse,
+        counters: &mut Counters,
+    ) -> Drive<WinnerStore> {
+        // A winner whose written declaration is not where its cascade found it.
+        let unwritten = |counters: &mut Counters, invariant: &str| -> Drive<()> {
+            if store_use == StoreUse::Admission {
+                counters.bump(Counter::EngineComputedRecordBailWinner);
+                return Err(Unanswered::Refused);
+            }
+            debug_assert!(false, "{invariant}");
+            Ok(())
+        };
         use crate::css::property_metadata::property_id as prop;
         crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreBuilds);
         // Seeded in cascade order, and within one rule in declaration order, since a logical
@@ -2531,16 +2581,19 @@ impl RetainedState {
             if winner.property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID {
                 continue;
             }
-            let written = match self.written_winner_value(node, &winner) {
-                Ok(written) => written,
+            // A winner's declaration is written in its source. One the engine cannot find again is
+            // invalid at computed-value time, and the property is left undeclared: it computes as
+            // `unset`.
+            let (index, value, checks) = match self.written_winner_value(node, &winner) {
+                Ok(Some(written)) => written,
+                Ok(None) => {
+                    unwritten(counters, "a winner's declaration is written in its source")?;
+                    continue;
+                }
                 Err(counter) => {
                     counters.bump(counter);
-                    None
+                    return Err(Unanswered::Refused);
                 }
-            };
-            let Some((index, value, checks)) = written else {
-                counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
-                return Err(Unanswered::Refused);
             };
             // A longhand declared through a shorthand keeps the whole shorthand as its written
             // value; the store takes the longhand's own part of it.
@@ -2552,8 +2605,11 @@ impl RetainedState {
             let (value, borrowed) = match value.data() {
                 crate::css::style_value::StyleValueData::Shorthand { .. } => {
                     let Some(value) = shorthand_longhand_data(winner.property, value.data()) else {
-                        counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
-                        return Err(Unanswered::Refused);
+                        unwritten(
+                            counters,
+                            "a shorthand written for a longhand winner carries that longhand",
+                        )?;
+                        continue;
                     };
                     (location, Some(value))
                 }
@@ -2599,8 +2655,8 @@ impl RetainedState {
                     let Some((shorthand, written)) =
                         self.shorthand_declaration_written_as(node, winner.source, original_shorthand_value.pointer())
                     else {
-                        counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
-                        return Err(Unanswered::Refused);
+                        unwritten(counters, "a pending longhand's shorthand is written in its source")?;
+                        continue;
                     };
                     // The store caches do not key a shorthand's `attr()` on the attributes it read.
                     let resolved = Self::substitute_written_value(
@@ -4575,6 +4631,13 @@ fn counter_style_name_is_non_overridable(name: &[u16]) -> bool {
                 .zip(name)
                 .all(|(expected, &unit)| unit < 128 && (unit as u8).eq_ignore_ascii_case(&expected))
     })
+}
+
+/// What a winner store is built for: a drive reads the winners admission proved.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StoreUse {
+    Admission,
+    Drive,
 }
 
 fn property_starts_animation_or_counter_environment(property: u16) -> bool {
