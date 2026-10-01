@@ -558,6 +558,8 @@ pub(crate) struct LayoutNodeArena {
     shell_factory: Cell<Option<ShellFactory>>,
     box_presence_host: Cell<Option<BoxPresenceHost>>,
     layout_host: Cell<Option<FfiLayoutHostCallbacks>>,
+    /// Whether the document is an SVG file decoded as an image, which is fixed for its lifetime.
+    document_is_decoded_svg: Cell<bool>,
     /// Depth of synchronous layout passes, including their commits, on the stack.
     active_layout_pass_depth: Cell<u32>,
     /// Whether any fragment-cache epoch changed during the outermost active layout pass. Geometry that the pass laid
@@ -679,6 +681,7 @@ impl LayoutNodeArena {
             shell_factory: Cell::new(None),
             box_presence_host: Cell::new(None),
             layout_host: Cell::new(None),
+            document_is_decoded_svg: Cell::new(false),
             active_layout_pass_depth: Cell::new(0),
             fragment_cache_epoch_changed_during_layout_pass: Cell::new(false),
             layout_root: Cell::new(NodeSlotId::INVALID),
@@ -1419,6 +1422,14 @@ impl LayoutNodeArena {
 
     pub(crate) fn layout_host(&self) -> FfiLayoutHostCallbacks {
         self.layout_host.get().expect("layout node arena has no layout host")
+    }
+
+    pub(crate) fn set_document_is_decoded_svg(&self, is_decoded_svg: bool) {
+        self.document_is_decoded_svg.set(is_decoded_svg);
+    }
+
+    pub(crate) fn document_is_decoded_svg(&self) -> bool {
+        self.document_is_decoded_svg.get()
     }
 
     /// True while a synchronous layout pass, including its commit, is on the stack. Computed

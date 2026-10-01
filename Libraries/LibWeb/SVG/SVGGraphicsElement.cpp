@@ -28,7 +28,6 @@
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
-#include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -142,71 +141,6 @@ Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> trans
             });
     }
     return affine_transform;
-}
-
-Optional<Gfx::Color> SVGGraphicsElement::stroke_color(Layout::NodeWithStyle const& layout_node) const
-{
-    auto paint = layout_node.stroke();
-    if (!paint.has_value())
-        return {};
-
-    if (paint->is_url())
-        return paint->fallback_color();
-
-    return paint->as_color();
-}
-
-float SVGGraphicsElement::visible_stroke_width(Layout::NodeWithStyle const& layout_node) const
-{
-    // NB: CSS geometry-effect metadata relies on this reading only stroke color and width.
-    //     If SVG bounds begin accounting for caps, joins, miter limits, or stroke opacity,
-    //     mark those properties as affecting layout geometry as well.
-    if (auto color = stroke_color(layout_node); color.has_value() && color->alpha() > 0)
-        return stroke_width(layout_node).value_or(0);
-    return 0;
-}
-
-CSSPixels SVGGraphicsElement::viewport_percentage_basis() const
-{
-    // Resolved relative to the "Scaled viewport size": https://www.w3.org/TR/2017/WD-fill-stroke-3-20170413/#scaled-viewport-size
-    // FIXME: The spec formula is the normalized diagonal sqrt((width² + height²) / 2); this keeps
-    //        the historical (width + height) / 2 approximation.
-    // NB: Resolution happens during layout, so only the viewBox and computed style are available,
-    //     not committed viewport geometry.
-    CSSPixels viewport_width = 0;
-    CSSPixels viewport_height = 0;
-    auto resolve_viewport_size_from = [&](SVGElement const& viewport_element, Optional<ViewBox> const& view_box) {
-        if (view_box.has_value()) {
-            viewport_width = CSSPixels::nearest_value_for(view_box->width);
-            viewport_height = CSSPixels::nearest_value_for(view_box->height);
-        } else if (auto viewport_layout_node = viewport_element.unsafe_layout_node()) {
-            viewport_width = viewport_layout_node->width().to_px(0);
-            viewport_height = viewport_layout_node->height().to_px(0);
-        }
-    };
-    // <symbol> instances establish nested viewports; percentages inside one resolve against it,
-    // not the enclosing <svg>.
-    for (auto* ancestor = first_flat_tree_ancestor_of_type<SVGElement>(); ancestor; ancestor = ancestor->first_flat_tree_ancestor_of_type<SVGElement>()) {
-        if (auto* svg_svg_element = as_if<SVGSVGElement>(*ancestor)) {
-            resolve_viewport_size_from(*svg_svg_element, svg_svg_element->active_view_box());
-            break;
-        }
-        if (auto* symbol_element = as_if<SVGSymbolElement>(*ancestor)) {
-            resolve_viewport_size_from(*symbol_element, symbol_element->view_box());
-            break;
-        }
-    }
-    return (viewport_width + viewport_height) * CSSPixels(0.5);
-}
-
-float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const
-{
-    return length_percentage.to_px(viewport_percentage_basis()).to_double();
-}
-
-Optional<float> SVGGraphicsElement::stroke_width(Layout::NodeWithStyle const& layout_node) const
-{
-    return resolve_relative_to_viewport_size(layout_node.stroke_width());
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox

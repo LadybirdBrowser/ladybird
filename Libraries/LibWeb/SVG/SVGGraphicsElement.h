@@ -32,19 +32,12 @@ class WEB_API SVGGraphicsElement : public SVGElement {
     WEB_WRAPPABLE(SVGGraphicsElement, SVGElement);
 
 public:
-    // Presentation values the element resolves from its own layout row. Every caller already holds
-    // that row, so it passes it in rather than looking one up through the DOM.
-    Optional<Gfx::Color> stroke_color(Layout::NodeWithStyle const&) const;
-    Optional<float> stroke_width(Layout::NodeWithStyle const&) const;
-
     virtual Optional<ViewBox> active_view_box() const
     {
         if (auto const* fit_to_view_box = this->fit_to_view_box())
             return fit_to_view_box->view_box();
         return {};
     }
-
-    float visible_stroke_width(Layout::NodeWithStyle const&) const;
 
     GC::Ptr<SVG::SVGMaskElement const> mask(Layout::NodeWithStyle const&) const;
     GC::Ptr<SVG::SVGClipPathElement const> clip_path(Layout::NodeWithStyle const&) const;
@@ -88,10 +81,6 @@ protected:
 private:
     virtual bool is_svg_graphics_element() const final { return true; }
     GC::Ptr<DOM::Element> resolve_fragment_identifier_to_element(Utf16String const& fragment) const;
-    float resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const;
-
-public:
-    CSSPixels viewport_percentage_basis() const;
 };
 
 Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> transform_list);

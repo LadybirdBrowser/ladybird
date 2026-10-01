@@ -43,9 +43,11 @@
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGTextElement.h>
 #include <LibWeb/SVG/SVGTextPathElement.h>
 #include <LibWeb/SVG/SVGTextPositioningElement.h>
+#include <LibWeb/SVG/SVGUseElement.h>
 
 namespace Web::Layout {
 
@@ -63,18 +65,6 @@ static_assert(to_underlying(CSS::StyleGroupIndex::AlignmentValues) == RustFFI::S
 static_assert(to_underlying(CSS::StyleGroupIndex::SizingValues) == RustFFI::STYLE_GROUP_INDEX_SIZING);
 static_assert(to_underlying(CSS::StyleGroupIndex::SurroundValues) == RustFFI::STYLE_GROUP_INDEX_SURROUND);
 static_assert(to_underlying(CSS::StyleGroupIndex::BoxValues) == RustFFI::STYLE_GROUP_INDEX_BOX);
-
-static RustFFI::FfiAffineTransform to_ffi_affine_transform(Gfx::AffineTransform const& transform)
-{
-    return {
-        .a = transform.a(),
-        .b = transform.b(),
-        .c = transform.c(),
-        .d = transform.d(),
-        .e = transform.e(),
-        .f = transform.f(),
-    };
-}
 
 static RustFFI::FfiSvgViewBox to_ffi_svg_view_box(SVG::ViewBox const& view_box)
 {
@@ -132,6 +122,10 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element cons
     }
 
     return {
+        .is_graphics_element = is<SVG::SVGGraphicsElement>(dom_node),
+        .is_use_element = is<SVG::SVGUseElement>(dom_node),
+        .is_svg_svg_element = is<SVG::SVGSVGElement>(dom_node),
+        .is_symbol_element = is<SVG::SVGSymbolElement>(dom_node),
         .is_fit_to_view_box = fit_to_view_box != nullptr,
         .has_active_view_box = active_view_box.has_value(),
         .active_view_box = active_view_box.has_value() ? to_ffi_svg_view_box(*active_view_box) : RustFFI::FfiSvgViewBox {},
@@ -164,33 +158,6 @@ void clear_svg_attribute_facts(DOM::Document& document, CSS::StyleNodeID style_n
 {
     if (auto* arena = document.layout_node_arena_if_created())
         RustFFI::layout_arena_clear_style_node_svg_attribute_facts(arena->handle(), style_node.value());
-}
-
-static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& node)
-{
-    auto const* dom_node = node.dom_node();
-    if (!dom_node)
-        return {};
-
-    Gfx::AffineTransform element_transform;
-    Gfx::AffineTransform additional_element_transform;
-    float visible_stroke_width = 0;
-    CSSPixels viewport_percentage_basis = 0;
-    if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(*dom_node)) {
-        element_transform = node.used_svg_element_transform();
-        additional_element_transform = graphics_element->additional_element_transform();
-        visible_stroke_width = graphics_element->visible_stroke_width(node);
-        viewport_percentage_basis = graphics_element->viewport_percentage_basis();
-    }
-
-    return {
-        .is_document_element = node.document().document_element() == dom_node,
-        .document_is_decoded_svg = node.document().is_decoded_svg(),
-        .element_transform = to_ffi_affine_transform(element_transform),
-        .additional_element_transform = to_ffi_affine_transform(additional_element_transform),
-        .visible_stroke_width = visible_stroke_width,
-        .viewport_percentage_basis = viewport_percentage_basis,
-    };
 }
 
 static Utf16String rendered_svg_text_contents(SVG::SVGTextContentElement const& element)
@@ -487,26 +454,10 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
     static_assert(to_underlying(SVG::SVGUnits::UserSpaceOnUse) == 1);
     RustFFI::FfiLayoutHostCallbacks callbacks {
         .context = &document,
-        .build_svg_facts = [](void*, void* node) {
-            auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
-            VERIFY(node_with_style);
-            return build_svg_element_facts(*node_with_style); },
         .compute_svg_path = [](void*, void* node, RustFFI::FfiSvgPathRequest request) {
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
             VERIFY(node_with_style);
             return compute_svg_path(*node_with_style, request); },
-        .svg_image_bounding_box = [](void*, void* node, CSSPixels viewport_width, CSSPixels viewport_height) {
-            auto const& image_element = as<SVG::SVGImageElement>(*static_cast<Node const*>(node)->dom_node());
-            auto bounding_box = image_element.bounding_box({
-                viewport_width,
-                viewport_height,
-            });
-            return RustFFI::FfiFloatRect {
-                .x = bounding_box.x(),
-                .y = bounding_box.y(),
-                .width = bounding_box.width(),
-                .height = bounding_box.height(),
-            }; },
         .anchor_lookup = [](void*, void* node, size_t anchor_name, void* const* eligible_anchor_boxes, size_t eligible_anchor_box_count) {
             auto const& box = *static_cast<Box const*>(node);
             auto abstract_element = abstract_element_for_abspos_box(box);
@@ -561,6 +512,7 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
         .viewport_propagation_facts = [](void* context) { return viewport_propagation_facts(*static_cast<DOM::Document*>(context)); },
     };
     RustFFI::layout_arena_set_layout_host_callbacks(arena.handle(), callbacks);
+    RustFFI::layout_arena_set_document_is_decoded_svg(arena.handle(), document.is_decoded_svg());
 }
 
 }

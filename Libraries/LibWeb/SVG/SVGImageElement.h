@@ -43,8 +43,6 @@ public:
     // https://w3c.github.io/svgwg/svg2-draft/embedded.html#__svg__SVGImageElement__height
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, SVGLengthValue::number(0));
 
-    Gfx::FloatRect bounding_box(CSSPixelSize viewport_size) const;
-
     // ^Layout::ImageProvider
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override;
 

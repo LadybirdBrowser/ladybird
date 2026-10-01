@@ -10,7 +10,7 @@ pub(crate) fn node_may_have_replaced_content_facts(data: &NodeData) -> bool {
     kind_is_replaced_box(data.kind.get())
         || matches!(
             data.kind.get(),
-            NodeKind::RangeInputBox | NodeKind::TextAreaBox | NodeKind::TextInputBox
+            NodeKind::RangeInputBox | NodeKind::SVGImageBox | NodeKind::TextAreaBox | NodeKind::TextInputBox
         )
         || has_flag(data, NodeFlag::IsHtmlInputElement)
 }
