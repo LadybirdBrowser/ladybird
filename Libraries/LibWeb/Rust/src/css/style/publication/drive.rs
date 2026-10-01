@@ -704,12 +704,15 @@ impl RetainedState {
                     .as_ref()
             }
         };
-        // `font-variant-alternates` names features through the tree scope's `@font-feature-values`,
-        // which the engine's resolver has no table of. Such an element keeps its record in C++.
-        if !matches!(
-            value_of(&table, prop::FONT_VARIANT_ALTERNATES),
-            Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL
-        ) {
+        // `font-variant-alternates` names features through its tree scope's `@font-feature-values`,
+        // and the engine's resolver only has the document's. An element in a shadow tree that sets it
+        // keeps its record in C++.
+        if self.tree.tree_scope(target.node()) != TreeScopeID::DOCUMENT
+            && !matches!(
+                value_of(&table, prop::FONT_VARIANT_ALTERNATES),
+                Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL
+            )
+        {
             counters.bump(Counter::EngineComputedRecordBailFontPhase);
             return Err(Unanswered::Refused);
         }
