@@ -8,6 +8,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/SharedFontProvider.h>
+#include <LibGfx/Font/SystemFallbackFonts.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibIPC/Decoder.h>
@@ -88,6 +89,7 @@ ErrorOr<void> SharedFontProvider::replace_catalog(NonnullOwnPtr<Core::MappedFile
     clear_typeface_cache();
     m_failed_face_ids.clear();
     m_code_point_cache.clear();
+    clear_system_fallback_font_cache();
     return {};
 }
 

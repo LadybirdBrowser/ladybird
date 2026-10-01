@@ -9,6 +9,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/SystemFallbackFonts.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 
 #if defined(AK_OS_HAIKU)
@@ -61,6 +62,7 @@ FontDatabase& FontDatabase::the()
 SystemFontProvider& FontDatabase::install_system_font_provider(NonnullOwnPtr<SystemFontProvider> provider)
 {
     VERIFY(!m_system_font_provider);
+    clear_system_fallback_font_cache();
     m_system_font_provider = move(provider);
     return *m_system_font_provider;
 }
