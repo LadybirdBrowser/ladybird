@@ -3011,7 +3011,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     // engine lifecycle entry points; no string or owning pointer appears in this ABI.
     let mut style_engine_config = base_config.clone();
     style_engine_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleEngineFFI".to_string()]);
-    style_engine_config.export.include = vec!["FfiStyleInvalidationField".to_string()];
+    style_engine_config.export.include = vec![
+        "FfiStyleInvalidationField".to_string(),
+        // Only the host's font resolver, which the engine reaches by name, takes these.
+        "FfiFontResolutionRequest".to_string(),
+        "FfiResolvedFont".to_string(),
+    ];
 
     generate_ffi_header(
         style_engine_config,

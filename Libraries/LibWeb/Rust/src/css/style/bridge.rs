@@ -1123,20 +1123,27 @@ pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> *mut c_vo
     Box::into_raw(engine).cast()
 }
 
-/// Installs the document's synchronous platform font resolver once.
+/// Publishes the document's `@font-face` table and the memo of the cascades resolved from it, which
+/// every later font resolution of the engine reads. Takes one reference to each.
 ///
 /// # Safety
-/// The context and callback must remain valid until the engine is destroyed.
+/// `engine` must be live, and `snapshot` and `memo` must be a live `Web::CSS::FontFaceSnapshot` and
+/// `FontCascadeMemo` whose reference the engine takes over.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_install_font_resolver(
+pub unsafe extern "C" fn style_engine_publish_font_faces(
     engine: *mut c_void,
-    context: *mut c_void,
-    resolve: unsafe extern "C" fn(*mut c_void, FfiFontResolutionRequest) -> FfiResolvedFont,
+    snapshot: *const c_void,
+    memo: *const c_void,
 ) {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    assert!(engine.host.font_resolver.is_none(), "font resolver is installed once");
-    engine.host.font_resolver = Some(super::font_resolution::FontResolverHost::new(context, resolve));
-    engine.retained.font_resolution = Some(super::font_resolution::FontResolutionCache::default());
+    let font_faces = unsafe { super::font_resolution::PublishedFontFaces::adopt(snapshot, memo) };
+    match &mut engine.host.font_resolver {
+        Some(resolver) => resolver.publish(font_faces),
+        None => {
+            engine.host.font_resolver = Some(super::font_resolution::FontResolverHost::new(font_faces));
+            engine.retained.font_resolution = Some(super::font_resolution::FontResolutionCache::default());
+        }
+    }
 }
 
 /// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.

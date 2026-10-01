@@ -37,6 +37,7 @@ enum class PseudoElement : u8;
 enum class StyleRecordDependencyFlag : u8;
 
 class CustomPropertyData;
+class FontComputer;
 class StyleComputer;
 class RustDeclarationBlock;
 struct StyleProperty;
@@ -266,6 +267,9 @@ public:
     // traversal. False means that transaction did not publish an answer for this node.
     bool consume_published_match_answer(StyleNodeID node, Vector<RuleMatch>&);
 
+    // Give the engine the document's @font-face table and cascade memo, when they moved since it was last given them.
+    void publish_font_faces(FontComputer const&);
+
     // The custom-property environment each element holds is kept here; the element keeps none of its own.
     void set_element_custom_property_data(StyleNodeID, CustomPropertyData const*);
     [[nodiscard]] CustomPropertyData const* element_custom_property_data(StyleNodeID) const;
@@ -291,6 +295,7 @@ private:
     void publish_attribute_value_text(StyleAtomID, Utf16View);
 
     void* m_impl { nullptr };
+    u64 m_published_font_environment_generation { 0 };
     GC::Ptr<StyleComputer> m_style_computer;
 
     HashMap<FlatPtr, StyleAtomID> m_atoms;

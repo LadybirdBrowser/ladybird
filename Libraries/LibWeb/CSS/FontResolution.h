@@ -12,6 +12,7 @@
 #include <LibGfx/FontCascadeList.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSnapshot.h>
+#include <LibWeb/StyleEngineRustFFI.h>
 
 template<>
 struct AK::Traits<Web::CSS::ComputedFontCacheKey> : public AK::DefaultTraits<Web::CSS::ComputedFontCacheKey> {
@@ -70,6 +71,15 @@ private:
     FontCascadeMemo() = default;
 
     HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_cascades;
+    // The newest snapshot generation resolved against. An older one would write a stale cascade where every later
+    // request reads it.
+    u64 m_generation { 0 };
 };
 
 }
+
+// The style engine resolves a font with nothing but the @font-face table and memo it was given, and the request, and
+// gives up its references to them through these.
+extern "C" WEB_API Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void* memo, void const* snapshot, Web::CSS::StyleEngineFFI::FfiFontResolutionRequest);
+extern "C" WEB_API void web_css_font_face_snapshot_unreference(void const*);
+extern "C" WEB_API void web_css_font_cascade_memo_unreference(void const*);

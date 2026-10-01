@@ -6,6 +6,7 @@
 
 #include <AK/StdLibExtras.h>
 #include <AK/Time.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontResolution.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -16,41 +17,6 @@
 #include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
-
-static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFFI::FfiFontResolutionRequest request)
-{
-    auto& style_computer = *static_cast<StyleComputer*>(context);
-    auto& font_computer = style_computer.document().font_computer();
-    // The engine holds the family value as an opaque handle, never as a pointer it could
-    // follow; the bridge is where it becomes one again.
-    auto font_family = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-        reinterpret_cast<StyleValueFFI::StyleValueData const*>(request.font_family)));
-    auto font_list = resolve_font_for_style_values(font_computer,
-        {
-            .font_families = computed_font_families_from_style_value(*font_family),
-            .font_optical_sizing = static_cast<FontOpticalSizing>(request.font_optical_sizing),
-            .font_size = CSSPixels::from_raw(request.font_size_raw),
-            .font_slope = request.font_slope,
-            .font_weight = request.font_weight,
-            .font_width = Percentage(request.font_width),
-            .font_variation_settings = {},
-            .font_feature_data = {},
-            .font_feature_values_scope = {},
-        });
-    // The metric probe must not load a face: the first available font answers without one.
-    auto const& first_available_font = font_list->first_available_font();
-    auto const metrics = first_available_font.pixel_metrics();
-    // The engine's resolver cache adopts this reference and releases it on eviction.
-    return {
-        // Handles, not pointers: the engine names these host objects and hands them back here.
-        .first_available_font = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(&first_available_font),
-        .font_cascade_list = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(&font_list.leak_ref()),
-        .ascent = metrics.ascent,
-        .descent = metrics.descent,
-        .x_height = metrics.x_height,
-        .zero_advance = metrics.advance_of_ascii_zero,
-    };
-}
 
 static_assert(StyleEngineFFI::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND == to_underlying(last_synthetic_pseudo_element));
 static_assert(!IsMoveConstructible<StyleEngine>);
@@ -64,7 +30,6 @@ StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer
 {
     if (m_style_computer) {
         set_pseudo_element_style_deferred(to_underlying(PseudoElement::Selection), true);
-        StyleEngineFFI::style_engine_install_font_resolver(m_impl, m_style_computer.ptr(), resolve_font);
     }
 }
 
@@ -680,6 +645,8 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
         }
     }
     auto bridge_started_at = MonotonicTime::now();
+    if (m_style_computer)
+        publish_font_faces(m_style_computer->document().font_computer());
     auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value(), computation_inputs);
     auto bridge_microseconds = (MonotonicTime::now() - bridge_started_at).to_truncated_microseconds();
     if (view.reclaimed_style_atom_count != 0) {
@@ -840,6 +807,16 @@ CustomPropertyData const* StyleEngine::pseudo_element_custom_property_data(Style
 u64 StyleEngine::pseudo_elements_with_custom_property_data(StyleNodeID node) const
 {
     return StyleEngineFFI::style_engine_pseudo_elements_with_custom_property_data(m_impl, node.value());
+}
+
+// The engine resolves fonts against the @font-face table and cascade memo it was given, at the generation of the
+// computation inputs it was given with them.
+void StyleEngine::publish_font_faces(FontComputer const& font_computer)
+{
+    if (m_published_font_environment_generation == font_computer.environment_generation())
+        return;
+    m_published_font_environment_generation = font_computer.environment_generation();
+    StyleEngineFFI::style_engine_publish_font_faces(m_impl, &font_computer.font_face_snapshot().leak_ref(), &NonnullRefPtr { font_computer.font_cascade_memo() }.leak_ref());
 }
 
 }
