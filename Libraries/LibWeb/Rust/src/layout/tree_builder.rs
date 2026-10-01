@@ -105,20 +105,15 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub resolve_counters: unsafe extern "C" fn(*mut c_void, FfiPseudoElement),
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
-    pub layout_node_has_first_letter_style: unsafe extern "C" fn(*mut c_void) -> bool,
     pub create_first_letter_nodes:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiFirstLetterTarget) -> FfiFirstLetterNodes,
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut FfiIdentifiedDomNode, usize),
-    pub flat_tree_parent: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
-    pub flat_tree_render_facts: unsafe extern "C" fn(*mut c_void) -> FfiFlatTreeRenderFacts,
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
     pub principal_node_entry_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalNodeEntryFacts,
     pub push_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiPrincipalNodeFrame,
     pub pop_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub prepare_principal_element:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool) -> FfiPreparedPrincipalElementFacts,
-    pub principal_element_layout_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiElementLayoutFacts,
+    pub prepare_principal_element: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool),
     pub create_principal_element_layout:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiElementLayoutKind) -> NodeSlotId,
     pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
@@ -153,14 +148,7 @@ pub struct FfiPrincipalNodeFrame {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiPreparedPrincipalElementFacts {
-    pub display: FfiPrincipalDisplayFacts,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
 pub struct FfiDisplayContentsFacts {
-    pub content_visibility_hidden: bool,
     pub child_needs_layout_tree_update: bool,
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
@@ -179,17 +167,8 @@ pub struct FfiTextLayoutFacts {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiFlatTreeRenderFacts {
-    pub is_element: bool,
-    pub has_computed_style: bool,
-    pub display_is_none: bool,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
 pub struct FfiPrincipalDescendantFacts {
     pub is_element: bool,
-    pub content_visibility_hidden: bool,
     pub child_needs_layout_tree_update: bool,
     pub is_document: bool,
     pub dom_children_parent: *mut c_void,
@@ -219,23 +198,6 @@ pub struct FfiPrincipalNodeEntryFacts {
     pub style_node: u32,
 }
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPrincipalDisplayFacts {
-    pub display_is_none: bool,
-    pub display_is_contents: bool,
-    pub display_is_table_inside: bool,
-    pub display_is_block_outside: bool,
-    pub display_is_internal_table: bool,
-    pub display_is_table_caption: bool,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiElementLayoutFacts {
-    pub has_content_replacement: bool,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiElementLayoutKind {
@@ -263,13 +225,13 @@ fn apply_replaced_display_adjustment(
 }
 
 pub(crate) fn element_layout_kind(
-    facts: FfiElementLayoutFacts,
+    has_content_replacement: bool,
     element_type_facts: u32,
     layout_svg_mask_or_clip_path: bool,
     layout_svg_pattern: bool,
 ) -> FfiElementLayoutKind {
     let has = |fact: u32| element_type_facts & fact != 0;
-    if facts.has_content_replacement {
+    if has_content_replacement {
         FfiElementLayoutKind::ContentReplacement
     } else if layout_svg_mask_or_clip_path {
         if has(element_adjustment_fact::IS_SVG_MASK_ELEMENT) {
@@ -648,6 +610,24 @@ impl DomTreeBuilderHost<'_> {
         self.element_type_facts(style_node) & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0
     }
 
+    /// The display the element's published style record asks for.
+    fn published_display(&self, style_node: Option<StyleNodeID>) -> FfiDisplay {
+        self.layout()
+            .arena()
+            .published_box_facts(style_node)
+            .expect("an element the walk prepares has published its style")
+            .display
+    }
+
+    /// Whether the element's published style record hides its content. Only an element has a
+    /// record, so every other node answers no, as its `content-visibility` never applied.
+    fn content_visibility_is_hidden(&self, style_node: Option<StyleNodeID>) -> bool {
+        self.layout()
+            .arena()
+            .published_box_facts(style_node)
+            .is_some_and(|facts| facts.content_visibility == crate::css::css_enums::content_visibility::HIDDEN)
+    }
+
     fn layout(&self) -> TreeBuilderHost<'_> {
         TreeBuilderHost {
             callbacks: &self.callbacks.layout,
@@ -656,18 +636,23 @@ impl DomTreeBuilderHost<'_> {
     }
 }
 
-fn has_unrendered_flat_tree_ancestor(host: &DomTreeBuilderHost<'_>, element: *mut c_void) -> bool {
-    // SAFETY: `element` and every returned flat-tree ancestor remain live throughout layout-tree construction.
-    let mut ancestor = unsafe { (host.callbacks.flat_tree_parent)(element) };
-    while !ancestor.is_null() {
-        // SAFETY: `ancestor` is a live DOM node.
-        let facts = unsafe { (host.callbacks.flat_tree_render_facts)(ancestor) };
-        // Null style means the style update pass skipped a display:none subtree.
-        if facts.is_element && (!facts.has_computed_style || facts.display_is_none) {
+/// Whether a flat-tree ancestor of the element keeps it out of the rendered tree.
+///
+/// Only an element ever hides a subtree, and the mirror steps from a node straight to the element
+/// above it, so every ancestor the walk reaches has a published record to ask. No record at all
+/// means the style update pass skipped a display:none subtree.
+fn has_unrendered_flat_tree_ancestor(host: &DomTreeBuilderHost<'_>, style_node: Option<StyleNodeID>) -> bool {
+    let layout = host.layout();
+    let arena = layout.arena();
+    let mut ancestor = style_node.and_then(|style_node| arena.flat_tree_parent(style_node));
+    while let Some(current) = ancestor {
+        if !arena
+            .published_box_facts(Some(current))
+            .is_some_and(|facts| !facts.display.is_none())
+        {
             return true;
         }
-        // SAFETY: `ancestor` remains live throughout the walk.
-        ancestor = unsafe { (host.callbacks.flat_tree_parent)(ancestor) };
+        ancestor = arena.flat_tree_parent(current);
     }
     false
 }
@@ -859,6 +844,7 @@ unsafe fn update_layout_tree_for_display_contents(
         // SAFETY: The element remains live for the duration of the call.
         let facts = unsafe { (host.callbacks.display_contents_facts)(host.callbacks.builder, element) };
         let lays_out_dom_children = should_layout_dom_children(host, style_node, !facts.slot_element.is_null());
+        let content_visibility_hidden = host.content_visibility_is_hidden(style_node);
 
         // A display:contents member builds its children through this path, so the top layer flag
         // is consumed here the same way update_layout_tree does for members with a box.
@@ -879,7 +865,7 @@ unsafe fn update_layout_tree_for_display_contents(
             }
         }
 
-        if should_create_layout_node && !facts.content_visibility_hidden && !context.has_svg_root {
+        if should_create_layout_node && !content_visibility_hidden && !context.has_svg_root {
             let placed = create_pseudo_element(
                 host,
                 state,
@@ -890,7 +876,7 @@ unsafe fn update_layout_tree_for_display_contents(
             assert!(placed.is_none());
         }
 
-        if !facts.content_visibility_hidden && (should_create_layout_node || facts.child_needs_layout_tree_update) {
+        if !content_visibility_hidden && (should_create_layout_node || facts.child_needs_layout_tree_update) {
             let must_create_children = should_create_layout_node;
             if !facts.shadow_root.is_null() {
                 // SAFETY: The callback table, shadow root, and context remain valid.
@@ -920,7 +906,7 @@ unsafe fn update_layout_tree_for_display_contents(
         }
 
         if !facts.slot_element.is_null() {
-            if !facts.content_visibility_hidden {
+            if !content_visibility_hidden {
                 // SAFETY: The callback table, slot element, and context remain valid.
                 unsafe {
                     update_layout_tree_for_assigned_slottables(
@@ -947,7 +933,7 @@ unsafe fn update_layout_tree_for_display_contents(
             }
         }
 
-        if should_create_layout_node && !facts.content_visibility_hidden && !context.has_svg_root {
+        if should_create_layout_node && !content_visibility_hidden && !context.has_svg_root {
             let placed = create_pseudo_element(
                 host,
                 state,
@@ -1047,6 +1033,7 @@ fn update_svg_pattern(
 }
 
 struct PrincipalDescendantUpdate {
+    style_node: Option<StyleNodeID>,
     /// The node whose DOM child sequence the walk descends into.
     dom_children_owner: Option<StyleNodeID>,
     element_type_facts: u32,
@@ -1084,6 +1071,7 @@ unsafe fn update_principal_node_descendants(
         };
         let lays_out_dom_children =
             should_layout_dom_children(host, update.dom_children_owner, !facts.slot_element.is_null());
+        let content_visibility_hidden = host.content_visibility_is_hidden(update.style_node);
         let (layout_node_can_have_children, layout_node_is_replaced_box_with_children) = {
             let layout_node_data = layout_host.data(layout_node);
             let can_have_children = node_facts::node_can_have_children(layout_node_data);
@@ -1102,10 +1090,7 @@ unsafe fn update_principal_node_descendants(
             }
 
             // Add the ::before pseudo-element before walking normal children.
-            if facts.is_element
-                && layout_node_can_have_children
-                && !facts.content_visibility_hidden
-                && !context.has_svg_root
+            if facts.is_element && layout_node_can_have_children && !content_visibility_hidden && !context.has_svg_root
             {
                 state.ancestor_stack.push(layout_node);
                 let placed = create_pseudo_element(
@@ -1120,7 +1105,7 @@ unsafe fn update_principal_node_descendants(
             }
         }
 
-        if facts.content_visibility_hidden {
+        if content_visibility_hidden {
             // SAFETY: The builder and DOM node remain live throughout the call.
             unsafe {
                 (host.callbacks.clear_stale_subtree)(
@@ -1134,7 +1119,7 @@ unsafe fn update_principal_node_descendants(
         if (should_create_layout_node || facts.child_needs_layout_tree_update)
             && (!facts.shadow_root.is_null() || lays_out_dom_children)
             && layout_node_can_have_children
-            && !facts.content_visibility_hidden
+            && !content_visibility_hidden
         {
             state.ancestor_stack.push(layout_node);
 
@@ -1216,11 +1201,11 @@ unsafe fn update_principal_node_descendants(
                 } in top_layer_elements
                 {
                     assert!(!element.is_null());
-                    if !host.rendered_in_top_layer(StyleNodeID::from_raw(style_node)) {
+                    let style_node = StyleNodeID::from_raw(style_node);
+                    if !host.rendered_in_top_layer(style_node) {
                         continue;
                     }
-                    // SAFETY: `element` is a live DOM Element.
-                    if has_unrendered_flat_tree_ancestor(host, element) {
+                    if has_unrendered_flat_tree_ancestor(host, style_node) {
                         // SAFETY: The builder and element remain live throughout cleanup.
                         unsafe {
                             (host.callbacks.clear_stale_subtree)(
@@ -1247,7 +1232,7 @@ unsafe fn update_principal_node_descendants(
         }
 
         if !facts.slot_element.is_null() {
-            if !facts.content_visibility_hidden {
+            if !content_visibility_hidden {
                 state.ancestor_stack.push(layout_node);
                 // SAFETY: The callback table, slot element, and context remain valid.
                 unsafe {
@@ -1316,10 +1301,7 @@ unsafe fn update_principal_node_descendants(
             }
 
             // Add ::marker and ::after once normal and SVG resource children are complete.
-            if facts.is_element
-                && layout_node_can_have_children
-                && !facts.content_visibility_hidden
-                && !context.has_svg_root
+            if facts.is_element && layout_node_can_have_children && !content_visibility_hidden && !context.has_svg_root
             {
                 state.ancestor_stack.push(layout_node);
                 if layout_host.data(layout_node).kind.get() == NodeKind::ListItemBox {
@@ -1342,9 +1324,8 @@ unsafe fn update_principal_node_descendants(
                 assert!(placed.is_none());
                 assert!(state.ancestor_stack.pop().is_some());
 
-                // SAFETY: The layout node's shell and its associated DOM node remain live throughout the call.
                 if node_kind_is_block_container(layout_host.data(layout_node).kind.get())
-                    && unsafe { (host.callbacks.layout_node_has_first_letter_style)(layout_host.shell(layout_node)) }
+                    && layout_host.has_first_letter_style(layout_node)
                 {
                     let target = find_first_letter_in_block(host, layout_node);
                     if target.found {
@@ -1478,18 +1459,19 @@ fn construct_principal_layout_node(
             }
         }
         // SAFETY: The frame, builder, and DOM element remain live throughout the call.
-        let prepared = unsafe {
+        unsafe {
             (host.callbacks.prepare_principal_element)(
                 host.callbacks.builder,
                 frame,
                 dom_node,
                 should_create_layout_node,
-            )
-        };
+            );
+        }
+        let display = host.published_display(update.style_node);
         let generation = principal_box_generation_decision(
             true,
-            should_create_layout_node && prepared.display.display_is_none,
-            prepared.display.display_is_contents,
+            should_create_layout_node && display.is_none(),
+            display.is_contents(),
         );
         if generation == PrincipalBoxGenerationDecision::Suppress {
             return PrincipalBoxConstruction::none();
@@ -1513,10 +1495,10 @@ fn construct_principal_layout_node(
             };
         }
         if should_create_layout_node {
-            // SAFETY: The frame and element remain live throughout construction.
-            let layout_facts = unsafe { (host.callbacks.principal_element_layout_facts)(frame, dom_node) };
             let layout_kind = element_layout_kind(
-                layout_facts,
+                host.layout()
+                    .arena()
+                    .published_content_is_single_image(update.style_node),
                 update.element_type_facts,
                 context.layout_svg_mask_or_clip_path,
                 context.layout_svg_pattern,
@@ -1789,6 +1771,7 @@ fn update_principal_node_after_entry(
                 (host.callbacks.principal_layout_node)(frame),
                 context,
                 PrincipalDescendantUpdate {
+                    style_node: update.style_node,
                     // The document owns a child sequence of its own; every other node is named by
                     // the identity it carries.
                     dom_children_owner: if entry_facts.is_document {
@@ -2634,6 +2617,12 @@ fn node_is_fragmented_inline(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bo
 }
 
 impl TreeBuilderHost<'_> {
+    /// Whether the element this row was built for has a `::first-letter` style.
+    fn has_first_letter_style(&self, node: LayoutNode) -> bool {
+        let arena = self.arena();
+        arena.has_published_first_letter_style(arena.node_style_node(node))
+    }
+
     fn data(&self, node: LayoutNode) -> &NodeData {
         assert!(!node.is_invalid());
         // SAFETY: Entry points guarantee that the arena remains live, and callers only retain the reference until the
@@ -3469,8 +3458,7 @@ fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) 
         }
         // Stop descending if this child block defines its own ::first-letter: the child will style the first letter
         // inside it, so the ancestor's ::first-letter must not also claim the same letter.
-        // SAFETY: The child shell and its associated DOM node remain live throughout the walk.
-        if !is_anonymous && unsafe { (host.callbacks.layout_node_has_first_letter_style)(layout_host.shell(child)) } {
+        if !is_anonymous && layout_host.has_first_letter_style(child) {
             break;
         }
         let target = find_first_letter_in_block(host, child);
@@ -4212,13 +4200,13 @@ mod tests {
     use crate::css::style::bridge::element_adjustment_fact;
     use crate::layout::node_data::NodeSlotId;
     use crate::layout::tree_builder::{
-        FfiCodePointCategoryFacts, FfiComputedContentType, FfiElementLayoutFacts, FfiElementLayoutKind,
-        FfiPrincipalBoxPlacement, FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision,
-        FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment, PrincipalBoxGenerationDecision,
-        PrincipalBoxPlacementFacts, SvgEntryDecision, TopLayerEntryDecision, TreeBuilderContext,
-        adjusted_table_display_for_replaced_element, display_contents_text_needs_style_wrapper, element_layout_kind,
-        find_first_letter_in_text, principal_box_generation_decision, principal_box_placement_decision,
-        principal_node_entry_decision, pseudo_element_decision,
+        FfiCodePointCategoryFacts, FfiComputedContentType, FfiElementLayoutKind, FfiPrincipalBoxPlacement,
+        FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts,
+        FfiReplacedElementDisplayAdjustment, PrincipalBoxGenerationDecision, PrincipalBoxPlacementFacts,
+        SvgEntryDecision, TopLayerEntryDecision, TreeBuilderContext, adjusted_table_display_for_replaced_element,
+        display_contents_text_needs_style_wrapper, element_layout_kind, find_first_letter_in_text,
+        principal_box_generation_decision, principal_box_placement_decision, principal_node_entry_decision,
+        pseudo_element_decision,
     };
     fn code_point_facts(code_point: u32) -> FfiCodePointCategoryFacts {
         FfiCodePointCategoryFacts {
@@ -4483,26 +4471,20 @@ mod tests {
 
     #[test]
     fn specialized_element_layout_kinds() {
-        let mut facts = FfiElementLayoutFacts {
-            has_content_replacement: false,
-        };
         assert_eq!(
-            element_layout_kind(facts, 0, false, false),
+            element_layout_kind(false, 0, false, false),
             FfiElementLayoutKind::Normal
         );
-
-        facts.has_content_replacement = true;
         assert_eq!(
-            element_layout_kind(facts, 0, false, false),
+            element_layout_kind(true, 0, false, false),
             FfiElementLayoutKind::ContentReplacement
         );
-        facts.has_content_replacement = false;
         assert_eq!(
-            element_layout_kind(facts, element_adjustment_fact::IS_SVG_MASK_ELEMENT, true, false),
+            element_layout_kind(false, element_adjustment_fact::IS_SVG_MASK_ELEMENT, true, false),
             FfiElementLayoutKind::SvgMask
         );
         assert_eq!(
-            element_layout_kind(facts, element_adjustment_fact::IS_SVG_PATTERN_ELEMENT, false, true),
+            element_layout_kind(false, element_adjustment_fact::IS_SVG_PATTERN_ELEMENT, false, true),
             FfiElementLayoutKind::SvgPattern
         );
     }

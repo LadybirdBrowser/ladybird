@@ -8,6 +8,14 @@ use smallvec::SmallVec;
 
 use super::*;
 
+/// What an element's published style record says about the box it asks for. The layout tree build
+/// reads this for an element that may have no box yet, where the arena has nothing to answer from.
+#[derive(Clone, Copy)]
+pub struct PublishedBoxFacts {
+    pub display: crate::css::display::FfiDisplay,
+    pub content_visibility: u8,
+}
+
 impl RetainedState {
     pub(super) fn push_pending_region(&mut self, regions: &mut Vec<ImpactRegion>, region: ImpactRegion) {
         let before = regions.capacity();
@@ -409,6 +417,34 @@ impl RetainedState {
     #[must_use]
     pub fn element_adjustment_facts(&self, node: StyleNodeID) -> u32 {
         self.computed_group_sets.adjustment_facts(node)
+    }
+
+    /// The box facts the element's published style record holds. `None` while the element has no
+    /// record: a text node, a retired identity, or an element style has not reached yet.
+    #[must_use]
+    pub fn element_published_box_facts(&self, node: StyleNodeID) -> Option<PublishedBoxFacts> {
+        let view = self.published_style_record_view(self.computed_group_sets.assigned_style_record(node))?;
+        Some(PublishedBoxFacts {
+            display: view.display(),
+            content_visibility: view.content_visibility(),
+        })
+    }
+
+    /// Whether the element's published style record replaces its contents with a single image.
+    #[must_use]
+    pub fn element_content_is_single_image(&self, node: StyleNodeID) -> bool {
+        self.published_style_record_view(self.computed_group_sets.assigned_style_record(node))
+            .is_some_and(crate::css::computed_value_views::ComputedValuesView::content_is_single_image)
+    }
+
+    pub(super) fn published_style_record_view(
+        &self,
+        style_record: Option<computed::FinalStyleRecordID>,
+    ) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
+        let payloads = self.computed_group_sets.style_record_payloads(style_record?.raw())?;
+        Some(crate::css::computed_value_views::ComputedValuesView::new(
+            SharedPayload::as_pointer_slice(payloads),
+        ))
     }
 
     /// Record what an attribute-value atom spells, for the operators an atom cannot answer.

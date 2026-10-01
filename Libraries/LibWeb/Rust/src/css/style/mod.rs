@@ -189,6 +189,7 @@ use exact_matcher::ExactMatchContext;
 use exact_matcher::ExactMatcher;
 
 pub use counter_context::StyleEngine;
+pub use inputs::PublishedBoxFacts;
 
 use batch_matcher::AncestorRequirements;
 use batch_matcher::AncestorRequirementsCache;
