@@ -140,6 +140,7 @@ public:
     void did_free_external_memory(size_t);
 
 private:
+    friend struct CAPI;
     friend class CellAllocator;
     friend class HeapBlock;
     friend class MarkingVisitor;
@@ -183,12 +184,13 @@ private:
 
     // Cells allocated during incremental sweep must be marked so they
     // survive until the next GC cycle clears and re-establishes marks.
-    void mark_if_allocated_during_incremental_sweep(Cell& cell)
+    bool mark_if_allocated_during_incremental_sweep(Cell& cell)
     {
         if (!m_incremental_sweep_active)
-            return;
+            return false;
         cell.set_marked(true);
         m_cells_allocated_during_sweep.append(&cell);
+        return true;
     }
 
     void will_allocate(size_t);
