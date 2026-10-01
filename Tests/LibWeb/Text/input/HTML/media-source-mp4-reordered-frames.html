@@ -4,6 +4,7 @@
 <script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
 <video id="video"></video>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(done => {
         function step(name) {
@@ -45,14 +46,6 @@
                     }
                     const data = new Uint8Array(await response.arrayBuffer());
 
-                    function formatRanges() {
-                        const buffered = sourceBuffer.buffered;
-                        const ranges = [];
-                        for (let i = 0; i < buffered.length; i++)
-                            ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
-                        return `[${ranges.join(", ")}]`;
-                    }
-
                     await new Promise((resolve, reject) => {
                         sourceBuffer.addEventListener("updateend", resolve, { once: true });
                         sourceBuffer.addEventListener("error", () =>
@@ -63,7 +56,7 @@
                     // Every frame must survive the coded frame processing algorithm. Treating the
                     // presentation timestamps as decode timestamps would report a discontinuity at each
                     // reordered frame and drop everything up to the next keyframe.
-                    println(`buffered: ${formatRanges()}`);
+                    println(`buffered: ${timeRangesToString(sourceBuffer.buffered)}`);
 
                     await new Promise(resolve => {
                         mediaSource.addEventListener("sourceended", resolve);
@@ -91,7 +84,7 @@
                         video.currentTime = 1.2;
                     });
                     println(`seeked to: ${video.currentTime}`);
-                    println(`buffered after seek: ${formatRanges()}`);
+                    println(`buffered after seek: ${timeRangesToString(sourceBuffer.buffered)}`);
                     done();
                 } catch (e) {
                     fail("sourceopen handler", e);

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <video id="video"></video>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(done => {
         function step(text) {
@@ -10,13 +11,6 @@
         function fail(name, error) {
             println(`FAIL: ${name}: ${error}`);
             done();
-        }
-
-        function formatRanges(buffered) {
-            const parts = [];
-            for (let i = 0; i < buffered.length; i++)
-                parts.push(`${buffered.start(i)}-${buffered.end(i)}`);
-            return `[${parts.join(", ")}]`;
         }
 
         try {
@@ -52,7 +46,7 @@
                             sourceBuffer.addEventListener("error", () => reject(new Error("error")), { once: true });
                             sourceBuffer.appendBuffer(slice);
                         });
-                        step(`after ${name}: ${formatRanges(sourceBuffer.buffered)}`);
+                        step(`after ${name}: ${timeRangesToString(sourceBuffer.buffered)}`);
                     }
 
                     await appendSlice(0, INIT_END, "init");

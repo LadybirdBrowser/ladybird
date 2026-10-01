@@ -4,6 +4,7 @@
 <script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
 <video id="video"></video>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(done => {
         function step(name) {
@@ -48,10 +49,7 @@
 
                     function printBuffered(label) {
                         const buffered = sourceBuffer.buffered;
-                        const ranges = [];
-                        for (let i = 0; i < buffered.length; i++)
-                            ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
-                        println(`buffered after ${label}: [${ranges.join(", ")}]`);
+                        println(`buffered after ${label}: ${timeRangesToString(buffered)}`);
                     }
 
                     async function appendSlice(slice, label) {

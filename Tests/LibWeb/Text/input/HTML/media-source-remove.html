@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <video id="video"></video>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(done => {
         function check(name, condition) {
@@ -50,14 +51,6 @@
                     const mediaEnd = boxes.find(box => box.type === "mfra")?.offset ?? data.length;
                     const movieFragments = boxes.filter(box => box.type === "moof").map(box => box.offset);
 
-                    function formatRanges() {
-                        const buffered = sourceBuffer.buffered;
-                        const ranges = [];
-                        for (let i = 0; i < buffered.length; i++)
-                            ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
-                        return `[${ranges.join(", ")}]`;
-                    }
-
                     function whileUpdating(action) {
                         return new Promise((resolve, reject) => {
                             sourceBuffer.addEventListener("updateend", resolve, { once: true });
@@ -78,7 +71,7 @@
 
                     await whileUpdating(() => sourceBuffer.appendBuffer(data.subarray(0, movieFragments[0])));
                     await whileUpdating(() => sourceBuffer.appendBuffer(data.subarray(movieFragments[0], mediaEnd)));
-                    println(`buffered after appending: ${formatRanges()}`);
+                    println(`buffered after appending: ${timeRangesToString(sourceBuffer.buffered)}`);
 
                     // The initialization segment reports no duration, so give the media source a finite one to
                     // measure the removal range against.
@@ -97,7 +90,7 @@
                     println(`remove() during range removal: ${exceptionFrom(() => sourceBuffer.remove(0, 0.1))}`);
                     await removal;
 
-                    println(`buffered after remove(0.6, 0.7): ${formatRanges()}`);
+                    println(`buffered after remove(0.6, 0.7): ${timeRangesToString(sourceBuffer.buffered)}`);
                     check("the removal left a hole", sourceBuffer.buffered.length === 2);
                     // Coded frames are removed by their starting timestamp, so the frame that 0.6 falls within
                     // outlives the removal.
@@ -114,7 +107,7 @@
                     const removalFromEnded = whileUpdating(() => sourceBuffer.remove(0, duration));
                     println(`readyState after remove(): ${mediaSource.readyState}`);
                     await removalFromEnded;
-                    println(`buffered after remove(0, duration): ${formatRanges()}`);
+                    println(`buffered after remove(0, duration): ${timeRangesToString(sourceBuffer.buffered)}`);
 
                     done();
                 } catch (e) {

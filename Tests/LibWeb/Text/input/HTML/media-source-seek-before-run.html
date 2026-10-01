@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <video id="video"></video>
 <script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
 <script>
     asyncTest(done => {
         function step(name) {
@@ -52,14 +53,6 @@
                     const mediaSegments = movieFragments.map((start, index) =>
                         data.subarray(start, index + 1 < movieFragments.length ? movieFragments[index + 1] : mediaEnd));
 
-                    function formatRanges() {
-                        const buffered = sourceBuffer.buffered;
-                        const ranges = [];
-                        for (let i = 0; i < buffered.length; i++)
-                            ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
-                        return `[${ranges.join(", ")}]`;
-                    }
-
                     async function append(bytes) {
                         await new Promise((resolve, reject) => {
                             sourceBuffer.addEventListener("updateend", resolve, { once: true });
@@ -86,7 +79,7 @@
                     sourceBuffer.timestampOffset = 15;
                     for (const segment of mediaSegments.slice(2))
                         await append(segment);
-                    println(`buffered: ${formatRanges()}`);
+                    println(`buffered: ${timeRangesToString(sourceBuffer.buffered)}`);
 
                     await new Promise(resolve => {
                         mediaSource.addEventListener("sourceended", resolve);
