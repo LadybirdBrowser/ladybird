@@ -2741,6 +2741,9 @@ pub struct FfiPseudoElementFacts {
     pub display_is_none: bool,
     pub display_is_contents: bool,
     pub display_is_list_item: bool,
+    /// Whether the pseudo-element's box is an ordinary inline box, which is the one kind whose
+    /// empty generated text still has to exist.
+    pub display_is_inline_flow: bool,
     pub has_content_replacement: bool,
     /// The originating element's box when it is a list item box, for a ::marker.
     pub originating_list_box: NodeSlotId,
@@ -2774,20 +2777,22 @@ pub struct FfiGeneratedContentItem {
 #[repr(C)]
 pub struct FfiPseudoTreeBuilderCallbacks {
     pub builder: *mut c_void,
-    pub push_frame: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
-    pub pop_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub initialize: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement) -> FfiPseudoElementFacts,
+    /// The last argument is the list-item box a `::marker` belongs to, or an invalid slot when the
+    /// pseudo-element is not a marker.
     pub create_layout_node: unsafe extern "C" fn(
-        *mut c_void,
         *mut c_void,
         *mut c_void,
         FfiPseudoElement,
         FfiPseudoElementDecision,
+        NodeSlotId,
     ) -> NodeSlotId,
-    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement) -> NodeSlotId,
-    pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement),
+    /// The last argument of each of these is the pseudo-element's own box, which the build tracks
+    /// by slot.
+    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, FfiPseudoElement, NodeSlotId) -> NodeSlotId,
+    pub configure_layout_node: unsafe extern "C" fn(*mut c_void, FfiPseudoElement, NodeSlotId),
     pub create_content_item:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, FfiGeneratedContentItem) -> NodeSlotId,
+        unsafe extern "C" fn(*mut c_void, FfiPseudoElement, FfiGeneratedContentItem, NodeSlotId) -> NodeSlotId,
 }
 
 pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
@@ -2940,43 +2945,23 @@ fn create_pseudo_element(
 ) -> Option<UnplacedLayoutNode> {
     assert!(!element.is_null());
     let callbacks = &host.callbacks.pseudo;
-    // SAFETY: The builder owns frame storage that remains live throughout the build.
-    let frame = unsafe { (callbacks.push_frame)(callbacks.builder) };
-    assert!(!frame.is_null());
-    let unplaced_box = create_pseudo_element_with_frame(
-        host,
-        state,
-        frame,
-        element,
-        element_identity,
-        pseudo_element,
-        insertion_mode,
-    );
-    // SAFETY: `frame` is the most recently pushed pseudo-element frame and Rust no longer uses it.
-    unsafe { (callbacks.pop_frame)(callbacks.builder, frame) };
-    unplaced_box
-}
-
-fn create_pseudo_element_with_frame(
-    host: &DomTreeBuilderHost<'_>,
-    state: &mut TreeBuilderState,
-    frame: *mut c_void,
-    element: *mut c_void,
-    element_identity: StyleNodeID,
-    pseudo_element: FfiPseudoElement,
-    insertion_mode: Option<FfiInsertionMode>,
-) -> Option<UnplacedLayoutNode> {
-    let callbacks = &host.callbacks.pseudo;
-    // SAFETY: The frame and element remain live throughout initialization.
-    let facts = unsafe { (callbacks.initialize)(frame, element, pseudo_element) };
+    // SAFETY: The builder and element remain live throughout initialization.
+    let facts = unsafe { (callbacks.initialize)(callbacks.builder, element, pseudo_element) };
     let decision = pseudo_element_decision(facts);
     if decision == FfiPseudoElementDecision::None {
         return None;
     }
 
-    // SAFETY: The builder, frame, and element remain live throughout construction.
-    let layout_node =
-        unsafe { (callbacks.create_layout_node)(callbacks.builder, frame, element, pseudo_element, decision) };
+    // SAFETY: The builder and element remain live throughout construction.
+    let layout_node = unsafe {
+        (callbacks.create_layout_node)(
+            callbacks.builder,
+            element,
+            pseudo_element,
+            decision,
+            facts.originating_list_box,
+        )
+    };
     if layout_node.is_invalid() {
         return None;
     }
@@ -3000,14 +2985,14 @@ fn create_pseudo_element_with_frame(
     if decision == FfiPseudoElementDecision::ContentReplacement {
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
-            // SAFETY: The frame owns a live NodeWithStyle.
+            // SAFETY: The box the host just built is a live NodeWithStyle.
             apply_replaced_display_adjustment(layout_host.arena(), layout_node, adjustment);
         }
     }
 
     let initial_quote_nesting_level = state.quote_nesting_level;
-    // SAFETY: The frame and element remain live throughout configuration.
-    unsafe { (callbacks.configure_layout_node)(frame, element, pseudo_element) };
+    // SAFETY: The element remains live, and the box the host just built is a live NodeWithStyle.
+    unsafe { (callbacks.configure_layout_node)(element, pseudo_element, layout_node) };
     let layout_node_kind = layout_host.data(layout_node).kind.get();
     let is_outside_marker = layout_node_kind == NodeKind::ListItemMarkerBox && !facts.marker_position_is_inside;
     if let Some(insertion_mode) = insertion_mode
@@ -3029,9 +3014,9 @@ fn create_pseudo_element_with_frame(
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
     if layout_node_kind == NodeKind::ListItemBox {
-        // SAFETY: The frame and element remain live throughout marker creation.
+        // SAFETY: The element remains live, and the box the host just built is a live BlockContainer.
         let marker =
-            layout_host.created(unsafe { (callbacks.create_nested_list_marker)(frame, element, pseudo_element) });
+            layout_host.created(unsafe { (callbacks.create_nested_list_marker)(element, pseudo_element, layout_node) });
         let marker_slot = marker.slot();
         let first_child = layout_host.first_child(layout_node);
         layout_host.attach_child(layout_node, marker, first_child);
@@ -3042,13 +3027,13 @@ fn create_pseudo_element_with_frame(
             layout_node,
         );
         report_list_item_counter_rendering(state, owner, marker_content.renders_list_item_counter_value);
-        // SAFETY: The frame and element remain live throughout content creation.
+        // SAFETY: The element remains live throughout content creation.
         let content = unsafe {
             (callbacks.create_content_item)(
-                frame,
                 element,
                 pseudo_element,
                 generated_content_item(marker_content.item, marker_slot),
+                layout_node,
             )
         };
         if !content.is_invalid() {
@@ -3078,13 +3063,22 @@ fn create_pseudo_element_with_frame(
     if resolved_content.is_list && decision != FfiPseudoElementDecision::ContentReplacement {
         state.ancestor_stack.push(layout_node);
         for item in resolved_content.items {
-            // SAFETY: The frame and element remain live throughout content creation.
+            // An empty generated text node carries the inline fragment of an ordinary inline
+            // pseudo-element. Other pseudo-element boxes exist independently of their contents, so
+            // avoid giving them a zero-length child that would force layout to measure an
+            // otherwise empty box.
+            if !facts.display_is_inline_flow
+                && matches!(&item, crate::layout::generated_content::ContentItem::Text(text) if text.is_empty())
+            {
+                continue;
+            }
+            // SAFETY: The element remains live throughout content creation.
             let content_item = unsafe {
                 (callbacks.create_content_item)(
-                    frame,
                     element,
                     pseudo_element,
                     generated_content_item(item, NodeSlotId::INVALID),
+                    layout_node,
                 )
             };
             if content_item.is_invalid() {
@@ -5121,6 +5115,7 @@ mod tests {
                 display_is_none,
                 display_is_contents,
                 display_is_list_item,
+                display_is_inline_flow: false,
                 has_content_replacement,
                 originating_list_box: if originating_layout_node_is_list_item {
                     NodeSlotId::new(1, 1)
