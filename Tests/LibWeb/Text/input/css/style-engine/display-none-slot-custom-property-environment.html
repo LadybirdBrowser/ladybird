@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #reader { --y: var(--x, fallback); color: rgb(1, 2, 3); }
+    #reader.recolored { color: rgb(4, 5, 6); }
+</style>
+<div id="host"><span id="reader"></span></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const reader = document.getElementById("reader");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `
+            <style>
+                #wrapper.hidden { display: none; }
+                slot { --x: from-slot; }
+            </style>
+            <div id="wrapper"><slot></slot></div>`;
+        internals.updateStyle();
+        println(`shown: ${getComputedStyle(reader).getPropertyValue("--y")}`);
+
+        root.getElementById("wrapper").classList.add("hidden");
+        internals.updateStyle();
+        println(`hidden: ${getComputedStyle(reader).getPropertyValue("--y")}`);
+
+        // The reader computes again while the slot it inherits from holds no style.
+        const before = internals.getStyleInvalidationCounters();
+        reader.classList.add("recolored");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`recomputed while hidden: ${getComputedStyle(reader).getPropertyValue("--y")}, ${getComputedStyle(reader).color}`);
+        println(`engine records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords}`);
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+
+        root.getElementById("wrapper").classList.remove("hidden");
+        internals.updateStyle();
+        println(`shown again: ${getComputedStyle(reader).getPropertyValue("--y")}`);
+    });
+</script>
