@@ -111,7 +111,7 @@ pub(crate) fn committed_table_column_range(arena: &impl PaintableRowsRead, slot:
 pub(crate) fn committed_grid_layout_data(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
-) -> Option<std::rc::Rc<grid_formatting_context::GridLayoutData>> {
+) -> Option<std::sync::Arc<grid_formatting_context::GridLayoutData>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.grid_layout_data.clone())
     })
@@ -120,7 +120,7 @@ pub(crate) fn committed_grid_layout_data(
 pub(crate) fn committed_flex_layout_data(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
-) -> Option<std::rc::Rc<formatting_context::FlexLayoutData>> {
+) -> Option<std::sync::Arc<formatting_context::FlexLayoutData>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.flex_layout_data.clone())
     })
@@ -129,7 +129,7 @@ pub(crate) fn committed_flex_layout_data(
 pub(crate) fn committed_used_grid_tracks(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
-) -> Option<std::rc::Rc<grid_formatting_context::OwnedUsedGridTracks>> {
+) -> Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.used_grid_tracks.clone())
     })
@@ -138,7 +138,7 @@ pub(crate) fn committed_used_grid_tracks(
 pub(crate) fn committed_collapsed_table_borders(
     arena: &LayoutNodeArena,
     slot: NodeSlotId,
-) -> Option<std::rc::Rc<table_formatting_context::OwnedCollapsedTableBorders>> {
+) -> Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>> {
     arena.with_committed_fragment_link(slot, |link| {
         link.and_then(|link| link.fragment.collapsed_table_borders.clone())
     })
@@ -147,7 +147,7 @@ pub(crate) fn committed_collapsed_table_borders(
 pub(crate) fn committed_svg_path(
     arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
-) -> Option<std::rc::Rc<libgfx_rust::path::OwnedPath>> {
+) -> Option<std::sync::Arc<libgfx_rust::path::OwnedPath>> {
     if !arena.node_kind_if_live(slot).is_some_and(node_painting::is_svg_path) {
         return None;
     }

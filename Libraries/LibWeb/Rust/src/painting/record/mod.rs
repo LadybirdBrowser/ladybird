@@ -69,8 +69,15 @@ pub(crate) struct RecordingResult {
 
 /// The hit-test items of the published frame, shared with the list that hit testing reads.
 pub struct PublishedHitTestItems {
-    pub items: Rc<Vec<HitTestItem>>,
+    pub items: Arc<Vec<HitTestItem>>,
 }
+
+// What a recording shares with hit testing and with later recordings.
+const _: () = {
+    const fn assert_send_and_sync<T: Send + Sync>() {}
+    assert_send_and_sync::<PublishedHitTestItems>();
+    assert_send_and_sync::<paint::text::SelectionStyleAnswer>();
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -248,7 +255,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn selection_style(
         &mut self,
         node: crate::layout::node_data::NodeSlotId,
-    ) -> Rc<paint::text::SelectionStyleAnswer> {
+    ) -> Arc<paint::text::SelectionStyleAnswer> {
         let key = node.index;
         if let Some(answer) = self.scratch.selection_style_cache.get(&key) {
             return answer.clone();
@@ -265,7 +272,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn element_selection_style(
         &mut self,
         element_row: crate::layout::node_data::NodeSlotId,
-    ) -> Rc<paint::text::SelectionStyleAnswer> {
+    ) -> Arc<paint::text::SelectionStyleAnswer> {
         let key = element_row.index;
         if let Some(answer) = self.scratch.selection_style_cache.get(&key) {
             return answer.clone();
@@ -280,13 +287,13 @@ impl<O: Observer> PaintRecorder<'_, O> {
     /// keeps its shadows and decorations.
     fn selection_style_answer(
         &self,
-        committed: Option<Rc<paint::text::SelectionStyleAnswer>>,
+        committed: Option<Arc<paint::text::SelectionStyleAnswer>>,
         node: crate::layout::node_data::NodeSlotId,
         style_source: crate::layout::node_data::NodeSlotId,
-    ) -> Rc<paint::text::SelectionStyleAnswer> {
+    ) -> Arc<paint::text::SelectionStyleAnswer> {
         match committed {
             Some(answer) if answer.facts.colors_authored => answer,
-            None => Rc::new(self.default_selection_style(node, style_source)),
+            None => Arc::new(self.default_selection_style(node, style_source)),
             Some(answer) => {
                 let mut defaults = self.default_selection_style(node, style_source);
                 defaults.facts = crate::painting::host::FfiSelectionStyleFacts {
@@ -295,7 +302,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                     ..answer.facts
                 };
                 defaults.shadows = answer.shadows.clone();
-                Rc::new(defaults)
+                Arc::new(defaults)
             }
         }
     }
@@ -304,7 +311,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &self,
         node: crate::layout::node_data::NodeSlotId,
         element_row: crate::layout::node_data::NodeSlotId,
-    ) -> Option<Rc<paint::text::SelectionStyleAnswer>> {
+    ) -> Option<Arc<paint::text::SelectionStyleAnswer>> {
         let styles = &self.paint_state.selection_pseudo_styles;
         if let Some(answer) = styles.get(&node) {
             return Some(answer.clone());
@@ -539,7 +546,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &mut self,
         pattern: NodeSlotId,
         tile_content_transform: libgfx_rust::FloatMatrix4x4,
-    ) -> Rc<Vec<u8>> {
+    ) -> Arc<Vec<u8>> {
         let root_transform = tile_content_transform.extract_2d_affine();
         let key = PatternTileKey {
             pattern: pattern.index,
@@ -555,7 +562,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.trace_paint(Operation::Named(Some(pattern), "svg-pattern"), |this| {
             this.walk_svg_resource(pattern, root_transform, false, false);
         });
-        let records = Rc::new(self.recorder.finish_detached_records(detached));
+        let records = Arc::new(self.recorder.finish_detached_records(detached));
         self.scratch.pattern_tile_records.insert(key, records.clone());
         records
     }

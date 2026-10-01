@@ -1690,7 +1690,7 @@ pub unsafe extern "C" fn layout_arena_set_node_selection_pseudo_style(
             blur_radius: layer.blur_radius,
         })
         .collect();
-    let answer = std::rc::Rc::new(crate::painting::record::paint::text::SelectionStyleAnswer { facts, shadows });
+    let answer = std::sync::Arc::new(crate::painting::record::paint::text::SelectionStyleAnswer { facts, shadows });
     for row in rows {
         paint_state.selection_pseudo_styles.insert(row, answer.clone());
     }

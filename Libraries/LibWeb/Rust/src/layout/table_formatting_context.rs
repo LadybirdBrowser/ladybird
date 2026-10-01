@@ -1390,7 +1390,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }));
         let (horizontal_edges, vertical_edges) = grid.take_edges();
         self.used_values(self.table_box).rare_data_mut().collapsed_table_borders =
-            Some(std::rc::Rc::new(OwnedCollapsedTableBorders {
+            Some(std::sync::Arc::new(OwnedCollapsedTableBorders {
                 row_offsets,
                 column_offsets,
                 horizontal_edges,
