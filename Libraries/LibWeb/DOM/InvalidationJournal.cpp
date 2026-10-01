@@ -74,7 +74,16 @@ void InvalidationJournal::note_dom_paint_facts(NodeIdentity identity, u8 facts)
 
 void InvalidationJournal::note_paint_facts(NodeIdentity identity, Painting::PaintFactsFamily families)
 {
-    entry_for(identity).stale_paint_facts |= families;
+    auto& entry = entry_for(identity);
+    // Noting that the box has no layer image facts replaces a pending layer image update, and the other way around.
+    constexpr auto LAYER_IMAGE_FAMILIES = Painting::PaintFactsFamily::LayerImages | Painting::PaintFactsFamily::NoLayerImages;
+    if (has_any_flag(families, LAYER_IMAGE_FAMILIES))
+        entry.stale_paint_facts &= ~LAYER_IMAGE_FAMILIES;
+    entry.stale_paint_facts |= families;
+    // Replaced image and video facts that changed repaint the box when the journal drains, and the frame that drains
+    // them is asked for now.
+    if (has_any_flag(families, Painting::PaintFactsFamily::ReplacedImage | Painting::PaintFactsFamily::Video))
+        m_document->request_frame_for_pending_repaint({});
     drain_if_layout_is_reading();
 }
 
