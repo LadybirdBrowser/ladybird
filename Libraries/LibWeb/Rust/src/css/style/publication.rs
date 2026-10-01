@@ -620,8 +620,9 @@ impl RetainedState {
         // moved custom-property registry. A winner written with `attr()` computes to what the
         // element's attributes hold now, one written with `inherit()` to what the parent's
         // environment holds now, one written with `if()` to what its conditions say now, one
-        // calling a custom function to what the function's definition says now, and one reading
-        // the element's place among its siblings to where it stands now, which no winner delta
+        // calling a custom function to what the function's definition says now, one reading the
+        // element's place among its siblings to where it stands now, and one written with a
+        // container-relative length to what its containers measure now, which no winner delta
         // shows. Such a record is driven again in full, as is one holding no current cascade
         // state or one under a moved document environment.
         let drive_in_full = holds_no_current_cascade_state
@@ -1165,6 +1166,7 @@ impl RetainedState {
         // derives after it reads the container as the host will leave it.
         self.set_element_container_query_inputs(node, delta.1.raw());
         self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
+        self.note_container_unit_effects_for_host(node, false, cascade_state.1, delta.0);
         self.engine_computed_records_pending
             .entry(node)
             .or_default()
@@ -2728,9 +2730,25 @@ impl RetainedState {
             if dependencies.has_unfixed_random_sharing && value_draws_element_random_base(value.data()) {
                 reads |= cascade::STATE_READS_ELEMENT_RANDOM_BASE;
             }
+            if dependencies.container_relative_length_unit_mask != 0 {
+                reads |= cascade::STATE_READS_CONTAINER_UNITS;
+            }
         }
         self.winner_groups.note_state_reads(state, reads);
         reads
+    }
+
+    /// The container-relative units a state's winners are written with, as a
+    /// `container_relative_length_unit_mask`.
+    pub(super) fn state_container_unit_mask(&self, node: StyleNodeID, state: CascadeStateID) -> u8 {
+        self.winner_groups
+            .winners_in_state(state)
+            .filter_map(|winner| self.winner_groups.resolved_winner(winner))
+            .filter_map(|winner| self.written_winner_value(node, &winner).ok().flatten())
+            .fold(0, |mask, (_, value, _)| {
+                mask | crate::css::style_compute::collect_external_value_dependencies(value.data())
+                    .container_relative_length_unit_mask
+            })
     }
 
     /// Whether any of a state's longhand winners, itself or through the shorthand it is pending,
@@ -2738,14 +2756,16 @@ impl RetainedState {
     /// attributes through `attr()`, the parent's environment through `inherit()`, the document's
     /// media features and the element's lengths through `if()`, or the `@function` definitions
     /// through a custom function call. What such a state substitutes to is the element's alone,
-    /// as is what a state computes to whose winners draw a random base value for the element.
+    /// as is what a state computes to whose winners draw a random base value for the element or
+    /// resolve a container-relative length against the element's query containers.
     pub(super) fn state_reads_beyond_environment(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
         self.state_reads(node, state)
             & (cascade::STATE_READS_ATTRIBUTES
                 | cascade::STATE_READS_INHERIT_FUNCTION
                 | cascade::STATE_READS_IF_FUNCTION
                 | cascade::STATE_READS_CUSTOM_FUNCTION
-                | cascade::STATE_READS_ELEMENT_RANDOM_BASE)
+                | cascade::STATE_READS_ELEMENT_RANDOM_BASE
+                | cascade::STATE_READS_CONTAINER_UNITS)
             != 0
     }
 
@@ -3129,9 +3149,11 @@ impl RetainedState {
                 || (resources_are_known && value_computes_without_document_context_but_for_resources(data).is_some())
                 || (value_computes_with_tree_counting_inputs(data, resources_are_known)
                     && self.sibling_position(node).is_some())
-                // A substituted random function is not keyed by the element in the record caches.
+                // A substituted random function or container-relative length is not keyed by the
+                // element in the record caches.
                 || (matches!(value, WinnerValue::Written { .. })
-                    && value_computes_with_random_base_values(data, resources_are_known));
+                    && (value_computes_with_random_base_values(data, resources_are_known)
+                        || value_computes_with_container_unit_bases(data, resources_are_known)));
             if !context_free
                 || (pseudo_kind.is_some()
                     && winner.property == prop::CONTENT
@@ -5146,6 +5168,22 @@ fn value_computes_with_random_base_values(value: &StyleValueData, resources_are_
     dependencies.uses_random_function
         && !dependencies.uses_tree_counting_function
         && dependencies.container_relative_length_unit_mask == 0
+        && (resources_are_known
+            || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
+}
+
+/// Whether a value computes from the document's computation inputs and the bases its
+/// container-relative lengths resolve against, which the drive reads from the element's query
+/// containers.
+fn value_computes_with_container_unit_bases(value: &StyleValueData, resources_are_known: bool) -> bool {
+    if crate::css::style_compute::value_is_computationally_independent(value).is_none() {
+        return false;
+    }
+    let dependencies = crate::css::style_compute::external_value_dependencies(value);
+    dependencies.container_relative_length_unit_mask != 0
+        && !dependencies.uses_tree_counting_function
+        && !dependencies.has_unfixed_random_sharing
+        && !dependencies.uses_random_function
         && (resources_are_known
             || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
 }

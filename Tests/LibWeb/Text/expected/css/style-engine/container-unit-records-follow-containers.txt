@@ -1,0 +1,3 @@
+initial: width 40px, ::before 20px, cqi 10px
+resized: width 60px, ::before 30px, cqi 30px
+late container: 50px

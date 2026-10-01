@@ -121,6 +121,15 @@ impl WinnerStore {
             .any(|declaration| view.dependencies(declaration).uses_tree_counting_function)
     }
 
+    /// Whether a value the store holds resolves a container-relative length, which the drive
+    /// resolves against the element's query containers.
+    pub(super) fn reads_container_units(&self, engine: &RetainedState) -> bool {
+        let view = self.view(engine);
+        self.declarations
+            .iter()
+            .any(|declaration| view.dependencies(declaration).container_relative_length_unit_mask != 0)
+    }
+
     pub(super) fn view<'a>(&'a self, engine: &'a RetainedState) -> WinnerView<'a> {
         WinnerView { store: self, engine }
     }

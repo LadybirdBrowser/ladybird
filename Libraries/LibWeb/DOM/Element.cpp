@@ -1607,6 +1607,8 @@ static void record_element_reference_pseudo_element_inputs(Element& element)
     }
 }
 
+static void record_engine_container_query_effects(Element&);
+
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles, EnginePseudoElementRecords const* engine_pseudo_element_records)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -1650,6 +1652,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                     || AbstractElement { *this, CSS::PseudoElement::Selection }.highlight_inheritance_parent().has_value())))
             return false;
         auto settled = style_computer.style_engine().settle_pseudo_records_after_host_record(style_node_id(), had_list_marker);
+        // What the settled pseudo-elements' container-relative lengths read of the element's containers.
+        record_engine_container_query_effects(*this);
         if (settled.style_record == 0)
             return false;
         for (size_t kind = 0; kind < array_size(settled.pseudo_records); ++kind) {
@@ -2416,6 +2420,12 @@ static void record_engine_container_query_effects(Element& element)
             break;
         case CSS::StyleEngineFFI::FfiContainerEffectKind::NeedsEvaluationAfterLayout:
             if (!document.layout_is_up_to_date())
+                document.set_needs_container_query_evaluation_after_layout(*container);
+            break;
+        // A running partial relayout reports layout as up to date, but a container with no box yet still needs the
+        // post-layout evaluation, which routes the follow-up pass to the full layout that sizes the container.
+        case CSS::StyleEngineFFI::FfiContainerEffectKind::UnitsNeedEvaluationAfterLayout:
+            if (!document.layout_is_up_to_date() || document.is_running_update_layout())
                 document.set_needs_container_query_evaluation_after_layout(*container);
             break;
         case CSS::StyleEngineFFI::FfiContainerEffectKind::SubjectViewportDependency:
