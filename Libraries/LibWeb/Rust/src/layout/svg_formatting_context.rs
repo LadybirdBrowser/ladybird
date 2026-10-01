@@ -104,26 +104,52 @@ pub struct FfiSvgAttributeFacts {
     pub mask_y: FfiSvgNumberPercentage,
     pub mask_width: FfiSvgNumberPercentage,
     pub mask_height: FfiSvgNumberPercentage,
+    /// Which shape a geometry element draws, and the endpoints a <line> parses. Every other
+    /// shape's geometry is computed style, which the row already carries.
+    pub geometry_kind: u8,
+    pub line_x1: FfiSvgNumberPercentage,
+    pub line_y1: FfiSvgNumberPercentage,
+    pub line_x2: FfiSvgNumberPercentage,
+    pub line_y2: FfiSvgNumberPercentage,
 }
 
-/// Publishes what the SVG element `style_node` names parses to.
+pub const SVG_GEOMETRY_KIND_NONE: u8 = 0;
+pub const SVG_GEOMETRY_KIND_PATH: u8 = 1;
+pub const SVG_GEOMETRY_KIND_RECT: u8 = 2;
+pub const SVG_GEOMETRY_KIND_CIRCLE: u8 = 3;
+pub const SVG_GEOMETRY_KIND_ELLIPSE: u8 = 4;
+pub const SVG_GEOMETRY_KIND_LINE: u8 = 5;
+pub const SVG_GEOMETRY_KIND_POLYLINE: u8 = 6;
+pub const SVG_GEOMETRY_KIND_POLYGON: u8 = 7;
+
+/// Publishes what the SVG element `style_node` names parses to. A <polyline> or <polygon> passes
+/// its `points` list beside the facts, since it is the one geometry attribute that is not a fixed
+/// number of values.
 ///
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread outside
-/// any layout pass.
+/// any layout pass, and `points` must address `count` points for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_style_node_svg_attribute_facts(
     arena: *mut c_void,
     style_node: u32,
     facts: FfiSvgAttributeFacts,
+    points: *const FfiFloatPoint,
+    count: usize,
 ) {
     // SAFETY: Guaranteed by the caller.
     let arena = unsafe { LayoutNodeArena::from_handle_mut(arena) };
     let Some(style_node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
         return;
     };
-    arena.set_style_node_svg_attribute_facts(style_node, facts);
+    let points = if count == 0 {
+        &[][..]
+    } else {
+        // SAFETY: The caller keeps the list alive for this synchronous call.
+        unsafe { std::slice::from_raw_parts(points, count) }
+    };
+    arena.set_style_node_svg_attribute_facts(style_node, facts, points);
 }
 
 /// Retires what the SVG element `style_node` named published, once that identity is retired.
@@ -173,7 +199,6 @@ pub struct FfiSvgPathRequest {
 #[repr(C)]
 pub struct FfiSvgPathResult {
     pub path_handle: *mut c_void,
-    pub bounding_box: FfiFloatRect,
     pub text_position_after: FfiFloatPoint,
 }
 
@@ -474,6 +499,338 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn node_kind(&self, node: Node) -> NodeKind {
         self.callbacks.node_data(node).kind.get()
+    }
+
+    // https://svgwg.org/svg2-draft/shapes.html#RectElement
+    // The used values for rx and ry are determined from the computed values by following these
+    // steps in order.
+    fn svg_rect_corner_radii(style: StyleValues<'_>, used_width: f32, used_height: f32) -> (f32, f32) {
+        let svg_reset = style.svg_reset();
+        let computed_rx = &svg_reset.rx;
+        let computed_ry = &svg_reset.ry;
+
+        // 1. If both rx and ry have a computed value of auto, then the used value of both is 0.
+        if computed_rx.is_auto() && computed_ry.is_auto() {
+            return (0.0, 0.0);
+        }
+
+        // 2. Otherwise, convert specified values to absolute values, resolving an rx percentage
+        //    against the used width and an ry percentage against the used height, and letting an
+        //    auto radius take the other one.
+        let absolute_rx = computed_rx
+            .to_px(CssPixels::nearest_value_for_f32(used_width))
+            .to_float();
+        let absolute_ry = computed_ry
+            .to_px(CssPixels::nearest_value_for_f32(used_height))
+            .to_float();
+        let (mut used_rx, mut used_ry) = match (computed_rx.is_auto(), computed_ry.is_auto()) {
+            (false, true) => (absolute_rx, absolute_rx),
+            (true, false) => (absolute_ry, absolute_ry),
+            _ => (absolute_rx, absolute_ry),
+        };
+
+        // 3. Finally, apply clamping: neither radius may exceed half of the used size on its axis.
+        if used_rx > used_width / 2.0 {
+            used_rx = used_width / 2.0;
+        }
+        if used_ry > used_height / 2.0 {
+            used_ry = used_height / 2.0;
+        }
+        (used_rx, used_ry)
+    }
+
+    fn svg_rect_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::PathBuilder {
+        let mut path = libgfx_rust::path::PathBuilder::new();
+        let computed_width = style.width();
+        let computed_height = style.height();
+        // FIXME: to_px rounds prematurely here - we shouldn't round to fixed point CSSPixels until
+        //        converting to CSS pixel space from SVG user space - this likely extends to other
+        //        SVG geometry elements as well.
+        let width = if computed_width.is_length_percentage() {
+            computed_width
+                .length_percentage()
+                .to_px(self.viewport_width)
+                .to_double()
+        } else {
+            0.0
+        };
+        let height = if computed_height.is_length_percentage() {
+            computed_height
+                .length_percentage()
+                .to_px(self.viewport_height)
+                .to_double()
+        } else {
+            0.0
+        };
+        let x = style.x().to_px(self.viewport_width).to_double();
+        let y = style.y().to_px(self.viewport_height).to_double();
+
+        // Non-positive dimensions disable rendering. In particular, a negative width or height is
+        // an invalid geometry value rather than a rectangle extending in the opposite direction.
+        if width <= 0.0 || height <= 0.0 {
+            return path;
+        }
+
+        let (rx, ry) = Self::svg_rect_corner_radii(style, width as f32, height as f32);
+        let corner = (rx > 0.0) && (ry > 0.0);
+        let x_axis_rotation = 0.0;
+        let large_arc_flag = false;
+        let sweep_flag = true;
+
+        // 1. perform an absolute moveto operation to location (x+rx,y);
+        path.move_to((x + rx as f64) as f32, y as f32);
+        // 2. perform an absolute horizontal lineto with parameter x+width-rx;
+        path.line_to((x + width - rx as f64) as f32, y as f32);
+        // 3. if both rx and ry are greater than zero, perform an absolute elliptical arc operation
+        //    to coordinate (x+width,y+ry), where rx and ry are used as the equivalent parameters
+        //    to the elliptical arc command, the x-axis-rotation and large-arc-flag are set to
+        //    zero, the sweep-flag is set to one;
+        if corner {
+            path.elliptical_arc_to(
+                (x + width) as f32,
+                (y + ry as f64) as f32,
+                rx,
+                ry,
+                x_axis_rotation,
+                large_arc_flag,
+                sweep_flag,
+            );
+        }
+        // 4. perform an absolute vertical lineto parameter y+height-ry;
+        path.line_to((x + width) as f32, (y + height - ry as f64) as f32);
+        // 5. if both rx and ry are greater than zero, perform an absolute elliptical arc operation
+        //    to coordinate (x+width-rx,y+height), using the same parameters as previously;
+        if corner {
+            path.elliptical_arc_to(
+                (x + width - rx as f64) as f32,
+                (y + height) as f32,
+                rx,
+                ry,
+                x_axis_rotation,
+                large_arc_flag,
+                sweep_flag,
+            );
+        }
+        // 6. perform an absolute horizontal lineto parameter x+rx;
+        path.line_to((x + rx as f64) as f32, (y + height) as f32);
+        // 7. if both rx and ry are greater than zero, perform an absolute elliptical arc operation
+        //    to coordinate (x,y+height-ry), using the same parameters as previously;
+        if corner {
+            path.elliptical_arc_to(
+                x as f32,
+                (y + height - ry as f64) as f32,
+                rx,
+                ry,
+                x_axis_rotation,
+                large_arc_flag,
+                sweep_flag,
+            );
+        }
+        // 8. perform an absolute vertical lineto parameter y+ry
+        path.line_to(x as f32, (y + ry as f64) as f32);
+        // 9. if both rx and ry are greater than zero, perform an absolute elliptical arc operation
+        //    with a segment-completing close path operation, using the same parameters as
+        //    previously.
+        if corner {
+            path.elliptical_arc_to(
+                (x + rx as f64) as f32,
+                y as f32,
+                rx,
+                ry,
+                x_axis_rotation,
+                large_arc_flag,
+                sweep_flag,
+            );
+        }
+        path.close();
+        path
+    }
+
+    fn svg_circle_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::PathBuilder {
+        let mut path = libgfx_rust::path::PathBuilder::new();
+        let svg_reset = style.svg_reset();
+        let to_px = |handle: &ComputedStyleValueHandle, basis: CssPixels| {
+            handle
+                .length_percentage()
+                .map_or(CssPixels::default(), |value| value.to_px(basis))
+        };
+        let cx = to_px(&svg_reset.cx, self.viewport_width).to_float();
+        let cy = to_px(&svg_reset.cy, self.viewport_height).to_float();
+        // Percentages refer to the normalized diagonal of the current SVG viewport
+        // (see Units: https://svgwg.org/svg2-draft/coords.html#Units)
+        let r = to_px(&svg_reset.r, self.normalized_diagonal_length()).to_float();
+
+        // A zero radius disables rendering.
+        if r == 0.0 {
+            return path;
+        }
+        let large_arc = false;
+        let sweep = true;
+        // 1. A move-to command to the point cx+r,cy;
+        path.move_to(cx + r, cy);
+        // 2. arc to cx,cy+r;
+        path.arc_to(cx, cy + r, r, large_arc, sweep);
+        // 3. arc to cx-r,cy;
+        path.arc_to(cx - r, cy, r, large_arc, sweep);
+        // 4. arc to cx,cy-r;
+        path.arc_to(cx, cy - r, r, large_arc, sweep);
+        // 5. arc with a segment-completing close path operation.
+        path.arc_to(cx + r, cy, r, large_arc, sweep);
+        path
+    }
+
+    fn normalized_diagonal_length(&self) -> CssPixels {
+        if self.viewport_width == self.viewport_height {
+            return self.viewport_width;
+        }
+        let sum_of_squares = self.viewport_width * self.viewport_width + self.viewport_height * self.viewport_height;
+        CssPixels::nearest_value_for_f32(
+            sum_of_squares
+                .div_as_fraction(CssPixels::from_integer(2))
+                .to_float()
+                .sqrt(),
+        )
+    }
+
+    fn svg_ellipse_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::PathBuilder {
+        let mut path = libgfx_rust::path::PathBuilder::new();
+        let svg_reset = style.svg_reset();
+        let computed_rx = &svg_reset.rx;
+        let computed_ry = &svg_reset.ry;
+        let mut rx = computed_rx.to_px(self.viewport_width).to_float();
+        let mut ry = computed_ry.to_px(self.viewport_height).to_float();
+
+        // https://svgwg.org/svg2-draft/geometry.html#RxProperty
+        // When the computed value of 'rx' is auto, the used radius is equal to the absolute length
+        // used for ry, creating a circular arc. If both 'rx' and 'ry' have a computed value of
+        // auto, the used value is 0. The same holds the other way around.
+        if computed_rx.is_auto() {
+            rx = computed_ry.to_px(self.viewport_height).to_float();
+        }
+        if computed_ry.is_auto() {
+            ry = computed_rx.to_px(self.viewport_width).to_float();
+        }
+
+        let to_px = |handle: &ComputedStyleValueHandle, basis: CssPixels| {
+            handle
+                .length_percentage()
+                .map_or(CssPixels::default(), |value| value.to_px(basis))
+        };
+        let cx = to_px(&svg_reset.cx, self.viewport_width).to_float();
+        let cy = to_px(&svg_reset.cy, self.viewport_height).to_float();
+
+        // A negative radius is invalid. If only one radius is invalid, SVG uses the other valid
+        // radius for both axes; if both are invalid, rendering is disabled. A computed value of
+        // zero for either dimension also disables rendering.
+        if rx < 0.0 && ry >= 0.0 {
+            rx = ry;
+        } else if ry < 0.0 && rx >= 0.0 {
+            ry = rx;
+        }
+        if rx <= 0.0 || ry <= 0.0 {
+            return path;
+        }
+
+        let x_axis_rotation = 0.0;
+        let large_arc = false;
+        // NB: Spec says sweep should be false, but it's wrong. https://github.com/w3c/svgwg/issues/765
+        let sweep = true;
+        // 1. A move-to command to the point cx+rx,cy;
+        path.move_to(cx + rx, cy);
+        // 2. arc to cx,cy+ry;
+        path.elliptical_arc_to(cx, cy + ry, rx, ry, x_axis_rotation, large_arc, sweep);
+        // 3. arc to cx-rx,cy;
+        path.elliptical_arc_to(cx - rx, cy, rx, ry, x_axis_rotation, large_arc, sweep);
+        // 4. arc to cx,cy-ry;
+        path.elliptical_arc_to(cx, cy - ry, rx, ry, x_axis_rotation, large_arc, sweep);
+        // 5. arc with a segment-completing close path operation.
+        path.elliptical_arc_to(cx + rx, cy, rx, ry, x_axis_rotation, large_arc, sweep);
+        path
+    }
+
+    fn svg_line_path(&self, attributes: FfiSvgAttributeFacts) -> libgfx_rust::path::PathBuilder {
+        let mut path = libgfx_rust::path::PathBuilder::new();
+        let viewport_width = self.viewport_width.to_float();
+        let viewport_height = self.viewport_height.to_float();
+        // 1. perform an absolute moveto operation to absolute location (x1,y1)
+        path.move_to(
+            attributes.line_x1.resolve_relative_to(viewport_width),
+            attributes.line_y1.resolve_relative_to(viewport_height),
+        );
+        // 2. perform an absolute lineto operation to absolute location (x2,y2)
+        path.line_to(
+            attributes.line_x2.resolve_relative_to(viewport_width),
+            attributes.line_y2.resolve_relative_to(viewport_height),
+        );
+        path
+    }
+
+    fn svg_poly_path(points: Option<&[FfiFloatPoint]>, close: bool) -> libgfx_rust::path::PathBuilder {
+        let mut path = libgfx_rust::path::PathBuilder::new();
+        let Some(points) = points.filter(|points| !points.is_empty()) else {
+            return path;
+        };
+        // 1. perform an absolute moveto operation to the first coordinate pair in the list of points
+        path.move_to(points[0].x, points[0].y);
+        // 2. for each subsequent coordinate pair, perform an absolute lineto operation to that
+        //    coordinate pair.
+        for point in &points[1..] {
+            path.line_to(point.x, point.y);
+        }
+        // 3. a polygon performs a closepath command; a polyline does not.
+        if close {
+            path.close();
+        }
+        path
+    }
+
+    /// The geometry a shape element draws, in the user units of the viewport it sits in.
+    fn svg_geometry_path(&self, node: Node) -> libgfx_rust::path::OwnedPath {
+        let points = self.callbacks.arena().svg_points(node);
+        self.svg_geometry_path_of(self.svg_attributes(node), self.style(node), points)
+    }
+
+    /// As above, from an element's published attributes and computed style rather than from its
+    /// box.
+    // FIXME: The DOM's getTotalLength() and the layout of a <textPath> still build the same geometry
+    //        from the C++ SVG*Element::get_path() implementations. Route them through this, so a fix
+    //        to one copy cannot miss the other.
+    fn svg_geometry_path_of(
+        &self,
+        attributes: FfiSvgAttributeFacts,
+        style: StyleValues<'_>,
+        points: Option<&[FfiFloatPoint]>,
+    ) -> libgfx_rust::path::OwnedPath {
+        let builder = match attributes.geometry_kind {
+            SVG_GEOMETRY_KIND_PATH => return self.svg_path_element_path(style),
+            SVG_GEOMETRY_KIND_RECT => self.svg_rect_path(style),
+            SVG_GEOMETRY_KIND_CIRCLE => self.svg_circle_path(style),
+            SVG_GEOMETRY_KIND_ELLIPSE => self.svg_ellipse_path(style),
+            SVG_GEOMETRY_KIND_LINE => self.svg_line_path(attributes),
+            SVG_GEOMETRY_KIND_POLYLINE => Self::svg_poly_path(points, false),
+            SVG_GEOMETRY_KIND_POLYGON => Self::svg_poly_path(points, true),
+            _ => libgfx_rust::path::PathBuilder::new(),
+        };
+        builder.build()
+    }
+
+    /// The `d` property's path. It is already a shared, immutable blob on the computed style, so
+    /// the pass only has to realize it as geometry and stamp the shape's fill rule onto it.
+    fn svg_path_element_path(&self, style: StyleValues<'_>) -> libgfx_rust::path::OwnedPath {
+        let Some(shape) = style
+            .svg_reset()
+            .d
+            .style_value()
+            .and_then(crate::css::style_value::StyleValueData::basic_shape)
+        else {
+            return libgfx_rust::path::PathBuilder::new().build();
+        };
+        // The C++ BasicShape variant `d` holds is a path().
+        const BASIC_SHAPE_PATH: u8 = 6;
+        debug_assert_eq!(shape.kind, BASIC_SHAPE_PATH, "the d property holds a path()");
+        let mut path = shape.path.to_gfx_path();
+        path.set_fill_type(i32::from(shape.fill_rule));
+        path
     }
 
     fn svg_attributes(&self, node: Node) -> FfiSvgAttributeFacts {
@@ -961,25 +1318,33 @@ impl<'pass> SvgFormattingContext<'pass> {
         input: LayoutInput,
         facts: SvgElementFacts,
     ) {
-        // SAFETY: The callback computes geometry synchronously and transfers
-        // sole ownership of a heap-allocated path into the result.
-        let result = unsafe {
-            (self.callbacks.host.compute_svg_path)(
-                self.callbacks.host.context,
-                self.callbacks.shell(graphics_box),
-                FfiSvgPathRequest {
-                    viewport_width: self.viewport_width,
-                    viewport_height: self.viewport_height,
-                    current_text_position: self.current_text_position,
-                },
-            )
+        // A shape's geometry is its own attributes and computed style against the viewport, so the
+        // pass draws it. Text still asks the document: shaping it needs the font cascade and the
+        // running text position, which is a computation to move rather than data to publish.
+        let path = if self.node_kind(graphics_box) == NodeKind::SVGGeometryBox {
+            self.svg_geometry_path(graphics_box)
+        } else {
+            // SAFETY: The callback computes geometry synchronously and transfers
+            // sole ownership of a heap-allocated path into the result.
+            let result = unsafe {
+                (self.callbacks.host.compute_svg_path)(
+                    self.callbacks.host.context,
+                    self.callbacks.shell(graphics_box),
+                    FfiSvgPathRequest {
+                        viewport_width: self.viewport_width,
+                        viewport_height: self.viewport_height,
+                        current_text_position: self.current_text_position,
+                    },
+                )
+            };
+            // Descendant and following text elements continue from the text position after this
+            // element's own text run.
+            self.current_text_position = result.text_position_after;
+            // SAFETY: The callback just handed over its one owning pointer.
+            unsafe { libgfx_rust::path::OwnedPath::adopt(result.path_handle) }
         };
-        // SAFETY: The callback just handed over its one owning pointer.
-        let path = unsafe { libgfx_rust::path::OwnedPath::adopt(result.path_handle) };
 
         if self.node_kind(graphics_box) == NodeKind::SVGTextBox {
-            // Descendant and following text elements continue from the text position after this element's own text run.
-            self.current_text_position = result.text_position_after;
             // <text> and <tspan> elements can contain more text elements.
             let mut child = self.first_child(graphics_box);
             while !child.is_invalid() {
@@ -990,8 +1355,8 @@ impl<'pass> SvgFormattingContext<'pass> {
                 child = next;
             }
         }
-
-        let mut bounding_box = float_rect_to_css_pixels(result.bounding_box);
+        let [x, y, width, height] = path.bounding_box();
+        let mut bounding_box = float_rect_to_css_pixels(FfiFloatRect { x, y, width, height });
         // Stroke increases the path's size by stroke_width/2 per side.
         let stroke_width = CssPixels::nearest_value_for_f32(facts.visible_stroke_width);
         bounding_box.inflate(stroke_width, stroke_width);

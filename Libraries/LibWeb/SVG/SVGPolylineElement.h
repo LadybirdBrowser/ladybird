@@ -21,6 +21,9 @@ public:
 
     virtual Gfx::Path get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&) override;
 
+    // The parsed `points` list, as the element publishes it to layout.
+    ReadonlySpan<Gfx::FloatPoint> points() const { return m_points; }
+
 private:
     SVGPolylineElement(DOM::Document&, DOM::QualifiedName);
 
