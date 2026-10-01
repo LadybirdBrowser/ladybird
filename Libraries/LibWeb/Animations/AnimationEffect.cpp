@@ -894,7 +894,8 @@ AnimationUpdateContext::~AnimationUpdateContext()
         // exact feedback action so the ordinary reaction path re-cascades that base before the
         // frame becomes observable.
         if (animated_property_invalidation.requires_base_style_recomputation)
-            target->document().style_computer().style_engine().record_element_style_input_change(target->style_node_id());
+            target->document().style_computer().style_engine().record_derived_element_style_input_change(
+                target->style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
 
         if (!element.pseudo_element().has_value() && invalidation.inherited_style_changed()) {
             // Recomputing pseudo-element styles can start transitions, which stay provisional until a stabilization
