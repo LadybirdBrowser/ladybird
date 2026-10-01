@@ -1,0 +1,3 @@
+compatMode: BackCompat
+unreferenced text path follows a shape: false
+reference to the mixed-case id after name churn follows a shape: true

@@ -56,14 +56,6 @@ GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const&
     return {};
 }
 
-GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(Utf16String const& url_string) const
-{
-    auto url = document().encoding_parse_url(url_string);
-    if (!url.has_value() || !url->fragment().has_value())
-        return {};
-    return resolve_fragment_identifier_to_element(decode_fragment_identifier(*url->fragment()));
-}
-
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_fragment_identifier_to_element(Utf16String const& fragment) const
 {
     if (auto element = document().get_element_by_id(fragment))

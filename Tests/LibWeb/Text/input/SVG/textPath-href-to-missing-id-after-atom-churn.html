@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .rebuild-me { display: none; }
+</style>
+<svg width="400" height="400">
+    <defs id="defs">
+        <path id="only-real-path" d="M 10 200 L 390 200" />
+    </defs>
+    <text><textPath id="dangling" href="#no-such-element">HELLO WORLD</textPath></text>
+    <text><textPath id="resolving" href="#only-real-path">HELLO WORLD</textPath></text>
+</svg>
+<div id="churn"></div>
+<script>
+    // A reference that names no element is published as the interned name it spells. Nothing else
+    // in the document answers to that name, so a style engine that reclaimed it would hand its
+    // number to the next name interned - and the reference would then read as naming whatever took
+    // it. Here that is one of the paths made below, so a reclaimed name is visible as the dangling
+    // reference suddenly having a shape to follow.
+    test(() => {
+        const svgNamespace = "http://www.w3.org/2000/svg";
+        const svg = document.querySelector("svg");
+        const dangling = document.getElementById("dangling");
+        const defs = document.getElementById("defs");
+        const churn = document.getElementById("churn");
+        // A reference is resolved as the box that reads it is built, so the box has to go and come
+        // back for a fresh answer. The class is named by the sheet above, so hiding with it
+        // interns no name of its own.
+        const followsAShape = () => {
+            svg.classList.add("rebuild-me");
+            svg.getBoundingClientRect();
+            svg.classList.remove("rebuild-me");
+            return dangling.getBoundingClientRect().width > 0;
+        };
+
+        println(`resolving reference follows a shape: ${document.getElementById("resolving").getBoundingClientRect().width > 0}`);
+        println(`dangling reference follows a shape: ${followsAShape()}`);
+
+        for (let round = 0; round < 4; ++round) {
+            // Retire enough names to make the style engine sweep its interned-name table.
+            for (let i = 0; i < 300; ++i) {
+                churn.className = `churned-name-${round}-${i}`;
+                churn.getBoundingClientRect();
+            }
+            // Every name interned now can be handed a number the sweep reclaimed, and each of these
+            // is a path carrying the geometry above - which is already interned, so an id is the
+            // only new name here.
+            for (let i = 0; i < 300; ++i) {
+                const path = document.createElementNS(svgNamespace, "path");
+                path.setAttribute("id", `recycled-name-${round}-${i}`);
+                path.setAttribute("d", "M 10 200 L 390 200");
+                defs.appendChild(path);
+            }
+            followsAShape();
+        }
+
+        println(`dangling reference follows a shape after name churn: ${followsAShape()}`);
+    });
+</script>

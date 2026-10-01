@@ -7,7 +7,6 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Geometry/DOMPoint.h>
-#include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
 
@@ -16,20 +15,6 @@ namespace Web::SVG {
 SVGTextContentElement::SVGTextContentElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
 {
-}
-
-Optional<TextAnchor> SVGTextContentElement::text_anchor(Layout::NodeWithStyle const& layout_node) const
-{
-    switch (layout_node.text_anchor()) {
-    case CSS::TextAnchor::Start:
-        return TextAnchor::Start;
-    case CSS::TextAnchor::Middle:
-        return TextAnchor::Middle;
-    case CSS::TextAnchor::End:
-        return TextAnchor::End;
-    default:
-        VERIFY_NOT_REACHED();
-    }
 }
 
 Utf16String SVGTextContentElement::text_contents() const

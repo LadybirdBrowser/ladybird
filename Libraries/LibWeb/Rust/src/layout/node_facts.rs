@@ -272,10 +272,6 @@ pub(crate) fn kind_is_text(kind: NodeKind) -> bool {
     matches!(kind, NodeKind::GeneratedTextNode | NodeKind::TextNode)
 }
 
-pub(crate) fn kind_is_svg_text(kind: NodeKind) -> bool {
-    matches!(kind, NodeKind::SVGTextBox | NodeKind::SVGTextPathBox)
-}
-
 pub(crate) fn kind_and_style_make_scroll_container(kind: NodeKind, style: Option<ComputedValuesView<'_>>) -> bool {
     if kind == NodeKind::Viewport {
         return true;
