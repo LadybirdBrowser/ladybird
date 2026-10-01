@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @function --by-flag() {
+        result: 1px;
+        @container style(--flag: on) { result: 20px; }
+    }
+    .gated { width: 1px; }
+    @container style(--flag: on) {
+        .gated { width: 10px; }
+    }
+    .function { width: --by-flag(); }
+    /* A transition keeps the container's record in C++. */
+    .container.on { --flag: on; transition-delay: 0s; }
+</style>
+<div class="container" id="container"><div class="gated" id="gated"></div><div class="function" id="function"></div></div>
+<script>
+    // A container C++ computes in the same update as its children, whose container-gated rule and
+    // custom function @container ask about the container's new style. Prints how many elements C++
+    // computed and what the children's conditions decided.
+    test(() => {
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+        document.getElementById("container").classList.add("on");
+        internals.updateStyle();
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        const width = id => getComputedStyle(document.getElementById(id)).width;
+        println(`C++ recomputations ${recomputations}, gated ${width("gated")}, function ${width("function")}`);
+    });
+</script>

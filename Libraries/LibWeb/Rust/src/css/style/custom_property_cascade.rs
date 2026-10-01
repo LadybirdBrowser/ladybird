@@ -1411,18 +1411,20 @@ impl RetainedState {
                     .unwrap_or_else(|| self.standing_registered_value_context(node, pseudo))
             });
         // A custom function call reads the definitions its scope sees, with the blocks of
-        // declarations their conditions select for the element.
+        // declarations their conditions select for the element. What those conditions read of
+        // the containers is noted once the environment resolves.
+        let mut container_effects = None;
         let functions = if cascaded
             .iter()
             .any(|(_, value)| value_calls_custom_functions(value.data()))
         {
+            // A container condition the engine cannot decide asks about an ancestor the host styles
+            // in this update: the row waits for it.
             let Some(mut functions) = self.prepare_custom_functions(node, pseudo) else {
-                counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
-                return Err(Unanswered::Refused);
+                counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                return Err(Unanswered::AwaitsParent);
             };
-            if let Some(effects) = functions.container_effects.take() {
-                self.note_container_effects_for_host(node, effects);
-            }
+            container_effects = functions.container_effects.take();
             Some(functions)
         } else {
             None
@@ -1477,6 +1479,9 @@ impl RetainedState {
             ));
         }
         if values.is_empty() {
+            if let Some(effects) = container_effects {
+                self.note_container_effects_for_host(node, effects);
+            }
             if memoizes && !keeps_cpp_environment {
                 let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
                 self.custom_property_environments
@@ -1563,6 +1568,9 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         }
         counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
+        if let Some(effects) = container_effects {
+            self.note_container_effects_for_host(node, effects);
+        }
         if style_query_references.is_some() {
             self.note_container_effects_for_host(
                 node,

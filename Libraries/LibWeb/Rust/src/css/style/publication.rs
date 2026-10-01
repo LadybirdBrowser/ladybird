@@ -512,12 +512,17 @@ impl RetainedState {
         }
         // The winners hold a gated rule where its container conditions held when they were
         // published; they answer for the node while every one decides as it did, over containers
-        // its settled ancestors published. One a declined ancestor may still move is the host's.
-        if self.published_container_verdicts.contains_key(&node)
-            && (self.container_ancestor_is_unsettled(node, scratch) || !self.container_verdicts_stand(node))
-        {
-            counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
-            return Err(Unanswered::Refused);
+        // its settled ancestors published. One a declined ancestor may still move waits for the
+        // host to install that ancestor's record, as a row waits for its parent's.
+        if self.published_container_verdicts.contains_key(&node) {
+            if self.container_ancestor_is_unsettled(node, scratch) {
+                counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                return Err(Unanswered::AwaitsParent);
+            }
+            if !self.container_verdicts_stand(node) {
+                counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+                return Err(Unanswered::Refused);
+            }
         }
         // The winners the record was computed from, against the winners the node holds now: the
         // same comparison a C++ publication makes to select what it recomputes.
@@ -601,12 +606,14 @@ impl RetainedState {
                 Some(parent) => self.held_custom_property_environment(parent, counters)?,
                 None => 0,
             };
-            let Ok(environment) =
-                self.engine_custom_property_environment(node, parent_environment, &inputs, None, counters)
-            else {
-                counters.bump(Counter::EngineComputedRecordBailCustomProperties);
-                return Err(Unanswered::Refused);
-            };
+            // A function's container condition the engine cannot decide yet waits, as the row does.
+            let environment = self
+                .engine_custom_property_environment(node, parent_environment, &inputs, None, counters)
+                .inspect_err(|&unanswered| {
+                    if unanswered == Unanswered::Refused {
+                        counters.bump(Counter::EngineComputedRecordBailCustomProperties);
+                    }
+                })?;
             // An unmoved environment is the one the record holds, so the current one is always
             // what the declarations resolved to.
             (
@@ -1338,12 +1345,14 @@ impl RetainedState {
         // A registered name declared here computes provisionally against the parent's font until
         // the drive settles the element's own.
         let has_registered_declarations = self.declares_registered_custom_property(node, None, &inputs);
-        let Ok(mut environment) =
-            self.engine_custom_property_environment(node, parent_environment, &inputs, None, counters)
-        else {
-            counters.bump(Counter::EngineComputedRecordBailCustomProperties);
-            return Err(Unanswered::Refused);
-        };
+        // A function's container condition the engine cannot decide yet waits, as the row does.
+        let mut environment = self
+            .engine_custom_property_environment(node, parent_environment, &inputs, None, counters)
+            .inspect_err(|&unanswered| {
+                if unanswered == Unanswered::Refused {
+                    counters.bump(Counter::EngineComputedRecordBailCustomProperties);
+                }
+            })?;
         // The state has to be one the engine can compute from before any record is shared under
         // it: a record C++ computed for a per-element value, such as a `random()` draw, is that
         // element's alone. A store with substituted values is the environment's as well as the
@@ -3016,9 +3025,11 @@ impl RetainedState {
                 };
                 let calls_functions = custom_property_cascade::value_calls_custom_functions(value.data());
                 if calls_functions && functions.is_none() {
+                    // A container condition the engine cannot decide asks about an ancestor the
+                    // host styles in this update: the row waits for it.
                     let Some(prepared) = self.prepare_custom_functions(node, pseudo_kind) else {
-                        counters.bump(Counter::EngineComputedRecordBailSubstitution);
-                        return Err(Unanswered::Refused);
+                        counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                        return Err(Unanswered::AwaitsParent);
                     };
                     functions = Some(prepared);
                 }
