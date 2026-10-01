@@ -443,6 +443,21 @@ void ConnectionFromClient::remove_source_buffer_coded_frames(u64 session_id, u64
         session->remove_source_buffer_coded_frames(source_buffer_id, start, end);
 }
 
+void ConnectionFromClient::run_source_buffer_coded_frame_eviction(u64 session_id, u64 source_buffer_id, u64 new_data_size)
+{
+    if (auto* session = find_playback_session(session_id))
+        session->run_source_buffer_coded_frame_eviction(source_buffer_id, new_data_size);
+}
+
+Messages::MediaServer::RunSourceBufferCodedFrameEvictionSynchronouslyResponse ConnectionFromClient::run_source_buffer_coded_frame_eviction_synchronously(u64 session_id, u64 source_buffer_id, u64 new_data_size)
+{
+    auto* session = find_playback_session(session_id);
+    if (!session)
+        return OptionalNone {};
+    session->run_source_buffer_coded_frame_eviction(source_buffer_id, new_data_size);
+    return session->source_buffer_published_state(source_buffer_id);
+}
+
 void ConnectionFromClient::set_source_buffer_mode(u64 session_id, u64 source_buffer_id, Media::MediaSourceExtensions::AppendMode mode)
 {
     if (mode > Media::MediaSourceExtensions::AppendMode::Sequence) {

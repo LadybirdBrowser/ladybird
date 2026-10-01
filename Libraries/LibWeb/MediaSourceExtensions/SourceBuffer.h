@@ -103,7 +103,7 @@ protected:
 private:
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
-    WebIDL::ExceptionOr<void> prepare_append();
+    WebIDL::ExceptionOr<void> prepare_append(size_t new_data_size);
     void run_buffer_append_algorithm(u64 append_generation);
     void abort_buffer_append_algorithm();
     void run_range_removal(AK::Duration start, AK::Duration end);

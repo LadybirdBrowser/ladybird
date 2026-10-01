@@ -205,6 +205,8 @@ void RemotePlaybackManager::seek(AK::Duration timestamp, Media::SeekMode mode)
 {
     m_seek_timestamp = timestamp;
     m_latest_seek_request_id++;
+    for (auto& [id, source_buffer] : m_source_buffers)
+        source_buffer->invalidate_evictable_bytes({});
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "RemotePlaybackManager({}): Requesting seek {} to {} ({}) in {}", m_session_id, m_latest_seek_request_id, timestamp, mode, m_state);
     if (can_send())
         m_client->async_seek(m_session_id, m_latest_seek_request_id, timestamp, mode);

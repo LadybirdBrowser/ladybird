@@ -1,0 +1,3 @@
+filled: [0.000-240.000]
+append at the start threw QuotaExceededError
+append after seeking succeeded: [8.620-260.000]

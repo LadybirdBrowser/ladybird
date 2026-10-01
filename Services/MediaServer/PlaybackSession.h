@@ -49,6 +49,8 @@ public:
     void add_to_source_buffer_input(u64 source_buffer_id, ReadonlyBytes);
     void run_source_buffer_append(u64 source_buffer_id, u64 append_generation);
     void remove_source_buffer_coded_frames(u64 source_buffer_id, AK::Duration start, AK::Duration end);
+    void run_source_buffer_coded_frame_eviction(u64 source_buffer_id, size_t new_data_size);
+    Optional<Media::MediaSourceExtensions::PublishedState> source_buffer_published_state(u64 source_buffer_id);
     void run_source_buffer_command(u64 source_buffer_id, Media::MediaSourceExtensions::Command);
 
 private:
@@ -92,6 +94,7 @@ private:
     void report_media_stream_scan_states();
 
     SourceBuffer* find_source_buffer(u64 source_buffer_id);
+    Media::MediaSourceExtensions::PublishedState published_state_for_renderer(SourceBuffer const&) const;
     void add_source_buffer_demuxer(u64 source_buffer_id, NonnullRefPtr<Media::Demuxer> const&);
     void finish_source_buffer_track_addition(u64 source_buffer_id, TrackAdditionOutcome);
     static void send_or_hold(SourceBuffer&, Optional<u64> append_generation, Function<void()>);

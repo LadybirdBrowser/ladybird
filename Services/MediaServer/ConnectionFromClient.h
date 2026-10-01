@@ -79,6 +79,8 @@ private:
     virtual void run_source_buffer_append(u64 session_id, u64 source_buffer_id, u64 append_generation) override;
     virtual void reset_source_buffer_parser(u64 session_id, u64 source_buffer_id) override;
     virtual void remove_source_buffer_coded_frames(u64 session_id, u64 source_buffer_id, AK::Duration start, AK::Duration end) override;
+    virtual void run_source_buffer_coded_frame_eviction(u64 session_id, u64 source_buffer_id, u64 new_data_size) override;
+    virtual Messages::MediaServer::RunSourceBufferCodedFrameEvictionSynchronouslyResponse run_source_buffer_coded_frame_eviction_synchronously(u64 session_id, u64 source_buffer_id, u64 new_data_size) override;
     virtual void set_source_buffer_mode(u64 session_id, u64 source_buffer_id, Media::MediaSourceExtensions::AppendMode mode) override;
     virtual void set_source_buffer_timestamp_offset(u64 session_id, u64 source_buffer_id, AK::Duration timestamp_offset) override;
     virtual void set_source_buffer_append_window(u64 session_id, u64 source_buffer_id, AK::Duration start, AK::Duration end) override;
