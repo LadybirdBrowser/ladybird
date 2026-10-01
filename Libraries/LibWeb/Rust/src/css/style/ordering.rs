@@ -767,12 +767,28 @@ impl RetainedState {
                     .sparse()
                     .ok()
                     .map(|(_, state)| state);
-                let state = self.intern_cascade_state(winners, previous, counters);
+                // A pseudo-element whose rules declare custom properties past their longhand
+                // winners holds them in its state: the state then says all its rules declare.
+                let pseudo_custom_declarations = target
+                    .filter(|&target| {
+                        !self.cascade_winner_inventory_is_complete_for_target(all, Some(node), Some(target))
+                            && self
+                                .cascade_winner_inventory_is_complete_but_for_custom_properties_for_target(all, target)
+                    })
+                    .and_then(|target| self.cascaded_pseudo_custom_declarations_in(node, all, target));
+                let state = match &pseudo_custom_declarations {
+                    Some(custom_declarations) => self.with_cascade_interning_counters(
+                        |groups| groups.intern_sorted_with_custom_declarations(winners, custom_declarations, previous),
+                        counters,
+                    ),
+                    None => self.intern_cascade_state(winners, previous, counters),
+                };
                 published_states.push(PublishedWinnerState {
                     target: *target,
                     state,
                     inventory_is_complete: target.is_none_or(|target| {
-                        self.cascade_winner_inventory_is_complete_for_target(all, Some(node), Some(target))
+                        pseudo_custom_declarations.is_some()
+                            || self.cascade_winner_inventory_is_complete_for_target(all, Some(node), Some(target))
                     }),
                 });
             }
@@ -1396,6 +1412,25 @@ impl RetainedState {
                         .iter()
                         .any(|&kind| !self.facts.element_declared_properties(node, kind).1)
                 })))
+    }
+
+    /// Whether a pseudo-element's rules declare nothing past its longhand winners but custom
+    /// properties, which its state holds itself.
+    fn cascade_winner_inventory_is_complete_but_for_custom_properties_for_target(
+        &self,
+        matches: &[RuleMatch],
+        pseudo: tree::PseudoElementTarget,
+    ) -> bool {
+        !matches
+            .iter()
+            .filter(|entry| entry.pseudo_element == Some(pseudo))
+            .any(|entry| {
+                self.program.rule_is_gated_by_container_query(entry.rule)
+                    || !self
+                        .program
+                        .declarations_are_complete_but_for_custom_properties(entry.rule)
+                    || entry.tree_scope != TreeScopeID::DOCUMENT
+            })
     }
 
     pub(super) fn cascade_winner_inventory_is_complete(

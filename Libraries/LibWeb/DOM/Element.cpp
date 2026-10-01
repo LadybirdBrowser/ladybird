@@ -1823,6 +1823,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                 refresh_computed_style(pseudo_element, style_record_delta.new_style_record);
             else
                 set_computed_style(pseudo_element, style_record_delta.new_style_record);
+            // What C++ installs beside a pseudo-element it computes: its element's inheritable
+            // environment, or the one its own custom declarations resolved to over that.
+            if (settled_after_host_record && engine_record.has_value()) {
+                auto element_data = custom_property_data({});
+                auto inherited = element_data ? element_data->inheritable(document()) : nullptr;
+                auto environment = style_computer.style_engine().style_record_custom_property_environment(*engine_record);
+                auto data = inherited;
+                if (CSS::StyleEngine::is_engine_custom_property_environment(environment) && environment != (inherited ? inherited->identity() : 0))
+                    data = style_computer.engine_custom_property_environment(environment, inherited);
+                set_custom_property_data(pseudo_element, move(data));
+            }
         } else if (auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element); existing_pseudo_element.has_value())
             existing_pseudo_element->clear_computed_style(move(style_to_preserve_for_detachment));
 
