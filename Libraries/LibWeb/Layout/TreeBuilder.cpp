@@ -1084,11 +1084,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(node_pointer);
             return identified_dom_node(static_cast<DOM::Node*>(node_pointer)->next_sibling());
         },
-        .clear_dom_update_flags = [](void* node_pointer) {
-            VERIFY(node_pointer);
-            auto& node = *static_cast<DOM::Node*>(node_pointer);
-            node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
-            node.set_child_needs_layout_tree_update(false); },
         .assigned_node_count = ffi_assigned_node_count,
         .assigned_node_at = ffi_assigned_node_at,
         .clear_stale_layout_node = [](void* builder_pointer, void* node_pointer) {
@@ -1101,9 +1096,9 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto* slot_element = as_if<HTML::HTMLSlotElement>(element);
             auto shadow_root = element.shadow_root();
             return {
-                .child_needs_layout_tree_update = element.child_needs_layout_tree_update(),
                 .dom_children_parent = static_cast<DOM::ParentNode*>(&element),
                 .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
+                .shadow_root_style_node = shadow_root ? shadow_root->style_node_id().value() : 0,
                 .slot_element = slot_element,
             };
         },
@@ -1154,10 +1149,10 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             }
             return {
                 .is_element = element != nullptr,
-                .child_needs_layout_tree_update = node.child_needs_layout_tree_update(),
                 .is_document = node.is_document(),
                 .dom_children_parent = parent_node,
                 .shadow_root = shadow_root ? static_cast<DOM::ParentNode*>(shadow_root.ptr()) : nullptr,
+                .shadow_root_style_node = shadow_root ? shadow_root->style_node_id().value() : 0,
                 .slot_element = slot_element,
                 .svg_graphics_element = graphics_element ? Node::style_node_of(graphics_element).value() : 0,
                 .svg_mask = identified_dom_node(mask.ptr()),

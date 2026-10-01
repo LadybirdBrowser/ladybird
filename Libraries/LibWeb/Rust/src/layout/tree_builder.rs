@@ -96,7 +96,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub first_child: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
     pub next_sibling: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub next_identified_sibling: unsafe extern "C" fn(*mut c_void) -> FfiIdentifiedDomNode,
-    pub clear_dom_update_flags: unsafe extern "C" fn(*mut c_void),
     pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
     pub clear_stale_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -148,9 +147,9 @@ pub struct FfiPrincipalNodeFrame {
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiDisplayContentsFacts {
-    pub child_needs_layout_tree_update: bool,
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
+    pub shadow_root_style_node: u32,
     pub slot_element: *mut c_void,
 }
 
@@ -158,10 +157,10 @@ pub struct FfiDisplayContentsFacts {
 #[repr(C)]
 pub struct FfiPrincipalDescendantFacts {
     pub is_element: bool,
-    pub child_needs_layout_tree_update: bool,
     pub is_document: bool,
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
+    pub shadow_root_style_node: u32,
     pub slot_element: *mut c_void,
     /// The node's style node if it is an SVG graphics element, 0 otherwise.
     pub svg_graphics_element: u32,
@@ -701,6 +700,7 @@ unsafe fn update_layout_tree_for_shadow_root_children(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
     shadow_root: *mut c_void,
+    shadow_root_style_node: u32,
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
 ) {
@@ -718,8 +718,9 @@ unsafe fn update_layout_tree_for_shadow_root_children(
             );
             node = host.next_sibling(node);
         }
-        // SAFETY: `shadow_root` remains live throughout the call.
-        unsafe { (host.callbacks.clear_dom_update_flags)(shadow_root) };
+        host.layout()
+            .arena()
+            .clear_layout_tree_update_marks(StyleNodeID::from_raw(shadow_root_style_node));
     });
 }
 
@@ -865,7 +866,8 @@ unsafe fn update_layout_tree_for_display_contents(
             assert!(placed.is_none());
         }
 
-        if !content_visibility_hidden && (should_create_layout_node || facts.child_needs_layout_tree_update) {
+        let child_needs_layout_tree_update = host.layout().arena().child_needs_layout_tree_update(style_node);
+        if !content_visibility_hidden && (should_create_layout_node || child_needs_layout_tree_update) {
             let must_create_children = should_create_layout_node;
             if !facts.shadow_root.is_null() {
                 // SAFETY: The callback table, shadow root, and context remain valid.
@@ -874,6 +876,7 @@ unsafe fn update_layout_tree_for_display_contents(
                         host,
                         state,
                         facts.shadow_root,
+                        facts.shadow_root_style_node,
                         context,
                         must_create_children,
                     );
@@ -933,9 +936,7 @@ unsafe fn update_layout_tree_for_display_contents(
             assert!(placed.is_none());
         }
 
-        assert!(!facts.dom_children_parent.is_null());
-        // SAFETY: The element's ParentNode subobject remains live throughout this call.
-        unsafe { (host.callbacks.clear_dom_update_flags)(facts.dom_children_parent) };
+        host.layout().arena().clear_layout_tree_update_marks(style_node);
 
         if clear_layout_top_layer_for_descendants {
             context.layout_top_layer = true;
@@ -1023,8 +1024,10 @@ fn update_svg_pattern(
 
 struct PrincipalDescendantUpdate {
     style_node: Option<StyleNodeID>,
-    /// The node whose DOM child sequence the walk descends into.
-    dom_children_owner: Option<StyleNodeID>,
+    /// The node's identity in the style mirror: its style node, or the document's own for the
+    /// document. It owns the DOM child sequence the walk descends into and the node's layout tree
+    /// update marks.
+    mirror_identity: Option<StyleNodeID>,
     element_type_facts: u32,
     should_create_layout_node: bool,
     update_pseudo_elements_in_place: bool,
@@ -1059,7 +1062,7 @@ unsafe fn update_principal_node_descendants(
             )
         };
         let lays_out_dom_children =
-            should_layout_dom_children(host, update.dom_children_owner, !facts.slot_element.is_null());
+            should_layout_dom_children(host, update.mirror_identity, !facts.slot_element.is_null());
         let content_visibility_hidden = host.content_visibility_is_hidden(update.style_node);
         let (layout_node_can_have_children, layout_node_is_replaced_box_with_children) = {
             let layout_node_data = layout_host.data(layout_node);
@@ -1105,7 +1108,10 @@ unsafe fn update_principal_node_descendants(
             }
         }
 
-        if (should_create_layout_node || facts.child_needs_layout_tree_update)
+        if (should_create_layout_node
+            || layout_host
+                .arena()
+                .child_needs_layout_tree_update(update.mirror_identity))
             && (!facts.shadow_root.is_null() || lays_out_dom_children)
             && layout_node_can_have_children
             && !content_visibility_hidden
@@ -1131,6 +1137,7 @@ unsafe fn update_principal_node_descendants(
                         host,
                         state,
                         facts.shadow_root,
+                        facts.shadow_root_style_node,
                         context,
                         should_create_layout_node,
                     );
@@ -1351,8 +1358,9 @@ unsafe fn update_principal_node_descendants(
             state.quote_nesting_level = prior_quote_nesting_level;
         }
 
-        // SAFETY: `dom_node` remains live throughout the call.
-        unsafe { (host.callbacks.clear_dom_update_flags)(dom_node) };
+        layout_host
+            .arena()
+            .clear_layout_tree_update_marks(update.mirror_identity);
     });
 }
 
@@ -1762,7 +1770,7 @@ fn update_principal_node_after_entry(
                     style_node: update.style_node,
                     // The document owns a child sequence of its own; every other node is named by
                     // the identity it carries.
-                    dom_children_owner: if entry_facts.is_document {
+                    mirror_identity: if entry_facts.is_document {
                         context.document_style_node
                     } else {
                         update.style_node
