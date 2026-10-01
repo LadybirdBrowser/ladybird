@@ -127,6 +127,7 @@ impl RetainedState {
         store: &WinnerStore,
         selected: &[u64],
         inputs: &bridge::FfiDocumentStyleComputationInputs,
+        installed_ancestors: Option<&InstalledAncestors>,
         counters: &mut Counters,
     ) -> Drive<PartialDrive> {
         let store = store.view(self);
@@ -157,25 +158,22 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
-        let snapshot = match self.tree.inheritance_parent(node) {
+        let parent = self
+            .record_inheritance_parent(node, installed_ancestors)
+            .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
+        let snapshot = match parent.and_then(|parent| self.computed_group_sets.assigned_style_record(parent)) {
             None => None,
-            Some(parent) => match self.computed_group_sets.assigned_style_record(parent) {
-                Some(record) => {
-                    let parent_has_animation_overlay = self
-                        .computed_group_sets
-                        .style_record_view(record.raw())
-                        .is_some_and(|view| !view.animated_overlay.is_null());
-                    if parent_has_animation_overlay {
-                        counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                        return Err(Unanswered::Refused);
-                    }
-                    Some(parent_snapshot_for_style_record(self, record.raw(), None))
+            Some(record) => {
+                let parent_has_animation_overlay = self
+                    .computed_group_sets
+                    .style_record_view(record.raw())
+                    .is_some_and(|view| !view.animated_overlay.is_null());
+                if parent_has_animation_overlay {
+                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                    return Err(Unanswered::Refused);
                 }
-                None => {
-                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
-                    return Err(Unanswered::AwaitsParent);
-                }
-            },
+                Some(parent_snapshot_for_style_record(self, record.raw(), None))
+            }
         };
         let font = unsafe {
             view.payloads[STYLE_GROUP_INDEX_FONT]
