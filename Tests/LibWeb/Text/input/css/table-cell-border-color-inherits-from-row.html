@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<table border="1" style="border-color: rgb(0, 0, 255)">
+    <tbody style="border-color: rgb(0, 128, 0)">
+        <tr><td id="sectionCell">x</td></tr>
+        <tr style="border-color: rgb(255, 0, 0)"><td id="rowCell">x</td></tr>
+    </tbody>
+</table>
+<table border="1" style="border-color: rgb(0, 0, 255)"><tr><td id="tableCell">x</td></tr></table>
+<script>
+    // A bordered table's cells inherit their border colour, so an author colour on a row or a
+    // section reaches them.
+    test(() => {
+        for (const cell of [tableCell, sectionCell, rowCell]) {
+            const style = getComputedStyle(cell);
+            println(`${cell.id}: ${style.borderTopStyle} ${style.borderTopWidth} ${style.borderTopColor}`);
+        }
+    });
+</script>

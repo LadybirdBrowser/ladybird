@@ -1,0 +1,3 @@
+tableCell: inset 1px rgb(0, 0, 255)
+sectionCell: inset 1px rgb(0, 128, 0)
+rowCell: inset 1px rgb(255, 0, 0)
