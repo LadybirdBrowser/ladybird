@@ -175,13 +175,15 @@ public:
     void forget_font_feature_values_declared_by(RustRuleView const&);
     void forget_font_feature_values_declared_in(StyleSheetState const&);
 
-    NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(Vector<ComputedFontFamily> font_families, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const;
-    NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data, TreeScopeID font_feature_values_scope) const;
     u64 environment_generation() const { return m_environment_generation; }
 
     // The @font-face table at the current font environment generation. Inside a font face change batch the live
     // table moves ahead of it, and the generation catches up when the batch ends; nothing resolves a font in between.
     [[nodiscard]] NonnullRefPtr<FontFaceSnapshot const> font_face_snapshot() const;
+    // The cascades resolved for this document.
+    [[nodiscard]] FontCascadeMemo& font_cascade_memo() const { return *m_font_cascade_memo; }
+    // A resolution's view of the @font-feature-values of one tree scope.
+    [[nodiscard]] Function<FontFeatureValues const&(Utf16FlyString const&)> font_feature_values_provider(TreeScopeID) const;
 
 private:
     virtual void visit_edges(Visitor&) override;
@@ -194,8 +196,6 @@ private:
     void clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names);
 
     FontFeatureValues const& font_feature_values_for_family(Utf16FlyString const& family_name, TreeScopeID) const;
-    // A resolution's view of the @font-feature-values of one tree scope.
-    [[nodiscard]] Function<FontFeatureValues const&(Utf16FlyString const&)> font_feature_values_provider(TreeScopeID) const;
     FontFeatureValues font_feature_values_in_scope(Utf16FlyString const& family_name, TreeScopeID) const;
 
     GC::Ptr<DOM::Document> m_document;

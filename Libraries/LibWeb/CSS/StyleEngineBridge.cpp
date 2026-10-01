@@ -6,6 +6,7 @@
 
 #include <AK/StdLibExtras.h>
 #include <AK/Time.h>
+#include <LibWeb/CSS/FontResolution.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
@@ -24,16 +25,18 @@ static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFF
     // follow; the bridge is where it becomes one again.
     auto font_family = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
         reinterpret_cast<StyleValueFFI::StyleValueData const*>(request.font_family)));
-    auto font_list = font_computer.compute_font_for_style_values(
-        *font_family,
-        CSSPixels::from_raw(request.font_size_raw),
-        request.font_slope,
-        request.font_weight,
-        Percentage(request.font_width),
-        static_cast<FontOpticalSizing>(request.font_optical_sizing),
-        {},
-        {},
-        {});
+    auto font_list = resolve_font_for_style_values(font_computer,
+        {
+            .font_families = computed_font_families_from_style_value(*font_family),
+            .font_optical_sizing = static_cast<FontOpticalSizing>(request.font_optical_sizing),
+            .font_size = CSSPixels::from_raw(request.font_size_raw),
+            .font_slope = request.font_slope,
+            .font_weight = request.font_weight,
+            .font_width = Percentage(request.font_width),
+            .font_variation_settings = {},
+            .font_feature_data = {},
+            .font_feature_values_scope = {},
+        });
     // The metric probe must not load a face: the first available font answers without one.
     auto const& first_available_font = font_list->first_available_font();
     auto const metrics = first_available_font.pixel_metrics();

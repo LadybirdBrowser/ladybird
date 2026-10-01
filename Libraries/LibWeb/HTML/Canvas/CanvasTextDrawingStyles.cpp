@@ -8,6 +8,7 @@
 #include "CanvasTextDrawingStyles.h"
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
+#include <LibWeb/CSS/FontResolution.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -144,16 +145,18 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
     auto& font_computer = canvas_element.canvas_font_computer();
 
     drawing_state().font_environment_generation = font_computer.environment_generation();
-    drawing_state().current_font_cascade_list = font_computer.compute_font_for_style_values(
-        *font_family,
-        computed_font_size->as_length().length().absolute_length_to_px(),
-        computed_font_style->as_font_style().to_font_slope(),
-        computed_font_weight->as_number().number(),
-        computed_font_width->as_percentage().percentage(),
-        CSS::FontOpticalSizing::Auto,
-        {},
-        font_feature_data,
-        {});
+    drawing_state().current_font_cascade_list = CSS::resolve_font_for_style_values(font_computer,
+        {
+            .font_families = CSS::computed_font_families_from_style_value(*font_family),
+            .font_optical_sizing = CSS::FontOpticalSizing::Auto,
+            .font_size = computed_font_size->as_length().length().absolute_length_to_px(),
+            .font_slope = computed_font_style->as_font_style().to_font_slope(),
+            .font_weight = computed_font_weight->as_number().number(),
+            .font_width = computed_font_width->as_percentage().percentage(),
+            .font_variation_settings = {},
+            .font_feature_data = font_feature_data,
+            .font_feature_values_scope = {},
+        });
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing

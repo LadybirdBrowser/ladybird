@@ -13,6 +13,10 @@
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibWeb/CSS/FontFaceState.h>
 #include <LibWeb/CSS/FontResolution.h>
+#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StringStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
 namespace Web::CSS {
@@ -463,6 +467,39 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
         });
     }
 
+    return font_list;
+}
+
+Vector<ComputedFontFamily> computed_font_families_from_style_value(StyleValue const& font_family)
+{
+    Vector<ComputedFontFamily> font_families;
+    auto const& values = font_family.as_value_list().values();
+    font_families.ensure_capacity(values.size());
+    for (auto const& value : values) {
+        if (value->is_keyword()) {
+            auto generic_family = keyword_to_generic_font_family(value->to_keyword());
+            VERIFY(generic_family.has_value());
+            font_families.unchecked_append(generic_family.release_value());
+        } else {
+            font_families.unchecked_append(ComputedFontFamilyName {
+                .name = string_from_style_value(value),
+                .syntax = value->is_string() ? ComputedFontFamilySyntax::String : ComputedFontFamilySyntax::CustomIdent,
+            });
+        }
+    }
+    return font_families;
+}
+
+NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_for_style_values(FontComputer const& font_computer, ComputedFontCacheKey key)
+{
+    // Only font-variant-alternates that name feature values read the tree scope's @font-feature-values, so every
+    // other request resolves once for all scopes.
+    auto const& alternates = key.font_feature_data.font_variant_alternates;
+    if (!alternates.has_value() || alternates->font_feature_value_entries.is_empty())
+        key.font_feature_values_scope = {};
+    auto font_list = font_computer.font_cascade_memo().resolve(font_computer.font_face_snapshot(), key, font_computer.font_feature_values_provider(key.font_feature_values_scope));
+    // Inside a style update the loads wait for its end; everywhere else, such as canvas, they happen right here.
+    request_wanted_web_faces();
     return font_list;
 }
 

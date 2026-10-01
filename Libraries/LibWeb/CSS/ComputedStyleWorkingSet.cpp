@@ -11,6 +11,7 @@
 #include <LibGC/WeakInlines.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/FontComputer.h>
+#include <LibWeb/CSS/FontResolution.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -1003,7 +1004,18 @@ ScrollbarColorData ComputedStyleWorkingSet::scrollbar_color(ColorResolutionConte
 ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> ComputedStyleWorkingSet::computed_font_list(FontComputer const& font_computer, TreeScopeID tree_scope) const
 {
     if (!m_cached_computed_font_list || m_cached_computed_font_list_scope != tree_scope) {
-        m_cached_computed_font_list = font_computer.compute_font_for_style_values(computed_font_families(), font_size(), font_slope(), font_weight(), font_width(), font_optical_sizing(), font_variation_settings(), font_feature_data(), tree_scope);
+        m_cached_computed_font_list = resolve_font_for_style_values(font_computer,
+            {
+                .font_families = computed_font_families(),
+                .font_optical_sizing = font_optical_sizing(),
+                .font_size = font_size(),
+                .font_slope = font_slope(),
+                .font_weight = font_weight(),
+                .font_width = font_width(),
+                .font_variation_settings = font_variation_settings(),
+                .font_feature_data = font_feature_data(),
+                .font_feature_values_scope = tree_scope,
+            });
         m_cached_computed_font_list_scope = tree_scope;
         VERIFY(!m_cached_computed_font_list->is_empty());
     }
