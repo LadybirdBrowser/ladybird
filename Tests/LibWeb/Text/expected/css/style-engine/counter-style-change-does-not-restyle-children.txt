@@ -1,0 +1,6 @@
+elements: 25
+records computed: 19
+C++ recomputations: 4
+transactions: 1
+marker rebuilt: true
+generated content rebuilt: true
