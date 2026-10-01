@@ -440,6 +440,13 @@ impl RetainedState {
                         unreachable!("only the root-input probe answers with root inputs");
                     };
                     let font = font.expect("a full drive resolves the font");
+                    // A marker renders its list-style-type through a counter style, and C++ stamps
+                    // its record with the registry of the tree scope that defines it. The engine
+                    // names no registry, so such a marker stays with C++.
+                    if kind == MARKER && table_names_a_counter_style(&table) {
+                        counters.bump(Counter::EngineComputedRecordBailProperty);
+                        return Err(Unanswered::Refused);
+                    }
                     let (record, _) = self.assemble_and_publish_engine_record(
                         target,
                         Some(new_element_record),
@@ -593,4 +600,15 @@ fn pseudo_content_generates_nothing(store: &impl crate::css::cascaded_properties
         }
         Some(_) => false,
     }
+}
+
+/// Whether a marker's record names a counter style a registry may define, as C++ decides when it
+/// stamps the record with its scope's registry: through a named `list-style-type`. A `content`
+/// counter never reaches an engine record.
+fn table_names_a_counter_style(table: &ComputedLonghandTable) -> bool {
+    let value = table
+        .effective_value(None, crate::css::property_metadata::property_id::LIST_STYLE_TYPE, true)
+        .value;
+    matches!(unsafe { value.cast::<StyleValueData>().as_ref() },
+        Some(StyleValueData::CounterStyle { is_symbols, .. }) if !*is_symbols)
 }
