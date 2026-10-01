@@ -6,6 +6,7 @@
 
 use super::batch_matcher::insert_scope_rule;
 use super::capacity::ShallowCapacityBytes;
+use super::container_queries::PublishedContainerVerdict;
 use super::index::CandidateEntries;
 use super::index::ParentDispatchFacts;
 use super::index::SelectorPostingKey;
@@ -1024,7 +1025,7 @@ fn size_container_dependents_are_found_along_the_flat_tree() {
     engine.record_size_container_query_dependents(host);
 
     assert_eq!(engine.size_query_container_scan_visits(true), 4);
-    let recorded = &engine.state.retained.style_input_nodes_for_cpp;
+    let recorded = &engine.state.retained.container_input_nodes;
     assert!(recorded.contains(&slot));
     assert!(recorded.contains(&assigned_child));
     assert!(!recorded.contains(&unassigned));
@@ -4470,7 +4471,7 @@ fn retained_answer_patching_matches_only_unresolved_rules_after_signed_deltas() 
 }
 
 #[test]
-fn retained_answer_patching_preserves_incomplete_cascade_winners() {
+fn retained_answer_patching_preserves_held_container_cascade_winners() {
     let (mut engine, nodes) = linear_document();
     let target = StyleAtomID(200);
     let winning_target = StyleAtomID(201);
@@ -4517,7 +4518,8 @@ fn retained_answer_patching_preserves_incomplete_cascade_winners() {
         )
         .unwrap();
     let incremental = outcome.incremental_cascade_answer.unwrap();
-    assert!(!incremental.cascade_winners_are_complete);
+    // A pseudo-element's gated rule is held like the element's: the winners decide it.
+    assert!(incremental.cascade_winners_are_complete);
 }
 
 #[test]
@@ -7513,9 +7515,17 @@ fn an_undecided_container_verdict_has_not_moved() {
 
     // The verdict is published undecided, which keeps the node the host's, not as one that
     // failed; a flush that still cannot decide it keeps the winners it was published with.
-    let undecided: Vec<(RuleID, Option<bool>)> = vec![(rule, None)];
+    let undecided = vec![PublishedContainerVerdict {
+        rule,
+        pseudo: false,
+        held: None,
+    }];
     assert_eq!(engine.published_container_verdicts.get(&nodes[2]), Some(&undecided));
-    engine.drop_winners_whose_container_verdicts_moved();
+    engine.refresh_winners_whose_container_verdicts_moved(
+        false,
+        publication::WinnerRepublication::for_flush(),
+        &mut Counters::default(),
+    );
     assert_eq!(engine.published_container_verdicts.get(&nodes[2]), Some(&undecided));
 }
 

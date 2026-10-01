@@ -405,6 +405,24 @@ impl RetainedState {
                 )?
                 .delta(),
         };
+        // A pseudo-element's container conditions ask about its originating element first, whose
+        // record may have just made it another container: pseudo-element winners whose verdicts
+        // moved with it are published again from the node's retained answer. What the verdicts
+        // read of the element as a container is known only now, and the host takes it with the
+        // record.
+        if self.container_verdicts_moved(node) {
+            if scratch.winner_republication().is_none_or(|republication| {
+                self.republish_pseudo_winners_from_retained_answer(node, republication, counters)
+                    .is_none()
+            }) || !self.container_verdicts_stand(node)
+            {
+                counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+                self.abandon_engine_computed_record(node, scratch, counters);
+                return Err(Unanswered::Refused);
+            }
+        } else {
+            self.note_pseudo_container_effects_for_host(node);
+        }
         // The element's pseudo-elements are settled beside its record, as the C++ computation
         // refreshes them after the element's own; a pseudo-element the engine cannot settle
         // sends the whole element to C++.
@@ -518,32 +536,39 @@ impl RetainedState {
             };
             cascade_winners_are_complete = self.republish_driven_winners(node, republication, counters);
         }
-        // A custom property the cascade declares is no winner the columns hold; the engine
-        // computes the environment it decides itself.
-        if !cascade_winners_are_complete && !self.cascade_winners_are_complete_but_for_custom_properties(node) {
-            counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
-            return Err(Unanswered::Refused);
-        }
         // The winners hold a gated rule where its container conditions held when they were
         // published; they answer for the node while every one decides as it did, over containers
         // its settled ancestors published. One a declined ancestor may still move waits for the
-        // host to install that ancestor's record, as a row waits for its parent's.
-        if self.published_container_verdicts.contains_key(&node) {
-            // An ancestor change can stand for a container whose type moved or that left
-            // display:none, which the verdicts were decided without: the container's new record is
-            // not published yet, so nothing has dropped them. C++ decides the gated rules again.
-            if full_drive_reason == Some(FullDriveReason::AncestorChange) {
-                counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
-                return Err(Unanswered::Refused);
-            }
+        // host to install that ancestor's record, as a row waits for its parent's. Winners
+        // published while an ancestor was moving, or whose verdicts moved since (a container
+        // resized, or an ancestor whose container type moved or that left display:none, whose
+        // record this batch settled before the node), are published again from the node's
+        // retained answer, over the containers as they stand now.
+        if self.published_container_verdicts.contains_key(&node) || self.container_gates_unheld.contains(&node) {
             if self.container_ancestor_is_unsettled(node, scratch) {
                 counters.bump(Counter::EngineComputedRecordBailRecordParent);
                 return Err(Unanswered::AwaitsParent);
+            }
+            if self.container_winners_are_stale(node) {
+                let Some(complete) = scratch
+                    .winner_republication()
+                    .and_then(|republication| self.republish_winners_from_answer(node, republication, counters))
+                else {
+                    counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+                    return Err(Unanswered::Refused);
+                };
+                cascade_winners_are_complete = complete;
             }
             if !self.container_verdicts_stand(node) {
                 counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
                 return Err(Unanswered::Refused);
             }
+        }
+        // A custom property the cascade declares is no winner the columns hold; the engine
+        // computes the environment it decides itself.
+        if !cascade_winners_are_complete && !self.cascade_winners_are_complete_but_for_custom_properties(node) {
+            counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+            return Err(Unanswered::Refused);
         }
         // The winners the record was computed from, against the winners the node holds now: the
         // same comparison a C++ publication makes to select what it recomputes.
@@ -4741,6 +4766,9 @@ pub(super) enum FullDriveReason {
     /// A face the element's font cascade names became available or failed, or the document's
     /// `@font-feature-values` moved.
     FontEnvironment,
+    /// A container moved that the element's or a pseudo-element's values measure, through a
+    /// container-relative length or a substitution.
+    ContainerMoved,
 }
 
 /// Static checks attached to the original declaration spelling at input preparation.

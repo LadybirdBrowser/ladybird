@@ -20,6 +20,7 @@ use crate::css::parser::query_parser::{
     CONTAINER_QUERY_REQUIRES_WIDTH, FfiContainerFacts, FfiContainerStyleFeature, FfiQueryHandle, MatchResult,
     SCROLL_STATE_SIDE_BOTTOM, SCROLL_STATE_SIDE_LEFT, SCROLL_STATE_SIDE_RIGHT, SCROLL_STATE_SIDE_TOP,
 };
+use smallvec::SmallVec;
 
 /// What a rule's container conditions say for one subject: whether they hold, whether they ask
 /// about a container's size, scroll state or style, and what the evaluation read of the
@@ -33,6 +34,21 @@ pub(crate) struct ContainerVerdict {
     /// The custom properties the conditions' `style()` features read of the containers, which
     /// the host records as the subject's style query references.
     pub(crate) style_query_references: Option<Box<StyleQueryDependencies>>,
+}
+
+/// What a gated rule's container conditions said for a node's element, or for one of its
+/// pseudo-elements, when the node's winners were published: they hold its declarations exactly
+/// where the conditions held.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct PublishedContainerVerdict {
+    pub(super) rule: RuleID,
+    /// Whether the rule targets a pseudo-element, whose conditions ask about the originating
+    /// element first.
+    pub(super) pseudo: bool,
+    /// Whether its conditions held, `None` where the engine could not decide them: the winners
+    /// hold its declarations exactly where it held, and an undecided one leaves the node to the
+    /// host.
+    pub(super) held: Option<bool>,
 }
 
 impl ContainerVerdict {
@@ -569,13 +585,12 @@ impl RetainedState {
         self.container_effects_for_host.remove(&node)
     }
 
-    /// Whether the winners published for a node hold a rule's container conditions: an element's
-    /// winners hold a gated rule where its conditions held when they were published, and the record
-    /// loop checks that they still do. A pseudo-element's are not checked there, so its gated rules
-    /// stay the host's.
-    pub(crate) fn container_gate_is_held(&self, node: Option<StyleNodeID>, rule: RuleID, pseudo: bool) -> bool {
+    /// Whether the winners published for a node hold a rule's container conditions: they hold a
+    /// gated rule, the element's or a pseudo-element's, where its conditions held when they were
+    /// published, and the record loop checks that they still do.
+    pub(crate) fn container_gate_is_held(&self, node: Option<StyleNodeID>, rule: RuleID) -> bool {
         !self.program.rule_is_gated_by_container_query(rule)
-            || (!pseudo && node.is_some_and(|node| !self.container_gates_unheld.contains(&node)))
+            || node.is_some_and(|node| !self.container_gates_unheld.contains(&node))
     }
 
     /// Whether one of a rule's container conditions asks a `style()` question, which every
@@ -612,42 +627,106 @@ impl RetainedState {
     }
 
     /// A node whose gated rules decide differently over the containers as they stand now than
-    /// when its winners were published holds winners no record may be derived from: they are
-    /// dropped, and the node is the host's until they are published again. One the engine could
-    /// not decide when they were published, and still cannot, has not moved: the record loop
-    /// leaves that node to the host without its winners being published again every flush.
-    pub(super) fn drop_winners_whose_container_verdicts_moved(&mut self) {
+    /// when its winners were published has its winners published again from its retained
+    /// selector answer, without matching its selectors again. Where no answer says what the node
+    /// matches, or this transaction replaces rules that answer may name, the winners are dropped
+    /// instead, and the node is published anew when it is matched.
+    pub(super) fn refresh_winners_whose_container_verdicts_moved(
+        &mut self,
+        rule_program_is_changing: bool,
+        republication: super::publication::WinnerRepublication,
+        counters: &mut Counters,
+    ) {
         if self.published_container_verdicts.is_empty() {
             return;
         }
         let moved: Vec<StyleNodeID> = self
             .published_container_verdicts
-            .iter()
-            .filter(|(node, verdicts)| {
-                verdicts.iter().any(|&(rule, held)| {
-                    let verdict = self.rule_container_verdict(rule, **node, false);
-                    verdict.map(|verdict| verdict.matches) != held
-                })
-            })
-            .map(|(&node, _)| node)
+            .keys()
+            .copied()
+            .filter(|&node| self.container_verdicts_moved(node))
             .collect();
         for node in moved {
-            self.published_container_verdicts.remove(&node);
-            self.winner_groups.remove(node);
+            if rule_program_is_changing
+                || self
+                    .republish_winners_from_answer(node, republication, counters)
+                    .is_none()
+            {
+                self.published_container_verdicts.remove(&node);
+                self.winner_groups.remove(node);
+            }
         }
     }
 
-    /// Whether a rule decides for the node as far as its container conditions go: an ungated rule
-    /// always does, a gated one where they held when the node's winners were published.
-    pub(crate) fn published_container_verdict_holds(&self, node: StyleNodeID, rule: RuleID) -> bool {
-        !self.program.rule_is_gated_by_container_query(rule)
-            || self
-                .published_container_verdicts
-                .get(&node)
-                .is_some_and(|verdicts| verdicts.contains(&(rule, Some(true))))
+    /// Whether one of the gated rules of a node's winners decides differently now than when they
+    /// were published. One the engine could not decide then, and still cannot, has not moved:
+    /// the record loop leaves that node to the host without publishing its winners again.
+    pub(super) fn container_verdicts_moved(&self, node: StyleNodeID) -> bool {
+        self.published_container_verdicts.get(&node).is_some_and(|verdicts| {
+            verdicts.iter().any(|verdict| {
+                self.rule_container_verdict(verdict.rule, node, verdict.pseudo)
+                    .map(|now| now.matches)
+                    != verdict.held
+            })
+        })
     }
 
-    pub(super) fn publish_container_verdicts(&mut self, node: StyleNodeID, verdicts: Vec<(RuleID, Option<bool>)>) {
+    /// Note for the host what the conditions of the node's pseudo-element verdicts read of the
+    /// containers, decided over the element's record as it stands now.
+    pub(super) fn note_pseudo_container_effects_for_host(&mut self, node: StyleNodeID) {
+        let Some(published) = self.published_container_verdicts.get(&node) else {
+            return;
+        };
+        let verdicts: SmallVec<[ContainerVerdict; 2]> = published
+            .iter()
+            .filter(|verdict| verdict.pseudo)
+            .filter_map(|verdict| self.rule_container_verdict(verdict.rule, node, true))
+            .collect();
+        for verdict in verdicts {
+            self.note_container_effects_for_host(node, verdict);
+        }
+    }
+
+    /// Whether a node's winners are not the ones its gated rules decide now: they were published
+    /// while an ancestor's answer was moving, or a verdict moved since.
+    pub(super) fn container_winners_are_stale(&self, node: StyleNodeID) -> bool {
+        self.container_gates_unheld.contains(&node) || self.container_verdicts_moved(node)
+    }
+
+    /// Whether a moved container reaches a node's record past the verdicts of its gated rules,
+    /// which the record loop decides again: a winner of the element or of one of its
+    /// pseudo-elements measures the containers through a container-relative length, or may
+    /// through a substitution, and no winner shows it. A node whose winners hold no gated rule
+    /// asks about its containers only through such values.
+    pub(super) fn container_input_drives_in_full(&self, node: StyleNodeID) -> bool {
+        if !self.published_container_verdicts.contains_key(&node) {
+            return true;
+        }
+        let winners = self.current_winner_groups();
+        let Lookup::Known((_, state)) = winners.token_for(WinnerGroupKey::current(node, self.program.version())) else {
+            return true;
+        };
+        std::iter::once(state)
+            .chain(winners.pseudo_states(node).map(|(_, _, state, _)| state))
+            .any(|state| {
+                self.state_has_substitutions(node, state)
+                    || self.state_reads(node, state) & cascade::STATE_READS_CONTAINER_UNITS != 0
+            })
+    }
+
+    /// Whether a rule decides for the node's element, or for one of its pseudo-elements, as far
+    /// as its container conditions go: an ungated rule always does, a gated one where they held
+    /// for that target when the node's winners were published.
+    pub(crate) fn published_container_verdict_holds(&self, node: StyleNodeID, rule: RuleID, pseudo: bool) -> bool {
+        !self.program.rule_is_gated_by_container_query(rule)
+            || self.published_container_verdicts.get(&node).is_some_and(|verdicts| {
+                verdicts
+                    .iter()
+                    .any(|verdict| verdict.rule == rule && verdict.pseudo == pseudo && verdict.held == Some(true))
+            })
+    }
+
+    pub(super) fn publish_container_verdicts(&mut self, node: StyleNodeID, verdicts: Vec<PublishedContainerVerdict>) {
         if verdicts.is_empty() {
             self.published_container_verdicts.remove(&node);
         } else {
@@ -664,9 +743,9 @@ impl RetainedState {
             return true;
         };
         let mut verdicts = Vec::with_capacity(published.len());
-        for &(rule, held) in published {
-            match self.rule_container_verdict(rule, node, false) {
-                Some(verdict) if held == Some(verdict.matches) => verdicts.push(verdict),
+        for published in published {
+            match self.rule_container_verdict(published.rule, node, published.pseudo) {
+                Some(verdict) if published.held == Some(verdict.matches) => verdicts.push(verdict),
                 _ => return false,
             }
         }
@@ -685,10 +764,14 @@ impl RetainedState {
         node: StyleNodeID,
         scratch: &super::publication::EngineComputedRecordScratch,
     ) -> bool {
-        let asks_about_style = self
-            .published_container_verdicts
-            .get(&node)
-            .is_some_and(|verdicts| verdicts.iter().any(|&(rule, _)| self.rule_asks_container_style(rule)));
+        // Winners published while an ancestor was moving hold no verdicts to say what their gated
+        // rules ask about.
+        let asks_about_style = self.container_gates_unheld.contains(&node)
+            || self.published_container_verdicts.get(&node).is_some_and(|verdicts| {
+                verdicts
+                    .iter()
+                    .any(|verdict| self.rule_asks_container_style(verdict.rule))
+            });
         let mut ancestor = self.tree.flat_tree_parent(node);
         while let Some(current) = ancestor {
             if let Some(index) = current.element_index()

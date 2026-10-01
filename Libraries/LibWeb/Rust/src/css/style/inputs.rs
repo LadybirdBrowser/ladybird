@@ -1479,6 +1479,7 @@ impl StyleEngineState {
                 container_effects_for_host: HashMap::default(),
                 published_container_verdicts: HashMap::default(),
                 container_gates_unheld: HashSet::default(),
+                container_input_nodes: HashSet::default(),
                 container_query_inputs: Default::default(),
                 layout_style_snapshots: HashMap::default(),
                 size_container_queries: Default::default(),
@@ -1812,6 +1813,19 @@ impl StyleEngineState {
             self.host.externally_recorded_style_input_nodes.insert(node);
         }
         self.retained.style_input_nodes_for_cpp.insert(node);
+    }
+
+    /// Record that what a container query or a container-relative length read of the node's
+    /// containers moved: a container's size, scroll state or style. The engine settles it where it
+    /// can, deciding the node's gated rules again and publishing its winners anew from its
+    /// retained answer where a verdict moved.
+    pub fn record_container_query_input(&mut self, node: StyleNodeID) {
+        self.retained.container_input_nodes.insert(node);
+        self.record_derived_element_style_input(
+            node,
+            transaction::STYLE_REACTION_PUBLISHED_STYLE | transaction::STYLE_REACTION_RECOMPUTE_STYLE,
+            0,
+        );
     }
 
     /// Record a style reaction the engine derived itself for one element, or one C++ derived from
@@ -2995,6 +3009,7 @@ impl RetainedState {
             container_effects_for_host,
             published_container_verdicts,
             container_gates_unheld,
+            container_input_nodes,
             container_query_inputs,
             layout_style_snapshots,
             size_container_queries,
@@ -3093,6 +3108,7 @@ impl RetainedState {
         container_effects_for_host.remove(&node);
         published_container_verdicts.remove(&node);
         container_gates_unheld.remove(&node);
+        container_input_nodes.remove(&node);
         container_query_inputs.clear(node);
         layout_style_snapshots.remove(&node);
         demand_records.retain(|target, record| {

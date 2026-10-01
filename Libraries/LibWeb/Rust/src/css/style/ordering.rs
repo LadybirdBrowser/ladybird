@@ -391,9 +391,9 @@ impl RetainedState {
         let wants = |declared: u16| declared == property;
         let answered =
             self.try_for_each_answer_match(node, pseudo_kind, |rule, tree_scope, specificity, scope_proximity| {
-                // A gated rule is a candidate where its conditions held as the node's winners were
-                // published.
-                if self.published_container_verdict_holds(node, rule) {
+                // A gated rule is a candidate where its conditions held for the target as the
+                // node's winners were published.
+                if self.published_container_verdict_holds(node, rule, pseudo_kind.is_some()) {
                     self.push_rule_cascade_candidates(
                         rule,
                         tree_scope,
@@ -464,7 +464,17 @@ impl RetainedState {
     ) -> Vec<PropertyWinner> {
         let wants = |property: u16| properties.is_none_or(|properties| properties.binary_search(&property).is_ok());
         candidates.clear();
-        for entry in matches.iter().filter(|entry| entry.pseudo_element == pseudo) {
+        // A gated rule is a candidate where its container conditions hold for the target now.
+        let conditions_hold = |rule: RuleID| {
+            !self.program.rule_is_gated_by_container_query(rule)
+                || self
+                    .rule_container_verdict(rule, node, pseudo.is_some())
+                    .is_some_and(|verdict| verdict.matches)
+        };
+        for entry in matches
+            .iter()
+            .filter(|entry| entry.pseudo_element == pseudo && conditions_hold(entry.rule))
+        {
             self.push_rule_cascade_candidates(
                 entry.rule,
                 entry.tree_scope,
@@ -737,7 +747,7 @@ impl RetainedState {
         for (match_index, entry) in all.iter().enumerate() {
             if compaction_blocked
                 && (!self.match_scope_is_complete_for(publish_winners_for, entry.tree_scope)
-                    || !self.container_gate_is_held(publish_winners_for, entry.rule, entry.pseudo_element.is_some())
+                    || !self.container_gate_is_held(publish_winners_for, entry.rule)
                     || !self
                         .program
                         .declarations_are_complete_but_for_custom_properties(entry.rule))
@@ -747,10 +757,15 @@ impl RetainedState {
             if self.program.rule_is_gated_by_container_query(entry.rule)
                 && let Some(node) = publish_winners_for
             {
+                let pseudo = entry.pseudo_element.is_some();
                 let held = self
-                    .rule_container_verdict(entry.rule, node, false)
+                    .rule_container_verdict(entry.rule, node, pseudo)
                     .map(|verdict| verdict.matches);
-                container_verdicts.push((entry.rule, held));
+                container_verdicts.push(PublishedContainerVerdict {
+                    rule: entry.rule,
+                    pseudo,
+                    held,
+                });
                 if held != Some(true) {
                     continue;
                 }
@@ -1598,7 +1613,7 @@ impl RetainedState {
             .iter()
             .filter(|entry| entry.pseudo_element == pseudo)
             .any(|entry| {
-                !self.container_gate_is_held(node, entry.rule, entry.pseudo_element.is_some())
+                !self.container_gate_is_held(node, entry.rule)
                     || !self.program.declarations_are_complete_for(entry.rule)
                     || !self.match_scope_is_complete_for(node, entry.tree_scope)
             })
@@ -1622,7 +1637,7 @@ impl RetainedState {
             .iter()
             .filter(|entry| entry.pseudo_element == Some(pseudo))
             .any(|entry| {
-                self.program.rule_is_gated_by_container_query(entry.rule)
+                !self.container_gate_is_held(Some(node), entry.rule)
                     || !self
                         .program
                         .declarations_are_complete_but_for_custom_properties(entry.rule)
@@ -1695,7 +1710,7 @@ impl RetainedState {
         // Checking every target covers every match. Check each inventory once instead
         // of scanning the answer again for every rule matching the same pseudo target.
         !matches.iter().any(|entry| {
-            !self.container_gate_is_held(node, entry.rule, entry.pseudo_element.is_some())
+            !self.container_gate_is_held(node, entry.rule)
                 || !self.program.declarations_are_complete_for(entry.rule)
                 || !self.match_scope_is_complete_for(node, entry.tree_scope)
         }) && !node.is_some_and(|node| {

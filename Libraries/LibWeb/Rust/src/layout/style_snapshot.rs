@@ -37,27 +37,24 @@ pub(crate) struct CommittedGeometry {
 }
 
 impl LayoutNodeArena {
-    /// Gathers the node's row for the style engine. Style asks layout only about size containers,
-    /// and about scroll-state containers, whose rows the scroll state makes; an element that
-    /// stops being one keeps its row up to date until it goes.
-    pub(crate) fn gather_layout_style_snapshot_geometry(&self, node: NodeSlotId) {
-        let Some(style_node) = self
+    /// The style node a node's row is for, and whether the node's style makes it a size container;
+    /// `None` for a node whose box the style engine takes no row of.
+    fn snapshot_target(&self, node: NodeSlotId) -> Option<(StyleNodeID, bool)> {
+        let style_node = self
             .node_style_node(node)
-            .filter(|style_node| style_node.element_index().is_some())
-        else {
-            return;
-        };
+            .filter(|style_node| style_node.element_index().is_some())?;
         if !self.has_style_engine() || self.bound_row(style_node) != node {
-            return;
+            return None;
         }
         let style = crate::layout::node_facts::node_style_view(self.data(node));
         let is_size_container = style.is_some_and(|style| {
             let box_values = style.box_values();
             box_values.is_size_container || box_values.is_inline_size_container
         });
-        if !is_size_container && !self.with_style_store(|engine| engine.layout_style_snapshot(style_node).is_some()) {
-            return;
-        }
+        Some((style_node, is_size_container))
+    }
+
+    fn committed_geometry(&self, node: NodeSlotId, style_node: StyleNodeID) -> CommittedGeometry {
         let rows = self.paintable_rows();
         let has_committed_box = rows.paintable_row_is_populated(node);
         let size = if has_committed_box {
@@ -65,12 +62,42 @@ impl LayoutNodeArena {
         } else {
             FfiCssPixelSize::default()
         };
-        self.layout_style_snapshot_commit.borrow_mut().push(CommittedGeometry {
+        CommittedGeometry {
             node: style_node,
             content_width_raw: size.width.raw_value(),
             content_height_raw: size.height.raw_value(),
             has_committed_box,
-        });
+        }
+    }
+
+    /// Gathers the node's row for the style engine. Style asks layout only about size containers,
+    /// and about scroll-state containers, whose rows the scroll state makes; an element that
+    /// stops being one keeps its row up to date until it goes.
+    pub(crate) fn gather_layout_style_snapshot_geometry(&self, node: NodeSlotId) {
+        let Some((style_node, is_size_container)) = self.snapshot_target(node) else {
+            return;
+        };
+        if !is_size_container && !self.with_style_store(|engine| engine.layout_style_snapshot(style_node).is_some()) {
+            return;
+        }
+        let row = self.committed_geometry(node, style_node);
+        self.layout_style_snapshot_commit.borrow_mut().push(row);
+    }
+
+    /// Hands the style engine the committed box of a node whose new style makes it a size
+    /// container, which the last commit gathered no row for. Until the next commit, a size query
+    /// on it reads that box, as the host's evaluation reads the box it holds.
+    pub(crate) fn publish_new_size_container_geometry(&self, node: NodeSlotId) {
+        let Some((style_node, true)) = self.snapshot_target(node) else {
+            return;
+        };
+        if self.with_style_store(|engine| engine.layout_style_snapshot(style_node).is_some()) {
+            return;
+        }
+        let row = self.committed_geometry(node, style_node);
+        if row.has_committed_box {
+            self.with_style_engine(|engine| engine.apply_layout_style_snapshot_commit(&[row]));
+        }
     }
 
     /// Gathers a row without a box for a node that holds a row and lost its bound box: no commit

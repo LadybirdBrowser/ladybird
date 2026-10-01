@@ -1115,6 +1115,18 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
                 return Err(Unanswered::Refused);
             }
+            // The pseudo-elements' container conditions ask about the element first, which the
+            // installed record may have just made a container: winners whose verdicts moved with
+            // it are published again, and ones the engine cannot decide leave them to C++.
+            if self.container_verdicts_moved(node) {
+                let republication = scratch.winner_republication().or_refused()?;
+                self.republish_pseudo_winners_from_retained_answer(node, republication, counters)
+                    .or_refused()?;
+            }
+            if !self.container_verdicts_stand(node) {
+                counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+                return Err(Unanswered::Refused);
+            }
         }
         let generation = self.winner_groups.generation();
         if let Err(unanswered) = self.engine_pseudo_records(
@@ -1148,7 +1160,7 @@ impl RetainedState {
     /// are resolved into the pseudo-element's own environment.
     pub(super) fn pseudo_winners_are_complete(&self, node: StyleNodeID) -> bool {
         let is_complete = |rule: RuleID, tree_scope: TreeScopeID| {
-            self.match_is_complete_but_for_custom_properties(node, rule, tree_scope, true)
+            self.match_is_complete_but_for_custom_properties(node, rule, tree_scope)
         };
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,

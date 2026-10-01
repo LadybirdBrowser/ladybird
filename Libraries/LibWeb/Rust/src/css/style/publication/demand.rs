@@ -40,6 +40,13 @@ const DEMANDED_PSEUDO_KINDS: [u8; 5] = [
 #[derive(Clone, Copy)]
 pub(in crate::css::style) struct WinnerRepublication(());
 
+impl WinnerRepublication {
+    /// The leave a style update's flush holds before it drives anything, which no demand runs.
+    pub(in crate::css::style) fn for_flush() -> Self {
+        Self(())
+    }
+}
+
 impl EngineComputedRecordScratch {
     /// The leave to republish winners, which only a read-only demand's drive is without.
     pub(super) fn winner_republication(&self) -> Option<WinnerRepublication> {
@@ -53,7 +60,7 @@ struct PrivateDemandSaves {
     uses_substitution: bool,
     custom_declaration_reads: Option<u8>,
     container_effects: Option<container_queries::ContainerVerdict>,
-    container_verdicts: Option<Vec<(RuleID, Option<bool>)>>,
+    container_verdicts: Option<Vec<PublishedContainerVerdict>>,
     container_gate_unheld: bool,
     tree_counting: Option<u16>,
     rolled_back: Option<u64>,

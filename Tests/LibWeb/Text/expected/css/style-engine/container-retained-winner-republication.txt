@@ -2,5 +2,5 @@
 300: rgb(0, 128, 0); rgb(0, 128, 0); rgb(0, 128, 0); 30px; rgb(255, 0, 0)
 400: rgb(0, 128, 0); rgb(0, 128, 0); rgb(0, 128, 0); 40px; rgb(255, 0, 0)
 100: rgb(255, 0, 0); rgb(255, 0, 0); rgb(255, 0, 0); 10px; rgb(0, 0, 255)
-container reactions stayed in the engine: false
-C++ recomputations: 9
+container reactions stayed in the engine: true
+C++ recomputations: 2

@@ -745,14 +745,9 @@ impl RetainedState {
             node,
         ) && let Some(matches) = published.matches_for(answer)
         {
-            return matches.iter().all(|entry| {
-                self.match_is_complete_but_for_custom_properties(
-                    node,
-                    entry.rule,
-                    entry.tree_scope,
-                    entry.pseudo_element.is_some(),
-                )
-            });
+            return matches
+                .iter()
+                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope));
         }
         let Lookup::Known(answer) = self.retained_match_answer(node) else {
             return false;
@@ -773,14 +768,11 @@ impl RetainedState {
             return Some(false);
         }
         if let Some(matches) = published.matches_for(answer) {
-            return Some(matches.iter().all(|entry| {
-                self.match_is_complete_but_for_custom_properties(
-                    node,
-                    entry.rule,
-                    entry.tree_scope,
-                    entry.pseudo_element.is_some(),
-                )
-            }));
+            return Some(
+                matches
+                    .iter()
+                    .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope)),
+            );
         }
         let matches = self.match_answers.answer(answer.cascade_input?)?;
         Some(self.retained_matches_are_complete_but_for_custom_properties(node, matches))
@@ -799,10 +791,7 @@ impl RetainedState {
         matches: &[RetainedRuleMatch],
     ) -> bool {
         matches.iter().all(|rule_match| {
-            let pseudo = self.programs.get(rule_match.program).entries()[rule_match.entry as usize]
-                .pseudo_element
-                .is_some();
-            self.match_is_complete_but_for_custom_properties(node, rule_match.rule, rule_match.tree_scope, pseudo)
+            self.match_is_complete_but_for_custom_properties(node, rule_match.rule, rule_match.tree_scope)
         })
     }
 
@@ -815,10 +804,9 @@ impl RetainedState {
         node: StyleNodeID,
         rule: RuleID,
         tree_scope: TreeScopeID,
-        pseudo: bool,
     ) -> bool {
         self.match_scope_is_complete_for(Some(node), tree_scope)
-            && self.container_gate_is_held(Some(node), rule, pseudo)
+            && self.container_gate_is_held(Some(node), rule)
             && self.program.declarations_are_complete_but_for_custom_properties(rule)
     }
 
@@ -879,9 +867,7 @@ impl RetainedState {
             }
             // A gated rule declares for the node where its container conditions held when its
             // winners were published, as its longhands do.
-            if pseudo.is_some() && self.program.rule_is_gated_by_container_query(rule)
-                || !self.published_container_verdict_holds(node, rule)
-            {
+            if !self.published_container_verdict_holds(node, rule, pseudo.is_some()) {
                 return ControlFlow::Continue(());
             }
             let written = self.program.custom_written_values_of(rule);

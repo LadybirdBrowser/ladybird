@@ -7,7 +7,6 @@
 //! Recording the elements whose style a size query container's new box moves.
 
 use super::fast_hash::FastSet as HashSet;
-use super::transaction::{STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_STYLE};
 use super::{StyleEngineState, StyleNodeID};
 
 /// What the host learned about size container queries while it computed styles: which elements
@@ -127,7 +126,7 @@ impl StyleEngineState {
         self.retained.size_container_queries.scan_visits += visits;
 
         for node in changed {
-            self.record_element_style_input(node, STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE, 0);
+            self.record_container_query_input(node);
         }
     }
 }

@@ -166,6 +166,7 @@ use atoms::ReclaimedStyleAtom;
 use catalog::*;
 use column::BitColumn;
 use column::Column;
+use container_queries::PublishedContainerVerdict;
 use fast_hash::FastMap as HashMap;
 use fast_hash::FastSet as HashSet;
 use planning::*;
@@ -882,13 +883,17 @@ pub struct RetainedState {
     /// What the container conditions of the rows the engine answered read of their containers,
     /// per element, taken when the host installs the element's record.
     container_effects_for_host: HashMap<StyleNodeID, container_queries::ContainerVerdict>,
-    /// Each node's gated rules and whether their conditions held when its winners were published,
-    /// `None` where the engine could not decide them: the winners hold a gated rule's declarations
-    /// exactly where it held, and an undecided one leaves the node to the host.
-    published_container_verdicts: HashMap<StyleNodeID, Vec<(RuleID, Option<bool>)>>,
+    /// Each node's gated rules and whether their conditions held for their targets when its
+    /// winners were published, `None` where the engine could not decide them: the winners hold a
+    /// gated rule's declarations exactly where it held, and an undecided one leaves the node to
+    /// the host.
+    published_container_verdicts: HashMap<StyleNodeID, Vec<PublishedContainerVerdict>>,
     /// Nodes whose winners were published while an ancestor's answer was moving in the same
     /// transaction, so their gated rules' conditions could not be decided when they were.
     container_gates_unheld: HashSet<StyleNodeID>,
+    /// Nodes a moved container asked to compute again in the transaction being recorded: what a
+    /// query or a container-relative length read of a container moved under them.
+    container_input_nodes: HashSet<StyleNodeID>,
     /// Whether, and as what, each element's published record makes it a query container.
     container_query_inputs: tree::ContainerQueryInputColumns,
     /// What the last layout commit and scroll state say of each container's box, for the
