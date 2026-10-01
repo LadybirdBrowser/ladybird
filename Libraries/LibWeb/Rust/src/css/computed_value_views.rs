@@ -521,6 +521,38 @@ impl<'a> ComputedValuesView<'a> {
         }
     }
 
+    /// Whether none of `counter-reset`, `counter-increment` and `counter-set` names a counter, so
+    /// that regenerating the content cannot renumber anything around it.
+    pub(crate) fn counter_properties_are_none(self) -> bool {
+        let content = self.content();
+        let is_none =
+            |handle: &ComputedStyleValueHandle| matches!(handle.data(), None | Some(StyleValueData::Keyword { .. }));
+        is_none(&content.counter_increment) && is_none(&content.counter_reset) && is_none(&content.counter_set)
+    }
+
+    /// Whether `content` is a bare keyword, which is what `normal` and `none` both spell.
+    pub(crate) fn content_is_keyword(self) -> bool {
+        matches!(
+            self.content().content.data(),
+            None | Some(StyleValueData::Keyword { .. })
+        )
+    }
+
+    /// Whether `content` is a list of nothing but strings: content a box can be regenerated with
+    /// in place, because no counter, quote or `attr()` in it depends on where the box ends up.
+    pub(crate) fn content_is_strings_only(self) -> bool {
+        let Some(StyleValueData::Content { content, .. }) = self.content().content.data() else {
+            return false;
+        };
+        let Some(StyleValueData::ValueList { values, .. }) = content.optional_data() else {
+            return false;
+        };
+        values
+            .as_slice()
+            .iter()
+            .all(|item| matches!(item.optional_data(), Some(StyleValueData::String { .. })))
+    }
+
     /// Whether the style can move the generated-content state a later sibling reads: any counter
     /// it touches, or a quote its content opens or closes.
     pub(crate) fn affects_generated_content_state(self) -> bool {
