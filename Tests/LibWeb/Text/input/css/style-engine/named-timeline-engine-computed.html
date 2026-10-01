@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #scroller { overflow: scroll; height: 50px; }
+    #subject { height: 100px; }
+    .scroll { scroll-timeline-name: --scroller; scroll-timeline-axis: inline; }
+    .view { view-timeline-name: --viewed; view-timeline-inset: 10px; }
+</style>
+<div id="scroller"><div id="subject"></div></div>
+<script>
+    // A named timeline is a plain computed value: it starts nothing itself. Count who computes the
+    // record of an element whose timeline names move.
+    test(() => {
+        function toggle(label, element, className, read) {
+            internals.updateStyle();
+            const before = internals.getStyleInvalidationCounters();
+            element.classList.toggle(className);
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label}: ${read(getComputedStyle(element))}`);
+            println(`  engine records: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords}`);
+            println(`  C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        }
+        const scroll = style => `${style.scrollTimelineName} ${style.scrollTimelineAxis}`;
+        const view = style => `${style.viewTimelineName} ${style.viewTimelineInset}`;
+        toggle("scroll timeline named", scroller, "scroll", scroll);
+        toggle("view timeline named", subject, "view", view);
+        toggle("scroll timeline unnamed", scroller, "scroll", scroll);
+        toggle("view timeline unnamed", subject, "view", view);
+    });
+</script>
