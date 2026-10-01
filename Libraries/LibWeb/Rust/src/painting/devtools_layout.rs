@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::style::tree::StyleNodeID;
 use crate::layout::{formatting_context, grid_formatting_context};
 
 use serde_json::{Value, json};
@@ -105,7 +106,11 @@ fn axis_direction_name(direction: u8) -> &'static str {
     }
 }
 
-pub(crate) fn serialize_flex_layout(data: &formatting_context::FlexLayoutData, container_node_id: i64) -> Vec<u8> {
+pub(crate) fn serialize_flex_layout(
+    data: &formatting_context::FlexLayoutData,
+    container_node_id: i64,
+    resolve_node_id: impl Fn(StyleNodeID) -> Option<i64>,
+) -> Vec<u8> {
     let main_axis_direction = axis_direction_name(data.main_axis_direction);
     let cross_axis_direction = axis_direction_name(data.cross_axis_direction);
     let main_size_property_name = if data.main_axis_direction <= 1 {
@@ -118,7 +123,7 @@ pub(crate) fn serialize_flex_layout(data: &formatting_context::FlexLayoutData, c
         .iter()
         .flat_map(|line| {
             line.items.iter().filter_map(|item| {
-                let node_id = item.node_id?;
+                let node_id = resolve_node_id(item.style_node?)?;
                 let sizing = json!({
                     "clampState": flex_layout_clamp_state_name(item.clamp_state),
                     "crossAxisDirection": cross_axis_direction,

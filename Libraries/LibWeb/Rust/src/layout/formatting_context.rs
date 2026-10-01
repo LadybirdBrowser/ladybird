@@ -876,7 +876,8 @@ pub(crate) enum FlexLayoutGrowthState {
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct FlexLayoutItem {
-    pub(crate) node_id: Option<i64>,
+    /// The style node naming the item's DOM node; the devtools reader resolves it to a node id.
+    pub(crate) style_node: Option<crate::css::style::tree::StyleNodeID>,
     pub(crate) rect: CssPixelRect,
     pub(crate) main_base_size: CssPixels,
     pub(crate) main_delta_size: CssPixels,
@@ -920,7 +921,6 @@ pub(crate) struct FlexLayoutData {
 pub struct FfiLayoutHostCallbacks {
     pub context: *mut c_void,
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
-    pub node_unique_id: unsafe extern "C" fn(*mut c_void) -> i64,
     /// The commit messages a finished commit leaves for the document, in the order it produced
     /// them.
     pub deliver_commit_messages: unsafe extern "C" fn(*mut c_void, *const commit::FfiCommitMessage, usize),

@@ -1111,17 +1111,23 @@ impl LayoutNodeArena {
         self.style_nodes[id.slot_index() as usize].get()
     }
 
-    /// Names the DOM node a row stands for the way a commit message does: by its style node, or by
-    /// 0 for the document, which the viewport row stands for. An anonymous row, which includes a
-    /// pseudo-element's, stands for no DOM node, and there is nothing to tell the document about it.
-    pub(crate) fn commit_message_style_node(&self, id: NodeSlotId) -> Option<u32> {
+    /// The style node of the DOM node a row stands for. An anonymous row, which includes a
+    /// pseudo-element's, stands for no DOM node, even though it carries its generator's style node.
+    pub(crate) fn dom_node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
         if !self.slot_is_live(id) || super::node_facts::has_flag(self.data(id), NodeFlag::Anonymous) {
             return None;
         }
-        if self.data(id).kind.get() == NodeKind::Viewport {
+        self.node_style_node(id)
+    }
+
+    /// Names the DOM node a row stands for the way a commit message does: by its style node, or by
+    /// 0 for the document, which the viewport row stands for. An anonymous row stands for no DOM
+    /// node, and there is nothing to tell the document about it.
+    pub(crate) fn commit_message_style_node(&self, id: NodeSlotId) -> Option<u32> {
+        if self.slot_is_live(id) && self.data(id).kind.get() == NodeKind::Viewport {
             return Some(0);
         }
-        self.node_style_node(id).map(StyleNodeID::raw)
+        self.dom_node_style_node(id).map(StyleNodeID::raw)
     }
 
     pub(crate) fn layout_tree_update_marks(&self) -> &RefCell<super::tree_update_marks::LayoutTreeUpdateMarks> {
@@ -4945,6 +4951,8 @@ mod tests {
         assert_eq!(arena.commit_message_style_node(viewport), Some(0));
         assert_eq!(arena.commit_message_style_node(anonymous), None);
         assert_eq!(arena.commit_message_style_node(pseudo_element), None);
+        assert_eq!(arena.dom_node_style_node(pseudo_element), None);
+        assert_eq!(arena.dom_node_style_node(principal), Some(element));
 
         arena.free_subtree(principal).destroy_shells_and_invoke_callbacks();
         assert_eq!(arena.commit_message_style_node(principal), None);
