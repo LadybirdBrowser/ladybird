@@ -38,6 +38,7 @@ public:
     void note_needs_layout_update(NodeIdentity, SetNeedsLayoutReason, Layout::LayoutUpdatePropagation);
     void note_needs_repaint(NodeIdentity, InvalidateDisplayList);
     void note_needs_repaint_in_subtree(NodeIdentity);
+    void note_dom_paint_facts(NodeIdentity, u8 facts);
 
     // The identity is retired and may name another node once it is handed out again, so what was noted for the node
     // that had it must not land on that one.
@@ -56,6 +57,8 @@ private:
         bool needs_layout_update { false };
         bool needs_repaint { false };
         bool needs_subtree_repaint { false };
+        bool has_dom_paint_facts { false };
+        u8 dom_paint_facts { 0 };
     };
 
     Entry& entry_for(NodeIdentity);

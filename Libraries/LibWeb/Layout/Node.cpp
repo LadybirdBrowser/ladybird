@@ -41,7 +41,7 @@
 
 namespace Web::Layout {
 
-static u8 dom_paint_facts_of(GC::Ptr<DOM::Node const> node)
+u8 Node::dom_paint_facts_of(DOM::Node const* node)
 {
     if (!node)
         return 0;
@@ -80,14 +80,9 @@ static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Docu
         .uses_button_layout = node && is<HTML::HTMLElement>(*node) && static_cast<HTML::HTMLElement const&>(*node).uses_button_layout(),
         .is_editing_host = node && node->is_editing_host(),
         .is_body = node && node == GC::Ptr { document.body() },
-        .dom_paint_facts = dom_paint_facts_of(node),
+        .dom_paint_facts = Node::dom_paint_facts_of(node.ptr()),
         .style_node = Node::style_node_of(node.ptr()).value(),
     };
-}
-
-bool Node::refresh_dom_paint_facts(DOM::Node const& dom_node)
-{
-    return RustFFI::layout_arena_set_node_dom_paint_facts(m_arena->handle(), m_slot, dom_paint_facts_of(&dom_node));
 }
 
 Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, AttachToDOMNode attach_to_dom_node)
