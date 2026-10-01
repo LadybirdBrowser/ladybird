@@ -1284,7 +1284,7 @@ mod tests {
 
     #[test]
     fn a_layer_carries_its_backdrop_filter() {
-        let filter = std::rc::Rc::new(vec![1, 2, 3]);
+        let filter = std::sync::Arc::new(vec![1, 2, 3]);
         let region = IntRect::new(1, 2, 30, 40);
         let radii = CornerRadii::uniform(5);
         let with_backdrop = EffectsData {

@@ -21,7 +21,6 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
 use crate::painting::paint_order;
 use crate::painting::paintable_rows::PaintableRowsRead;
-use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct ChildCascade {
@@ -401,7 +400,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         scope != VisualContextUpdateScope::FreshTree || state.dirty_boxes.removed.is_empty(),
         "removed handles name nodes of the discarded tree"
     );
-    tombstone_removed_blocks(Rc::make_mut(tree), &state.dirty_boxes, &mut delta);
+    tombstone_removed_blocks(std::sync::Arc::make_mut(tree), &state.dirty_boxes, &mut delta);
 
     let environment = BoxBuildEnvironment {
         layout_arena,
@@ -415,7 +414,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::FirstBuild);
     };
     if scope.rebuilds_every_box() {
-        Rc::make_mut(tree)
+        std::sync::Arc::make_mut(tree)
             .set_visual_viewport_transform(super::node_values::visual_viewport_transform_data(&tree_inputs));
     }
     let every_box_capacity = if scope.rebuilds_every_box() {
@@ -512,7 +511,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             let previous_stacking_context_facts = existing_record.as_ref().map(|record| record.stacking_context);
             let previous_has_mask_nodes = existing_record.as_ref().is_some_and(|record| record.has_mask_nodes);
             let may_be_root_element = parent == viewport;
-            let tree = Rc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
+            let tree = std::sync::Arc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
             let existing_handles = existing_record.as_ref().map(|record| &record.node_handles);
             let mut writer = BoxNodeWriter::new(tree, existing_handles, &mut delta);
             let mut assignment = build_box_visual_context_nodes(
@@ -612,7 +611,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         }
     }
 
-    let tree = Rc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
+    let tree = std::sync::Arc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
     if incremental_tree_requires_fresh_build(tree, &delta) {
         return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::InvalidIncrementalReferences);
     }

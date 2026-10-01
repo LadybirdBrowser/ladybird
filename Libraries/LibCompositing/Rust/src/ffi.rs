@@ -10,7 +10,6 @@
 use crate::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex, SpatialNodeIndex};
 use crate::node_slot_id::NodeSlotId;
 use std::ffi::c_void;
-use std::rc::Rc;
 
 /// # Safety
 ///
@@ -225,7 +224,7 @@ pub unsafe extern "C" fn display_list_replay(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_retain(tree: *const c_void) -> *const c_void {
     // SAFETY: The caller guarantees `tree` is a live retained handle, so the strong count is at least one.
-    unsafe { Rc::increment_strong_count(tree.cast::<crate::visual_context::VisualContextTree>()) };
+    unsafe { std::sync::Arc::increment_strong_count(tree.cast::<crate::visual_context::VisualContextTree>()) };
     tree
 }
 
@@ -238,7 +237,7 @@ pub unsafe extern "C" fn visual_context_tree_release(tree: *const c_void) {
         return;
     }
     // SAFETY: The caller gives up the reference it retained, and the strong count is at least one.
-    unsafe { Rc::decrement_strong_count(tree.cast::<crate::visual_context::VisualContextTree>()) };
+    unsafe { std::sync::Arc::decrement_strong_count(tree.cast::<crate::visual_context::VisualContextTree>()) };
 }
 
 /// # Safety
@@ -272,7 +271,7 @@ pub unsafe extern "C" fn visual_context_tree_deserialize(bytes: *const u8, lengt
     // SAFETY: The caller guarantees `bytes` addresses `length` readable bytes.
     let bytes = unsafe { ffi_slice(bytes, length) };
     match crate::visual_context::VisualContextTree::from_bytes(bytes) {
-        Some(tree) => Rc::into_raw(Rc::new(tree)).cast(),
+        Some(tree) => std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
         None => std::ptr::null(),
     }
 }
@@ -488,7 +487,7 @@ pub unsafe extern "C" fn visual_context_tree_with_visual_viewport_transform(
 ) -> *const c_void {
     let mut copy = unsafe { tree_from_handle(tree) }.clone();
     copy.set_visual_viewport_matrix_and_origin(transform.matrix, transform.origin);
-    Rc::into_raw(Rc::new(copy)).cast()
+    std::sync::Arc::into_raw(std::sync::Arc::new(copy)).cast()
 }
 
 /// # Safety
@@ -502,7 +501,7 @@ pub unsafe extern "C" fn visual_context_tree_with_visual_animation_samples(
     sample_time_ns: i64,
 ) -> *const c_void {
     let sampled = unsafe { tree_from_handle(tree) }.with_visual_animation_samples(sample_time_ns);
-    Rc::into_raw(Rc::new(sampled)).cast()
+    std::sync::Arc::into_raw(std::sync::Arc::new(sampled)).cast()
 }
 
 /// # Safety
@@ -825,7 +824,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_path(
     let path = libgfx_rust::path::OwnedPath::from_serialized_bytes(path_bytes);
     tree.append_clip(
         crate::visual_context::ClipNodeData::Path(crate::visual_context::ClipPathData {
-            path: Rc::new(path),
+            path: std::sync::Arc::new(path),
             bounding_rect,
             fill_rule,
         }),
@@ -883,7 +882,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_set_structural_epoch(
 pub unsafe extern "C" fn visual_context_tree_test_builder_finish(builder: *mut c_void) -> *const c_void {
     // SAFETY: The caller hands over the boxed tree the create call returned.
     let tree = unsafe { Box::from_raw(builder.cast::<crate::visual_context::VisualContextTree>()) };
-    Rc::into_raw(Rc::new(*tree)).cast()
+    std::sync::Arc::into_raw(std::sync::Arc::new(*tree)).cast()
 }
 
 /// # Safety

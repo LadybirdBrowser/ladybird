@@ -9,8 +9,6 @@
 //! description at a point in time, which both the compositor and the main thread's intersection
 //! observations run.
 
-use std::rc::Rc;
-
 use crate::easing::Easing;
 use crate::filter_bytes::filter_functions_graph;
 use crate::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
@@ -361,7 +359,7 @@ pub struct VisualAnimationKeyframe {
 pub enum VisualAnimationSample {
     Opacity(f32),
     BackgroundColor(Color),
-    Filter(Option<Rc<Vec<u8>>>),
+    Filter(Option<std::sync::Arc<Vec<u8>>>),
     Transform(FloatMatrix4x4),
 }
 
@@ -636,7 +634,7 @@ impl VisualAnimation {
                 }
                 let graph = filter_functions_graph(functions.iter().copied().map(Filter::from));
                 Some(VisualAnimationSample::Filter(
-                    graph.map(|graph| Rc::new(graph.serialize())),
+                    graph.map(|graph| std::sync::Arc::new(graph.serialize())),
                 ))
             }
             (FfiVisualAnimationTargetKind::Transform, VisualAnimationValue::Transform(operations)) => {

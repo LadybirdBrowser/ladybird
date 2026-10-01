@@ -62,7 +62,7 @@ pub(crate) struct BoxFacts {
     pub overflow_clip: Option<ClipData>,
     pub css_clip: Option<ClipData>,
     pub line_clamp_float_clip: Option<ClipData>,
-    pub clip_path: Option<(std::rc::Rc<libgfx_rust::path::OwnedPath>, IntRect, WindingRule)>,
+    pub clip_path: Option<(std::sync::Arc<libgfx_rust::path::OwnedPath>, IntRect, WindingRule)>,
     pub mask_layers: Vec<MaskData>,
     pub establishes_absolute_containing_block: bool,
     pub establishes_fixed_containing_block: bool,
@@ -136,7 +136,7 @@ impl BoxFacts {
         facts.establishes_absolute_containing_block = establishes_absolute;
         facts.establishes_fixed_containing_block = establishes_fixed;
         facts.clip_path = super::basic_shapes::compute_basic_shape_clip_path_data(layout_arena, slot, pixel_ratio)
-            .map(|(path, bounding_rect, fill_rule)| (std::rc::Rc::new(path), bounding_rect, fill_rule));
+            .map(|(path, bounding_rect, fill_rule)| (std::sync::Arc::new(path), bounding_rect, fill_rule));
         let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(pixel_ratio);
         facts.mask_layers = super::node_values::mask_layer_presence(layout_arena, slot, true)
             .into_iter()

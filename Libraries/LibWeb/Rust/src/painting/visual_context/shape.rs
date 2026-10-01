@@ -138,10 +138,10 @@ pub(crate) fn effect_node_shape(node: &EffectNode) -> EffectNodeShape {
     }
 }
 
-fn effects_filters_are_equal(a: Option<&std::rc::Rc<Vec<u8>>>, b: Option<&std::rc::Rc<Vec<u8>>>) -> bool {
+fn effects_filters_are_equal(a: Option<&std::sync::Arc<Vec<u8>>>, b: Option<&std::sync::Arc<Vec<u8>>>) -> bool {
     match (a, b) {
         (None, None) => true,
-        (Some(a), Some(b)) => std::rc::Rc::ptr_eq(a, b) || a == b,
+        (Some(a), Some(b)) => std::sync::Arc::ptr_eq(a, b) || a == b,
         _ => false,
     }
 }
@@ -163,7 +163,7 @@ pub(crate) fn clip_payloads_are_equal(a: &ClipNodeData, b: &ClipNodeData) -> boo
     match (a, b) {
         (ClipNodeData::Rect(a), ClipNodeData::Rect(b)) => a == b,
         (ClipNodeData::Path(a), ClipNodeData::Path(b)) => {
-            std::rc::Rc::ptr_eq(&a.path, &b.path) && a.bounding_rect == b.bounding_rect && a.fill_rule == b.fill_rule
+            std::sync::Arc::ptr_eq(&a.path, &b.path) && a.bounding_rect == b.bounding_rect && a.fill_rule == b.fill_rule
         }
         (ClipNodeData::Dead, ClipNodeData::Dead) => true,
         _ => false,

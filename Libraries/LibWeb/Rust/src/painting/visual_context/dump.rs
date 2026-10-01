@@ -586,7 +586,7 @@ mod node_dump_tests {
             EffectNodeData::Effects(EffectsData {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Multiply,
-                filter: Some(std::rc::Rc::new(vec![1, 2, 3])),
+                filter: Some(std::sync::Arc::new(vec![1, 2, 3])),
                 backdrop_filter: None,
             }),
             EffectNodeIndex::NONE,

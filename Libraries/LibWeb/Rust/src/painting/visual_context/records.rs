@@ -7,8 +7,6 @@
 //! What the main thread keeps alongside a visual context tree while it builds and updates it: the
 //! document's state, and the records the builder keeps per box.
 
-use std::rc::Rc;
-
 use super::{ClipNodeIndex, ContextRef, EffectNodeIndex, SpatialNodeIndex, VisualContextTree, dirty, scroll_state};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiCompositorAnimationPublishOutcome;
@@ -16,7 +14,7 @@ use crate::painting::visual_animation::VisualAnimation;
 
 #[derive(Default)]
 pub struct VisualContextState {
-    pub tree: Option<Rc<VisualContextTree>>,
+    pub tree: Option<std::sync::Arc<VisualContextTree>>,
     pub paintables_with_mask_nodes: Vec<crate::layout::node_data::NodeSlotId>,
     pub scroll_state: scroll_state::ScrollState,
     pub needs_to_refresh_scroll_state: bool,
@@ -48,7 +46,7 @@ impl VisualContextState {
         }
         self.quarantined_slots_are_releasable = false;
         if let Some(tree) = self.tree.as_mut() {
-            Rc::make_mut(tree).release_quarantined_slots_after_recording();
+            std::sync::Arc::make_mut(tree).release_quarantined_slots_after_recording();
         }
     }
 }
@@ -91,7 +89,7 @@ pub fn publish_compositor_animations(
         }
     }
     *published = animations.clone();
-    Rc::make_mut(tree).set_visual_animations(animations);
+    std::sync::Arc::make_mut(tree).set_visual_animations(animations);
     FfiCompositorAnimationPublishOutcome {
         published: true,
         parameters_changed,

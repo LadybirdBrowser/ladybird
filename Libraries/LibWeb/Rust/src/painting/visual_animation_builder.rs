@@ -874,7 +874,6 @@ mod tests {
     use libgfx_rust::{FloatMatrix4x4, FloatPoint};
     use std::cell::RefCell;
     use std::collections::HashMap;
-    use std::rc::Rc;
     use std::sync::Arc;
 
     fn retained(value: StyleValueData) -> RetainedStyleValueData {
@@ -1571,8 +1570,8 @@ mod tests {
         assert!(build(StyleValueData::Keyword { keyword: keyword::NONE }).is_some());
     }
 
-    fn tree_with_one_effect() -> Rc<VisualContextTree> {
-        Rc::new(VisualContextTree::create(TransformData {
+    fn tree_with_one_effect() -> Arc<VisualContextTree> {
+        Arc::new(VisualContextTree::create(TransformData {
             matrix: FloatMatrix4x4::identity(),
             origin: FloatPoint { x: 0.0, y: 0.0 },
             sorting_context_root_index: None,
