@@ -1516,6 +1516,7 @@ private:
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList);
+    void request_frame_for_pending_repaint();
 
     // ^JS::Object
     virtual bool is_dom_document() const final { return true; }

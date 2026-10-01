@@ -9798,8 +9798,6 @@ void Document::set_navigable(GC::Ptr<HTML::LocalNavigable> navigable)
 
 void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
-    auto navigable = this->navigable();
-
     switch (should_invalidate_display_list) {
     case InvalidateDisplayList::No:
         break;
@@ -9811,6 +9809,12 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
         break;
     }
 
+    request_frame_for_pending_repaint();
+}
+
+void Document::request_frame_for_pending_repaint()
+{
+    auto navigable = this->navigable();
     if (!navigable)
         return;
 
@@ -9822,9 +9826,8 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
         return;
     }
 
-    if (auto container = navigable->container()) {
-        container->document().set_needs_repaint(InvalidateDisplayList::No);
-    }
+    if (auto container = navigable->container())
+        container->document().request_frame_for_pending_repaint();
 }
 
 void Document::set_needs_accumulated_visual_contexts_update(bool value)
