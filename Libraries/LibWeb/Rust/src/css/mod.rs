@@ -17,6 +17,7 @@ pub mod computed_value_types;
 pub(crate) mod computed_value_views;
 pub mod computed_values;
 pub(crate) mod container_conditions;
+pub(crate) mod counter_representation;
 pub(crate) mod counter_style;
 pub mod css_enums;
 pub mod css_path;
