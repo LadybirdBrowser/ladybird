@@ -2513,8 +2513,9 @@ handler GetById(
         assert(variant < 2);
         guard variant == 0 else @cold {
             let helper_argument = native_payload;
-            let exception_pc: i32 = call_helper(
+            let exception_pc: i32 = call_helper_with_two_arguments(
                 asm_helper_handle_raw_native_exception,
+                current_vm(),
                 helper_argument
             );
             guard exception_pc >= 0 else @cold {
@@ -3113,8 +3114,9 @@ handler Call(
             # FIXME: Pass native_payload directly once the allocator can
             #        satisfy the helper ABI without conflicting with variant.
             let helper_argument = native_payload;
-            let exception_pc: i32 = call_helper(
+            let exception_pc: i32 = call_helper_with_two_arguments(
                 asm_helper_handle_raw_native_exception,
+                current_vm(),
                 helper_argument
             );
             guard exception_pc >= 0 else @cold {
@@ -3399,7 +3401,7 @@ handler CallBuiltinStringFromCharCode(
     guard let mut Value<i32>(code_unit) = load(argument) else slow;
     let single_utf16_code_unit = || {
         assert(u32(code_unit) < 0x10000);
-        let result: Value = call_helper(asm_helper_single_utf16_code_unit_string, code_unit);
+        let result: Value = call_helper_with_two_arguments(asm_helper_single_utf16_code_unit_string, current_vm(), code_unit);
         assert(extract_tag(result) == STRING_TAG);
         store(dst, result);
         dispatch_next;
@@ -3409,7 +3411,7 @@ handler CallBuiltinStringFromCharCode(
     #        branch condition for this comparison.
     branch_ge_unsigned(code_unit, 0x80, single_utf16_code_unit);
 
-    let result: Value = call_helper(asm_helper_single_ascii_character_string, code_unit);
+    let result: Value = call_helper_with_two_arguments(asm_helper_single_ascii_character_string, current_vm(), code_unit);
     assert(extract_tag(result) == STRING_TAG);
     store(dst, result);
     dispatch_next;
@@ -3454,8 +3456,7 @@ handler CallBuiltinStringPrototypeCharAt(
         call_slow_path(call_builtin_string_prototype_char_at);
     };
     let empty = || @cold {
-        let zero: u64 = 0;
-        let result: Value = call_helper(asm_helper_empty_string, zero);
+        let result: Value = call_helper(asm_helper_empty_string, current_vm());
         assert(extract_tag(result) == STRING_TAG);
         store(dst, result);
         dispatch_next;
@@ -3471,7 +3472,7 @@ handler CallBuiltinStringPrototypeCharAt(
     guard code_unit < 0x80 else slow;
     assert(code_unit < 0x80);
     let signed_code_unit: i32 = alias(code_unit);
-    let result: Value = call_helper(asm_helper_single_ascii_character_string, signed_code_unit);
+    let result: Value = call_helper_with_two_arguments(asm_helper_single_ascii_character_string, current_vm(), signed_code_unit);
     assert(extract_tag(result) == STRING_TAG);
     store(dst, result);
     dispatch_next;

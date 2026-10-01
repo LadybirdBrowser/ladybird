@@ -4464,7 +4464,7 @@ asm_handler_GetById:
     jz .Lasm_GetById.assert_failure_0
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jz .Lasm_GetById.assert_predicate_failure_90
+    jz .Lasm_GetById.assert_predicate_failure_91
     mov rax, QWORD PTR [rax + 112]
     test rax, rax
     jz .Lasm_GetById.assert_failure_1
@@ -4474,7 +4474,7 @@ asm_handler_GetById:
     jz .Lasm_GetById.ssa_block_1
     and rsi, -4
     test rsi, rsi
-    jz .Lasm_GetById.assert_predicate_failure_261
+    jz .Lasm_GetById.assert_predicate_failure_262
     cmp QWORD PTR [rsi + 24], rdi
     jne .Lasm_GetById.ssa_block_1
     mov eax, DWORD PTR [rsi]
@@ -5061,11 +5061,11 @@ asm_handler_Call:
     mov rdx, rax
 .Lasm_Call.ssa_block_27:
     test rdi, rdi
-    jz .Lasm_Call.assert_predicate_failure_274
+    jz .Lasm_Call.assert_predicate_failure_275
     mov eax, DWORD PTR [rdi + 364]
     mov esi, DWORD PTR [rdi + 368]
     cmp rsi, rax
-    jb .Lasm_Call.assert_predicate_failure_280
+    jb .Lasm_Call.assert_predicate_failure_281
     mov eax, 4294967295
     sub rax, rsi
     cmp rax, rdx
@@ -5084,7 +5084,7 @@ asm_handler_Call:
     lea r8, [r8 + 128]
     add r8, rax
     cmp r8, rax
-    jb .Lasm_Call.assert_predicate_failure_295
+    jb .Lasm_Call.assert_predicate_failure_296
     cmp r8, r11
     ja .Lasm_Call.ssa_block_1
     mov r11, QWORD PTR [rbp - 48]
@@ -5104,7 +5104,7 @@ asm_handler_Call:
     mov r8, QWORD PTR [rcx + 104]
     mov r10, QWORD PTR [rcx + 112]
     test r8, r8
-    jz .Lasm_Call.assert_predicate_failure_323
+    jz .Lasm_Call.assert_predicate_failure_324
     mov QWORD PTR [rax + 32], r8
     mov QWORD PTR [rax + 40], r8
     mov QWORD PTR [rax + 48], r10
@@ -5146,7 +5146,7 @@ asm_handler_Call:
     mov DWORD PTR [rax + 112], edi
     mov edi, DWORD PTR [r14 + r13 + 20]
     cmp rdx, rdi
-    jb .Lasm_Call.assert_predicate_failure_385
+    jb .Lasm_Call.assert_predicate_failure_386
     lea r8, [rax + 128]
     lea r9, [rbx]
     lea r10, [r14 + r13 + 28]
@@ -5173,7 +5173,7 @@ asm_handler_Call:
 .Lasm_Call.ssa_block_19:
     mov rcx, QWORD PTR [rax + 88]
     test rcx, rcx
-    jz .Lasm_Call.assert_predicate_failure_211
+    jz .Lasm_Call.assert_predicate_failure_212
     mov r14, QWORD PTR [rcx + 80]
     test r14, r14
     jz .Lasm_Call.assert_failure_9
@@ -5288,7 +5288,7 @@ asm_handler_Call:
     add rax, rcx
     mov ecx, DWORD PTR [rax + 8]
     cmp rcx, 1
-    jae .Lasm_Call.assert_predicate_failure_245
+    jae .Lasm_Call.assert_predicate_failure_246
     mov rdx, QWORD PTR [rax]
     test rdx, rdx
     jz .Lasm_Call.assert_failure_16
@@ -5299,12 +5299,12 @@ asm_handler_Call:
     mov rdx, rax
     and rcx, 255
     cmp rcx, 2
-    jae .Lasm_Call.assert_predicate_failure_252
+    jae .Lasm_Call.assert_predicate_failure_253
     test rcx, rcx
     jnz .Lasm_Call.ssa_block_4
     mov rax, QWORD PTR [rbx - 32]
     test rax, rax
-    jz .Lasm_Call.assert_predicate_failure_258
+    jz .Lasm_Call.assert_predicate_failure_259
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx + 15288], rax
     lea r11, [rbx - 128]
@@ -5691,29 +5691,33 @@ asm_handler_CallBuiltinStringFromCharCode:
     shr r11, 48
     cmp r11w, 32762
     jne .Lasm_CallBuiltinStringFromCharCode.ssa_block_1
-    movsxd rcx, eax
-    and rcx, 65535
-    mov ecx, ecx
-    cmp rcx, 128
+    movsxd rdx, eax
+    and rdx, 65535
+    mov edx, edx
+    cmp rdx, 128
     jae .Lasm_CallBuiltinStringFromCharCode.ssa_block_2
+    mov rcx, QWORD PTR [rbp - 48]
     mov rdi, rcx
+    mov rsi, rdx
     call CSYM(asm_helper_single_ascii_character_string)
     mov r11, rax
     shr r11, 48
     cmp r11w, 65530
-    jne .Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_15
+    jne .Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_17
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_CallBuiltinStringFromCharCode.ssa_block_2:
+    mov rcx, QWORD PTR [rbp - 48]
     mov rdi, rcx
+    mov rsi, rdx
     call CSYM(asm_helper_single_utf16_code_unit_string)
     mov r11, rax
     shr r11, 48
     cmp r11w, 65530
-    jne .Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_7
+    jne .Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_8
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -5845,27 +5849,29 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     test edx, 1
     jz .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_19
     lea rcx, [rcx + 24]
-    movzx ecx, WORD PTR [rcx + rax * 2]
+    movzx edx, WORD PTR [rcx + rax * 2]
     jmp .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_15
 .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_19:
     lea rcx, [rcx + 24]
-    movzx ecx, BYTE PTR [rcx + rax]
+    movzx edx, BYTE PTR [rcx + rax]
     jmp .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_15
 .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_14:
     shr esi, 2
     cmp rax, rsi
     jae .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2
     lea rcx, [rdx + 17]
-    movzx ecx, BYTE PTR [rcx + rax]
+    movzx edx, BYTE PTR [rcx + rax]
 .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_15:
-    cmp rcx, 128
+    cmp rdx, 128
     jae .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
+    mov rcx, QWORD PTR [rbp - 48]
     mov rdi, rcx
+    mov rsi, rdx
     call CSYM(asm_helper_single_ascii_character_string)
     mov r11, rax
     shr r11, 48
     cmp r11w, 65530
-    jne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_54
+    jne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_56
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -11729,7 +11735,7 @@ asm_handler_GetById_cold:
     add rsi, rcx
     mov edi, DWORD PTR [rsi + 8]
     cmp rdi, 1
-    jae .Lasm_GetById.assert_predicate_failure_120
+    jae .Lasm_GetById.assert_predicate_failure_121
     mov rcx, QWORD PTR [rbp - 48]
     mov r9, QWORD PTR [rcx + 15376]
     mov rcx, QWORD PTR [rcx + 15368]
@@ -11739,7 +11745,7 @@ asm_handler_GetById_cold:
     jz .Lasm_GetById.assert_failure_5
     lea r8, [rcx + 128]
     cmp r8, rcx
-    jb .Lasm_GetById.assert_predicate_failure_129
+    jb .Lasm_GetById.assert_predicate_failure_130
     cmp r8, r9
     ja .Lasm_GetById.ssa_block_3
     mov r9, QWORD PTR [rbp - 48]
@@ -11747,7 +11753,7 @@ asm_handler_GetById_cold:
     mov r9, r10
     add r9, 32768
     cmp r9, r10
-    jb .Lasm_GetById.assert_predicate_failure_137
+    jb .Lasm_GetById.assert_predicate_failure_138
     cmp r9, rbp
     ja .Lasm_GetById.ssa_block_3
     mov r9, QWORD PTR [rbp - 48]
@@ -11766,9 +11772,9 @@ asm_handler_GetById_cold:
     mov rax, QWORD PTR [rbx - 96]
     mov rdi, QWORD PTR [rbx - 88]
     test rax, rax
-    jz .Lasm_GetById.assert_predicate_failure_162
+    jz .Lasm_GetById.assert_predicate_failure_163
     test rdi, rdi
-    jz .Lasm_GetById.assert_predicate_failure_164
+    jz .Lasm_GetById.assert_predicate_failure_165
     mov QWORD PTR [rcx + 32], rax
     mov QWORD PTR [rcx + 40], rdi
     mov rax, QWORD PTR [rbx - 80]
@@ -11812,12 +11818,12 @@ asm_handler_GetById_cold:
     mov rdx, rax
     and rcx, 255
     cmp rcx, 2
-    jae .Lasm_GetById.assert_predicate_failure_224
+    jae .Lasm_GetById.assert_predicate_failure_225
     test rcx, rcx
     jnz .Lasm_GetById.ssa_block_6
     mov rax, QWORD PTR [rbx - 32]
     test rax, rax
-    jz .Lasm_GetById.assert_predicate_failure_233
+    jz .Lasm_GetById.assert_predicate_failure_234
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx + 15288], rax
     lea r11, [rbx - 128]
@@ -11939,8 +11945,9 @@ asm_handler_GetById_cold:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_GetById.ssa_block_6:
-    mov rcx, rdx
+    mov rcx, QWORD PTR [rbp - 48]
     mov rdi, rcx
+    mov rsi, rdx
     call CSYM(asm_helper_handle_raw_native_exception)
     test eax, eax
     js .Lasm_GetById.ssa_block_7
@@ -11948,10 +11955,10 @@ asm_handler_GetById_cold:
     mov rbx, QWORD PTR [rax + 15288]
     add rbx, 128
     test rbx, rbx
-    jz .Lasm_GetById.assert_predicate_failure_47
+    jz .Lasm_GetById.assert_predicate_failure_48
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jz .Lasm_GetById.assert_predicate_failure_53
+    jz .Lasm_GetById.assert_predicate_failure_54
     mov r14, QWORD PTR [rax + 80]
     test r14, r14
     jz .Lasm_GetById.assert_failure_18
@@ -12699,8 +12706,9 @@ asm_handler_SetGlobal_cold_end:
 asm_handler_Call_cold:
 # Cold paths for Call
 .Lasm_Call.ssa_block_4:
-    mov rcx, rdx
+    mov rcx, QWORD PTR [rbp - 48]
     mov rdi, rcx
+    mov rsi, rdx
     call CSYM(asm_helper_handle_raw_native_exception)
     test eax, eax
     js .Lasm_Call.ssa_block_5
@@ -12708,10 +12716,10 @@ asm_handler_Call_cold:
     mov rbx, QWORD PTR [rax + 15288]
     add rbx, 128
     test rbx, rbx
-    jz .Lasm_Call.assert_predicate_failure_137
+    jz .Lasm_Call.assert_predicate_failure_138
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jz .Lasm_Call.assert_predicate_failure_143
+    jz .Lasm_Call.assert_predicate_failure_144
     mov r14, QWORD PTR [rax + 80]
     test r14, r14
     jz .Lasm_Call.assert_failure_30
@@ -14002,13 +14010,13 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt_cold_end:
 asm_handler_CallBuiltinStringPrototypeCharAt_cold:
 # Cold paths for CallBuiltinStringPrototypeCharAt
 .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_2:
-    mov rcx, 0
+    mov rcx, QWORD PTR [rbp - 48]
     mov rdi, rcx
     call CSYM(asm_helper_empty_string)
     mov r11, rax
     shr r11, 48
     cmp r11w, 65530
-    jne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_7
+    jne .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_8
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -18319,39 +18327,39 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_GetById.assert_failure_0:
     ud2
-.Lasm_GetById.assert_predicate_failure_90:
+.Lasm_GetById.assert_predicate_failure_91:
     ud2
 .Lasm_GetById.assert_failure_1:
     ud2
-.Lasm_GetById.assert_predicate_failure_261:
+.Lasm_GetById.assert_predicate_failure_262:
     ud2
 .Lasm_GetById.assert_failure_2:
     ud2
 .Lasm_GetById.assert_failure_3:
     ud2
-.Lasm_GetById.assert_predicate_failure_120:
+.Lasm_GetById.assert_predicate_failure_121:
     ud2
 .Lasm_GetById.assert_failure_4:
     ud2
 .Lasm_GetById.assert_failure_5:
     ud2
-.Lasm_GetById.assert_predicate_failure_129:
+.Lasm_GetById.assert_predicate_failure_130:
     ud2
-.Lasm_GetById.assert_predicate_failure_137:
+.Lasm_GetById.assert_predicate_failure_138:
     ud2
 .Lasm_GetById.assert_failure_6:
     ud2
 .Lasm_GetById.assert_failure_7:
     ud2
-.Lasm_GetById.assert_predicate_failure_162:
+.Lasm_GetById.assert_predicate_failure_163:
     ud2
-.Lasm_GetById.assert_predicate_failure_164:
+.Lasm_GetById.assert_predicate_failure_165:
     ud2
 .Lasm_GetById.assert_failure_8:
     ud2
-.Lasm_GetById.assert_predicate_failure_224:
+.Lasm_GetById.assert_predicate_failure_225:
     ud2
-.Lasm_GetById.assert_predicate_failure_233:
+.Lasm_GetById.assert_predicate_failure_234:
     ud2
 .Lasm_GetById.assert_predicate_failure_25:
     ud2
@@ -18359,9 +18367,9 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_GetById.assert_failure_17:
     ud2
-.Lasm_GetById.assert_predicate_failure_47:
+.Lasm_GetById.assert_predicate_failure_48:
     ud2
-.Lasm_GetById.assert_predicate_failure_53:
+.Lasm_GetById.assert_predicate_failure_54:
     ud2
 .Lasm_GetById.assert_failure_18:
     ud2
@@ -18429,27 +18437,27 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_Call.assert_failure_3:
     ud2
-.Lasm_Call.assert_predicate_failure_274:
+.Lasm_Call.assert_predicate_failure_275:
     ud2
-.Lasm_Call.assert_predicate_failure_280:
+.Lasm_Call.assert_predicate_failure_281:
     ud2
 .Lasm_Call.assert_failure_4:
     ud2
 .Lasm_Call.assert_failure_5:
     ud2
-.Lasm_Call.assert_predicate_failure_295:
+.Lasm_Call.assert_predicate_failure_296:
     ud2
 .Lasm_Call.assert_failure_6:
     ud2
 .Lasm_Call.assert_failure_7:
     ud2
-.Lasm_Call.assert_predicate_failure_323:
+.Lasm_Call.assert_predicate_failure_324:
     ud2
 .Lasm_Call.assert_failure_8:
     ud2
-.Lasm_Call.assert_predicate_failure_385:
+.Lasm_Call.assert_predicate_failure_386:
     ud2
-.Lasm_Call.assert_predicate_failure_211:
+.Lasm_Call.assert_predicate_failure_212:
     ud2
 .Lasm_Call.assert_failure_9:
     ud2
@@ -18473,13 +18481,13 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_Call.assert_failure_15:
     ud2
-.Lasm_Call.assert_predicate_failure_245:
+.Lasm_Call.assert_predicate_failure_246:
     ud2
 .Lasm_Call.assert_failure_16:
     ud2
-.Lasm_Call.assert_predicate_failure_252:
+.Lasm_Call.assert_predicate_failure_253:
     ud2
-.Lasm_Call.assert_predicate_failure_258:
+.Lasm_Call.assert_predicate_failure_259:
     ud2
 .Lasm_Call.assert_predicate_failure_11:
     ud2
@@ -18487,19 +18495,19 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_Call.assert_failure_29:
     ud2
-.Lasm_Call.assert_predicate_failure_137:
+.Lasm_Call.assert_predicate_failure_138:
     ud2
-.Lasm_Call.assert_predicate_failure_143:
+.Lasm_Call.assert_predicate_failure_144:
     ud2
 .Lasm_Call.assert_failure_30:
     ud2
-.Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_15:
+.Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_17:
     ud2
-.Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_7:
+.Lasm_CallBuiltinStringFromCharCode.assert_predicate_failure_8:
     ud2
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_54:
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_56:
     ud2
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_7:
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_8:
     ud2
 .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_9:
     ud2

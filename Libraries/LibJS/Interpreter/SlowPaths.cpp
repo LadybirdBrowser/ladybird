@@ -769,10 +769,10 @@ DECLARE_SLOW_PATH(asm_slow_path_put_private_by_id, PutPrivateById);
 i64 asm_try_put_by_value_holey_array(VM*, u32 pc, Op::PutByValue const*, Op::PutByValue::Values& values);
 u64 asm_helper_to_boolean(u64 encoded_value);
 u64 asm_helper_math_exp(u64 encoded_value);
-u64 asm_helper_empty_string(u64);
-u64 asm_helper_single_ascii_character_string(u64 encoded_value);
-u64 asm_helper_single_utf16_code_unit_string(u64 encoded_value);
-i64 asm_helper_handle_raw_native_exception(u64 encoded_exception);
+u64 asm_helper_empty_string(VM*);
+u64 asm_helper_single_ascii_character_string(VM*, u64 encoded_value);
+u64 asm_helper_single_utf16_code_unit_string(VM*, u64 encoded_value);
+i64 asm_helper_handle_raw_native_exception(VM*, u64 encoded_exception);
 i64 asm_try_inline_call(VM*, u32 pc, Op::Call const*, Op::Call::Values& values);
 i64 asm_try_inline_get_by_id_accessor(VM*, u32 pc, Op::GetById const*, Op::GetById::Values& values);
 i64 asm_try_put_by_id_cache(VM*, u32 pc, Op::PutById const*, Op::PutById::Values& values);
@@ -3306,14 +3306,14 @@ u64 asm_helper_math_exp(u64 encoded_value)
     return bit_cast<u64>(Value(::exp(value.as_double())));
 }
 
-u64 asm_helper_empty_string(u64)
+u64 asm_helper_empty_string(VM* vm)
 {
-    return bit_cast<u64>(Value(&VM::the().empty_string()));
+    return bit_cast<u64>(Value(&vm->empty_string()));
 }
 
-i64 asm_helper_handle_raw_native_exception(u64 encoded_exception)
+i64 asm_helper_handle_raw_native_exception(VM* vm_pointer, u64 encoded_exception)
 {
-    auto& vm = VM::the();
+    auto& vm = *vm_pointer;
     auto& callee_frame = vm.running_execution_context();
     VERIFY(callee_frame.caller_frame);
 
@@ -3326,15 +3326,15 @@ i64 asm_helper_handle_raw_native_exception(u64 encoded_exception)
     return handle_asm_exception(vm, caller_pc - 1, bit_cast<Value>(encoded_exception));
 }
 
-u64 asm_helper_single_ascii_character_string(u64 encoded_value)
+u64 asm_helper_single_ascii_character_string(VM* vm, u64 encoded_value)
 {
-    return bit_cast<u64>(Value(&VM::the().single_ascii_character_string(static_cast<u8>(encoded_value))));
+    return bit_cast<u64>(Value(&vm->single_ascii_character_string(static_cast<u8>(encoded_value))));
 }
 
-u64 asm_helper_single_utf16_code_unit_string(u64 encoded_value)
+u64 asm_helper_single_utf16_code_unit_string(VM* vm, u64 encoded_value)
 {
     char16_t code_unit = static_cast<char16_t>(encoded_value);
-    return bit_cast<u64>(Value(PrimitiveString::create(VM::the(), Utf16View(&code_unit, 1))));
+    return bit_cast<u64>(Value(PrimitiveString::create(*vm, Utf16View(&code_unit, 1))));
 }
 
 } // extern "C"
