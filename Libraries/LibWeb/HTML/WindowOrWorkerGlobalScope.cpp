@@ -668,7 +668,6 @@ void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-initialisation-steps
-// With no active script fix from https://github.com/whatwg/html/pull/9712
 WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id)
 {
     // 1. If handler is not a Function and previousId was not given:
