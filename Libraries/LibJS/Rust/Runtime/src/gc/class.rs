@@ -150,6 +150,28 @@ pub fn class_of<T>(cell: crate::layout::cell::Gc<T>) -> &'static Class {
     unsafe { cell.as_ptr().cast::<&'static Class>().read() }
 }
 
+/// Cells are only ever mutated through interior mutability, so a shared reference is all a Gc hands out.
+impl<T: GcCell> core::ops::Deref for crate::layout::cell::Gc<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        // SAFETY: A Gc points to a live cell, which never moves.
+        unsafe { self.as_non_null().as_ref() }
+    }
+}
+
+impl<T: GcCell> crate::layout::cell::Gc<T> {
+    /// The Gc of a cell the caller only has a reference to, like the receiver of a method.
+    ///
+    /// # Safety
+    ///
+    /// `cell` must be a cell in the heap, not a value that has yet to be allocated.
+    pub unsafe fn from_ref(cell: &T) -> Self {
+        // SAFETY: The caller guarantees that the reference is to a live cell.
+        unsafe { Self::from_non_null(core::ptr::NonNull::from(cell)) }
+    }
+}
+
 impl<T> crate::layout::cell::Gc<T> {
     pub fn upcast<Base>(self) -> crate::layout::cell::Gc<Base>
     where

@@ -10,10 +10,10 @@ use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
 
 pub use crate::gc::class::Class;
+pub use crate::runtime::symbol::Symbol;
 pub use ak::Utf16StringDataHeader;
 
 /// Cells the layout points to that the runtime does not define yet.
-pub enum Symbol {}
 pub enum Script {}
 pub enum Module {}
 pub enum ObjectEnvironment {}

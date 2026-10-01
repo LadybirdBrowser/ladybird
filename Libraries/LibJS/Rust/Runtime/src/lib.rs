@@ -26,6 +26,7 @@ pub mod layout_forward;
 pub mod parser_error;
 pub mod runtime;
 pub mod script;
+pub mod utf16;
 pub mod utilities;
 
 mod layout_static_assertions {

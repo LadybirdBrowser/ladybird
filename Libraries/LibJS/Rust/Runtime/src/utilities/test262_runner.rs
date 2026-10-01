@@ -28,6 +28,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::value::Value;
 use crate::parser_error::ParserError;
 use crate::script::Script;
+use crate::utf16::{string_from_utf8_with_replacement_character, utf16_from_wtf8};
 use libjs_rust::ast::ProgramType;
 use libjs_rust::compile::parse;
 
@@ -467,11 +468,11 @@ fn install_assertion_failure_hook(current_test: CurrentTest, saved_stdout: RawFd
 
 struct HarnessFiles {
     directory: String,
-    contents_by_name: HashMap<String, String>,
+    contents_by_name: HashMap<String, Vec<u8>>,
 }
 
 impl HarnessFiles {
-    fn read(&mut self, harness_file: &str) -> Result<&str, TestError> {
+    fn read(&mut self, harness_file: &str) -> Result<&[u8], TestError> {
         if !self.contents_by_name.contains_key(harness_file) {
             let path = format!("{}{harness_file}", self.directory);
             let contents = std::fs::read(&path).map_err(|_| TestError {
@@ -480,10 +481,7 @@ impl HarnessFiles {
                 details: format!("Could not read file: {harness_file}"),
                 harness_file: harness_file.to_string(),
             })?;
-            self.contents_by_name.insert(
-                harness_file.to_string(),
-                String::from_utf8_lossy(&contents).into_owned(),
-            );
+            self.contents_by_name.insert(harness_file.to_string(), contents);
         }
         Ok(&self.contents_by_name[harness_file])
     }
@@ -493,9 +491,14 @@ fn first_parser_error(errors: &[ParserError]) -> String {
     errors.first().map(ToString::to_string).unwrap_or_default()
 }
 
-fn parse_only_check(source: &str, program_type: ProgramType) -> Result<(), TestError> {
-    let source: Vec<u16> = source.encode_utf16().collect();
-    if parse(&source, program_type, 1).has_errors() {
+/// The code units of a source that must be valid. Like AK's Utf16String::from_utf8() in the C++ runner, this stops the
+/// process otherwise.
+fn decoded_source<'source>(source: Option<&'source [u16]>, what: &str) -> &'source [u16] {
+    source.unwrap_or_else(|| panic!("{what} is not valid UTF-8"))
+}
+
+fn parse_only_check(source: &[u16], program_type: ProgramType) -> Result<(), TestError> {
+    if parse(source, program_type, 1).has_errors() {
         return Err(TestError::syntax_error(
             NegativePhase::ParseOrEarly,
             "Parse error".to_string(),
@@ -505,10 +508,9 @@ fn parse_only_check(source: &str, program_type: ProgramType) -> Result<(), TestE
     Ok(())
 }
 
-fn parse_program(source: &str, program_type: ProgramType) -> Result<Script, TestError> {
-    let source: Vec<u16> = source.encode_utf16().collect();
+fn parse_program(source: &[u16], program_type: ProgramType) -> Result<Script, TestError> {
     if program_type == ProgramType::Module {
-        let parsed = parse(&source, ProgramType::Module, 1);
+        let parsed = parse(source, ProgramType::Module, 1);
         if parsed.has_errors() {
             let errors = ParserError::all_from_parsed_program(&parsed);
             return Err(TestError::syntax_error(
@@ -519,7 +521,7 @@ fn parse_program(source: &str, program_type: ProgramType) -> Result<Script, Test
         }
         unimplemented_runtime_function("running modules", 0);
     }
-    Script::parse(&source)
+    Script::parse(source)
         .map_err(|errors| TestError::syntax_error(NegativePhase::ParseOrEarly, first_parser_error(&errors), ""))
 }
 
@@ -534,29 +536,30 @@ fn run_program(vm: &Vm, script: Script) -> Result<(), TestError> {
 }
 
 fn run_test(
-    source: &str,
+    source: Option<&[u16]>,
     metadata: &TestMetadata<'_>,
     parse_only: bool,
     harness_files: &mut HarnessFiles,
 ) -> Result<(), TestError> {
     if parse_only {
-        return parse_only_check(source, metadata.program_type);
+        return parse_only_check(decoded_source(source, "The test"), metadata.program_type);
     }
 
     let vm = Vm::create();
-    let program = parse_program(source, metadata.program_type)?;
+    let program = parse_program(decoded_source(source, "The test"), metadata.program_type)?;
 
-    let mut harness_source = String::new();
+    let mut harness_source = Vec::new();
     for harness_file in &metadata.harness_files {
-        harness_source.push_str(harness_files.read(harness_file)?);
-        harness_source.push('\n');
+        harness_source.extend_from_slice(harness_files.read(harness_file)?);
+        harness_source.push(b'\n');
     }
 
     if !harness_source.is_empty() {
-        let harness_source: Vec<u16> = harness_source.encode_utf16().collect();
-        let harness_program = Script::parse(&harness_source).map_err(|errors| {
-            TestError::syntax_error(NegativePhase::Harness, first_parser_error(&errors), "<harness>")
-        })?;
+        let harness_source = utf16_from_wtf8(&harness_source);
+        let harness_program =
+            Script::parse(decoded_source(harness_source.as_deref(), "The harness")).map_err(|errors| {
+                TestError::syntax_error(NegativePhase::Harness, first_parser_error(&errors), "<harness>")
+            })?;
         if let Err(error) = run_program(&vm, harness_program) {
             return Err(TestError {
                 phase: NegativePhase::Harness,
@@ -587,7 +590,10 @@ fn verify_test(
     if let Err(error) = result {
         if error.phase == NegativePhase::Harness {
             output.set("harness_error", true);
-            output.set("harness_file", error.harness_file.as_str());
+            output.set(
+                "harness_file",
+                string_from_utf8_with_replacement_character(error.harness_file.as_bytes()),
+            );
             output.set("result", "harness_error");
         } else if error.phase == NegativePhase::Runtime
             && ((error.error_type == "InternalError" && error.details.starts_with("TODO("))
@@ -869,14 +875,12 @@ fn run(options: &Options) -> c_int {
         };
         count += 1;
 
-        let original_contents = String::from_utf8_lossy(&contents);
-        let contents_with_strict = format!("{USE_STRICT_PREFIX}{original_contents}");
+        let source = TestSource::decode(&contents);
 
         let mut result_object = JsonObject::default();
         result_object.set("test", path.as_str());
         run_test_file(
-            &original_contents,
-            &contents_with_strict,
+            &source,
             options.parse_only,
             timeout_in_seconds,
             &mut harness_files,
@@ -892,18 +896,47 @@ fn run(options: &Options) -> c_int {
     0
 }
 
+/// A test file's text, decoded once for reading its metadata and once for parsing it as C++ does.
+struct TestSource {
+    text: String,
+    is_valid_utf8: bool,
+    code_units: Option<Vec<u16>>,
+    code_units_with_strict: Option<Vec<u16>>,
+}
+
+impl TestSource {
+    fn decode(contents: &[u8]) -> Self {
+        let code_units = utf16_from_wtf8(contents);
+        let code_units_with_strict = code_units.as_ref().map(|code_units| {
+            let mut with_strict: Vec<u16> = USE_STRICT_PREFIX.encode_utf16().collect();
+            with_strict.extend_from_slice(code_units);
+            with_strict
+        });
+        Self {
+            text: String::from_utf8_lossy(contents).into_owned(),
+            is_valid_utf8: core::str::from_utf8(contents).is_ok(),
+            code_units,
+            code_units_with_strict,
+        }
+    }
+}
+
 fn run_test_file(
-    original_contents: &str,
-    contents_with_strict: &str,
+    source: &TestSource,
     parse_only: bool,
     timeout_in_seconds: u32,
     harness_files: &mut HarnessFiles,
     captured_output: &CapturedStandardOutput,
     result_object: &mut JsonObject,
 ) {
-    let metadata = match extract_metadata(original_contents) {
+    let metadata = match extract_metadata(&source.text) {
         Ok(metadata) => metadata,
         Err(message) => {
+            // The C++ runner cannot even format a message that holds an invalid byte sequence.
+            assert!(
+                source.is_valid_utf8 || !message.contains('\u{FFFD}'),
+                "The metadata of the test is not valid UTF-8"
+            );
             result_object.set("result", "metadata_error");
             result_object.set("metadata_error", true);
             result_object.set("metadata_output", message);
@@ -920,12 +953,12 @@ fn run_test_file(
 
         let start = Instant::now();
         set_alarm(timeout_in_seconds);
-        let source = if strict_mode {
-            contents_with_strict
+        let code_units = if strict_mode {
+            &source.code_units_with_strict
         } else {
-            original_contents
+            &source.code_units
         };
-        let result = run_test(source, &metadata, parse_only, harness_files);
+        let result = run_test(code_units.as_deref(), &metadata, parse_only, harness_files);
         set_alarm(0);
         let elapsed_milliseconds = i64::try_from(start.elapsed().as_millis()).unwrap_or(i64::MAX);
 
@@ -938,7 +971,7 @@ fn run_test_file(
 
         let first_output = captured_output.collect_output();
         if let Some(output) = &first_output {
-            result_object.set(output_key, String::from_utf8_lossy(output).into_owned());
+            result_object.set(output_key, string_from_utf8_with_replacement_character(output));
         }
 
         let mut passed = verify_test(&result, &metadata, result_object, parse_only);

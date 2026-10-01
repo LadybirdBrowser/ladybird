@@ -25,6 +25,9 @@ libjs_abi = { path = "../../ABI" }
 libjs_rust = { path = "../../Rust", default-features = false }
 libjs_runtime_macros = { path = "macros" }
 libregex_rust = { path = "../../../LibRegex/Rust", default-features = false }
+num-bigint = "0.4"
+num-integer = "0.1"
+num-traits = "0.2"
 rustc-demangle = "0.1"
 
 [build-dependencies]
