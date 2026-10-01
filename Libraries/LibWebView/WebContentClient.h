@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullRawPtr.h>
@@ -134,6 +135,9 @@ public:
     bool has_views() const;
 
     void did_lose_process();
+    void did_save_crash_report(ByteString const& report_name);
+    // Whether a tab was told this process was lost, and so shows its crash.
+    bool has_crashed_views() const { return !m_crashed_view_ids.is_empty(); }
     ErrorOr<void> reconnect_to_compositor_process(Badge<Application>);
     ErrorOr<void> recreate_compositor_contexts(Badge<Application>);
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
@@ -186,6 +190,7 @@ private:
     RefPtr<BrowsingSession> m_session;
     bool m_requested_close { false };
     bool m_rejected_ipc { false };
+    Vector<u64> m_crashed_view_ids;
 
     WebContentPage& open_page(Web::PageId, CanonicalTraversable&);
     WebContentPage* find_page(Web::PageId) const;

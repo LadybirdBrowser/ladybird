@@ -33,6 +33,7 @@ public:
     static bool is_supported();
 
     int fd() const { return m_file->fd(); }
+    ByteString const& saved_name() const { return m_saved_name; }
 
     // What a report says of the build and system that crashed. A browser records it with its record, since a later
     // launch formats the report, and that launch may be another build.
@@ -54,6 +55,7 @@ private:
     NonnullOwnPtr<Core::File> m_file;
     [[maybe_unused]] ProcessType m_process_type;
     MonotonicTime m_started_at { MonotonicTime::now() };
+    ByteString m_saved_name;
 };
 
 }

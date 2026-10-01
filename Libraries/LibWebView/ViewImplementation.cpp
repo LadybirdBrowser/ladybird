@@ -26,6 +26,7 @@
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
+#include <LibWebView/CrashReportReview.h>
 #include <LibWebView/ErrorHTML.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/HelperProcess.h>
@@ -3269,10 +3270,8 @@ void ViewImplementation::handle_web_content_process_crash()
     if (auto const& headless_mode = Application::browser_options().headless_mode; headless_mode.has_value())
         recovery_mode = *headless_mode == HeadlessMode::Test ? RecoveryMode::PrepareForNextNavigation : RecoveryMode::Restore;
 
-    if (recovery_mode == RecoveryMode::ShowOverlay) {
+    if (recovery_mode == RecoveryMode::ShowOverlay)
         dbgln("\033[31;1mWebContent process crashed!\033[0m Last page loaded: {}", failed_url);
-        dbgln("Consider raising an issue at https://github.com/LadybirdBrowser/ladybird/issues/new/choose");
-    }
 
     reset_page_media_state();
 
@@ -3364,9 +3363,40 @@ void ViewImplementation::set_crash_state(Optional<CrashState> state)
         on_crash_overlay_state_change(active);
 }
 
+// The report is written once the process has exited, which can be after this view was told the process was lost.
+void ViewImplementation::did_save_crash_report(ByteString report_name)
+{
+    if (!m_crash_state.has_value())
+        return;
+    m_crash_state->report_name = move(report_name);
+    if (on_crash_report_saved)
+        on_crash_report_saved();
+}
+
 String ViewImplementation::crash_overlay_failed_url() const
 {
     return m_crash_state.has_value() ? m_crash_state->failed_url.serialize() : m_url.serialize();
+}
+
+Optional<ByteString> ViewImplementation::crash_report_name() const
+{
+    if (!m_crash_state.has_value() || m_crash_state->report_name.is_empty())
+        return {};
+    return m_crash_state->report_name;
+}
+
+// The crash screen offers the failed URL for the user to include in the report; nothing is sent unless they do.
+Optional<String> ViewImplementation::crash_report_website() const
+{
+    if (!m_crash_state.has_value())
+        return {};
+    auto const& failed_url = m_crash_state->failed_url;
+    if (failed_url.scheme() != "http"sv && failed_url.scheme() != "https"sv)
+        return {};
+    auto serialized_url = failed_url.serialize();
+    if (serialized_url.bytes().size() > CrashReportReview::maximum_url_bytes)
+        return {};
+    return serialized_url;
 }
 
 String ViewImplementation::current_host_for_settings() const

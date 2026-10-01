@@ -297,8 +297,8 @@ ErrorOr<void> CrashReportStore::remove_sent_report(ByteString const& name) const
     return {};
 }
 
-// Writes report text under a name derived from the time of the crash.
-ErrorOr<void> CrashReportStore::store_report(ProcessType process_type, StringView text, UnixDateTime crashed_at) const
+// Writes report text under a name derived from the time of the crash and returns that name.
+ErrorOr<ByteString> CrashReportStore::store_report(ProcessType process_type, StringView text, UnixDateTime crashed_at) const
 {
     auto directory = TRY(open_report_directory(m_directory));
 
@@ -322,7 +322,7 @@ ErrorOr<void> CrashReportStore::store_report(ProcessType process_type, StringVie
     if (fsync(directory.fd()) < 0)
         return Error::from_errno(errno);
     remove_incomplete_report.disarm();
-    return {};
+    return name;
 }
 
 // Format the signal-safe records left by browsers that are no longer running. A report keeps the
@@ -457,7 +457,7 @@ bool CrashReportStore::has_pending_reports() const { return false; }
 ErrorOr<void> CrashReportStore::mark_seen(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_sent_report(ByteString const&) const { return {}; }
 
-ErrorOr<void> CrashReportStore::store_report(ProcessType, StringView, UnixDateTime) const
+ErrorOr<ByteString> CrashReportStore::store_report(ProcessType, StringView, UnixDateTime) const
 {
     return Error::from_string_literal("Crash reports are not supported on this platform yet");
 }

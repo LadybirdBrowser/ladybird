@@ -44,6 +44,8 @@ void Process::save_crash_report(Optional<int> exit_status)
     if (m_crash_report && exit_status.has_value()) {
         if (auto result = m_crash_report->save(*exit_status); result.is_error())
             warnln("Could not save {} crash report: {}", process_name_from_type(m_type), result.error());
+        else
+            m_saved_crash_report_name = m_crash_report->saved_name();
     }
     m_crash_report = nullptr;
 }

@@ -42,7 +42,7 @@ public:
     ErrorOr<void> mark_seen(ByteString const& name) const;
     ErrorOr<void> remove_sent_report(ByteString const& name) const;
 
-    ErrorOr<void> store_report(ProcessType, StringView text, UnixDateTime crashed_at) const;
+    ErrorOr<ByteString> store_report(ProcessType, StringView text, UnixDateTime crashed_at) const;
 
     ErrorOr<size_t> recover_pending_reports() const;
 

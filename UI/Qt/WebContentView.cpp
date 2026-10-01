@@ -26,11 +26,11 @@
 #include <LibWebCommon/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
-#include <LibWebView/CrashReportStore.h>
 #include <LibWebView/PlatformColors.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/CrashReportReviewWidget.h>
 #ifdef AK_OS_MACOS
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -43,10 +43,10 @@
 #include <QCursor>
 #include <QEvent>
 #include <QGuiApplication>
+#include <QHBoxLayout>
 #include <QInputDevice>
 #include <QKeySequence>
 #include <QLabel>
-#include <QMessageBox>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
@@ -58,6 +58,7 @@
 #include <QPixmap>
 #include <QPointer>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QScrollBar>
 #include <QShortcut>
 #include <QStyleHints>
@@ -179,6 +180,10 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
         if (active)
             close_select_dropdown_after_crash();
         set_crash_overlay_visible(active);
+    };
+
+    on_crash_report_saved = [this] {
+        show_crash_report_review();
     };
 
 #ifdef AK_OS_MACOS
@@ -970,6 +975,15 @@ static void draw_crash_overlay_icon(QPainter& painter, QColor const& color)
     draw_path(page_details);
 }
 
+static constexpr int CRASH_SCREEN_MAXIMUM_WIDTH = 640;
+static constexpr int CRASH_SCREEN_MARGIN = 32;
+static constexpr int CRASH_SCREEN_ICON_SPACING = 16;
+
+static QString crash_screen_message()
+{
+    return WebContentView::tr("This page crashed. You can reload it to try again.");
+}
+
 class CrashOverlayIcon final : public QWidget {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -977,7 +991,7 @@ public:
     explicit CrashOverlayIcon(QWidget* parent)
         : QWidget(parent)
     {
-        setFixedSize(52, 64);
+        setFixedSize(39, 48);
     }
 
 protected:
@@ -1000,7 +1014,7 @@ public:
         : QLabel(parent)
     {
         setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
-        setAlignment(Qt::AlignCenter);
+        setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         setForegroundRole(QPalette::PlaceholderText);
     }
 
@@ -1034,9 +1048,9 @@ void WebContentView::set_crash_overlay_visible(bool visible)
 {
     if (!visible) {
         if (m_crash_overlay) {
-            auto reload_button_had_focus = m_crash_overlay_reload_button->hasFocus();
+            auto overlay_had_focus = m_crash_overlay->isAncestorOf(QApplication::focusWidget());
             m_crash_overlay->hide();
-            if (reload_button_had_focus)
+            if (overlay_had_focus)
                 setFocus(Qt::OtherFocusReason);
         }
         schedule_repaint();
@@ -1044,66 +1058,144 @@ void WebContentView::set_crash_overlay_visible(bool visible)
     }
 
     if (!m_crash_overlay) {
-        m_crash_overlay = new QWidget(this);
-        m_crash_overlay->setAutoFillBackground(true);
-        m_crash_overlay->setBackgroundRole(QPalette::Window);
+        auto* scroll_area = new QScrollArea(this);
+        scroll_area->setFrameShape(QFrame::NoFrame);
+        scroll_area->setWidgetResizable(true);
+        scroll_area->setBackgroundRole(QPalette::Window);
+        scroll_area->viewport()->setBackgroundRole(QPalette::Window);
+        m_crash_overlay = scroll_area;
 
-        auto* icon = new CrashOverlayIcon(m_crash_overlay);
+        // Qt scrolls opaque content by moving the pixels it painted before, which leaves stale text behind the
+        // translucent fields of the review inside this native view. Transparent content is repainted instead, on top
+        // of the viewport's background.
+        auto* content = new QWidget(scroll_area);
+        scroll_area->setWidget(content);
+        content->setAutoFillBackground(false);
 
-        auto* title = new QLabel(qstring_from_ak_string(crash_overlay_title()), m_crash_overlay);
-        auto title_font = title->font();
-        title_font.setPointSizeF(title_font.pointSizeF() * 1.5);
-        title_font.setBold(true);
-        title->setFont(title_font);
-        title->setAlignment(Qt::AlignCenter);
-        title->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        // Everything sits left-aligned in one centered column, so the review below reads as part of the message above.
+        auto* column = new QWidget(content);
+        column->setMaximumWidth(CRASH_SCREEN_MAXIMUM_WIDTH);
 
-        m_crash_overlay_url = new CrashOverlayUrlLabel(m_crash_overlay);
+        // The icon stands beside the heading, level with its title however far the message wraps.
+        auto* header = new QWidget(column);
+        auto* icon = new CrashOverlayIcon(header);
 
-        auto* message = new QLabel(qstring_from_ak_string(crash_overlay_message()), m_crash_overlay);
-        message->setAlignment(Qt::AlignCenter);
-        message->setWordWrap(true);
-        message->setForegroundRole(QPalette::PlaceholderText);
-        message->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        // The heading's lines sit close together, and the groups of the screen further apart, as in the review.
+        auto* heading = new QWidget(header);
+        auto* heading_layout = new QVBoxLayout(heading);
+        heading_layout->setContentsMargins(0, 0, 0, 0);
+        heading_layout->setSpacing(CrashReportReviewWidget::item_spacing);
 
-        m_crash_overlay_reload_button = new QPushButton(qstring_from_ak_string(crash_overlay_reload_button_text()), m_crash_overlay);
+        auto* title = CrashReportReviewWidget::create_title(tr("Ladybird flew off-course!"), heading);
+
+        m_crash_overlay_url = new CrashOverlayUrlLabel(heading);
+
+        m_crash_overlay_message = new QLabel(heading);
+        m_crash_overlay_message->setWordWrap(true);
+        m_crash_overlay_message->setForegroundRole(QPalette::PlaceholderText);
+        m_crash_overlay_message->setTextInteractionFlags(Qt::TextSelectableByMouse);
+
+        m_crash_overlay_reload_button = new QPushButton(CrashReportReviewWidget::reload_page_text(), column);
         QObject::connect(m_crash_overlay_reload_button, &QPushButton::clicked, this, [this] {
             reload();
         });
 
-        auto* reload_shortcut = new QShortcut(QKeySequence(Qt::Key_Return), m_crash_overlay);
-        reload_shortcut->setContext(Qt::WidgetWithChildrenShortcut);
-        QObject::connect(reload_shortcut, &QShortcut::activated, m_crash_overlay_reload_button, &QPushButton::click);
+        m_crash_overlay_reload_shortcut = new QShortcut(QKeySequence(Qt::Key_Return), content);
+        m_crash_overlay_reload_shortcut->setContext(Qt::WidgetWithChildrenShortcut);
+        QObject::connect(m_crash_overlay_reload_shortcut, &QShortcut::activated, m_crash_overlay_reload_button, &QPushButton::click);
 
-        auto* layout = new QVBoxLayout(m_crash_overlay);
-        layout->setContentsMargins(20, 20, 20, 20);
-        layout->setSpacing(12);
-        layout->addStretch();
-        layout->addWidget(icon, 0, Qt::AlignHCenter);
-        layout->addSpacing(20);
-        layout->addWidget(title);
-        layout->addSpacing(4);
-        layout->addWidget(m_crash_overlay_url);
-        layout->addWidget(message);
-        layout->addSpacing(12);
-        layout->addWidget(m_crash_overlay_reload_button, 0, Qt::AlignHCenter);
+        heading_layout->addWidget(title);
+        heading_layout->addWidget(m_crash_overlay_url);
+        heading_layout->addWidget(m_crash_overlay_message);
+
+        auto* header_layout = new QHBoxLayout(header);
+        header_layout->setContentsMargins(0, 0, 0, 0);
+        header_layout->setSpacing(CRASH_SCREEN_ICON_SPACING);
+        header_layout->addWidget(icon, 0, Qt::AlignTop);
+        header_layout->addWidget(heading, 1);
+
+        auto* column_layout = new QVBoxLayout(column);
+        column_layout->setContentsMargins(0, 0, 0, 0);
+        column_layout->setSpacing(CrashReportReviewWidget::group_spacing);
+        column_layout->addWidget(header);
+        column_layout->addWidget(m_crash_overlay_reload_button, 0, Qt::AlignLeft);
         if (WebView::CrashReport::is_supported()) {
-            auto* reports_button = new QPushButton(tr("View crash reports"), m_crash_overlay);
-            QObject::connect(reports_button, &QPushButton::clicked, this, [this] {
-                if (WebView::CrashReportStore::the().show_directory().is_error())
-                    QMessageBox::warning(this, tr("Crash reports"), tr("Could not open the crash reports folder."));
-            });
-            layout->addWidget(reports_button, 0, Qt::AlignHCenter);
+            m_crash_report_container = new QWidget(column);
+            auto* container_layout = new QVBoxLayout(m_crash_report_container);
+            container_layout->setContentsMargins(0, 0, 0, 0);
+            column_layout->addWidget(m_crash_report_container);
         }
+
+        // Centering through stretches rather than alignment lets the review's wrapped text claim the height it needs
+        // at the width it is given.
+        auto* column_row = new QHBoxLayout;
+        column_row->addStretch();
+        column_row->addWidget(column, 1);
+        column_row->addStretch();
+
+        auto* layout = new QVBoxLayout(content);
+        layout->setContentsMargins(CRASH_SCREEN_MARGIN, CRASH_SCREEN_MARGIN, CRASH_SCREEN_MARGIN, CRASH_SCREEN_MARGIN);
+        layout->addStretch();
+        layout->addLayout(column_row);
         layout->addStretch();
     }
+
+    // Each crash has a report of its own, so whatever was shown about an earlier one goes.
+    if (m_crash_report_review) {
+        delete m_crash_report_review;
+        m_crash_report_review = nullptr;
+    }
+    if (m_crash_report_container)
+        m_crash_report_container->hide();
+    m_crash_overlay_url->show();
+    m_crash_overlay_message->setText(crash_screen_message());
+    m_crash_overlay_reload_button->show();
+    m_crash_overlay_reload_shortcut->setEnabled(true);
 
     m_crash_overlay_url->set_url_text(qstring_from_ak_string(crash_overlay_failed_url()));
     m_crash_overlay->setGeometry(rect());
     m_crash_overlay->show();
     m_crash_overlay->raise();
     m_crash_overlay_reload_button->setFocus(Qt::OtherFocusReason);
+
+    // The report is often written after the crash screen appears, in which case it is shown once it is saved.
+    show_crash_report_review();
     schedule_repaint();
+}
+
+void WebContentView::show_crash_report_review()
+{
+    if (!m_crash_report_container || m_crash_report_review)
+        return;
+
+    auto report_name = crash_report_name();
+    if (!report_name.has_value())
+        return;
+
+    m_crash_report_review = new CrashReportReviewWidget(CrashReportReviewWidget::Mode::Tab, m_crash_report_container);
+    if (auto result = m_crash_report_review->open_report(report_name, crash_report_website()); result.is_error()) {
+        warnln("Could not open crash report {}: {}", *report_name, result.error());
+        delete m_crash_report_review;
+        m_crash_report_review = nullptr;
+        return;
+    }
+    m_crash_report_review->on_reload = [this] { reload(); };
+    m_crash_report_review->on_answered = [this] {
+        m_crash_overlay_message->setText(crash_screen_message());
+    };
+
+    // The review offers reloading among its own actions, and the website among its fields. It takes text, so Return
+    // belongs to whatever field has focus.
+    m_crash_overlay_reload_shortcut->setEnabled(false);
+    auto reload_button_had_focus = m_crash_overlay_reload_button->hasFocus();
+    m_crash_overlay_reload_button->hide();
+    m_crash_overlay_url->hide();
+    m_crash_overlay_message->setText(
+        tr("This page crashed. You can send us a crash report to help fix it."));
+    m_crash_report_container->layout()->addWidget(m_crash_report_review);
+    m_crash_report_container->show();
+    if (reload_button_had_focus)
+        m_crash_report_review->setFocus(Qt::OtherFocusReason);
 }
 
 void WebContentView::resizeEvent(QResizeEvent* event)

@@ -59,6 +59,7 @@ public:
     void set_connect_broker(NonnullOwnPtr<Sandbox::ConnectBroker> broker) { m_connect_broker = move(broker); }
 #endif
     void save_crash_report(Optional<int> exit_status);
+    ByteString const& saved_crash_report_name() const { return m_saved_crash_report_name; }
 
     pid_t pid() const { return m_process.pid(); }
 
@@ -87,6 +88,7 @@ private:
     static ErrorOr<ProcessAndIPCTransport> spawn_and_connect_to_process(ProcessType, Core::ProcessSpawnOptions const& options, bool capture_output);
 
     OwnPtr<CrashReport> m_crash_report;
+    ByteString m_saved_crash_report_name;
 
 #if defined(AK_OS_LINUX)
 

@@ -568,6 +568,7 @@ void WebContentClient::did_lose_process()
     for (auto const& lost : lost_pages) {
         if (!lost.view_id.has_value())
             continue;
+        m_crashed_view_ids.append(*lost.view_id);
         Core::deferred_invoke([view_id = *lost.view_id, crash_reason] {
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value())
@@ -577,6 +578,21 @@ void WebContentClient::did_lose_process()
                 view->on_web_content_crashed(crash_reason);
         });
     }
+}
+
+// Deferred like the loss itself, so the view reads this after it has taken on its crash state. A crash makes one report,
+// so one of the views it took down is offered it. Offering it to several would let each send it, uploading it more than
+// once and removing it from under the others.
+void WebContentClient::did_save_crash_report(ByteString const& report_name)
+{
+    Core::deferred_invoke([view_ids = m_crashed_view_ids, report_name] {
+        for (auto view_id : view_ids) {
+            if (auto view = ViewImplementation::find_view_by_id(view_id); view.has_value()) {
+                view->did_save_crash_report(report_name);
+                return;
+            }
+        }
+    });
 }
 
 void WebContentClient::cancel_navigation_transactions()
