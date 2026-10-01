@@ -179,7 +179,7 @@ static GC::Ptr<HTML::DecodedImageData> decoded_image_data_of(Layout::NodeWithSty
     return observer->decoded_image_data();
 }
 
-void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
+static void push_layer_image_paint_facts_onto(Layout::NodeWithStyle const& layout_node)
 {
     auto const& background_layers = layout_node.background_layers();
     auto const& mask_layers = layout_node.mask_layers();
@@ -204,10 +204,8 @@ void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
     Layout::RustFFI::layout_arena_set_layer_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), entries.data(), entries.size());
 }
 
-bool push_replaced_image_paint_facts(Layout::ImageProvider const& image_provider, Layout::Node const& layout_node)
+static bool push_replaced_image_paint_facts_onto(Layout::ImageProvider const& image_provider, Layout::Node const& layout_node)
 {
-    if (layout_node.kind() != Layout::RustFFI::NodeKind::ImageBox && layout_node.kind() != Layout::RustFFI::NodeKind::SVGImageBox)
-        return false;
     Optional<Gfx::DecodedImageFrame> current_frame;
     Layout::RustFFI::FfiReplacedImagePaintFacts facts {
         .natural = natural_size_facts(image_provider.intrinsic_width(), image_provider.intrinsic_height(), image_provider.intrinsic_aspect_ratio()),
@@ -246,39 +244,70 @@ static bool push_video_paint_facts_onto(HTML::HTMLVideoElement const& video_elem
     return Layout::RustFFI::layout_arena_set_video_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), facts);
 }
 
+static bool paints_replaced_image_from_facts(Layout::Node const& layout_node)
+{
+    return layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox || layout_node.kind() == Layout::RustFFI::NodeKind::SVGImageBox;
+}
+
+static void note_box_paint_facts(Layout::Node const& layout_node, PaintFactsFamily families)
+{
+    if (auto identity = journal_identity_of(layout_node))
+        const_cast<DOM::Document&>(layout_node.document()).invalidation_journal().note_paint_facts(identity, families);
+    else
+        apply_paint_facts(layout_node, families);
+}
+
+void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
+{
+    note_box_paint_facts(layout_node, PaintFactsFamily::LayerImages);
+}
+
+void push_replaced_image_paint_facts(Layout::Node const& layout_node)
+{
+    if (paints_replaced_image_from_facts(layout_node))
+        note_box_paint_facts(layout_node, PaintFactsFamily::ReplacedImage);
+}
+
 void push_video_paint_facts(HTML::HTMLVideoElement const& video_element)
 {
-    auto const* layout_node = video_element.unsafe_layout_node();
-    if (!layout_node || layout_node->kind() != Layout::RustFFI::NodeKind::VideoBox)
-        return;
-    if (push_video_paint_facts_onto(video_element, *layout_node))
-        set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
+    note_paint_facts(video_element, PaintFactsFamily::Video);
 }
 
 void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, StyleHoldsImageValues style_holds_image_values)
 {
-    if (style_holds_image_values == StyleHoldsImageValues::Yes)
-        push_layer_image_paint_facts(layout_node);
-    else
-        Layout::RustFFI::layout_arena_set_layer_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), nullptr, 0);
+    auto families = style_holds_image_values == StyleHoldsImageValues::Yes ? PaintFactsFamily::LayerImages : PaintFactsFamily::NoLayerImages;
     if (paints_form_control_from_facts(layout_node))
-        push_form_control_paint_facts_onto(as<HTML::HTMLInputElement>(*layout_node.dom_node()), layout_node);
+        families |= PaintFactsFamily::FormControl;
     else if (layout_node.kind() == Layout::RustFFI::NodeKind::CanvasBox)
-        push_canvas_paint_facts_onto(as<HTML::HTMLCanvasElement>(*layout_node.dom_node()), layout_node);
-    else if (layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox)
-        push_replaced_image_paint_facts(static_cast<Layout::Box const&>(layout_node).image_provider(), layout_node);
-    else if (layout_node.kind() == Layout::RustFFI::NodeKind::SVGImageBox)
-        push_replaced_image_paint_facts(as<SVG::SVGImageElement>(*layout_node.dom_node()), layout_node);
+        families |= PaintFactsFamily::Canvas;
+    else if (paints_replaced_image_from_facts(layout_node))
+        families |= PaintFactsFamily::ReplacedImage;
     else if (layout_node.kind() == Layout::RustFFI::NodeKind::VideoBox)
-        push_video_paint_facts_onto(as<HTML::HTMLVideoElement>(*layout_node.dom_node()), layout_node);
+        families |= PaintFactsFamily::Video;
+    note_box_paint_facts(layout_node, families);
 }
 
 void apply_paint_facts(Layout::Node const& layout_node, PaintFactsFamily families)
 {
+    if (has_flag(families, PaintFactsFamily::NoLayerImages))
+        Layout::RustFFI::layout_arena_set_layer_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), nullptr, 0);
+    if (auto const* node_with_style = as_if<Layout::NodeWithStyle>(layout_node); node_with_style && has_flag(families, PaintFactsFamily::LayerImages))
+        push_layer_image_paint_facts_onto(*node_with_style);
     if (has_flag(families, PaintFactsFamily::FormControl) && paints_form_control_from_facts(layout_node))
         push_form_control_paint_facts_onto(as<HTML::HTMLInputElement>(*layout_node.dom_node()), layout_node);
     if (has_flag(families, PaintFactsFamily::Canvas) && layout_node.kind() == Layout::RustFFI::NodeKind::CanvasBox)
         push_canvas_paint_facts_onto(as<HTML::HTMLCanvasElement>(*layout_node.dom_node()), layout_node);
+    if (has_flag(families, PaintFactsFamily::ReplacedImage) && paints_replaced_image_from_facts(layout_node)) {
+        auto const& image_provider = layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox
+            ? static_cast<Layout::Box const&>(layout_node).image_provider()
+            : static_cast<Layout::ImageProvider const&>(as<SVG::SVGImageElement>(*layout_node.dom_node()));
+        if (push_replaced_image_paint_facts_onto(image_provider, layout_node))
+            apply_repaint_damage(layout_node, InvalidateDisplayList::PaintCommands);
+    }
+    if (has_flag(families, PaintFactsFamily::Video) && layout_node.kind() == Layout::RustFFI::NodeKind::VideoBox) {
+        if (push_video_paint_facts_onto(as<HTML::HTMLVideoElement>(*layout_node.dom_node()), layout_node))
+            apply_repaint_damage(layout_node, InvalidateDisplayList::PaintCommands);
+    }
 }
 
 }

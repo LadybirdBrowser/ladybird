@@ -65,8 +65,7 @@ void ImageProvider::image_provider_contents_changed() const
         return;
     if (layout_node->kind() == RustFFI::NodeKind::ImageBox && &static_cast<Box const&>(*layout_node).image_provider() != this)
         return;
-    if (Painting::push_replaced_image_paint_facts(*this, *layout_node))
-        Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
+    Painting::push_replaced_image_paint_facts(*layout_node);
 }
 
 }
