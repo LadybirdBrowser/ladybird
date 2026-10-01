@@ -1,0 +1,4 @@
+inherited keyframes: C++ recomputations 2, animations tint, target rgb(100, 50, 0), child rgb(100, 50, 0)
+sibling-index() keyframes: C++ recomputations 1, animations grow-by-index, width 30px
+url() keyframes: C++ recomputations 1, animations picture, background-image true
+keyframe custom property: C++ recomputations 3, animations vary, child width 17px

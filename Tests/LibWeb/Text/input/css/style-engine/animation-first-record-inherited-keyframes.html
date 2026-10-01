@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes tint { from { color: rgb(0, 0, 0); } to { color: rgb(200, 100, 0); } }
+    @keyframes grow-by-index { from, to { width: calc(sibling-index() * 10px); } }
+    @keyframes picture { from, to { background-image: url("../../../Assets/120.png"); } }
+    @keyframes vary { from, to { --size: 17px; } }
+    .tint { animation: tint 1000s linear -500s paused both; }
+    .grow-by-index { height: 1px; animation: grow-by-index 1000s linear paused both; }
+    .picture { animation: picture 1000s linear paused both; }
+    .vary { animation: vary 1000s linear paused both; }
+    .vary > span { display: block; width: var(--size, 1px); }
+</style>
+<div id="container"><div></div><div></div></div>
+<script>
+    test(() => {
+        // Each element is styled for the first time in the style update that starts its animation,
+        // and the values its animation composes reach that update and its children.
+        function firstStyle(label, className, read, { withChild = false } = {}) {
+            const target = document.createElement("div");
+            target.className = className;
+            const child = document.createElement("span");
+            if (withChild)
+                target.append(child);
+            internals.updateStyle();
+            const before = internals.getStyleInvalidationCounters();
+            container.append(target);
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label}: C++ recomputations ${after.elementStyleRecomputations - before.elementStyleRecomputations}, animations ${target.getAnimations().map(animation => animation.animationName).join(",")}, ${read(target, child)}`);
+            target.remove();
+        }
+
+        firstStyle("inherited keyframes", "tint", (target, child) => `target ${getComputedStyle(target).color}, child ${getComputedStyle(child).color}`, { withChild: true });
+        firstStyle("sibling-index() keyframes", "grow-by-index", target => `width ${getComputedStyle(target).width}`);
+        firstStyle("url() keyframes", "picture", target => `background-image ${getComputedStyle(target).backgroundImage.includes("120.png")}`);
+        firstStyle("keyframe custom property", "vary", (target, child) => `child width ${getComputedStyle(child).width}`, { withChild: true });
+    });
+</script>
