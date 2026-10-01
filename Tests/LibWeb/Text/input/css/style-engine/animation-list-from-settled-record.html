@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes grow {
+        from { width: 10px; }
+        to { width: 30px; }
+    }
+    @keyframes fade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    #target { width: 100px; height: 5px; }
+    #target.animating { animation: grow 1000s linear -500s both paused, fade 1000s linear -250s both paused; }
+    #hidden { display: none; }
+    #hidden .inner.animating { animation: grow 1000s linear -500s both paused; }
+</style>
+<div id="target">x</div>
+<div id="hidden"><div class="inner">y</div></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        println(`before: ${getComputedStyle(target).width}`);
+
+        // The class change moves only the longhands declaring #target's animations. The animations
+        // they name start in the same style update, and the values they sample reach it.
+        const before = internals.getStyleInvalidationCounters();
+        target.className = "animating";
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`after: ${getComputedStyle(target).width} ${getComputedStyle(target).opacity}`);
+        println(`names: ${target.getAnimations().map(animation => animation.animationName).join(",")}`);
+        println(`durations: ${target.getAnimations().map(animation => animation.effect.getTiming().duration).join(",")}`);
+
+        // An element in a display:none subtree starts nothing.
+        const inner = document.querySelector("#hidden .inner");
+        inner.className = "inner animating";
+        println(`hidden animations: ${inner.getAnimations().length}`);
+
+        // Taking the declarations away cancels what they started.
+        target.className = "";
+        println(`removed: ${getComputedStyle(target).width} ${target.getAnimations().length}`);
+
+        // A `@keyframes` rule inserted afterwards still finds an element whose animation the
+        // restyle started.
+        target.className = "animating";
+        const sheet = document.styleSheets[0];
+        sheet.insertRule("@keyframes fade { from { opacity: 0.5; } to { opacity: 0.5; } }", sheet.cssRules.length);
+        println(`after reframing: ${getComputedStyle(target).opacity}`);
+    });
+</script>
