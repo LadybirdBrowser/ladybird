@@ -17,12 +17,12 @@
 //! - `basic_block` -- BasicBlock: list of instructions with control flow metadata
 //! - `generator` -- Generator: manages registers, constants, tables, and assembly
 //! - `codegen` -- AST-walking code that emits instructions via the Generator
-//! - `ffi` -- FFI bridge to create C++ Executable and SharedFunctionInstanceData
+//! - `constant` -- VM-dependent constants codegen refers to by kind
 
 pub mod basic_block;
 pub mod codegen;
+pub mod constant;
 pub mod dump;
-pub mod ffi;
 pub mod generator;
 pub mod instruction;
 mod native_disassembler;
