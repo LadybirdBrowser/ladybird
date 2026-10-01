@@ -581,9 +581,10 @@ extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void* 
         .font_feature_data = font_feature_data_from_style_values(feature_values),
         .font_feature_values_scope = {},
     };
-    // NB: The request carries no font-variant-alternates, so no @font-feature-values reach it.
-    FontFeatureValues const no_font_feature_values;
-    auto font_list = static_cast<FontCascadeMemo*>(memo)->resolve(*static_cast<FontFaceSnapshot const*>(snapshot), key, [&](auto const&) -> FontFeatureValues const& { return no_font_feature_values; });
+    // NB: The engine names font-variant-alternates only for an element in the document's tree scope, whose
+    //     @font-feature-values the snapshot carries.
+    auto const& font_faces = *static_cast<FontFaceSnapshot const*>(snapshot);
+    auto font_list = static_cast<FontCascadeMemo*>(memo)->resolve(font_faces, key, [&](Utf16FlyString const& family) -> FontFeatureValues const& { return font_faces.font_feature_values(family); });
     // The metric probe must not load a face: the first available font answers without one.
     auto const& first_available_font = font_list->first_available_font();
     auto const metrics = first_available_font.pixel_metrics();

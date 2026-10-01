@@ -325,6 +325,29 @@ FontFeatureValues FontComputer::font_feature_values_in_scope(Utf16FlyString cons
     return font_feature_values;
 }
 
+NonnullRefPtr<FontFeatureValuesByFamily const> FontComputer::document_font_feature_values() const
+{
+    if (m_document_font_feature_values)
+        return *m_document_font_feature_values;
+    HashTable<Utf16FlyString> families;
+    if (m_document) {
+        m_document->style_scope().for_each_active_css_style_sheet([&](CSS::StyleSheetState const& sheet) {
+            sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View) {
+                if (rule.type() != RustRule::Type::FontFeatureValues)
+                    return;
+                auto values = rule.font_feature_values();
+                for (size_t index = 0; index < values.family_count(); ++index)
+                    families.set(Utf16FlyString::from_utf16(values.family_at(index)));
+            });
+        });
+    }
+    auto by_family = adopt_ref(*new FontFeatureValuesByFamily);
+    for (auto const& family : families)
+        by_family->families.set(family, font_feature_values_for_family(family, {}));
+    m_document_font_feature_values = by_family;
+    return by_family;
+}
+
 Function<FontFeatureValues const&(Utf16FlyString const&)> FontComputer::font_feature_values_provider(TreeScopeID tree_scope) const
 {
     return [this, tree_scope](Utf16FlyString const& family_name) -> FontFeatureValues const& {
@@ -472,13 +495,14 @@ NonnullRefPtr<FontFaceSnapshot const> FontComputer::font_face_snapshot() const
         }
         table.set(key, move(snapshot_faces));
     }
-    m_font_face_snapshot = FontFaceSnapshot::create(m_environment_generation, move(table));
+    m_font_face_snapshot = FontFaceSnapshot::create(m_environment_generation, move(table), document_font_feature_values());
     return *m_font_face_snapshot;
 }
 
 void FontComputer::clear_font_feature_values_cache(Utf16FlyString const& family_name)
 {
     m_font_feature_values_cache.remove_all_matching([&](auto const& key, auto const&) { return key.family_name == family_name; });
+    m_document_font_feature_values = nullptr;
 }
 
 bool FontComputer::should_defer_initial_paint()
