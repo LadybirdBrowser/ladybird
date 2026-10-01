@@ -202,6 +202,17 @@ impl CustomPropertyRegistry {
         !self.registrations.is_empty()
     }
 
+    /// Whether any registration says its name does not inherit. Such a name is in an element's own
+    /// environment and in none of its descendants', which a store built over the parent's cannot
+    /// say.
+    pub(crate) fn has_non_inheriting_registrations(&self) -> bool {
+        self.registrations.values().any(|registration| !registration.inherits)
+    }
+
+    pub(crate) fn name_is_registered(&self, name: &[u16]) -> bool {
+        self.registrations.contains_key(name)
+    }
+
     pub(crate) fn parse_context(&self, random_function_index: &mut usize) -> ParseContext {
         ParseContext {
             in_quirks_mode: false,

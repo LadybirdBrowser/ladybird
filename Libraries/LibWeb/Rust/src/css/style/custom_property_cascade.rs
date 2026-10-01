@@ -446,6 +446,12 @@ impl RetainedState {
     /// cascade declares no custom property, else what its declarations resolve to over that one.
     /// Refused when the environment is C++'s to compute: a registered name, a substitution the
     /// engine does not resolve, or an inherited environment the engine holds no store for.
+    ///
+    /// A registration decides how its name computes, against the registered syntax and from its
+    /// own initial value, which this resolution does not do, so an element declaring a registered
+    /// name is the host's. A name registered as not inheriting keeps every declaring element with
+    /// the host: the environment this builds over the parent's would hand that name to a
+    /// descendant the registration keeps it from.
     pub(super) fn engine_custom_property_environment(
         &mut self,
         node: StyleNodeID,
@@ -466,7 +472,15 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         }
         let registry_ref = unsafe { &*registry.as_pointer().cast::<CustomPropertyRegistry>() };
-        if registry_ref.has_registrations() {
+        // Before the memo: what C++ resolved for a registered name may depend on the element.
+        if registry_ref.has_registrations()
+            && (registry_ref.has_non_inheriting_registrations()
+                || cascaded.iter().any(|(declared, _)| {
+                    self.custom_property_environments
+                        .name(declared.name)
+                        .is_none_or(|name| registry_ref.name_is_registered(&name.text))
+                }))
+        {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         }
