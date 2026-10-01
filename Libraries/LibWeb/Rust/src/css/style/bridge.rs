@@ -3367,20 +3367,21 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         return FfiStyleTransactionView::default();
     };
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    engine.custom_property_registrations_changed = engine.document_style_computation_inputs.is_some_and(|previous| {
-        previous.custom_property_registration_generation != computation_inputs.custom_property_registration_generation
-    });
+    engine.custom_property_registrations_changed = engine
+        .document_style_computation_inputs
+        .custom_property_registration_generation
+        != computation_inputs.custom_property_registration_generation;
     if engine.custom_property_registrations_changed {
         engine.custom_property_environments.forget_substitutions();
     }
-    if engine.document_style_computation_inputs != Some(computation_inputs) {
+    if engine.document_style_computation_inputs != computation_inputs {
         // Persistent records are derived from every document computation input, not only the
         // font generation carried in their keys.
         engine.engine_cold_record_cache.clear();
         engine.engine_cold_record_donors.clear();
         engine.engine_pseudo_record_cache.clear();
     }
-    engine.document_style_computation_inputs = Some(computation_inputs);
+    engine.document_style_computation_inputs = computation_inputs;
     engine.clear_ffi_style_transaction_output();
     let mut output = FfiStyleTransactionOutput::default();
     output.scoped = engine.take_style_transaction(root, |transaction_version, program_version, answers| {

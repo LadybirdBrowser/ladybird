@@ -139,8 +139,8 @@ impl RetainedState {
                 .computed_group_sets
                 .inherited_groups_for_shared_style(parent_record)?,
             environment,
-            font_environment_generation: self.document_style_computation_inputs?.font_environment_generation,
-            root_font_inputs: RootFontInputs::from_document(&self.document_style_computation_inputs?),
+            font_environment_generation: self.document_style_computation_inputs.font_environment_generation,
+            root_font_inputs: RootFontInputs::from_document(&self.document_style_computation_inputs),
             shape,
         })
     }
@@ -193,8 +193,8 @@ impl RetainedState {
         let context = self.computed_group_sets.take_shared_computation_context(node)?;
         if context.key.environment != environment
             || context.key.font_environment_generation
-                != self.document_style_computation_inputs?.font_environment_generation
-            || context.key.root_font_inputs != RootFontInputs::from_document(&self.document_style_computation_inputs?)
+                != self.document_style_computation_inputs.font_environment_generation
+            || context.key.root_font_inputs != RootFontInputs::from_document(&self.document_style_computation_inputs)
             || context.key.tree_scope != self.tree.tree_scope(node).0
             || context.key.shape[..3] != shape[..3]
             || self.computed_group_sets.assigned_style_record(node)?.raw() != context.record
@@ -314,6 +314,21 @@ impl RetainedState {
         delta
     }
 
+    /// Whether a document hosts this engine. The host installs its font resolver when it creates the engine, and
+    /// publishes the document's inputs and every table a record is computed against before it asks for any row. An
+    /// engine no document hosts, such as a unit test's or a replay's, computes no records. Only those builds can
+    /// create such an engine, so the browser build has no unhosted path at all.
+    #[cfg(any(test, feature = "style-replay"))]
+    pub(super) fn computes_records(&self) -> bool {
+        self.font_resolution.is_some()
+    }
+
+    /// A browser build's engine always has a document to host it.
+    #[cfg(not(any(test, feature = "style-replay")))]
+    pub(super) const fn computes_records(&self) -> bool {
+        true
+    }
+
     /// The step itself, which decides the substituted-record facts rather than writing them.
     #[allow(clippy::too_many_arguments)]
     fn decide_engine_computed_record_delta(
@@ -325,6 +340,10 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<RecordDelta> {
+        if !self.computes_records() {
+            counters.bump(Counter::EngineComputedRecordBailUnhosted);
+            return Err(Unanswered::Refused);
+        }
         if scratch.root_computation_unsupported == Some(node) {
             return Err(Unanswered::Refused);
         }
@@ -507,10 +526,7 @@ impl RetainedState {
                 return Err(Unanswered::Refused);
             }
         };
-        let Some(mut inputs) = self.document_style_computation_inputs else {
-            counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
-            return Err(Unanswered::Refused);
-        };
+        let mut inputs = self.document_style_computation_inputs;
         if let Some((root, root_inputs)) = scratch.root_element_inputs
             && root == node
         {
@@ -1027,12 +1043,13 @@ impl RetainedState {
         goal: FontDriveGoal,
         counters: &mut Counters,
     ) -> Drive<ElementAnswer> {
+        if !self.computes_records() {
+            counters.bump(Counter::EngineComputedRecordBailUnhosted);
+            return Err(Unanswered::Refused);
+        }
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
         let (_, state) = cascade_state;
-        let Some(mut inputs) = self.document_style_computation_inputs else {
-            counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
-            return Err(Unanswered::Refused);
-        };
+        let mut inputs = self.document_style_computation_inputs;
         if let Some((root, root_inputs)) = scratch.root_element_inputs
             && root == node
         {
@@ -1768,10 +1785,7 @@ impl RetainedState {
         let Some(root_inputs) = self.root_font_inputs_from_record(record) else {
             return;
         };
-        let Some(inputs) = self.document_style_computation_inputs.as_mut() else {
-            return;
-        };
-        root_inputs.apply_to(inputs);
+        root_inputs.apply_to(&mut self.document_style_computation_inputs);
     }
 
     fn element_drive_subject(
@@ -1854,7 +1868,7 @@ impl RetainedState {
             .unwrap_or(0);
         let registration_generation = self
             .document_style_computation_inputs
-            .map_or(0, |inputs| inputs.custom_property_registration_generation);
+            .custom_property_registration_generation;
         let key = (
             node,
             cascade_state.0,
@@ -2026,9 +2040,7 @@ impl RetainedState {
         if target.is_pseudo() || !is_base_record {
             return;
         }
-        let Some(inputs) = self.document_style_computation_inputs else {
-            return;
-        };
+        let inputs = self.document_style_computation_inputs;
         let node = target.node();
         let facts = self.computed_group_sets.adjustment_facts(node);
         if self.node_declares_custom_properties(node) {
@@ -2373,7 +2385,7 @@ impl RetainedState {
                     let value = value.clone_retained();
                     let value = Self::substitute_written_value(
                         &mut self.custom_property_environments,
-                        self.document_style_computation_inputs,
+                        &self.document_style_computation_inputs,
                         environment,
                         winner.property,
                         value,
@@ -2395,7 +2407,7 @@ impl RetainedState {
                     };
                     let resolved = Self::substitute_written_value(
                         &mut self.custom_property_environments,
-                        self.document_style_computation_inputs,
+                        &self.document_style_computation_inputs,
                         environment,
                         shorthand,
                         written,
@@ -4639,10 +4651,7 @@ impl StyleEngineState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) {
-        let Some(inputs) = self.document_style_computation_inputs else {
-            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
-            return;
-        };
+        let inputs = self.document_style_computation_inputs;
         let assigned_style_record = self.computed_group_sets.assigned_style_record(node);
         if (parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters))
             || !self.engine_pseudo_inputs_available(node, assigned_style_record, counters)
@@ -4678,7 +4687,7 @@ impl StyleEngineState {
         };
         if let Some(root_inputs) = prepared {
             scratch.root_font_inputs_changed = RootFontInputs::from_document(&inputs) != root_inputs;
-            root_inputs.apply_to(self.document_style_computation_inputs.as_mut().unwrap());
+            root_inputs.apply_to(&mut self.document_style_computation_inputs);
             counters.bump(Counter::RootFontInputsPrepared);
         } else {
             // NB: Preserve the current host root-metric route. Unproven font inputs do not

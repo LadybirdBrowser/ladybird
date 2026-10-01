@@ -114,10 +114,9 @@ impl RetainedState {
     ) -> Drive<()> {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
-        let Some(mut inputs) = self.document_style_computation_inputs else {
-            counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
-            return Err(Unanswered::Refused);
-        };
+        // Only an element's settled record leads here, which an unhosted engine never computes.
+        debug_assert!(self.computes_records());
+        let mut inputs = self.document_style_computation_inputs;
         // NB: Root pseudos use the originating record's current font, independently of
         //     the document context used for the root's own remaining properties.
         if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {

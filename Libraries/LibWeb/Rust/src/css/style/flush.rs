@@ -1801,10 +1801,12 @@ impl StyleEngineState {
                 &mut self.retained.memory,
                 engine_computed_record_scratch.capacity_bytes(),
             );
-            if let Some(resolver) = &mut self.retained.font_resolution
-                && let Some(inputs) = self.retained.document_style_computation_inputs
-            {
-                resolver.prepare(inputs.font_environment_generation);
+            let font_environment_generation = self
+                .retained
+                .document_style_computation_inputs
+                .font_environment_generation;
+            if let Some(resolver) = &mut self.retained.font_resolution {
+                resolver.prepare(font_environment_generation);
             }
             // NB: This input crosses fixed-font intermediaries independently of inheritance.
             //     Incremental roots use the current retained document inputs already submitted.
