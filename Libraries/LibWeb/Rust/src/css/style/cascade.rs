@@ -151,6 +151,19 @@ impl CascadePriority {
         }
     }
 
+    /// Where among an element's encapsulation contexts an author declaration's priority places it:
+    /// the `context_depth` it was built from. `None` for the other origins.
+    #[must_use]
+    pub fn author_context_depth(&self) -> Option<u32> {
+        if self.origin_importance == origin_importance_rank(CascadeOrigin::Author, false) {
+            Some(u32::MAX - self.context)
+        } else if self.origin_importance == origin_importance_rank(CascadeOrigin::Author, true) {
+            Some(self.context)
+        } else {
+            None
+        }
+    }
+
     pub(super) fn exact_output_placeholder() -> Self {
         Self::new(PriorityInputs {
             origin: CascadeOrigin::Author,
