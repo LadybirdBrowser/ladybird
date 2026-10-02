@@ -27,5 +27,15 @@
         root.classList.add("on");
         for (const item of document.querySelectorAll(".item"))
             println(`${item.textContent}: ${getComputedStyle(item).color} ${getComputedStyle(item).backgroundColor}, transitions: ${item.getAnimations().length}`);
+
+        // A narrow item keeps the gated rule it matches through the change, though the rule loses for it now: once its
+        // container widens, the rule wins and the color transition it starts ends green.
+        root.children[1].classList.remove("narrow");
+        document.body.offsetWidth;
+        for (const item of root.children[1].children) {
+            for (const animation of item.getAnimations())
+                animation.finish();
+            println(`widened: ${getComputedStyle(item).color}`);
+        }
     });
 </script>

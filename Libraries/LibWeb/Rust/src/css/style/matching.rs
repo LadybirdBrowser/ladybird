@@ -2706,8 +2706,7 @@ impl RetainedState {
                     .iter()
                     .any(|old| (old.rule, old.program, old.entry) == (entry.rule, entry.program, entry.entry));
             }
-            self.program.sheet_origin(self.program.rule_sheet(entry.rule)) != CascadeOrigin::Author
-                || winning_rules.binary_search(&entry.rule).is_ok()
+            self.compaction_keeps_verbatim(entry.rule) || winning_rules.binary_search(&entry.rule).is_ok()
         });
         let new_cascade_input = self.intern_cascade_input(&exact_answer, counters);
         if new_cascade_input != old_cascade_input {
