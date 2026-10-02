@@ -89,13 +89,20 @@ pub(crate) enum ArenaChange {
     Layout(crate::layout::layout_changes::LayoutChange),
     /// A write to the document's paint state.
     Paint(crate::painting::paint_changes::PaintChange),
+    /// A write to the document's style engine.
+    Style(crate::css::style::bridge::StyleChange),
 }
 
 impl ArenaChange {
-    fn apply(self, arena: &mut crate::layout::LayoutNodeArena) {
+    /// # Safety
+    ///
+    /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
+    unsafe fn apply(self, arena: &mut crate::layout::LayoutNodeArena, engine: StyleEngineHandle) {
         match self {
             Self::Layout(change) => change.apply(arena),
             Self::Paint(change) => change.apply(arena),
+            // SAFETY: Guaranteed by the caller. A style change reaches the engine only through this borrow.
+            Self::Style(change) => change.apply(unsafe { engine.get_mut() }),
         }
     }
 }
@@ -157,15 +164,15 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
         }
         RenderMessage::Change { document, change } => {
             // A document with no state is a bug of the sender's, whose change has nothing to change.
-            if let Some(arena) = state_arena(document) {
-                // SAFETY: The state's box keeps the arena where it is while the message is handled, and nothing else
-                // reaches it meanwhile.
-                change.apply(unsafe { &mut *arena }.arena_mut());
+            if let Some((arena, engine)) = state_parts(document) {
+                // SAFETY: The state keeps the arena and the engine where they are while the message is handled, and
+                // nothing else reaches them meanwhile.
+                unsafe { change.apply((*arena).arena_mut(), engine) };
             }
         }
         RenderMessage::Write { document, write, reply } => reply.answer(|| {
             // A document with no state is a bug of the sender's, whose write has nothing to write.
-            state_arena(document).map_or_else(Default::default, |arena| {
+            state_parts(document).map_or_else(Default::default, |(arena, _)| {
                 // SAFETY: As for a change.
                 write.apply(unsafe { &mut *arena }.arena_mut())
             })
@@ -185,13 +192,14 @@ pub(crate) fn style_engine_for_unconverted_entry(document: DocumentId) -> StyleE
     })
 }
 
-/// The arena of `document`'s render state, which stays where it is until the state is destroyed. The map is not
-/// borrowed while a message reaches the arena, so a message handled meanwhile for another document finds its own.
-fn state_arena(document: DocumentId) -> Option<*mut ArenaHandle> {
+/// The arena and the style engine of `document`'s render state, which stay where they are until the state is destroyed.
+/// The map is not borrowed while a message reaches them, so a message handled meanwhile for another document finds its
+/// own.
+fn state_parts(document: DocumentId) -> Option<(*mut ArenaHandle, StyleEngineHandle)> {
     STATES.with_borrow_mut(|states| {
         let state = states.get_mut(&document);
         debug_assert!(state.is_some(), "document {document:?} has no render state");
-        state.map(|state| std::ptr::from_mut::<ArenaHandle>(&mut state.arena))
+        state.map(|state| (std::ptr::from_mut::<ArenaHandle>(&mut state.arena), state.engine))
     })
 }
 

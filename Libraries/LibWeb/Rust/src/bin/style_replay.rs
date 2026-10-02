@@ -286,7 +286,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             .read(engine)
                     });
                     let start = Instant::now();
-                    unsafe { bridge::style_engine_flush(engine) };
+                    bridge::operations::flush(unsafe { engine.get_mut() });
                     let elapsed = start.elapsed();
                     let after = counter_reader.read(engine);
                     let detailed_after = detailed_before
@@ -1256,7 +1256,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 EventKind::EndDeferredGeometryTransactionFlush => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
-                    unsafe { bridge::style_engine_end_deferred_geometry_transaction_flush(engine) };
+                    bridge::operations::end_deferred_geometry_transaction_flush(unsafe { engine.get_mut() });
                 }
                 kind => return Err(format!("unhandled StyleEngine replay event {kind:?}").into()),
             }
