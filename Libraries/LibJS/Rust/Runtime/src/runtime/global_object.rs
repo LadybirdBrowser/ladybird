@@ -119,6 +119,9 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.ArrayBuffer, |vm, realm| {
         Value::from_object(realm.intrinsics().array_buffer_constructor(vm))
     });
+    define_intrinsic_accessor(&names.AsyncDisposableStack, |vm, realm| {
+        Value::from_object(realm.intrinsics().async_disposable_stack_constructor(vm))
+    });
     define_intrinsic_accessor(&names.BigInt, |vm, realm| {
         Value::from_object(realm.intrinsics().bigint_constructor(vm))
     });
@@ -133,6 +136,9 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     });
     define_intrinsic_accessor(&names.DataView, |vm, realm| {
         Value::from_object(realm.intrinsics().data_view_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.DisposableStack, |vm, realm| {
+        Value::from_object(realm.intrinsics().disposable_stack_constructor(vm))
     });
     define_intrinsic_accessor(&names.Error, |vm, realm| {
         Value::from_object(realm.intrinsics().error_constructor(vm))
@@ -199,6 +205,9 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     });
     define_intrinsic_accessor(&names.String, |vm, realm| {
         Value::from_object(realm.intrinsics().string_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.SuppressedError, |vm, realm| {
+        Value::from_object(realm.intrinsics().suppressed_error_constructor(vm))
     });
     define_intrinsic_accessor(&names.Symbol, |vm, realm| {
         Value::from_object(realm.intrinsics().symbol_constructor(vm))

@@ -659,6 +659,7 @@ define_static_property_lookup_cache_sites! {
     RegExpPrototypeSymbolSplitGetLastIndex,
     RegExpPrototypeToStringSource,
     RegExpPrototypeToStringFlags,
+    IteratorConcatIteratorMethod,
 }
 
 /// The caches of the static call sites, one set per VM, which prunes them like the caches of executables.

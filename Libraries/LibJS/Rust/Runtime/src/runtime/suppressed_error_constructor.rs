@@ -11,37 +11,35 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
-use crate::runtime::abstract_operations::get_prototype_from_constructor;
-use crate::runtime::aggregate_error::AggregateError;
-use crate::runtime::array::Array;
+use crate::runtime::abstract_operations::ordinary_create_from_constructor_of;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::function_object::FunctionObject;
 use crate::runtime::intrinsics::Intrinsics;
-use crate::runtime::iterator::{IteratorHint, get_iterator_impl, iterator_to_list};
 use crate::runtime::native_function::{NativeFunction, define_native_function_class};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::realm::Realm;
+use crate::runtime::suppressed_error::SuppressedError;
 
 #[repr(C)]
 #[derive(Trace)]
-pub struct AggregateErrorConstructor {
+pub struct SuppressedErrorConstructor {
     base: NativeFunction,
 }
 
 define_native_function_class!(
-    AggregateErrorConstructor,
-    initialize: AggregateErrorConstructor::initialize,
-    call: AggregateErrorConstructor::call,
-    construct: AggregateErrorConstructor::construct
+    SuppressedErrorConstructor,
+    initialize: SuppressedErrorConstructor::initialize,
+    call: SuppressedErrorConstructor::call,
+    construct: SuppressedErrorConstructor::construct
 );
 
-impl AggregateErrorConstructor {
-    pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<AggregateErrorConstructor> {
+impl SuppressedErrorConstructor {
+    pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<SuppressedErrorConstructor> {
         realm.create_object(
             vm,
-            AggregateErrorConstructor {
+            SuppressedErrorConstructor {
                 base: NativeFunction::new_with_prototype(
                     vm,
                     Self::CLASS,
@@ -52,23 +50,23 @@ impl AggregateErrorConstructor {
     }
 
     fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
-        // 20.5.7.2.1 AggregateError.prototype, https://tc39.es/ecma262/#sec-aggregate-error.prototype
+        // 10.1.4.2.1 SuppressedError.prototype, https://tc39.es/proposal-explicit-resource-management/#sec-suppressederror.prototype
         object.define_direct_property(
             vm,
             &vm.names.prototype,
-            Value::from_object(realm.intrinsics().aggregate_error_prototype(vm)),
+            Value::from_object(realm.intrinsics().suppressed_error_prototype(vm)),
             PropertyAttributes::new(0),
         );
 
         object.define_direct_property(
             vm,
             &vm.names.length,
-            Value::from_i32(2),
+            Value::from_i32(3),
             PropertyAttributes::new(Attribute::CONFIGURABLE),
         );
     }
 
-    // 20.5.7.1.1 AggregateError ( errors, message [ , options ] ), https://tc39.es/ecma262/#sec-aggregate-error
+    // 10.1.4.1.1 SuppressedError ( error, suppressed, message [ , options ] ), https://tc39.es/proposal-explicit-resource-management/#sec-suppressederror
     fn call(function: &NativeFunction, vm: &Vm) -> ThrowCompletionOr<Value> {
         // 1. If NewTarget is undefined, let newTarget be the active function object; else let newTarget be NewTarget.
         Ok(Value::from_object(Self::construct(
@@ -78,17 +76,23 @@ impl AggregateErrorConstructor {
         )?))
     }
 
-    // 20.5.7.1.1 AggregateError ( errors, message [ , options ] ), https://tc39.es/ecma262/#sec-aggregate-error
+    // 10.1.4.1.1 SuppressedError ( error, suppressed, message [ , options ] ), https://tc39.es/proposal-explicit-resource-management/#sec-suppressederror
     fn construct(_: &NativeFunction, vm: &Vm, new_target: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<Object>> {
         let realm = vm.current_realm().expect("a constructor runs in a realm");
 
-        let errors = vm.argument(0);
-        let message = vm.argument(1);
-        let options = vm.argument(2);
+        let error = vm.argument(0);
+        let suppressed = vm.argument(1);
+        let message = vm.argument(2);
+        let options = vm.argument(3);
 
-        // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%AggregateError.prototype%", « [[ErrorData]] »).
-        let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::aggregate_error_prototype)?;
-        let aggregate_error = realm.create_object(vm, AggregateError::new(vm, prototype));
+        // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%SuppressedError.prototype%", « [[ErrorData]] »).
+        let suppressed_error = ordinary_create_from_constructor_of(
+            vm,
+            realm,
+            new_target,
+            Intrinsics::suppressed_error_prototype,
+            |prototype| SuppressedError::new(vm, prototype),
+        )?;
 
         // 3. If message is not undefined, then
         if !message.is_undefined() {
@@ -96,7 +100,7 @@ impl AggregateErrorConstructor {
             let msg = message.to_utf16_string(vm)?;
 
             // b. Perform CreateNonEnumerableDataPropertyOrThrow(O, "message", msg).
-            aggregate_error.create_non_enumerable_data_property_or_throw(
+            suppressed_error.create_non_enumerable_data_property_or_throw(
                 vm,
                 &vm.names.message,
                 Value::from_string(PrimitiveString::create(vm, msg)),
@@ -104,24 +108,33 @@ impl AggregateErrorConstructor {
         }
 
         // 4. Perform ? InstallErrorCause(O, options).
-        aggregate_error.install_error_cause(vm, options)?;
+        suppressed_error.install_error_cause(vm, options)?;
 
-        // 5. Let errorsList be ? IteratorToList(? GetIterator(errors, sync)).
-        let errors_list = iterator_to_list(vm, &get_iterator_impl(vm, errors, IteratorHint::Sync)?)?;
-
-        // 6. Perform ! DefinePropertyOrThrow(O, "errors", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: CreateArrayFromList(errorsList) }).
-        let mut descriptor = PropertyDescriptor {
-            value: Some(Value::from_object(Array::create_from_list(vm, realm, &errors_list))),
+        // 5. Perform ! DefinePropertyOrThrow(O, "error", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: error }).
+        let mut error_descriptor = PropertyDescriptor {
+            value: Some(error),
             writable: Some(true),
             enumerable: Some(false),
             configurable: Some(true),
             ..Default::default()
         };
-        aggregate_error
-            .define_property_or_throw(vm, &vm.names.errors, &mut descriptor)
+        suppressed_error
+            .define_property_or_throw(vm, &vm.names.error, &mut error_descriptor)
+            .must();
+
+        // 6. Perform ! DefinePropertyOrThrow(O, "suppressed", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: suppressed }).
+        let mut names_descriptor = PropertyDescriptor {
+            value: Some(suppressed),
+            writable: Some(true),
+            enumerable: Some(false),
+            configurable: Some(true),
+            ..Default::default()
+        };
+        suppressed_error
+            .define_property_or_throw(vm, &vm.names.suppressed, &mut names_descriptor)
             .must();
 
         // 7. Return O.
-        Ok(aggregate_error.upcast())
+        Ok(suppressed_error.upcast())
     }
 }

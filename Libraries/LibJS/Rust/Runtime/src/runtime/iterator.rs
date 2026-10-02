@@ -139,12 +139,6 @@ impl Iterator {
         )
     }
 
-    /// Iterator(Object& prototype), whose [[Iterated]] is a record without an iterator.
-    pub fn create_without_iterated(vm: &Vm, prototype: Gc<Object>) -> Gc<Iterator> {
-        let iterated = IteratorRecord::create(vm, None, Value::UNDEFINED, false);
-        Self::create(vm, prototype, iterated)
-    }
-
     pub fn iterated(&self) -> Gc<IteratorRecord> {
         self.iterated.get()
     }
@@ -184,6 +178,24 @@ macro_rules! try_or_close_iterator {
     };
 }
 pub(crate) use try_or_close_iterator;
+
+// 4 IfAbruptCloseIterators ( value, iteratorRecords ), https://tc39.es/proposal-joint-iteration/#sec-ifabruptcloseiterators
+macro_rules! try_or_close_iterators {
+    ($vm:expr, $iterator_records:expr, $expression:expr) => {
+        // 1. Assert: value is a Completion Record.
+        match $expression {
+            // 2. If value is an abrupt completion, return ? IteratorCloseAll(iteratorRecords, value).
+            Err(throw) => {
+                return Err(
+                    $crate::runtime::iterator::iterator_close_all($vm, $iterator_records, throw.into()).release_error(),
+                );
+            }
+            // 3. Else, set value to value.[[Value]].
+            Ok(value) => value,
+        }
+    };
+}
+pub(crate) use try_or_close_iterators;
 
 // 7.4.2 GetIteratorDirect ( obj ), https://tc39.es/ecma262/#sec-getiteratordirect
 pub fn get_iterator_direct(vm: &Vm, object: Gc<Object>) -> ThrowCompletionOr<Gc<IteratorRecord>> {
