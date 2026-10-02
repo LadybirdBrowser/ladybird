@@ -1327,8 +1327,8 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
                 VERIFY_NOT_REACHED();
             }
 
-            Layout::RustFFI::layout_arena_text_range_rects(
-                layout_node->arena_handle(), Layout::Node::slot_id(layout_node),
+            Layout::RustFFI::layout_script_text_range_rects(
+                layout_node->document_host(), Layout::Node::slot_id(layout_node),
                 to_underlying(selection_state), start_offset(), end_offset(), filter_dom_start, filter_dom_end,
                 rect_to_viewport_transform, &rects, [](void* context, CSSPixelRect rect) {
                     static_cast<Vector<GC::Root<Geometry::DOMRect>>*>(context)->append(Geometry::DOMRect::create(rect.to_type<float>()));

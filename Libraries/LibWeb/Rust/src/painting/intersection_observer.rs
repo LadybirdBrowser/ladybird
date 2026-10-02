@@ -7,15 +7,15 @@
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::{overflow, positioning};
 use crate::css::css_pixels::CssPixelRect;
-use crate::layout::node_data::{NodeFlag, NodeSlotId};
+use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry;
-use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::rect_to_viewport_transform::{RectToViewportTransform, transform_rect_to_viewport_or_identity};
 use crate::painting::style_queries;
 
 fn content_clip_rect_in_viewport_space(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     node: NodeSlotId,
     style: ComputedValuesView<'_>,
     rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
@@ -34,7 +34,7 @@ fn content_clip_rect_in_viewport_space(
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
 pub(crate) fn intersection_rect(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     target: NodeSlotId,
     target_rect: CssPixelRect,
     intersection_root: NodeSlotId,
@@ -76,7 +76,7 @@ pub(crate) fn intersection_rect(
                     content_clip_rect_in_viewport_space(arena, container_slot, style, rect_to_viewport_transform)
             {
                 // Apply scroll margin to expand the scrollport for scroll containers.
-                let container_kind = arena.data(container_slot).kind.get();
+                let container_kind = arena.node_kind_if_live(container_slot).unwrap_or(NodeKind::Unset);
                 if node_facts::kind_and_style_make_scroll_container(container_kind, Some(style)) {
                     clip_rect = inflate_scroll_container_clip_rect_by_scroll_margin(clip_rect);
                 }
@@ -99,7 +99,7 @@ pub(crate) fn intersection_rect(
 }
 
 pub(crate) fn transform_subtree_is_clipped_outside(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     target: NodeSlotId,
     root_bounds: CssPixelRect,
     rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
@@ -107,19 +107,19 @@ pub(crate) fn transform_subtree_is_clipped_outside(
     if !arena.paintable_row_is_populated(target) || root_bounds.is_empty() {
         return false;
     }
-    let target_data = arena.data(target);
-    if node_facts::kind_is_box(target_data.kind.get())
+    let target_kind = arena.node_kind_if_live(target).unwrap_or(NodeKind::Unset);
+    if node_facts::kind_is_box(target_kind)
         && (style_queries::is_fixed_position(arena, target)
-            || node_facts::has_flag(target_data, NodeFlag::AbsposDescendantEscapes))
+            || arena.node_flags_if_live(target) & NodeFlag::AbsposDescendantEscapes as u32 != 0)
     {
         return false;
     }
 
     let mut has_disjoint_clip = false;
-    let mut ancestor = target_data.parent.get();
-    while let Some(ancestor_data) = arena.node_data_if_live(ancestor) {
-        let parent = ancestor_data.parent.get();
-        if node_facts::kind_is_box(ancestor_data.kind.get()) {
+    let mut ancestor = arena.node_parent_if_live(target).unwrap_or(NodeSlotId::INVALID);
+    while let Some(ancestor_kind) = arena.node_kind_if_live(ancestor) {
+        let parent = arena.node_parent_if_live(ancestor).unwrap_or(NodeSlotId::INVALID);
+        if node_facts::kind_is_box(ancestor_kind) {
             if !arena.paintable_row_is_populated(ancestor) {
                 return false;
             }

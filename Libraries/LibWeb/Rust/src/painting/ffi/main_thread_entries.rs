@@ -58,12 +58,7 @@ unsafe fn read_measured_rows<R>(
 ) -> R {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    let rows = unsafe { &*host }.fresh_measured_rows(wait);
-    let absolute_rects = std::cell::RefCell::default();
-    read(&crate::painting::paint_read::PaintSource::over_rows(
-        &rows.paintable,
-        &absolute_rects,
-    ))
+    unsafe { &*host }.read_rows(wait, true, read)
 }
 
 fn input_reads_boxes() -> crate::render_state::LockstepProof {
@@ -465,116 +460,6 @@ pub unsafe extern "C" fn layout_arena_take_recording_trace(
     // SAFETY: the host copies the text synchronously.
     unsafe { append_text(context, text.as_ptr(), text.len()) };
     true
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
-/// thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_text_caret_rect_for_position(
-    arena: *mut c_void,
-    primary: NodeSlotId,
-    offset: usize,
-    affinity_is_downstream: bool,
-) -> FfiCaretRectResult {
-    let mut result = FfiCaretRectResult {
-        found: false,
-        rect: FfiCssPixelRect::default(),
-        style_source: NodeSlotId::INVALID,
-        owner_paintable: NodeSlotId::INVALID,
-        nearest_self_painting_inline: NodeSlotId::INVALID,
-    };
-    let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    let fragments = arena.text_fragments(primary);
-    let node_slots = fragments.as_slice();
-    let Some(answer) =
-        crate::painting::caret::caret_rect_for_position(&paintable_rows, node_slots, offset, affinity_is_downstream)
-    else {
-        return result;
-    };
-    result.found = true;
-    result.rect = answer.rect.into();
-    result.style_source = answer.style_source;
-    result.owner_paintable = answer.owner;
-    result.nearest_self_painting_inline =
-        crate::painting::fragment_ownership::nearest_self_painting_inline_box(&paintable_rows, answer.node)
-            .unwrap_or(NodeSlotId::INVALID);
-    result
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
-/// thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_atomic_inline_caret_rect_for_position(
-    arena: *mut c_void,
-    primary: NodeSlotId,
-    after: bool,
-) -> FfiCaretRectResult {
-    let mut result = FfiCaretRectResult {
-        found: false,
-        rect: FfiCssPixelRect::default(),
-        style_source: NodeSlotId::INVALID,
-        owner_paintable: NodeSlotId::INVALID,
-        nearest_self_painting_inline: NodeSlotId::INVALID,
-    };
-    let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    let Some(answer) = crate::painting::caret::caret_rect_for_atomic_inline(&paintable_rows, primary, after) else {
-        return result;
-    };
-    result.found = true;
-    result.rect = answer.rect.into();
-    result.style_source = answer.style_source;
-    result.owner_paintable = answer.owner;
-    result.nearest_self_painting_inline =
-        crate::painting::fragment_ownership::nearest_self_painting_inline_box(&paintable_rows, answer.node)
-            .unwrap_or(NodeSlotId::INVALID);
-    result
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
-/// thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
-    arena: *mut c_void,
-    block: NodeSlotId,
-    primary: NodeSlotId,
-    offset: usize,
-) -> FfiEmptyLineCaretRect {
-    let mut result = FfiEmptyLineCaretRect {
-        has_value: false,
-        rect: FfiCssPixelRect::default(),
-        style_source: NodeSlotId::INVALID,
-    };
-    let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    if !paintable_rows.paintable_row_is_populated(block) {
-        return result;
-    }
-    let fragments = arena.text_fragments(primary);
-    let node_slots = fragments.as_slice();
-    let side = arena.committed_side_data(block);
-    let Some(first_fragment) = side.fragments().first() else {
-        return result;
-    };
-    if !node_slots.contains(&first_fragment.layout_node) {
-        return result;
-    }
-    for target in crate::painting::visual_lines::empty_line_caret_targets(&paintable_rows, block) {
-        if target.offset == offset {
-            result.has_value = true;
-            result.rect = target.rect.into();
-            result.style_source = crate::painting::text_fragment::style_source(&paintable_rows, first_fragment);
-            break;
-        }
-    }
-    result
 }
 
 /// # Safety

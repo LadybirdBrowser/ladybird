@@ -14,7 +14,6 @@ use super::row_reads::RowSnapshot;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
 use crate::render_state::{DocumentHost, LockstepProof};
-use std::cell::RefCell;
 use std::ffi::c_void;
 use std::rc::Rc;
 
@@ -153,10 +152,9 @@ pub unsafe extern "C" fn layout_row_is_fragmented_inline(host: *mut DocumentHost
 ///
 /// As for [`rows`].
 unsafe fn read_rows<R>(host: *mut DocumentHost, read: impl FnOnce(&PaintSource<'_>) -> R) -> R {
+    assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    let rows = unsafe { rows(host) };
-    let absolute_rects = RefCell::default();
-    read(&PaintSource::over_rows(&rows.paintable, &absolute_rects))
+    unsafe { &*host }.read_rows(LockstepProof::for_reason(&HOST_READS_ITS_OWN_WRITE), false, read)
 }
 
 /// The layout node of the live row `id`, made if nothing has asked for it yet, or null for none.

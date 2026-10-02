@@ -2585,8 +2585,8 @@ bool Document::can_compute_client_rects_without_accumulated_visual_contexts_upda
 
     auto navigable = this->navigable();
     bool viewport_scroll_offset_is_zero = !navigable || navigable->viewport_scroll_offset().is_zero();
-    return Layout::RustFFI::layout_arena_can_compute_client_rects_without_visual_context_update(
-        layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), viewport_scroll_offset_is_zero);
+    return Layout::RustFFI::layout_script_can_compute_client_rects_without_visual_context_update(
+        layout_node.document_host(), Layout::Node::slot_id(&layout_node), viewport_scroll_offset_is_zero);
 }
 
 void Document::set_normal_link_color(Optional<Color> color)
@@ -6410,8 +6410,8 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect t
             scroll_margin[3].to_px(clip_rect.width()));
         return clip_rect;
     };
-    return Layout::RustFFI::layout_arena_intersection_observer_intersection_rect(
-        document.layout_node_arena().handle(), Layout::Node::slot_id(target->layout_node()), target_rect,
+    return Layout::RustFFI::layout_script_intersection_observer_intersection_rect(
+        document.layout_node_arena().host(), Layout::Node::slot_id(target->layout_node()), target_rect,
         Layout::Node::slot_id(root_layout_box), root_bounds,
         Painting::rect_to_viewport_transform(document, visual_context_tree),
         const_cast<Vector<CSS::LengthPercentage>*>(&scroll_margin), inflate_scroll_container_clip_rect_by_scroll_margin);
@@ -7542,8 +7542,8 @@ void Document::update_compositor_animations()
         auto const* layout_node = animated_target.unsafe_layout_node();
         if (!layout_node)
             return false;
-        return Layout::RustFFI::layout_arena_transform_subtree_is_clipped_outside(
-            layout_node->arena_handle(), Layout::Node::slot_id(layout_node), root_bounds,
+        return Layout::RustFFI::layout_script_transform_subtree_is_clipped_outside(
+            layout_node->document_host(), Layout::Node::slot_id(layout_node), root_bounds,
             Painting::rect_to_viewport_transform(*this, *visual_context_tree));
     };
 
@@ -7647,8 +7647,8 @@ void Document::update_compositor_animations()
         auto viewport_bounds = CSSPixelRect { { 0, 0 }, viewport_rect().size() };
         auto rect_to_viewport_transform = Painting::rect_to_viewport_transform(*this, *visual_context_tree);
         auto bounds_in_viewport = [&](Layout::Node const& node) -> CSSPixelRect {
-            return Layout::RustFFI::layout_arena_bounding_client_rect(
-                node.arena_handle(), Layout::Node::slot_id(&node), rect_to_viewport_transform);
+            return Layout::RustFFI::layout_script_bounding_client_rect(
+                node.document_host(), Layout::Node::slot_id(&node), rect_to_viewport_transform);
         };
         HashTable<Layout::Node const*> containing_blocks;
         for (auto const* container = layout_node->containing_block(); container; container = container->containing_block())
@@ -9823,8 +9823,8 @@ Optional<CSSPixelRect> Document::current_caret_rect()
     };
 
     if (is<DOM::Text>(dom_node)) {
-        auto result = Layout::RustFFI::layout_arena_text_caret_rect_in_dom_range(
-            layout_node->arena_handle(), Layout::Node::slot_id(layout_node), position->offset());
+        auto result = Layout::RustFFI::layout_script_text_caret_rect_in_dom_range(
+            layout_node->document_host(), Layout::Node::slot_id(layout_node), position->offset());
         if (result.has_value)
             return to_viewport_rect(result.rect);
     }

@@ -8,25 +8,27 @@ use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::node_painting;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry;
-use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
+use crate::painting::paintable_rows::with_inline_pieces;
 use crate::painting::rect_to_viewport_transform::{RectToViewportTransform, transform_rect_to_viewport_or_identity};
 use crate::painting::style_queries;
 
 pub(crate) fn can_compute_client_rects_without_visual_context_update(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     layout_node: NodeSlotId,
     viewport_scroll_offset_is_zero: bool,
 ) -> bool {
     let mut node = layout_node;
-    while let Some(data) = arena.node_data_if_live(node) {
-        let kind = data.kind.get();
+    while let Some(kind) = arena.node_kind_if_live(node) {
+        let flags = arena.node_flags_if_live(node);
+        let parent = arena.node_parent_if_live(node).unwrap_or(NodeSlotId::INVALID);
         if node_facts::kind_is_svg_box(kind) || kind == NodeKind::SVGSVGBox || kind == NodeKind::SVGForeignObjectBox {
             return false;
         }
 
-        if !node_facts::has_flag(data, NodeFlag::HasStyle) {
-            node = data.parent.get();
+        if flags & NodeFlag::HasStyle as u32 == 0 {
+            node = parent;
             continue;
         }
         if let Some(style) = arena.node_style_if_live(node)
@@ -38,7 +40,7 @@ pub(crate) fn can_compute_client_rects_without_visual_context_update(
         }
         let compensates_for_scroll =
             NodeFlag::CompensatesForHorizontalScroll as u32 | NodeFlag::CompensatesForVerticalScroll as u32;
-        if data.flags.get() & compensates_for_scroll != 0 {
+        if flags & compensates_for_scroll != 0 {
             return false;
         }
         // A scroll container's contents move, but its own border box does not.
@@ -46,19 +48,19 @@ pub(crate) fn can_compute_client_rects_without_visual_context_update(
             let scroll_offset_is_zero = if kind == NodeKind::Viewport {
                 viewport_scroll_offset_is_zero
             } else {
-                !node_facts::has_flag(data, NodeFlag::HasScrollOffset)
+                flags & NodeFlag::HasScrollOffset as u32 == 0
             };
             if !scroll_offset_is_zero && arena.paintable_row_is_populated(node) {
                 return false;
             }
         }
-        node = data.parent.get();
+        node = parent;
     }
     true
 }
 
 fn for_each_inline_piece_border_box_rect(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     inline_paintable: NodeSlotId,
     mut push_rect: impl FnMut(CssPixelRect),
 ) {
@@ -77,7 +79,7 @@ fn for_each_inline_piece_border_box_rect(
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
 pub(crate) fn for_each_client_rect(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     layout_node: NodeSlotId,
     rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
     mut push_rect: impl FnMut(CssPixelRect),
@@ -124,7 +126,7 @@ pub(crate) fn for_each_client_rect(
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect
 pub(crate) fn bounding_client_rect(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     layout_node: NodeSlotId,
     rect_to_viewport_transform: Option<&RectToViewportTransform<'_>>,
 ) -> CssPixelRect {

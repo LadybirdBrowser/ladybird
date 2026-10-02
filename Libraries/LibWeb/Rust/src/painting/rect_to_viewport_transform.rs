@@ -6,7 +6,7 @@
 
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::visual_context::{IncludeVisualViewportTransform, VisualContextTree};
 use libgfx_rust::{FloatPoint, FloatRect};
 
@@ -19,7 +19,7 @@ pub(crate) struct RectToViewportTransform<'a> {
 impl RectToViewportTransform<'_> {
     pub(crate) fn transform_rect_to_viewport(
         &self,
-        arena: &impl PaintableRowsRead,
+        arena: &impl PaintRead,
         node: NodeSlotId,
         rect: CssPixelRect,
     ) -> CssPixelRect {
@@ -52,7 +52,7 @@ impl RectToViewportTransform<'_> {
 
 pub(crate) fn transform_rect_to_viewport_or_identity(
     transform: Option<&RectToViewportTransform<'_>>,
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     node: NodeSlotId,
     rect: CssPixelRect,
 ) -> CssPixelRect {
