@@ -187,14 +187,11 @@ impl Verifier<'_> {
                     .note(format_args!("entries table of {root:?} is still flagged for a resort"));
             }
         }
-        let stored_table_count = self
-            .arena
-            .paintable_rows
-            .stacking_context_entries
-            .borrow()
-            .iter()
-            .filter(|table| table.is_some())
+        let tables = self.arena.paintable_rows.stacking_context_entries.borrow();
+        let stored_table_count = (0..self.arena.paintable_row_count())
+            .filter(|index| tables.get(*index).is_some_and(Option::is_some))
             .count();
+        drop(tables);
         let expected_table_count = self
             .expected_entries_by_root
             .keys()

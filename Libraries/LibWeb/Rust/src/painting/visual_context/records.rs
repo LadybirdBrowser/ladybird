@@ -164,7 +164,6 @@ pub(crate) struct DescendantVisualContexts {
 pub(crate) struct PaintableVisualContextRecord {
     pub inherited_input: DescendantVisualContexts,
     pub output_for_descendants: DescendantVisualContexts,
-    pub node_handles: BoxVisualContextNodeHandles,
     pub has_mask_nodes: bool,
     pub may_be_root_element: bool,
     pub owns_geometry_dependent_nodes: bool,

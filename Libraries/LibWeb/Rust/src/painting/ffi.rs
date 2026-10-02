@@ -1148,12 +1148,13 @@ pub unsafe extern "C" fn layout_arena_sticky_spatial_node_index(arena: *mut c_vo
         .map_or(u32::MAX, |state| state.node_index.0)
 }
 
-/// What a recording stage records from: the arena, borrowed for the stage, the rows published for
-/// it, the viewport it records, the inputs the document lent for the call, and the recorder's own
-/// state, which nothing else borrows while it runs.
+/// What a recording stage records from: the arena, borrowed for the stage, the rows and damage
+/// published for it, the viewport it records, the inputs the document lent for the call, and the
+/// recorder's own state, which nothing else borrows while it runs.
 struct RecordingStageInput<'a> {
     arena: &'a LayoutNodeArena,
     rows: &'a crate::painting::published_frame::PublishedRows,
+    damage: &'a crate::painting::record::damage::FrameDamage,
     viewport: NodeSlotId,
     inputs: crate::painting::record::RecordingInputs<'a>,
     recorder_state: &'a mut crate::painting::record::recorder_state::RecorderState,
@@ -1176,6 +1177,7 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
     let RecordingStageInput {
         arena,
         rows,
+        damage,
         viewport,
         inputs,
         recorder_state,
@@ -1188,24 +1190,7 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
         scratch,
         absolute_rects,
     } = recorder_state;
-    // The root background paints the union of the viewport and the root's overflow, so it
-    // is the one output a viewport move can change. Drop its caches before recording
-    // starts instead of treating the viewport position as a frame-wide input.
-    if let Some(source) = published_recording {
-        let root = inputs.uncaptured.root_background_source.root_layout_node;
-        let rows = arena.paintable_rows();
-        let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
-            &rows,
-            root,
-            inputs.css_viewport_rect,
-        );
-        if canvas_rect != source.root_background_canvas_rect {
-            arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
-        }
-    }
-    if inputs.publishes_recording {
-        arena.note_publishing_paint_recording_started();
-    }
+    let source = crate::painting::paint_read::PaintSource::new(arena, rows, damage, absolute_rects);
     // The retained tree describes the published tape and is written in place while a frame
     // is assembled, so only a recording that publishes may copy from that frame or touch
     // the tree; any other recording records from scratch into a tree of its own.
@@ -1223,10 +1208,9 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
     arena.set_paint_recording_in_progress(true);
     let recording = crate::painting::record::traversal::record_display_list(
         arena,
-        rows,
+        &source,
         &paint_state,
         scratch,
-        absolute_rects,
         tree,
         viewport,
         &inputs,
@@ -1245,10 +1229,9 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
             let mut tree_for_recording_from_scratch = crate::painting::record::order_tree::PaintOrderTree::default();
             crate::painting::record::traversal::record_display_list(
                 arena,
-                rows,
+                &source,
                 &paint_state,
                 scratch,
-                absolute_rects,
                 &mut tree_for_recording_from_scratch,
                 viewport,
                 &inputs_for_recording_from_scratch,
@@ -1280,9 +1263,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     let arena = unsafe { arena_from_handle_mut(arena) };
     // Recording reads overflow, and reading overflow never measures it.
     arena.measure_scrollable_overflow();
-    // The recording reads the rows as they are now, and nothing writes them before it is done.
-    let rows = arena.publish_rows();
-    let arena: &LayoutNodeArena = arena;
     {
         let mut paint_state = arena.paint_state().borrow_mut();
         debug_assert!(
@@ -1292,14 +1272,47 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         paint_state.pending_recording_trace = None;
         paint_state.pending_recording = None;
     }
+    if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
+        return false;
+    }
+    // The root background paints the union of the viewport and the root's overflow, so it is the
+    // one output a viewport move can change. Drop its caches before the frame is published instead
+    // of treating the viewport position as a frame-wide input.
+    let published_root_background_canvas_rect = arena
+        .recorder_state()
+        .borrow()
+        .published_recording
+        .as_ref()
+        .map(|recording| recording.root_background_canvas_rect);
+    if let Some(published_canvas_rect) = published_root_background_canvas_rect {
+        let root = arena
+            .paint_state()
+            .borrow()
+            .root_background_source
+            .expect("a recording follows paint preparation")
+            .root_layout_node;
+        let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
+            &arena.paintable_rows(),
+            root,
+            inputs.css_viewport_rect.into(),
+        );
+        if canvas_rect != published_canvas_rect {
+            arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
+        }
+    }
+    if inputs.publishes_recording {
+        arena.note_publishing_paint_recording_started();
+    }
+    // The recording reads the rows and the damage as they are now, and nothing writes them before
+    // it is done.
+    let rows = arena.publish_rows();
+    let damage = arena.paint_damage_for_frame();
+    let arena: &LayoutNodeArena = arena;
     let RecordingStageOutput {
         recording,
         recording_from_scratch,
     } = {
         let paint_state = arena.paint_state().borrow();
-        if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
-            return false;
-        }
         let visual_context = &paint_state.visual_context;
         // SAFETY: The host lends the input arrays and buffers for this call. Only owned
         // output and retained resources escape into the pending recording below.
@@ -1317,6 +1330,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         record_display_list_stage(RecordingStageInput {
             arena,
             rows: &rows,
+            damage: &damage,
             viewport,
             inputs: recording_inputs,
             recorder_state: &mut arena.recorder_state().borrow_mut(),

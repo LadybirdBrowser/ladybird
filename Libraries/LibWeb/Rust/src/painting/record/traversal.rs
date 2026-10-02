@@ -18,28 +18,24 @@ use crate::painting::hit_test::HitTestList;
 use crate::painting::node_painting;
 use crate::painting::paint_order_plan::PaintScope;
 use crate::painting::paint_read::{GeometryRead, PaintSource};
-use crate::painting::published_frame::PublishedRows;
 use crate::painting::record::RecordingInputs;
 use crate::painting::record::assemble::{Assembler, frame_is_unchanged};
 use crate::painting::record::frame_inputs::FrameInputs;
 use crate::painting::record::order_tree::{PaintOrderTree, ProducerKind};
 use crate::painting::record::paint::background_resolution::root_background_canvas_rect;
-use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::record::resources::RecordingResourceManifest;
 use crate::painting::record::scratch::RecordingScratch;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::record::trace::{Action, Operation};
 use crate::painting::record::{PublishedHitTestItems, RecordingOutput, RecordingResult};
-use std::cell::RefCell;
 use std::sync::Arc;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn record_display_list(
     layout_arena: &LayoutNodeArena,
-    rows: &PublishedRows,
+    source: &PaintSource<'_>,
     paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
-    absolute_rects: &RefCell<AbsoluteRectMemo>,
     tree: &mut PaintOrderTree,
     viewport: NodeSlotId,
     inputs: &RecordingInputs<'_>,
@@ -54,10 +50,9 @@ pub(crate) fn record_display_list(
         ($observer:ty) => {
             record_display_list_impl::<$observer>(
                 layout_arena,
-                rows,
+                source,
                 paint_state,
                 scratch,
-                absolute_rects,
                 tree,
                 viewport,
                 inputs,
@@ -80,10 +75,9 @@ pub(crate) fn record_display_list(
 #[allow(clippy::too_many_arguments)]
 fn record_display_list_impl<O: Observer>(
     layout_arena: &LayoutNodeArena,
-    rows: &PublishedRows,
+    source: &PaintSource<'_>,
     paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
-    absolute_rects: &RefCell<AbsoluteRectMemo>,
     tree: &mut PaintOrderTree,
     viewport: NodeSlotId,
     inputs: &RecordingInputs<'_>,
@@ -97,10 +91,9 @@ fn record_display_list_impl<O: Observer>(
         "a recording that publishes nothing has no published recording to copy from"
     );
     let structural_epoch = paint_state.visual_context.structural_epoch();
-    let source = PaintSource::new(layout_arena, rows, absolute_rects);
     let frame_inputs = FrameInputs::from_recording_inputs(inputs, paint_state);
     let root_background_canvas_rect = root_background_canvas_rect(
-        &source,
+        source,
         inputs.uncaptured.root_background_source.root_layout_node,
         inputs.css_viewport_rect,
     );
@@ -110,8 +103,8 @@ fn record_display_list_impl<O: Observer>(
         .as_ref()
         .is_some_and(|frame| frame.frame_inputs == frame_inputs)
         && source_items.is_some()
-        && !layout_arena.paint_damage_covers_everything()
-        && !layout_arena.scroll_metadata_damaged_everywhere();
+        && !source.damage().covers_everything()
+        && !source.damage().scroll_metadata_everywhere();
     let (source_recording, source_items) = if source_is_usable {
         (source_recording, source_items)
     } else {
@@ -119,7 +112,7 @@ fn record_display_list_impl<O: Observer>(
     };
     let force_dark_settings = inputs.force_dark_enabled.then_some(inputs.force_dark_settings);
     let mut recorder = PaintRecorder {
-        source: &source,
+        source,
         paint_state,
         inputs,
         recorder: DisplayListRecorder::new(force_dark_settings),
@@ -146,7 +139,7 @@ fn record_display_list_impl<O: Observer>(
     };
     recorder
         .observer
-        .observe(|log| log.damage = Some(layout_arena.paint_damage_summary()));
+        .observe(|log| log.damage = Some(source.damage().summary()));
     recorder.record_canvas();
     let prologue_bytes = u32::try_from(recorder.recorder.byte_size()).expect("display list exceeds u32");
     let has_inspector_overlays = inputs.inspector_highlight.is_some()
@@ -161,7 +154,7 @@ fn record_display_list_impl<O: Observer>(
         .as_ref()
         .zip(recorder.source_items.as_ref())
         .filter(|(frame, _)| {
-            frame_is_unchanged(tree, layout_arena.has_paint_damage())
+            frame_is_unchanged(tree, !source.damage().is_empty())
                 && !has_inspector_overlays
                 && frame.prologue_bytes == prologue_bytes
                 && recorder.recorder.bytes() == &frame.display_list.bytes[..prologue_bytes as usize]

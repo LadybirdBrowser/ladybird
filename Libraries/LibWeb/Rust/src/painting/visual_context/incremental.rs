@@ -510,8 +510,8 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             let previous_has_mask_nodes = existing_record.as_ref().is_some_and(|record| record.has_mask_nodes);
             let may_be_root_element = parent == viewport;
             let tree = std::sync::Arc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
-            let existing_handles = existing_record.as_ref().map(|record| &record.node_handles);
-            let mut writer = BoxNodeWriter::new(tree, existing_handles, &mut delta);
+            let existing_handles = layout_arena.paintable_visual_context_node_handles(slot);
+            let mut writer = BoxNodeWriter::new(tree, existing_handles.as_deref(), &mut delta);
             let mut assignment = build_box_visual_context_nodes(
                 &environment,
                 &mut writer,
@@ -526,9 +526,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             );
             let (handles, reconcile) = writer.finish();
             let new_output = assignment.record.output_for_descendants;
-            assignment.record.node_handles = handles;
+            assignment.node_handles = handles;
             assignment.record.owns_geometry_dependent_nodes =
-                box_owns_geometry_dependent_nodes(layout_arena, tree, slot, &assignment.record.node_handles);
+                box_owns_geometry_dependent_nodes(layout_arena, tree, slot, &assignment.node_handles);
             assignment.record.subtree_may_own_geometry_dependent_nodes =
                 assignment.record.owns_geometry_dependent_nodes || subtree_may_own_geometry_dependent_nodes;
             if scope != VisualContextUpdateScope::FreshTree {
@@ -660,16 +660,16 @@ pub(crate) fn debug_assert_every_live_node_is_owned(
         owned[index as usize] = true;
     }
     paint_order::for_each_in_paint_subtree(layout_arena, viewport, |slot| {
-        let Some(record) = layout_arena.paintable_visual_context_record(slot) else {
+        let Some(handles) = layout_arena.paintable_visual_context_node_handles(slot) else {
             return;
         };
-        for index in &record.node_handles.spatial {
+        for index in &handles.spatial {
             claim(&mut spatial_is_owned, index.0, "spatial node");
         }
-        for index in record.node_handles.clip_handles() {
+        for index in handles.clip_handles() {
             claim(&mut clip_is_owned, index.0, "clip node");
         }
-        for index in &record.node_handles.effects {
+        for index in &handles.effects {
             claim(&mut effect_is_owned, index.0, "effect node");
         }
     });
