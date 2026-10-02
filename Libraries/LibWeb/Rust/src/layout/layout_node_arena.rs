@@ -738,8 +738,13 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) boxes_needing_scrollable_overflow_recalculation: RefCell<Vec<NodeSlotId>>,
     pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     text_nodes_enrolled_for_content_sync: RefCell<HashSet<NodeSlotId>>,
+    /// The scroll containers a running tree build gave a style, which may be where scroll
+    /// snapping happens once the build is over.
+    built_scroll_containers: RefCell<Vec<NodeSlotId>>,
     /// Whether a row has ever been given a style with `content-visibility: auto`.
     may_have_auto_content_visibility: Cell<bool>,
+    /// Whether a row has ever been given a style with a scroll snap type.
+    may_have_scroll_snap_areas: Cell<bool>,
     nodes_enrolled_for_replaced_content_facts_sync: RefCell<Vec<NodeSlotId>>,
     /// The natural size of the image each image box that owns its image's provider shows
     /// (`content: url(...)`), as the provider publishes it: zero while the image is not available.
@@ -843,7 +848,9 @@ impl LayoutNodeArena {
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
+            built_scroll_containers: RefCell::default(),
             may_have_auto_content_visibility: Cell::new(false),
+            may_have_scroll_snap_areas: Cell::new(false),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
             owned_image_natural_sizes: RefCell::new(HashMap::default()),
             document_svg_root_natural_size: Cell::new(None),
@@ -4244,15 +4251,21 @@ impl LayoutNodeArena {
     /// is only replaced between passes, so the array stays valid for as long
     /// as the node occupies its arena slot.
     /// Notes that `slot` was given a style with `content-visibility: auto`, if it was, so that
-    /// every layout commit from then on collects the boxes with it.
+    /// every layout commit from then on collects the boxes with it, and with a scroll snap type,
+    /// so that the scroll containers builds make from then on go to the document.
     fn note_row_style(&self, slot: NodeSlotId) {
-        if !self.may_have_auto_content_visibility.get()
-            && self.style_payloads(slot).is_some_and(|payloads| {
-                ComputedValuesView::new(&payloads.groups).content_visibility()
-                    == crate::css::css_enums::content_visibility::AUTO
-            })
-        {
+        if self.may_have_auto_content_visibility.get() && self.may_have_scroll_snap_areas.get() {
+            return;
+        }
+        let Some(payloads) = self.style_payloads(slot) else {
+            return;
+        };
+        let style = ComputedValuesView::new(&payloads.groups);
+        if style.content_visibility() == crate::css::css_enums::content_visibility::AUTO {
             self.may_have_auto_content_visibility.set(true);
+        }
+        if style.misc_reset().scroll_snap_strictness != crate::css::css_enums::scroll_snap_strictness::NONE {
+            self.may_have_scroll_snap_areas.set(true);
         }
     }
 
@@ -4727,6 +4740,36 @@ impl LayoutNodeArena {
 
     pub(crate) fn node_generated_for(&self, id: NodeSlotId) -> u8 {
         self.data(id).generated_for.get()
+    }
+
+    /// Notes that the running build gave the scroll container `id` a style, which decides whether
+    /// scroll snapping happens in it once the build is over.
+    pub(crate) fn note_built_scroll_container(&self, id: NodeSlotId) {
+        self.built_scroll_containers.borrow_mut().push(id);
+    }
+
+    /// The scroll containers the build that is over gave a style, for the document's scroll snap
+    /// bookkeeping, each with whether it is a scroll snap container, which the viewport's answer
+    /// needs the root element's box for. A row the build freed again is left out. Where no box was
+    /// ever given a scroll snap type, none of them snaps, and the document has no snapped areas for
+    /// them to forget, so it takes none.
+    pub(crate) fn take_built_scroll_containers(&self) -> Vec<super::formatting_context::FfiBuiltScrollContainer> {
+        let mut built = self.built_scroll_containers.borrow_mut();
+        if !self.may_have_scroll_snap_areas.get() {
+            built.clear();
+            return Vec::new();
+        }
+        built
+            .drain(..)
+            .filter(|&slot| self.slot_is_live(slot))
+            .map(|slot| {
+                let axes = crate::painting::scroll_snap::snap_axes_of_scroll_container(self, slot);
+                super::formatting_context::FfiBuiltScrollContainer {
+                    slot,
+                    is_scroll_snap_container: axes.x || axes.y,
+                }
+            })
+            .collect()
     }
 
     /// The row's shell, which the host's shell factory makes for an anonymous row the first time
@@ -5998,6 +6041,7 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         // The rows' styles hold no group, so the arena is told up front what it would read from them.
         arena.may_have_auto_content_visibility.set(true);
+        arena.may_have_scroll_snap_areas.set(true);
         let payloads = [std::ptr::null::<c_void>(); 1];
         let slot = arena.allocate_unbound();
         arena.stamp_anonymous_box(

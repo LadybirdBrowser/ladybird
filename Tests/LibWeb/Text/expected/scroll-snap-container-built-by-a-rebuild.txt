@@ -1,0 +1,2 @@
+scroll offset after initial snap: 100
+scroll offset after scrolling between snap positions: 100

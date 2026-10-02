@@ -3680,13 +3680,23 @@ impl TreeBuilderHost<'_> {
         slot
     }
 
-    /// What giving a row its style tells the rest of the document: what an element's `::selection`
-    /// style paints selected text with.
+    /// What giving a row its style tells the rest of the document: which scroll containers
+    /// snapping may happen in, with the root element's box standing in for the viewport, and what
+    /// an element's `::selection` style paints selected text with. None of it needs the row's
+    /// layout node.
     fn note_style_of_built_row(&self, slot: NodeSlotId, element: Option<StyleNodeID>) {
         if let Some(element) = element
             && self.holds_selection_style(element)
         {
             crate::painting::selection::note_built_row_selection_pseudo_style(self.arena(), slot, element);
+        }
+        if self.arena().node_flags(slot) & NodeFlag::IsDocumentElement as u32 != 0 {
+            let viewport = self.arena().bound_viewport_row();
+            if !viewport.is_invalid() {
+                self.arena().note_built_scroll_container(viewport);
+            }
+        } else if node_facts::kind_and_style_make_scroll_container(self.data(slot).kind.get(), self.style(slot)) {
+            self.arena().note_built_scroll_container(slot);
         }
     }
 
@@ -3757,6 +3767,7 @@ impl TreeBuilderHost<'_> {
         self.arena().unique_node_ids().publish(slot, unique_node_id);
         self.arena()
             .apply_reinherited_style_record(self.main_thread, slot, document_style);
+        self.arena().note_built_scroll_container(slot);
         assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
         slot
     }

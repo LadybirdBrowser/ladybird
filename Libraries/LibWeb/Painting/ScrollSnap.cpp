@@ -103,6 +103,21 @@ bool is_scroll_snap_container(Layout::Node const& node)
     return !snap_axes_of_scroll_container(node).is_empty();
 }
 
+void take_built_scroll_container(DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, bool is_scroll_snap_container)
+{
+    auto const* scroll_container = document.layout_node_arena().node_if_live(slot);
+    if (!scroll_container)
+        return;
+    if (is_scroll_snap_container) {
+        document.set_may_have_scroll_snap_areas();
+        document.register_scroll_snap_container(*scroll_container);
+        return;
+    }
+    // A box that does not snap is snapped to no snap areas, so that a scroll it is given while it does not snap is not
+    // undone by a re-snap once it snaps again.
+    document.forget_snapped_areas_of_scroll_container(*scroll_container);
+}
+
 // https://drafts.csswg.org/css-scroll-snap-1/#choosing
 Compositing::SnapDestination adjust_scroll_destination_for_snapping(Layout::Node const& snap_container, CSSPixelPoint destination, Compositing::SnapSelectionStrategy const& strategy)
 {

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    #spacer {
+        height: 100px;
+    }
+    .area {
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="host"></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+
+        // The scroll container arrives with its style, and nothing restyles it after the build that makes its box.
+        document.getElementById("host").innerHTML = `
+            <div id="scroller">
+                <div id="spacer"></div>
+                <div class="area"></div>
+                <div class="area"></div>
+            </div>`;
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+        const offsetAfterInitialSnap = scroller.scrollTop;
+
+        scroller.scrollTo({ top: 40, behavior: "instant" });
+        const offsetAfterScroll = scroller.scrollTop;
+
+        println(`scroll offset after initial snap: ${offsetAfterInitialSnap}`);
+        println(`scroll offset after scrolling between snap positions: ${offsetAfterScroll}`);
+    });
+</script>
