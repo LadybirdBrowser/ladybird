@@ -1,0 +1,4 @@
+scrollTop: 50
+marker offset: 350
+scrollTop after a rebuild: 50
+marker offset after a rebuild: 350
