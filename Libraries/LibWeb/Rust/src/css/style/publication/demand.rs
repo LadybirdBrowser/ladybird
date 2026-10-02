@@ -187,7 +187,6 @@ impl RetainedState {
             || host.program_staging.is_dirty()
             || host.sheet_rule_replacement.is_some()
             || !host.journal.markers().is_empty()
-            || host.computed_record_verification_counters.is_some()
             || host.journal.inputs().any(|input| {
                 input.key.style_node().is_none()
                     || matches!(input.key, InputKey::TreeRelations(_))

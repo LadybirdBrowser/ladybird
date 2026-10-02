@@ -88,13 +88,9 @@ public:
 
     // Materialize the complete computed view for one exact StyleEngine target and publish its
     // StyleRecord assignment.
-    enum class StyleSharingMode {
-        Enabled,
-        Disabled,
-    };
     // The document element's style installed: the metrics `rem` resolves against are its font's.
     void update_root_element_font_metrics(ComputedValues const&);
-    [[nodiscard]] NonnullRefPtr<ComputedValues const> materialize_style_record(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}, StyleEngineMatchResult* = nullptr, Optional<StyleEngine::StyleRecordDelta&> = {}, StyleSharingMode = StyleSharingMode::Enabled) const;
+    [[nodiscard]] NonnullRefPtr<ComputedValues const> materialize_style_record(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}, StyleEngineMatchResult* = nullptr, Optional<StyleEngine::StyleRecordDelta&> = {}) const;
     [[nodiscard]] StyleRecordID try_share_computed_style_record(DOM::Element&) const;
     void remember_shared_computed_style_record(DOM::Element&, StyleRecordID) const;
     // Compute the cascade supplied by rules, presentational hints, and inheritance while excluding the element's
@@ -309,7 +305,6 @@ public:
     // siblings - takes the result out of the cache rather than being keyed on, so the key stays a
     // fixed size and the escape hatches stay honest.
     struct StyleSharingCandidate {
-        bool may_reuse_or_publish_shared_style { true };
         // Empty until the cascade has run; unusable when the element is not a sharing candidate.
         StyleSharingKey key;
         StyleGroupPayloadPins pinned_parent_groups;

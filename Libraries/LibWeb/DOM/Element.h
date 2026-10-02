@@ -358,15 +358,11 @@ public:
 
     void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
-    enum class StyleRecomputeMode {
-        Normal,
-        Verification,
-    };
     enum class PseudoElementInputs {
         Changed,
         Unchanged,
     };
-    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_reaction(bool& did_change_custom_properties, StyleRecomputeMode = StyleRecomputeMode::Normal, PseudoElementInputs = PseudoElementInputs::Changed);
+    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_reaction(bool& did_change_custom_properties, PseudoElementInputs = PseudoElementInputs::Changed);
     // Apply a base style record the style engine computed itself from this element's moved cascade
     // winners: no style computation runs here, only the diff against the old record and its effects.
     // The synthetic pseudo-element records the style engine settled beside an engine-computed record: a kind it

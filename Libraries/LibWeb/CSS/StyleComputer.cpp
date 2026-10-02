@@ -3443,11 +3443,10 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
     return publication;
 }
 
-NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties, StyleEngineMatchResult* reusable_matches, Optional<StyleEngine::StyleRecordDelta&> style_record_delta, StyleSharingMode style_sharing_mode) const
+NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties, StyleEngineMatchResult* reusable_matches, Optional<StyleEngine::StyleRecordDelta&> style_record_delta) const
 {
     m_last_materialization_kept_pseudo_element_styles = false;
     StyleSharingCandidate sharing;
-    sharing.may_reuse_or_publish_shared_style = style_sharing_mode == StyleSharingMode::Enabled;
     auto publish_computed_groups = [&](NonnullRefPtr<ComputedValues const> values) {
         auto publication = publish_computed_style_inputs(abstract_element, *values);
         if (sharing.new_style_sharing_entry_hash.has_value()) {
@@ -3582,7 +3581,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_valu
         record->style_uses_inherit_css_function = element.style_uses_inherit_css_function();
         record->explicitly_inherited_non_inherited_style_groups = sharing.explicitly_inherited_non_inherited_style_groups;
     }
-    if (sharing.is_candidate && sharing.may_reuse_or_publish_shared_style) {
+    if (sharing.is_candidate) {
         // The result answers for another element only if it also holds no animated values: an
         // animation or transition is state of this element that the other element does not have.
         bool const computation_read_only_the_key = computation_read_only_the_record
@@ -3905,31 +3904,6 @@ StyleRecordID StyleComputer::try_share_computed_style_record(DOM::Element& eleme
     auto record = StyleRecordID { const_cast<StyleComputer&>(*this).style_engine().lookup_shared_style_record(
         element.style_node_id(), context->parent_record, style_environment_version_for_sharing(), context->shape) };
     if (record.value() != 0) {
-        static bool const verify_reuse = getenv("LIBWEB_VERIFY_STYLE_INPUT_REUSE") != nullptr;
-        if (verify_reuse) {
-            DOM::AbstractElement abstract_element { element };
-            auto counters = document().style_invalidation_counters();
-            auto cascade_input = style_engine_cascade_input(abstract_element, nullptr);
-            VERIFY(cascade_input);
-            auto cascaded = compute_cascaded_values(abstract_element, *cascade_input, IncludeInlineStyle::Yes);
-            auto properties = compute_properties(abstract_element, cascaded, cascade_input->matching_pseudo_element_styles, nullptr);
-            auto derived = build_computed_values(*properties, abstract_element, element.style_scope());
-            auto shared = computed_style_record_view(record);
-            auto derived_longhands = derived->computed_longhand_values();
-            auto shared_longhands = shared->computed_longhand_values();
-            VERIFY(derived_longhands.size() == shared_longhands.size());
-            for (size_t index = 0; index < derived_longhands.size(); ++index) {
-                auto const* derived_value = static_cast<StyleValueFFI::StyleValueData const*>(derived_longhands[index]);
-                auto const* shared_value = static_cast<StyleValueFFI::StyleValueData const*>(shared_longhands[index]);
-                if (derived_value == shared_value)
-                    continue;
-                if (!derived_value || !shared_value || !StyleValueFFI::rust_style_value_equals(derived_value, shared_value)) {
-                    dbgln("early shared style differs on {} for {}", string_from_property_id(static_cast<PropertyID>(index + to_underlying(first_longhand_property_id))), element.tag_name());
-                    VERIFY_NOT_REACHED();
-                }
-            }
-            document().style_invalidation_counters() = counters;
-        }
         // The engine retains the fixed computation context for a later partial drive.
         element.set_style_input_record(nullptr);
         ++document().style_invalidation_counters().element_style_shared_computations;
@@ -4438,7 +4412,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 }
             }
         }
-        if (sharing->may_reuse_or_publish_shared_style && !element.style_input_record() && previous_style_record.present) {
+        if (!element.style_input_record() && previous_style_record.present) {
             auto const& shape = *element_shape_key;
             Array<u64, 4> context_shape { shape[0], shape[1], shape[2], 0 };
             auto context_record = StyleRecordID { const_cast<StyleComputer&>(*this).style_engine().take_shared_computation_context(
@@ -4584,7 +4558,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     };
 
     auto reuse_computed_style = [&]() -> bool {
-        if (!sharing || !sharing->may_reuse_or_publish_shared_style)
+        if (!sharing)
             return false;
         if (!style_input_is_unchanged || new_style_input_record->read_beyond_the_record || !last_style_still_stands())
             return false;
@@ -4605,7 +4579,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
 
     bool has_complete_sharing_key = false;
     auto find_shared_style = [&]() {
-        if (!sharing || !sharing->may_reuse_or_publish_shared_style)
+        if (!sharing)
             return false;
         if (auto data = abstract_element.custom_property_data(); data && data->is_animation_overlay_for(abstract_element))
             return false;
@@ -4666,55 +4640,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
 
     // The element's own last answer comes before another element's: it needs no lookup, and it is
     // the one whose marks are already on the element.
-    // The mechanism is exactly the kind that can be wrong for a year: right everywhere the record
-    // is complete, and silently wrong where it is not. Under verification every reuse derives the
-    // style anyway and every longhand of the two is compared.
-    auto verify_reused_style = [&](auto&& derive_style) {
-        static bool const verify_reuse = getenv("LIBWEB_VERIFY_STYLE_INPUT_REUSE") != nullptr;
-        if (!verify_reuse)
-            return;
-        auto& counters = document().style_invalidation_counters();
-        auto const counters_before_verification = counters;
-        auto reused = sharing->reused_values.release_nonnull();
-        auto custom_property_data = abstract_element.custom_property_data();
-        auto derived = derive_style();
-        abstract_element.set_custom_property_data(move(custom_property_data));
-        counters = counters_before_verification;
-        auto reused_properties = reconstruct_computed_properties(*reused);
-        for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
-            auto property_id = static_cast<PropertyID>(i);
-            // A logical alias is answered through the writing mode rather than stored, so the
-            // two sides spell it differently without disagreeing about anything.
-            if (property_is_logical_alias(property_id))
-                continue;
-            auto const& reused_value = reused_properties->property(property_id);
-            auto const& derived_value = derived->property(property_id);
-            if (reused_value.equals(derived_value))
-                continue;
-            // The reused side is reconstructed from computed values and the derived side comes
-            // straight out of the cascade, so the two can spell the same value differently.
-            if (reused_value.to_string(SerializationMode::ResolvedValue) == derived_value.to_string(SerializationMode::ResolvedValue))
-                continue;
-            dbgln("StyleEngine: a reused style differs on {}: reused {}, derived {}",
-                string_from_property_id(property_id), reused_value.to_string(SerializationMode::Normal), derived_value.to_string(SerializationMode::Normal));
-            // A reconstructed colour is spelled in the legacy form and a cascaded one in the
-            // space it was written in, so the two disagree about the text and not the colour.
-            // The line above still reports it; only the two colours are not made fatal.
-            if (reused_value.is_color() && derived_value.is_color())
-                continue;
-            VERIFY_NOT_REACHED();
-        }
-        sharing->reused_values = move(reused);
-    };
-
     if (reuse_computed_style()) {
         auto& counters = document().style_invalidation_counters();
         counters.element_style_input_reused++;
-        verify_reused_style([&] {
-            auto cascaded = compute_cascaded_values(abstract_element, cascade_input, include_inline_style, nullptr,
-                collected_presentational_hints ? &presentational_hint_properties : nullptr);
-            return compute_properties(abstract_element, cascaded, cascade_input.matching_pseudo_element_styles, nullptr);
-        });
         // The style is the one the last cascade produced from these same inputs, so the winner
         // state that cascade bound still stands behind the publication about to reuse it.
         if (auto node = abstract_element.element().style_node_id(); node != 0 && !abstract_element.pseudo_element().has_value())
@@ -4790,7 +4718,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         append_custom_property_inputs_to_sharing_key();
 
     auto find_style_sharing_donor = [&]() -> StyleSharingEntry const* {
-        if (previous_style_record.present || !sharing || !sharing->may_reuse_or_publish_shared_style || !sharing->is_candidate || abstract_element.pseudo_element().has_value())
+        if (previous_style_record.present || !sharing || !sharing->is_candidate || abstract_element.pseudo_element().has_value())
             return nullptr;
         if (sharing->key.pinned_values.is_empty())
             return nullptr;
@@ -4829,7 +4757,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     bool exact_cascade_is_unchanged = false;
     bool use_retained_style_computation_selection = false;
     StyleRecordID donor_style_record;
-    if (auto node = abstract_element.element().style_node_id(); sharing && sharing->may_reuse_or_publish_shared_style && node != 0) {
+    if (auto node = abstract_element.element().style_node_id(); sharing && node != 0) {
         auto const* donor = find_style_sharing_donor();
         auto publication = const_cast<StyleComputer&>(*this).style_engine().publish_exact_cascade_state(
             node,
@@ -4889,9 +4817,6 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         new_style_input_record->style_reads_resource_context = previous_computation->style_reads_resource_context;
         new_style_input_record->explicitly_inherited_non_inherited_style_groups = previous_computation->explicitly_inherited_non_inherited_style_groups;
         reuse_last_computed_style();
-        verify_reused_style([&] {
-            return compute_properties(abstract_element, cascaded_properties, cascade_input.matching_pseudo_element_styles, nullptr);
-        });
         return {};
     }
 

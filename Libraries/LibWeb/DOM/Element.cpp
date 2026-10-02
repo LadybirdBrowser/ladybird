@@ -2568,7 +2568,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     return result.invalidation;
 }
 
-CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, StyleRecomputeMode mode, PseudoElementInputs pseudo_element_inputs)
+CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, PseudoElementInputs pseudo_element_inputs)
 {
     VERIFY(parent());
 
@@ -2624,23 +2624,15 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     if (auto* rare_data = element_rare_data(); rare_data && rare_data->custom_property_consumer_data)
         rare_data->custom_property_consumer_data->style_query_references.clear_with_capacity();
     reusable_style_engine_matches = &style_engine_matches;
-    auto style_sharing_mode = mode == StyleRecomputeMode::Verification
-        ? CSS::StyleComputer::StyleSharingMode::Disabled
-        : CSS::StyleComputer::StyleSharingMode::Enabled;
-    auto shared_record = mode == StyleRecomputeMode::Verification
-        ? CSS::StyleRecordID {}
-        : style_computer.try_share_computed_style_record(*this);
+    auto shared_record = style_computer.try_share_computed_style_record(*this);
     auto shared_style = style_computer.computed_style_record_view(shared_record);
     if (shared_style) {
         style_record_delta.new_style_record = shared_record;
     } else {
-        materialized_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta, style_sharing_mode);
-        if (mode != StyleRecomputeMode::Verification)
-            style_computer.remember_shared_computed_style_record(*this, style_record_delta.new_style_record);
+        materialized_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta);
+        style_computer.remember_shared_computed_style_record(*this, style_record_delta.new_style_record);
     }
     auto const* new_style = shared_style ? &*shared_style : materialized_style.ptr();
-    if (mode == StyleRecomputeMode::Verification)
-        did_change_custom_properties = false;
     style_record_delta.old_style_record = old_style_record;
     bool root_font_metrics_changed = is_document_element()
         && (root_font_metrics_before_recompute != style_computer.root_element_font_metrics()
@@ -2697,7 +2689,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     if (old_computed_values && style_record_is_unchanged(style_record_delta) && !root_font_metrics_changed
         && pseudo_element_inputs == PseudoElementInputs::Unchanged
         && !(m_rendered_in_top_layer && !computed_style(CSS::PseudoElement::Backdrop))
-        && mode == StyleRecomputeMode::Normal && style_computer.last_materialization_kept_pseudo_element_styles()) {
+        && style_computer.last_materialization_kept_pseudo_element_styles()) {
         counters.element_style_noop_recomputations++;
         publish_custom_property_names();
         if (did_change_custom_properties)
@@ -2710,8 +2702,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
             counters.element_style_noop_recomputations++;
             return {};
         }
-        if (mode == StyleRecomputeMode::Normal)
-            record_element_reference_pseudo_element_inputs(*this);
+        record_element_reference_pseudo_element_inputs(*this);
         auto invalidation = recompute_pseudo_element_styles(
             did_change_custom_properties,
             old_computed_values->display().is_list_item(),
@@ -2777,14 +2768,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
 
     // https://drafts.csswg.org/css-transitions-1/#starting
     // The transition step compares the style the element moved away from with the one it now holds, so the old record
-    // has to outlive its replacement until the step has read it. A reference computation that verifies a record the
-    // engine settled leaves the step to the installation of that record, which then sees the reference where the
-    // element's old record was: the reference keeps the old one for the epoch's later passes, as the step would.
-    bool const runs_transition_step = mode != StyleRecomputeMode::Verification;
-    if (!runs_transition_step && !!old_style_record)
-        style_computer.record_transition_baseline_for_later_passes({ *this }, old_style_record);
+    // has to outlive its replacement until the step has read it.
     {
-        CSS::StyleRecordPin const before_change { style_computer, runs_transition_step ? old_style_record : CSS::StyleRecordID {} };
+        CSS::StyleRecordPin const before_change { style_computer, old_style_record };
         set_computed_style({}, style_record_delta.new_style_record);
         if (!!before_change.style_record())
             invalidation |= style_computer.run_transition_step_for_installed_record({ *this }, before_change.style_record(), CSS::StyleComputer::TransitionStepFollowUp::LeftToCaller);
@@ -2798,8 +2784,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         counters.element_computed_style_changes++;
 
     if (!pseudo_styles_are_unchanged) {
-        if (mode == StyleRecomputeMode::Normal)
-            record_element_reference_pseudo_element_inputs(*this);
+        record_element_reference_pseudo_element_inputs(*this);
         invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_values ? &*old_computed_values : nullptr, reusable_style_engine_matches, &preserved_pseudo_element_styles);
     }
 
