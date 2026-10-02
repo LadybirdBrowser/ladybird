@@ -621,8 +621,29 @@ impl RetainedState {
         self.computed_group_sets.construction_facts(node)
     }
 
+    /// The record the element published, which its box is built from: the record the element
+    /// holds, or the one the engine assigned it before it holds one. `None` while the element has
+    /// no record: a text node, a retired identity, or an element style has not reached yet.
+    #[must_use]
+    pub fn element_published_style_record(&self, node: StyleNodeID) -> Option<u64> {
+        self.held_style_records.get(&node).copied().or_else(|| {
+            self.computed_group_sets
+                .assigned_style_record(node)
+                .map(computed::FinalStyleRecordID::raw)
+        })
+    }
+
+    /// The record the element published for one pseudo-element kind. `None` while the element
+    /// styles no such pseudo-element.
+    #[must_use]
+    pub fn pseudo_published_style_record(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<u64> {
+        self.computed_group_sets
+            .pseudo_style_record(node, pseudo_kind)
+            .map(computed::FinalStyleRecordID::raw)
+    }
+
     /// The box facts the element's published style record holds. `None` while the element has no
-    /// record: a text node, a retired identity, or an element style has not reached yet.
+    /// record.
     #[must_use]
     pub fn element_published_box_facts(&self, node: StyleNodeID) -> Option<PublishedBoxFacts> {
         self.published_box_facts(self.computed_group_sets.assigned_style_record(node))

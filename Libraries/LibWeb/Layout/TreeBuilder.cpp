@@ -48,8 +48,6 @@ namespace Web::Layout {
 
 class LayoutTreeBuildBridge {
 public:
-    ~LayoutTreeBuildBridge();
-
     RustFFI::FfiLayoutTreeBuildOutcome build(DOM::Node&);
 
     static void detach_top_layer_element_layout_subtree(DOM::Element&);
@@ -64,20 +62,8 @@ private:
     static Box& create_list_item_marker(Box& list_box, CSS::LayoutStyle marker_style);
     static RustFFI::FfiFirstLetterNodes create_first_letter_nodes(DOM::Element&, RustFFI::FfiFirstLetterTarget);
 
-    void pin_style_record_for_build(CSS::StyleRecordID);
-
     GC::Ptr<DOM::Document> m_document;
-    // Every style record the build reads a pseudo-element's style from, held for the whole build. That includes the
-    // record of a pseudo-element that then generates no box, such as one with display: none or content: none. Letting
-    // go of a record the build has stopped looking at buys nothing before the build ends, and holding them all in one
-    // place is what lets a visit carry no C++ frame of its own.
-    Vector<CSS::StyleRecordID> m_pinned_style_records;
 };
-
-void LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(DOM::Element& element)
-{
-    element.clear_synthetic_pseudo_element_layout_nodes({});
-}
 
 void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& element, CSS::PseudoElement pseudo_element, Layout::NodeWithStyle* layout_node)
 {
@@ -317,13 +303,10 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
         .builder = this,
         .initialize = [](void* builder_pointer, u32 element_style_node, RustFFI::FfiPseudoElement ffi_pseudo) -> RustFFI::FfiPseudoElementFacts {
             VERIFY(builder_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
             auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, element_style_node));
             auto pseudo_element = css_pseudo_element(ffi_pseudo);
             if (auto existing_pseudo = element.get_synthetic_pseudo_element(pseudo_element); existing_pseudo.has_value() && existing_pseudo->layout_node())
                 existing_pseudo->set_layout_node(nullptr);
-            if (auto style_record_identity = element.style_record_identity(pseudo_element); !!style_record_identity)
-                builder.pin_style_record_for_build(style_record_identity);
             auto const* pseudo_payloads = element.style_record_payloads(pseudo_element);
             if (!pseudo_payloads) {
                 return {
@@ -478,21 +461,6 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
     RustFFI::rust_detach_top_layer_element_layout_subtree(element.document().layout_node_arena().handle(), element.style_node_id().value());
 }
 
-LayoutTreeBuildBridge::~LayoutTreeBuildBridge()
-{
-    if (m_pinned_style_records.is_empty())
-        return;
-    auto& style_computer = m_document->style_computer();
-    for (auto style_record_identity : m_pinned_style_records)
-        style_computer.unpin_style_record(style_record_identity);
-}
-
-void LayoutTreeBuildBridge::pin_style_record_for_build(CSS::StyleRecordID style_record_identity)
-{
-    m_document->style_computer().pin_style_record(style_record_identity);
-    m_pinned_style_records.append(style_record_identity);
-}
-
 // The principal box an element asks for. The element's own type and state decide the kind; its computed display
 // decides the box for the kinds that leave the choice to it, and its computed appearance can suppress an input's
 // native widget.
@@ -602,29 +570,8 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             for (auto const& element : elements)
                 output[index++] = identified_dom_node(element.ptr()); },
         .prepare_principal_element = [](void* builder_pointer, u32 style_node, bool should_create_layout_node) {
-            auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, style_node));
-            if (should_create_layout_node) {
-                LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(element);
-                update_style_if_needed_for_layout_tree_bypass_path(element);
-            }
-            if (!should_create_layout_node && element.needs_pseudo_element_layout_tree_update()) {
-                for (auto pseudo_element : { CSS::PseudoElement::Before, CSS::PseudoElement::After }) {
-                    if (auto* pseudo_node = element.pseudo_element_unsafe_layout_node(pseudo_element)) {
-                        pseudo_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
-                            node.clear_committed_box();
-                            return TraversalDecision::Continue;
-                        });
-                        pseudo_node->prepare_subtree_for_detach_from_layout_tree();
-                        VERIFY(destroy_layout_subtree(*pseudo_node));
-                        LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(element, pseudo_element, nullptr);
-                    }
-                }
-                if (auto* layout_node = element.unsafe_layout_node(); !layout_node->has_children())
-                    layout_node->set_children_are_inline(false);
-            }
-            auto style_record_identity = element.style_record_identity();
-            VERIFY(style_record_identity);
-            static_cast<LayoutTreeBuildBridge*>(builder_pointer)->pin_style_record_for_build(style_record_identity); },
+            if (should_create_layout_node)
+                update_style_if_needed_for_layout_tree_bypass_path(as<DOM::Element>(node_for_style_node(builder_pointer, style_node))); },
         .create_principal_element_layout = [](void* builder_pointer, u32 style_node, RustFFI::FfiElementLayoutKind kind, u8 box_kind) -> Compositing::RustFFI::NodeSlotId {
             auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, style_node));
             auto style_record_identity = element.style_record_identity();

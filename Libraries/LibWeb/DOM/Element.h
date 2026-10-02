@@ -718,7 +718,6 @@ public:
     Layout::NodeWithStyle* pseudo_element_unsafe_layout_node(CSS::PseudoElement) const;
 
     bool has_synthetic_pseudo_elements() const;
-    void clear_synthetic_pseudo_element_layout_nodes(Badge<Layout::LayoutTreeBuilderAccess>) { clear_synthetic_pseudo_element_layout_nodes(); }
 
     void serialize_children_as_json(JsonObjectSerializer<Utf16StringBuilder>&) const;
 
@@ -1039,7 +1038,6 @@ private:
 
     void register_element_reference_pseudo_element(CSS::PseudoElement type, GC::Ref<Element> element);
     SyntheticPseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;
-    void clear_synthetic_pseudo_element_layout_nodes();
 
     CSS::StyleNodeID m_style_node_id;
 

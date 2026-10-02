@@ -3917,21 +3917,6 @@ bool Element::has_synthetic_pseudo_elements() const
     return false;
 }
 
-void Element::clear_synthetic_pseudo_element_layout_nodes()
-{
-    for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
-        if (auto layout_node = pseudo_element.layout_node()) {
-            layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
-                node.clear_committed_box();
-                return TraversalDecision::Continue;
-            });
-            layout_node->prepare_subtree_for_detach_from_layout_tree();
-            Layout::destroy_layout_subtree(*layout_node);
-        }
-        pseudo_element.set_layout_node(nullptr);
-    });
-}
-
 void Element::serialize_children_as_json(JsonObjectSerializer<Utf16StringBuilder>& element_object) const
 {
     bool has_pseudo_elements = this->has_synthetic_pseudo_elements();

@@ -198,6 +198,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     );
     let viewport = arena.layout_root();
     assert!(!viewport.is_invalid(), "a layout tree build places the viewport");
+    state.release_pinned_style_records(arena);
     FfiLayoutTreeBuildOutcome {
         viewport,
         rebuilt_subtree_root_count,

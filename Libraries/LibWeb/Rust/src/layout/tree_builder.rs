@@ -47,6 +47,10 @@ pub(crate) struct TreeBuilderState {
     /// What the build found out that the document has to be told, in the order it found it out.
     /// Delivered when the walk ends: nothing inside the build reads any of it back.
     reports: Vec<crate::layout::commit::FfiCommitMessage>,
+    /// Every style record a box is built from, held until the build ends, so that a restyle later
+    /// in the same build cannot take it away from a box that names it. Letting go of one the build
+    /// has stopped looking at buys nothing before it ends.
+    pinned_style_records: Vec<u64>,
 }
 
 impl Default for TreeBuilderState {
@@ -62,7 +66,28 @@ impl Default for TreeBuilderState {
             new_subtree_root: NodeSlotId::INVALID,
             layout_tree_rebuild_requests: Vec::new(),
             reports: Vec::new(),
+            pinned_style_records: Vec::new(),
         }
+    }
+}
+
+impl TreeBuilderState {
+    /// Holds `record` until the build ends.
+    fn pin_style_record_for_build(&mut self, arena: &LayoutNodeArena, record: u64) {
+        arena.with_style_engine(|engine| engine.pin_layout_style_record(record));
+        self.pinned_style_records.push(record);
+    }
+
+    /// Lets go of every record the build held, once the build is over.
+    pub(super) fn release_pinned_style_records(&mut self, arena: &LayoutNodeArena) {
+        if self.pinned_style_records.is_empty() {
+            return;
+        }
+        arena.with_style_engine(|engine| {
+            for record in self.pinned_style_records.drain(..) {
+                engine.unpin_layout_style_record(record);
+            }
+        });
     }
 }
 
@@ -1359,18 +1384,18 @@ pub(crate) fn clear_synthetic_pseudo_element_boxes(
 }
 
 /// The pseudo-element of kind `generated_for` on the element `node` gives up its box, subtree and
-/// all.
+/// all. Answers whether the box was attached under a parent, or none when there was no box.
 fn free_pseudo_element_box(
     main_thread: &MainThread,
     arena: *mut LayoutNodeArena,
     node: StyleNodeID,
     generated_for: u8,
-) {
+) -> Option<bool> {
     // SAFETY: The arena outlives every walk over it.
     let arena_ref = unsafe { &*arena };
     let row = arena_ref.bound_pseudo_element_row(node, generated_for);
     if row.is_invalid() {
-        return;
+        return None;
     }
     let mut rows = Vec::new();
     arena_ref.for_each_node_in_layout_subtree_in_pre_order(row, |row| rows.push(row));
@@ -1380,8 +1405,9 @@ fn free_pseudo_element_box(
         unsafe { crate::painting::ffi::paintable_cleared_from_node(main_thread, arena.cast(), row) };
     }
     super::layout_node_arena::prepare_subtree_for_detach(main_thread, arena_ref, row);
-    arena_ref.detach_from_parent(row);
+    let was_attached = arena_ref.detach_from_parent(row);
     free_subtree_and_destroy_shells(main_thread, arena, row);
+    Some(was_attached)
 }
 
 /// Clears every stale layout node in the shadow-including subtree `root` names.
@@ -2118,14 +2144,43 @@ fn construct_principal_layout_node(
                 layout_host.free_subtree(old_backdrop);
             }
         }
+        let element = update.identity;
+        if should_create_layout_node {
+            // The box is built again from scratch, so every pseudo-element box it holds goes.
+            clear_synthetic_pseudo_element_boxes(host.main_thread, host.arena, element);
+        } else if host.arena().layout_tree_update_reuse_reasons(element)
+            & layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE
+            != 0
+        {
+            // The box stays and only its generated content is regenerated, which is the ::before
+            // and ::after boxes and nothing else.
+            for generated_for in [GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER] {
+                let freed = free_pseudo_element_box(host.main_thread, host.arena, element, generated_for);
+                assert!(
+                    freed != Some(false),
+                    "a regenerated pseudo-element's box was not attached"
+                );
+            }
+            let box_kept = host.arena().bound_row(element);
+            if host.layout().first_child(box_kept).is_invalid() {
+                host.layout().set_children_are_inline(box_kept, false);
+            }
+        }
         // SAFETY: The builder remains live, and the identity names a live element.
         unsafe {
             (host.callbacks.prepare_principal_element)(
                 host.callbacks.builder,
-                update.identity.raw(),
+                element.raw(),
                 should_create_layout_node,
             );
         }
+        // The record the box is built from is held for the whole build, taken after the host has
+        // had its chance to compute a style the element arrived here without.
+        let record = host
+            .arena()
+            .with_style_store(|engine| engine.element_published_style_record(element))
+            .expect("an element the walk prepares has published its style");
+        update.state.pin_style_record_for_build(host.arena(), record);
         let display = host.published_display(update.style_node);
         let generation = principal_box_generation_decision(
             true,
@@ -2759,13 +2814,22 @@ fn counter_owner_of_pseudo_element(
 ) -> crate::layout::counters::CounterOwner {
     let generated_for = match pseudo_element {
         FfiPseudoElement::None => 0,
+        _ => generated_for_of(pseudo_element),
+    };
+    crate::layout::counters::CounterOwner { element, generated_for }
+}
+
+/// The pseudo-element a box-generating `FfiPseudoElement` names, as a row's `generated_for`.
+fn generated_for_of(pseudo_element: FfiPseudoElement) -> u8 {
+    match pseudo_element {
         FfiPseudoElement::Before => GENERATED_FOR_BEFORE,
         FfiPseudoElement::After => GENERATED_FOR_AFTER,
         FfiPseudoElement::Marker => GENERATED_FOR_MARKER,
         FfiPseudoElement::Backdrop => GENERATED_FOR_BACKDROP,
-        FfiPseudoElement::Other => unreachable!("only a box-generating pseudo-element owns counters"),
-    };
-    crate::layout::counters::CounterOwner { element, generated_for }
+        FfiPseudoElement::Other | FfiPseudoElement::None => {
+            unreachable!("only a box-generating pseudo-element has a box")
+        }
+    }
 }
 
 /// Tells the document the content of `owner` shows the `list-item` counter's value.
@@ -2818,6 +2882,13 @@ fn create_pseudo_element(
 ) -> Option<UnplacedLayoutNode> {
     let callbacks = &host.callbacks.pseudo;
     let element = element_identity.raw();
+    // The record the pseudo-element's boxes are built from is held for the whole build.
+    let record = host.arena().with_style_store(|engine| {
+        engine.pseudo_published_style_record(element_identity, generated_for_of(pseudo_element) - 1)
+    });
+    if let Some(record) = record {
+        state.pin_style_record_for_build(host.arena(), record);
+    }
     // SAFETY: The builder remains live, and the identity names a live element.
     let facts = unsafe { (callbacks.initialize)(callbacks.builder, element, pseudo_element) };
     let decision = pseudo_element_decision(facts);
