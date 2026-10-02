@@ -1,0 +1,2 @@
+step 1: animations 0, C++ recomputations 0
+step 2: animations 1, C++ recomputations 0

@@ -671,12 +671,17 @@ impl RetainedState {
             Some(_) | None => (self.winner_groups.semantic_delta(Some(state), state), true),
         };
         // No delta names the winners such a record is driven from, so they are checked as a first
-        // record's are: one starting an animation keeps the record in C++.
+        // record's are: one starting an animation keeps the record in C++, unless it declares CSS
+        // animations and the host can be handed the plan the record decides.
         if holds_no_current_cascade_state
             && self
                 .winner_groups
                 .semantic_delta_properties(None, state)
-                .any(|property| self.first_record_winner_needs_cpp(property))
+                .any(|property| {
+                    self.first_record_winner_needs_cpp(property)
+                        && !(property_declares_css_animations(property)
+                            && self.may_plan_css_animations(node, state, scratch))
+                })
         {
             counters.bump(Counter::EngineComputedRecordBailProperty);
             return Err(Unanswered::Refused);
@@ -1981,7 +1986,8 @@ impl RetainedState {
     }
 
     /// The tree scope the winning `animation-name` declaration of `state` was written in, where its
-    /// `@keyframes` are looked for first, refused where the winners cannot say. An author rule's is
+    /// `@keyframes` are looked for first, refused where C++'s exact cascade decided the winner or
+    /// the winner's place among the element's encapsulation contexts names none. An author rule's is
     /// the scope its sheet is attached to, and for a sheet several scopes adopt, the one among them
     /// the winner's priority places among the element's encapsulation contexts.
     fn animation_name_declaration_scope(
@@ -1995,7 +2001,11 @@ impl RetainedState {
         else {
             return Ok(DeclarationScope::Unscoped);
         };
-        let winner = self.winner_groups.resolved_winner(winner).ok_or(Unanswered::Refused)?;
+        // A winner the cascade rolled back past every declaration (`revert`, `revert-layer`) takes
+        // the initial or inherited value, which no scope declared.
+        let Some(winner) = self.winner_groups.resolved_winner(winner) else {
+            return Ok(DeclarationScope::Unscoped);
+        };
         let rule = match winner.source {
             cascade::WinnerSource::Rule(rule) => rule,
             cascade::WinnerSource::Element(_) => return Ok(DeclarationScope::Unscoped),
