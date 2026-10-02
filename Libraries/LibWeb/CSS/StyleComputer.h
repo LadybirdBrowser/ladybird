@@ -94,8 +94,6 @@ public:
     // The style of a pseudo-element the element holds no style for, as the style engine derives it for one read alone;
     // null where the engine leaves the read to C++.
     [[nodiscard]] RefPtr<ComputedValues const> engine_transient_pseudo_element_style(DOM::Element const&, StyleEngine::DemandedPseudoElement);
-    [[nodiscard]] StyleRecordID try_share_computed_style_record(DOM::Element&) const;
-    void remember_shared_computed_style_record(DOM::Element&, StyleRecordID) const;
     // Compute the cascade supplied by rules, presentational hints, and inheritance while excluding the element's
     // inline declaration. Editing uses this to identify transport-only style without mutating the live element.
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties_without_inline_style(DOM::AbstractElement) const;
@@ -119,15 +117,6 @@ public:
     [[nodiscard]] CSSPixelRect const& viewport_rect_for_style_environment() const { return m_viewport_rect; }
     [[nodiscard]] Length::FontMetrics const& root_element_font_metrics() const { return m_root_element_font_metrics; }
     [[nodiscard]] bool root_element_font_metrics_depend_on_viewport_metrics() const { return m_root_element_font_metrics_depend_on_viewport_metrics; }
-    // Whether the last materialization answered with the element's own last style because only the
-    // custom-property environment it inherits moved, and nothing its cascades read moved with it. The
-    // element's pseudo-element styles then stand as well.
-    [[nodiscard]] bool last_materialization_kept_pseudo_element_styles() const { return m_last_materialization_kept_pseudo_element_styles; }
-    // Whether the materialization under way answers a reaction the style engine derived from an
-    // ancestor's application rather than from a published match answer. Everything such a reaction
-    // can change is named by the element's style input record, so a record that still holds
-    // answers with the element's own last style.
-    void set_materializing_for_derived_reaction(bool value) const { m_materializing_for_derived_reaction = value; }
     // Moves with the viewport rect the environment resolves viewport units against. A style input
     // record names it apart from the environment version, so that a computation that read no
     // viewport metric survives a resize.

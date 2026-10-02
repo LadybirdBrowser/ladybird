@@ -244,7 +244,6 @@ impl RetainedState {
     }
 
     pub(super) fn discard_published_match_answers(&mut self, counters: &mut Counters) {
-        self.computed_group_sets.clear_shared_style_records();
         if let Some(traversal) = self.batch_matching_traversal.as_mut() {
             let effects = std::mem::take(&mut traversal.answer_effects);
             effects.install_observations(&mut self.published_match_answers);

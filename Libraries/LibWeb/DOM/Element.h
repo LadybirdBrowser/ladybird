@@ -358,11 +358,6 @@ public:
 
     void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
-    enum class PseudoElementInputs {
-        Changed,
-        Unchanged,
-    };
-    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_reaction(bool& did_change_custom_properties, PseudoElementInputs = PseudoElementInputs::Changed);
     // Apply a base style record the style engine computed itself from this element's moved cascade
     // winners: no style computation runs here, only the diff against the old record and its effects.
     // The synthetic pseudo-element records the style engine settled beside an engine-computed record: a kind it
@@ -976,7 +971,6 @@ private:
     void handle_attribute_changes(QualifiedName, Optional<Utf16String> old_value, Optional<Utf16String> new_value);
     void remove_attribute_at(size_t index);
 
-    using PreservedPseudoElementStyles = Array<CSS::StyleRecordID, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
 
     virtual OwnPtr<Node::RareData> create_rare_data() const override;
@@ -995,7 +989,7 @@ private:
     Utf16FlyString make_html_uppercased_qualified_name() const;
 
     void exit_fullscreen_on_element_removal();
-    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* = nullptr, PreservedPseudoElementStyles* = nullptr, EnginePseudoElementRecords const* = nullptr, EngineRecordDamages const* = nullptr);
+    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, EnginePseudoElementRecords const* = nullptr, EngineRecordDamages const* = nullptr);
     void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void publish_custom_property_names();

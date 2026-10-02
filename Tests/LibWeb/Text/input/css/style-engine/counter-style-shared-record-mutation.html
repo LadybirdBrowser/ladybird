@@ -31,11 +31,9 @@
         println(`all shared consumers update: ${targets.every((target, index) => target.getBoundingClientRect().width > initialWidths[index])}`);
         const counterContentUpdates = counterContent.getBoundingClientRect().width > initialCounterContentWidth;
         const afterMutation = internals.getStyleInvalidationCounters();
-        // Records are shared among the consumers whichever side computes them: C++ through its
-        // shared records, the engine through the records it derives once for a cohort.
+        // Records are shared among the consumers through the records the engine derives once for a cohort.
         const afterMutationEngine = internals.styleEngineCounters();
-        const recordsWereShared = afterMutationEngine.sharedStyleRecordHits > beforeMutationEngine.sharedStyleRecordHits
-            || afterMutationEngine.engineComputedRecordCohortHits > beforeMutationEngine.engineComputedRecordCohortHits;
+        const recordsWereShared = afterMutationEngine.engineComputedRecordCohortHits > beforeMutationEngine.engineComputedRecordCohortHits;
         println(`counter-style consumers answered by engine: ${afterMutation.engineComputedStyleRecords - beforeMutation.engineComputedStyleRecords >= targets.length && afterMutation.elementStyleRecomputations === beforeMutation.elementStyleRecomputations}`);
         document.styleSheets[0].cssRules[0].symbols = '"A"';
         println(`all shared consumers restore: ${targets.every((target, index) => target.getBoundingClientRect().width === initialWidths[index])}`);

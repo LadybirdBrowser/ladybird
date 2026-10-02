@@ -29,8 +29,7 @@
         const before = internals.styleEngineCounters();
         internals.updateStyle();
         const after = internals.styleEngineCounters();
-        println(`early sharing used: ${after.sharedStyleRecordHits > before.sharedStyleRecordHits
-            || after.engineComputedRecordSharedHits > before.engineComputedRecordSharedHits
+        println(`early sharing used: ${after.engineComputedRecordSharedHits > before.engineComputedRecordSharedHits
             || after.engineComputedRecordCohortHits > before.engineComputedRecordCohortHits}`);
 
         function checkStyles(label, color, background) {
