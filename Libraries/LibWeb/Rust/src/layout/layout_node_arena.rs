@@ -1260,6 +1260,21 @@ impl LayoutNodeArena {
         &self.layout_tree_update_marks
     }
 
+    /// Retires the layout tree update marks of a node whose stale box was cleared: its own, and its
+    /// host's when the node is a shadow root whose own mark was what marked the host, as clearing a
+    /// mark through the DOM does, and its children's summary.
+    pub(crate) fn retire_layout_tree_update_marks_of_cleared_node(&self, node: StyleNodeID) {
+        let mut marks = self.layout_tree_update_marks().borrow_mut();
+        let mut current = node;
+        while marks.merge(current, false, 0) {
+            let Some(host) = self.with_style_store(|engine| engine.tree().host_of(current)) else {
+                break;
+            };
+            current = host;
+        }
+        marks.set_child_needs(node, false);
+    }
+
     /// Retire the layout tree update marks `style_node` holds, own and child alike.
     pub(crate) fn clear_layout_tree_update_marks(&self, style_node: Option<StyleNodeID>) {
         if let Some(style_node) = style_node {

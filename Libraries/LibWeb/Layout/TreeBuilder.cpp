@@ -55,7 +55,6 @@ public:
     static void detach_top_layer_element_layout_subtree(DOM::Element&);
 
 private:
-    static TraversalDecision clear_stale_layout_node(DOM::Node&, u32 cleared_subtree_root);
     // The node a tree builder callback names by its identity.
     static DOM::Node& node_for_style_node(void* builder_pointer, u32 style_node);
 
@@ -78,14 +77,6 @@ private:
 void LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(DOM::Element& element)
 {
     element.clear_synthetic_pseudo_element_layout_nodes({});
-}
-
-void LayoutTreeBuilderAccess::detach_layout_node(DOM::Node& node)
-{
-    if (auto* layout_node = node.unsafe_layout_node()) {
-        layout_node->prepare_for_detach_from_layout_tree();
-        RustFFI::layout_arena_unbind_row(layout_node->arena_handle(), Node::slot_id(layout_node));
-    }
 }
 
 void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& element, CSS::PseudoElement pseudo_element, Layout::NodeWithStyle* layout_node)
@@ -482,53 +473,9 @@ DOM::Node& LayoutTreeBuildBridge::node_for_style_node(void* builder_pointer, u32
     return dom_node_for_style_node(*static_cast<LayoutTreeBuildBridge*>(builder_pointer)->m_document, style_node);
 }
 
-static bool is_svg_resource_box(Node const& layout_node)
-{
-    return layout_node.is_svg_pattern_box() || layout_node.is_svg_mask_box() || layout_node.is_svg_clip_box();
-}
-
-TraversalDecision LayoutTreeBuildBridge::clear_stale_layout_node(DOM::Node& node, u32 cleared_subtree_root)
-{
-    node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
-    node.set_child_needs_layout_tree_update(false);
-
-    // NB: Called during layout tree construction.
-    auto* layout_node = node.unsafe_layout_node();
-    // A resource box hangs under the element that references it; see rust_should_preserve_svg_resource_layout_node().
-    if (layout_node && is_svg_resource_box(*layout_node)
-        && RustFFI::rust_should_preserve_svg_resource_layout_node(layout_node->arena_handle(), Node::slot_id(layout_node), cleared_subtree_root))
-        return TraversalDecision::SkipChildrenAndContinue;
-
-    if (layout_node)
-        layout_node->clear_committed_box();
-    LayoutTreeBuilderAccess::detach_layout_node(node);
-    if (layout_node && layout_node->parent()) {
-        // The parent may keep its subtree (a child lost its box in place); an emptied container
-        // reads as having block-level children, like a freshly built one.
-        auto* parent = layout_node->parent();
-        destroy_layout_subtree(*layout_node);
-        if (!parent->has_children())
-            parent->set_children_are_inline(false);
-    }
-
-    if (is<DOM::Element>(node))
-        LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(static_cast<DOM::Element&>(node));
-
-    return TraversalDecision::Continue;
-}
-
 void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element& element)
 {
-    RustFFI::FfiTopLayerDetachCallbacks callbacks {
-        .context = &element.document(),
-        .clear_stale_layout_node = [](void* document_pointer, u32 style_node, u32 cleared_subtree_root) -> bool {
-            VERIFY(document_pointer);
-            auto& document = *static_cast<DOM::Document*>(document_pointer);
-            auto decision = clear_stale_layout_node(dom_node_for_style_node(document, style_node), cleared_subtree_root);
-            return decision == TraversalDecision::SkipChildrenAndContinue; },
-    };
-    RustFFI::rust_detach_top_layer_element_layout_subtree(
-        &callbacks, element.document().layout_node_arena().handle(), element.style_node_id().value());
+    RustFFI::rust_detach_top_layer_element_layout_subtree(element.document().layout_node_arena().handle(), element.style_node_id().value());
 }
 
 LayoutTreeBuildBridge::~LayoutTreeBuildBridge()
@@ -642,9 +589,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
 {
     return {
         .builder = this,
-        .clear_stale_layout_node = [](void* builder_pointer, u32 style_node, u32 cleared_subtree_root) -> bool {
-            auto decision = clear_stale_layout_node(node_for_style_node(builder_pointer, style_node), cleared_subtree_root);
-            return decision == TraversalDecision::SkipChildrenAndContinue; },
         .create_first_letter_nodes = [](void* builder_pointer, u32 element_style_node, RustFFI::FfiFirstLetterTarget target) -> RustFFI::FfiFirstLetterNodes { return create_first_letter_nodes(as<DOM::Element>(node_for_style_node(builder_pointer, element_style_node)), target); },
         .top_layer_element_count = [](void* builder_pointer) {
             VERIFY(builder_pointer);

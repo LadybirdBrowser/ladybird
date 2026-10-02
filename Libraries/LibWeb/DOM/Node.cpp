@@ -1525,11 +1525,7 @@ void Node::detach_remaining_layout_nodes_for_removal()
     if (!arena)
         return;
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
-        // A pseudo-element's boxes are found through its generator's StyleNodeID, so they go while that ID still finds
-        // them. A ::backdrop box sits outside the generator's box, so no rebuild of the parent would destroy it.
-        if (auto* element = as_if<Element>(node))
-            element->clear_synthetic_pseudo_element_layout_nodes(Badge<Node> {});
-        // The node's own box, and its top layer placement, are found by the node's StyleNodeID.
+        // The node's boxes, its pseudo-elements' and its top layer placement, are found by the node's StyleNodeID.
         Layout::RustFFI::rust_detach_remaining_layout_rows_for_removal(arena->handle(), Layout::Node::style_node_of(&node).value());
         return TraversalDecision::Continue;
     });
