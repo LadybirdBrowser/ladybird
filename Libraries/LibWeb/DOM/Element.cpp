@@ -1992,46 +1992,6 @@ void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS
     });
 }
 
-void Element::set_style_input_record(OwnPtr<CSS::StyleInputRecord> record)
-{
-    // Most recomputations read what the last one did, which the engine already holds.
-    bool const reads_unchanged = m_style_input_record && record
-        && m_style_input_record->custom_property_reads_are_complete == record->custom_property_reads_are_complete
-        && m_style_input_record->custom_property_reads == record->custom_property_reads;
-    m_style_input_record = move(record);
-    if (!reads_unchanged)
-        publish_var_reads();
-}
-
-// What the style C++ computed reads through var(), which a move of the environment the element
-// inherits asks the engine about. A record the engine computed has no input record, and the engine
-// knows its reads itself.
-void Element::publish_var_reads()
-{
-    auto style_node = style_node_id();
-    if (style_node == 0)
-        return;
-    auto& style_engine = document().style_computer().style_engine();
-    if (!m_style_input_record) {
-        style_engine.set_element_var_reads(style_node, false, false, {});
-        return;
-    }
-    // The reads are sorted and deduplicated names; interning keeps their order only by chance.
-    Vector<CSS::StyleAtomID> atoms;
-    if (m_style_input_record->custom_property_reads_are_complete) {
-        atoms.ensure_capacity(m_style_input_record->custom_property_reads.size());
-        for (auto const& name : m_style_input_record->custom_property_reads)
-            atoms.unchecked_append(style_engine.intern_atom(name));
-        quick_sort(atoms);
-    }
-    style_engine.set_element_var_reads(style_node, true, m_style_input_record->custom_property_reads_are_complete, atoms);
-}
-
-OwnPtr<CSS::StyleInputRecord> Element::take_style_input_record()
-{
-    return move(m_style_input_record);
-}
-
 void Element::record_style_query_custom_property_reference(Optional<CSS::PseudoElement> pseudo_element, Utf16FlyString const& name)
 {
     auto& rare_data = ensure_element_rare_data();
@@ -2106,21 +2066,6 @@ void Element::set_style_depends_on_viewport_metrics()
         return;
     m_style_depends_on_viewport_metrics = true;
     document().add_element_with_viewport_dependent_style(*this);
-}
-
-void Element::finish_recording_style_dependencies()
-{
-    if (!m_style_input_record)
-        return;
-    m_style_input_record->style_uses_attr_css_function = m_style_uses_attr_css_function;
-    m_style_input_record->style_uses_var_css_function = m_style_uses_var_css_function;
-    m_style_input_record->style_uses_if_css_function = m_style_uses_if_css_function;
-    m_style_input_record->style_uses_custom_function = m_style_uses_custom_function;
-    m_style_input_record->style_uses_inherit_css_function = m_style_uses_inherit_css_function;
-    m_style_input_record->style_uses_tree_counting_function = m_style_uses_tree_counting_function;
-    m_style_input_record->style_depends_on_viewport_metrics = m_style_depends_on_viewport_metrics;
-    m_style_input_record->style_depends_on_size_container_query = m_style_depends_on_size_container_query;
-    m_style_input_record->style_depends_on_style_container_query = m_style_depends_on_style_container_query;
 }
 
 void Element::publish_custom_property_names()
@@ -2442,9 +2387,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         result = compute_required_invalidation_with_cache(style_computer, *new_computed_values, old_state, abstract_element, style_record_delta, answered_damage);
         if (result.any_computed_value_changed)
             counters.element_computed_style_changes++;
-        // The input record's declaration half described the cascade that produced the old record, so
-        // the next computation on this element derives a fresh one.
-        set_style_input_record(nullptr);
         set_computed_style({}, new_style_record);
         update_anchor_name_registry(&*old_computed_values, *new_computed_values);
         update_animation_name_index(*this, &*old_computed_values, *new_computed_values);
@@ -3368,7 +3310,6 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     // A newly minted identity holds none of what the element held under its previous one.
     if (style_node_id != 0 && !!m_style_record_identity) {
         style_engine.set_held_style_record(style_node_id, m_style_record_identity);
-        publish_var_reads();
     }
     if (style_node_id != 0)
         publish_children_explicitly_inherit_mark();
