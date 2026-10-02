@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+.match {
+    background-color: yellow;
+    color: black;
+}
+</style>
+<p>The first <span class="match">needle</span></p>
+<p>The second <span class="match">needle</span> in this haystack</p>
+<script>
+const text = document.querySelectorAll("p")[1].lastChild;
+const range = document.createRange();
+range.setStart(text, 9);
+range.setEnd(text, 17);
+getSelection().addRange(range);
+</script>

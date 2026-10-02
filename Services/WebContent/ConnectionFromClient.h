@@ -290,7 +290,7 @@ private:
     virtual void undo(Web::PageId page_id) override;
     virtual void redo(Web::PageId page_id) override;
 
-    virtual void find_in_page(Web::PageId page_id, Utf16String query, CaseSensitivity) override;
+    virtual void find_in_page(Web::PageId page_id, Utf16String query, CaseSensitivity, bool highlight_all_matches) override;
     virtual void find_in_page_next_match(Web::PageId page_id) override;
     virtual void find_in_page_previous_match(Web::PageId page_id) override;
     virtual void find_in_page_end(Web::PageId page_id) override;

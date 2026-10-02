@@ -1758,6 +1758,7 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
     }
 
     update_find_in_page_active_match(all_matches);
+    update_find_in_page_highlighted_matches(all_matches, query.highlight_all_matches);
 
     return Page::FindInPageResult {
         .current_match_index = m_find_in_page_match_index,
@@ -1773,6 +1774,7 @@ Page::FindInPageResult Page::find_in_page(FindInPageQuery const& query)
     if (query.string.is_empty()) {
         m_last_find_in_page_query = {};
         set_find_in_page_active_match(nullptr);
+        clear_find_in_page_highlighted_matches();
         return {};
     }
 
@@ -1809,6 +1811,7 @@ void Page::clear_find_in_page_active_match()
 
 void Page::find_in_page_end()
 {
+    clear_find_in_page_highlighted_matches();
     auto active_match = find_in_page_active_match();
     set_find_in_page_active_match(nullptr);
     if (!active_match || active_match->collapsed())
@@ -1822,7 +1825,7 @@ void Page::find_in_page_end()
     MUST(selection->set_base_and_extent(start.node, start.offset, end.node, end.offset));
 }
 
-void Page::update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> matches)
+void Page::update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> const& matches)
 {
     if (matches.is_empty()) {
         set_find_in_page_active_match(nullptr);
@@ -1846,6 +1849,29 @@ void Page::update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> matches
         scroll_options.behavior = DOM::Element::ScrollBehavior::Instant;
         element->scroll_into_view(scroll_options, nullptr);
     }
+}
+
+void Page::update_find_in_page_highlighted_matches(Vector<GC::Root<DOM::Range>> const& matches, bool highlight_all_matches)
+{
+    HashMap<DOM::Document*, Vector<GC::Ref<DOM::Range>>> matches_by_document;
+    if (highlight_all_matches) {
+        for (auto const& match : matches)
+            matches_by_document.ensure(&match->start_container()->document()).append(*match);
+    }
+    for (auto& document : m_find_in_page_highlighted_documents) {
+        if (document && !matches_by_document.contains(document.ptr().ptr()))
+            document->set_find_in_page_highlighted_matches({});
+    }
+    m_find_in_page_highlighted_documents.clear();
+    for (auto& [document, document_matches] : matches_by_document) {
+        document->set_find_in_page_highlighted_matches(move(document_matches));
+        m_find_in_page_highlighted_documents.append(*document);
+    }
+}
+
+void Page::clear_find_in_page_highlighted_matches()
+{
+    update_find_in_page_highlighted_matches({}, false);
 }
 
 GC::Ptr<DOM::Range> Page::find_in_page_active_match()

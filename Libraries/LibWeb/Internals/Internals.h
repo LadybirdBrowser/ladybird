@@ -111,7 +111,7 @@ public:
 
     Utf16String selected_text_for_clipboard();
 
-    void find_in_page(Utf16String const& query);
+    void find_in_page(Utf16String const& query, bool highlight_all);
     void find_in_page_next_match();
     void find_in_page_end();
 

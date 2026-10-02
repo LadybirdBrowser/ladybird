@@ -104,10 +104,10 @@ fn highlight_offsets_for_fragment<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     highlight: HighlightPseudoElement,
     fragment: &FragmentRecord,
-) -> Option<SelectionOffsets> {
-    let offsets = match highlight {
+) -> Vec<SelectionOffsets> {
+    let offsets: Vec<SelectionOffsets> = match highlight {
         HighlightPseudoElement::Selection => {
-            if let Some((start, end)) = recorder.text_control_selection(fragment.layout_node) {
+            let offsets = if let Some((start, end)) = recorder.text_control_selection(fragment.layout_node) {
                 text_fragment::compute_selection_offsets(
                     recorder.source,
                     fragment,
@@ -116,17 +116,48 @@ fn highlight_offsets_for_fragment<O: Observer>(
                     end,
                 )
             } else {
-                let range = recorder.paint_state.selection.as_ref()?;
-                range_offsets_for_fragment(recorder, range, fragment)
-            }
+                recorder
+                    .paint_state
+                    .selection
+                    .as_ref()
+                    .and_then(|range| range_offsets_for_fragment(recorder, range, fragment))
+            };
+            offsets.into_iter().collect()
         }
-        HighlightPseudoElement::SearchText => None,
-        HighlightPseudoElement::SearchTextCurrent => {
-            let range = recorder.paint_state.search_text.as_ref()?;
-            range_offsets_for_fragment(recorder, range, fragment)
+        HighlightPseudoElement::SearchText | HighlightPseudoElement::SearchTextCurrent => {
+            let is_current = highlight == HighlightPseudoElement::SearchTextCurrent;
+            let highlights = &recorder.paint_state.search_text;
+            let Some(touching) = highlights.by_node.get(&fragment.layout_node) else {
+                return Vec::new();
+            };
+            let offsets_in_node =
+                |&(match_index, state): &(u32, u8)| highlights.matches[match_index as usize].offsets_in_node(state);
+            // A match that ends before the fragment starts, or starts after it ends, has no part in it.
+            let first = touching.partition_point(|entry| offsets_in_node(entry).1 < fragment.dom_start_offset_in_node);
+            let end = touching
+                .partition_point(|entry| offsets_in_node(entry).0 <= fragment.dom_end_offset_with_trailing_whitespace);
+            touching[first..end.max(first)]
+                .iter()
+                .filter_map(|&(match_index, state)| {
+                    let found = &highlights.matches[match_index as usize];
+                    if found.is_current != is_current {
+                        return None;
+                    }
+                    text_fragment::compute_selection_offsets(
+                        recorder.source,
+                        fragment,
+                        state,
+                        found.start_offset,
+                        found.end_offset,
+                    )
+                })
+                .collect()
         }
     };
-    offsets.filter(|offsets| offsets.start != offsets.end)
+    offsets
+        .into_iter()
+        .filter(|offsets| offsets.start != offsets.end)
+        .collect()
 }
 
 fn highlight_style<O: Observer>(
@@ -182,13 +213,15 @@ fn compute_render_spans<O: Observer>(
                 .collect()
         };
 
-        let highlights = HIGHLIGHT_OVERLAY_ORDER.map(|highlight| {
-            highlight_offsets_for_fragment(recorder, highlight, fragment).map(|offsets| {
+        let mut highlights = Vec::new();
+        for highlight in HIGHLIGHT_OVERLAY_ORDER {
+            let ranges = highlight_offsets_for_fragment(recorder, highlight, fragment);
+            if !ranges.is_empty() {
                 let answer = highlight_style(recorder, highlight, fragment.layout_node);
-                (highlight, offsets, answer)
-            })
-        });
-        if highlights.iter().all(Option::is_none) {
+                highlights.push((highlight, ranges, answer));
+            }
+        }
+        if highlights.is_empty() {
             spans.push(RenderSpan {
                 fragment_index,
                 start_code_unit: 0,
@@ -202,12 +235,15 @@ fn compute_render_spans<O: Observer>(
         }
 
         let mut boundaries = vec![0, fragment.length_in_code_units];
-        for (_, offsets, _) in highlights.iter().flatten() {
-            boundaries.extend([offsets.start, offsets.end]);
+        for (_, ranges, _) in &highlights {
+            boundaries.extend(ranges.iter().flat_map(|offsets| [offsets.start, offsets.end]));
         }
         boundaries.sort_unstable();
         boundaries.dedup();
         let first_span_of_fragment = spans.len();
+        // The ranges of one highlight come in order without overlapping, and so do the pieces, so each highlight
+        // only needs to look at the first of its ranges that does not end before the piece.
+        let mut next_ranges = [0usize; HIGHLIGHT_OVERLAY_ORDER.len()];
         for piece in boundaries.windows(2) {
             let (start, end) = (piece[0], piece[1]);
             let mut span = RenderSpan {
@@ -219,7 +255,13 @@ fn compute_render_spans<O: Observer>(
                 highlights: Vec::new(),
                 decoration_color: None,
             };
-            for (highlight, offsets, answer) in highlights.iter().flatten() {
+            for ((highlight, ranges, answer), next_range) in highlights.iter().zip(&mut next_ranges) {
+                while ranges.get(*next_range).is_some_and(|offsets| offsets.end <= start) {
+                    *next_range += 1;
+                }
+                let Some(offsets) = ranges.get(*next_range) else {
+                    continue;
+                };
                 if start < offsets.start || end > offsets.end {
                     continue;
                 }

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-highlight-all-selection-change-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+</style>
+<p>The first needle</p>
+<p>The second needle in this haystack</p>
+<script>
+internals.findInPage("needle", true);
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        const text = document.querySelectorAll("p")[1].firstChild;
+        const range = document.createRange();
+        range.setStart(text, 26);
+        range.setEnd(text, 34);
+        getSelection().addRange(range);
+        requestAnimationFrame(() => {
+            internals.signalTestIsDone("PASS");
+        });
+    });
+});
+</script>
+</html>

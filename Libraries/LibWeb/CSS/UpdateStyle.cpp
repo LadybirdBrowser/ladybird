@@ -1451,6 +1451,14 @@ static Vector<HighlightStyleInput, 2> search_text_style_inputs(Document& documen
     Vector<HighlightStyleInput, 2> inputs;
     if (auto active_match = document.find_in_page_active_match(); active_match && !active_match->collapsed())
         inputs.append({ active_match->common_ancestor_container(), active_match });
+    HashTable<Node*> highlighted_roots;
+    for (auto const& match : document.find_in_page_highlighted_matches()) {
+        if (match->collapsed())
+            continue;
+        auto root = match->common_ancestor_container();
+        if (highlighted_roots.set(root.ptr()) == HashSetResult::InsertedNewEntry)
+            inputs.append({ root, nullptr });
+    }
     return inputs;
 }
 

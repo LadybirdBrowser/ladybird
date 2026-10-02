@@ -1286,9 +1286,9 @@ void ViewImplementation::redo()
     host.async_redo();
 }
 
-void ViewImplementation::find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity)
+void ViewImplementation::find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity, bool highlight_all_matches)
 {
-    page().async_find_in_page(query, case_sensitivity);
+    page().async_find_in_page(query, case_sensitivity, highlight_all_matches);
 }
 
 void ViewImplementation::find_in_page_next_match()

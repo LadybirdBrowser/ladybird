@@ -82,6 +82,13 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
         close_bar();
     });
 
+    m_highlight_all = new QCheckBox(this);
+    m_highlight_all->setText("Highlight &All");
+    m_highlight_all->setChecked(false);
+    connect(m_highlight_all, &QCheckBox::checkStateChanged, this, [this] {
+        find_text_changed();
+    });
+
     m_match_case = new QCheckBox(this);
     m_match_case->setText("Match &Case");
     m_match_case->setChecked(false);
@@ -96,6 +103,7 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
     layout->addWidget(m_find_text, 1);
     layout->addWidget(m_previous_button);
     layout->addWidget(m_next_button);
+    layout->addWidget(m_highlight_all);
     layout->addWidget(m_match_case);
     layout->addWidget(m_result_label);
     layout->addStretch(1);
@@ -133,7 +141,7 @@ void FindInPageWidget::find_text_changed()
         set_dynamic_property_if_needed(*m_find_text, FIND_TEXT_NO_RESULTS_PROPERTY, false);
 
     auto case_sensitive = m_match_case->isChecked() ? CaseSensitivity::CaseSensitive : CaseSensitivity::CaseInsensitive;
-    m_content_view->find_in_page(query, case_sensitive);
+    m_content_view->find_in_page(query, case_sensitive, m_highlight_all->isChecked());
 }
 
 void FindInPageWidget::keyPressEvent(QKeyEvent* event)

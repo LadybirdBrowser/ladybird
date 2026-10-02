@@ -27,7 +27,7 @@ use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::paintable_rows::{CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK};
 use crate::painting::record::damage::FrameDamage;
 use crate::painting::replaced_paint_facts::ReplacedPaintFactsTable;
-use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
+use crate::painting::selection::{HighlightPseudoElement, SearchTextHighlights, SelectionRange};
 use crate::painting::stacking_context::entries::StackingContextEntries;
 use crate::painting::svg_paint_resources::SvgPaintResourceRows;
 use crate::painting::visual_context::VisualContextTree;
@@ -148,7 +148,7 @@ pub(crate) struct PublishedPaintState {
     pub(crate) has_non_viewport_wheel_scroll_target_candidate: bool,
     pub(crate) selection: Option<Arc<SelectionRange>>,
     pub(crate) selection_pseudo_styles: Arc<SelectionPseudoStyles>,
-    pub(crate) search_text: Option<Arc<SelectionRange>>,
+    pub(crate) search_text: Arc<SearchTextHighlights>,
     pub(crate) search_text_pseudo_styles: Arc<SelectionPseudoStyles>,
     pub(crate) search_text_current_pseudo_styles: Arc<SelectionPseudoStyles>,
     pub(crate) hit_test_list_generation: u64,

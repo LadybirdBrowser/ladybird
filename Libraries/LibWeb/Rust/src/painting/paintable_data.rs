@@ -102,6 +102,16 @@ pub struct FfiSelectionEntry {
     pub state: u8,
 }
 
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiSearchTextRange {
+    pub first_entry: usize,
+    pub entry_count: usize,
+    pub start_offset: usize,
+    pub end_offset: usize,
+    pub is_current: bool,
+}
+
 pub const SELECTION_STATE_NONE: u8 = 0;
 pub const SELECTION_STATE_START: u8 = 1;
 pub const SELECTION_STATE_END: u8 = 2;

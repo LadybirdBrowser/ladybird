@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-highlight-all-off-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+</style>
+<p>The first needle</p>
+<p>The second needle</p>
+<script>
+internals.findInPage("needle", true);
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        internals.findInPage("needle", false);
+        requestAnimationFrame(() => {
+            internals.signalTestIsDone("PASS");
+        });
+    });
+});
+</script>
+</html>

@@ -15,7 +15,7 @@ use super::host::{
 use super::image_map_areas::{AreaCoverage, AreaShape, PublishedImageMapArea};
 use super::layer_image_paint_facts::{LayerImagePaintFacts, LayerImagePaintFactsEntry};
 use super::paint_read::GeometryRead;
-use super::paintable_data::{FfiSelectionEntry, PaintableFlag};
+use super::paintable_data::{FfiSearchTextRange, FfiSelectionEntry, PaintableFlag};
 use super::record::damage::PaintDamage;
 use super::replaced_paint_facts::{ImagePaintFacts, ReplacedPaintFacts, VideoPaintFacts};
 use super::selection::HighlightStyleRecords;
@@ -43,14 +43,14 @@ pub(crate) enum PaintChange {
     },
     /// Nothing is selected.
     ClearSelection { viewport: NodeSlotId },
-    /// The active find-in-page match covers `entries`, between the offsets in its start and end text.
+    /// The find-in-page matches are `ranges`, each covering its span of `entries`, between the offsets in its start
+    /// and end text.
     ApplySearchText {
         viewport: NodeSlotId,
+        ranges: Box<[FfiSearchTextRange]>,
         entries: Box<[FfiSelectionEntry]>,
-        start_offset: usize,
-        end_offset: usize,
     },
-    /// No find-in-page match is active.
+    /// No find-in-page match is highlighted.
     ClearSearchText,
     /// The element's style changed: the rows that paint text under it take what `style_records`, the `::selection`
     /// and `::search-text` records the host holds for it (zero for none), say highlighted text paints with.
@@ -151,17 +151,11 @@ impl PaintChange {
             }
             Self::ApplySearchText {
                 viewport,
+                ranges,
                 entries,
-                start_offset,
-                end_offset,
             } => {
                 if arena.paintable_row_is_populated(viewport) {
-                    super::selection::apply_search_text(
-                        &mut arena.paintable_rows_mut(),
-                        &entries,
-                        start_offset,
-                        end_offset,
-                    );
+                    super::selection::apply_search_text(&mut arena.paintable_rows_mut(), &ranges, &entries);
                 }
             }
             Self::ClearSearchText => super::selection::clear_search_text(&mut arena.paintable_rows_mut()),
@@ -329,17 +323,23 @@ pub unsafe extern "C" fn render_state_clear_selection(host: *const DocumentHost,
 
 /// # Safety
 ///
-/// `host` must be a live document host, on the document's thread, and `entries` must point at `entry_count` readable
-/// entries.
+/// `host` must be a live document host, on the document's thread, `ranges` must point at `range_count` readable
+/// ranges and `entries` at `entry_count` readable entries.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_apply_search_text(
     host: *const DocumentHost,
     viewport: NodeSlotId,
+    ranges: *const FfiSearchTextRange,
+    range_count: usize,
     entries: *const FfiSelectionEntry,
     entry_count: usize,
-    start_offset: usize,
-    end_offset: usize,
 ) {
+    let ranges = if range_count == 0 {
+        Box::default()
+    } else {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { std::slice::from_raw_parts(ranges, range_count) }.into()
+    };
     let entries = if entry_count == 0 {
         Box::default()
     } else {
@@ -348,9 +348,8 @@ pub unsafe extern "C" fn render_state_apply_search_text(
     };
     let change = PaintChange::ApplySearchText {
         viewport,
+        ranges,
         entries,
-        start_offset,
-        end_offset,
     };
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, change) };
