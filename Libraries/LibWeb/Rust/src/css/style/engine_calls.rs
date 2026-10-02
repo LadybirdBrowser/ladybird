@@ -16,18 +16,22 @@ use super::bridge::{
     FfiRecordDemandAnswer, FfiStateDelta, FfiStyleInputTransaction, FfiTreeDelta, borrow,
     write_recording_element_style_inputs, write_recording_state_deltas, write_recording_tree_deltas,
 };
-use super::font_resolution::{FontResolutionCache, FontResolverHost, PublishedFontFaces};
+use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
 use super::record_replay::EventKind;
-use super::tree::StyleNodeID;
+use super::tree::{StyleNodeID, TreeScopeID};
 use super::{StyleEngine, StyleEngineHandle};
 use crate::render_state::{ArenaChange, DocumentHost};
 use std::ffi::c_void;
 
 /// One hand-written write of the host to a document's style engine.
 pub(crate) enum EngineWrite {
-    /// The document's `@font-face` table and the memo of the cascades resolved from it.
-    PublishFontFaces(PublishedFontFaces),
+    /// The document's `@font-face` table and the memo of the cascades resolved from it, and the shadow tree scopes
+    /// whose `@font-feature-values` the table carries beside the document's.
+    PublishFontFaces {
+        font_faces: PublishedFontFaces,
+        feature_values_shadow_scopes: Box<[TreeScopeID]>,
+    },
     /// The custom-property environment an element holds, or none.
     ElementCustomPropertyData {
         node: StyleNodeID,
@@ -69,13 +73,20 @@ pub(crate) struct InputTransaction {
 impl EngineWrite {
     pub(crate) fn apply(self, engine: &mut StyleEngine) {
         match self {
-            Self::PublishFontFaces(font_faces) => match &mut engine.host.font_resolver {
-                Some(resolver) => resolver.publish(font_faces),
-                None => {
-                    engine.host.font_resolver = Some(FontResolverHost::new(font_faces));
-                    engine.retained.font_resolution = Some(FontResolutionCache::default());
+            Self::PublishFontFaces {
+                font_faces,
+                feature_values_shadow_scopes,
+            } => {
+                match &mut engine.host.font_resolver {
+                    Some(resolver) => resolver.publish(font_faces),
+                    None => engine.host.font_resolver = Some(FontResolverHost::new(font_faces)),
                 }
-            },
+                engine
+                    .retained
+                    .font_resolution
+                    .get_or_insert_default()
+                    .publish_feature_values_shadow_scopes(feature_values_shadow_scopes);
+            }
             Self::ElementCustomPropertyData {
                 node,
                 data,
@@ -232,21 +243,34 @@ unsafe fn owned<T: Copy>(values: *const T, count: usize) -> Box<[T]> {
 }
 
 /// Publishes the document's `@font-face` table and the memo of the cascades resolved from it, which every later font
-/// resolution of the engine reads. Takes one reference to each.
+/// resolution of the engine reads. Takes one reference to each. The shadow tree scopes that declare
+/// `@font-feature-values` are the ones whose values the table carries beside the document's.
 ///
 /// # Safety
-/// `host` must be a live document host, and `snapshot` and `memo` a live `Web::CSS::FontFaceSnapshot` and
-/// `FontCascadeMemo`.
+/// `host` must be a live document host, `snapshot` and `memo` a live `Web::CSS::FontFaceSnapshot` and
+/// `FontCascadeMemo`, and `feature_values_shadow_scopes` must point at `feature_values_shadow_scope_count` scopes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_publish_font_faces(
     host: *const DocumentHost,
     snapshot: *const c_void,
     memo: *const c_void,
+    feature_values_shadow_scopes: *const u32,
+    feature_values_shadow_scope_count: usize,
 ) {
     // SAFETY: Guaranteed by the caller.
     let font_faces = unsafe { PublishedFontFaces::adopt(snapshot, memo) };
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, EngineWrite::PublishFontFaces(font_faces)) };
+    let feature_values_shadow_scopes =
+        unsafe { borrow(feature_values_shadow_scopes, feature_values_shadow_scope_count) }
+            .iter()
+            .map(|&scope| TreeScopeID(scope))
+            .collect();
+    let write = EngineWrite::PublishFontFaces {
+        font_faces,
+        feature_values_shadow_scopes,
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, write) };
 }
 
 /// Keeps the custom-property environment an element now holds, named by `identity`: whether it is the element's

@@ -37,7 +37,7 @@ public:
     // Each key of the table and the faces registered under it, in order.
     using Table = OrderedHashMap<FontFaceKey, Vector<Face>>;
 
-    static NonnullRefPtr<FontFaceSnapshot> create(u64 generation, Table table, NonnullRefPtr<FontFeatureValuesByFamily const> font_feature_values) { return adopt_ref(*new FontFaceSnapshot(generation, move(table), move(font_feature_values))); }
+    static NonnullRefPtr<FontFaceSnapshot> create(u64 generation, Table table, NonnullRefPtr<FontFeatureValuesByScope const> font_feature_values) { return adopt_ref(*new FontFaceSnapshot(generation, move(table), move(font_feature_values))); }
 
     [[nodiscard]] u64 generation() const { return m_generation; }
 
@@ -49,17 +49,22 @@ public:
         return it == m_table.end() ? nullptr : &it->value;
     }
 
-    // The @font-feature-values of the document's tree scope for a family, which font-variant-alternates names its
-    // features through. They change the generation as faces do.
-    [[nodiscard]] FontFeatureValues const& font_feature_values(Utf16FlyString const& family) const
+    // The @font-feature-values an element of a tree scope that declares some, or of the document's, sees for a family,
+    // which font-variant-alternates names its features through. They change the generation as faces do.
+    [[nodiscard]] FontFeatureValues const& font_feature_values(TreeScopeID tree_scope, Utf16FlyString const& family) const
     {
         static NeverDestroyed<FontFeatureValues const> none;
-        auto it = m_font_feature_values->families.find(family);
-        return it == m_font_feature_values->families.end() ? *none : it->value;
+        auto scope = m_font_feature_values->scopes.find(tree_scope);
+        if (scope == m_font_feature_values->scopes.end())
+            return *none;
+        auto it = scope->value.find(family);
+        return it == scope->value.end() ? *none : it->value;
     }
+    // The shadow tree scopes that declare @font-feature-values of their own.
+    [[nodiscard]] ReadonlySpan<TreeScopeID> font_feature_values_shadow_scopes() const { return m_font_feature_values->shadow_scopes; }
 
 private:
-    FontFaceSnapshot(u64 generation, Table table, NonnullRefPtr<FontFeatureValuesByFamily const> font_feature_values)
+    FontFaceSnapshot(u64 generation, Table table, NonnullRefPtr<FontFeatureValuesByScope const> font_feature_values)
         : m_generation(generation)
         , m_table(move(table))
         , m_font_feature_values(move(font_feature_values))
@@ -68,7 +73,7 @@ private:
 
     u64 m_generation { 0 };
     Table m_table;
-    NonnullRefPtr<FontFeatureValuesByFamily const> m_font_feature_values;
+    NonnullRefPtr<FontFeatureValuesByScope const> m_font_feature_values;
 };
 
 }

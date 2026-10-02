@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/font-feature-values-nested-shadow-scope-ref.html">
+<style>
+    @font-face {
+        font-family: FeatureFont;
+        src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+    }
+
+    @font-feature-values FeatureFont {
+        @stylistic { fancy: 2; }
+    }
+
+    p {
+        font-family: FeatureFont;
+        font-size: 2em;
+        font-variant-alternates: stylistic(fancy);
+    }
+</style>
+<p>Xnophijklmqrstuvwxyz</p>
+<div id="host"></div>
+<script>
+    // A shadow tree that declares no @font-feature-values names the features of the tree its host is in, which here
+    // declares its own over the document's.
+    const paragraph = `
+        <style>
+            @font-face {
+                font-family: FeatureFont;
+                src: url("wpt-import/css/css-fonts/support/fonts/FontWithFancyFeatures.otf");
+            }
+            p {
+                font-family: FeatureFont;
+                font-size: 2em;
+                font-variant-alternates: stylistic(fancy);
+            }
+        </style>
+        <p>Xnophijklmqrstuvwxyz</p>`;
+    const outer = host.attachShadow({ mode: "open" });
+    outer.innerHTML = `<style>@font-feature-values FeatureFont { @stylistic { fancy: 1; } }</style>${paragraph}<div></div>`;
+    outer.querySelector("div").attachShadow({ mode: "open" }).innerHTML = paragraph;
+</script>

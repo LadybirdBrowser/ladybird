@@ -1,0 +1,3 @@
+C++ recomputations: 0
+outer font-variant-alternates: styleset(fancy)
+inner font-variant-alternates: styleset(fancy)

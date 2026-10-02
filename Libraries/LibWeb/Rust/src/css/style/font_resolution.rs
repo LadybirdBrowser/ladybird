@@ -6,6 +6,7 @@
 
 use super::HashMap;
 use super::bridge::{FONT_RESOLUTION_FEATURE_INPUT_COUNT, FfiFontResolutionRequest, FfiHostHandle, FfiResolvedFont};
+use super::tree::TreeScopeID;
 use crate::css::host_shared::HostShared;
 use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
 use std::ffi::c_void;
@@ -34,6 +35,7 @@ struct FontResolutionKey {
     font_weight: u64,
     font_width: u64,
     font_optical_sizing: u8,
+    font_feature_values_scope: u32,
 }
 
 impl FontResolutionKey {
@@ -46,6 +48,7 @@ impl FontResolutionKey {
             font_weight: request.font_weight.to_bits(),
             font_width: request.font_width.to_bits(),
             font_optical_sizing: request.font_optical_sizing,
+            font_feature_values_scope: request.font_feature_values_scope,
         }
     }
 }
@@ -93,9 +96,19 @@ struct ResolvedFont {
 pub(super) struct FontResolutionCache {
     generation: Option<u64>,
     cache: HashMap<FontResolutionKey, ResolvedFont>,
+    /// The shadow tree scopes whose own `@font-feature-values` the published table carries.
+    feature_values_shadow_scopes: Box<[TreeScopeID]>,
 }
 
 impl FontResolutionCache {
+    pub fn publish_feature_values_shadow_scopes(&mut self, scopes: Box<[TreeScopeID]>) {
+        self.feature_values_shadow_scopes = scopes;
+    }
+
+    pub fn feature_values_shadow_scopes(&self) -> &[TreeScopeID] {
+        &self.feature_values_shadow_scopes
+    }
+
     pub fn prepare(&mut self, generation: u64) {
         if self.generation != Some(generation) {
             self.cache.clear();
@@ -278,6 +291,7 @@ mod tests {
             font_weight: 400.0,
             font_width: 100.0,
             font_optical_sizing: 0,
+            font_feature_values_scope: 0,
             font_environment_generation: 1,
         };
 
