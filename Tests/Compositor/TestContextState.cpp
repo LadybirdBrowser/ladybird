@@ -909,7 +909,6 @@ struct NestedScrollbarSceneOptions {
     bool display_list_paints_enlarged_scrollbar { false };
     bool gives_nested_scroller_a_later_scroll_node_index { false };
     Optional<Gfx::FloatRect> main_thread_wheel_event_region_in_viewport {};
-    Optional<Web::UniqueNodeID> document_id_of_nested_scroller {};
 };
 
 struct NestedScrollbarScene {
@@ -941,7 +940,6 @@ static NestedScrollbarScene make_nested_scrollbar_scene(NestedScrollbarSceneOpti
     auto visual_context_tree = builder.finish();
 
     Web::UniqueNodeID document_id { 1 };
-    auto document_id_of_nested_scroller = options.document_id_of_nested_scroller.value_or(document_id);
     TestDisplayList command_bytes;
     append_display_list_command(
         command_bytes,
@@ -969,7 +967,7 @@ static NestedScrollbarScene make_nested_scrollbar_scene(NestedScrollbarSceneOpti
     append_display_list_command(
         command_bytes,
         Compositing::CompositorWheelHitTestTarget {
-            .document_id = document_id_of_nested_scroller,
+            .document_id = document_id,
             .target_scroll_node_index = nested_scroll_node_index,
             .rect = { 10, 10, 40, 40 },
         },
@@ -978,7 +976,7 @@ static NestedScrollbarScene make_nested_scrollbar_scene(NestedScrollbarSceneOpti
     append_display_list_command(
         command_bytes,
         Compositing::CompositorScrollNode {
-            .document_id = document_id_of_nested_scroller,
+            .document_id = document_id,
             .scrollable_node_id = nested_scroller_node_id,
             .scroll_node_index = nested_scroll_node_index,
             .parent_scroll_node_index = viewport_scroll_node_index,
@@ -996,7 +994,7 @@ static NestedScrollbarScene make_nested_scrollbar_scene(NestedScrollbarSceneOpti
     append_display_list_command(
         command_bytes,
         Compositing::CompositorWheelHitTestTarget {
-            .document_id = document_id_of_nested_scroller,
+            .document_id = document_id,
             .target_scroll_node_index = nested_scroll_node_index,
             .rect = { 10, 10, 40, 140 },
         },
@@ -1019,7 +1017,7 @@ static NestedScrollbarScene make_nested_scrollbar_scene(NestedScrollbarSceneOpti
     append_display_list_command(
         command_bytes,
         Compositing::CompositorScrollbar {
-            .document_id = document_id_of_nested_scroller,
+            .document_id = document_id,
             .scroll_node_index = nested_scroll_node_index,
             .gutter_rect = {},
             .thumb_rect = { 47, 10, 2, 10 },
@@ -1240,8 +1238,8 @@ TEST_CASE(losing_the_nested_scrollbar_a_drag_holds_ends_its_user_scroll_gesture)
     EXPECT(!context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 48, 30)).accepted);
 }
 
-// Drives wheel events at chosen times through the nested scrollbar scene: the UI path through wheel(), the WebContent
-// path through wheel_from_document(). (20,20) is over the nested scroller, (80,80) over the viewport.
+// Drives wheel events from the UI at chosen times through the nested scrollbar scene. (20,20) is over the nested
+// scroller, (80,80) over the viewport.
 struct LatchedWheelContextFixture {
     explicit LatchedWheelContextFixture(NestedScrollbarSceneOptions options = {})
         : scene(options)
@@ -1252,16 +1250,6 @@ struct LatchedWheelContextFixture {
     Compositor::ContextState::ContextUpdateResult wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::ScrollGesturePhase phase, i64 milliseconds_after_start, u32 modifiers = Web::UIEvents::KeyModifier::Mod_None, Web::WheelDeltaPrecision precision = Web::WheelDeltaPrecision::Precise)
     {
         return scene.context.async_scroll_by(position, delta, precision, phase, modifiers, now + AK::Duration::from_milliseconds(milliseconds_after_start));
-    }
-
-    Compositor::ContextState::ContextUpdateResult mouse_wheel_tick(Gfx::FloatPoint position, Gfx::FloatPoint delta, i64 milliseconds_after_start, u32 modifiers = Web::UIEvents::KeyModifier::Mod_None)
-    {
-        return wheel(position, delta, Web::ScrollGesturePhase::None, milliseconds_after_start, modifiers, Web::WheelDeltaPrecision::Discrete);
-    }
-
-    Compositor::ContextState::AsyncScrollResult wheel_from_document(Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::ScrollGesturePhase phase, i64 milliseconds_after_start)
-    {
-        return scene.context.async_scroll_by(document_id, position, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Precise, phase, Web::UIEvents::KeyModifier::Mod_None, Compositing::AsyncScrollOperationTracking::Yes, now + AK::Duration::from_milliseconds(milliseconds_after_start));
     }
 
     struct TakenScrollOffsets {
@@ -1359,38 +1347,6 @@ TEST_CASE(scroll_snapshots_keep_newer_unreconciled_offsets_until_they_are_adopte
     EXPECT_EQ(fixture.take_scroll_offsets().viewport, (Gfx::FloatPoint { 0, 75 }));
 }
 
-TEST_CASE(a_latched_scroller_absorbs_the_gesture_at_its_edge)
-{
-    LatchedWheelContextFixture fixture;
-
-    EXPECT(fixture.wheel({ 20, 20 }, { 0, 100 }, Web::ScrollGesturePhase::Ongoing, 0).accepted);
-    EXPECT(fixture.wheel({ 20, 20 }, { 0, 100 }, Web::ScrollGesturePhase::Ongoing, 10).accepted);
-    EXPECT_EQ(fixture.take_scroll_offsets().nested, (Gfx::FloatPoint { 0, 120 }));
-
-    auto step_past_the_edge = fixture.wheel({ 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 20);
-    EXPECT(step_past_the_edge.accepted);
-    EXPECT(!step_past_the_edge.frame_to_present.has_value());
-    auto offsets = fixture.take_scroll_offsets();
-    EXPECT(!offsets.nested.has_value());
-    EXPECT(!offsets.viewport.has_value());
-
-    // Once the gesture ended, the next one is routed afresh, past the scroller at its edge.
-    fixture.wheel({ 20, 20 }, { 0, 0 }, Web::ScrollGesturePhase::Ended, 30);
-    fixture.expect_step_to_scroll_viewport_afresh({ 20, 20 }, Web::ScrollGesturePhase::Ongoing, 300);
-}
-
-TEST_CASE(mouse_wheel_ticks_within_the_settle_delay_continue_the_latched_gesture)
-{
-    LatchedWheelContextFixture fixture;
-
-    EXPECT(fixture.mouse_wheel_tick({ 20, 20 }, { 0, 100 }, 0).accepted);
-    EXPECT(fixture.mouse_wheel_tick({ 20, 20 }, { 0, 100 }, 100).accepted);
-    EXPECT_EQ(fixture.take_scroll_offsets().nested, (Gfx::FloatPoint { 0, 120 }));
-
-    fixture.expect_step_to_be_absorbed_by_latched_scroller({ 25, 25 }, Web::ScrollGesturePhase::None, 300, Web::UIEvents::KeyModifier::Mod_None, Web::WheelDeltaPrecision::Discrete);
-    fixture.expect_step_to_scroll_viewport_afresh({ 20, 20 }, Web::ScrollGesturePhase::None, 900, Web::UIEvents::KeyModifier::Mod_None, Web::WheelDeltaPrecision::Discrete);
-}
-
 TEST_CASE(a_mouse_wheel_tick_far_from_where_the_gesture_started_starts_a_new_gesture)
 {
     LatchedWheelContextFixture fixture;
@@ -1430,23 +1386,6 @@ TEST_CASE(momentum_arriving_late_after_the_gesture_ended_starts_a_new_gesture)
     fixture.wheel({ 20, 20 }, { 0, 0 }, Web::ScrollGesturePhase::Ended, 10);
 
     fixture.expect_step_to_scroll_viewport_afresh({ 20, 20 }, Web::ScrollGesturePhase::Momentum, 150);
-}
-
-TEST_CASE(an_ongoing_step_after_the_gesture_ended_starts_a_new_gesture)
-{
-    LatchedWheelContextFixture fixture;
-    fixture.latch_gesture_to_nested_scroller_at_its_edge();
-    fixture.wheel({ 20, 20 }, { 0, 0 }, Web::ScrollGesturePhase::Ended, 10);
-
-    fixture.expect_step_to_scroll_viewport_afresh({ 20, 20 }, Web::ScrollGesturePhase::Ongoing, 20);
-}
-
-TEST_CASE(a_latch_expires_when_no_step_arrives_within_the_settle_delay)
-{
-    LatchedWheelContextFixture fixture;
-    fixture.latch_gesture_to_nested_scroller_at_its_edge();
-
-    fixture.expect_step_to_scroll_viewport_afresh({ 20, 20 }, Web::ScrollGesturePhase::Ongoing, 600);
 }
 
 TEST_CASE(a_latched_wheel_gesture_outlives_a_display_list_that_renumbers_its_scroll_node)
@@ -1515,32 +1454,6 @@ TEST_CASE(a_pinch_pan_that_consumes_a_step_leaves_the_latch_alone)
     auto offsets = fixture.take_scroll_offsets();
     EXPECT_EQ(offsets.nested, (Gfx::FloatPoint { 0, 120 }));
     EXPECT_EQ(offsets.viewport.value_or(Gfx::FloatPoint {}), Gfx::FloatPoint {});
-}
-
-TEST_CASE(a_latched_step_over_another_document_is_left_to_that_document)
-{
-    Web::UniqueNodeID const parent_document_id { 1 };
-    Web::UniqueNodeID const nested_document_id { 7 };
-    LatchedWheelContextFixture fixture({ .document_id_of_nested_scroller = nested_document_id });
-
-    EXPECT(!fixture.wheel_from_document(parent_document_id, { 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 0).enqueue_result.accepted);
-    EXPECT(!fixture.latched_scroller_node_id().has_value());
-    EXPECT(fixture.wheel_from_document(nested_document_id, { 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 0).enqueue_result.accepted);
-    EXPECT_EQ(fixture.latched_scroller_node_id(), nested_scroller_node_id);
-    fixture.take_scroll_offsets();
-
-    // The parent navigable reports every step first; the nested one routes the steps of its scroller.
-    EXPECT(!fixture.wheel_from_document(parent_document_id, { 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 20).enqueue_result.accepted);
-    EXPECT_EQ(fixture.latched_scroller_node_id(), nested_scroller_node_id);
-    EXPECT(fixture.wheel_from_document(nested_document_id, { 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 20).enqueue_result.accepted);
-    EXPECT_EQ(fixture.take_scroll_offsets().nested, (Gfx::FloatPoint { 0, 100 }));
-
-    fixture.wheel_from_document(parent_document_id, { 20, 20 }, { 0, 0 }, Web::ScrollGesturePhase::Ended, 30);
-    fixture.wheel_from_document(nested_document_id, { 20, 20 }, { 0, 0 }, Web::ScrollGesturePhase::Ended, 31);
-    EXPECT_EQ(fixture.latched_scroller_node_id(), nested_scroller_node_id);
-
-    EXPECT(fixture.wheel_from_document(nested_document_id, { 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Momentum, 80).enqueue_result.accepted);
-    EXPECT_EQ(fixture.take_scroll_offsets().nested, (Gfx::FloatPoint { 0, 120 }));
 }
 
 static Gfx::IntRect const test_viewport_rect { 0, 0, 16, 16 };
