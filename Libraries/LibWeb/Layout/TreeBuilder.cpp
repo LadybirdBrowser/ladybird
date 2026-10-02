@@ -248,11 +248,11 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto marker_style = [&] {
                 if (auto style = element.computed_style(CSS::PseudoElement::Marker))
                     return CSS::ComputedValues::Builder { *style }.build();
-                // The style engine derives the ::marker style for this read alone; C++ computes it where the engine
-                // leaves the read to it.
+                // The style engine derives the ::marker style for this read alone. It answers one for every list item;
+                // should it not, the marker takes the list item's style.
                 if (auto style = style_computer.engine_transient_pseudo_element_style(element, CSS::StyleEngine::DemandedPseudoElement::Marker))
                     return style.release_nonnull();
-                return style_computer.materialize_style_record({ element, CSS::PseudoElement::Marker });
+                return CSS::ComputedValues::Builder { *element.computed_style() }.build();
             }();
             return style_computer.intern_anonymous_layout_style(*marker_style).value(); },
     };
