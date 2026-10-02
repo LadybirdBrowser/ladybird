@@ -200,12 +200,12 @@ bool Node::is_pseudo_element_principal_box() const
 
 bool NodeWithStyle::establishes_an_absolute_positioning_containing_block() const
 {
-    return RustFFI::layout_arena_node_establishes_an_absolute_positioning_containing_block(arena_handle(), Node::slot_id(this));
+    return RustFFI::layout_row_establishes_an_absolute_positioning_containing_block(document_host(), Node::slot_id(this));
 }
 
 bool NodeWithStyle::establishes_a_fixed_positioning_containing_block() const
 {
-    return RustFFI::layout_arena_node_establishes_a_fixed_positioning_containing_block(arena_handle(), Node::slot_id(this));
+    return RustFFI::layout_row_establishes_a_fixed_positioning_containing_block(document_host(), Node::slot_id(this));
 }
 
 bool NodeWithStyle::has_css_transform() const

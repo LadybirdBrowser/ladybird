@@ -12,6 +12,7 @@
 use super::LayoutNodeArena;
 use super::RowsVersion;
 use super::host_tables::ShellFacts;
+use super::layout_node_arena::PublishedBoundRows;
 use super::node_data::{CompositorAnimationFrameKind, FfiNodeLink, NodeKind, NodeSlotId, PaintNode, StylePayloadsRef};
 use super::node_facts;
 use crate::css::style::tree::StyleNodeID;
@@ -22,6 +23,8 @@ use crate::painting::published_frame::PublishedRows;
 pub(crate) struct RowSnapshot {
     /// The layout tree's shape and the paintable rows, and the columns read beside them.
     pub(crate) paintable: PublishedRows,
+    /// The row each node is bound to.
+    bound: PublishedBoundRows,
     /// How far the arena's rows had been written when they were published.
     version: RowsVersion,
 }
@@ -95,6 +98,25 @@ impl RowSnapshot {
         node_facts::node_is_fragmented_inline(node, node.style())
     }
 
+    /// The live row the element or text node with `style_node` is bound to.
+    pub(crate) fn bound_row(&self, style_node: StyleNodeID) -> Option<NodeSlotId> {
+        self.live(self.bound.row(style_node))
+    }
+
+    /// The live row the pseudo-element of kind `generated_for` on `generator` is bound to.
+    pub(crate) fn bound_pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> Option<NodeSlotId> {
+        self.live(self.bound.pseudo_element_row(generator, generated_for))
+    }
+
+    /// The live viewport row the document is bound to.
+    pub(crate) fn bound_viewport_row(&self) -> Option<NodeSlotId> {
+        self.live(self.bound.viewport_row())
+    }
+
+    fn live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
+        self.node(id).is_some().then_some(id)
+    }
+
     /// What the shell factory needs to make the layout node of the row in slot `id`, or none for a row that is gone or
     /// has no layout node.
     pub(crate) fn shell_facts(&self, id: NodeSlotId) -> Option<ShellFacts> {
@@ -108,8 +130,10 @@ impl LayoutNodeArena {
     /// has left them so far.
     pub(crate) fn publish_row_snapshot(&mut self) -> RowSnapshot {
         let paintable = self.publish_rows();
+        let bound = self.bound_rows_mut().publish();
         RowSnapshot {
             paintable,
+            bound,
             version: self.rows_version(),
         }
     }

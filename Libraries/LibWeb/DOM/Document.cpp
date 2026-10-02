@@ -703,7 +703,7 @@ Layout::NodeArena& Document::layout_node_arena()
             [](void* context, Compositing::RustFFI::NodeSlotId slot, Layout::RustFFI::PaintableRowResetKind kind) {
                 auto& document = *static_cast<Document*>(context);
                 document.chrome_widget_registry().drop_widgets_for_slot(slot);
-                if (kind == Layout::RustFFI::PaintableRowResetKind::Recommitted && Painting::viewport_row_slot(document).index == slot.index)
+                if (kind == Layout::RustFFI::PaintableRowResetKind::ViewportRecommitted)
                     document.paint_state().viewport_row_was_reset();
             });
     }

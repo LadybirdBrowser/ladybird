@@ -14,7 +14,7 @@ use super::tree_builder::FfiLayoutTreeBuildOutcome;
 use super::tree_shape::{Chunk, PUBLISHED_ROWS_PER_CHUNK, ShapeWriter, TreeShape};
 use super::update_layout::FfiLayoutTreeBuildStats;
 use super::used_values::SizeConstraint;
-use crate::cow_column::CowColumn;
+use crate::cow_column::{ColumnSnapshot, CowColumn};
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
@@ -819,6 +819,122 @@ impl FreedSubtree {
 
 const MAXIMUM_PRE_ORDER_LABEL_STRIDE: u64 = 1 << 32;
 
+/// How many bound rows a chunk of a published bound row column holds.
+const BOUND_ROWS_PER_CHUNK: usize = 64;
+
+/// The row each node is bound to, kept so that the host reads it from published rows: by the dense
+/// index of an element or text identity, by generator and kind for a pseudo-element, and the
+/// viewport row for the document.
+#[derive(Default)]
+pub(crate) struct BoundRows {
+    elements: CowColumn<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
+    texts: CowColumn<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
+    pseudo_elements: Arc<HashMap<(StyleNodeID, u8), NodeSlotId>>,
+    viewport: NodeSlotId,
+    /// Advanced by every write to the pseudo-element or viewport rows.
+    writes: u64,
+}
+
+/// The bound rows as they were published.
+pub(crate) struct PublishedBoundRows {
+    elements: ColumnSnapshot<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
+    texts: ColumnSnapshot<NodeSlotId, BOUND_ROWS_PER_CHUNK>,
+    pseudo_elements: Arc<HashMap<(StyleNodeID, u8), NodeSlotId>>,
+    viewport: NodeSlotId,
+}
+
+impl BoundRows {
+    fn column(&self, style_node: StyleNodeID) -> (&CowColumn<NodeSlotId, BOUND_ROWS_PER_CHUNK>, usize) {
+        match style_node.text_index() {
+            Some(index) => (&self.texts, index as usize),
+            None => (&self.elements, style_node.element_slot()),
+        }
+    }
+
+    fn row(&self, style_node: StyleNodeID) -> NodeSlotId {
+        let (column, index) = self.column(style_node);
+        column.get(index).copied().unwrap_or(NodeSlotId::INVALID)
+    }
+
+    /// Binds `style_node` to `row`, and answers the row it was bound to.
+    fn set_row(&mut self, style_node: StyleNodeID, row: NodeSlotId) -> NodeSlotId {
+        let (column, index) = match style_node.text_index() {
+            Some(index) => (&mut self.texts, index as usize),
+            None => (&mut self.elements, style_node.element_slot()),
+        };
+        let previous = column.get(index).copied().unwrap_or(NodeSlotId::INVALID);
+        if previous != row {
+            column.grow_to(index + 1);
+            column.set(index, row).expect("the column was grown");
+        }
+        previous
+    }
+
+    fn pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> NodeSlotId {
+        self.pseudo_elements
+            .get(&(generator, generated_for))
+            .copied()
+            .unwrap_or(NodeSlotId::INVALID)
+    }
+
+    /// Binds the pseudo-element to `row`, or unbinds it for an invalid one, and answers the row it was bound to.
+    fn set_pseudo_element_row(&mut self, generator: StyleNodeID, generated_for: u8, row: NodeSlotId) -> NodeSlotId {
+        let previous = self.pseudo_element_row(generator, generated_for);
+        if previous != row {
+            self.writes += 1;
+            let rows = Arc::make_mut(&mut self.pseudo_elements);
+            if row.is_invalid() {
+                rows.remove(&(generator, generated_for));
+            } else {
+                rows.insert((generator, generated_for), row);
+            }
+        }
+        previous
+    }
+
+    fn set_viewport_row(&mut self, row: NodeSlotId) -> NodeSlotId {
+        if self.viewport != row {
+            self.writes += 1;
+        }
+        std::mem::replace(&mut self.viewport, row)
+    }
+
+    fn version(&self) -> u64 {
+        self.elements.version() + self.texts.version() + self.writes
+    }
+
+    pub(crate) fn publish(&mut self) -> PublishedBoundRows {
+        PublishedBoundRows {
+            elements: self.elements.publish(),
+            texts: self.texts.publish(),
+            pseudo_elements: self.pseudo_elements.clone(),
+            viewport: self.viewport,
+        }
+    }
+}
+
+impl PublishedBoundRows {
+    /// The row the element or text node with `style_node` was bound to.
+    pub(crate) fn row(&self, style_node: StyleNodeID) -> NodeSlotId {
+        let row = match style_node.text_index() {
+            Some(index) => self.texts.get(index as usize),
+            None => self.elements.get(style_node.element_slot()),
+        };
+        row.copied().unwrap_or(NodeSlotId::INVALID)
+    }
+
+    pub(crate) fn pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> NodeSlotId {
+        self.pseudo_elements
+            .get(&(generator, generated_for))
+            .copied()
+            .unwrap_or(NodeSlotId::INVALID)
+    }
+
+    pub(crate) fn viewport_row(&self) -> NodeSlotId {
+        self.viewport
+    }
+}
+
 /// One row for each StyleNodeID, indexed by the identity's dense index within its kind, so element
 /// and text identities each cost one entry per node of their own kind.
 #[derive(Default)]
@@ -845,14 +961,6 @@ impl RowsByStyleNode {
             rows.resize(index + 1, NodeSlotId::INVALID);
         }
         &mut rows[index]
-    }
-
-    /// Like `head_mut`, but without growing the table for an identity that has never had a row.
-    fn existing_head_mut(&mut self, style_node: StyleNodeID) -> Option<&mut NodeSlotId> {
-        match style_node.text_index() {
-            Some(index) => self.texts.get_mut(index as usize),
-            None => self.elements.get_mut(style_node.element_slot()),
-        }
     }
 }
 
@@ -961,13 +1069,10 @@ pub(crate) struct LayoutNodeArena {
     first_rows_by_style_node: RefCell<RowsByStyleNode>,
     /// The row each element or text node is bound to: the row its layout node is. Carrying the
     /// identity does not make a row bound, since first-letter slices and rows awaiting a rebuild
-    /// carry it too.
-    bound_rows_by_style_node: RefCell<RowsByStyleNode>,
-    /// The principal box each pseudo-element is bound to, keyed by its generator's identity and its
-    /// kind. The generated content inside the box carries the same pair but is never bound.
-    bound_pseudo_element_rows: RefCell<HashMap<(StyleNodeID, u8), NodeSlotId>>,
-    /// The viewport row the document is bound to. The document has no identity of its own.
-    bound_viewport_row: Cell<NodeSlotId>,
+    /// carry it too. The principal box each pseudo-element is bound to is keyed by its generator's
+    /// identity and its kind; the generated content inside the box carries the same pair but is
+    /// never bound. The document, which has no identity of its own, is bound to the viewport row.
+    bound_rows: RefCell<BoundRows>,
     /// What the navigable has scrolled the viewport to, which the viewport's row holds.
     viewport_scroll_offset: Cell<CssPixelPoint>,
     /// The style node of the document the last layout tree build was for. The style mirror names
@@ -1109,9 +1214,7 @@ impl LayoutNodeArena {
             style_nodes: Vec::new(),
             next_rows_with_same_style_node: Vec::new(),
             first_rows_by_style_node: RefCell::new(RowsByStyleNode::default()),
-            bound_rows_by_style_node: RefCell::new(RowsByStyleNode::default()),
-            bound_pseudo_element_rows: RefCell::new(HashMap::default()),
-            bound_viewport_row: Cell::new(NodeSlotId::INVALID),
+            bound_rows: RefCell::default(),
             viewport_scroll_offset: Cell::new(CssPixelPoint::default()),
             document_style_node: Cell::new(None),
             style_engine: Cell::new(crate::css::style::StyleEngineHandle::null()),
@@ -1714,11 +1817,15 @@ impl LayoutNodeArena {
 
     /// The row the element or text node with `style_node` is bound to, if any.
     pub(crate) fn bound_row(&self, style_node: StyleNodeID) -> NodeSlotId {
-        self.bound_rows_by_style_node.borrow().head(style_node)
+        self.bound_rows.borrow().row(style_node)
+    }
+
+    pub(crate) fn bound_rows_mut(&mut self) -> &mut BoundRows {
+        self.bound_rows.get_mut()
     }
 
     pub(crate) fn bound_viewport_row(&self) -> NodeSlotId {
-        self.bound_viewport_row.get()
+        self.bound_rows.borrow().viewport
     }
 
     /// The style node of the document the last layout tree build was for.
@@ -1733,11 +1840,7 @@ impl LayoutNodeArena {
     /// The row the pseudo-element of kind `generated_for` on the element with `generator` is bound
     /// to, if any.
     pub(crate) fn bound_pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> NodeSlotId {
-        self.bound_pseudo_element_rows
-            .borrow()
-            .get(&(generator, generated_for))
-            .copied()
-            .unwrap_or(NodeSlotId::INVALID)
+        self.bound_rows.borrow().pseudo_element_row(generator, generated_for)
     }
 
     /// The node a row can be bound to, if any.
@@ -1754,17 +1857,15 @@ impl LayoutNodeArena {
     /// Makes `id` the row `node` is bound to. Every change to a binding goes through here or
     /// `replace_bound_row`, which tell the host when the bound row changes.
     fn set_bound_row(&self, node: BoundNode, id: NodeSlotId) {
+        let mut bound_rows = self.bound_rows.borrow_mut();
         let previous = match node {
-            BoundNode::Identity(style_node) => {
-                std::mem::replace(self.bound_rows_by_style_node.borrow_mut().head_mut(style_node), id)
+            BoundNode::Identity(style_node) => bound_rows.set_row(style_node, id),
+            BoundNode::PseudoElement(generator, generated_for) => {
+                bound_rows.set_pseudo_element_row(generator, generated_for, id)
             }
-            BoundNode::PseudoElement(generator, generated_for) => self
-                .bound_pseudo_element_rows
-                .borrow_mut()
-                .insert((generator, generated_for), id)
-                .unwrap_or(NodeSlotId::INVALID),
-            BoundNode::Document => self.bound_viewport_row.replace(id),
+            BoundNode::Document => bound_rows.set_viewport_row(id),
         };
+        drop(bound_rows);
         if previous != id {
             self.notify_box_presence(node);
         }
@@ -1772,36 +1873,18 @@ impl LayoutNodeArena {
 
     /// Rebinds `node` to `replacement` if it is bound to `id`, and returns whether it was.
     fn replace_bound_row(&self, node: BoundNode, id: NodeSlotId, replacement: NodeSlotId) -> bool {
-        match node {
-            BoundNode::Identity(style_node) => {
-                let mut bound_rows = self.bound_rows_by_style_node.borrow_mut();
-                let Some(bound_row) = bound_rows
-                    .existing_head_mut(style_node)
-                    .filter(|bound_row| **bound_row == id)
-                else {
-                    return false;
-                };
-                *bound_row = replacement;
-            }
-            BoundNode::PseudoElement(generator, generated_for) => {
-                let mut bound_rows = self.bound_pseudo_element_rows.borrow_mut();
-                let key = (generator, generated_for);
-                if bound_rows.get(&key) != Some(&id) {
-                    return false;
-                }
-                if replacement.is_invalid() {
-                    bound_rows.remove(&key);
-                } else {
-                    bound_rows.insert(key, replacement);
-                }
-            }
-            BoundNode::Document => {
-                if self.bound_viewport_row.get() != id {
-                    return false;
-                }
-                self.bound_viewport_row.set(replacement);
-            }
+        if id.is_invalid() || self.bound_row_of(node) != id {
+            return false;
         }
+        let mut bound_rows = self.bound_rows.borrow_mut();
+        match node {
+            BoundNode::Identity(style_node) => bound_rows.set_row(style_node, replacement),
+            BoundNode::PseudoElement(generator, generated_for) => {
+                bound_rows.set_pseudo_element_row(generator, generated_for, replacement)
+            }
+            BoundNode::Document => bound_rows.set_viewport_row(replacement),
+        };
+        drop(bound_rows);
         if replacement != id {
             self.notify_box_presence(node);
         }
@@ -3462,7 +3545,10 @@ impl LayoutNodeArena {
     /// sums only grows, and a table a publication shares is copied by the write that changes it.
     pub(crate) fn rows_version(&self) -> RowsVersion {
         RowsVersion {
-            writes: self.shape_writes.get() + self.text_slots.published.version() + self.paintable_rows_version(),
+            writes: self.shape_writes.get()
+                + self.text_slots.published.version()
+                + self.bound_rows.borrow().version()
+                + self.paintable_rows_version(),
             tables: [
                 Arc::as_ptr(&self.replaced_paint_facts.borrow()).addr(),
                 Arc::as_ptr(&self.layer_image_paint_facts.borrow()).addr(),
@@ -4812,13 +4898,6 @@ impl LayoutNodeArena {
         self.node_shell(main_thread, id)
     }
 
-    pub(crate) fn node_containing_block_shell_if_live(&self, main_thread: &MainThread, id: NodeSlotId) -> *mut c_void {
-        self.node_containing_block_if_live(id)
-            .map_or(std::ptr::null_mut(), |containing_block| {
-                self.shell_if_live(main_thread, containing_block)
-            })
-    }
-
     pub(crate) fn node_flags(&self, id: NodeSlotId) -> u32 {
         self.data(id).flags.get()
     }
@@ -5503,6 +5582,26 @@ mod tests {
             dom_paint_facts: 0,
             style_node: 0,
         }
+    }
+
+    #[test]
+    fn published_bound_rows_stay_as_they_were_while_the_rows_rebind() {
+        let element = super::StyleNodeID::from_raw(7).unwrap();
+        let mut rows = super::BoundRows::default();
+        let first = NodeSlotId::new(3, 1);
+        assert_eq!(rows.set_row(element, first), NodeSlotId::INVALID);
+        rows.set_pseudo_element_row(element, 1, NodeSlotId::new(4, 1));
+        rows.set_viewport_row(NodeSlotId::new(5, 1));
+        let version = rows.version();
+        let published = rows.publish();
+        assert_eq!(rows.version(), version, "publishing writes nothing");
+        assert_eq!(rows.set_row(element, NodeSlotId::new(6, 1)), first);
+        rows.set_pseudo_element_row(element, 1, NodeSlotId::INVALID);
+        assert_ne!(rows.version(), version);
+        assert_eq!(published.row(element), first);
+        assert_eq!(published.pseudo_element_row(element, 1), NodeSlotId::new(4, 1));
+        assert_eq!(published.viewport_row(), NodeSlotId::new(5, 1));
+        assert_eq!(rows.publish().pseudo_element_row(element, 1), NodeSlotId::INVALID);
     }
 
     #[test]

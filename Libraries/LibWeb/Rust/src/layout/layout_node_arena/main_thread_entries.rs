@@ -53,17 +53,6 @@ pub unsafe extern "C" fn layout_arena_node_shell_if_live(arena: *mut c_void, id:
     unsafe { LayoutNodeArena::from_handle(arena) }.shell_if_live(&main_thread, id)
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_containing_block_shell_if_live(
-    arena: *mut c_void,
-    id: NodeSlotId,
-) -> *mut c_void {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.node_containing_block_shell_if_live(&main_thread, id)
-}
-
 /// The arena and record must be live on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_adopt_derived_node_style(arena: *mut c_void, node: NodeSlotId, record: u64) {
@@ -220,61 +209,6 @@ pub unsafe extern "C" fn layout_arena_prepare_subtree_for_detach(arena: *mut c_v
         unsafe { LayoutNodeArena::from_handle(arena) },
         root,
     );
-}
-
-/// The shell of the row the element or text node with `style_node` is bound to, made if nothing
-/// has asked for it yet, or null if the node has no row.
-///
-/// # Safety
-///
-/// `arena` must be a live handle on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_bound_shell(arena: *mut c_void, style_node: u32) -> *mut c_void {
-    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
-        return std::ptr::null_mut();
-    };
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: As above.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    arena.shell_if_live(&main_thread, arena.bound_row(style_node))
-}
-
-/// The shell of the row the pseudo-element of kind `generated_for` on the element with
-/// `style_node` is bound to, made if nothing has asked for it yet, or null.
-///
-/// # Safety
-///
-/// `arena` must be a live handle on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_bound_pseudo_element_shell(
-    arena: *mut c_void,
-    style_node: u32,
-    generated_for: u8,
-) -> *mut c_void {
-    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
-        return std::ptr::null_mut();
-    };
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: As above.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    arena.shell_if_live(&main_thread, arena.bound_pseudo_element_row(style_node, generated_for))
-}
-
-/// The shell of the viewport row the document is bound to, made if nothing has asked for it yet,
-/// or null.
-///
-/// # Safety
-///
-/// `arena` must be a live handle on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_bound_viewport_shell(arena: *mut c_void) -> *mut c_void {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: As above.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    arena.shell_if_live(&main_thread, arena.bound_viewport_row())
 }
 
 /// Detaches the layout subtree `root` heads from its parent, if it has one, and frees it, every C++-side detach
