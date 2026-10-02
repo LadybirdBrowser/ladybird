@@ -8,9 +8,13 @@ use super::*;
 
 use crate::abort_on_panic;
 use crate::css::css_enums::{content_visibility, float, positioning, white_space_collapse};
+use crate::css::style::RecordDemand;
 use crate::css::style::StyleEngine;
-use crate::css::style::bridge::{ElementBoxKind, element_adjustment_fact};
-use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord};
+use crate::css::style::bridge::{
+    ElementBoxKind, FfiDemandedPseudoElement, FfiPseudoElementRecordDemand, answer_record_demand,
+    element_adjustment_fact,
+};
+use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::layout_node_arena::{LayoutNodeArena, OwedImageResources, StaleWalkFacts};
 use crate::layout::node_data::{
@@ -131,9 +135,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     /// style update before the build settles every element it walks; a top layer, slot projection
     /// or SVG reference path can reach one it did not.
     pub restyle_bypass_path_element: unsafe extern "C" fn(*mut c_void, u32),
-    /// The style the list marker a list-item pseudo-element nests is built from: the generator's
-    /// `::marker` style, interned as a record of its own, which the build pins.
-    pub nested_list_marker_style: unsafe extern "C" fn(*mut c_void, u32) -> u64,
 }
 
 /// What the build knows about a node when it enters it: what its marks ask for, and what layout
@@ -3056,11 +3057,25 @@ fn stamp_nested_list_marker_row(
     list_item_box: NodeSlotId,
 ) -> NodeSlotId {
     let layout_host = host.layout();
-    // SAFETY: The builder remains live, and the identity names a live element.
-    let record = unsafe { (host.callbacks.nested_list_marker_style)(host.callbacks.builder, generator.raw()) };
-    let derived = layout_host
-        .arena()
-        .with_style_engine(|engine| DerivedStyleRecord::pin(engine, record));
+    let derived = layout_host.arena().with_style_engine(|engine| {
+        // The generator's own `::marker` record, which the engine derives for this read alone where the generator
+        // holds none. It answers one for every list item; should it not, the marker takes the generator's style.
+        let record = engine
+            .pseudo_published_style_record(generator, pseudo_kind_of(GENERATED_FOR_MARKER))
+            .or_else(|| {
+                let demand = RecordDemand::PseudoElement(
+                    FfiPseudoElementRecordDemand::ReadOnly,
+                    FfiDemandedPseudoElement::Marker,
+                );
+                let record = answer_record_demand(engine, generator, demand).record.style_record;
+                (record != 0).then_some(record)
+            })
+            .or_else(|| engine.element_published_style_record(generator))
+            .expect("a list item the build reaches has published its style");
+        // NB: Republishing the generator's own `::marker` record can retire its animation record while the nested
+        //     marker still refers to it. The marker takes a record of its own, copied from it.
+        LayoutStyle::from_record(engine, record).intern(engine)
+    });
     // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference
     // derived from it across the allocation.
     let slot = unsafe { &mut *layout_host.arena }.allocate_unbound();
