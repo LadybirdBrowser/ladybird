@@ -5368,7 +5368,7 @@ mod tests {
         // The rows name their generators, whose unique node ids the style mirror answers for.
         let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
-        arena.set_style_engine((&raw mut engine).cast());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let element = StyleNodeID::element(4);
         let parent = arena.allocate(facts(None));
         let element_box = arena.allocate(facts(Some(element)));

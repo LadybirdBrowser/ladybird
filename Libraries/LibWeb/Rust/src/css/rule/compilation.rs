@@ -342,7 +342,6 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
     callbacks: &NativeCompilationCallbacks,
     publication: &NativeStylePublication,
 ) {
-    use crate::css::style::StyleEngine;
     let environment = unsafe { environment.borrow() };
     let mut path = Vec::new();
     if !find_rule_path(sheet.rules(), sheet, rule_identity, &mut path) {
@@ -406,7 +405,7 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
         }
     }
     for (rule, context, selectors) in affected {
-        let id = unsafe { &*publication.engine.cast::<StyleEngine>() }.native_rule_id(rule.identity);
+        let id = unsafe { publication.engine.get() }.native_rule_id(rule.identity);
         if id.is_some() {
             unsafe { publication.replace_selectors(RuleRef::Materialized(&rule), target_sheet, &context, &selectors) };
             continue;
@@ -415,7 +414,7 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
         // subtree with its current conditions and source-order position.
         let mut publication = *publication;
         publication.before_rule = crate::css::rule::mutation::successor(sheet, rule.identity, |identity| {
-            unsafe { &*publication.engine.cast::<StyleEngine>() }
+            unsafe { publication.engine.get() }
                 .native_rule_id(identity)
                 .map_or(0, |id| id.0 + 1)
         });
@@ -1287,7 +1286,7 @@ mod tests {
             visit_rule: visit,
         };
         let publication = NativeStylePublication {
-            engine: (&raw mut engine).cast(),
+            engine: crate::css::style::StyleEngineHandle::from_raw(&raw mut engine),
             sheet: compiled_sheet.0 + 1,
             before_rule: 0,
         };
@@ -1341,7 +1340,7 @@ mod tests {
             crate::css::style_sheet::rust_style_sheet_publish_layer_order(
                 sheets.as_ptr(),
                 sheets.len(),
-                (&raw mut engine).cast(),
+                crate::css::style::StyleEngineHandle::from_raw(&raw mut engine),
                 0,
                 false,
                 std::ptr::null_mut(),
@@ -1349,14 +1348,17 @@ mod tests {
             )
         });
         let next = crate::css::rule::mutation::successor(&source, import_identity, |identity| unsafe {
-            crate::css::style::bridge::style_engine_native_rule_id((&raw const engine).cast(), identity)
+            crate::css::style::bridge::style_engine_native_rule_id(
+                crate::css::style::StyleEngineHandle::from_raw((&raw const engine).cast_mut()),
+                identity,
+            )
         });
         assert_eq!(next, 2);
         let mut imported_engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
         let imported_sheet = imported_engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         compiled.set(0);
         let imported_publication = NativeStylePublication {
-            engine: (&raw mut imported_engine).cast(),
+            engine: crate::css::style::StyleEngineHandle::from_raw(&raw mut imported_engine),
             sheet: imported_sheet.0 + 1,
             ..publication
         };
@@ -1500,7 +1502,7 @@ mod tests {
         let mut exposed_engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
         let exposed_sheet = exposed_engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         let exposed_publication = NativeStylePublication {
-            engine: (&raw mut exposed_engine).cast(),
+            engine: crate::css::style::StyleEngineHandle::from_raw(&raw mut exposed_engine),
             sheet: exposed_sheet.0 + 1,
             ..publication
         };

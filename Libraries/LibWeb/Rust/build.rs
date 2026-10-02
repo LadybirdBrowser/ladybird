@@ -601,7 +601,7 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
          fn replay_generated_boundary_event(\n\
              kind: EventKind,\n\
              payload: &mut PayloadReader<'_>,\n\
-             live_engines: &[Option<*mut c_void>],\n\
+             live_engines: &[Option<libweb_rust::css::style::StyleEngineHandle>],\n\
          ) -> Result<bool, Box<dyn std::error::Error>> {\n\
              match kind {\n",
     );
@@ -683,17 +683,13 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
                 (rust_type, cpp_type, writer, reader)
             }
         };
-        let engine_type = if receiver == "const" {
-            "*const c_void"
-        } else {
-            "*mut c_void"
-        };
+        let engine_type = "crate::css::style::StyleEngineHandle";
         let engine_borrow = if receiver == "const" {
-            "&*engine.cast::<crate::css::style::StyleEngine>()"
+            "engine.get()"
         } else {
-            "&mut *engine.cast::<crate::css::style::StyleEngine>()"
+            "engine.get_mut()"
         };
-        let replay_engine_borrow = engine_borrow.replace("crate::", "libweb_rust::");
+        let replay_engine_borrow = engine_borrow;
 
         if let Some(ffi) = ffi {
             writeln!(

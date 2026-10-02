@@ -20,3 +20,7 @@ all_features = false
 
 [export.mangle]
 rename_types = "PascalCase"
+
+[export.rename]
+# A style engine handle is opaque to C++.
+"StyleEngineHandle" = "const void*"

@@ -232,7 +232,12 @@ mod tests {
                 engine.register_native_rule(id, identity, rule.cascade_declarations(), source.identity(), &[], &[])
             };
             assert_eq!(
-                unsafe { style_engine_native_rule_id(std::ptr::from_ref(engine).cast(), identity) },
+                unsafe {
+                    style_engine_native_rule_id(
+                        crate::css::style::StyleEngineHandle::from_raw(std::ptr::from_ref(engine).cast_mut()),
+                        identity,
+                    )
+                },
                 id.0 + 1
             );
             ids.push(id);
@@ -291,7 +296,7 @@ mod tests {
         let initial = engine.current_rule_version(id).declaration_block;
         unsafe {
             style_engine_native_rule_declarations_changed(
-                (&raw mut engine).cast(),
+                crate::css::style::StyleEngineHandle::from_raw(&raw mut engine),
                 Rc::as_ptr(&child).cast(),
                 (&raw mut notifications).cast(),
                 notify,
@@ -303,7 +308,7 @@ mod tests {
         engine.next_declaration_block_version();
         unsafe {
             style_engine_native_rule_declarations_changed(
-                (&raw mut engine).cast(),
+                crate::css::style::StyleEngineHandle::from_raw(&raw mut engine),
                 Rc::as_ptr(&child).cast(),
                 (&raw mut notifications).cast(),
                 notify,
@@ -315,7 +320,7 @@ mod tests {
         rust_rule_list_clear(children);
         unsafe {
             style_engine_native_rule_declarations_changed(
-                (&raw mut engine).cast(),
+                crate::css::style::StyleEngineHandle::from_raw(&raw mut engine),
                 Rc::as_ptr(&child).cast(),
                 (&raw mut notifications).cast(),
                 notify,

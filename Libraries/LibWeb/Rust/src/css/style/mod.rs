@@ -72,6 +72,7 @@ mod engine_sample;
 mod environment_move;
 pub mod exact_matcher;
 pub use crate::fast_hash;
+mod engine_handle;
 mod flush;
 mod fnv;
 mod font_resolution;
@@ -204,6 +205,7 @@ use exact_matcher::ExactMatchContext;
 use exact_matcher::ExactMatcher;
 
 pub use counter_context::StyleEngine;
+pub use engine_handle::StyleEngineHandle;
 pub use inputs::{NaturalSize, PublishedBoxFacts, PublishedTextSource, ReplacedContentInput, TextStyleParentFacts};
 
 use batch_matcher::AncestorRequirements;

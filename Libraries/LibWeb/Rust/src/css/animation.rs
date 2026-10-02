@@ -7066,7 +7066,7 @@ pub(crate) struct PublishedAnimationDeclarations {
 /// must be a live style value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
-    style_engine: *const std::ffi::c_void,
+    style_engine: crate::css::style::StyleEngineHandle,
     style_node: u32,
     pseudo_kind: u8,
     custom_property_store: *const std::ffi::c_void,
@@ -7074,7 +7074,7 @@ pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
     property_id: u16,
     value: *const StyleValueData,
 ) -> *const StyleValueData {
-    let engine = unsafe { &*style_engine.cast::<crate::css::style::StyleEngine>() };
+    let engine = unsafe { style_engine.get() };
     let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
         return std::ptr::null();
     };

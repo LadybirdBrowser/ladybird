@@ -32,7 +32,7 @@ static_assert(!IsMoveAssignable<StyleEngine>);
 #include <LibWeb/StyleEngineBridgeGenerated.inc>
 
 StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer)
-    : m_impl(StyleEngineFFI::style_engine_create(device_class))
+    : m_impl(const_cast<void*>(StyleEngineFFI::style_engine_create(device_class)))
     , m_style_computer(style_computer)
 {
     if (m_style_computer) {
