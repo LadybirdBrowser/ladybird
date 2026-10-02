@@ -2355,7 +2355,7 @@ impl StyleEngineState {
                         owes_an_animation_plan: gap == FfiStyleDeltaGap::Computed
                             && self
                                 .retained
-                                .record_moves_animation_declarations(old_style_record, new_style_record),
+                                .record_owes_an_animation_plan(old_style_record, new_style_record),
                     };
                     if style_deltas.len() == style_deltas.capacity() {
                         style_deltas.reserve(1);

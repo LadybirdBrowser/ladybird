@@ -207,7 +207,7 @@ impl StyleEngineState {
         };
         if style_record != 0 {
             retried.explicitly_inherited_groups = scratch.element_explicitly_inherited_groups;
-            retried.owes_an_animation_plan = self.retained.record_moves_animation_declarations(
+            retried.owes_an_animation_plan = self.retained.record_owes_an_animation_plan(
                 self.retained.held_style_records.get(&node).copied().unwrap_or(0),
                 style_record,
             );
