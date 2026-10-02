@@ -378,10 +378,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             // The pseudo-element records a retry settled beside the element's record.
             Optional<DOM::Element::EnginePseudoElementRecords> retried_pseudo_element_records;
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::RetryAfterAncestor) {
-                if (auto retried = element->namespace_uri() == Namespace::HTML
-                        ? document.style_computer().style_engine().retry_engine_record_after_ancestor(reaction.style_node)
-                        : StyleEngineFFI::FfiEngineComputedRecord {};
-                    retried.style_record != 0) {
+                if (auto retried = document.style_computer().style_engine().retry_engine_record_after_ancestor(reaction.style_node); retried.style_record != 0) {
                     reaction.new_style_record = retried.style_record;
                     reaction.uses_substitution = retried.uses_substitution;
                     reaction.record_reads = retried.record_reads;

@@ -71,14 +71,14 @@ PASS: target topology cold: display contents ancestor class begins matching | el
 PASS: target topology detached: display contents ancestor class begins matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: display contents ancestor class begins matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology warm: shadow host class changes shadow descendant style | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: target topology cold: shadow host class changes shadow descendant style | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached: shadow host class changes shadow descendant style | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: shadow host class changes shadow descendant style | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology cold: shadow host class changes shadow descendant style | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: target topology detached: shadow host class changes shadow descendant style | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: shadow host class changes shadow descendant style | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology warm: slotted target moves into named slot selector | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: target topology cold: slotted target moves into named slot selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached: slotted target moves into named slot selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: slotted target moves into named slot selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology cold: slotted target moves into named slot selector | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: target topology detached: slotted target moves into named slot selector | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: slotted target moves into named slot selector | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology warm: part target starts exposing matching part | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: target topology cold: part target starts exposing matching part | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology detached: part target starts exposing matching part | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: target topology detached-cold: part target starts exposing matching part | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology cold: part target starts exposing matching part | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: target topology detached: part target starts exposing matching part | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: target topology detached-cold: part target starts exposing matching part | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
