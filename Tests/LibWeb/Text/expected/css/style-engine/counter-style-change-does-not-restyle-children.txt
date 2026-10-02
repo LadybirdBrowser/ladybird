@@ -1,6 +1,6 @@
 elements: 25
-records computed: 19
-C++ recomputations: 4
+records computed: 23
+C++ recomputations: 0
 transactions: 1
 marker rebuilt: true
 generated content rebuilt: true

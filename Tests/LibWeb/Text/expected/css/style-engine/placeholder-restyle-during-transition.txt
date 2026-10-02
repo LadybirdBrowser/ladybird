@@ -1,5 +1,5 @@
 initial: opacity 1, font-size 10px
 fading: opacity is above 0.9? true
 restyled: font-size 20px
-restyled: C++ recomputations 2
+restyled: C++ recomputations 0
 restyled: opacity is above 0.9? true

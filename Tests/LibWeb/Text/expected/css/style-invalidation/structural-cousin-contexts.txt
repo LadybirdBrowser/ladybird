@@ -82,11 +82,11 @@ PASS: cousin context warm: has sibling relation inside subject begins matching |
 PASS: cousin context cold: has sibling relation inside subject begins matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context detached: has sibling relation inside subject begins matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context detached-cold: has sibling relation inside subject begins matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: cousin context warm: inherited custom-property probe changes through ancestor style | elementStyleRecomputations=2, elementStyleNoopRecomputations=2
+PASS: cousin context warm: inherited custom-property probe changes through ancestor style | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context cold: inherited custom-property probe changes through ancestor style | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context detached: inherited custom-property probe changes through ancestor style | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context detached-cold: inherited custom-property probe changes through ancestor style | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: cousin context warm: custom property fallback resumes after ancestor property removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=2
+PASS: cousin context warm: custom property fallback resumes after ancestor property removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context cold: custom property fallback resumes after ancestor property removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context detached: custom property fallback resumes after ancestor property removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: cousin context detached-cold: custom property fallback resumes after ancestor property removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0

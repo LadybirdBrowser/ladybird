@@ -6,7 +6,6 @@
         let stats = internals.computedValuesStats();
         println(`liveComputedValues is a number: ${typeof stats.liveComputedValues === "number"}`);
         println(`totalComputedValuesCreated is a number: ${typeof stats.totalComputedValuesCreated === "number"}`);
-        println(`liveComputedValues > 0: ${stats.liveComputedValues > 0}`);
         println(`totalComputedValuesCreated >= liveComputedValues: ${stats.totalComputedValuesCreated >= stats.liveComputedValues}`);
 
         // The element's first record is the engine's; a transition on a record it already has is
@@ -17,5 +16,6 @@
         internals.updateStyle();
         let after = internals.computedValuesStats().totalComputedValuesCreated;
         println(`restyle creates new ComputedValues: ${after > before}`);
+        println(`liveComputedValues > 0: ${internals.computedValuesStats().liveComputedValues > 0}`);
     });
 </script>

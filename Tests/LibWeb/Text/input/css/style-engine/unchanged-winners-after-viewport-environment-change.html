@@ -25,6 +25,7 @@
         const fixed = child.document.getElementById("fixed");
         println(`initial width: ${child.getComputedStyle(target).width}`);
         const before = child.internals.styleEngineCounters();
+        const recomputationsBefore = child.internals.getStyleInvalidationCounters().elementStyleRecomputations;
 
         // The registered initial value requests a document environment update even
         // though neither element substitutes it into a winning declaration.
@@ -35,7 +36,7 @@
         println(`font-relative height: ${child.getComputedStyle(target).height}`);
         println(`fixed width: ${child.getComputedStyle(fixed).width}`);
         const after = child.internals.styleEngineCounters();
-        println(`fresh winners accepted: ${after.engineComputedRecordBailUnchangedWinners === before.engineComputedRecordBailUnchangedWinners}`);
+        println(`C++ recomputations: ${child.internals.getStyleInvalidationCounters().elementStyleRecomputations - recomputationsBefore}`);
         println(`engine answered: ${after.engineComputedRecordDeltas > before.engineComputedRecordDeltas}`);
     });
 </script>
