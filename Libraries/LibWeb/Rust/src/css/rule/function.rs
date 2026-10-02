@@ -8,10 +8,8 @@ use super::NativeRuleType;
 use super::read::{NativeRuleView, RuleRef};
 use crate::css::container_conditions::ContainerConditionsData;
 use crate::css::descriptor_block::DescriptorBlockData;
-use crate::css::ffi_support::FfiUtf16View;
 use crate::css::function_signature::FunctionSignature;
 use crate::css::media_list::MediaListData;
-use std::ffi::c_void;
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
@@ -22,10 +20,6 @@ pub(crate) struct FunctionDeclarationInput {
     pub(crate) containers: Vec<Arc<ContainerConditionsData>>,
     /// The `@media` lists around the block, which hold for the document or not.
     pub(crate) media: Vec<Arc<MediaListData>>,
-    /// Whether every one of those lists matched when the function was compiled. A media change
-    /// invalidates the host's definition cache, so the host reads this; the style engine
-    /// evaluates the lists against the media features of the transaction it computes for.
-    media_matched_at_compilation: bool,
 }
 
 // Immutable compilation output. Media and container conditions stay inputs, evaluated where the
@@ -43,7 +37,6 @@ impl CompiledFunction {
             outer_containers: &[Arc<ContainerConditionsData>],
             containers: &mut Vec<Arc<ContainerConditionsData>>,
             media: &mut Vec<Arc<MediaListData>>,
-            media_matched: bool,
             inputs: &mut Vec<FunctionDeclarationInput>,
         ) {
             match rule.rule_type() {
@@ -64,7 +57,6 @@ impl CompiledFunction {
                         declarations: rule.descriptors().unwrap(),
                         containers: conditions,
                         media: media.clone(),
-                        media_matched_at_compilation: media_matched,
                     });
                     return;
                 }
@@ -73,9 +65,8 @@ impl CompiledFunction {
                 NativeRuleType::Supports if rule.cached_condition_holds() => {}
                 _ => return,
             }
-            let media_matched = media_matched && (rule.rule_type() != NativeRuleType::Media || rule.media_matches());
             let _ = rule.visit_children(&mut |child| {
-                walk(child, outer_containers, containers, media, media_matched, inputs);
+                walk(child, outer_containers, containers, media, inputs);
                 ControlFlow::Continue(())
             });
             match rule.rule_type() {
@@ -99,7 +90,6 @@ impl CompiledFunction {
                 view.containers,
                 &mut Vec::new(),
                 &mut Vec::new(),
-                true,
                 &mut result.inputs,
             );
             ControlFlow::Continue(())
@@ -142,42 +132,6 @@ pub extern "C" fn rust_compiled_function_signature(function: &CompiledFunction) 
     Arc::as_ptr(&function.signature)
 }
 
-/// # Safety
-/// Callbacks must accept the context and borrow their arguments only for each call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compiled_function_visit_declarations(
-    function: &CompiledFunction,
-    context: *mut c_void,
-    matches_container: unsafe extern "C" fn(*mut c_void, *const *const ContainerConditionsData, usize) -> bool,
-    visit: unsafe extern "C" fn(*mut c_void, FfiUtf16View, *const c_void),
-) {
-    for input in &function.inputs {
-        if !input.media_matched_at_compilation {
-            continue;
-        }
-        if !input.containers.is_empty() {
-            let pointers: Vec<_> = input.containers.iter().map(Arc::as_ptr).collect();
-            if !unsafe { matches_container(context, pointers.as_ptr(), pointers.len()) } {
-                continue;
-            }
-        }
-        for descriptor in &input.declarations.descriptors {
-            let name = descriptor.name.units();
-            unsafe {
-                visit(
-                    context,
-                    FfiUtf16View {
-                        ascii: std::ptr::null(),
-                        utf16: name.as_ptr(),
-                        length: name.len(),
-                    },
-                    Arc::as_ptr(&descriptor.value).cast(),
-                );
-            }
-        }
-    }
-}
-
 /// The functions a style sheet's top-level `@function` rules compile to, in order, with no rule
 /// owner left alive.
 #[cfg(test)]
@@ -197,80 +151,4 @@ pub(crate) fn compile_functions_for_testing(source: &str) -> Vec<CompiledFunctio
         ControlFlow::Continue(())
     });
     compiled
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::css::container_conditions::rust_container_conditions_name;
-    use crate::css::rule::RULE_OWNER_ALLOCATIONS;
-    use crate::css::serialize::serialize_style_value_to_utf16;
-    use crate::css::style_value::StyleValueData;
-
-    #[test]
-    fn declarations_preserve_conditions_and_value_lifetimes_without_rule_owners() {
-        let owners = RULE_OWNER_ALLOCATIONS.get();
-        let compiled = compile_functions_for_testing(
-            "@function --値() { --基: 1px; @media not all { --隠: 2px; }
-            @supports (unknown: value) { --無: 3px; } @supports (display: block) { --有: 4px; }
-            @container 外 (width > 100px) { --外: 5px; @container 内 (width > 10px) { --内: 6px; } }
-            result: var(--基); }",
-        )
-        .pop()
-        .unwrap();
-        #[derive(Default)]
-        struct Visited {
-            names: Vec<Vec<u16>>,
-            values: Vec<Arc<StyleValueData>>,
-            containers: Vec<Vec<u16>>,
-        }
-        unsafe extern "C" fn matches(
-            context: *mut c_void,
-            conditions: *const *const ContainerConditionsData,
-            count: usize,
-        ) -> bool {
-            let visited = unsafe { &mut *context.cast::<Visited>() };
-            let mut matches = true;
-            for condition in unsafe { std::slice::from_raw_parts(conditions, count) } {
-                let name = unsafe { rust_container_conditions_name(*condition, 0) };
-                let name = unsafe { std::slice::from_raw_parts(name.utf16, name.length) };
-                matches &= name == "内".encode_utf16().collect::<Vec<_>>();
-                visited.containers.push(name.to_vec());
-            }
-            matches
-        }
-        unsafe extern "C" fn visit(context: *mut c_void, name: FfiUtf16View, value: *const c_void) {
-            let visited = unsafe { &mut *context.cast::<Visited>() };
-            visited
-                .names
-                .push(unsafe { std::slice::from_raw_parts(name.utf16, name.length) }.to_vec());
-            let value = value.cast::<StyleValueData>();
-            unsafe {
-                Arc::increment_strong_count(value);
-            }
-            visited.values.push(unsafe { Arc::from_raw(value) });
-        }
-        let mut visited = Visited::default();
-        unsafe {
-            rust_compiled_function_visit_declarations(&compiled, (&raw mut visited).cast(), matches, visit);
-        }
-        drop(compiled);
-        let strings = |values: &[&str]| {
-            values
-                .iter()
-                .map(|value| value.encode_utf16().collect::<Vec<_>>())
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(visited.names, strings(&["--基", "--有", "result"]));
-        assert_eq!(visited.containers, strings(&["外", "内", "外"]));
-        assert_eq!(
-            visited
-                .values
-                .iter()
-                .map(|value| serialize_style_value_to_utf16(value).unwrap())
-                .collect::<Vec<_>>(),
-            strings(&["1px", "4px", "var(--基)"])
-        );
-        assert_eq!(RULE_OWNER_ALLOCATIONS.get(), owners);
-    }
 }

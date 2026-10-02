@@ -156,11 +156,6 @@ impl RetainedState {
         id
     }
 
-    pub(super) unsafe fn intern_exact_specified_value(&mut self, value: *const StyleValueData) -> SpecifiedValueID {
-        debug_assert!(!value.is_null());
-        unsafe { self.specified_values.intern(value, &mut self.memory).0 }
-    }
-
     /// Register an authored spelling as an alias of its context-free canonical value.
     ///
     /// # Safety

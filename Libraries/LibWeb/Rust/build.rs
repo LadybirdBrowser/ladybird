@@ -442,12 +442,15 @@ fn write_enum_and_from_ffi(output: &mut String, enum_name: &str, variants: &[Str
     }
     writeln!(output, "}}").unwrap();
     writeln!(output).unwrap();
-    let fn_name = if enum_name == "PseudoClassType" {
-        "pseudo_class_from_ffi"
-    } else {
-        "pseudo_element_from_ffi"
-    };
-    writeln!(output, "pub(crate) fn {fn_name}(value: u8) -> {enum_name} {{").unwrap();
+    // Only the pseudo-classes cross the boundary as numbers.
+    if enum_name != "PseudoClassType" {
+        return;
+    }
+    writeln!(
+        output,
+        "pub(crate) fn pseudo_class_from_ffi(value: u8) -> {enum_name} {{"
+    )
+    .unwrap();
     writeln!(output, "    match value {{").unwrap();
     for (index, variant) in variants.iter().enumerate() {
         writeln!(output, "        {index} => {enum_name}::{variant},").unwrap();
@@ -1466,11 +1469,8 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
             .ok_or("missing always-allowed pseudo-element property group")?,
     )?;
     let mut pseudo_property_whitelist_rows = Vec::new();
-    let mut pseudo_is_highlight_rows = Vec::new();
     for name in ordered_pseudo_element_names(&pseudo_elements)? {
         let object = pseudo_elements[&name].as_object().unwrap();
-        let is_highlight = object.get("is-highlight").and_then(serde_json::Value::as_bool) == Some(true);
-        pseudo_is_highlight_rows.push(format!("    {is_highlight},"));
         let Some(whitelist) = object.get("property-whitelist") else {
             pseudo_property_whitelist_rows.push("    None,".to_string());
             continue;
@@ -1486,7 +1486,6 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     }
     // UnknownWebKit follows the known pseudo-elements and accepts all properties.
     pseudo_property_whitelist_rows.push("    None,".to_string());
-    pseudo_is_highlight_rows.push("    false,".to_string());
 
     // NB: Must match manually_specified_computation_order in
     //     Meta/Generators/generate_libweb_css_property_id.py; the parity test enforces it.
@@ -2421,11 +2420,6 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         pseudo_property_whitelist_rows.len(),
         pseudo_property_whitelist_rows.join("\n")
     ));
-    output.push_str(&format!(
-        "pub(crate) static PSEUDO_ELEMENT_IS_HIGHLIGHT: [bool; {}] = [\n{}\n];\n",
-        pseudo_is_highlight_rows.len(),
-        pseudo_is_highlight_rows.join("\n")
-    ));
     std::fs::write(out_dir.join("property_metadata_generated.rs"), output)?;
     Ok(())
 }
@@ -3097,12 +3091,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiValueParsingContextKind".to_string(),
         "FfiUtf16View".to_string(),
         "FfiQueryHandle".to_string(),
-        "EvaluateContainerStyleFeature".to_string(),
-        "FfiContainerFacts".to_string(),
-        "FfiContainerStyleFeature".to_string(),
-        "FfiContainerStyleFeatureKind".to_string(),
-        "FfiStyleRangeValue".to_string(),
-        "FfiStyleRangeValueKind".to_string(),
         "FfiMediaEnvironment".to_string(),
         "FfiMediaFeatureValue".to_string(),
         "FfiMediaFeatureValueKind".to_string(),

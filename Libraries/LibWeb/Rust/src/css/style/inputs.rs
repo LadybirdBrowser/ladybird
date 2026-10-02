@@ -1858,8 +1858,6 @@ impl StyleEngineState {
                 style_groups: crate::css::computed_values::StyleGroupMasks::registered_or_none(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
-                pending_element_style_computation_selections: HashMap::default(),
-                pending_pseudo_style_computation_selections: HashMap::default(),
                 engine_computed_records_pending: HashMap::default(),
                 demand_records: HashMap::default(),
                 flush_stamp: 0,
@@ -1946,8 +1944,6 @@ impl StyleEngineState {
                 ffi_style_transaction_output_memory: MemoryLease::new(MemoryCategory::BridgeBuffer),
                 ffi_style_node_query: Vec::new(),
                 ffi_style_node_query_memory: MemoryLease::new(MemoryCategory::BridgeBuffer),
-                ffi_retained_cascade_assignments: Vec::new(),
-                ffi_retained_cascade_assignments_memory: MemoryLease::new(MemoryCategory::BridgeBuffer),
                 reclaimed_style_atoms: Vec::new(),
                 style_atoms_swept: false,
                 replay_reclaimed_style_atoms: None,
@@ -3378,8 +3374,6 @@ impl RetainedState {
             style_groups: _,
             transition_baselines,
             custom_property_registrations_changed: _,
-            pending_element_style_computation_selections,
-            pending_pseudo_style_computation_selections,
             // Settled or reverted when the transaction's outputs are discarded, before identities are
             // released.
             engine_computed_records_pending: _,
@@ -3487,8 +3481,6 @@ impl RetainedState {
         animation_effect_descriptions.retire(node);
         random_base_values.retire(node);
         replaced_content_inputs.remove(&node);
-        pending_element_style_computation_selections.remove(&node);
-        pending_pseudo_style_computation_selections.remove(&node);
         // A retired identity can name another element before the epoch commits.
         for (_, style_record) in transition_baselines.remove(&node).into_iter().flatten() {
             computed_group_sets.unpin_style_record(style_record);

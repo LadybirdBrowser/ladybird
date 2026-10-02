@@ -1371,9 +1371,7 @@ mod tests {
         }
         assert_eq!(compiled.get(), 1);
         use crate::css::rule::FfiRuleTraversalOrder;
-        use crate::css::rule::function::{
-            CompiledFunction, rust_compiled_function_visit_declarations, rust_rule_view_compile_function,
-        };
+        use crate::css::rule::function::{CompiledFunction, rust_rule_view_compile_function};
         use crate::css::rule::read::{
             NativeRuleView, rust_rule_view_keyframes, rust_rule_view_property, rust_rule_view_type,
         };
@@ -1469,18 +1467,6 @@ mod tests {
         });
         assert!(source.rules().rules.borrow().is_none());
         assert!(child.rules().rules.borrow().is_none());
-        unsafe extern "C" fn matches(_: *mut c_void, _: *const *const ContainerConditionsData, _: usize) -> bool {
-            unreachable!()
-        }
-        unsafe extern "C" fn declaration(context: *mut c_void, name: FfiUtf16View, _: *const c_void) {
-            assert_eq!(
-                unsafe { std::slice::from_raw_parts(name.utf16, name.length) },
-                "result".encode_utf16().collect::<Vec<_>>()
-            );
-            unsafe {
-                *context.cast::<usize>() += 1;
-            }
-        }
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), rule_owners);
         assert_eq!(DECLARATION_OWNER_ALLOCATIONS.get(), declaration_owners);
         assert_eq!(
@@ -1525,16 +1511,6 @@ mod tests {
         drop(layer);
         drop(source);
         drop(child);
-        let mut declarations = 0_usize;
-        unsafe {
-            rust_compiled_function_visit_declarations(
-                &definitions.functions.borrow()[0],
-                (&raw mut declarations).cast(),
-                matches,
-                declaration,
-            );
-        }
-        assert_eq!(declarations, 1);
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), rule_owners + 2);
         assert_eq!(DECLARATION_OWNER_ALLOCATIONS.get(), declaration_owners);
         assert_eq!(

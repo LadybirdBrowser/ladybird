@@ -2159,6 +2159,7 @@ pub fn register_replay_property_dependency_masks(first_property: u16, masks: &[u
         .unwrap_or_else(|_| unreachable!("property dependency masks were checked above"));
 }
 
+#[cfg(feature = "style-recording")]
 /// The computed style groups which may change when one longhand's specified winner changes.
 ///
 /// The mapping comes from the C++ group builders which own the remaining cross-property

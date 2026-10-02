@@ -95,8 +95,6 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         style_groups,
         transition_baselines,
         custom_property_registrations_changed,
-        pending_element_style_computation_selections,
-        pending_pseudo_style_computation_selections,
         engine_computed_records_pending,
         demand_records,
         flush_stamp,
@@ -210,8 +208,6 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(style_groups);
     assert_member_is_sync(transition_baselines);
     assert_member_is_sync(custom_property_registrations_changed);
-    assert_member_is_sync(pending_element_style_computation_selections);
-    assert_member_is_sync(pending_pseudo_style_computation_selections);
     assert_member_is_sync(engine_computed_records_pending);
     assert_member_is_sync(demand_records);
     assert_member_is_sync(flush_stamp);

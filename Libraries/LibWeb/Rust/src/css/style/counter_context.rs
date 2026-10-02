@@ -8,6 +8,7 @@ use super::bridge::{
     FfiElementArrival, FfiElementDeclarationDelta, FfiElementStyleInput, FfiLocalFeatureDelta, FfiStateDelta,
     FfiTreeDelta,
 };
+#[cfg(feature = "style-recording")]
 use super::publication::ExactCascadeDonor;
 use super::*;
 use crate::css::declaration_block;
@@ -907,19 +908,6 @@ impl StyleEngine {
         self.state.consume_published_match_answer(node, &mut self.counters)
     }
 
-    /// Stream a published answer into its consumer. A materialized payload needs no copy; an
-    /// identity-only payload is restored in cascade order before it crosses the bridge.
-    #[inline]
-    pub(super) fn consume_published_match_answer_with(
-        &mut self,
-        node: StyleNodeID,
-        capacity: usize,
-        consume: impl FnMut(usize, StyleNodeID, RuleID, SemanticDeclarationID, Option<tree::PseudoElementTarget>, u32, u32),
-    ) -> Option<usize> {
-        self.state
-            .consume_published_match_answer_with(node, capacity, consume, &mut self.counters)
-    }
-
     /// Read the shareable identity of one answer from the immediately preceding style transaction.
     ///
     /// A contextual answer has no identity and must still consume its complete payload. A shared
@@ -1057,33 +1045,6 @@ impl StyleEngine {
         )
     }
 
-    /// Keep the style record already assigned to a target whose recomputation its input record
-    /// answered.
-    #[inline]
-    pub(crate) fn reaffirm_style_record(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-    ) -> Option<computed::FinalStyleRecordID> {
-        self.state.reaffirm_style_record(target, &mut self.counters)
-    }
-
-    #[inline]
-    pub(crate) fn assign_shared_style_record(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        style_record: u64,
-        inherited_group_count: usize,
-        inherited_group_swap_eligible: bool,
-    ) -> computed::ComputedGroupPublication {
-        self.state.assign_shared_style_record(
-            target,
-            style_record,
-            inherited_group_count,
-            inherited_group_swap_eligible,
-            &mut self.counters,
-        )
-    }
-
     /// Intern the immutable computed-group payloads of a style which has no live StyleEngine target.
     #[inline]
     pub(crate) fn intern_computed_groups(
@@ -1122,18 +1083,6 @@ impl StyleEngine {
             payloads,
             &mut self.counters,
         )
-    }
-
-    #[inline]
-    pub(crate) fn publish_exact_cascade_state(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        store: &CascadedPropertyStore,
-        inherited_style_groups: u8,
-        donor: Option<ExactCascadeDonor>,
-    ) -> (bridge::FfiExactCascadePublication, Vec<(u16, SpecifiedWinnerKey)>, bool) {
-        self.state
-            .publish_exact_cascade_state(target, store, inherited_style_groups, donor, &mut self.counters)
     }
 
     #[cfg(feature = "style-recording")]

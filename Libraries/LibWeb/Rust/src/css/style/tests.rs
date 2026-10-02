@@ -7147,71 +7147,6 @@ fn a_cached_prefix_answer_is_returned_in_cascade_order() {
 }
 
 #[test]
-fn an_identity_only_published_prefix_answer_is_returned_in_cascade_order() {
-    let (mut engine, nodes) = nested_document();
-    let guard = StyleAtomID(200);
-    let target = StyleAtomID(201);
-    let specific = add_guard_target_rule(&mut engine, guard, target);
-    let general = add_target_rule(&mut engine, StyleSheetObjectID(2), target);
-    engine.set_rule_declared_properties(specific, &[(1, false)]);
-    engine.set_rule_declared_properties(general, &[(2, false)]);
-    for &node in &nodes {
-        for kind in ElementDeclarationKind::ALL {
-            engine.set_element_declared_properties(node, kind, Vec::new(), Vec::new());
-        }
-    }
-    for (node, class) in [(nodes[1], guard), (nodes[2], target), (nodes[3], target)] {
-        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
-    }
-    discard_transaction(&mut engine);
-
-    engine.begin_published_match_answer_completion_batch(nodes[0], true);
-    assert_eq!(
-        engine
-            .match_element_for_cascade(nodes[2])
-            .unwrap()
-            .iter()
-            .map(|matched| matched.rule)
-            .collect::<Vec<_>>(),
-        [general, specific]
-    );
-    let published = engine.complete_published_match_answer(nodes[3], None).unwrap();
-    assert!(published.cascade_input.is_some());
-    assert!(published.matches.is_none());
-    engine.end_published_match_answer_completion_batch();
-    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheMisses), 1);
-    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheHits), 1);
-
-    engine.state.retained.published_match_answers.push(
-        published,
-        &mut engine.state.retained.memory,
-        &mut engine.counters,
-    );
-    engine.published_match_answers.sort();
-
-    let matches = engine.consume_published_match_answer(nodes[3]).unwrap();
-    assert_eq!(
-        matches.iter().map(|matched| matched.rule).collect::<Vec<_>>(),
-        [general, specific]
-    );
-
-    let mut streamed = Vec::new();
-    assert_eq!(
-        engine.consume_published_match_answer_with(nodes[3], 0, |_, _, rule, _, _, _, _| streamed.push(rule)),
-        Some(2)
-    );
-    assert!(streamed.is_empty());
-    assert_eq!(
-        engine.consume_published_match_answer_with(nodes[3], 2, |index, _, rule, _, _, _, _| {
-            assert_eq!(index, streamed.len());
-            streamed.push(rule);
-        }),
-        Some(2)
-    );
-    assert_eq!(streamed, [general, specific]);
-}
-
-#[test]
 fn shared_retained_answer_completion_reuses_compact_cascade_state() {
     for declarations_overlap in [true, false] {
         let (mut engine, nodes) = nested_document();
@@ -12073,13 +12008,6 @@ fn a_reissued_style_node_identity_holds_no_retained_state() {
     assert!(engine.match_element_for_cascade(leaving).is_ok());
     publish_current_cascade_as_computed(&mut engine, leaving);
     engine.nodes_with_substituted_records.insert(leaving);
-    engine.pending_element_style_computation_selections.insert(
-        leaving,
-        StyleComputationSelection {
-            computed_property_words: [u64::MAX; crate::css::property_metadata::LONGHAND_WORD_COUNT],
-            computed_property_closure_is_exact: true,
-        },
-    );
     let holds_winners = |engine: &StyleEngine| {
         engine
             .winner_groups
@@ -12106,11 +12034,6 @@ fn a_reissued_style_node_identity_holds_no_retained_state() {
     assert!(!holds_winners(&engine));
     assert!(engine.computed_group_sets.assigned_style_record(leaving).is_none());
     assert!(!engine.nodes_with_substituted_records.contains(&leaving));
-    assert!(
-        !engine
-            .pending_element_style_computation_selections
-            .contains_key(&leaving)
-    );
 }
 
 #[test]

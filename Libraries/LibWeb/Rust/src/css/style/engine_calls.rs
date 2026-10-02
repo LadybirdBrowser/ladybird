@@ -472,8 +472,6 @@ pub(crate) enum StyleQuery {
     StyleRecordDependencyFlags(u64),
     /// The identity of the custom-property environment a style record was computed in.
     StyleRecordCustomPropertyEnvironment(u64),
-    /// The groups of a node's style that depend on `currentColor`.
-    CurrentColorDependentGroupMask { node: StyleNodeID, pseudo_kind: u8 },
     /// The engine's id of the native rule the host names by `identity`.
     NativeRuleId(u64),
     /// The engine's counter at `index`.
@@ -529,12 +527,6 @@ impl StyleQuery {
                     .computed_group_sets
                     .style_record_custom_property_environment(record)
                     .unwrap_or(0),
-            ),
-            Self::CurrentColorDependentGroupMask { node, pseudo_kind } => StyleAnswer::Number(
-                engine
-                    .current_color_dependent_group_mask(node, pseudo_kind)
-                    .unwrap_or(u32::MAX)
-                    .into(),
             ),
             Self::NativeRuleId(identity) => {
                 StyleAnswer::Number(engine.native_rule_id(identity).map_or(0, |id| u64::from(id.0) + 1))
@@ -795,25 +787,6 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
 ) -> u64 {
     // SAFETY: Guaranteed by the caller.
     unsafe { ask_engine_number(host, StyleQuery::StyleRecordCustomPropertyEnvironment(style_record)) }
-}
-
-/// The groups of a node's style that depend on `currentColor`, or every group where the engine does not know.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_current_color_dependent_group_mask(
-    host: *const DocumentHost,
-    node: u32,
-    pseudo_kind: u8,
-) -> u32 {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return u32::MAX;
-    };
-    // SAFETY: Guaranteed by the caller.
-    let mask = unsafe { ask_engine_number(host, StyleQuery::CurrentColorDependentGroupMask { node, pseudo_kind }) };
-    u32::try_from(mask).expect("a group mask fits 32 bits")
 }
 
 /// The engine's id of the native rule `identity` names, plus one, or 0 for none.

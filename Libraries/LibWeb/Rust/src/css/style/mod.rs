@@ -191,8 +191,7 @@ use std::sync::Mutex;
 
 use crate::css::cascaded_properties::CascadeOrigin;
 use crate::css::cascaded_properties::CascadedPropertyStore;
-use crate::css::cascaded_properties::FfiCascadeBlock;
-use crate::css::cascaded_properties::FfiSourceSlotAssignment;
+#[cfg(feature = "style-recording")]
 use crate::css::computed_values::computed_group_dependency_mask;
 use crate::css::computed_values::computed_group_output_mask;
 use crate::css::host_shared::{HostShared, SharedPayload};
@@ -287,7 +286,6 @@ use program::RuleID;
 use program::RuleKind;
 use program::RuleVersion;
 use program::SelectorProgramID;
-use program::SemanticDeclarationID;
 use program::SheetID;
 use program::StyleSheetObjectID;
 use program::StyleSheetProgram;
@@ -971,10 +969,6 @@ pub struct RetainedState {
     /// previously substituted record must then be recomputed by C++, which implements registered
     /// custom properties, even when its cascade winners did not move.
     custom_property_registrations_changed: bool,
-    /// Pending selections for elements, and separately for the few pseudo-elements that hold one.
-    /// Both are keyed by the element so that retiring it releases every selection by key.
-    pending_element_style_computation_selections: HashMap<StyleNodeID, StyleComputationSelection>,
-    pending_pseudo_style_computation_selections: HashMap<StyleNodeID, Vec<(u8, StyleComputationSelection)>>,
     /// Records the engine derived for published reactions that C++ has not installed yet. Their
     /// columns already moved so descendants in the same flush build on them; the cascade state
     /// and answer consumption follow C++'s acknowledgement, and a discarded transaction reverts
@@ -1167,9 +1161,6 @@ pub struct HostState {
     /// Borrowed FFI result storage for the most recent style-node query.
     ffi_style_node_query: Vec<u32>,
     ffi_style_node_query_memory: MemoryLease,
-    /// Borrowed FFI result storage for retained cascade source-slot assignments.
-    ffi_retained_cascade_assignments: Vec<FfiSourceSlotAssignment>,
-    ffi_retained_cascade_assignments_memory: MemoryLease,
     /// Identities released at transaction settlement. The FFI keeps this batch borrowed until C++
     /// has removed its matching fly-string references and atom-keyed memo entries.
     reclaimed_style_atoms: Vec<ReclaimedStyleAtom>,
@@ -1200,12 +1191,6 @@ impl std::ops::DerefMut for StyleEngineState {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.retained
     }
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct StyleComputationSelection {
-    pub computed_property_words: [u64; crate::css::property_metadata::LONGHAND_WORD_COUNT],
-    pub computed_property_closure_is_exact: bool,
 }
 
 #[cfg(test)]

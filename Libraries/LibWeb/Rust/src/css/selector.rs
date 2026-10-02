@@ -192,12 +192,6 @@ fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
 
 include!(concat!(env!("OUT_DIR"), "/selector_pseudo_generated.rs"));
 
-/// Crate-visible access to the generated pseudo-element code mapping, for the
-/// style computation core's pseudo-element decisions.
-pub(crate) fn pseudo_element_type_from_code(value: u8) -> PseudoElementType {
-    pseudo_element_from_ffi(value)
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LanguageRange {
     pub value: SelectorString,
