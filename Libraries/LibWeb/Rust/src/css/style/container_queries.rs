@@ -102,6 +102,9 @@ struct RetainedContainerStyleContext<'a> {
     store: Option<&'a crate::css::custom_properties::CustomPropertyStore>,
     registry: &'a crate::css::custom_properties::CustomPropertyRegistry,
     color: crate::css::color_resolution::ColorResolutionInput<'a>,
+    /// The container's sibling count and index, which a tree-counting function in a query value
+    /// resolves against.
+    tree_counting: Option<(u64, u64)>,
 }
 
 /// The engine answers `style()` features in Rust, never through the facts' callback.
@@ -493,6 +496,9 @@ impl RetainedState {
                         length: Some(&length),
                         channels: None,
                     },
+                    tree_counting: self
+                        .sibling_position(candidate)
+                        .map(|position| (u64::from(position.count), u64::from(position.index))),
                 });
             }
             let facts = FfiContainerFacts {
@@ -572,6 +578,7 @@ impl RetainedState {
                         feature,
                         &length,
                         context.color,
+                        context.tree_counting,
                         references,
                     )
                 })
