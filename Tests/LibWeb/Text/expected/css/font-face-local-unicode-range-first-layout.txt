@@ -1,0 +1,2 @@
+first layout uses the local face: true
+a later rendering update uses the local face: true

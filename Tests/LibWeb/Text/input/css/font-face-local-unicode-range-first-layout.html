@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: SubsetLocalAhem;
+        src: local("Ahem");
+        unicode-range: U+61;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        // The face's source is local, so it resolves as soon as anything asks for it: the text it
+        // covers can show its glyphs as soon as the document lays it out.
+        const element = document.createElement("span");
+        element.style.font = "20px SubsetLocalAhem";
+        element.textContent = "a";
+        document.body.append(element);
+        const firstLayoutWidth = element.getBoundingClientRect().width;
+
+        await animationFrame();
+        await animationFrame();
+        const laterWidth = element.getBoundingClientRect().width;
+
+        println(`first layout uses the local face: ${firstLayoutWidth === 20}`);
+        println(`a later rendering update uses the local face: ${laterWidth === 20}`);
+    });
+</script>
