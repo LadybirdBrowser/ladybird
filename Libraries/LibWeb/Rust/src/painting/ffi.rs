@@ -1915,6 +1915,17 @@ pub unsafe extern "C" fn layout_arena_intersection_observer_intersection_rect(
     .into()
 }
 
+/// Whether a row has ever been given a style with `content-visibility: auto`, which is when a
+/// layout commit collects the boxes with it.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_may_have_auto_content_visibility(arena: *mut c_void) -> bool {
+    unsafe { arena_from_handle(arena) }.may_have_auto_content_visibility()
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.

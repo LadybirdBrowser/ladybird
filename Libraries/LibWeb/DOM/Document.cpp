@@ -1987,7 +1987,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
         // Broadcast the current viewport rect to any new committed boxes, so they know whether
         // they're visible or not. If necessary, re-collect the content-visibility:auto set.
         inform_all_viewport_clients_about_the_current_viewport_rect();
-        if (m_may_have_content_visibility_auto_style)
+        if (Layout::RustFFI::layout_arena_may_have_auto_content_visibility(layout_node_arena().handle()))
             collect_boxes_with_auto_content_visibility();
     }
 

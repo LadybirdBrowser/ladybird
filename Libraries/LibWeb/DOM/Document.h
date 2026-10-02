@@ -515,7 +515,6 @@ public:
     void update_layout(UpdateLayoutReason);
     void update_layout(UpdateLayoutReason, ThrottledAnimationSamplingScope);
     void update_style_and_layout_once(UpdateLayoutReason, ThrottledAnimationSamplingScope);
-    void note_content_visibility_auto_style() { m_may_have_content_visibility_auto_style = true; }
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
     [[nodiscard]] u64 partial_layout_count() const;
     [[nodiscard]] u64 full_layout_count() const;
@@ -1647,7 +1646,6 @@ private:
     NonnullOwnPtr<CommitMessages> m_commit_messages;
     OwnPtr<Painting::DocumentPaintState> m_paint_state;
     NonnullRefPtr<Painting::ChromeWidgetRegistry> m_chrome_widget_registry;
-    bool m_may_have_content_visibility_auto_style { false };
 
     GC::Ptr<Node> m_hovered_node;
     GC::Ptr<Node> m_inspected_node;
