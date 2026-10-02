@@ -57,9 +57,11 @@ enum class TestResult {
 enum class ExpectedOutcome {
     Normal,
     WebContentTermination,
+    WebContentCrash,
 };
 
 constexpr StringView web_content_termination_marker = "WebContent helper process terminated after rejected IPC."sv;
+constexpr StringView web_content_crash_marker = "WebContent process crashed."sv;
 
 constexpr StringView test_result_to_string(TestResult result)
 {
