@@ -19,29 +19,15 @@
 
 namespace Web::Layout {
 
-TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node)
-    : Node(document, &text, RustFFI::NodeKind::TextNode, attach_to_dom_node)
-{
-    invalidate_text_for_rendering();
-    update_produces_line_box_fragment_when_empty_flag();
-    Painting::push_selection_pseudo_style_of_parent(*this);
-}
-
 TextNode::TextNode(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : Node(document, bind, slot, kind)
 {
     invalidate_text_for_rendering();
     // A generated text row stands for no DOM text node, and paints its selection the way its parent does.
-    if (!dom_node())
+    if (!Node::dom_node())
         return;
     update_produces_line_box_fragment_when_empty_flag();
     Painting::push_selection_pseudo_style_of_parent(*this);
-}
-
-TextNode::TextNode(DOM::Document& document, RustFFI::NodeKind kind)
-    : Node(document, nullptr, kind)
-{
-    invalidate_text_for_rendering();
 }
 
 bool TextNode::update_produces_line_box_fragment_when_empty_flag()
@@ -67,14 +53,6 @@ bool TextNode::update_produces_line_box_fragment_when_empty_flag()
 }
 
 TextNode::~TextNode() = default;
-
-GeneratedTextNode::GeneratedTextNode(DOM::Document& document, Utf16String text)
-    : TextNode(document, RustFFI::NodeKind::GeneratedTextNode)
-    , m_text(move(text))
-{
-    // No DOM text node holds these characters for the style mirror to publish, so the row keeps them itself.
-    RustFFI::layout_arena_set_generated_text(arena_handle(), slot_id(this), m_text.to_raw_leaked());
-}
 
 // The build stamped the row with its characters, which this layout node shares.
 GeneratedTextNode::GeneratedTextNode(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)

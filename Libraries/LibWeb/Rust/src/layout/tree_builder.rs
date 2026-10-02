@@ -138,7 +138,13 @@ pub struct FfiDomTreeBuilderCallbacks {
     /// go through this; nothing about it depends on which the box is. The flag says the box
     /// replaces its element's contents with a single image, whose provider it owns.
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void, NodeSlotId, bool),
-    pub pseudo: FfiPseudoTreeBuilderCallbacks,
+    /// The style the list marker a list-item pseudo-element nests is built from: the generator's
+    /// `::marker` style, interned as a record of its own, which the build pins.
+    pub nested_list_marker_style: unsafe extern "C" fn(*mut c_void, u32) -> u64,
+    /// Gives a generated image box the provider of the image it shows, which the box owns, and
+    /// attaches the box's style resources. The image is the `<image>` at the given index of the
+    /// pseudo-element's `content`, or the given marker's `list-style-image`.
+    pub attach_generated_image: unsafe extern "C" fn(*mut c_void, NodeSlotId, u32, FfiPseudoElement, FfiGeneratedImage),
 }
 
 /// A DOM node the tree builder reasons about by identity as well as by pointer: the identity names
@@ -2792,39 +2798,22 @@ pub struct PseudoElementFacts {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-pub enum FfiGeneratedContentItemKind {
-    Text,
+pub enum FfiGeneratedImageKind {
     /// An `<image>` in the pseudo-element's `content` list.
     ContentImage,
-    /// The marker box's `list-style-image`.
+    /// A marker box's `list-style-image`.
     ListStyleImage,
 }
 
-/// One node the host allocates for the generated content of a pseudo-element.
+/// The image a generated image box shows.
+#[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiGeneratedContentItem {
-    pub kind: FfiGeneratedContentItemKind,
-    /// For `Text`: the text, as an `AK::Utf16String` reference the host adopts.
-    pub text: usize,
+pub struct FfiGeneratedImage {
+    pub kind: FfiGeneratedImageKind,
     /// For `ContentImage`: the image's index in the `content` list.
     pub content_index: usize,
-    /// The list marker a list-item pseudo-element nests, when the item is that marker's content;
-    /// invalid for the pseudo-element's own content.
-    pub nested_marker: NodeSlotId,
-}
-
-#[repr(C)]
-pub struct FfiPseudoTreeBuilderCallbacks {
-    pub builder: *mut c_void,
-    /// The last argument is the list-item box a `::marker` belongs to, or an invalid slot when the
-    /// pseudo-element is not a marker.
-    pub create_layout_node:
-        unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, FfiPseudoElementDecision, NodeSlotId) -> NodeSlotId,
-    /// The last argument of each of these is the pseudo-element's own box, which the build tracks
-    /// by slot.
-    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, NodeSlotId) -> NodeSlotId,
-    pub create_content_item:
-        unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, FfiGeneratedContentItem, NodeSlotId) -> NodeSlotId,
+    /// For `ListStyleImage`: the marker box whose `list-style-image` it is.
+    pub marker: NodeSlotId,
 }
 
 pub(crate) fn pseudo_element_decision(facts: PseudoElementFacts) -> FfiPseudoElementDecision {
@@ -2949,33 +2938,6 @@ fn report_list_item_counter_rendering(
     }
 }
 
-fn generated_content_item(
-    item: crate::layout::generated_content::ContentItem,
-    nested_marker: NodeSlotId,
-) -> FfiGeneratedContentItem {
-    use crate::layout::generated_content::ContentItem;
-    match item {
-        ContentItem::Text(text) => FfiGeneratedContentItem {
-            kind: FfiGeneratedContentItemKind::Text,
-            text: ak::Utf16String::from_utf16(&text).into_raw(),
-            content_index: 0,
-            nested_marker,
-        },
-        ContentItem::Image(content_index) => FfiGeneratedContentItem {
-            kind: FfiGeneratedContentItemKind::ContentImage,
-            text: 0,
-            content_index,
-            nested_marker,
-        },
-        ContentItem::ListStyleImage => FfiGeneratedContentItem {
-            kind: FfiGeneratedContentItemKind::ListStyleImage,
-            text: 0,
-            content_index: 0,
-            nested_marker,
-        },
-    }
-}
-
 /// What the style mirror published for the pseudo-element `pseudo_element` on `element`, for the
 /// build to decide whether it gets a box.
 fn published_pseudo_element_facts(
@@ -3039,6 +3001,156 @@ fn published_pseudo_element_facts(
     facts
 }
 
+/// The row a pseudo-element's box is built in, stamped from the record the style mirror published for
+/// the pseudo-element, and its layout node; none for a display that generates no box.
+fn stamp_pseudo_element_box_row(
+    layout_host: &TreeBuilderHost<'_>,
+    generator: StyleNodeID,
+    pseudo_element: FfiPseudoElement,
+    decision: FfiPseudoElementDecision,
+    facts: PseudoElementFacts,
+) -> Option<NodeSlotId> {
+    let generated_for = generated_for_of(pseudo_element);
+    let is_list_item_marker = decision == FfiPseudoElementDecision::Box && !facts.originating_list_box.is_invalid();
+    let kind = match decision {
+        FfiPseudoElementDecision::None => unreachable!("a pseudo-element that generates nothing gets no box"),
+        // The image box owns the image it replaces the pseudo-element's contents with.
+        FfiPseudoElementDecision::ContentReplacement => NodeKind::ImageBox,
+        // https://drafts.csswg.org/css-content-3/#content-property
+        // A pseudo-element whose contents are a content list is an inline box holding them.
+        FfiPseudoElementDecision::Contents => NodeKind::InlineNode,
+        FfiPseudoElementDecision::Box if is_list_item_marker => NodeKind::ListItemMarkerBox,
+        FfiPseudoElementDecision::Box => layout_host
+            .arena()
+            .with_style_store(|engine| {
+                engine
+                    .pseudo_published_style_view(generator, generated_for - 1)
+                    .map(|view| view.display())
+            })
+            .and_then(node_kind_for_display)?,
+    };
+    // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference
+    // derived from it across the allocation.
+    let slot = unsafe { &mut *layout_host.arena }.allocate_unbound();
+    layout_host
+        .arena()
+        .stamp_pseudo_element_row(slot, kind, generator, generated_for);
+    if decision == FfiPseudoElementDecision::Contents {
+        layout_host
+            .arena()
+            .update_layout_style(layout_host.main_thread, slot, |style| {
+                style.set_display(FfiDisplay::outside_and_inside(
+                    crate::css::css_enums::display_outside::INLINE,
+                    crate::css::css_enums::display_inside::FLOW,
+                    false,
+                ));
+            });
+    }
+    if is_list_item_marker {
+        layout_host
+            .arena()
+            .set_node_flag(slot, NodeFlag::ListMarkerIsInside, facts.marker_position_is_inside);
+    }
+    assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
+    Some(slot)
+}
+
+/// The row the list marker a list-item pseudo-element nests is built in, and its layout node. The
+/// marker belongs to the pseudo-element that nests it, not to the generator's own `::marker`, so it
+/// is generated for that pseudo-element and never becomes the `::marker`'s box.
+fn stamp_nested_list_marker_row(
+    host: &DomTreeBuilderHost<'_>,
+    generator: StyleNodeID,
+    pseudo_element: FfiPseudoElement,
+    list_item_box: NodeSlotId,
+) -> NodeSlotId {
+    let layout_host = host.layout();
+    // SAFETY: The builder remains live, and the identity names a live element.
+    let record = unsafe { (host.callbacks.nested_list_marker_style)(host.callbacks.builder, generator.raw()) };
+    let derived = layout_host
+        .arena()
+        .with_style_engine(|engine| DerivedStyleRecord::pin(engine, record));
+    // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference
+    // derived from it across the allocation.
+    let slot = unsafe { &mut *layout_host.arena }.allocate_unbound();
+    layout_host
+        .arena()
+        .stamp_anonymous_box(slot, NodeKind::ListItemMarkerBox, derived);
+    layout_host
+        .arena()
+        .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
+    let marker_position_is_inside = layout_host
+        .style(list_item_box)
+        .is_some_and(ComputedValuesView::list_style_position_is_inside);
+    layout_host
+        .arena()
+        .set_node_flag(slot, NodeFlag::ListMarkerIsInside, marker_position_is_inside);
+    assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
+    // SAFETY: The builder remains live, and the row the build stamped is a live NodeWithStyle.
+    unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, slot, false) };
+    slot
+}
+
+/// The row one item of a pseudo-element's generated content is built in, and its layout node. An
+/// image item takes the style of `style_box`, the pseudo-element's box or the marker it nests, as
+/// an inline box.
+fn create_generated_content_item(
+    host: &DomTreeBuilderHost<'_>,
+    generator: StyleNodeID,
+    pseudo_element: FfiPseudoElement,
+    item: crate::layout::generated_content::ContentItem,
+    style_box: NodeSlotId,
+) -> NodeSlotId {
+    use crate::layout::generated_content::ContentItem;
+    let layout_host = host.layout();
+    let image = match item {
+        ContentItem::Text(text) => {
+            let slot = layout_host.stamp_generated_text_box(&text);
+            layout_host
+                .arena()
+                .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
+            assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
+            return slot;
+        }
+        ContentItem::Image(content_index) => FfiGeneratedImage {
+            kind: FfiGeneratedImageKind::ContentImage,
+            content_index,
+            marker: NodeSlotId::INVALID,
+        },
+        ContentItem::ListStyleImage => FfiGeneratedImage {
+            kind: FfiGeneratedImageKind::ListStyleImage,
+            content_index: 0,
+            marker: style_box,
+        },
+    };
+    // https://drafts.csswg.org/css-content-3/#content-property
+    // For <image>, this is an inline anonymous replaced element.
+    let derived = layout_host.arena().derive_style_record_with_display(
+        layout_host.arena().node_style_record(style_box),
+        FfiDisplay::outside_and_inside(
+            crate::css::css_enums::display_outside::INLINE,
+            crate::css::css_enums::display_inside::FLOW,
+            false,
+        ),
+    );
+    // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference
+    // derived from it across the allocation.
+    let slot = unsafe { &mut *layout_host.arena }.allocate_unbound();
+    layout_host
+        .arena()
+        .stamp_anonymous_box(slot, NodeKind::ImageBox, derived);
+    layout_host
+        .arena()
+        .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
+    assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
+    // SAFETY: The builder remains live, the identity names a live element, and the row the build
+    // stamped is a live image box.
+    unsafe {
+        (host.callbacks.attach_generated_image)(host.callbacks.builder, slot, generator.raw(), pseudo_element, image);
+    }
+    slot
+}
+
 fn create_pseudo_element(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
@@ -3046,8 +3158,6 @@ fn create_pseudo_element(
     pseudo_element: FfiPseudoElement,
     insertion_mode: Option<FfiInsertionMode>,
 ) -> Option<UnplacedLayoutNode> {
-    let callbacks = &host.callbacks.pseudo;
-    let element = element_identity.raw();
     // The record the pseudo-element's boxes are built from is held for the whole build.
     let record = host.arena().with_style_store(|engine| {
         engine.pseudo_published_style_record(element_identity, generated_for_of(pseudo_element) - 1)
@@ -3065,20 +3175,8 @@ fn create_pseudo_element(
         return None;
     }
 
-    // SAFETY: The builder remains live, and the identity names a live element.
-    let layout_node = unsafe {
-        (callbacks.create_layout_node)(
-            callbacks.builder,
-            element,
-            pseudo_element,
-            decision,
-            facts.originating_list_box,
-        )
-    };
-    if layout_node.is_invalid() {
-        return None;
-    }
     let layout_host = host.layout();
+    let layout_node = stamp_pseudo_element_box_row(&layout_host, element_identity, pseudo_element, decision, facts)?;
     let mut unplaced_box = Some(layout_host.created(layout_node));
 
     // https://drafts.csswg.org/css-lists-3/#list-style-position-outside
@@ -3093,8 +3191,16 @@ fn create_pseudo_element(
         layout_host.attach_child(list_item_box, unplaced_box.take().expect("the marker box"), first_child);
     }
 
-    // SAFETY: The builder remains live, and the box the host just built is a live NodeWithStyle.
-    unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, layout_node, false) };
+    host.arena()
+        .stamp_pseudo_element_box(layout_node, element_identity, generated_for_of(pseudo_element));
+    // SAFETY: The builder remains live, and the row the build stamped is a live NodeWithStyle.
+    unsafe {
+        (host.callbacks.attach_style_resources)(
+            host.callbacks.builder,
+            layout_node,
+            decision == FfiPseudoElementDecision::ContentReplacement,
+        );
+    };
     if decision == FfiPseudoElementDecision::ContentReplacement {
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
@@ -3104,8 +3210,6 @@ fn create_pseudo_element(
     }
 
     let initial_quote_nesting_level = state.quote_nesting_level;
-    host.arena()
-        .stamp_pseudo_element_box(layout_node, element_identity, generated_for_of(pseudo_element));
     let layout_node_kind = layout_host.data(layout_node).kind.get();
     let is_outside_marker = layout_node_kind == NodeKind::ListItemMarkerBox && !facts.marker_position_is_inside;
     if let Some(insertion_mode) = insertion_mode
@@ -3127,12 +3231,8 @@ fn create_pseudo_element(
 
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
     if layout_node_kind == NodeKind::ListItemBox {
-        // SAFETY: The builder remains live, the identity names a live element, and the box the host just
-        // built is a live BlockContainer.
-        let marker = layout_host.created(unsafe {
-            (callbacks.create_nested_list_marker)(callbacks.builder, element, pseudo_element, layout_node)
-        });
-        let marker_slot = marker.slot();
+        let marker_slot = stamp_nested_list_marker_row(host, element_identity, pseudo_element, layout_node);
+        let marker = layout_host.created(marker_slot);
         let first_child = layout_host.first_child(layout_node);
         layout_host.attach_child(layout_node, marker, first_child);
         let marker_content = crate::layout::generated_content::resolve_nested_marker_content(
@@ -3142,19 +3242,9 @@ fn create_pseudo_element(
             layout_node,
         );
         report_list_item_counter_rendering(state, owner, marker_content.renders_list_item_counter_value);
-        // SAFETY: The builder remains live, and the identity names a live element.
-        let content = unsafe {
-            (callbacks.create_content_item)(
-                callbacks.builder,
-                element,
-                pseudo_element,
-                generated_content_item(marker_content.item, marker_slot),
-                layout_node,
-            )
-        };
-        if !content.is_invalid() {
-            layout_host.attach_child(marker_slot, layout_host.created(content), NodeSlotId::INVALID);
-        }
+        let content =
+            create_generated_content_item(host, element_identity, pseudo_element, marker_content.item, marker_slot);
+        layout_host.attach_child(marker_slot, layout_host.created(content), NodeSlotId::INVALID);
         layout_host.set_children_are_inline(marker_slot, true);
     }
 
@@ -3188,19 +3278,7 @@ fn create_pseudo_element(
             {
                 continue;
             }
-            // SAFETY: The builder remains live, and the identity names a live element.
-            let content_item = unsafe {
-                (callbacks.create_content_item)(
-                    callbacks.builder,
-                    element,
-                    pseudo_element,
-                    generated_content_item(item, NodeSlotId::INVALID),
-                    layout_node,
-                )
-            };
-            if content_item.is_invalid() {
-                continue;
-            }
+            let content_item = create_generated_content_item(host, element_identity, pseudo_element, item, layout_node);
             let current_parent = state.current_parent();
             let is_inline_outside = node_is_inline_outside(&layout_host, content_item);
             insert_node_into_inline_or_block_ancestor(

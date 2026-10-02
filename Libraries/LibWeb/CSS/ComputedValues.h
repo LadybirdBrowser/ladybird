@@ -1769,34 +1769,6 @@ private:
     bool m_present { false };
 };
 
-// The input to layout-node construction is either an authoritative style
-// record for a DOM style target or an owned style for an anonymous box.
-class LayoutStyle {
-public:
-    LayoutStyle() = default;
-    LayoutStyle(StyleRecordID style_record_identity)
-        : m_style_record_identity(style_record_identity)
-    {
-        VERIFY(style_record_identity);
-    }
-    LayoutStyle(NonnullRefPtr<ComputedValues const> values)
-        : m_values(move(values))
-    {
-    }
-    LayoutStyle(RefPtr<ComputedValues const> values)
-        : m_values(move(values))
-    {
-    }
-
-    explicit operator bool() const { return !!m_style_record_identity || m_values; }
-    [[nodiscard]] StyleRecordID style_record_identity() const { return m_style_record_identity; }
-    [[nodiscard]] RefPtr<ComputedValues const> const& values() const { return m_values; }
-
-private:
-    RefPtr<ComputedValues const> m_values;
-    StyleRecordID m_style_record_identity;
-};
-
 class ComputedValues::Mutator final {
 private:
     friend class Builder;

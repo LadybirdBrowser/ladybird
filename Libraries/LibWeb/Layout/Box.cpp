@@ -15,11 +15,6 @@
 
 namespace Web::Layout {
 
-Box::Box(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style, RustFFI::NodeKind kind)
-    : NodeWithStyle(document, node, move(style), kind)
-{
-}
-
 Box::Box(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : NodeWithStyle(document, bind, slot, kind)
 {

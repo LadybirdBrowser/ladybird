@@ -56,9 +56,6 @@ private:
     static DOM::Node& node_for_style_node(void* builder_pointer, u32 style_node);
 
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
-    RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
-
-    static Box& create_list_item_marker(Box& list_box, CSS::LayoutStyle marker_style);
 
     GC::Ptr<DOM::Document> m_document;
 };
@@ -177,13 +174,6 @@ static void attach_owned_image_provider(Box& image_box, CSS::AbstractImageStyleV
     image_provider_ref.set_layout_node(image_box);
 }
 
-static Box& create_content_image_box(DOM::Document& document, CSS::LayoutStyle style, CSS::AbstractImageStyleValue& image)
-{
-    auto& image_box = allocate_layout_node<Box>(document, nullptr, style, RustFFI::NodeKind::ImageBox);
-    attach_owned_image_provider(image_box, image);
-    return image_box;
-}
-
 static RefPtr<CSS::AbstractImageStyleValue const> content_replacement_image(CSS::StyleValue const& content)
 {
     if (!content.is_content())
@@ -194,22 +184,13 @@ static RefPtr<CSS::AbstractImageStyleValue const> content_replacement_image(CSS:
     return &items.first()->as_abstract_image();
 }
 
-// The image box the build stamped for an element whose content is a single image owns the provider of that image.
+// The image box the build stamped for an element or pseudo-element whose content is a single image owns the provider
+// of that image.
 static void attach_content_replacement_image(Box& image_box)
 {
-    auto const& element = as<DOM::Element>(*image_box.dom_node());
-    auto const* content_values = element.style_group<CSS::ComputedValues::ContentValues>();
-    VERIFY(content_values);
-    auto replacement_image = content_replacement_image(content_values->computed_content_value());
+    auto replacement_image = content_replacement_image(image_box.style_group<CSS::ComputedValues::ContentValues>().computed_content_value());
     VERIFY(replacement_image);
     attach_owned_image_provider(image_box, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
-}
-
-Box& LayoutTreeBuildBridge::create_list_item_marker(Box& list_box, CSS::LayoutStyle marker_style)
-{
-    auto& list_item_marker = allocate_layout_node<Box>(list_box.document(), nullptr, move(marker_style), RustFFI::NodeKind::ListItemMarkerBox);
-    list_item_marker.set_list_marker_is_inside(list_box.list_style_position() == CSS::ListStylePosition::Inside);
-    return list_item_marker;
 }
 
 // A DOM node paired with the identity its layout rows carry, so Rust can find them itself.
@@ -237,110 +218,6 @@ static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_el
         VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
-}
-
-// A box the build produced, named by its arena row: a pseudo-element's box, or the list item box a marker belongs to. The
-// build hands these back by slot rather than keeping a pointer to them.
-static NodeWithStyle* pseudo_element_build_node(DOM::Document& document, Compositing::RustFFI::NodeSlotId slot)
-{
-    if (slot.index == Compositing::RustFFI::INVALID_NODE_SLOT_INDEX)
-        return nullptr;
-    auto* layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(document.layout_node_arena().handle(), slot));
-    VERIFY(layout_node);
-    return &as<NodeWithStyle>(*layout_node);
-}
-
-RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tree_builder_callbacks()
-{
-    return {
-        .builder = this,
-        .create_layout_node = [](void* builder_pointer, u32 element_style_node, RustFFI::FfiPseudoElement ffi_pseudo, RustFFI::FfiPseudoElementDecision decision, Compositing::RustFFI::NodeSlotId originating_list_box_slot) -> Compositing::RustFFI::NodeSlotId {
-            auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, element_style_node));
-            auto pseudo_element = css_pseudo_element(ffi_pseudo);
-            auto style_record_identity = element.style_record_identity(pseudo_element);
-            VERIFY(style_record_identity);
-            auto const* pseudo_payloads = element.style_record_payloads(pseudo_element);
-            VERIFY(pseudo_payloads);
-            auto const display = CSS::style_group_from_payloads<CSS::ComputedValues::BoxValues>(pseudo_payloads)->display_value();
-            CSS::LayoutStyle style { style_record_identity };
-            auto& document = element.document();
-            auto* originating_list_box = pseudo_element_build_node(document, originating_list_box_slot);
-            NodeWithStyle* layout_node = nullptr;
-            switch (decision) {
-            case RustFFI::FfiPseudoElementDecision::None:
-                VERIFY_NOT_REACHED();
-            case RustFFI::FfiPseudoElementDecision::ContentReplacement: {
-                auto const replacement_image = content_replacement_image(CSS::style_group_from_payloads<CSS::ComputedValues::ContentValues>(pseudo_payloads)->computed_content_value());
-                VERIFY(replacement_image);
-                layout_node = &create_content_image_box(document, style, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
-                break;
-            }
-            case RustFFI::FfiPseudoElementDecision::Contents:
-                layout_node = &allocate_layout_node<NodeWithStyle>(document, nullptr, style, RustFFI::NodeKind::InlineNode);
-                layout_node->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
-                break;
-            case RustFFI::FfiPseudoElementDecision::Box:
-                if (originating_list_box) {
-                    layout_node = &create_list_item_marker(as<Box>(*originating_list_box), style);
-                    break;
-                }
-                layout_node = DOM::Element::create_layout_node_for_display_type(document, display, style, nullptr);
-                break;
-            }
-            // The box becomes the pseudo-element's box, which holds the offset the pseudo-element has been scrolled to.
-            if (auto pseudo = element.get_synthetic_pseudo_element(pseudo_element); layout_node && pseudo.has_value() && !pseudo->scroll_offset().is_zero())
-                RustFFI::layout_arena_set_node_flag(document.layout_node_arena().handle(), Node::slot_id(layout_node), RustFFI::NodeFlag::HasScrollOffset, true);
-            return Node::slot_id(layout_node); },
-
-        .create_nested_list_marker = [](void* builder_pointer, u32 element_style_node, RustFFI::FfiPseudoElement originating_pseudo, Compositing::RustFFI::NodeSlotId pseudo_element_box_slot) -> Compositing::RustFFI::NodeSlotId {
-            auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, element_style_node));
-            auto& list_item_box = as<Box>(*pseudo_element_build_node(element.document(), pseudo_element_box_slot));
-            auto marker_style = [&] {
-                // NB: Republishing the element's own ::marker style can retire its animation record while the
-                //     pseudo-element still refers to it. Give the nested marker a copy of the existing style.
-                if (auto style = element.computed_style(CSS::PseudoElement::Marker))
-                    return CSS::ComputedValues::Builder { *style }.build();
-                // The style engine derives the ::marker style for this read alone; C++ computes it where the engine
-                // leaves the read to it.
-                auto& style_computer = element.document().style_computer();
-                if (auto style = style_computer.engine_transient_pseudo_element_style(element, CSS::PseudoElement::Marker))
-                    return style.release_nonnull();
-                return style_computer.materialize_style_record({ element, CSS::PseudoElement::Marker });
-            }();
-            auto& list_item_marker = create_list_item_marker(list_item_box, move(marker_style));
-            list_item_marker.attach_style_resources();
-            // NB: The marker of a list-item ::before or ::after belongs to that pseudo-element, not to the element's own
-            //     ::marker, so it is generated for the originating pseudo-element and never becomes the ::marker's box.
-            list_item_marker.set_generated_for(css_pseudo_element(originating_pseudo), element);
-            return Node::slot_id(&list_item_marker); },
-        .create_content_item = [](void* builder_pointer, u32 element_style_node, RustFFI::FfiPseudoElement ffi_pseudo, RustFFI::FfiGeneratedContentItem item, Compositing::RustFFI::NodeSlotId pseudo_element_box_slot) -> Compositing::RustFFI::NodeSlotId {
-            auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, element_style_node));
-            auto& pseudo_element_box = *pseudo_element_build_node(element.document(), pseudo_element_box_slot);
-            // The marker a list-item pseudo-element nests takes its content's style from itself.
-            auto* nested_marker = pseudo_element_build_node(element.document(), item.nested_marker);
-            Node* content_item = nullptr;
-            if (item.kind == RustFFI::FfiGeneratedContentItemKind::Text) {
-                content_item = &allocate_layout_node<GeneratedTextNode>(element.document(), Utf16String::adopt_raw(item.text));
-            } else {
-                auto& style_box = nested_marker ? *nested_marker : pseudo_element_box;
-                auto image = [&] -> NonnullRefPtr<CSS::AbstractImageStyleValue const> {
-                    if (item.kind == RustFFI::FfiGeneratedContentItemKind::ListStyleImage)
-                        return *style_box.list_style_image();
-                    auto const* payloads = DOM::AbstractElement { element, css_pseudo_element(ffi_pseudo) }.style_record_payloads();
-                    VERIFY(payloads);
-                    auto content = CSS::style_group_from_payloads<CSS::ComputedValues::ContentValues>(payloads)->computed_content_value();
-                    return content->as_content().content().values()[item.content_index]->as_abstract_image();
-                }();
-                auto& image_box = create_content_image_box(element.document(), style_box.copy_computed_values(), const_cast<CSS::AbstractImageStyleValue&>(*image));
-                // https://drafts.csswg.org/css-content-3/#content-property
-                // For <image>, this is an inline anonymous replaced element.
-                image_box.set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
-                image_box.attach_style_resources();
-                content_item = &image_box;
-            }
-            content_item->set_generated_for(css_pseudo_element(ffi_pseudo), element);
-            return Node::slot_id(content_item); },
-    };
 }
 
 // The node an identity names. The document is not in the style computer's node table, because a document holding a
@@ -387,10 +264,42 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
             auto* layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(builder.m_document->layout_node_arena().handle(), slot));
             VERIFY(layout_node);
+            // A pseudo-element's box holds the offset the pseudo-element has been scrolled to once it is bound to it.
+            layout_node->update_has_scroll_offset_flag();
             if (owns_content_replacement_image)
                 attach_content_replacement_image(as<Box>(*layout_node));
             as<NodeWithStyle>(*layout_node).attach_style_resources(); },
-        .pseudo = make_ffi_pseudo_tree_builder_callbacks(),
+        .nested_list_marker_style = [](void* builder_pointer, u32 element_style_node) -> u64 {
+            auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, element_style_node));
+            auto& style_computer = element.document().style_computer();
+            // NB: Republishing the element's own ::marker style can retire its animation record while the pseudo-element
+            //     still refers to it. Give the nested marker a record of its own, made from a copy of the existing style.
+            auto marker_style = [&] {
+                if (auto style = element.computed_style(CSS::PseudoElement::Marker))
+                    return CSS::ComputedValues::Builder { *style }.build();
+                // The style engine derives the ::marker style for this read alone; C++ computes it where the engine
+                // leaves the read to it.
+                if (auto style = style_computer.engine_transient_pseudo_element_style(element, CSS::PseudoElement::Marker))
+                    return style.release_nonnull();
+                return style_computer.materialize_style_record({ element, CSS::PseudoElement::Marker });
+            }();
+            return style_computer.intern_anonymous_layout_style(*marker_style).value(); },
+        .attach_generated_image = [](void* builder_pointer, Compositing::RustFFI::NodeSlotId slot, u32 element_style_node, RustFFI::FfiPseudoElement ffi_pseudo, RustFFI::FfiGeneratedImage generated_image) {
+            auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, element_style_node));
+            auto& arena = element.document().layout_node_arena();
+            auto& image_box = as<Box>(*static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(arena.handle(), slot)));
+            auto image = [&] -> NonnullRefPtr<CSS::AbstractImageStyleValue const> {
+                if (generated_image.kind == RustFFI::FfiGeneratedImageKind::ListStyleImage) {
+                    auto& marker = as<NodeWithStyle>(*static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(arena.handle(), generated_image.marker)));
+                    return *marker.list_style_image();
+                }
+                auto const* payloads = DOM::AbstractElement { element, css_pseudo_element(ffi_pseudo) }.style_record_payloads();
+                VERIFY(payloads);
+                auto content = CSS::style_group_from_payloads<CSS::ComputedValues::ContentValues>(payloads)->computed_content_value();
+                return content->as_content().content().values()[generated_image.content_index]->as_abstract_image();
+            }();
+            attach_owned_image_provider(image_box, const_cast<CSS::AbstractImageStyleValue&>(*image));
+            image_box.attach_style_resources(); },
     };
 }
 

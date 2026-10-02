@@ -25,8 +25,8 @@ use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
-    AncestorFact, DomPaintFact, FfiNodeConstructionFacts, FfiNodeLink, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData,
-    NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef,
+    AncestorFact, DomPaintFact, FfiNodeLink, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind,
+    NodeSlotId, StylePayloadsRef,
 };
 use crate::stage::MainThread;
 use std::cell::Cell;
@@ -893,13 +893,15 @@ impl LayoutNodeArena {
 
     // Freshly created chunks are default-initialized and free() resets slots on release, so
     // allocate() always hands out clean NodeData without writing it again.
-    pub(crate) fn allocate(&mut self, construction_facts: FfiNodeConstructionFacts) -> NodeSlotId {
+    #[cfg(test)]
+    pub(crate) fn allocate(&mut self, construction_facts: super::node_data::FfiNodeConstructionFacts) -> NodeSlotId {
         let slot = self.allocate_unbound();
         self.bind_shell(slot, construction_facts);
         slot
     }
 
-    pub(crate) fn bind_shell(&self, slot: NodeSlotId, construction_facts: FfiNodeConstructionFacts) {
+    #[cfg(test)]
+    pub(crate) fn bind_shell(&self, slot: NodeSlotId, construction_facts: super::node_data::FfiNodeConstructionFacts) {
         assert!(
             self.slot_is_live(slot),
             "layout node arena bound a shell to a dead slot"
@@ -917,31 +919,8 @@ impl LayoutNodeArena {
             super::node_facts::construction_fact_word(&construction_facts),
         ));
         data.dom_paint_facts.set(construction_facts.dom_paint_facts);
-        #[cfg(debug_assertions)]
-        self.assert_published_construction_facts(&construction_facts);
         self.set_node_style_node(slot, StyleNodeID::from_raw(construction_facts.style_node));
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
-    }
-
-    /// The facts a row records about its node are also published in the style mirror under the
-    /// node's identity, for a tree build that builds rows without a DOM node in hand. Until one
-    /// does, the shell that hands them over checks that the two agree.
-    #[cfg(debug_assertions)]
-    fn assert_published_construction_facts(&self, facts: &FfiNodeConstructionFacts) {
-        let Some(style_node) = StyleNodeID::from_raw(facts.style_node) else {
-            return;
-        };
-        if !self.has_style_engine() {
-            return;
-        }
-        let expected = super::node_facts::construction_fact_word(facts);
-        let published = self.with_style_store(|engine| engine.element_construction_facts(style_node));
-        assert_eq!(
-            published,
-            expected,
-            "the construction facts published for style node {} disagree with its DOM node",
-            style_node.raw()
-        );
     }
 
     #[cfg(test)]
@@ -2237,6 +2216,22 @@ impl LayoutNodeArena {
         overrides: AnonymousStyleOverrides,
     ) -> DerivedStyleRecord {
         self.with_style_engine(|engine| LayoutStyle::anonymous(engine, parent, kind, overrides).intern(engine))
+    }
+
+    /// `record` with its display replaced by `display`, pinned for a row of the arena.
+    pub(crate) fn derive_style_record_with_display(
+        &self,
+        record: u64,
+        display: crate::layout::FfiDisplay,
+    ) -> DerivedStyleRecord {
+        self.with_style_engine(|engine| {
+            let mut style = LayoutStyle::from_record(engine, record);
+            style.set_display(display);
+            if style.is_unchanged() {
+                return DerivedStyleRecord::pin(engine, record);
+            }
+            style.intern(engine)
+        })
     }
 
     pub(crate) fn reinherit_anonymous_style_record(&self, record: u64, parent: u64) -> DerivedStyleRecord {
@@ -4641,31 +4636,6 @@ pub unsafe extern "C" fn layout_arena_generated_text(arena: *mut c_void, id: Nod
         .into_raw()
 }
 
-/// Records the characters a generated text row renders.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create` with no outstanding borrow, and `text`
-/// a raw `AK::Utf16String` representation for which the caller transfers one reference.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_generated_text(arena: *mut c_void, id: NodeSlotId, text: usize) {
-    // SAFETY: The caller transfers one reference to a live string.
-    let text = unsafe { ak::Utf16String::from_raw_owned(text) };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle_mut(arena) }.set_generated_text(id, text);
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_allocate(
-    arena: *mut c_void,
-    construction_facts: FfiNodeConstructionFacts,
-) -> NodeSlotId {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &mut *arena.cast::<LayoutNodeArena>() }.allocate(construction_facts)
-}
-
 /// Whether the counter styles the generated content of the element `style_node` names, or of its
 /// pseudo-element `generated_for`, names now differ from the ones its box was built with.
 ///
@@ -4937,22 +4907,6 @@ pub unsafe extern "C" fn layout_arena_set_node_needs_compositor_animation_frame(
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on the document thread.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_needs_compositor_animation_frame(id, kind, value);
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_node_generated_for(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    generated_for: u8,
-    generator_style_node: u32,
-) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_generated_for(
-        id,
-        generated_for,
-        StyleNodeID::from_raw(generator_style_node),
-    );
 }
 
 #[unsafe(no_mangle)]

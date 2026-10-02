@@ -250,7 +250,6 @@ class ColorStyleValue;
 class ComputedStyleWorkingSet;
 class ComputedValues;
 class ComputedStyleRecordView;
-class LayoutStyle;
 class ConicGradientStyleValue;
 class ContainerQuery;
 class ContentStyleValue;

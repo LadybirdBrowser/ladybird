@@ -474,7 +474,8 @@ pub(crate) fn has_ancestor_fact(data: &NodeData, fact: AncestorFact) -> bool {
     data.ancestor_facts.get() & fact as u8 != 0
 }
 
-/// The construction facts a layout node hands over, as the word the style mirror publishes them in.
+/// The construction facts a test row is built with, as the word the style mirror publishes them in.
+#[cfg(test)]
 pub(crate) fn construction_fact_word(facts: &FfiNodeConstructionFacts) -> u32 {
     use crate::css::style::bridge::element_construction_fact as fact;
     [

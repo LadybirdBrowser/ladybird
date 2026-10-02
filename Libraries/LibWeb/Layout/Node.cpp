@@ -67,43 +67,6 @@ CSS::StyleNodeID Node::style_node_of(DOM::Node const* node)
     return {};
 }
 
-static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, void* shell)
-{
-    return {
-        .kind = kind,
-        .shell = shell,
-        .is_anonymous = node == nullptr,
-        .is_html_input_element = node && is<HTML::HTMLInputElement>(*node),
-        .is_html_html_element = node && node->is_html_html_element(),
-        .is_document_element = node && node.ptr() == document.document_element(),
-        .is_in_user_agent_shadow_tree = node && node->containing_shadow_root() && node->containing_shadow_root()->is_user_agent_internal(),
-        .uses_button_layout = node && is<HTML::HTMLElement>(*node) && static_cast<HTML::HTMLElement const&>(*node).uses_button_layout(),
-        .is_editing_host = node && node->is_editing_host(),
-        .is_body = node && node == GC::Ptr { document.body() },
-        .dom_paint_facts = Node::dom_paint_facts_of(node.ptr()),
-        .style_node = Node::style_node_of(node.ptr()).value(),
-    };
-}
-
-Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, AttachToDOMNode attach_to_dom_node)
-    : m_arena(document.layout_node_arena())
-    , m_slot(m_arena->allocate(build_node_construction_facts(document, node, kind, this)))
-    , m_kind(kind)
-{
-    update_has_scroll_offset_flag();
-
-    if (!node)
-        return;
-    auto* row_already_bound_to_dom_node = node->unsafe_layout_node();
-    if (row_already_bound_to_dom_node)
-        RustFFI::layout_arena_note_rows_share_dom_node(m_arena->handle(), row_already_bound_to_dom_node->m_slot, m_slot);
-    if (attach_to_dom_node == AttachToDOMNode::Yes) {
-        if (row_already_bound_to_dom_node)
-            row_already_bound_to_dom_node->pin_style_record_for_detachment();
-        RustFFI::layout_arena_bind_row(m_arena->handle(), m_slot);
-    }
-}
-
 // The build stamps a row out of its node's identity, binds it to the node, and makes the layout node for it here. A row
 // stamped for no node at all is an anonymous box.
 Node::Node(DOM::Document& document, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
@@ -296,22 +259,6 @@ bool NodeWithStyle::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style, RustFFI::NodeKind kind)
-    : Node(document, node, kind)
-{
-    VERIFY(style);
-    if (!!style.style_record_identity()) {
-        m_style_record_identity = style.style_record_identity();
-    } else if (auto* element = as_if<DOM::Element>(node.ptr())) {
-        m_style_record_identity = document.style_computer().intern_computed_style_inputs({ *element }, *style.values());
-    } else {
-        m_style_record_identity = document.style_computer().intern_anonymous_layout_style(*style.values());
-    }
-    initialize_from_style_record();
-    if (!style.style_record_identity())
-        RustFFI::layout_arena_adopt_derived_node_style(arena_handle(), slot_id(this), m_style_record_identity.value());
-}
-
 // The build stamped the row with its style, which this layout node reads off the row. A row built for a DOM node
 // tells the document what its style asks for, as a layout node built from the node's style did.
 NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
@@ -327,12 +274,6 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
     } else if (is_generated_for_pseudo_element()) {
         did_update_style_record();
     }
-}
-
-void NodeWithStyle::initialize_from_style_record()
-{
-    publish_style_record_to_node_data();
-    synchronize_table_span_data();
 }
 
 bool NodeWithStyle::has_layout_derived_style() const
@@ -683,18 +624,6 @@ void NodeWithStyle::release_pinned_style_record()
     RustFFI::layout_arena_release_node_style_record_pin_for_host(arena_handle(), slot_id(this));
 }
 
-void NodeWithStyle::bind_generated_style_record(CSS::StyleRecordID target_style_record_identity)
-{
-    VERIFY(is_generated_for_pseudo_element());
-    if (!has_layout_derived_style()) {
-        set_style_record_identity(target_style_record_identity);
-        return;
-    }
-    if (m_style_record_identity != target_style_record_identity)
-        return;
-    publish_style_record_to_node_data();
-}
-
 static Node const* scroll_snap_container_of(NodeWithStyle const& node)
 {
     // The scroll snap properties specified on the root element apply to the viewport rather than to its own box.
@@ -840,19 +769,13 @@ DOM::NodeIdentity Node::pseudo_element_generator_identity() const
     return DOM::NodeIdentity::of_style_node(style_node_id());
 }
 
-void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
-{
-    static_assert(encode_generated_for(CSS::PseudoElement::After) == RustFFI::GENERATED_FOR_AFTER);
-    static_assert(encode_generated_for(CSS::PseudoElement::Backdrop) == RustFFI::GENERATED_FOR_BACKDROP);
-    static_assert(encode_generated_for(CSS::PseudoElement::Before) == RustFFI::GENERATED_FOR_BEFORE);
-    static_assert(encode_generated_for(CSS::PseudoElement::FirstLetter) == RustFFI::GENERATED_FOR_FIRST_LETTER);
-    static_assert(encode_generated_for(CSS::PseudoElement::Marker) == RustFFI::GENERATED_FOR_MARKER);
-    static_assert(encode_generated_for(CSS::first_synthetic_pseudo_element) == RustFFI::GENERATED_FOR_AFTER);
-    static_assert(encode_generated_for(CSS::last_synthetic_pseudo_element) == RustFFI::GENERATED_FOR_LAST_SYNTHETIC);
-    RustFFI::layout_arena_set_node_generated_for(arena_handle(), slot_id(this), encode_generated_for(type), element.style_node_id().value());
-    if (auto* node_with_style = as_if<NodeWithStyle>(*this))
-        node_with_style->bind_generated_style_record(element.style_record_identity(type));
-}
+static_assert(Node::encode_generated_for(CSS::PseudoElement::After) == RustFFI::GENERATED_FOR_AFTER);
+static_assert(Node::encode_generated_for(CSS::PseudoElement::Backdrop) == RustFFI::GENERATED_FOR_BACKDROP);
+static_assert(Node::encode_generated_for(CSS::PseudoElement::Before) == RustFFI::GENERATED_FOR_BEFORE);
+static_assert(Node::encode_generated_for(CSS::PseudoElement::FirstLetter) == RustFFI::GENERATED_FOR_FIRST_LETTER);
+static_assert(Node::encode_generated_for(CSS::PseudoElement::Marker) == RustFFI::GENERATED_FOR_MARKER);
+static_assert(Node::encode_generated_for(CSS::first_synthetic_pseudo_element) == RustFFI::GENERATED_FOR_AFTER);
+static_assert(Node::encode_generated_for(CSS::last_synthetic_pseudo_element) == RustFFI::GENERATED_FOR_LAST_SYNTHETIC);
 
 void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old_style_node)
 {
