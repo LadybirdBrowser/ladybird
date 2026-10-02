@@ -1110,6 +1110,7 @@ generate_css_implementation()
 
 generate_html_implementation()
 
+generate_picture_in_picture_implementation()
 
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
@@ -1132,6 +1133,7 @@ set(GENERATED_SOURCES
     SVG/SVGStyleSheetSource.cpp
     HTML/MediaControlsDOM.cpp
     HTML/Parser/NamedCharacterReferences.cpp
+    PictureInPicture/PictureInPicturePlayerDOM.cpp
 )
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)

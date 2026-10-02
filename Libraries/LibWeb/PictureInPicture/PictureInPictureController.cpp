@@ -18,6 +18,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/PictureInPicture/PictureInPictureEvent.h>
+#include <LibWeb/PictureInPicture/PictureInPicturePlayerDOM.h>
 #include <LibWeb/PictureInPicture/PictureInPictureWindow.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -145,6 +146,13 @@ void PictureInPictureController::process_pending_operations()
     }
 }
 
+// The window's page is a player whose video shows the frames of the video in Picture-in-Picture.
+static void create_player(DOM::Document& document, HTML::HTMLVideoElement& source)
+{
+    PictureInPicturePlayerDOM player { document, *document.body() };
+    as<HTML::HTMLVideoElement>(*player.video).set_visual_source(source);
+}
+
 // https://w3c.github.io/picture-in-picture/#request-picture-in-picture
 void PictureInPictureController::run_request_steps(Request const& request)
 {
@@ -187,6 +195,7 @@ void PictureInPictureController::run_request_steps(Request const& request)
     }
 
     auto traversable = HTML::LocalTraversableNavigable::create_for_new_web_view(move(new_web_view), nullptr);
+    create_player(*traversable->active_document(), video);
     m_window_awaiting_open = WindowAwaitingOpen { request, traversable };
 }
 
@@ -326,6 +335,7 @@ void PictureInPictureController::close_window(PictureInPictureWindow& window, Wi
 {
     if (window.is_open()) {
         window.close();
+        window.video().clear_visual_clones();
         window.traversable().close_top_level_traversable(HTML::LocalTraversableNavigable::PromptToUnload::No);
     }
 
