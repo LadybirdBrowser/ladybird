@@ -1,0 +1,6 @@
+first, under display:none from the start: 0 animation(s)
+second, shown: 1 animation(s), grow
+second, hidden: 0 animation(s)
+C++ recomputations: 0
+first, revealed: 1 animation(s), grow
+second, revealed: 1 animation(s), grow

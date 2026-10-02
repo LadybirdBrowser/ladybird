@@ -116,6 +116,10 @@ pub enum FfiStyleDeltaGap {
     Computed,
     /// Retry a cold drive while applying the preorder batch, after its parent is authoritative.
     RetryAfterAncestor,
+    /// The element needs no style: the host holds none for it in a display:none subtree, and
+    /// neither it nor any element inheriting from it reads style while hidden. A read or the
+    /// subtree's reveal asks for its record.
+    Hidden,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -1,0 +1,4 @@
+C++ computations for the hidden subtree: 0
+hidden SVG resource: rgb(0, 128, 0)
+hidden child: 37px, rgb(10, 20, 30)
+revealed child: 37

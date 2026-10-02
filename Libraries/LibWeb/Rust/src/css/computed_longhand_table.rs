@@ -568,6 +568,8 @@ pub(crate) const DEPENDS_ON_VIEWPORT_METRICS: u8 = 1;
 /// The dependency-flag bit of a record whose font metrics read the viewport, as a `vw` font size
 /// does: what `em` and the other font-relative units resolve against moves with the viewport.
 pub(crate) const FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS: u8 = 1 << 1;
+/// The dependency-flag bit of a record whose element is `display: none` or inherits from one that is.
+pub(crate) const IN_DISPLAY_NONE_SUBTREE: u8 = 1 << 2;
 /// The dependency-flag bit of a highlight pseudo-element record whose `color` or `background-color`
 /// comes from the author origin, on itself or up its highlight chain, so the paired default colors
 /// do not apply. Bits 0 to 4 are the viewport, font-metric, display-none, swap-eligibility and image
@@ -815,7 +817,11 @@ impl ComputedLonghandTable {
     }
 
     pub(crate) fn publication_dependency_flags(&self) -> u8 {
-        self.metadata.dependency_flags | (u8::from(self.metadata.in_display_none_subtree) << 2)
+        if self.metadata.in_display_none_subtree {
+            self.metadata.dependency_flags | IN_DISPLAY_NONE_SUBTREE
+        } else {
+            self.metadata.dependency_flags
+        }
     }
 
     pub(crate) fn pseudo_element_styles(&self) -> u64 {

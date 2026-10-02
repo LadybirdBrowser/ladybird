@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+.hidden { display: none; color: rgb(10, 20, 30); }
+.child { width: 37px; }
+stop { stop-color: rgb(0, 128, 0); }
+</style>
+<svg width="20" height="20"><rect width="20" height="20" fill="url(#gradient)"></rect></svg>
+<script>
+test(() => {
+    internals.updateStyle();
+    const host = document.createElement("div");
+    host.className = "hidden";
+    host.innerHTML = `<div class="child"></div><svg><linearGradient id="gradient"><stop offset="0"></stop></linearGradient></svg>`;
+    const counters = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
+    const before = counters();
+    document.body.append(host);
+    internals.updateStyle();
+    println(`C++ computations for the hidden subtree: ${counters() - before}`);
+    println(`hidden SVG resource: ${getComputedStyle(host.querySelector("stop")).stopColor}`);
+    const child = host.firstElementChild;
+    println(`hidden child: ${getComputedStyle(child).width}, ${getComputedStyle(child).color}`);
+    host.classList.remove("hidden");
+    println(`revealed child: ${child.offsetWidth}`);
+});
+</script>
