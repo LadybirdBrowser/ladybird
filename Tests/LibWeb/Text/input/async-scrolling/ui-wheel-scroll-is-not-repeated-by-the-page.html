@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        let wheelEvents = 0;
+        window.addEventListener("wheel", () => ++wheelEvents, { passive: true });
+        await animationFrame();
+        await animationFrame();
+
+        // The compositor scrolls the page for a wheel event from the UI and forwards the event to the page flagged as
+        // having done so, so the page fires the event without scrolling by its delta a second time.
+        await scrollSettled(document, () => internals.wheelThroughUIProcess(20, 20, 0, 50));
+        await animationFrame();
+        await animationFrame();
+        println(`window.scrollY: ${window.scrollY}`);
+        println(`wheel events: ${wheelEvents}`);
+    });
+</script>
