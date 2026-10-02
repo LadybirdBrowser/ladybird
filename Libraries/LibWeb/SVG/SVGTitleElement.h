@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::SVG {
@@ -14,10 +15,17 @@ class SVGTitleElement final : public SVGElement {
     WEB_WRAPPABLE(SVGTitleElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGTitleElement);
 
+public:
+    void set_text(Utf16View value);
+
 private:
     SVGTitleElement(DOM::Document&, DOM::QualifiedName);
     virtual CSS::ElementBoxKind box_kind() const override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
+
+    void report_title_change_to_page();
+
+    bool m_suppresses_title_change_reports { false };
 };
 
 }
