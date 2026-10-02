@@ -68,6 +68,13 @@ mod unicode_test_stubs {
     }
 
     #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_code_point_category_facts(
+        _code_point: u32,
+    ) -> crate::layout::tree_builder::FfiCodePointCategoryFacts {
+        unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
     extern "C" fn ladybird_layout_code_point_has_break_all_line_break_class(_code_point: u32) -> bool {
         unreachable!("no unit test segments text");
     }

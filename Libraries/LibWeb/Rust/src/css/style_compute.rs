@@ -7303,6 +7303,10 @@ pub(crate) mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
+    extern "C" fn ladybird_utf16_string_create_uninitialized(_length: usize, _has_ascii_storage: bool) -> usize {
+        unreachable!("no unit test makes a string the host owns");
+    }
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize {
         // Keep a process-wide test atom table with AK's header layout so worker-parsed
         // names remain alive after the worker exits.

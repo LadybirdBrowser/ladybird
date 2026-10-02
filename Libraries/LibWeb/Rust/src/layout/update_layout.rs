@@ -70,6 +70,29 @@ pub(crate) unsafe fn run_layout_stage_job(
     )
 }
 
+/// Runs `job`, the layout tree build of the document whose arena `arena_handle` names, on the document's render state,
+/// and answers what the build owes the host. A unit test's arena has no render state, and its build runs in place.
+///
+/// # Safety
+///
+/// `arena_handle` must be a live handle on the document thread.
+pub(crate) unsafe fn run_tree_build_job(
+    main_thread: &MainThread,
+    arena_handle: *mut c_void,
+    job: super::tree_builder::TreeBuildJob,
+) -> super::tree_builder::TreeBuildAnswer {
+    let Some(host) = main_thread.host() else {
+        // SAFETY: Guaranteed by the caller.
+        return job.run(unsafe { &mut *arena_handle.cast() });
+    };
+    let document = host.document();
+    crate::render_state::wait_from_entry(
+        crate::render_state::LockstepProof::for_reason(&LAYOUT_UPDATE),
+        main_thread,
+        |reply| crate::render_state::RenderMessage::TreeBuild { document, job, reply },
+    )
+}
+
 /// The document-side steps of a layout update. Each callback receives the registered
 /// `context`, the owning document, first and answers synchronously; any of them may run the
 /// layout update of another document, so the loop holds no arena borrow across a call. The

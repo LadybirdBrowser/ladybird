@@ -25,7 +25,6 @@ use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_le
 use crate::layout::tree_mutation::{HostCalls, OwedHostWork, UnplacedLayoutNode, free_subtree_and_destroy_shells};
 use crate::layout::tree_update_marks::layout_tree_update_reuse_reason;
 use crate::layout::{ComputedValuesView, FfiDisplay};
-use std::ffi::c_void;
 
 mod main_thread_entries;
 
@@ -1207,7 +1206,7 @@ struct DomTreeBuilderHost<'a> {
 
 impl DomTreeBuilderHost<'_> {
     fn arena(&self) -> &LayoutNodeArena {
-        // SAFETY: Entry points guarantee that the arena remains live for the duration of the build.
+        // SAFETY: The host borrows the state that holds the arena for as long as it lives.
         unsafe { &*self.arena }
     }
 
@@ -1308,10 +1307,162 @@ fn dom_child_layout_plan(host: &DomTreeBuilderHost<'_>, node: StyleNodeID) -> (b
     )
 }
 
-fn dom_tree_builder_host(arena: *mut c_void, work: &OwedHostWork) -> DomTreeBuilderHost<'_> {
-    assert!(!arena.is_null());
+/// A document's layout tree build, which the host sends its render state: builds or updates the
+/// tree from the document's style node, and answers what the build owes the host.
+pub(crate) struct TreeBuildJob {
+    document_style_node: StyleNodeID,
+    /// The document's style, which the host makes rather than publishes, so a build that may build
+    /// the viewport is handed it before it starts.
+    document_style_record: Option<u64>,
+}
+
+/// What a tree build owes the host once it is over, in the order the host pays it.
+pub(crate) struct TreeBuildAnswer {
+    pub(crate) outcome: FfiLayoutTreeBuildOutcome,
+    /// The host calls the walk could only queue.
+    pub(crate) work: OwedHostWork,
+    /// What the build found out that the document has to be told, in the order it found it out.
+    pub(crate) reports: Vec<crate::layout::commit::FfiCommitMessage>,
+    /// The scroll containers the build gave a style.
+    pub(crate) built_scroll_containers: Vec<super::formatting_context::FfiBuiltScrollContainer>,
+}
+
+impl TreeBuildJob {
+    /// Runs the build over the arena of `state`.
+    pub(crate) fn run(self, state: &mut ArenaHandle) -> TreeBuildAnswer {
+        // What the walk owes the host, which the walk, holding no main thread token, can only queue.
+        let work = OwedHostWork::default();
+        let host = dom_tree_builder_host(state, &work);
+        host.arena().queue_box_presence();
+        let document_identity = self.document_style_node;
+        host.layout().arena().set_document_style_node(document_identity);
+        let mut state = TreeBuilderState::default();
+        // The viewport's style is the document's, which the host makes rather than publishes, so a
+        // build that may build the viewport is handed it before it starts.
+        if let Some(record) = self.document_style_record {
+            state.document_style = Some(
+                host.layout()
+                    .arena()
+                    .with_style_engine(|engine| DerivedStyleRecord::pin(engine, record)),
+            );
+        }
+        let mut context = TreeBuilderContext {
+            document_needs_full_layout_tree_update: host.layout().arena().needs_full_layout_tree_update(),
+            ..Default::default()
+        };
+        // Whether the document already had a viewport, read before the build replaces it.
+        let document_had_layout_node = !host.layout().arena().layout_root().is_invalid();
+
+        update_layout_tree_from(
+            &host,
+            &mut state,
+            document_identity,
+            &mut context,
+            false,
+            FfiInsertionMode::Append,
+            true,
+        );
+
+        let document_layout_node = host.layout().arena().layout_root();
+        let rebuilt_subtrees_were_updated_individually = !document_layout_node.is_invalid()
+            && !(context.document_needs_full_layout_tree_update
+                || !document_had_layout_node
+                || state.layout_tree_update_escaped_rebuild_roots);
+        if !document_layout_node.is_invalid() {
+            let layout_host = host.layout();
+            if rebuilt_subtrees_were_updated_individually {
+                fixup_tables_in_rebuilt_subtrees(
+                    &layout_host,
+                    &state.rebuilt_subtree_roots,
+                    &state.reused_child_list_update_roots,
+                    &state.additional_table_fixup_roots,
+                );
+            } else {
+                layout_host.arena().set_needs_full_scrollable_overflow_recalculation();
+                fixup_tables(&layout_host, document_layout_node);
+            }
+
+            // https://drafts.csswg.org/css-scrollbars/#scrollbar-width
+            // UAs must apply the scrollbar-color value set on the root element to the viewport.
+            // The document element is the document's only DOM child the style mirror holds: a doctype, a
+            // comment and a processing instruction hold no place in its child sequence, and a document
+            // can have no text child.
+            let root_layout_node = host
+                .first_dom_child(document_identity)
+                .map_or(NodeSlotId::INVALID, |document_element| {
+                    layout_host.arena().bound_row(document_element)
+                });
+            if !root_layout_node.is_invalid() {
+                let scrollbar_width = layout_host
+                    .style(root_layout_node)
+                    .expect("the document element's box publishes its style during the build")
+                    .misc_reset()
+                    .scrollbar_width;
+                layout_host
+                    .arena()
+                    .update_layout_style(layout_host.host_calls(), document_layout_node, |style| {
+                        style.set_scrollbar_width(scrollbar_width);
+                    });
+            }
+        }
+
+        for &element in &state.layout_tree_rebuild_requests {
+            // A request that names no element asks for the whole tree, which the arena answers itself.
+            let Some(element) = element else {
+                host.layout().arena().set_needs_full_layout_tree_update(true);
+                continue;
+            };
+            state.reports.push(crate::layout::commit::FfiCommitMessage::new(
+                element.raw(),
+                crate::layout::commit::FfiCommitMessageKind::LayoutTreeRebuildRequested,
+            ));
+        }
+
+        let built_scroll_containers = host.arena().take_built_scroll_containers();
+        let arena = host.arena();
+        if rebuilt_subtrees_were_updated_individually {
+            let attached_roots = arena.derive_facts_after_tree_update(&state.rebuilt_subtree_roots);
+            arena.resolve_deferred_child_list_insertions(&attached_roots);
+        } else {
+            // NB: The full layout entry must derive the facts of this tree.
+            arena.record_partial_relayout_escape();
+            arena.resolve_deferred_child_list_insertions(&Default::default());
+        }
+
+        // Table fixup can free a rebuilt root after it was recorded, such as whitespace at the edge of a
+        // row group, so only the roots that are still live wait for the partial relayout plan.
+        let live_rebuilt_subtree_roots: Vec<NodeSlotId> = state
+            .rebuilt_subtree_roots
+            .iter()
+            .copied()
+            .filter(|root| arena.slot_is_live(*root))
+            .collect();
+        let rebuilt_subtree_root_count = live_rebuilt_subtree_roots.len();
+        arena.set_pending_rebuilt_subtree_roots(
+            live_rebuilt_subtree_roots,
+            state.layout_tree_update_escaped_rebuild_roots,
+        );
+        let viewport = arena.layout_root();
+        assert!(!viewport.is_invalid(), "a layout tree build places the viewport");
+        state.release_pinned_style_records(arena);
+        let outcome = FfiLayoutTreeBuildOutcome {
+            viewport,
+            rebuilt_subtree_root_count,
+            layout_tree_update_escaped_rebuild_roots: state.layout_tree_update_escaped_rebuild_roots,
+            needs_another_build_pass: !state.layout_tree_rebuild_requests.is_empty() || state.reached_unstyled_element,
+        };
+        TreeBuildAnswer {
+            outcome,
+            work,
+            reports: state.reports,
+            built_scroll_containers,
+        }
+    }
+}
+
+fn dom_tree_builder_host<'a>(state: &'a mut ArenaHandle, work: &'a OwedHostWork) -> DomTreeBuilderHost<'a> {
     DomTreeBuilderHost {
-        arena: arena.cast(),
+        arena: std::ptr::from_mut(state).cast(),
         work,
     }
 }

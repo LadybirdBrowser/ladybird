@@ -256,7 +256,7 @@ RustFFI::FfiLayoutTreeBuildOutcome build_layout_tree(DOM::Node& dom_node)
     // scrolls. A new document has not heard from it yet.
     if (auto navigable = document.navigable())
         RustFFI::render_state_set_viewport_scroll_offset(document.layout_node_arena().host(), navigable->viewport_scroll_offset());
-    return RustFFI::rust_build_layout_tree(arena, &dom_node, document.style_node_id().value(), document_style_record.value());
+    return RustFFI::rust_build_layout_tree(arena, document.style_node_id().value(), document_style_record.value());
 }
 
 void detach_top_layer_element_layout_subtree(DOM::Element& element)
