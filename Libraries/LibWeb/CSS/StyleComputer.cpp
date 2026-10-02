@@ -3775,7 +3775,9 @@ void StyleComputer::apply_animated_properties_to_reconstruction(ComputedStyleWor
         auto property_id = static_cast<PropertyID>(entry.property);
         style.set_animated_property(
             Badge<StyleComputer> {}, property_id, animated_properties->property(property_id),
-            entry.result_of_transition ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No,
+            // NB: An adjustment wins over an important declaration as a transition's value does, and the working
+            //     set's flag says only that.
+            entry.result_of_transition || entry.post_compute_adjustment ? AnimatedPropertyResultOfTransition::Yes : AnimatedPropertyResultOfTransition::No,
             entry.inherited ? ComputedStyleWorkingSet::Inherited::Yes : ComputedStyleWorkingSet::Inherited::No);
     }
 }

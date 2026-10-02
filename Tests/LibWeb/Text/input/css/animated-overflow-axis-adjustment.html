@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes unscroll {
+        from, to {
+            overflow-x: visible;
+        }
+    }
+    .box {
+        overflow-x: scroll;
+        overflow-y: visible;
+    }
+    #important {
+        overflow-y: visible !important;
+    }
+    .animated {
+        animation: unscroll 100s paused;
+    }
+</style>
+<div class="box" id="plain"></div>
+<div class="box" id="important"></div>
+<script>
+    // overflow-y is adjusted to auto while overflow-x scrolls. An animation that takes overflow-x out
+    // of scrolling leaves nothing to adjust overflow-y against, even where its declaration is
+    // important.
+    test(() => {
+        for (const id of ["plain", "important"]) {
+            const box = document.getElementById(id);
+            const overflow = () => {
+                const style = getComputedStyle(box);
+                return `${style.overflowX} ${style.overflowY}`;
+            };
+            const before = overflow();
+            box.classList.add("animated");
+            const animated = overflow();
+            box.classList.remove("animated");
+            println(`${id}: ${before}, animated ${animated}, after ${overflow()}`);
+        }
+    });
+</script>

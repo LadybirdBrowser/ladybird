@@ -308,7 +308,7 @@ fn prepare_transition_values(
     }
     if let Some(entry) = after_overlay
         .and_then(|overlay| overlay.get(property.property_id))
-        .filter(|entry| !entry.result_of_transition)
+        .filter(|entry| !entry.result_of_transition && !entry.post_compute_adjustment)
     {
         property.before_change_value = entry.value_pointer();
         property.after_change_value = entry.value_pointer();

@@ -1,0 +1,2 @@
+plain: scroll auto, animated visible visible, after scroll auto
+important: scroll auto, animated visible visible, after scroll auto

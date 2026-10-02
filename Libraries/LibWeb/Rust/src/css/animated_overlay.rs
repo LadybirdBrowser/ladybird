@@ -51,6 +51,10 @@ pub struct FfiAnimatedOverlayEntry {
     pub value: *const c_void,
     pub inherited: bool,
     pub result_of_transition: bool,
+    /// The entry holds the post-compute adjustment of a value the overlay does not animate, made
+    /// over the base value against the values it does animate. It wins over an important
+    /// declaration, as the base's own adjusted value does.
+    pub post_compute_adjustment: bool,
 }
 
 // SAFETY: `value` owns one reference to immutable `StyleValueData`, whose count is an `Arc`'s;
@@ -61,7 +65,13 @@ unsafe impl Send for FfiAnimatedOverlayEntry {}
 unsafe impl Sync for FfiAnimatedOverlayEntry {}
 
 impl FfiAnimatedOverlayEntry {
-    fn from_owned(property: u16, value: RetainedStyleValueData, inherited: bool, result_of_transition: bool) -> Self {
+    fn from_owned(
+        property: u16,
+        value: RetainedStyleValueData,
+        inherited: bool,
+        result_of_transition: bool,
+        post_compute_adjustment: bool,
+    ) -> Self {
         let pointer = value.pointer().cast();
         std::mem::forget(value);
         Self {
@@ -69,6 +79,7 @@ impl FfiAnimatedOverlayEntry {
             value: pointer,
             inherited,
             result_of_transition,
+            post_compute_adjustment,
         }
     }
 
@@ -92,6 +103,7 @@ impl Clone for FfiAnimatedOverlayEntry {
             self.clone_value(),
             self.inherited,
             self.result_of_transition,
+            self.post_compute_adjustment,
         )
     }
 }
@@ -130,7 +142,33 @@ impl AnimatedOverlay {
         inherited: bool,
         result_of_transition: bool,
     ) {
-        let entry = FfiAnimatedOverlayEntry::from_owned(property, value, inherited, result_of_transition);
+        self.set_entry(FfiAnimatedOverlayEntry::from_owned(
+            property,
+            value,
+            inherited,
+            result_of_transition,
+            false,
+        ));
+    }
+
+    /// Stores the post-compute adjustment of a value the overlay does not animate.
+    pub(crate) fn set_adjusted(&mut self, property: u16, value: RetainedStyleValueData) {
+        self.set_entry(FfiAnimatedOverlayEntry::from_owned(property, value, false, false, true));
+    }
+
+    /// Stores an inherited copy of another overlay's entry, as that entry was made.
+    pub(crate) fn set_inherited(&mut self, property: u16, source: &FfiAnimatedOverlayEntry) {
+        self.set_entry(FfiAnimatedOverlayEntry::from_owned(
+            property,
+            source.clone_value(),
+            true,
+            source.result_of_transition,
+            source.post_compute_adjustment,
+        ));
+    }
+
+    fn set_entry(&mut self, entry: FfiAnimatedOverlayEntry) {
+        let property = entry.property;
         match self.entries.iter_mut().find(|entry| entry.property == property) {
             Some(existing) => *existing = entry,
             None => self.entries.push(entry),
@@ -139,9 +177,9 @@ impl AnimatedOverlay {
 }
 
 /// The single implementation of the overlay read rule: important base values
-/// override animated but not transitioned properties.
+/// override animated but not transitioned or adjusted properties.
 pub(crate) fn overlay_wins(entry: &FfiAnimatedOverlayEntry, base_value_is_important: bool) -> bool {
-    entry.result_of_transition || !base_value_is_important
+    entry.result_of_transition || entry.post_compute_adjustment || !base_value_is_important
 }
 
 #[unsafe(no_mangle)]
