@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<span id="target" style="font: 20px RangeSwap">abc</span>
+<script>
+    asyncTest(async done => {
+        const covering = new FontFace("RangeSwap", "local('Ahem')", { unicodeRange: "U+61-63" });
+        const excluding = new FontFace("RangeSwap", "local('Ahem')", { unicodeRange: "U+30-39" });
+        await Promise.all([covering.load(), excluding.load()]);
+        const target = document.getElementById("target");
+        document.fonts.add(covering);
+        println(`a face whose range covers the text renders it: ${target.getBoundingClientRect().width === 60}`);
+        document.fonts.delete(covering);
+        document.fonts.add(excluding);
+        println(`the same font with a range that leaves the text out does not: ${target.getBoundingClientRect().width !== 60}`);
+        document.fonts.delete(excluding);
+        document.fonts.add(covering);
+        println(`the covering face takes the text back: ${target.getBoundingClientRect().width === 60}`);
+        done();
+    });
+</script>
