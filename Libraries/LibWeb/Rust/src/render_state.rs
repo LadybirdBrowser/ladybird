@@ -153,11 +153,11 @@ pub(crate) enum RenderMessage {
         job: crate::layout::TreeBuildJob,
         reply: ReplyTo<crate::layout::TreeBuildAnswer>,
     },
-    /// A layout stage of the document the host waits for.
+    /// A layout stage of the document the host waits for, which commits what it computes.
     Layout {
         document: DocumentId,
         job: crate::layout::LayoutStageJob,
-        reply: ReplyTo<crate::layout::LayoutStageOutput>,
+        reply: ReplyTo<crate::layout::CommitNotifications>,
     },
     /// A step of paint preparation the host waits for.
     Paint {
@@ -229,7 +229,7 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
         RenderMessage::Layout { document, job, reply } => reply.answer(|| {
             let (arena, _) = state_parts(document).expect("a document the host lays out has a render state");
             // SAFETY: As for a change. The host keeps what the job's inputs name until it has the answer.
-            job.run(unsafe { &*arena })
+            job.run(unsafe { &mut *arena })
         }),
         RenderMessage::Paint { document, pass, reply } => reply.answer(|| {
             let (arena, _) = state_parts(document).expect("a document the host paints has a render state");
