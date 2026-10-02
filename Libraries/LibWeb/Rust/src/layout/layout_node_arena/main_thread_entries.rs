@@ -170,3 +170,64 @@ pub unsafe extern "C" fn layout_arena_for_each_pending_rebuilt_subtree_root(
         unsafe { visit(context, arena.node_shell(&main_thread, root)) };
     }
 }
+
+/// Gives the image box `slot` the image provider it owns, which the arena destroys with the row.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread, and `provider` a live provider the
+/// caller hands over.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_owned_image_provider(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    provider: *mut c_void,
+) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    host_tables(&main_thread).set_owned_image_provider(slot, provider);
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_owned_image_provider(arena: *mut c_void, slot: NodeSlotId) -> *mut c_void {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    host_tables(&main_thread).owned_image_provider(slot)
+}
+
+/// Gives `slot` the image observer set `observers`, or none for null, and hands the caller the set
+/// it held, or null.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread, and `observers` null or a live set the
+/// caller hands over.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_replace_image_observers(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    observers: *mut c_void,
+) -> *mut c_void {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    host_tables(&main_thread).replace_image_observers(slot, observers)
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_image_observers(arena: *mut c_void, slot: NodeSlotId) -> *mut c_void {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    host_tables(&main_thread).image_observers(slot)
+}
+
+fn host_tables<'host>(main_thread: &crate::stage::MainThread<'host>) -> &'host crate::layout::HostTables {
+    main_thread
+        .host_tables()
+        .expect("an entry point's token carries its arena's host tables")
+}

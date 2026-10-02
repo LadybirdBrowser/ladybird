@@ -10,7 +10,7 @@ use crate::stage::MainThread;
 
 mod host_calls;
 
-pub(crate) use host_calls::destroy_shell;
+pub(crate) use host_calls::{destroy_image_observers, destroy_owned_image_provider, destroy_shell};
 
 pub(crate) fn free_subtree_and_destroy_shells(main_thread: &MainThread, arena: *mut LayoutNodeArena, root: NodeSlotId) {
     // SAFETY: Callers hold no reference derived from the arena across this call, and the
@@ -106,6 +106,12 @@ impl LayoutNodeArena {
 mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_layout_node_shell_destroy(_shell: *mut std::ffi::c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_owned_image_provider_destroy(_provider: *mut std::ffi::c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_image_observers_destroy(_observers: *mut std::ffi::c_void) {}
 }
 
 #[cfg(test)]
