@@ -137,6 +137,9 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.DataView, |vm, realm| {
         Value::from_object(realm.intrinsics().data_view_constructor(vm))
     });
+    define_intrinsic_accessor(&names.Date, |vm, realm| {
+        Value::from_object(realm.intrinsics().date_constructor(vm))
+    });
     define_intrinsic_accessor(&names.DisposableStack, |vm, realm| {
         Value::from_object(realm.intrinsics().disposable_stack_constructor(vm))
     });

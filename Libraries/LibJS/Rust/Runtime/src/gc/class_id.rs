@@ -127,7 +127,6 @@ define_class_ids! {
     Iterator,
     TemplateObjectCache,
     ReflectObject,
-    // Reserved for Date, whose [[DateValue]] slot Object.prototype.toString already recognizes by its class.
     Date,
     ArrayIterator,
     MathObject,
@@ -252,4 +251,6 @@ define_class_ids! {
     SuppressedErrorPrototype,
     SuppressedErrorConstructor,
     NativeJavaScriptBackedFunction,
+    DatePrototype,
+    DateConstructor,
 }
