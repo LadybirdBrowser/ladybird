@@ -19,9 +19,14 @@ pub(super) enum PseudoSettlement {
 }
 
 impl PseudoSettlement {
-    fn selects(self, kind: u8) -> bool {
+    /// Whether the settlement settles `kind`: a style update every kind that generates a box with
+    /// the element but the one the host defers, a read the one it asks for, deferred or not.
+    fn selects(self, kind: u8, deferred: Option<tree::PseudoElementKind>) -> bool {
         match self {
-            Self::Generated => true,
+            Self::Generated => {
+                !matches!(kind, pseudo_kind::FIRST_LINE | pseudo_kind::VIEW_TRANSITION)
+                    && deferred != Some(tree::PseudoElementKind(u16::from(kind)))
+            }
             Self::Read(selected) | Self::Computed(selected) => selected == kind,
         }
     }
@@ -30,42 +35,45 @@ impl PseudoSettlement {
 impl RetainedState {
     /// The pseudo winner rows a settlement reads, republished from the node's answer wherever one
     /// predates it, is missing, or predates the rules that flipped for its kind: settling then
-    /// reads a current row for every kind it generates. The kinds are those the answer has rules
-    /// for that the engine settles, less a deferred kind, a backdrop outside the top layer and a
+    /// reads a current row for every kind it settles. The kinds are those the answer has rules for
+    /// that `settlement` selects, less, in a style update, a backdrop outside the top layer and a
     /// marker no list item generates, which generate no box whatever their rows say. A row a drive
     /// without the leave to republish would have to refresh leaves the settlement to the host.
+    #[allow(clippy::too_many_arguments)]
     fn refresh_pseudo_winner_rows(
         &mut self,
         node: StyleNodeID,
+        settlement: PseudoSettlement,
         new_is_list_item: bool,
         old_is_list_item: bool,
         flipped_pseudo_rules: u64,
         republication: Option<WinnerRepublication>,
         counters: &mut Counters,
     ) -> Drive<()> {
-        use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
+        use pseudo_kind::{AFTER, BACKDROP, BEFORE, MARKER};
 
         let mut required = self.pseudo_style_mask_or_rematch(node, counters)
-            & [BEFORE, AFTER, FIRST_LETTER, SELECTION, BACKDROP, MARKER]
+            & pseudo_kind::SETTLEMENT_ORDER
                 .into_iter()
+                .filter(|&kind| settlement.selects(kind, self.deferred_pseudo_element))
                 .fold(0_u64, |kinds, kind| kinds | (1 << kind));
-        if let Some(deferred) = self.deferred_pseudo_element {
-            required &= !(1_u64 << deferred.0);
-        }
-        if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER == 0
-        {
-            required &= !(1_u64 << BACKDROP);
-        }
-        let marker_is_live = new_is_list_item
-            || old_is_list_item
-            || [BEFORE, AFTER, BACKDROP]
-                .into_iter()
-                .filter_map(|kind| self.computed_group_sets.pseudo_style_record(node, kind))
-                .filter_map(|record| self.computed_group_sets.style_record_view(record.raw()))
-                .filter_map(|view| unsafe { view.longhand_table.as_ref() })
-                .any(|table| table.display_is_list_item());
-        if !marker_is_live {
-            required &= !(1_u64 << MARKER);
+        if settlement == PseudoSettlement::Generated {
+            if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
+                == 0
+            {
+                required &= !(1_u64 << BACKDROP);
+            }
+            let marker_is_live = new_is_list_item
+                || old_is_list_item
+                || [BEFORE, AFTER, BACKDROP]
+                    .into_iter()
+                    .filter_map(|kind| self.computed_group_sets.pseudo_style_record(node, kind))
+                    .filter_map(|record| self.computed_group_sets.style_record_view(record.raw()))
+                    .filter_map(|view| unsafe { view.longhand_table.as_ref() })
+                    .any(|table| table.display_is_list_item());
+            if !marker_is_live {
+                required &= !(1_u64 << MARKER);
+            }
         }
         let program_version = self.program.version();
         for (pseudo, version, _, priority_current) in self.current_winner_groups().pseudo_states(node) {
@@ -145,7 +153,7 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<()> {
-        use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
+        use pseudo_kind::{BACKDROP, MARKER, SELECTION};
 
         // Only an element's settled record leads here, which an unhosted engine never computes.
         debug_assert!(self.computes_records());
@@ -179,6 +187,7 @@ impl RetainedState {
             .unwrap_or_else(|| old_element_record.is_some_and(|record| display_is_list_item(self, record)));
         self.refresh_pseudo_winner_rows(
             node,
+            settlement,
             new_is_list_item,
             old_is_list_item,
             scratch.flipped_pseudo_rules,
@@ -254,15 +263,13 @@ impl RetainedState {
         // the engine cascaded itself, and a kind with rules but no row is not decided.
         let kinds_with_rules = self.pseudo_style_mask_or_rematch(node, counters);
         let mut pseudo_uses_substitution = scratch.pseudo_uses_substitution;
-        for (pseudo_index, kind) in [BEFORE, AFTER, FIRST_LETTER, SELECTION, BACKDROP, MARKER]
+        for (pseudo_index, kind) in pseudo_kind::SETTLEMENT_ORDER
             .into_iter()
             .enumerate()
             .skip(scratch.next_pseudo)
         {
             scratch.next_pseudo = pseudo_index + 1;
-            if !settlement.selects(kind)
-                || self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind)))
-            {
+            if !settlement.selects(kind, self.deferred_pseudo_element) {
                 continue;
             }
             // The backdrop of a node outside the top layer generates no box, whatever its rules;
@@ -1108,6 +1115,18 @@ impl RetainedState {
 
     /// Whether the node holds a match answer its pseudo-elements' winners are proven from: the
     /// one this transaction published, or the retained one.
+    /// The synthetic pseudo-elements a published answer has rules for, where it can say.
+    pub(in crate::css::style) fn answer_pseudo_style_mask(&self, answer: &PublishedMatchAnswer) -> Option<u64> {
+        match answer.cascade_input {
+            Some(identity) => self.match_answers.synthetic_pseudo_mask(identity),
+            None => answer.matches.as_deref().map(|matches| {
+                matches.iter().fold(0, |mask, rule_match| {
+                    mask | synthetic_pseudo_bit(rule_match.pseudo_element)
+                })
+            }),
+        }
+    }
+
     fn holds_pseudo_match_answer(&self, node: StyleNodeID) -> bool {
         Self::published_answer_lookup(
             &self.published_match_answers,
@@ -1122,22 +1141,13 @@ impl RetainedState {
         if let Some(mask) = self.computed_group_sets.node_pseudo_style_mask(node) {
             return Some(mask);
         }
-        let bit = synthetic_pseudo_bit;
-        if let Some((owner, answer)) = Self::published_answer_lookup(
+        if let Some((_, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
             self.batch_matching_traversal.as_deref(),
             node,
-        ) {
-            if let Some(identity) = answer.cascade_input {
-                return self.match_answers.synthetic_pseudo_mask(identity);
-            }
-            if let Some(matches) = owner.matches_for(answer) {
-                return Some(
-                    matches
-                        .iter()
-                        .fold(0, |mask, rule_match| mask | bit(rule_match.pseudo_element)),
-                );
-            }
+        ) && let Some(mask) = self.answer_pseudo_style_mask(answer)
+        {
+            return Some(mask);
         }
         let identity = self.current_answer_identity(node)?;
         self.match_answers.answer(identity)?;

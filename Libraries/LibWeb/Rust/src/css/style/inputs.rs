@@ -2233,13 +2233,10 @@ impl StyleEngineState {
     }
 
     /// Whether one element still owes a deferred style input, asked per node the way the recorded
-    /// batch is. The deferred inputs are kept sorted by key, so this is a binary search.
+    /// batch is.
     #[must_use]
     pub fn has_deferred_element_style_input(&self, node: StyleNodeID) -> bool {
-        self.host
-            .deferred_element_style_inputs
-            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
-            .is_ok()
+        self.host.owes_element_style_input(node)
     }
 
     /// Whether settling the pending selector inputs can change geometry derived from the committed
@@ -3463,5 +3460,15 @@ impl RetainedState {
         for (_, style_record) in transition_baselines.remove(&node).into_iter().flatten() {
             computed_group_sets.unpin_style_record(style_record);
         }
+    }
+}
+
+impl HostState {
+    /// Whether `node` still owes a deferred style input. The deferred inputs are kept sorted by
+    /// key, so this is a binary search.
+    pub(super) fn owes_element_style_input(&self, node: StyleNodeID) -> bool {
+        self.deferred_element_style_inputs
+            .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
+            .is_ok()
     }
 }

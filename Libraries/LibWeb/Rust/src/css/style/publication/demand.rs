@@ -78,6 +78,7 @@ struct PrivateDemandSaves {
     container_gate_unheld: bool,
     tree_counting: Option<u16>,
     rolled_back: Option<u64>,
+    pseudo_style_mask: Option<u64>,
 }
 
 fn set_contains(set: &mut HashSet<StyleNodeID>, node: StyleNodeID, contains: bool) {
@@ -98,6 +99,7 @@ impl RetainedState {
             container_gate_unheld: self.container_gates_unheld.contains(&node),
             tree_counting: self.nodes_with_tree_counting_records.get(&node).copied(),
             rolled_back: self.nodes_with_rolled_back_records.get(&node).copied(),
+            pseudo_style_mask: self.computed_group_sets.node_pseudo_style_mask(node),
         }
     }
 
@@ -153,6 +155,8 @@ impl RetainedState {
                 self.nodes_with_rolled_back_records.remove(&node);
             }
         }
+        self.computed_group_sets
+            .set_node_pseudo_style_mask(node, saves.pseudo_style_mask);
         self.discard_private_record_demand_matching_batch();
     }
 
@@ -180,7 +184,8 @@ impl RetainedState {
     /// Whether everything a demand for `node` reads is current: the tree, the rules and the node's
     /// own facts hold no change the next transaction has yet to take, and no ancestor the node
     /// inherits from owes a computation. A read under pending input is the host's. A pseudo-element
-    /// is settled against its element's installed record, which nothing may be about to move.
+    /// is settled against its element's installed record, which nothing may be about to move: no
+    /// pending input, and no deferred one of the element's own or, below, of an ancestor's.
     fn record_demand_reads_current_inputs(
         &self,
         node: StyleNodeID,
@@ -190,7 +195,7 @@ impl RetainedState {
     ) -> bool {
         if pseudo
             && (!host.journal.is_empty()
-                || !host.deferred_element_style_inputs.is_empty()
+                || host.owes_element_style_input(node)
                 || self.engine_computed_records_pending.contains_key(&node)
                 || self.computed_group_sets.assigned_style_record(node).is_none())
         {
@@ -364,8 +369,9 @@ impl StyleEngineState {
         result
     }
 
-    /// Publish the answer a demand matched for `node`, as a batch publishes its rows' answers.
-    /// Whether the node's winners are complete.
+    /// Publish the answer a demand matched for `node`, as a batch publishes its rows' answers, and
+    /// keep the pseudo-elements it has rules for, which a private demand puts back. Whether the
+    /// node's winners are complete.
     fn publish_demanded_answer(
         &mut self,
         node: StyleNodeID,
@@ -375,6 +381,10 @@ impl StyleEngineState {
     ) -> bool {
         let complete =
             answer.cascade_winners_are_complete || self.cascade_winners_are_complete_but_for_custom_properties(node);
+        let pseudo_style_mask = self.retained.answer_pseudo_style_mask(&answer);
+        self.retained
+            .computed_group_sets
+            .set_node_pseudo_style_mask(node, pseudo_style_mask);
         if !read_only {
             self.retained
                 .computed_group_sets
@@ -453,21 +463,34 @@ impl StyleEngineState {
             .computed_group_sets
             .assigned_style_record(node)
             .or_refused()?;
-        let kinds_with_rules = self.retained.pseudo_style_mask(node).or_refused()?;
+        let kinds_with_rules = self.retained.pseudo_style_mask_or_rematch(node, counters);
         let element_is_list_item = self
             .retained
             .computed_group_sets
             .style_record_view(element.raw())
             .and_then(|view| unsafe { view.longhand_table.as_ref() })
             .is_some_and(|table| table.display_is_list_item());
-        let generated = kinds_with_rules & (1 << kind) != 0 || (kind == pseudo_kind::MARKER && element_is_list_item);
+        // A ::selection without rules of its own inherits its ancestor's.
+        let generated = kinds_with_rules & (1 << kind) != 0
+            || (kind == pseudo_kind::MARKER && element_is_list_item)
+            || (kind == pseudo_kind::SELECTION
+                && self
+                    .retained
+                    .retained_highlight_inheritance_parent_style_record(node, kind)
+                    .is_some());
         if !generated && !read_only {
             return Ok(RecordDemandAnswer::Absent {
                 custom_property_environment: 0,
             });
         }
+        // Winners published while an ancestor's answer moved are published again from the node's
+        // answer, which decides their gated rules over the containers as they stand. A read-only
+        // read publishes nothing, and leaves such a read to the host.
         if !self.retained.pseudo_winners_are_complete(node) {
-            return Err(Unanswered::Refused);
+            let republication = scratch.winner_republication().or_refused()?;
+            self.retained
+                .republish_winners_from_answer(node, republication, counters)
+                .or_refused()?;
         }
         let settlement = if read_only {
             PseudoSettlement::Computed(kind)

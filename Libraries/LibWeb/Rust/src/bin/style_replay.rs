@@ -2087,7 +2087,10 @@ fn read_record_demand(
             1 => Pseudo::Backdrop,
             2 => Pseudo::Before,
             3 => Pseudo::FirstLetter,
+            4 => Pseudo::FirstLine,
             5 => Pseudo::Marker,
+            6 => Pseudo::Selection,
+            7 => Pseudo::ViewTransition,
             _ => return Err(format!("record demand of pseudo-element kind {kind}").into()),
         })
     };

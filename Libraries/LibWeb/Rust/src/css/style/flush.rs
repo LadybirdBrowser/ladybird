@@ -1995,18 +1995,7 @@ impl StyleEngineState {
                 let Some(answer) = published_match_answers.lookup(node) else {
                     continue;
                 };
-                let mask = match answer.cascade_input {
-                    Some(identity) => self.retained.match_answers.synthetic_pseudo_mask(identity),
-                    None => published_match_answers.matches_for(answer).map(|matches| {
-                        matches.iter().fold(0, |mask, rule_match| {
-                            mask | rule_match
-                                .pseudo_element
-                                .map(|pseudo| pseudo.kind.0)
-                                .filter(|&kind| kind <= bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND)
-                                .map_or(0, |kind| 1u64 << kind)
-                        })
-                    }),
-                };
+                let mask = self.retained.answer_pseudo_style_mask(answer);
                 self.retained.computed_group_sets.set_node_pseudo_style_mask(node, mask);
                 if self.retained.any_custom_property_is_declared()
                     && let Some(matches) = self

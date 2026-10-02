@@ -628,17 +628,14 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
     return get_direct_property(property);
 }
 
-// Install the style engine's record for a pseudo-element a CSSOM read asks for, settled against its element's installed
-// record as a style update settles it. False where the engine leaves the read to C++.
+// Install the style engine's record for a synthetic pseudo-element a CSSOM read asks for, settled against its
+// element's installed record as a style update settles it. False where the engine leaves the read to C++.
 static bool install_engine_pseudo_element_style(DOM::AbstractElement target)
 {
     auto pseudo_element = *target.pseudo_element();
-    auto demanded_pseudo_element = StyleEngine::demanded_pseudo_element(pseudo_element);
-    if (!demanded_pseudo_element.has_value())
-        return false;
     auto& element = target.element();
     auto& style_engine = element.document().style_computer().style_engine();
-    auto answer = style_engine.answer_pseudo_element_record_demand(element.style_node_id(), StyleEngine::PseudoElementRecordDemand::CssomRead, *demanded_pseudo_element);
+    auto answer = style_engine.answer_pseudo_element_record_demand(element.style_node_id(), StyleEngine::PseudoElementRecordDemand::CssomRead, *StyleEngine::demanded_pseudo_element(pseudo_element));
     if (!answer.is_absent && answer.record.style_record == 0)
         return false;
     StyleRecordID record { answer.record.style_record };
@@ -662,9 +659,23 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
         return;
     if (!is_synthetic_pseudo_element(*pseudo_element))
         return;
-    if (*pseudo_element != PseudoElement::Backdrop
-        && *pseudo_element != PseudoElement::Selection
-        && abstract_element.computed_style())
+    // A style update keeps current the records of the pseudo-elements an element generates boxes for: its ::before,
+    // ::after and ::first-letter, and a list item's ::marker. A read settles any other kind again.
+    auto is_kept_current = [&] {
+        switch (*pseudo_element) {
+        case PseudoElement::Before:
+        case PseudoElement::After:
+        case PseudoElement::FirstLetter:
+            return true;
+        case PseudoElement::Marker: {
+            auto element_style = abstract_element.element().computed_style();
+            return element_style && element_style->display().is_list_item();
+        }
+        default:
+            return false;
+        }
+    };
+    if (is_kept_current() && abstract_element.computed_style())
         return;
 
     auto& document = abstract_element.document();

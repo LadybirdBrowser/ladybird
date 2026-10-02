@@ -3560,8 +3560,8 @@ pub enum FfiPseudoElementRecordDemand {
     ReadOnly,
 }
 
-/// A pseudo-element a record demand may read: one the engine settles beside its element in a
-/// style update. Each is numbered as its kind.
+/// A pseudo-element a record demand may read: a synthetic one, which the engine settles beside its
+/// element. Each is numbered as its kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiDemandedPseudoElement {
@@ -3569,7 +3569,10 @@ pub enum FfiDemandedPseudoElement {
     Backdrop = 1,
     Before = 2,
     FirstLetter = 3,
+    FirstLine = 4,
     Marker = 5,
+    Selection = 6,
+    ViewTransition = 7,
 }
 
 /// The answer to a record demand: the record, or that the pseudo-element read generates no box

@@ -301,20 +301,10 @@ StyleEngineFFI::FfiEngineComputedRecord StyleEngine::retry_engine_record_after_a
 
 Optional<StyleEngine::DemandedPseudoElement> StyleEngine::demanded_pseudo_element(PseudoElement pseudo_element)
 {
-    switch (pseudo_element) {
-    case PseudoElement::After:
-        return DemandedPseudoElement::After;
-    case PseudoElement::Backdrop:
-        return DemandedPseudoElement::Backdrop;
-    case PseudoElement::Before:
-        return DemandedPseudoElement::Before;
-    case PseudoElement::FirstLetter:
-        return DemandedPseudoElement::FirstLetter;
-    case PseudoElement::Marker:
-        return DemandedPseudoElement::Marker;
-    default:
+    // The engine numbers each synthetic pseudo-element as its kind.
+    if (!is_synthetic_pseudo_element(pseudo_element))
         return {};
-    }
+    return static_cast<DemandedPseudoElement>(to_underlying(pseudo_element));
 }
 
 StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_record_demand(StyleNodeID node, RecordDemand demand)
