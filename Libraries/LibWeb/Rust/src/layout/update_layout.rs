@@ -300,22 +300,21 @@ unsafe fn try_partial_relayout(
     else {
         return PartialRelayout::NotEligible;
     };
-    for &root in &partial_relayout_roots {
-        debug_assert!(unsafe { arena(arena_handle) }.slot_is_live(root));
+    for boundary in &partial_relayout_roots {
         debug_assert!(node_facts::kind_is_box(
-            unsafe { arena(arena_handle) }.data(root).kind.get()
+            unsafe { arena(arena_handle) }.data(boundary.root()).kind.get()
         ));
     }
 
     // The build may have resized this document's viewport through its embedding document.
     let facts = host.document_facts(main_thread);
     unsafe { sync_enrolled_content_for_layout(arena_handle) };
-    for &root in &partial_relayout_roots {
+    for &boundary in &partial_relayout_roots {
         unsafe {
             compute_subtree_layout(
                 main_thread,
                 arena_handle,
-                root,
+                boundary,
                 facts.viewport_inline_size_raw,
                 facts.viewport_block_size_raw,
                 facts.document_in_quirks_mode,
