@@ -63,6 +63,8 @@ use crate::runtime::object::{Object, allocate_object};
 use crate::runtime::object_constructor::ObjectConstructor;
 use crate::runtime::object_prototype::ObjectPrototype;
 use crate::runtime::primitive_string::PrimitiveString;
+use crate::runtime::promise_constructor::PromiseConstructor;
+use crate::runtime::promise_prototype::PromisePrototype;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::proxy_constructor::ProxyConstructor;
@@ -214,7 +216,7 @@ define_intrinsics! {
     number_prototype: Cell<Option<Gc<Object>>>,
     object_constructor: Cell<Option<Gc<ObjectConstructor>>>,
     object_prototype: Cell<Option<Gc<Object>>>,
-    promise_constructor: Cell<Option<Gc<FunctionObject>>>,
+    promise_constructor: Cell<Option<Gc<PromiseConstructor>>>,
     promise_prototype: Cell<Option<Gc<Object>>>,
     regexp_constructor: Cell<Option<Gc<FunctionObject>>>,
     regexp_prototype: Cell<Option<Gc<Object>>>,
@@ -486,7 +488,7 @@ builtin_type_accessors! {
     map_prototype, map_constructor: FunctionObject, initialize_map;
     number_prototype, number_constructor: NumberConstructor, initialize_number;
     object_prototype, object_constructor: ObjectConstructor, initialize_object;
-    promise_prototype, promise_constructor: FunctionObject, initialize_promise;
+    promise_prototype, promise_constructor: PromiseConstructor, initialize_promise;
     regexp_prototype, regexp_constructor: FunctionObject, initialize_regexp;
     set_prototype, set_constructor: FunctionObject, initialize_set;
     shared_array_buffer_prototype, shared_array_buffer_constructor: FunctionObject, initialize_shared_array_buffer;
@@ -575,6 +577,7 @@ initialize_builtin_types! {
     initialize_generator_function: generator_function_prototype: GeneratorFunctionPrototype, generator_function_constructor: GeneratorFunctionConstructor, GeneratorFunction;
     initialize_number: number_prototype: NumberPrototype, number_constructor: NumberConstructor, Number;
     initialize_object: object_prototype: ObjectPrototype, object_constructor: ObjectConstructor, Object;
+    initialize_promise: promise_prototype: PromisePrototype, promise_constructor: PromiseConstructor, Promise;
     initialize_string: string_prototype: StringPrototype, string_constructor: StringConstructor, String;
     initialize_symbol: symbol_prototype: SymbolPrototype, symbol_constructor: SymbolConstructor, Symbol;
     initialize_eval_error: eval_error_prototype: EvalErrorPrototype, eval_error_constructor: EvalErrorConstructor, EvalError;
@@ -610,7 +613,6 @@ unimplemented_builtin_types! {
     initialize_disposable_stack => "DisposableStack",
     initialize_finalization_registry => "FinalizationRegistry",
     initialize_map => "Map",
-    initialize_promise => "Promise",
     initialize_regexp => "RegExp",
     initialize_set => "Set",
     initialize_shared_array_buffer => "SharedArrayBuffer",

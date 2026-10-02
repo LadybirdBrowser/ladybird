@@ -191,6 +191,24 @@ impl NativeFunction {
         function
     }
 
+    /// NativeFunction::create(realm, behaviour, length) of C++: CreateBuiltinFunction(behaviour, length, "", « »).
+    pub fn create_anonymous<C, F>(vm: &Vm, captures: C, behaviour: F, length: i32) -> Gc<NativeFunction>
+    where
+        C: Trace + 'static,
+        F: Fn(&Vm, &C) -> ThrowCompletionOr<Value> + 'static,
+    {
+        Self::create(
+            vm,
+            captures,
+            behaviour,
+            length,
+            &PropertyKey::from(Utf16FlyString::default()),
+            None,
+            None,
+            None,
+        )
+    }
+
     /// A native function with a behaviour that captures state, and a name only call stacks show.
     pub fn create_with_name<C, F>(
         vm: &Vm,

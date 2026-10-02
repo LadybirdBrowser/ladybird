@@ -81,8 +81,9 @@ impl ArrayConstructor {
             attributes,
             None,
         );
-        // NB: C++ defines %Array.fromAsync%, which is written in JavaScript and needs promises. This stand-in has its
-        //     length, name and attributes, and stops the process when it is called.
+        // NB: C++ defines %Array.fromAsync%, which is written in JavaScript and runs as a
+        //     NativeJavaScriptBackedFunction. This stand-in has its length, name and attributes, and stops the process
+        //     when it is called.
         let from_async = RawNativeFunction::create(
             vm,
             raw_native!(ArrayConstructor::from_async),
@@ -408,7 +409,8 @@ impl ArrayConstructor {
     // 23.1.2.2 Array.fromAsync ( asyncItems [ , mapper [ , thisArg ] ] ), https://tc39.es/proposal-array-from-async/#sec-array.fromAsync
     fn from_async(_vm: &Vm) -> ThrowCompletionOr<Value> {
         unimplemented_runtime_function(
-            "Array.fromAsync, which C++ writes in JavaScript as an async function and which needs promises",
+            "Array.fromAsync, which C++ writes in JavaScript as an async function, which needs \
+             NativeJavaScriptBackedFunction",
             0,
         )
     }

@@ -72,6 +72,13 @@ impl Vm {
     ) -> Result<Value, Value> {
         // SAFETY: The caller passes a live context and a live executable.
         let (context_ref, executable_ref) = unsafe { (context.as_ref(), executable.as_non_null().as_ref()) };
+
+        let run_executable_depth = self.run_executable_depth().get();
+        let is_outermost_bytecode_execution = run_executable_depth == 0;
+        self.run_executable_depth().set(run_executable_depth + 1);
+
+        // NOTE: This is how we "push" a new execution context onto the VM's
+        //       execution context stack.
         let previous_running_execution_context = self.head.running_execution_context.replace(context.as_ptr());
         // SAFETY: An Executable starts with its head.
         context_ref
@@ -106,18 +113,25 @@ impl Vm {
                 );
             }
         }
-        self.head
-            .running_execution_context
-            .set(previous_running_execution_context);
+
+        // NB: C++ skips this while it executes a module, which the runtime cannot do yet.
+        if is_outermost_bytecode_execution {
+            self.run_queued_promise_jobs();
+        }
         self.head
             .execution_generation
             .set(self.head.execution_generation.get() + 1);
 
         let exception = context_ref.register(register::EXCEPTION).get();
+        let return_value = context_ref.register(register::RETURN_VALUE).get();
+        self.head
+            .running_execution_context
+            .set(previous_running_execution_context);
+        self.run_executable_depth().set(run_executable_depth);
         if exception != Value::EMPTY {
             return Err(exception);
         }
-        Ok(context_ref.register(register::RETURN_VALUE).get())
+        Ok(return_value)
     }
 
     /// Runs `executable` like run_executable(), with `initial_accumulator_value` in the accumulator, which is how a

@@ -1423,6 +1423,10 @@ impl RuntimeFunctions for Runtime {
         control::throw_const_assignment(vm, pc)
     }
 
+    fn r#await(vm: &Vm, _pc: u32, instruction: &op::Await, values: &mut op::AwaitValues) -> SlowPathControl {
+        control::r#await(vm, instruction, values)
+    }
+
     fn r#yield(vm: &Vm, _pc: u32, instruction: &op::Yield, values: &mut op::YieldValues) -> SlowPathControl {
         control::r#yield(vm, instruction, values)
     }

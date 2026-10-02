@@ -39,9 +39,11 @@ use crate::runtime::global_environment::GlobalEnvironment;
 use crate::runtime::indexed_properties::ValueAndAttributes;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::{IteratorHint, get_iterator, iterator_step_value, try_or_close_iterator};
+use crate::runtime::native_function::NativeFunction;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, StackFrameInfo};
 use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment, name_for_message};
 use crate::runtime::private_environment::PrivateEnvironment;
+use crate::runtime::promise_capability::{new_promise_capability, try_or_reject};
 use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
@@ -2140,11 +2142,40 @@ pub fn get_dispose_method(
             let method = value.get_method(vm, &PropertyKey::from(vm.well_known_symbols().dispose))?;
 
             // ii. If method is not undefined, then
-            if method.is_some() {
+            if let Some(method) = method {
+                let realm = vm.current_realm().expect("there is a current realm");
+
                 // 1. Let closure be a new Abstract Closure with no parameters that captures method and performs the
-                //    following steps when called: ...
+                //    following steps when called:
+                // 2. NOTE: This function is not observable to user code. It is used to ensure that a Promise returned
+                //    from a synchronous @@dispose method will not be awaited and that any exception thrown will not be
+                //    thrown synchronously.
                 // 3. Return CreateBuiltinFunction(closure, 0, "", « »).
-                unimplemented_runtime_function("the async-dispose wrapper of a @@dispose method", 0);
+                let closure = NativeFunction::create_anonymous(
+                    vm,
+                    (realm, method),
+                    |vm, &(realm, method): &(Gc<Realm>, Gc<FunctionObject>)| {
+                        // a. Let O be the this value.
+                        let object = vm.this_value();
+
+                        // b. Let promiseCapability be ! NewPromiseCapability(%Promise%).
+                        let promise_capability =
+                            new_promise_capability(vm, Value::from_object(realm.intrinsics().promise_constructor(vm)))
+                                .must();
+
+                        // c. Let result be Completion(Call(method, O)).
+                        // d. IfAbruptRejectPromise(result, promiseCapability).
+                        try_or_reject!(vm, promise_capability, call_function_object(vm, method, object, &[]));
+
+                        // e. Perform ? Call(promiseCapability.[[Resolve]], undefined, « undefined »).
+                        call_function_object(vm, promise_capability.resolve(), Value::UNDEFINED, &[Value::UNDEFINED])?;
+
+                        // f. Return promiseCapability.[[Promise]].
+                        Ok(Value::from_object(promise_capability.promise()))
+                    },
+                    0,
+                );
+                return Ok(Some(closure.upcast()));
             }
             return Ok(None);
         }

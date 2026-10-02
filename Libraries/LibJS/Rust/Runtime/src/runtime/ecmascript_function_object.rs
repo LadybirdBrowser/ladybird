@@ -18,7 +18,6 @@ use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::run::should_dump_bytecode;
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::environment::{Environment, PrivateEnvironment};
@@ -30,6 +29,8 @@ use crate::layout_forward::FlyStringSlot;
 use crate::runtime::abstract_operations::{
     create_unmapped_arguments_object, new_function_environment, ordinary_create_from_constructor,
 };
+use crate::runtime::async_function_driver_wrapper::AsyncFunctionDriverWrapper;
+use crate::runtime::async_generator::AsyncGenerator;
 use crate::runtime::class_field_definition::{ClassElementName, ClassFieldDefinition};
 use crate::runtime::completion::{Must, Throw, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
@@ -607,16 +608,25 @@ impl EcmascriptFunctionObject {
             return Ok(result);
         }
 
+        let realm = context.realm.get().expect("a function runs in a realm");
         if self.kind() == FunctionKind::AsyncGenerator {
-            unimplemented_runtime_function("AsyncGenerator::create, for calling an async generator function", 0);
+            return Ok(Value::from_object(AsyncGenerator::create(
+                vm,
+                realm,
+                self.as_ecmascript_function_gc(),
+                context.copy(),
+            )));
         }
 
-        let realm = context.realm.get().expect("a function runs in a realm");
         let generator_object = GeneratorObject::create(vm, realm, self.as_ecmascript_function_gc(), context.copy());
 
         // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise.
         if self.kind() == FunctionKind::Async {
-            unimplemented_runtime_function("AsyncFunctionDriverWrapper::create, for calling an async function", 0);
+            return Ok(Value::from_object(AsyncFunctionDriverWrapper::create(
+                vm,
+                realm,
+                generator_object,
+            )));
         }
 
         debug_assert!(self.kind() == FunctionKind::Generator);

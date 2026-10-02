@@ -8,6 +8,7 @@ use core::cell::{Cell, OnceCell, RefCell};
 use core::ffi::c_void;
 use core::ptr::NonNull;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
@@ -20,10 +21,14 @@ use crate::bytecode::executable::{
 };
 use crate::bytecode::property_access::Strict;
 use crate::gc::capi::{self, GCVisitor};
+use crate::gc::class::{GcCell, define_cell};
+use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::{Heap, cell_is_dead};
+use crate::gc::heap_function::HeapFunction;
 use crate::gc::root::RootSet;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::layout::cell::Gc;
+use crate::interpreter::runtime_functions::unimplemented_runtime_function;
+use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::Environment;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 use crate::layout::function_object::{FunctionObject, NativeFunctionTableEntry, NativeFunctionType};
@@ -41,8 +46,10 @@ use crate::runtime::environment_coordinate::EnvironmentCoordinate;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
+use crate::runtime::job_callback::{JobCallback, call_job_callback, make_job_callback};
 use crate::runtime::object::IntrinsicAccessor;
 use crate::runtime::primitive_string::PrimitiveString;
+use crate::runtime::promise::{Promise, RejectionOperation};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::{BaseType, Reference};
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
@@ -82,6 +89,57 @@ pub type HostEnsureCanCompileStrings = fn(
     &[Value],
     Value,
 ) -> ThrowCompletionOr<()>;
+
+/// HostPromiseRejectionTracker ( promise, operation ), which hosts may override.
+pub type HostPromiseRejectionTracker = fn(&Vm, Gc<Promise>, RejectionOperation);
+
+/// HostCallJobCallback ( jobCallback, V, argumentsList ), which hosts may override.
+pub type HostCallJobCallback = fn(&Vm, Gc<JobCallback>, Value, &[Value]) -> ThrowCompletionOr<Value>;
+
+/// HostEnqueueFinalizationRegistryCleanupJob ( finalizationRegistry ), which hosts may override. The registry is a
+/// FinalizationRegistry.
+pub type HostEnqueueFinalizationRegistryCleanupJob = fn(&Vm, Gc<Object>);
+
+/// HostEnqueuePromiseJob ( job, realm ), which hosts may override.
+pub type HostEnqueuePromiseJob = fn(&Vm, Gc<HeapFunction>, Option<Gc<Realm>>);
+
+/// HostMakeJobCallback ( callback ), which hosts may override.
+pub type HostMakeJobCallback = fn(&Vm, Gc<FunctionObject>) -> Gc<JobCallback>;
+
+/// Whether the host's promise job queue is empty, which the synchronous await fast path checks.
+pub type HostPromiseJobQueueIsEmpty = fn(&Vm) -> bool;
+
+/// VM::on_promise_unhandled_rejection and VM::on_promise_rejection_handled, which the default
+/// HostPromiseRejectionTracker calls.
+pub type PromiseRejectionCallback = fn(&Vm, Gc<Promise>);
+
+fn default_host_promise_rejection_tracker(vm: &Vm, promise: Gc<Promise>, operation: RejectionOperation) {
+    vm.promise_rejection_tracker(promise, operation);
+}
+
+fn default_host_enqueue_finalization_registry_cleanup_job(vm: &Vm, finalization_registry: Gc<Object>) {
+    vm.enqueue_finalization_registry_cleanup_job(finalization_registry);
+}
+
+fn default_host_enqueue_promise_job(vm: &Vm, job: Gc<HeapFunction>, realm: Option<Gc<Realm>>) {
+    vm.enqueue_promise_job(job, realm);
+}
+
+fn default_host_promise_job_queue_is_empty(vm: &Vm) -> bool {
+    vm.job_queues().promise_jobs.borrow().is_empty()
+}
+
+/// The VM's job queues, VM::m_promise_jobs and VM::m_finalization_registry_cleanup_jobs, in a cell the VM roots.
+#[repr(C)]
+#[derive(Trace)]
+pub struct JobQueues {
+    header: CellHeader,
+    promise_jobs: GcRefCell<VecDeque<Gc<HeapFunction>>>,
+    /// The FinalizationRegistry objects whose cleanup is due.
+    finalization_registry_cleanup_jobs: GcRefCell<Vec<Gc<Object>>>,
+}
+
+define_cell!(JobQueues, Other);
 
 // 1 HostGetCodeForEval ( argument ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-hostgetcodeforeval
 fn default_host_get_code_for_eval(_: &Vm, _: &Object) -> Option<Gc<PrimitiveString>> {
@@ -225,6 +283,18 @@ pub struct Vm {
     host_ensure_can_add_private_element: Cell<HostEnsureCanAddPrivateElement>,
     host_get_code_for_eval: Cell<HostGetCodeForEval>,
     host_ensure_can_compile_strings: Cell<HostEnsureCanCompileStrings>,
+    host_promise_rejection_tracker: Cell<HostPromiseRejectionTracker>,
+    host_call_job_callback: Cell<HostCallJobCallback>,
+    host_enqueue_finalization_registry_cleanup_job: Cell<HostEnqueueFinalizationRegistryCleanupJob>,
+    host_enqueue_promise_job: Cell<HostEnqueuePromiseJob>,
+    host_make_job_callback: Cell<HostMakeJobCallback>,
+    host_promise_job_queue_is_empty: Cell<HostPromiseJobQueueIsEmpty>,
+    on_promise_unhandled_rejection: Cell<Option<PromiseRejectionCallback>>,
+    on_promise_rejection_handled: Cell<Option<PromiseRejectionCallback>>,
+    job_queues: OnceCell<Gc<JobQueues>>,
+    /// How many run_executable() calls are running, VM::m_run_executable_depth: the outermost one runs the promise jobs
+    /// its code queued.
+    run_executable_depth: Cell<u32>,
     /// The id the next PrivateEnvironment gives its names, the C++ static PrivateEnvironment::s_next_id. It starts
     /// at one such that 0 can be invalid / default initialized.
     next_private_environment_id: Cell<u64>,
@@ -288,6 +358,18 @@ impl Vm {
             host_ensure_can_add_private_element: Cell::new(default_host_ensure_can_add_private_element),
             host_get_code_for_eval: Cell::new(default_host_get_code_for_eval),
             host_ensure_can_compile_strings: Cell::new(default_host_ensure_can_compile_strings),
+            host_promise_rejection_tracker: Cell::new(default_host_promise_rejection_tracker),
+            host_call_job_callback: Cell::new(call_job_callback),
+            host_enqueue_finalization_registry_cleanup_job: Cell::new(
+                default_host_enqueue_finalization_registry_cleanup_job,
+            ),
+            host_enqueue_promise_job: Cell::new(default_host_enqueue_promise_job),
+            host_make_job_callback: Cell::new(make_job_callback),
+            host_promise_job_queue_is_empty: Cell::new(default_host_promise_job_queue_is_empty),
+            on_promise_unhandled_rejection: Cell::new(None),
+            on_promise_rejection_handled: Cell::new(None),
+            job_queues: OnceCell::new(),
+            run_executable_depth: Cell::new(0),
             next_private_environment_id: Cell::new(1),
             intrinsic_accessors: RefCell::new(HashMap::new()),
             type_error_realm_override: Cell::new(None),
@@ -335,6 +417,11 @@ impl Vm {
 
         let _ = self.well_known_symbols.set(WellKnownSymbols::create(self));
         let _ = self.global_symbol_registry.set(GlobalSymbolRegistry::create(self));
+        let _ = self.job_queues.set(self.heap().allocate(JobQueues {
+            header: CellHeader::for_class(JobQueues::CLASS),
+            promise_jobs: GcRefCell::new(VecDeque::new()),
+            finalization_registry_cleanup_jobs: GcRefCell::new(Vec::new()),
+        }));
     }
 
     pub fn heap(&self) -> &Heap {
@@ -419,6 +506,22 @@ impl Vm {
         }
     }
 
+    /// The context below the running one, the second to top element of the execution context stack.
+    pub fn previous_execution_context(&self) -> Option<NonNull<ExecutionContext>> {
+        let mut previous_execution_context = None;
+        let mut found_running_execution_context = false;
+        self.for_each_execution_context_top_to_bottom(|execution_context| {
+            if !found_running_execution_context {
+                found_running_execution_context = true;
+                return;
+            }
+            if previous_execution_context.is_none() {
+                previous_execution_context = Some(NonNull::from(execution_context));
+            }
+        });
+        previous_execution_context
+    }
+
     pub fn roots(&self) -> &RootSet {
         &self.roots
     }
@@ -434,6 +537,7 @@ impl Vm {
         self.well_known_symbols.trace(visitor);
         self.global_symbol_registry.trace(visitor);
         self.type_error_realm_override.trace(visitor);
+        self.job_queues.trace(visitor);
     }
 
     /// Forgets the intrinsic accessors of objects that died in this collection, as JS::Object::~Object does.
@@ -577,6 +681,135 @@ impl Vm {
 
     pub fn set_host_ensure_can_compile_strings(&self, hook: HostEnsureCanCompileStrings) {
         self.host_ensure_can_compile_strings.set(hook);
+    }
+
+    pub fn host_promise_rejection_tracker(&self) -> HostPromiseRejectionTracker {
+        self.host_promise_rejection_tracker.get()
+    }
+
+    pub fn set_host_promise_rejection_tracker(&self, hook: HostPromiseRejectionTracker) {
+        self.host_promise_rejection_tracker.set(hook);
+    }
+
+    pub fn host_call_job_callback(&self) -> HostCallJobCallback {
+        self.host_call_job_callback.get()
+    }
+
+    pub fn set_host_call_job_callback(&self, hook: HostCallJobCallback) {
+        self.host_call_job_callback.set(hook);
+    }
+
+    pub fn host_enqueue_finalization_registry_cleanup_job(&self) -> HostEnqueueFinalizationRegistryCleanupJob {
+        self.host_enqueue_finalization_registry_cleanup_job.get()
+    }
+
+    pub fn set_host_enqueue_finalization_registry_cleanup_job(&self, hook: HostEnqueueFinalizationRegistryCleanupJob) {
+        self.host_enqueue_finalization_registry_cleanup_job.set(hook);
+    }
+
+    pub fn host_enqueue_promise_job(&self) -> HostEnqueuePromiseJob {
+        self.host_enqueue_promise_job.get()
+    }
+
+    pub fn set_host_enqueue_promise_job(&self, hook: HostEnqueuePromiseJob) {
+        self.host_enqueue_promise_job.set(hook);
+    }
+
+    pub fn host_make_job_callback(&self) -> HostMakeJobCallback {
+        self.host_make_job_callback.get()
+    }
+
+    pub fn set_host_make_job_callback(&self, hook: HostMakeJobCallback) {
+        self.host_make_job_callback.set(hook);
+    }
+
+    pub fn host_promise_job_queue_is_empty(&self) -> HostPromiseJobQueueIsEmpty {
+        self.host_promise_job_queue_is_empty.get()
+    }
+
+    pub fn set_host_promise_job_queue_is_empty(&self, hook: HostPromiseJobQueueIsEmpty) {
+        self.host_promise_job_queue_is_empty.set(hook);
+    }
+
+    pub fn set_on_promise_unhandled_rejection(&self, callback: Option<PromiseRejectionCallback>) {
+        self.on_promise_unhandled_rejection.set(callback);
+    }
+
+    pub fn set_on_promise_rejection_handled(&self, callback: Option<PromiseRejectionCallback>) {
+        self.on_promise_rejection_handled.set(callback);
+    }
+
+    fn job_queues(&self) -> Gc<JobQueues> {
+        *self.job_queues.get().expect("the VM allocates its job queues")
+    }
+
+    pub fn run_executable_depth(&self) -> &Cell<u32> {
+        &self.run_executable_depth
+    }
+
+    pub fn run_queued_promise_jobs(&self) {
+        if self.job_queues().promise_jobs.borrow().is_empty() {
+            return;
+        }
+        self.run_queued_promise_jobs_impl();
+    }
+
+    fn run_queued_promise_jobs_impl(&self) {
+        let job_queues = self.job_queues();
+        loop {
+            let Some(job) = job_queues.promise_jobs.borrow_mut().pop_front() else {
+                break;
+            };
+            let _ = HeapFunction::call(job, self);
+        }
+    }
+
+    // 9.5.4 HostEnqueuePromiseJob ( job, realm ), https://tc39.es/ecma262/#sec-hostenqueuepromisejob
+    pub fn enqueue_promise_job(&self, job: Gc<HeapFunction>, _realm: Option<Gc<Realm>>) {
+        // An implementation of HostEnqueuePromiseJob must conform to the requirements in 9.5 as well as the following:
+        // - FIXME: If realm is not null, each time job is invoked the implementation must perform implementation-defined steps such that execution is prepared to evaluate ECMAScript code at the time of job's invocation.
+        // - FIXME: Let scriptOrModule be GetActiveScriptOrModule() at the time HostEnqueuePromiseJob is invoked. If realm is not null, each time job is invoked the implementation must perform implementation-defined steps
+        //          such that scriptOrModule is the active script or module at the time of job's invocation.
+        // - Jobs must run in the same order as the HostEnqueuePromiseJob invocations that scheduled them.
+        self.job_queues().promise_jobs.borrow_mut().push_back(job);
+    }
+
+    pub fn run_queued_finalization_registry_cleanup_jobs(&self) {
+        // NB: C++ takes the registries off the end of the queue one at a time and runs their cleanup(). If one throws
+        //     while the registry still has empty cells, it queues the registry again.
+        // FIXME: Handle any uncatched exceptions here.
+        if !self.job_queues().finalization_registry_cleanup_jobs.borrow().is_empty() {
+            unimplemented_runtime_function(
+                "FinalizationRegistry::cleanup, for a queued finalization registry cleanup job",
+                0,
+            );
+        }
+    }
+
+    // 9.10.4.1 HostEnqueueFinalizationRegistryCleanupJob ( finalizationRegistry ), https://tc39.es/ecma262/#sec-host-cleanup-finalization-registry
+    pub fn enqueue_finalization_registry_cleanup_job(&self, finalization_registry: Gc<Object>) {
+        self.job_queues()
+            .finalization_registry_cleanup_jobs
+            .borrow_mut()
+            .push(finalization_registry);
+    }
+
+    // 27.2.1.9 HostPromiseRejectionTracker ( promise, operation ), https://tc39.es/ecma262/#sec-host-promise-rejection-tracker
+    pub fn promise_rejection_tracker(&self, promise: Gc<Promise>, operation: RejectionOperation) {
+        match operation {
+            RejectionOperation::Reject => {
+                // A promise was rejected without any handlers
+                if let Some(on_promise_unhandled_rejection) = self.on_promise_unhandled_rejection.get() {
+                    on_promise_unhandled_rejection(self, promise);
+                }
+            }
+            RejectionOperation::Handle => {
+                // A handler was added to an already rejected promise
+                if let Some(on_promise_rejection_handled) = self.on_promise_rejection_handled.get() {
+                    on_promise_rejection_handled(self, promise);
+                }
+            }
+        }
     }
 
     pub fn next_private_environment_id(&self) -> &Cell<u64> {
