@@ -594,7 +594,7 @@ fn parse_and_run(vm: &Vm, realm: Gc<Realm>, options: &Options, source: &[u8], so
 }
 
 /// How AK formats the Error of a failed system call: "<syscall>: <strerror> (errno=<code>)".
-fn system_error_string(syscall: &str, error: &io::Error) -> String {
+pub(crate) fn system_error_string(syscall: &str, error: &io::Error) -> String {
     match error.raw_os_error() {
         Some(code) => {
             let message = io::Error::from_raw_os_error(code).to_string();

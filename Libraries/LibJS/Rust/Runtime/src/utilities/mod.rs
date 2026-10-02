@@ -8,6 +8,7 @@
 
 pub mod js;
 pub mod test262_runner;
+pub mod test_js;
 
 use crate::interpreter::execution_context::OwnedExecutionContext;
 use crate::interpreter::vm::Vm;

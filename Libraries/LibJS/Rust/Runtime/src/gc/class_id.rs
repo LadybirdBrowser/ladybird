@@ -145,6 +145,7 @@ define_class_ids! {
     IsHTMLDDA,
     ScriptObject,
     ReplConsoleClient,
+    TestRunnerGlobalObject,
     HeapFunction,
     JobQueues,
     JobCallback,
