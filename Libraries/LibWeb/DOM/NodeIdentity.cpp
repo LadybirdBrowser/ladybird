@@ -49,9 +49,9 @@ Layout::Node* NodeIdentity::bound_layout_node(Layout::NodeArena& arena) const
     case Kind::None:
         return nullptr;
     case Kind::StyleNode:
-        return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_bound_shell(arena.handle(), m_style_node.value()));
+        return static_cast<Layout::Node*>(Layout::RustFFI::layout_row_bound_shell(arena.host(), m_style_node.value()));
     case Kind::Document:
-        return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_bound_viewport_shell(arena.handle()));
+        return static_cast<Layout::Node*>(Layout::RustFFI::layout_row_bound_viewport_shell(arena.host()));
     }
     VERIFY_NOT_REACHED();
 }

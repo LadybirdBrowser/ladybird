@@ -34,7 +34,7 @@ Optional<CSS::CursorPredefined> ResizeHandle::cursor() const
     auto axes = physical_resize_axes(*node);
     if (axes.vertical) {
         if (axes.horizontal) {
-            if (Layout::RustFFI::layout_arena_paintable_is_chrome_mirrored(node->arena_handle(), committed_row_slot(*node)))
+            if (Layout::RustFFI::layout_row_paintable_is_chrome_mirrored(node->document_host(), committed_row_slot(*node)))
                 return CSS::CursorPredefined::SwResize;
             return CSS::CursorPredefined::SeResize;
         }

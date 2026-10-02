@@ -84,7 +84,7 @@ bool has_committed_box(Layout::Node const& node)
 
 Layout::Node* layout_node_for_committed_slot(Layout::NodeArena& arena, Compositing::RustFFI::NodeSlotId slot)
 {
-    return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_paintable_layout_node_shell(arena.handle(), slot));
+    return static_cast<Layout::Node*>(Layout::RustFFI::layout_row_paintable_layout_node_shell(arena.host(), slot));
 }
 
 static PixelBox pixel_box_from_ffi(Layout::RustFFI::FfiPixelBox const& box)
@@ -200,7 +200,7 @@ CSS::Display display(Layout::Node const& node)
 
 bool is_positioned(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_arena_paintable_is_positioned(node.arena_handle(), committed_row_slot(node));
+    return Layout::RustFFI::layout_row_paintable_is_positioned(node.document_host(), committed_row_slot(node));
 }
 
 CSS::StyleRecordID style_record_identity(Layout::Node const& node)
@@ -328,7 +328,7 @@ static bool has_content(Layout::Node const& node)
     // Interrupting block-in-inline children produce only placeholder pieces, so any child
     // paintable also counts as content.
     return Layout::RustFFI::layout_arena_inline_paintable_has_content_pieces(node.arena_handle(), committed_row_slot(node))
-        || Layout::RustFFI::layout_arena_paintable_has_child_paintables(node.arena_handle(), committed_row_slot(node));
+        || Layout::RustFFI::layout_row_paintable_has_child_paintables(node.document_host(), committed_row_slot(node));
 }
 
 static CSSPixelRect caret_rect_for_empty_line(Layout::NodeWithStyle const& node, CSSPixelPoint position)

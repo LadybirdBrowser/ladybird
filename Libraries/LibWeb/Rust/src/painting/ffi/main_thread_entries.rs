@@ -117,20 +117,6 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_layout_node_shell(arena: *mut c_void, slot: NodeSlotId) -> *mut c_void {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    let arena = unsafe { arena_from_handle(arena) };
-    if !arena.paintable_row_is_populated(slot) {
-        return std::ptr::null_mut();
-    }
-    arena.shell_if_live(&main_thread, slot)
-}
-
-/// # Safety
-///
 /// `arena` must be a live arena used on the document thread. Host callbacks must
 /// remain valid for this call and must not mutate layout geometry.
 #[unsafe(no_mangle)]

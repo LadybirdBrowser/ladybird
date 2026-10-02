@@ -3687,7 +3687,7 @@ Layout::NodeWithStyle* Element::pseudo_element_unsafe_layout_node(CSS::PseudoEle
         auto* arena = const_cast<Document&>(document()).layout_node_arena_if_created();
         if (!arena)
             return nullptr;
-        return static_cast<Layout::NodeWithStyle*>(Layout::RustFFI::layout_arena_bound_pseudo_element_shell(arena->handle(), style_node_id().value(), Layout::Node::encode_generated_for(pseudo_element)));
+        return static_cast<Layout::NodeWithStyle*>(Layout::RustFFI::layout_row_bound_pseudo_element_shell(arena->host(), style_node_id().value(), Layout::Node::encode_generated_for(pseudo_element)));
     }
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
         return element_data->unsafe_layout_node();

@@ -348,7 +348,7 @@ private:
 
     Node* containing_block_node_if_live() const
     {
-        return static_cast<Node*>(RustFFI::layout_arena_node_containing_block_shell_if_live(m_arena->handle(), m_slot));
+        return static_cast<Node*>(RustFFI::layout_row_containing_block_shell_if_live(document_host(), m_slot));
     }
 
     u8 generated_for() const { return RustFFI::layout_row_generated_for(document_host(), m_slot); }

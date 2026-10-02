@@ -538,7 +538,7 @@ Utf16String HTMLElement::outer_text()
 
 static bool any_ancestor_establishes_a_fixed_position_containing_block(Layout::NodeWithStyle const& node)
 {
-    return Layout::RustFFI::layout_arena_any_ancestor_establishes_a_fixed_position_containing_block(node.arena_handle(), Layout::Node::slot_id(&node));
+    return Layout::RustFFI::layout_row_any_ancestor_establishes_a_fixed_position_containing_block(node.document_host(), Layout::Node::slot_id(&node));
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-htmlelement-scrollparent

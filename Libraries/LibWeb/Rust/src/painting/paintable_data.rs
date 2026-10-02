@@ -114,6 +114,8 @@ pub enum PaintableRowResetKind {
     Recommitted = 0,
     Cleared = 1,
     Freed = 2,
+    /// The viewport's row, which the document is bound to, was recommitted.
+    ViewportRecommitted = 3,
 }
 
 pub use crate::layout::inline_content::{FragmentRecord, GlyphRunRecord, InlineBoxPieceRecord};

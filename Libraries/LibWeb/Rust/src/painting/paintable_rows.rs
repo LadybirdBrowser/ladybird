@@ -490,8 +490,13 @@ where
 
     pub(crate) fn prepare_paintable_row_recommit_notification(&self, id: NodeSlotId) -> PaintableRowReset {
         assert!(self.paintable_row_is_populated(id));
-        self.arena
-            .prepare_paintable_row_reset(id, PaintableRowResetKind::Recommitted)
+        // The host hears which row is the viewport's here: a layout pass is under way, so it cannot read the rows.
+        let kind = if id == self.arena.bound_viewport_row() {
+            PaintableRowResetKind::ViewportRecommitted
+        } else {
+            PaintableRowResetKind::Recommitted
+        };
+        self.arena.prepare_paintable_row_reset(id, kind)
     }
 }
 
@@ -740,10 +745,12 @@ impl LayoutNodeArena {
             nodes,
             paint_facts,
             rows: store.rows.publish(),
-            fragment_links: store.committed_fragment_links.get_mut().publish(),
-            side_data: store.committed_side_data.get_mut().publish(),
-            stacking_context_entries: store.stacking_context_entries.get_mut().publish(),
-            visual_context_node_handles: store.visual_context_node_handles.get_mut().publish(),
+            // Borrowed rather than reached through `&mut`, so a publication that a host read makes while
+            // a writer of the columns is still on the stack panics instead of racing it.
+            fragment_links: store.committed_fragment_links.borrow_mut().publish(),
+            side_data: store.committed_side_data.borrow_mut().publish(),
+            stacking_context_entries: store.stacking_context_entries.borrow_mut().publish(),
+            visual_context_node_handles: store.visual_context_node_handles.borrow_mut().publish(),
         }
     }
 

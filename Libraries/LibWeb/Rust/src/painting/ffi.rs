@@ -129,15 +129,6 @@ pub unsafe extern "C" fn layout_arena_paintable_physical_resize_axes(
 ///
 /// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_is_chrome_mirrored(arena: *mut c_void, slot: NodeSlotId) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    crate::painting::chrome_geometry::is_chrome_mirrored(&arena.paintable_rows(), slot)
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_compute_scrollbar_data(
     arena: *mut c_void,
     slot: NodeSlotId,
@@ -260,42 +251,6 @@ pub unsafe extern "C" fn layout_arena_clear_chrome_state_callback(arena: *mut c_
 ///
 /// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_establishes_an_absolute_positioning_containing_block(
-    arena: *mut c_void,
-    node: NodeSlotId,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    crate::painting::style_queries::establishes_positioning_containing_blocks(arena, node).0
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_establishes_a_fixed_positioning_containing_block(
-    arena: *mut c_void,
-    node: NodeSlotId,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    crate::painting::style_queries::establishes_positioning_containing_blocks(arena, node).1
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_any_ancestor_establishes_a_fixed_position_containing_block(
-    arena: *mut c_void,
-    node: NodeSlotId,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    crate::painting::style_queries::any_ancestor_establishes_a_fixed_position_containing_block(arena, node)
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_has_css_transform(arena: *mut c_void, node: NodeSlotId) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
     let Some(style) = arena.node_style_if_live(node) else {
@@ -315,15 +270,6 @@ pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: No
         return std::ptr::null();
     }
     paintable_rows.paintable_data_ptr(slot)
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(arena: *mut c_void, slot: NodeSlotId) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    crate::painting::paint_order::first_paint_child(&arena.paintable_rows(), slot).is_some()
 }
 
 #[repr(C)]
@@ -700,18 +646,6 @@ pub unsafe extern "C" fn layout_arena_paintable_box_model(arena: *mut c_void, sl
         border: crate::painting::paintable_geometry::committed_border(arena, slot),
         inset: crate::painting::paintable_geometry::committed_inset(arena, slot),
     }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_is_positioned(arena: *mut c_void, slot: NodeSlotId) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    if !arena.paintable_row_is_populated(slot) {
-        return false;
-    }
-    crate::painting::style_queries::is_positioned(arena, slot)
 }
 
 /// # Safety

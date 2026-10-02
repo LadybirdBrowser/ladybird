@@ -243,6 +243,7 @@ impl LayoutNodeArena {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
         if !self.paintable_row_is_populated(row) {
             return PaintDamage::NONE;
@@ -375,6 +376,7 @@ impl LayoutNodeArena {
         self.paintable_rows.damage.scroll_metadata_everywhere.get() != 0
     }
 
+    #[cfg(test)]
     pub(crate) fn damaged_paint_rows(&self) -> Vec<NodeSlotId> {
         let mut rows: Vec<NodeSlotId> = self
             .paintable_rows

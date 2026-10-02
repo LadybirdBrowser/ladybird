@@ -104,8 +104,6 @@ pub(crate) trait PaintRead: GeometryRead {
         id: NodeSlotId,
         read: impl FnOnce(&BoxVisualContextNodeHandles) -> R,
     ) -> R;
-    fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage;
-    fn damaged_paint_rows(&self) -> impl Iterator<Item = NodeSlotId> + '_;
     /// The paint-order inputs paint preparation gathered for the row, if it gathered them.
     fn prepared_paint_order_inputs(&self, row: NodeSlotId) -> Option<PaintOrderInputs> {
         self.committed_side_data(row).prepared_order_inputs()
@@ -377,14 +375,6 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
         self.as_ref().layer_image_paint_facts(id, list, computed_index)
     }
 
-    fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
-        self.as_ref().paint_damage_of_row(row)
-    }
-
-    fn damaged_paint_rows(&self) -> impl Iterator<Item = NodeSlotId> + '_ {
-        self.as_ref().damaged_paint_rows().into_iter()
-    }
-
     fn with_paintable_visual_context_node_handles<R>(
         &self,
         id: NodeSlotId,
@@ -401,25 +391,49 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
 /// What the display list recording reads a document through: [`PaintRead`] and nothing else. It
 /// has no `Deref` to the arena, so a read the trait does not name does not compile, and it reads
 /// everything from the frame the document published when the recording started. The absolute rects
-/// it computes go to the recorder's own memo, stamped with the geometry epoch of the frame.
+/// it computes go to the recorder's own memo, stamped with the geometry epoch of the frame. The
+/// host reads the rows its document's render state published through one too, without a frame.
 #[derive(Clone, Copy)]
 pub(crate) struct PaintSource<'a> {
-    frame: &'a PublishedFrame,
+    rows: &'a PublishedRows,
+    /// The frame a recording reads, or none for the host reading published rows.
+    frame: Option<&'a PublishedFrame>,
     absolute_rects: &'a RefCell<AbsoluteRectMemo>,
 }
 
 impl<'a> PaintSource<'a> {
     pub(crate) fn new(frame: &'a PublishedFrame, absolute_rects: &'a RefCell<AbsoluteRectMemo>) -> Self {
-        Self { frame, absolute_rects }
+        Self {
+            rows: &frame.rows,
+            frame: Some(frame),
+            absolute_rects,
+        }
+    }
+
+    /// Reads `rows` alone, as the host reads the rows its document's render state published.
+    pub(crate) fn over_rows(rows: &'a PublishedRows, absolute_rects: &'a RefCell<AbsoluteRectMemo>) -> Self {
+        Self {
+            rows,
+            frame: None,
+            absolute_rects,
+        }
     }
 
     /// The frame the recording reads.
     pub(crate) fn frame(&self) -> &'a PublishedFrame {
-        self.frame
+        self.frame.expect("only a recording reads a frame")
     }
 
     fn rows(&self) -> &'a PublishedRows {
-        &self.frame.rows
+        self.rows
+    }
+
+    pub(crate) fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
+        self.frame().damage().of_row(row)
+    }
+
+    pub(crate) fn damaged_paint_rows(&self) -> impl Iterator<Item = NodeSlotId> + 'a {
+        self.frame().damage().rows()
     }
 }
 
@@ -531,14 +545,6 @@ impl PaintRead for PaintSource<'_> {
 
     fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool {
         self.node(id).is_some_and(|node| node.dom_paint_facts & fact as u8 != 0)
-    }
-
-    fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
-        self.frame.damage().of_row(row)
-    }
-
-    fn damaged_paint_rows(&self) -> impl Iterator<Item = NodeSlotId> + '_ {
-        self.frame.damage().rows()
     }
 
     fn with_paintable_visual_context_node_handles<R>(
