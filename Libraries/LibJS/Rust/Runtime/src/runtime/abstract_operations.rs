@@ -20,6 +20,7 @@ use crate::interpreter::run::should_dump_bytecode;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::{CompilationType, EvalMode, Vm};
 use crate::layout::cell::Gc;
+use crate::layout::execution_context::ScriptOrModule;
 use crate::layout::function_object::EcmascriptFunctionObject;
 use crate::layout::function_object::FunctionObject;
 use crate::layout::value::Value;
@@ -28,6 +29,7 @@ use crate::runtime::arguments_object::ArgumentsObject;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
 use crate::runtime::completion::{Completion, Must, Throw, ThrowCompletionOr, r#await};
+use crate::runtime::cyclic_module::CyclicModule;
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment::{Environment, InitializeBindingHint, ThisBindingStatus};
@@ -38,9 +40,11 @@ use crate::runtime::global_environment::GlobalEnvironment;
 use crate::runtime::indexed_properties::ValueAndAttributes;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::{IteratorHint, get_iterator, iterator_step_value, try_or_close_iterator};
+use crate::runtime::module_loading::{ImportedModulePayload, ImportedModuleReferrer};
+use crate::runtime::module_request::{ImportAttribute, ModuleRequest};
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
-use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, StackFrameInfo};
+use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, PropertyKind, StackFrameInfo};
 use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment, name_for_message};
 use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::promise_capability::{new_promise_capability, try_or_reject};
@@ -59,7 +63,7 @@ use crate::runtime::value::{number_to_utf16_string, same_value};
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 use crate::script::LexicalBinding;
 use crate::source_code::SourceCode;
-use crate::utf16::{Utf16StringBuilder, Utf16View};
+use crate::utf16::{Utf16StringBuilder, Utf16View, to_utf16_fly_string};
 use libjs_runtime_macros::Trace;
 use libjs_rust::compile::{CompiledEval, EvalContext, parse_eval};
 
@@ -2441,6 +2445,157 @@ pub fn canonical_numeric_index_string(property_key: &PropertyKey, mode: Canonica
 
     // 4. Return undefined.
     CanonicalIndex::new(CanonicalIndexType::Undefined, 0)
+}
+
+// 16.2.1.12 AllImportAttributesSupported ( attributes ), https://tc39.es/ecma262/#sec-AllImportAttributesSupported
+pub fn all_import_attributes_supported(vm: &Vm, attributes: &[ImportAttribute]) -> bool {
+    // 1. Let supported be HostGetSupportedImportAttributes().
+    let supported = vm.host_get_supported_import_attributes()(vm);
+
+    // 2. For each ImportAttribute Record attribute of attributes, do
+    for attribute in attributes {
+        // a. If supported does not contain attribute.[[Key]], return false.
+        if !supported.contains(&attribute.key) {
+            return false;
+        }
+    }
+
+    // 3. Return true.
+    true
+}
+
+// 13.3.10.2 EvaluateImportCall ( specifierExpression [ , optionsExpression ] ), https://tc39.es/ecma262/#sec-evaluate-import-call
+pub fn perform_import_call(vm: &Vm, specifier: Value, options: Value) -> ThrowCompletionOr<Value> {
+    let realm = vm.current_realm().expect("an import call runs in a realm");
+
+    // 1. Let referrer be GetActiveScriptOrModule().
+    let referrer = match vm.get_active_script_or_module() {
+        // 2. If referrer is null, set referrer to the current Realm Record.
+        ScriptOrModule::Empty => ImportedModuleReferrer::Realm(realm),
+        ScriptOrModule::Script(script) => ImportedModuleReferrer::Script(script),
+        ScriptOrModule::Module(module) => ImportedModuleReferrer::CyclicModule(
+            module
+                .downcast::<CyclicModule>()
+                .expect("only the code of Cyclic Module Records runs"),
+        ),
+    };
+
+    // 3. Let specifierRef be ? Evaluation of specifierExpression.
+    // 4. Let specifier be ? GetValue(specifierRef).
+    // 5. If optionsExpression is present, then
+    //     a. Let optionsRef be ? Evaluation of optionsExpression.
+    //     b. Let options be ? GetValue(optionsRef).
+    // 6. Else,
+    //    a. Let options be undefined.
+
+    // 7. Let promiseCapability be ! NewPromiseCapability(%Promise%).
+    let promise_capability =
+        new_promise_capability(vm, Value::from_object(realm.intrinsics().promise_constructor(vm))).must();
+
+    let reject_with_type_error = |error_type: ErrorType, arguments: &[&dyn core::fmt::Display]| {
+        let error = vm
+            .throw_completion::<()>(ErrorKind::TypeError, error_type, arguments)
+            .expect_err("throw_completion throws");
+        call_function_object(vm, promise_capability.reject(), Value::UNDEFINED, &[error.value()]).must();
+        Value::from_object(promise_capability.promise())
+    };
+
+    // 8. Let specifierString be Completion(ToString(specifier)).
+    // 9. IfAbruptRejectPromise(specifierString, promiseCapability).
+    let specifier_string = try_or_reject!(vm, promise_capability, specifier.to_utf16_string(vm));
+
+    // 10. Let attributes be a new empty List.
+    let mut attributes = Vec::new();
+
+    // 11. If options is not undefined, then
+    if !options.is_undefined() {
+        // a. If options is not an Object, then
+        if !options.is_object() {
+            // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+            // ii. Return promiseCapability.[[Promise]].
+            return Ok(reject_with_type_error(ErrorType::NotAnObject, &[&"options"]));
+        }
+
+        // b. Let attributesObj be Completion(Get(options, "with")).
+        // c. IfAbruptRejectPromise(attributesObj, promiseCapability).
+        let attributes_obj = try_or_reject!(vm, promise_capability, options.get(vm, &vm.names.with));
+
+        // d. If attributesObj is not undefined, then
+        if !attributes_obj.is_undefined() {
+            // i. If attributesObj is not an Object, then
+            if !attributes_obj.is_object() {
+                // 1. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+                // 2. Return promiseCapability.[[Promise]].
+                return Ok(reject_with_type_error(ErrorType::NotAnObject, &[&"with"]));
+            }
+
+            // ii. Let entries be Completion(EnumerableOwnPropertyNames(attributesObj, KEY+VALUE)).
+            // iii. IfAbruptRejectPromise(entries, promiseCapability).
+            let entries = try_or_reject!(
+                vm,
+                promise_capability,
+                attributes_obj
+                    .as_object()
+                    .enumerable_own_property_names(vm, PropertyKind::KeyAndValue)
+            );
+
+            // iv. For each element entry of entries, do
+            for index in 0..entries.len() {
+                let entry = entries.get(index).expect("the index is in bounds");
+
+                // 1. Let key be ! Get(entry, "0").
+                let key = entry.get(vm, &PropertyKey::from_number(0)).must();
+
+                // 2. Let value be ! Get(entry, "1").
+                let value = entry.get(vm, &PropertyKey::from_number(1)).must();
+
+                // 3. If key is a String, then
+                if key.is_string() {
+                    // a. If value is not a String, then
+                    if !value.is_string() {
+                        // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+                        // ii. Return promiseCapability.[[Promise]].
+                        return Ok(reject_with_type_error(
+                            ErrorType::NotAnObject,
+                            &[&"Import attribute value"],
+                        ));
+                    }
+
+                    // b. Append the ImportAttribute Record { [[Key]]: key, [[Value]]: value } to attributes.
+                    attributes.push(ImportAttribute::new(
+                        key.as_string().utf16_string(),
+                        value.as_string().utf16_string(),
+                    ));
+                }
+            }
+        }
+
+        // e. If AllImportAttributesSupported(attributes) is false, then
+        if !all_import_attributes_supported(vm, &attributes) {
+            // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
+            // ii. Return promiseCapability.[[Promise]].
+            return Ok(reject_with_type_error(ErrorType::ImportAttributeUnsupported, &[]));
+        }
+
+        // f. Sort attributes according to the lexicographic order of their [[Key]] field, treating the value of each
+        //    such field as a sequence of UTF-16 code unit values. NOTE: This sorting is observable only in that hosts
+        //    are prohibited from changing behaviour based on the order in which attributes are enumerated.
+        // NOTE: This is done when constructing the ModuleRequest.
+    }
+
+    // 12. Let moduleRequest be a new ModuleRequest Record { [[Specifier]]: specifierString, [[Attributes]]: attributes }.
+    let request = ModuleRequest::new_with_attributes(to_utf16_fly_string(&specifier_string), attributes);
+
+    // 13. Perform HostLoadImportedModule(referrer, moduleRequest, EMPTY, promiseCapability).
+    vm.host_load_imported_module()(
+        vm,
+        referrer,
+        &request,
+        ImportedModulePayload::PromiseCapability(promise_capability),
+    );
+
+    // 13. Return promiseCapability.[[Promise]].
+    Ok(Value::from_object(promise_capability.promise()))
 }
 
 // 7.3.36 GetOptionsObject ( options ), https://tc39.es/ecma262/#sec-getoptionsobject

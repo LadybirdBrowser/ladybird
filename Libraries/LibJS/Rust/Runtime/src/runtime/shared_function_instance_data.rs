@@ -224,6 +224,37 @@ impl SharedFunctionInstanceData {
         shared
     }
 
+    /// vm.heap().allocate<SharedFunctionInstanceData>(vm, kind, name, function_length, formal_parameter_count, strict,
+    /// is_arrow_function, has_simple_parameter_list, parameter_names_for_mapped_arguments, NoSharedFunctionDataList {},
+    /// nullptr): shared data that has no AST to compile, such as the wrapper of a module with top-level await, whose
+    /// executable the caller sets.
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_without_function_ast(
+        vm: &Vm,
+        kind: FunctionKind,
+        name: Utf16FlyString,
+        function_length: i32,
+        formal_parameter_count: u32,
+        strict: bool,
+        is_arrow_function: bool,
+        has_simple_parameter_list: bool,
+        parameter_names_for_mapped_arguments: Vec<Utf16FlyString>,
+    ) -> Gc<SharedFunctionInstanceData> {
+        let shared = vm.heap().allocate(Self::new(
+            kind,
+            name,
+            function_length,
+            formal_parameter_count,
+            strict,
+            is_arrow_function,
+            has_simple_parameter_list,
+            parameter_names_for_mapped_arguments,
+            None,
+        ));
+        shared.update_can_inline_call();
+        shared
+    }
+
     /// Creates the shared data of one of the functions an executable declares, taking what the frontend kept for it:
     /// its AST, its class field initializer name and the bytecode it may have compiled already.
     pub fn create_from_pending_shared_function_data(

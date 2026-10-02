@@ -25,7 +25,7 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::{Heap, cell_is_dead};
 use crate::gc::heap_function::HeapFunction;
-use crate::gc::root::RootSet;
+use crate::gc::root::{MarkedVec, RootSet};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak_container::WeakContainer;
 use crate::layout::cell::{CellHeader, Gc};
@@ -37,10 +37,12 @@ use crate::layout::realm::Realm;
 use crate::layout::value::Value;
 use crate::layout::vm::{InterpreterStack, VmHead};
 use crate::layout_forward::RawNativeFunctionPointer;
+use crate::lexical_path;
 use crate::runtime::abstract_operations::get_this_environment;
 use crate::runtime::array_buffer::{ArrayBuffer, ZeroFillNewBytes};
 use crate::runtime::common_property_names::CommonPropertyNames;
-use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::completion::{Must, Throw, ThrowCompletionOr};
+use crate::runtime::cyclic_module::{CyclicModule, promise_of};
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment_coordinate::EnvironmentCoordinate;
@@ -49,14 +51,20 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::finalization_registry::FinalizationRegistry;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::job_callback::{JobCallback, call_job_callback, make_job_callback};
+use crate::runtime::module::{Module, finish_loading_imported_module};
+use crate::runtime::module_loading::{ImportedModulePayload, ImportedModuleReferrer};
+use crate::runtime::module_request::ModuleRequest;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::IntrinsicAccessor;
 use crate::runtime::primitive_string::PrimitiveString;
-use crate::runtime::promise::{Promise, RejectionOperation};
+use crate::runtime::promise::{Promise, PromiseState, RejectionOperation};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::{BaseType, Reference};
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
+use crate::runtime::source_text_module::SourceTextModule;
 use crate::runtime::symbol::{self, GlobalSymbolRegistry, Symbol, enumerate_well_known_symbols};
+use crate::runtime::synthetic_module::parse_json_module;
+use crate::source_code::SourceCode;
 use crate::source_range::SourceRange;
 use crate::utf16::Utf16View;
 
@@ -143,6 +151,50 @@ pub struct JobQueues {
 }
 
 define_cell!(JobQueues, Other);
+
+// 16.2.1.10 HostLoadImportedModule ( referrer, moduleRequest, hostDefined, payload ), https://tc39.es/ecma262/#sec-HostLoadImportedModule
+/// HostLoadImportedModule, without the hostDefined that no host passes yet.
+pub type HostLoadImportedModule = fn(&Vm, ImportedModuleReferrer, &ModuleRequest, ImportedModulePayload);
+
+/// HostGetImportMetaProperties, which returns the properties import.meta starts with.
+pub type HostGetImportMetaProperties =
+    for<'vm> fn(&'vm Vm, Gc<SourceTextModule>) -> MarkedVec<'vm, (PropertyKey, Value)>;
+
+/// HostFinalizeImportMeta.
+pub type HostFinalizeImportMeta = fn(&Vm, Gc<Object>, Gc<SourceTextModule>);
+
+/// HostGetSupportedImportAttributes.
+pub type HostGetSupportedImportAttributes = fn(&Vm) -> Vec<Utf16String>;
+
+fn default_host_get_import_meta_properties(vm: &Vm, _: Gc<SourceTextModule>) -> MarkedVec<'_, (PropertyKey, Value)> {
+    MarkedVec::new(vm)
+}
+
+fn default_host_finalize_import_meta(_: &Vm, _: Gc<Object>, _: Gc<SourceTextModule>) {}
+
+fn default_host_get_supported_import_attributes(_: &Vm) -> Vec<Utf16String> {
+    vec![Utf16String::from_utf8("type")]
+}
+
+/// A module the VM loaded, VM::StoredModule.
+#[derive(Clone, Trace)]
+struct StoredModule {
+    referrer: ImportedModuleReferrer,
+    filename: String,
+    module_type: String,
+    module: Gc<Module>,
+    has_once_started_linking: bool,
+}
+
+/// VM::m_loaded_modules, in a cell the VM roots, as C++ keeps each of the modules in a GC::Root.
+#[repr(C)]
+#[derive(Trace)]
+pub struct LoadedModules {
+    header: CellHeader,
+    stored_modules: GcRefCell<Vec<StoredModule>>,
+}
+
+define_cell!(LoadedModules, Other);
 
 /// HostResizeArrayBuffer, which hosts may override.
 pub type HostResizeArrayBuffer = fn(&Vm, &ArrayBuffer, usize) -> ThrowCompletionOr<HandledByHost>;
@@ -361,6 +413,14 @@ pub struct Vm {
     finalization_registries_with_dead_cells: RefCell<Vec<Gc<FinalizationRegistry>>>,
     host_resize_array_buffer: Cell<HostResizeArrayBuffer>,
     host_grow_shared_array_buffer: Cell<HostGrowSharedArrayBuffer>,
+    host_load_imported_module: Cell<HostLoadImportedModule>,
+    host_get_import_meta_properties: Cell<HostGetImportMetaProperties>,
+    host_finalize_import_meta: Cell<HostFinalizeImportMeta>,
+    host_get_supported_import_attributes: Cell<HostGetSupportedImportAttributes>,
+    dynamic_imports_allowed: Cell<bool>,
+    loaded_modules: OnceCell<Gc<LoadedModules>>,
+    module_execution_depth: Cell<u32>,
+    module_async_evaluation_count: Cell<u64>, // [[ModuleAsyncEvaluationCount]]
     /// The id the next PrivateEnvironment gives its names, the C++ static PrivateEnvironment::s_next_id. It starts
     /// at one such that 0 can be invalid / default initialized.
     next_private_environment_id: Cell<u64>,
@@ -440,6 +500,14 @@ impl Vm {
             finalization_registries_with_dead_cells: RefCell::new(Vec::new()),
             host_resize_array_buffer: Cell::new(default_host_resize_array_buffer),
             host_grow_shared_array_buffer: Cell::new(default_host_grow_shared_array_buffer),
+            host_load_imported_module: Cell::new(Vm::load_imported_module),
+            host_get_import_meta_properties: Cell::new(default_host_get_import_meta_properties),
+            host_finalize_import_meta: Cell::new(default_host_finalize_import_meta),
+            host_get_supported_import_attributes: Cell::new(default_host_get_supported_import_attributes),
+            dynamic_imports_allowed: Cell::new(false),
+            loaded_modules: OnceCell::new(),
+            module_execution_depth: Cell::new(0),
+            module_async_evaluation_count: Cell::new(0),
             next_private_environment_id: Cell::new(1),
             intrinsic_accessors: RefCell::new(HashMap::new()),
             type_error_realm_override: Cell::new(None),
@@ -491,6 +559,10 @@ impl Vm {
             header: CellHeader::for_class(JobQueues::CLASS),
             promise_jobs: GcRefCell::new(VecDeque::new()),
             finalization_registry_cleanup_jobs: GcRefCell::new(Vec::new()),
+        }));
+        let _ = self.loaded_modules.set(self.heap().allocate(LoadedModules {
+            header: CellHeader::for_class(LoadedModules::CLASS),
+            stored_modules: GcRefCell::new(Vec::new()),
         }));
     }
 
@@ -608,6 +680,7 @@ impl Vm {
         self.global_symbol_registry.trace(visitor);
         self.type_error_realm_override.trace(visitor);
         self.job_queues.trace(visitor);
+        self.loaded_modules.trace(visitor);
         self.finalization_registries_with_dead_cells.trace(visitor);
     }
 
@@ -952,6 +1025,68 @@ impl Vm {
         self.host_grow_shared_array_buffer.set(hook);
     }
 
+    pub fn host_load_imported_module(&self) -> HostLoadImportedModule {
+        self.host_load_imported_module.get()
+    }
+
+    pub fn set_host_load_imported_module(&self, hook: HostLoadImportedModule) {
+        self.host_load_imported_module.set(hook);
+    }
+
+    pub fn host_get_import_meta_properties(&self) -> HostGetImportMetaProperties {
+        self.host_get_import_meta_properties.get()
+    }
+
+    pub fn set_host_get_import_meta_properties(&self, hook: HostGetImportMetaProperties) {
+        self.host_get_import_meta_properties.set(hook);
+    }
+
+    pub fn host_finalize_import_meta(&self) -> HostFinalizeImportMeta {
+        self.host_finalize_import_meta.get()
+    }
+
+    pub fn set_host_finalize_import_meta(&self, hook: HostFinalizeImportMeta) {
+        self.host_finalize_import_meta.set(hook);
+    }
+
+    pub fn host_get_supported_import_attributes(&self) -> HostGetSupportedImportAttributes {
+        self.host_get_supported_import_attributes.get()
+    }
+
+    pub fn set_host_get_supported_import_attributes(&self, hook: HostGetSupportedImportAttributes) {
+        self.host_get_supported_import_attributes.set(hook);
+    }
+
+    pub fn set_dynamic_imports_allowed(&self, value: bool) {
+        self.dynamic_imports_allowed.set(value);
+    }
+
+    pub fn enter_module_execution(&self) {
+        self.module_execution_depth.set(self.module_execution_depth.get() + 1);
+    }
+
+    pub fn leave_module_execution(&self) {
+        assert!(self.module_execution_depth.get() > 0);
+        self.module_execution_depth.set(self.module_execution_depth.get() - 1);
+    }
+
+    pub fn is_executing_module(&self) -> bool {
+        self.module_execution_depth.get() > 0
+    }
+
+    pub fn increment_module_async_evaluation_count(&self) -> u64 {
+        let count = self.module_async_evaluation_count.get();
+        self.module_async_evaluation_count.set(count + 1);
+        count
+    }
+
+    fn loaded_modules(&self) -> Gc<LoadedModules> {
+        *self
+            .loaded_modules
+            .get()
+            .expect("the VM allocates its list of loaded modules")
+    }
+
     pub fn next_private_environment_id(&self) -> &Cell<u64> {
         &self.next_private_environment_id
     }
@@ -1269,4 +1404,300 @@ impl Drop for TypeErrorRealmScope<'_> {
 pub struct StackTraceElement {
     pub execution_context: NonNull<ExecutionContext>,
     pub source_range: Option<SourceRange>,
+}
+
+/// TextCodec's UTF-8 decoder, unless the bytes start with a byte order mark, which picks the encoding instead. Both
+/// replace what they cannot decode.
+fn decode_module_source(bytes: &[u8]) -> Vec<u16> {
+    let decode_utf16 = |bytes: &[u8], code_unit_from_bytes: fn([u8; 2]) -> u16| {
+        let (chunks, remainder) = bytes.as_chunks::<2>();
+        let mut code_units: Vec<u16> = char::decode_utf16(chunks.iter().map(|&chunk| code_unit_from_bytes(chunk)))
+            .map(|decoded| decoded.unwrap_or(char::REPLACEMENT_CHARACTER))
+            .collect::<String>()
+            .encode_utf16()
+            .collect();
+        if !remainder.is_empty() {
+            code_units.push(char::REPLACEMENT_CHARACTER as u16);
+        }
+        code_units
+    };
+    if let Some(bytes) = bytes.strip_prefix(b"\xEF\xBB\xBF") {
+        return String::from_utf8_lossy(bytes).encode_utf16().collect();
+    }
+    if let Some(bytes) = bytes.strip_prefix(b"\xFE\xFF") {
+        return decode_utf16(bytes, u16::from_be_bytes);
+    }
+    if let Some(bytes) = bytes.strip_prefix(b"\xFF\xFE") {
+        return decode_utf16(bytes, u16::from_le_bytes);
+    }
+    String::from_utf8_lossy(bytes).encode_utf16().collect()
+}
+
+/// Whether a file or directory is at `path`, FileSystem::exists().
+fn file_exists(path: &str) -> bool {
+    std::fs::metadata(path).is_ok()
+}
+
+/// FileSystem::is_directory()
+fn is_directory(path: &str) -> bool {
+    std::fs::metadata(path).is_ok_and(|metadata| metadata.is_dir())
+}
+
+fn resolve_module_filename(filename: &str, module_type: &str) -> String {
+    let extensions: &[&str] = if module_type == "json" {
+        &["json"]
+    } else {
+        &["js", "mjs"]
+    };
+    if !file_exists(filename) {
+        for extension in extensions {
+            // import "./foo" -> import "./foo.ext"
+            let resolved_filepath = format!("{filename}.{extension}");
+            if file_exists(&resolved_filepath) {
+                return resolved_filepath;
+            }
+        }
+    } else if is_directory(filename) {
+        for extension in extensions {
+            // import "./foo" -> import "./foo/index.ext"
+            let resolved_filepath = lexical_path::join(filename, &format!("index.{extension}"));
+            if file_exists(&resolved_filepath) {
+                return resolved_filepath;
+            }
+        }
+    }
+    filename.to_string()
+}
+
+impl Vm {
+    // 13.3.12.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-meta-properties-runtime-semantics-evaluation
+    // ImportMeta branch only
+    pub fn get_import_meta(&self) -> Gc<Object> {
+        // 1. Let module be GetActiveScriptOrModule().
+        let ScriptOrModule::Module(module) = self.get_active_script_or_module() else {
+            unreachable!("import.meta is only evaluated in the code of a module");
+        };
+
+        // 2. Assert: module is a Source Text Module Record.
+        let module = module
+            .downcast::<SourceTextModule>()
+            .expect("import.meta is only evaluated in the code of a Source Text Module Record");
+
+        // 3. Let importMeta be module.[[ImportMeta]].
+        // 5. Else,
+        if let Some(import_meta) = module.import_meta() {
+            // a. Assert: Type(importMeta) is Object.
+            // Note: This is always true by the type.
+
+            // b. Return importMeta.
+            return import_meta;
+        }
+
+        // 4. If importMeta is empty, then
+        // a. Set importMeta to OrdinaryObjectCreate(null).
+        let realm = self.current_realm().expect("import.meta is evaluated in a realm");
+        let import_meta = Object::create(self, realm, None);
+
+        // b. Let importMetaValues be HostGetImportMetaProperties(module).
+        let import_meta_values = (self.host_get_import_meta_properties.get())(self, module);
+
+        // c. For each Record { [[Key]], [[Value]] } p of importMetaValues, do
+        for index in 0..import_meta_values.len() {
+            let (key, value) = import_meta_values.get(index).expect("the index is in bounds");
+            // i. Perform ! CreateDataPropertyOrThrow(importMeta, p.[[Key]], p.[[Value]]).
+            import_meta.create_data_property_or_throw(self, &key, value).must();
+        }
+
+        // d. Perform HostFinalizeImportMeta(importMeta, module).
+        (self.host_finalize_import_meta.get())(self, import_meta, module);
+
+        // e. Set module.[[ImportMeta]] to importMeta.
+        module.set_import_meta(import_meta);
+
+        // f. Return importMeta.
+        import_meta
+    }
+
+    fn get_stored_module(&self, filename: &str) -> Option<Gc<Module>> {
+        // Note the spec says:
+        // If this operation is called multiple times with the same (referrer, specifier) pair and it performs
+        // FinishLoadingImportedModule(referrer, specifier, payload, result) where result is a normal completion,
+        // then it must perform FinishLoadingImportedModule(referrer, specifier, payload, result) with the same result each time.
+
+        // Editor's Note from https://tc39.es/ecma262/#sec-hostresolveimportedmodule
+        // The above text requires that hosts support JSON modules when imported with type: "json" (and HostLoadImportedModule
+        // completes normally), but it does not prohibit hosts from supporting JSON modules when imported without type: "json".
+
+        // FIXME: This should probably check referrer as well.
+        self.loaded_modules()
+            .stored_modules
+            .borrow()
+            .iter()
+            .find(|stored_module| stored_module.filename == filename)
+            .map(|stored_module| stored_module.module)
+    }
+
+    fn store_module(&self, referrer: ImportedModuleReferrer, filename: String, module: Gc<Module>) {
+        self.loaded_modules().stored_modules.borrow_mut().push(StoredModule {
+            referrer,
+            filename,
+            module_type: String::new(),
+            module,
+            has_once_started_linking: true,
+        });
+    }
+
+    pub fn link_and_eval_module(&self, module: Gc<CyclicModule>) -> ThrowCompletionOr<()> {
+        let filename = module.filename().to_string();
+        if !filename.is_empty() {
+            let absolute_filename = resolve_module_filename(&lexical_path::absolute_path(".", &filename), "");
+            if self.get_stored_module(&absolute_filename).is_none() {
+                // Register the entry module before loading dependencies so self-imports resolve to this Module Record.
+                self.store_module(
+                    ImportedModuleReferrer::CyclicModule(module),
+                    absolute_filename,
+                    module.upcast(),
+                );
+            }
+        }
+
+        let module: Gc<Module> = module.upcast();
+        let promise_capability = module.load_requested_modules(self);
+
+        let promise = promise_of(promise_capability);
+        if promise.state() == PromiseState::Rejected {
+            return Err(Throw::new(promise.result()));
+        }
+
+        module.link(self)?;
+
+        let evaluated_value = promise_of(module.evaluate(self)?);
+
+        self.run_queued_promise_jobs();
+        assert!(self.job_queues().promise_jobs.borrow().is_empty());
+
+        // FIXME: This will break if we start doing promises actually asynchronously.
+        assert!(evaluated_value.state() != PromiseState::Pending);
+
+        if evaluated_value.state() == PromiseState::Rejected {
+            return Err(Throw::new(evaluated_value.result()));
+        }
+
+        Ok(())
+    }
+
+    // 16.2.1.8 HostLoadImportedModule ( referrer, specifier, hostDefined, payload ), https://tc39.es/ecma262/#sec-HostLoadImportedModule
+    pub fn load_imported_module(
+        vm: &Vm,
+        referrer: ImportedModuleReferrer,
+        module_request: &ModuleRequest,
+        payload: ImportedModulePayload,
+    ) {
+        // An implementation of HostLoadImportedModule must conform to the following requirements:
+        //
+        // - The host environment must perform FinishLoadingImportedModule(referrer, specifier, payload, result),
+        //   where result is either a normal completion containing the loaded Module Record or a throw completion,
+        //   either synchronously or asynchronously.
+        // - If this operation is called multiple times with the same (referrer, specifier) pair and it performs
+        //   FinishLoadingImportedModule(referrer, specifier, payload, result) where result is a normal completion,
+        //   then it must perform FinishLoadingImportedModule(referrer, specifier, payload, result) with the same result each time.
+        // - If moduleRequest.[[Attributes]] has an entry entry such that entry.[[Key]] is "type" and entry.[[Value]] is "json",
+        //   when the host environment performs FinishLoadingImportedModule(referrer, moduleRequest, payload, result), result
+        //   must either be the Completion Record returned by an invocation of ParseJSONModule or a throw completion.
+        // - The operation must treat payload as an opaque value to be passed through to FinishLoadingImportedModule.
+        //
+        // The actual process performed is host-defined, but typically consists of performing whatever I/O operations are necessary to
+        // load the appropriate Module Record. Multiple different (referrer, specifier) pairs may map to the same Module Record instance.
+        // The actual mapping semantics is host-defined but typically a normalization process is applied to specifier as part of the
+        // mapping process. A typical normalization process would include actions such as expansion of relative and abbreviated path specifiers.
+
+        let module_specifier = Utf16View::of_fly_string(&module_request.module_specifier).to_utf8();
+
+        // Here we check, against the spec, if payload is a promise capability, meaning that this was called for a dynamic import
+        if matches!(payload, ImportedModulePayload::PromiseCapability(_)) && !vm.dynamic_imports_allowed.get() {
+            // If you are here because you want to enable dynamic module importing make sure it won't be a security problem
+            // by checking the default implementation of HostImportModuleDynamically and creating your own hook or calling
+            // vm.allow_dynamic_imports().
+            finish_loading_imported_module(
+                vm,
+                referrer,
+                module_request,
+                payload,
+                vm.throw_completion(ErrorKind::InternalError, ErrorType::DynamicImportNotAllowed, &[]),
+            );
+            return;
+        }
+
+        let module_type = module_request
+            .attributes
+            .iter()
+            .find(|attribute| Utf16View::of_string(&attribute.key).to_utf8() == "type")
+            .map(|attribute| Utf16View::of_string(&attribute.value).to_utf8())
+            .unwrap_or_default();
+
+        let base_filename = match referrer {
+            ImportedModuleReferrer::Realm(_) => {
+                // Generally within ECMA262 we always get a referencing_script_or_module. However, ShadowRealm gives an explicit null.
+                // To get around this is we attempt to get the active script_or_module otherwise we might start loading "random" files from the working directory.
+                match vm.get_active_script_or_module() {
+                    ScriptOrModule::Empty => ".".to_string(),
+                    ScriptOrModule::Script(script) => script.filename().to_string(),
+                    ScriptOrModule::Module(module) => module.filename().to_string(),
+                }
+            }
+            ImportedModuleReferrer::Script(script) => script.filename().to_string(),
+            ImportedModuleReferrer::CyclicModule(module) => module.filename().to_string(),
+        };
+
+        let filename = lexical_path::absolute_path(&lexical_path::dirname(&base_filename), &module_specifier);
+        let filename = resolve_module_filename(&filename, &module_type);
+
+        if let Some(loaded_module) = vm.get_stored_module(&filename) {
+            finish_loading_imported_module(vm, referrer, module_request, payload, Ok(loaded_module));
+            return;
+        }
+
+        let module_not_found =
+            || vm.throw_completion(ErrorKind::SyntaxError, ErrorType::ModuleNotFound, &[&module_specifier]);
+
+        let Ok(mut file) = std::fs::File::open(&filename) else {
+            finish_loading_imported_module(vm, referrer, module_request, payload, module_not_found());
+            return;
+        };
+
+        // FIXME: Don't read the file in one go.
+        let mut file_content = Vec::new();
+        if let Err(error) = std::io::Read::read_to_end(&mut file, &mut file_content) {
+            let result = if error.kind() == std::io::ErrorKind::OutOfMemory {
+                vm.throw_completion(ErrorKind::InternalError, ErrorType::OutOfMemory, &[])
+            } else {
+                module_not_found()
+            };
+            finish_loading_imported_module(vm, referrer, module_request, payload, result);
+            return;
+        }
+
+        let source = decode_module_source(&file_content);
+        let realm = vm.current_realm().expect("modules are loaded in a realm");
+
+        // If moduleRequest.[[Attributes]] has an entry entry such that entry.[[Key]] is "type" and entry.[[Value]] is "json",
+        // when the host environment performs FinishLoadingImportedModule(referrer, moduleRequest, payload, result), result
+        // must either be the Completion Record returned by an invocation of ParseJSONModule or a throw completion.
+        let module: ThrowCompletionOr<Gc<Module>> = if module_type == "json" {
+            parse_json_module(vm, realm, Utf16View::Utf16(&source), filename).map(Gc::upcast)
+        } else {
+            // Note: We treat all files as module, so if a script does not have exports it just runs it.
+            let source_code = SourceCode::create(Utf16String::from_utf8(&filename), Utf16String::from_utf16(&source));
+            match SourceTextModule::parse(vm, source_code, realm, &filename) {
+                Err(errors) => vm.throw_completion_with_message(ErrorKind::SyntaxError, errors[0].to_string()),
+                Ok(module) => Ok(module.upcast()),
+            }
+        };
+
+        if let Ok(module) = module {
+            vm.store_module(referrer, module.filename().to_string(), module);
+        }
+
+        finish_loading_imported_module(vm, referrer, module_request, payload, module);
+    }
 }

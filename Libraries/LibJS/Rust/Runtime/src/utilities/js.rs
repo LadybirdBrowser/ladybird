@@ -41,6 +41,7 @@ use crate::runtime::promise::Promise;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::source_text_module::SourceTextModule;
 use crate::script::Script;
 use crate::source_code::SourceCode;
 use crate::standard_output::{self, StandardOutputWriter, UnbufferedStandardOutputWriter};
@@ -561,17 +562,20 @@ fn parse_and_run(vm: &Vm, realm: Gc<Realm>, options: &Options, source: &[u8], so
         if options.dump_ast {
             standard_output::outln(parsed.ast_dump().as_bytes());
         }
+        let source_code = SourceCode::create(
+            Utf16String::from_utf8(source_name),
+            Utf16String::from_utf16(&utf16_source),
+        );
         if !options.as_module {
-            let source_code = SourceCode::create(
-                Utf16String::from_utf8(source_name),
-                Utf16String::from_utf16(&utf16_source),
-            );
-            let script = Script::create_from_parsed(vm, parsed, source_code, realm);
+            let script = Script::create_from_parsed_with_filename(vm, parsed, source_code, realm, source_name);
             if !options.parse_only {
                 result = vm.run_script(script, None);
             }
-        } else if !options.parse_only {
-            unimplemented_runtime_function("running modules", 0);
+        } else {
+            let module = SourceTextModule::create_from_parsed(vm, parsed, source_code, realm, source_name);
+            if !options.parse_only {
+                result = vm.run_module(module);
+            }
         }
     }
 
@@ -989,7 +993,7 @@ fn ladybird_main(arguments: &[String]) -> c_int {
     set_dump_bytecode(options.dump_bytecode);
 
     let vm = Vm::create();
-    // FIXME: Allow dynamic imports, once the runtime has modules.
+    vm.set_dynamic_imports_allowed(true);
 
     if options.debug {
         unimplemented_runtime_function("the JavaScript debugger, which --debug runs scripts in", 0);

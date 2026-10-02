@@ -13,11 +13,9 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::value::Value;
-use crate::layout_forward::Module;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::declarative_environment::{
     BindingAndIndex, DECLARATIVE_ENVIRONMENT_METHODS, DeclarativeEnvironment,
@@ -25,6 +23,7 @@ use crate::runtime::declarative_environment::{
 use crate::runtime::environment::{Environment, EnvironmentMethods};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::module::Module;
 
 #[derive(Clone, Trace)]
 struct IndirectBinding {
@@ -88,12 +87,9 @@ pub const MODULE_ENVIRONMENT_METHODS: EnvironmentMethods = EnvironmentMethods {
     ..DECLARATIVE_ENVIRONMENT_METHODS
 };
 
-/// Module::environment(), which the module unit provides.
-fn environment_of_module(_module: Gc<Module>) -> Option<Gc<Environment>> {
-    unimplemented_runtime_function(
-        "Module::environment, for an indirect binding of a module environment",
-        0,
-    )
+/// M.[[Environment]] of the module an indirect binding refers to.
+fn environment_of_module(module: Gc<Module>) -> Option<Gc<Environment>> {
+    module.environment().map(Gc::upcast)
 }
 
 impl ModuleEnvironment {

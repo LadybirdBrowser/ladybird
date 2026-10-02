@@ -253,4 +253,11 @@ define_class_ids! {
     NativeJavaScriptBackedFunction,
     DatePrototype,
     DateConstructor,
+    Module,
+    CyclicModule,
+    SourceTextModule,
+    SyntheticModule,
+    GraphLoadingState,
+    ModuleNamespaceObject,
+    LoadedModules,
 }

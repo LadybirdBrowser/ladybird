@@ -23,6 +23,7 @@ use crate::runtime::completion::{Throw, ThrowCompletionOr};
 use crate::runtime::environment::Environment;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::source_text_module::SourceTextModule;
 use crate::script::Script;
 use libjs_abi::register;
 
@@ -114,8 +115,7 @@ impl Vm {
             }
         }
 
-        // NB: C++ skips this while it executes a module, which the runtime cannot do yet.
-        if is_outermost_bytecode_execution {
+        if is_outermost_bytecode_execution && !self.is_executing_module() {
             self.run_queued_promise_jobs();
         }
         self.head
@@ -244,6 +244,20 @@ impl Vm {
 
         // 17. Return ? result.
         result
+    }
+
+    /// VM::run(SourceTextModule&)
+    pub fn run_module(&self, module: Gc<SourceTextModule>) -> ThrowCompletionOr<Value> {
+        // FIXME: This is not a entry point as defined in the spec, but is convenient.
+        //        To avoid work we use link_and_eval_module however that can already be
+        //        dangerous if the vm loaded other modules.
+        self.link_and_eval_module(module.upcast())?;
+
+        self.run_queued_promise_jobs();
+
+        self.run_queued_finalization_registry_cleanup_jobs();
+
+        Ok(Value::UNDEFINED)
     }
 
     /// Enters a frame for a call of `callee_function` that the interpreter runs inline, as Return leaves it: the
