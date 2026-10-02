@@ -11914,6 +11914,61 @@ fn owed_element_style_inputs_fold_into_covering_reactions() {
 }
 
 #[test]
+fn held_style_records_outlive_engine_assignments_and_release_on_retirement() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw_nodes = [0; 2];
+    engine.allocate_style_nodes(&mut raw_nodes);
+    let [first, second] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
+    let publish = |engine: &mut StyleEngine, node, pseudo_element_styles| {
+        engine
+            .publish_computed_groups(
+                computed::ComputedStyleTarget::new(node, u8::MAX),
+                &[],
+                0,
+                0,
+                computed::ComputedMetadataInput {
+                    pseudo_element_styles,
+                    dependency_flags: 0,
+                    counter_style_environment_identity: 0,
+                    animation_overlay_identity: 0,
+                    animated_overlay: HostShared::null(),
+                    animation_overlay_payloads: &[],
+                    longhand_table: HostShared::null(),
+                },
+            )
+            .style_record_identity
+            .raw()
+    };
+    let held_record = publish(&mut engine, first, 1);
+    assert_eq!(publish(&mut engine, second, 1), held_record);
+    engine.set_held_style_record(first, held_record);
+    engine.set_held_style_record(first, held_record);
+    engine.set_held_style_record(second, held_record);
+
+    // The engine can publish a replacement before the host installs it.
+    let replacement = publish(&mut engine, first, 2);
+    engine.computed_group_sets.remove(second);
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(engine.computed_group_sets.final_style_record_is_live(held_record));
+
+    engine.set_held_style_record(first, replacement);
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(engine.computed_group_sets.final_style_record_is_live(held_record));
+    assert!(engine.computed_group_sets.final_style_record_is_live(replacement));
+
+    // Clearing one holder must not release another holder's shared record.
+    engine.set_held_style_record(first, 0);
+    engine.computed_group_sets.remove(first);
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(engine.computed_group_sets.final_style_record_is_live(held_record));
+    assert!(!engine.computed_group_sets.final_style_record_is_live(replacement));
+
+    engine.retire_node_state(second);
+    engine.computed_group_sets.reclaim_unreachable();
+    assert!(!engine.computed_group_sets.final_style_record_is_live(held_record));
+}
+
+#[test]
 fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
     let publish = |engine: &mut StyleEngine, node, pseudo_element_styles| {
         engine

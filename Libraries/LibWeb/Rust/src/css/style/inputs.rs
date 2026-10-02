@@ -943,12 +943,21 @@ impl RetainedState {
     }
 
     /// Record the style record an element holds; zero is none. Only elements that hold one have an
-    /// entry. Whether the element is a query container is what that record says.
+    /// entry. Keep it alive until the host replaces it, even when the engine publishes a newer
+    /// assignment. Whether the element is a query container is what that record says.
     pub fn set_held_style_record(&mut self, node: StyleNodeID, style_record: u64) {
-        if style_record == 0 {
-            self.held_style_records.remove(&node);
+        let previous = if style_record == 0 {
+            self.held_style_records.remove(&node)
         } else {
-            self.held_style_records.insert(node, style_record);
+            self.held_style_records.insert(node, style_record)
+        };
+        if previous != Some(style_record) {
+            if style_record != 0 {
+                self.computed_group_sets.pin_style_record(style_record);
+            }
+            if let Some(previous) = previous {
+                self.computed_group_sets.unpin_style_record(previous);
+            }
         }
         self.set_element_container_query_inputs(node, style_record);
     }
@@ -3046,7 +3055,9 @@ impl RetainedState {
             !retired
         });
         size_container_queries.retire(node);
-        held_style_records.remove(&node);
+        if let Some(style_record) = held_style_records.remove(&node) {
+            computed_group_sets.unpin_style_record(style_record);
+        }
         host_var_reads.remove(&node);
         css_defined_animations.retire(node);
         pending_element_style_computation_selections.remove(&node);
