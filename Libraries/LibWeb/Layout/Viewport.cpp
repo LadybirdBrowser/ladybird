@@ -9,8 +9,10 @@
 
 namespace Web::Layout {
 
-Viewport::Viewport(DOM::Document& document, CSS::LayoutStyle style)
-    : Box(document, &document, style, RustFFI::NodeKind::Viewport)
+// The build stamps the viewport's row with the document's style, which it is handed before it starts, and makes this
+// layout node for the row.
+Viewport::Viewport(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
+    : Box(document, bind, slot, kind)
 {
 }
 

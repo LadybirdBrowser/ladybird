@@ -27,6 +27,14 @@ TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode att
     Painting::push_selection_pseudo_style_of_parent(*this);
 }
 
+TextNode::TextNode(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
+    : Node(document, bind, slot, kind)
+{
+    invalidate_text_for_rendering();
+    update_produces_line_box_fragment_when_empty_flag();
+    Painting::push_selection_pseudo_style_of_parent(*this);
+}
+
 TextNode::TextNode(DOM::Document& document, RustFFI::NodeKind kind)
     : Node(document, nullptr, kind)
 {

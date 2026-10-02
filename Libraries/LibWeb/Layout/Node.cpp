@@ -104,12 +104,20 @@ Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind k
     }
 }
 
+// The build stamps a row out of its node's identity, binds it to the node, and makes the layout node for it here. A row
+// stamped for no node at all is an anonymous box.
 Node::Node(DOM::Document& document, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : m_arena(document.layout_node_arena())
     , m_slot(slot)
     , m_kind(kind)
 {
     RustFFI::layout_arena_attach_shell(m_arena->handle(), m_slot, this);
+    auto* node = dom_node();
+    if (!node)
+        return;
+    // The facts the row is painted and hit-tested with are not published, so the layout node hands them over.
+    RustFFI::layout_arena_set_constructed_row_dom_paint_facts(m_arena->handle(), m_slot, dom_paint_facts_of(node));
+    update_has_scroll_offset_flag();
 }
 
 Node::~Node()

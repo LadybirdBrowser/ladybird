@@ -23,6 +23,7 @@ class GeneratedTextNode;
 class TextNode : public Node {
 public:
     TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode = AttachToDOMNode::Yes);
+    TextNode(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
     virtual ~TextNode() override;
 
     DOM::Text const& dom_node() const

@@ -10,7 +10,7 @@ use crate::abort_on_panic;
 use crate::css::css_enums::{content_visibility, float, positioning, white_space_collapse};
 use crate::css::style::StyleEngine;
 use crate::css::style::bridge::element_adjustment_fact;
-use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides};
+use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::layout_node_arena::{LayoutNodeArena, StaleWalkFacts};
 use crate::layout::node_data::{
@@ -51,6 +51,9 @@ pub(crate) struct TreeBuilderState {
     /// in the same build cannot take it away from a box that names it. Letting go of one the build
     /// has stopped looking at buys nothing before it ends.
     pinned_style_records: Vec<u64>,
+    /// The document's style, which the build is handed before it starts when it may build the
+    /// viewport, held until the viewport's row takes it or the build ends without one.
+    pub(super) document_style: Option<DerivedStyleRecord>,
 }
 
 impl Default for TreeBuilderState {
@@ -67,6 +70,7 @@ impl Default for TreeBuilderState {
             layout_tree_rebuild_requests: Vec::new(),
             reports: Vec::new(),
             pinned_style_records: Vec::new(),
+            document_style: None,
         }
     }
 }
@@ -80,11 +84,12 @@ impl TreeBuilderState {
 
     /// Lets go of every record the build held, once the build is over.
     pub(super) fn release_pinned_style_records(&mut self, arena: &LayoutNodeArena) {
-        if self.pinned_style_records.is_empty() {
+        let unused_document_style = self.document_style.take().map(|document_style| document_style.record);
+        if self.pinned_style_records.is_empty() && unused_document_style.is_none() {
             return;
         }
         arena.with_style_engine(|engine| {
-            for record in self.pinned_style_records.drain(..) {
+            for record in self.pinned_style_records.drain(..).chain(unused_document_style) {
                 engine.unpin_layout_style_record(record);
             }
         });
@@ -133,8 +138,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     /// Makes the principal box of the element the identity names. The element asks for a box of
     /// the `ElementBoxKind` given as its raw byte, which is what the style mirror publishes for it.
     pub create_principal_element_layout: unsafe extern "C" fn(*mut c_void, u32, FfiElementLayoutKind, u8) -> NodeSlotId,
-    pub create_principal_document_layout: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
-    pub create_principal_text_layout: unsafe extern "C" fn(*mut c_void, u32) -> NodeSlotId,
     /// Attaches the image observers a box's style asks for. Principal and pseudo-element boxes
     /// both go through this; nothing about it depends on which the box is.
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void, NodeSlotId),
@@ -2248,8 +2251,12 @@ fn construct_principal_layout_node(
         }
     } else if should_create_layout_node {
         if update.kind.is_document() {
-            // SAFETY: The builder and its document remain live throughout construction.
-            let created = unsafe { (host.callbacks.create_principal_document_layout)(host.callbacks.builder) };
+            let document_style = update
+                .state
+                .document_style
+                .take()
+                .expect("a build that builds the viewport is handed the document's style");
+            let created = host.layout().create_document_box(document_style);
             layout_node = created;
             created_box = Some(host.layout().created(created));
         } else if update.kind.is_text() {
@@ -2261,9 +2268,7 @@ fn construct_principal_layout_node(
                 layout_host.arena().text_is_ascii_whitespace(update.style_node),
                 facts.parent_collapses_whitespace,
             );
-            // SAFETY: The builder remains live, and the identity names a live text node.
-            let text_layout_node =
-                unsafe { (host.callbacks.create_principal_text_layout)(host.callbacks.builder, update.identity.raw()) };
+            let text_layout_node = layout_host.create_text_box(update.identity);
             if needs_style_wrapper {
                 let wrapper = layout_host.create_anonymous_box_from_style_record(
                     facts.style_record,
@@ -3386,6 +3391,35 @@ impl TreeBuilderHost<'_> {
 
     fn created(&self, slot: NodeSlotId) -> UnplacedLayoutNode {
         UnplacedLayoutNode::new(slot)
+    }
+
+    /// Stamps a row for a DOM node, or for the document with no identity, and makes it the node's
+    /// row.
+    fn stamp_dom_box(&self, kind: NodeKind, style_node: Option<StyleNodeID>) -> NodeSlotId {
+        // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference
+        // derived from it across the allocation.
+        let slot = unsafe { &mut *self.arena }.allocate_unbound();
+        self.arena().stamp_dom_row(slot, kind, style_node);
+        self.arena().take_over_rows_of_bound_node(slot);
+        slot
+    }
+
+    /// The row a text node's box is built in, stamped out of the text node's identity, and the
+    /// layout node made for it.
+    fn create_text_box(&self, style_node: StyleNodeID) -> NodeSlotId {
+        let slot = self.stamp_dom_box(NodeKind::TextNode, Some(style_node));
+        assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
+        slot
+    }
+
+    /// The row the document's viewport is built in, stamped out of its kind and the document's
+    /// style the build was handed, and the layout node made for it.
+    fn create_document_box(&self, document_style: DerivedStyleRecord) -> NodeSlotId {
+        let slot = self.stamp_dom_box(NodeKind::Viewport, None);
+        self.arena()
+            .apply_reinherited_style_record(self.main_thread, slot, document_style);
+        assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
+        slot
     }
 
     fn create_anonymous_box(
