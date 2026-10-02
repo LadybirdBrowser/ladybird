@@ -1,0 +1,6 @@
+C++ recomputations on arrival: 0
+C++ recomputations after recoloring: 0
+select width kept: true
+number width kept: true
+select narrower without its chevron: true
+select width back with its chevron: true

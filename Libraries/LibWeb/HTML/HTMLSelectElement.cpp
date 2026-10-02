@@ -657,18 +657,24 @@ void HTMLSelectElement::form_associated_element_attribute_changed(Utf16FlyString
 
 void HTMLSelectElement::computed_properties_changed()
 {
+    if (!m_chevron_icon_element)
+        return;
+
     // Hide chevron icon when appearance is none
-    if (m_chevron_icon_element) {
-        auto style = computed_style();
-        VERIFY(style);
-        auto appearance = style->appearance();
-        if (appearance == CSS::Appearance::None) {
-            MUST(m_chevron_icon_element->style()->set_property(CSS::PropertyID::Display, "none"_utf16));
-            MUST(m_inner_text_element->style()->set_property(CSS::PropertyID::MarginInlineEnd, "0"_utf16));
-        } else {
-            MUST(m_chevron_icon_element->style()->set_property(CSS::PropertyID::Display, "block"_utf16));
-            MUST(m_inner_text_element->style()->set_property(CSS::PropertyID::MarginInlineEnd, "20px"_utf16));
-        }
+    auto style = computed_style();
+    VERIFY(style);
+    // NB: This runs while the style engine's records are applied, and rewriting the shadow tree's declarations then
+    //     makes the records of its elements stale. So they are only written when appearance flips.
+    bool hide_chevron_icon = style->appearance() == CSS::Appearance::None;
+    if (hide_chevron_icon == m_chevron_icon_hidden)
+        return;
+    m_chevron_icon_hidden = hide_chevron_icon;
+    if (hide_chevron_icon) {
+        MUST(m_chevron_icon_element->style()->set_property(CSS::PropertyID::Display, "none"_utf16));
+        MUST(m_inner_text_element->style()->set_property(CSS::PropertyID::MarginInlineEnd, "0"_utf16));
+    } else {
+        MUST(m_chevron_icon_element->style()->set_property(CSS::PropertyID::Display, "block"_utf16));
+        MUST(m_inner_text_element->style()->set_property(CSS::PropertyID::MarginInlineEnd, "20px"_utf16));
     }
 }
 
@@ -704,6 +710,7 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
     //     baseline of the select derived from the label text. The label's margin-inline-end reserves its space.
     m_chevron_icon_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     m_chevron_icon_element->set_attribute_value(HTML::AttributeNames::style, R"~~~(
+        display: block;
         position: absolute;
         inset-inline-end: 0;
         top: calc(50% - 8px);
