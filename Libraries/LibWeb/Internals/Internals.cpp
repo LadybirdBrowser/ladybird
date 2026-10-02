@@ -47,6 +47,8 @@
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetState.h>
+#include <LibWeb/Compositor/CompositorFrame.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -294,7 +296,12 @@ void Internals::send_mismatched_visual_context_tree_update_to_compositor()
 
     // Send a bare visual-context-tree update carrying that new structural epoch *without* re-recording the display list —
     // deliberately reproducing the peer inconsistency behind issue #10368.
-    navigable->compositor_context().update_visual_context_tree(document_paint_state.visual_context_tree(document), {});
+    Compositor::CompositorFrame frame;
+    frame.visual_context_tree_update = Compositor::CompositorFrame::VisualContextTreeUpdate {
+        .visual_context_tree = document_paint_state.visual_context_tree(document),
+        .resource_transaction = {},
+    };
+    navigable->compositor_context().submit_frame(move(frame));
 }
 
 // https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest

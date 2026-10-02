@@ -296,6 +296,8 @@ public:
     void prepare_to_populate_reconstructed_history_entry(Utf16String navigation_api_key);
 
     bool record_display_list_and_scroll_state(PaintConfig);
+    // Records what brings the compositor context up to date: a new display list, or what changed for the one it has.
+    Optional<Compositor::CompositorFrame> record_compositor_frame(PaintConfig);
     void paint_next_frame();
     bool paint_next_frame_if_needed(DOM::UpdateLayoutReason);
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);

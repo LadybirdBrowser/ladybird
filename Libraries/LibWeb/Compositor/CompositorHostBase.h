@@ -27,12 +27,10 @@ public:
     virtual void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>) override;
     virtual void stop_presenting_to_client(Web::CompositorContextId) override;
 
-    virtual void update_display_list(Web::CompositorContextId, NonnullRefPtr<Compositing::DisplayList>, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&, Compositing::ScrollStateSnapshot&&) override;
-    virtual void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree, Compositing::DisplayListResourceTransaction&&) override;
+    virtual void submit_frame(CompositorFrame&&) override;
     virtual void add_video_sink(Media::VideoSinkHandle) override;
     virtual void remove_video_sink(Media::VideoSinkHandle) override;
     virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) override;
-    virtual void update_scroll_state(Web::CompositorContextId, Compositing::ScrollStateSnapshot&&, Compositing::KeyboardScrollState) override;
     virtual void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation) override;
     virtual void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation) override;
     virtual Compositing::AsyncScrollEnqueueResult async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position,
@@ -43,7 +41,6 @@ public:
     virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, Compositing::WindowResizingInProgress) override;
     virtual bool request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second) override;
     virtual void hurry_rendering_opportunity(Web::CompositorContextId) override;
-    virtual void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect) override;
     virtual void request_screenshot(Web::CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback) override;
 
 protected:

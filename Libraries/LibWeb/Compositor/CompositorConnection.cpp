@@ -126,49 +126,57 @@ bool CompositorConnection::post_resource_additions_in_batches(Web::CompositorCon
     return true;
 }
 
-void CompositorConnection::update_display_list(Web::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> const& display_list, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot const& scroll_state_snapshot)
+// Returns false once the compositor is lost. A display list that cannot be placed in shared memory is
+// skipped, and the rest of the frame still goes over.
+bool CompositorConnection::post_display_list_update(Web::CompositorContextId context_id, CompositorFrame::DisplayListUpdate& update)
 {
-    if (!can_send_message_to_compositor())
-        return;
-
-    if (!post_resource_additions_in_batches(context_id, resource_transaction))
-        return;
+    if (!post_resource_additions_in_batches(context_id, update.resource_transaction))
+        return false;
 
     // The tape and run table go over in a fresh shared buffer that the Compositor takes ownership of;
     // this process keeps no mapping once the message is posted.
+    auto& display_list = *update.display_list;
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    auto shared_tape_buffer = display_list->copy_to_shared_buffer();
+    auto shared_tape_buffer = display_list.copy_to_shared_buffer();
     if (shared_tape_buffer.is_error()) {
-        dbgln("WebContent: Could not place a {} byte display list in shared memory: {}", display_list->command_bytes().size(), shared_tape_buffer.error());
-        return;
+        dbgln("WebContent: Could not place a {} byte display list in shared memory: {}", display_list.command_bytes().size(), shared_tape_buffer.error());
+        return true;
     }
     auto copy_time = timer.elapsed_time();
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list->command_bytes().size(), display_list->command_runs().size(), display_list->properties(), visual_context_tree, resource_transaction, scroll_state_snapshot));
-    if (post_message(encoded_message).is_error())
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list.command_bytes().size(), display_list.command_runs().size(), display_list.properties(), update.visual_context_tree, update.resource_transaction, update.scroll_state_snapshot));
+    if (post_message(encoded_message).is_error()) {
         did_lose_compositor();
+        return false;
+    }
     if (display_list_timing_enabled())
-        dbgln("DISPLAY_LIST_PUBLISH bytes={} copy={} µs encode+post={} µs", display_list->command_bytes().size(), copy_time.to_microseconds(), (timer.elapsed_time() - copy_time).to_microseconds());
+        dbgln("DISPLAY_LIST_PUBLISH bytes={} copy={} µs encode+post={} µs", display_list.command_bytes().size(), copy_time.to_microseconds(), (timer.elapsed_time() - copy_time).to_microseconds());
+    return true;
 }
 
-void CompositorConnection::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction)
+void CompositorConnection::submit_frame(CompositorFrame&& frame)
 {
     if (!can_send_message_to_compositor())
         return;
 
-    if (!post_resource_additions_in_batches(context_id, resource_transaction))
-        return;
-
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, visual_context_tree, resource_transaction));
-    if (post_message(encoded_message).is_error())
-        did_lose_compositor();
-}
-
-void CompositorConnection::update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::KeyboardScrollState const& keyboard_scroll_state)
-{
-    if (!can_send_message_to_compositor())
-        return;
-    async_update_scroll_state(context_id, scroll_state_snapshot, keyboard_scroll_state);
+    auto context_id = frame.context_id;
+    if (auto& update = frame.display_list_update; update.has_value()) {
+        if (!post_display_list_update(context_id, *update))
+            return;
+    }
+    if (auto& update = frame.visual_context_tree_update; update.has_value()) {
+        if (!post_resource_additions_in_batches(context_id, update->resource_transaction))
+            return;
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, update->visual_context_tree, update->resource_transaction));
+        if (post_message(encoded_message).is_error()) {
+            did_lose_compositor();
+            return;
+        }
+    }
+    if (auto& update = frame.scroll_state_update; update.has_value())
+        async_update_scroll_state(context_id, update->scroll_state_snapshot, update->keyboard_scroll_state);
+    if (frame.present_viewport_rect.has_value())
+        async_present_frame(context_id, *frame.present_viewport_rect);
 }
 
 void CompositorConnection::add_video_sink(Media::VideoSinkHandle video_sink_handle)
@@ -417,13 +425,6 @@ void CompositorConnection::hurry_rendering_opportunity(Web::CompositorContextId 
     if (!can_send_message_to_compositor())
         return;
     async_hurry_rendering_opportunity(context_id);
-}
-
-void CompositorConnection::present_frame(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect)
-{
-    if (!can_send_message_to_compositor())
-        return;
-    async_present_frame(context_id, viewport_rect);
 }
 
 Optional<Compositing::CanvasId> CompositorConnection::create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias, Vector<String>& out_supported_extensions)

@@ -101,7 +101,15 @@ TEST_CASE(a_display_list_larger_than_an_ipc_message_travels_through_shared_memor
     auto display_list = fixture.list_of((IPC::MAX_MESSAGE_PAYLOAD_SIZE + 8 * MiB) / 56);
     EXPECT(display_list->command_bytes().size() > IPC::MAX_MESSAGE_PAYLOAD_SIZE);
 
-    fixture.client->update_display_list(SharedDisplayListFixture::context_id, display_list, fixture.visual_context_tree, {}, {});
+    Web::Compositor::CompositorFrame frame;
+    frame.context_id = SharedDisplayListFixture::context_id;
+    frame.display_list_update = Web::Compositor::CompositorFrame::DisplayListUpdate {
+        .display_list = display_list,
+        .visual_context_tree = fixture.visual_context_tree,
+        .resource_transaction = {},
+        .scroll_state_snapshot = {},
+    };
+    fixture.client->submit_frame(move(frame));
     fixture.pump();
     EXPECT(!fixture.disconnected);
     EXPECT(fixture.connection->is_open());

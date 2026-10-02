@@ -49,6 +49,7 @@ class CompositorConnection;
 class CompositorContextHandle;
 class CompositorHost;
 class CompositorHostBase;
+struct CompositorFrame;
 
 }
 

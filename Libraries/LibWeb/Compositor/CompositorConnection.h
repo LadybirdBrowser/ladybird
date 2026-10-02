@@ -26,6 +26,7 @@
 #include <LibGfx/Size.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibMedia/Forward.h>
+#include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Export.h>
 #include <LibWebCommon/Page/InputEvent.h>
@@ -44,9 +45,7 @@ public:
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>);
     void stop_presenting_to_client(Web::CompositorContextId);
     void destroy_context(Web::CompositorContextId);
-    void update_display_list(Web::CompositorContextId, NonnullRefPtr<Compositing::DisplayList> const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayListResourceTransaction, Compositing::ScrollStateSnapshot const&);
-    void update_visual_context_tree(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayListResourceTransaction);
-    void update_scroll_state(Web::CompositorContextId, Compositing::ScrollStateSnapshot const&, Compositing::KeyboardScrollState const&);
+    void submit_frame(CompositorFrame&&);
     void add_video_sink(Media::VideoSinkHandle);
     void remove_video_sink(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
@@ -67,7 +66,6 @@ public:
     void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, Compositing::WindowResizingInProgress);
     bool request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
     void hurry_rendering_opportunity(Web::CompositorContextId);
-    void present_frame(Web::CompositorContextId, Gfx::IntRect viewport_rect);
     void request_screenshot(Web::CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&&);
 
     Optional<Compositing::CanvasId> create_webgl_context(Compositing::WebGL::WebGLVersion, Gfx::IntSize, bool depth, bool stencil, bool antialias, Vector<String>& out_supported_extensions);
@@ -109,6 +107,7 @@ private:
     bool can_send_message_to_compositor() const;
     void merge_async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates);
     bool post_resource_additions_in_batches(Web::CompositorContextId, Compositing::DisplayListResourceTransaction&);
+    bool post_display_list_update(Web::CompositorContextId, CompositorFrame::DisplayListUpdate&);
     Optional<PendingScreenshot> take_screenshot(Compositing::ScreenshotRequestId);
 
     HashMap<Compositing::ScreenshotRequestId, PendingScreenshot> m_screenshots;
