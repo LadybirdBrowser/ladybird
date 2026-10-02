@@ -118,7 +118,13 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: As above.
-    unsafe { paintable_cleared_from_node(&main_thread, arena, layout_node) };
+    unsafe {
+        paintable_cleared_from_node(
+            crate::layout::tree_mutation::HostCalls::Now(&main_thread),
+            arena,
+            layout_node,
+        );
+    };
 }
 
 /// # Safety

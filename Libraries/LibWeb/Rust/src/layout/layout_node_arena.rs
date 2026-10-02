@@ -29,6 +29,7 @@ use crate::layout::node_data::{
     AncestorFact, DomPaintFact, FfiNodeLink, FfiStylePayloads, GENERATED_FOR_AFTER, GENERATED_FOR_LAST_SYNTHETIC,
     MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef, pseudo_kind_of,
 };
+use crate::layout::tree_mutation::HostCalls;
 use crate::stage::MainThread;
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -666,6 +667,9 @@ pub(crate) struct LayoutNodeArena {
     /// null when it registered none, as in a layout test.
     style_engine: Cell<*mut c_void>,
     box_presence_host: Cell<Option<BoxPresenceHost>>,
+    /// The nodes whose boxes a running tree build changed, which the host hears of once the walk
+    /// is over, or `None` while no build runs.
+    box_presence_queued_by_tree_build: RefCell<Option<Vec<BoundNode>>>,
     /// Whether the document is an SVG file decoded as an image, which is fixed for its lifetime.
     document_is_decoded_svg: Cell<bool>,
     /// Depth of synchronous layout passes, including their commits, on the stack.
@@ -749,10 +753,6 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) boxes_needing_scrollable_overflow_recalculation: RefCell<Vec<NodeSlotId>>,
     pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     text_nodes_enrolled_for_content_sync: RefCell<HashSet<NodeSlotId>>,
-    /// The rows a running tree build owes the host the attachment of their style resources once
-    /// the build is over, in the order it stamped them, each with whether the row owns the image
-    /// its content is replaced with.
-    style_resources_owed_to_host: RefCell<Vec<(NodeSlotId, bool)>>,
     /// The scroll containers a running tree build gave a style, which may be where scroll
     /// snapping happens once the build is over.
     built_scroll_containers: RefCell<Vec<NodeSlotId>>,
@@ -804,6 +804,7 @@ impl LayoutNodeArena {
             document_style_node: Cell::new(None),
             style_engine: Cell::new(std::ptr::null_mut()),
             box_presence_host: Cell::new(None),
+            box_presence_queued_by_tree_build: RefCell::new(None),
             document_is_decoded_svg: Cell::new(false),
             active_layout_pass_depth: Cell::new(0),
             fragment_cache_epoch_changed_during_layout_pass: Cell::new(false),
@@ -863,7 +864,6 @@ impl LayoutNodeArena {
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
-            style_resources_owed_to_host: RefCell::default(),
             built_scroll_containers: RefCell::default(),
             may_have_auto_content_visibility: Cell::new(false),
             may_have_scroll_snap_areas: Cell::new(false),
@@ -2434,7 +2434,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn update_layout_style(
         &self,
-        main_thread: &MainThread,
+        host_calls: HostCalls<'_>,
         node: NodeSlotId,
         update: impl FnOnce(&mut LayoutStyle),
     ) {
@@ -2448,15 +2448,15 @@ impl LayoutNodeArena {
         });
         if let Some(derived) = derived {
             self.set_node_flag(node, NodeFlag::FollowsPrincipalStyle, false);
-            self.apply_reinherited_style_record(main_thread, node, derived);
+            self.apply_reinherited_style_record(host_calls, node, derived);
         }
     }
 
-    pub(crate) fn reset_table_box_style_used_by_wrapper(&self, main_thread: &MainThread, node: NodeSlotId) {
-        self.update_layout_style(main_thread, node, LayoutStyle::reset_table_properties);
+    pub(crate) fn reset_table_box_style_used_by_wrapper(&self, host_calls: HostCalls<'_>, node: NodeSlotId) {
+        self.update_layout_style(host_calls, node, LayoutStyle::reset_table_properties);
     }
 
-    pub(crate) fn reinherit_anonymous_descendants(&self, main_thread: &MainThread, node: NodeSlotId) {
+    pub(crate) fn reinherit_anonymous_descendants(&self, host_calls: HostCalls<'_>, node: NodeSlotId) {
         self.assert_owner_thread();
         if self.node_style_record(node) == 0 {
             return;
@@ -2473,13 +2473,13 @@ impl LayoutNodeArena {
                 AnonymousStyleKind::TableWrapper,
                 AnonymousStyleOverrides::default(),
             );
-            self.apply_reinherited_style_record(main_thread, parent, derived);
-            self.reset_table_box_style_used_by_wrapper(main_thread, node);
+            self.apply_reinherited_style_record(host_calls, parent, derived);
+            self.reset_table_box_style_used_by_wrapper(host_calls, node);
         }
-        self.reinherit_anonymous_children(main_thread, node, self.node_style_record(node));
+        self.reinherit_anonymous_children(host_calls, node, self.node_style_record(node));
     }
 
-    fn reinherit_anonymous_children(&self, main_thread: &MainThread, parent: NodeSlotId, parent_style_record: u64) {
+    fn reinherit_anonymous_children(&self, host_calls: HostCalls<'_>, parent: NodeSlotId, parent_style_record: u64) {
         let mut child = self.data(parent).first_child.get();
         while !child.is_invalid() {
             let next_sibling = self.data(child).next_sibling.get();
@@ -2500,15 +2500,15 @@ impl LayoutNodeArena {
                     && self.data(parent).generated_for.get() == data.generated_for.get();
                 if follows_principal {
                     let derived = self.with_style_engine(|engine| DerivedStyleRecord::pin(engine, parent_style_record));
-                    self.apply_reinherited_style_record(main_thread, child, derived);
+                    self.apply_reinherited_style_record(host_calls, child, derived);
                     self.set_node_flag(child, NodeFlag::FollowsPrincipalStyle, true);
-                    self.reinherit_anonymous_descendants(main_thread, child);
-                    self.notify_shell_of_style_change(main_thread, child, true);
+                    self.reinherit_anonymous_descendants(host_calls, child);
+                    self.notify_shell_of_style_change(host_calls, child, true);
                 } else {
                     let derived =
                         self.reinherit_anonymous_style_record(self.node_style_record(child), parent_style_record);
-                    self.apply_reinherited_style_record(main_thread, child, derived);
-                    self.reinherit_anonymous_children(main_thread, child, derived.record);
+                    self.apply_reinherited_style_record(host_calls, child, derived);
+                    self.reinherit_anonymous_children(host_calls, child, derived.record);
                 }
             }
             child = next_sibling;
@@ -2517,7 +2517,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn apply_reinherited_style_record(
         &self,
-        main_thread: &MainThread,
+        host_calls: HostCalls<'_>,
         slot: NodeSlotId,
         derived: DerivedStyleRecord,
     ) {
@@ -2529,14 +2529,23 @@ impl LayoutNodeArena {
             self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
             self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
         }
-        self.notify_shell_of_style_change(main_thread, slot, false);
+        self.notify_shell_of_style_change(host_calls, slot, false);
     }
 
-    fn notify_shell_of_style_change(&self, main_thread: &MainThread, slot: NodeSlotId, attach_resources: bool) {
+    fn notify_shell_of_style_change(&self, host_calls: HostCalls<'_>, slot: NodeSlotId, attach_resources: bool) {
         let shell = self.data(slot).shell.get();
-        if shell.is_null() {
-            return;
+        if !shell.is_null() {
+            host_calls.shell_style_changed(self, slot, shell, attach_resources);
         }
+    }
+
+    pub(crate) fn tell_shell_of_style_change(
+        &self,
+        main_thread: &MainThread,
+        slot: NodeSlotId,
+        shell: *mut c_void,
+        attach_resources: bool,
+    ) {
         let Some((context, shell_style_changed)) = main_thread
             .host_tables()
             .and_then(|host_tables| host_tables.shell_style_changed_host.get())
@@ -2974,6 +2983,17 @@ impl LayoutNodeArena {
         if let BoundNode::Identity(style_node) = node {
             self.gather_layout_style_snapshot_box_loss(style_node);
         }
+        if self.box_presence_host.get().is_none() {
+            return;
+        }
+        if let Some(queued) = self.box_presence_queued_by_tree_build.borrow_mut().as_mut() {
+            queued.push(node);
+            return;
+        }
+        self.tell_host_of_box_presence(node);
+    }
+
+    fn tell_host_of_box_presence(&self, node: BoundNode) {
         let Some((context, callback)) = self.box_presence_host.get() else {
             return;
         };
@@ -2985,6 +3005,25 @@ impl LayoutNodeArena {
         // SAFETY: Registration and unregistration keep the host context live, and the host does
         // not reenter the arena.
         unsafe { callback(context, style_node, self.box_presence_bits(row)) };
+    }
+
+    /// Holds back what the host hears of the boxes nodes gain and lose until the tree build that
+    /// starts now is over, as the walk cannot call the host.
+    pub(crate) fn queue_box_presence_for_tree_build(&self) {
+        let previous = self.box_presence_queued_by_tree_build.replace(Some(Vec::new()));
+        assert!(previous.is_none(), "tree builds do not nest");
+    }
+
+    /// Tells the host what boxes the nodes the finished tree build changed have now. A node the
+    /// build unbound and bound again is told once per change, each time with its final state.
+    pub(crate) fn pay_box_presence_queued_by_tree_build(&self, _: &MainThread) {
+        let queued = self
+            .box_presence_queued_by_tree_build
+            .take()
+            .expect("a tree build queued box presence");
+        for node in queued {
+            self.tell_host_of_box_presence(node);
+        }
     }
 
     /// Tells the host what boxes the node `row` can be bound to has now, after `row` gained or lost
@@ -4754,23 +4793,6 @@ impl LayoutNodeArena {
     /// The row's shell, which the host's shell factory makes for an anonymous row the first time
     /// it is asked for. Making one calls into the document, so only a main thread token holder
     /// may ask.
-    /// Owes the host the attachment of `id`'s style resources once the running build is over: the
-    /// images its style names, and the paint facts that follow.
-    pub(crate) fn owe_style_resources(&self, id: NodeSlotId, owns_content_replacement_image: bool) {
-        self.style_resources_owed_to_host
-            .borrow_mut()
-            .push((id, owns_content_replacement_image));
-    }
-
-    /// The rows the finished build owes the attachment of their style resources, in the order it
-    /// stamped them. A row the build freed again, such as whitespace table fixup removed, is owed
-    /// nothing.
-    pub(crate) fn take_style_resources_owed_to_host(&self) -> Vec<(NodeSlotId, bool)> {
-        let mut owed = self.style_resources_owed_to_host.take();
-        owed.retain(|&(row, _)| self.slot_is_live(row));
-        owed
-    }
-
     /// Notes that the running build gave the scroll container `id` a style, which decides whether
     /// scroll snapping happens in it once the build is over.
     pub(crate) fn note_built_scroll_container(&self, id: NodeSlotId) {
@@ -5330,18 +5352,22 @@ pub unsafe extern "C" fn layout_arena_set_node_style(
 /// the host pins its style record, and its paint cache is cleaned now rather than through the
 /// journal, which would resolve the node's identity after a replacement row was bound. The image
 /// observers the row holds are dropped, and the image provider it owns is told.
-pub(crate) fn prepare_row_for_detach(main_thread: &MainThread, arena: &LayoutNodeArena, row: NodeSlotId) {
-    let kind = arena.data(row).kind.get();
-    let is_node_with_style = super::tree_builder::node_kind_is_node_with_style(kind);
+pub(crate) fn prepare_row_for_detach(host_calls: HostCalls<'_>, arena: &LayoutNodeArena, row: NodeSlotId) {
     arena.pin_style_record_for_detachment(row);
     arena.push_paint_damage(
         row,
         crate::painting::record::damage::PaintDamage::ALL_DRAW | crate::painting::record::damage::PaintDamage::ALL_HIT,
     );
+    host_calls.row_detached(row, arena.data(row).kind.get());
+}
+
+/// The host half of a row leaving the layout tree: the image observers it holds are dropped, and
+/// the image provider it owns is told.
+pub(crate) fn tell_host_of_row_detach(main_thread: &MainThread, row: NodeSlotId, kind: NodeKind) {
     let Some(host_tables) = main_thread.host_tables() else {
         return;
     };
-    if is_node_with_style {
+    if super::tree_builder::node_kind_is_node_with_style(kind) {
         let observers = host_tables.replace_image_observers(row, std::ptr::null_mut());
         crate::layout::tree_mutation::destroy_image_observers(main_thread, observers);
     }
@@ -5354,12 +5380,12 @@ pub(crate) fn prepare_row_for_detach(main_thread: &MainThread, arena: &LayoutNod
 }
 
 /// Prepares every row of the subtree `root` heads for leaving the layout tree, in pre-order.
-pub(crate) fn prepare_subtree_for_detach(main_thread: &MainThread, arena: &LayoutNodeArena, root: NodeSlotId) {
+pub(crate) fn prepare_subtree_for_detach(host_calls: HostCalls<'_>, arena: &LayoutNodeArena, root: NodeSlotId) {
     arena.assert_owner_thread();
     let mut rows = Vec::new();
     arena.for_each_node_in_layout_subtree_in_pre_order(root, |row| rows.push(row));
     for row in rows {
-        prepare_row_for_detach(main_thread, arena, row);
+        prepare_row_for_detach(host_calls, arena, row);
     }
 }
 
@@ -6721,7 +6747,7 @@ mod tests {
         // a live slot in it.
         unsafe {
             crate::painting::ffi::paintable_cleared_from_node(
-                &crate::stage::MainThread::for_test(),
+                crate::layout::tree_mutation::HostCalls::Now(&crate::stage::MainThread::for_test()),
                 handle,
                 allocation.slot,
             );

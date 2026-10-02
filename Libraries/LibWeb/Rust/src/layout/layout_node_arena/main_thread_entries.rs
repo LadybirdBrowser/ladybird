@@ -118,14 +118,14 @@ pub unsafe extern "C" fn layout_arena_adopt_derived_node_style(arena: *mut c_voi
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { LayoutNodeArena::from_handle(arena) };
     let derived = arena.with_style_engine(|engine| DerivedStyleRecord::pin(engine, record));
-    arena.apply_reinherited_style_record(&main_thread, node, derived);
+    arena.apply_reinherited_style_record(HostCalls::Now(&main_thread), node, derived);
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_layout_display(arena: *mut c_void, node: NodeSlotId, display: u32) {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    unsafe { LayoutNodeArena::from_handle(arena) }.update_layout_style(&main_thread, node, |style| {
+    unsafe { LayoutNodeArena::from_handle(arena) }.update_layout_style(HostCalls::Now(&main_thread), node, |style| {
         style.set_display(crate::css::display::FfiDisplay::from_raw(display));
     });
 }
@@ -136,7 +136,7 @@ pub unsafe extern "C" fn layout_arena_reinherit_anonymous_descendants(arena: *mu
     // SAFETY: As above.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.reinherit_anonymous_descendants(&main_thread, node);
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.reinherit_anonymous_descendants(HostCalls::Now(&main_thread), node);
 }
 
 /// Visits every subtree root the last layout tree build rebuilt and left live, as the row's layout
@@ -242,7 +242,11 @@ pub unsafe extern "C" fn layout_arena_prepare_node_for_detach(arena: *mut c_void
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: As above.
-    prepare_row_for_detach(&main_thread, unsafe { LayoutNodeArena::from_handle(arena) }, slot);
+    prepare_row_for_detach(
+        HostCalls::Now(&main_thread),
+        unsafe { LayoutNodeArena::from_handle(arena) },
+        slot,
+    );
 }
 
 /// Prepares every row of the subtree `root` heads for leaving the layout tree.
@@ -255,7 +259,11 @@ pub unsafe extern "C" fn layout_arena_prepare_subtree_for_detach(arena: *mut c_v
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: As above.
-    prepare_subtree_for_detach(&main_thread, unsafe { LayoutNodeArena::from_handle(arena) }, root);
+    prepare_subtree_for_detach(
+        HostCalls::Now(&main_thread),
+        unsafe { LayoutNodeArena::from_handle(arena) },
+        root,
+    );
 }
 
 /// The shell of the row the element or text node with `style_node` is bound to, made if nothing

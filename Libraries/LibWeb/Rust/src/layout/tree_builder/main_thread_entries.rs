@@ -30,7 +30,7 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(arena: *mu
     let arena = arena.cast::<LayoutNodeArena>();
     let host = StaleSubtreeHost {
         arena,
-        main_thread: &main_thread,
+        host_calls: HostCalls::Now(&main_thread),
     };
     // A top layer member the style engine no longer tracks has left the DOM. Nothing of it is in the
     // mirror, and nothing of it is bound to a row, so there is nothing to detach or clear.
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(arena: *mu
         // SAFETY: The arena outlives this call, and the shared borrow ends before the subtree is
         // freed.
         super::super::layout_node_arena::prepare_subtree_for_detach(
-            &main_thread,
+            HostCalls::Now(&main_thread),
             unsafe { &*arena },
             layout_node_to_detach,
         );
@@ -78,8 +78,15 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     assert!(!document.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    // What the walk owes the host, which the walk, holding no main thread token, can only queue.
+    let work = TreeBuildHostWork::default();
+    let walk = main_thread
+        .host_tables()
+        .expect("an FFI entry's token names its arena's host tables")
+        .open_tree_build_walk();
     // SAFETY: Guaranteed by the entry point's contract.
-    let host = unsafe { dom_tree_builder_host(callbacks, arena, &main_thread) };
+    let host = unsafe { dom_tree_builder_host(callbacks, arena, &work, &walk) };
+    host.arena().queue_box_presence_for_tree_build();
     let document_identity =
         StyleNodeID::from_raw(document_style_node).expect("a document that lays out is named in the style mirror");
     host.layout().arena().set_document_style_node(document_identity);
@@ -147,17 +154,10 @@ pub unsafe extern "C" fn rust_build_layout_tree(
                 .scrollbar_width;
             layout_host
                 .arena()
-                .update_layout_style(layout_host.main_thread, document_layout_node, |style| {
+                .update_layout_style(layout_host.host_calls(), document_layout_node, |style| {
                     style.set_scrollbar_width(scrollbar_width);
                 });
         }
-    }
-
-    // The style resources the walk owes the host for the rows it stamped, in the order it stamped
-    // them, now that no walk is left to run inside the host's answers.
-    for (row, owns_content_replacement_image) in host.layout().arena().take_style_resources_owed_to_host() {
-        // SAFETY: The builder remains live, and the row is a live NodeWithStyle.
-        unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, row, owns_content_replacement_image) };
     }
 
     for &element in &state.layout_tree_rebuild_requests {
@@ -172,45 +172,52 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         ));
     }
 
+    // The walk is over. What it owes the host is paid first, as it would have been while the walk
+    // ran: the boxes nodes gained or lost, the host-owned objects of the rows it freed, the style
+    // changes of the shells of the boxes it kept, and the style resources of the rows it stamped.
+    drop(walk);
+    // SAFETY: Guaranteed by the entry point's contract.
+    let callbacks = unsafe { &*callbacks };
+    // SAFETY: The arena outlives the build, and no arena borrow is held across the host calls.
+    work.apply(
+        &main_thread,
+        unsafe { LayoutNodeArena::from_handle(arena) },
+        |row, owns_content_replacement_image| {
+            // SAFETY: The builder remains live, and the row is a live NodeWithStyle.
+            unsafe { (callbacks.attach_style_resources)(callbacks.builder, row, owns_content_replacement_image) };
+        },
+    );
+
     // What the build found out goes to the document now that the walk that could clear DOM update
     // flags is complete, in the order the build found it out.
-    if !state.reports.is_empty() {
-        // SAFETY: The tree build runs outside any layout pass, the document outlives the build,
-        // and no arena borrow is held here.
-        unsafe {
-            FfiLayoutHostCallbacks::of(host.main_thread).deliver_commit_messages(host.main_thread, &state.reports);
-        }
+    // SAFETY: The tree build runs outside any layout pass, the document outlives the build, and no
+    // arena borrow is held here.
+    unsafe {
+        FfiLayoutHostCallbacks::of(&main_thread).deliver_commit_messages(&main_thread, &state.reports);
     }
 
     // The scroll containers the build gave a style come last, before any style the document
     // applies after the build.
-    let built_scroll_containers = host.layout().arena().take_built_scroll_containers();
+    // SAFETY: As above.
+    let built_scroll_containers = unsafe { LayoutNodeArena::from_handle(arena) }.take_built_scroll_containers();
     // SAFETY: As above.
     unsafe {
-        FfiLayoutHostCallbacks::of(host.main_thread)
-            .take_built_scroll_containers(host.main_thread, &built_scroll_containers);
+        FfiLayoutHostCallbacks::of(&main_thread).take_built_scroll_containers(&main_thread, &built_scroll_containers);
     }
 
+    // SAFETY: As above.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
     if rebuilt_subtrees_were_updated_individually {
-        let layout_host = host.layout();
-        let attached_roots = layout_host
-            .arena()
-            .derive_facts_after_tree_update(&state.rebuilt_subtree_roots);
-        layout_host
-            .arena()
-            .resolve_deferred_child_list_insertions(&attached_roots);
+        let attached_roots = arena.derive_facts_after_tree_update(&state.rebuilt_subtree_roots);
+        arena.resolve_deferred_child_list_insertions(&attached_roots);
     } else {
         // NB: The full layout entry must derive the facts of this tree.
-        host.layout().arena().record_partial_relayout_escape();
-        host.layout()
-            .arena()
-            .resolve_deferred_child_list_insertions(&Default::default());
+        arena.record_partial_relayout_escape();
+        arena.resolve_deferred_child_list_insertions(&Default::default());
     }
 
     // Table fixup can free a rebuilt root after it was recorded, such as whitespace at the edge of a
     // row group, so only the roots that are still live wait for the partial relayout plan.
-    let layout_host = host.layout();
-    let arena = layout_host.arena();
     let live_rebuilt_subtree_roots: Vec<NodeSlotId> = state
         .rebuilt_subtree_roots
         .iter()
@@ -254,7 +261,7 @@ pub unsafe extern "C" fn rust_detach_remaining_layout_rows_for_removal(arena: *m
     // identity still finds them. A ::backdrop box sits outside the generator's box, so no rebuild
     // of the parent would free it.
     if node.element_index().is_some() {
-        clear_synthetic_pseudo_element_boxes(&main_thread, arena.cast(), node);
+        clear_synthetic_pseudo_element_boxes(HostCalls::Now(&main_thread), arena.cast(), node);
     }
     // SAFETY: As above.
     let row = unsafe { LayoutNodeArena::from_handle(arena) }.bound_row(node);
@@ -264,13 +271,13 @@ pub unsafe extern "C" fn rust_detach_remaining_layout_rows_for_removal(arena: *m
     // SAFETY: As above.
     unsafe { LayoutNodeArena::from_handle(arena) }.pin_style_record_for_detachment(row);
     // SAFETY: As above; the clear borrows the arena for itself.
-    unsafe { crate::painting::ffi::paintable_cleared_from_node(&main_thread, arena, row) };
+    unsafe { crate::painting::ffi::paintable_cleared_from_node(HostCalls::Now(&main_thread), arena, row) };
     let arena = arena.cast::<LayoutNodeArena>();
     let top_layer_placement = topmost_layout_node_of_top_layer_placement(arena, row);
     if !top_layer_placement.is_invalid() {
         // SAFETY: As above; the shared borrow ends before the subtree is freed.
         super::super::layout_node_arena::prepare_subtree_for_detach(
-            &main_thread,
+            HostCalls::Now(&main_thread),
             unsafe { &*arena },
             top_layer_placement,
         );

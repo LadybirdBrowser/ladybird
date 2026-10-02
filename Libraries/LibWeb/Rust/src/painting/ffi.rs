@@ -40,14 +40,15 @@ unsafe fn arena_from_handle_mut<'a>(arena: *mut c_void) -> &'a mut LayoutNodeAre
     unsafe { LayoutNodeArena::from_handle_mut(arena) }
 }
 
-/// Clears the committed box of `layout_node` and tells the document's chrome state.
+/// Clears the committed box of `layout_node` and tells the document's chrome state, at once or
+/// once the tree build that clears it is over.
 ///
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create` with no outstanding borrow, used on
 /// the document thread.
 pub(crate) unsafe fn paintable_cleared_from_node(
-    main_thread: &crate::stage::MainThread,
+    host_calls: crate::layout::tree_mutation::HostCalls<'_>,
     arena: *mut c_void,
     layout_node: NodeSlotId,
 ) {
@@ -57,7 +58,7 @@ pub(crate) unsafe fn paintable_cleared_from_node(
         arena.prepare_paintable_row_cleared_reset(layout_node)
     };
     if let Some(reset) = reset {
-        reset.tell(main_thread);
+        host_calls.paintable_row_reset(reset);
         let arena = unsafe { arena_from_handle_mut(arena) };
         arena.paintable_row_cleared(reset);
     }

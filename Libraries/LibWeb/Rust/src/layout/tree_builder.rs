@@ -18,10 +18,9 @@ use crate::layout::node_data::{
     GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId, SELECTION_PSEUDO_KIND, pseudo_kind_of,
 };
 use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_length_for_code_point};
-use crate::layout::tree_mutation::{UnplacedLayoutNode, free_subtree_and_destroy_shells};
+use crate::layout::tree_mutation::{HostCalls, TreeBuildHostWork, UnplacedLayoutNode, free_subtree_and_destroy_shells};
 use crate::layout::tree_update_marks::layout_tree_update_reuse_reason;
 use crate::layout::{ComputedValuesView, FfiDisplay};
-use crate::stage::MainThread;
 use std::ffi::c_void;
 
 mod main_thread_entries;
@@ -177,7 +176,7 @@ pub enum FfiElementLayoutKind {
 }
 
 fn apply_replaced_display_adjustment(
-    main_thread: &MainThread,
+    host_calls: HostCalls<'_>,
     arena: &LayoutNodeArena,
     node: NodeSlotId,
     adjustment: FfiReplacedElementDisplayAdjustment,
@@ -188,7 +187,7 @@ fn apply_replaced_display_adjustment(
         FfiReplacedElementDisplayAdjustment::Inline => display_outside::INLINE,
         FfiReplacedElementDisplayAdjustment::None => return,
     };
-    arena.update_layout_style(main_thread, node, |style| {
+    arena.update_layout_style(host_calls, node, |style| {
         style.set_display(FfiDisplay::outside_and_inside(outside, display_inside::FLOW, false));
     });
 }
@@ -1222,10 +1221,14 @@ pub(crate) fn principal_node_entry_decision(
     })
 }
 
+/// The tree build walk's view of the document: the callbacks the walk still asks, the arena it
+/// builds rows in, and the host work it owes for what it changes. It holds no main thread token,
+/// so it cannot call the host for that work itself.
 struct DomTreeBuilderHost<'a> {
     callbacks: &'a FfiDomTreeBuilderCallbacks,
     arena: *mut LayoutNodeArena,
-    main_thread: &'a MainThread<'a>,
+    work: &'a TreeBuildHostWork,
+    walk: &'a TreeBuildWalk<'a>,
 }
 
 impl DomTreeBuilderHost<'_> {
@@ -1283,7 +1286,7 @@ impl DomTreeBuilderHost<'_> {
     fn layout(&self) -> TreeBuilderHost<'_> {
         TreeBuilderHost {
             arena: self.arena,
-            main_thread: self.main_thread,
+            work: self.work,
         }
     }
 
@@ -1291,8 +1294,12 @@ impl DomTreeBuilderHost<'_> {
     fn stale(&self) -> StaleSubtreeHost<'_> {
         StaleSubtreeHost {
             arena: self.arena,
-            main_thread: self.main_thread,
+            host_calls: self.host_calls(),
         }
+    }
+
+    fn host_calls(&self) -> HostCalls<'_> {
+        HostCalls::AfterTreeBuild(self.work)
     }
 }
 
@@ -1330,7 +1337,8 @@ fn dom_child_layout_plan(host: &DomTreeBuilderHost<'_>, node: StyleNodeID) -> (b
 unsafe fn dom_tree_builder_host<'a>(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     arena: *mut c_void,
-    main_thread: &'a MainThread<'a>,
+    work: &'a TreeBuildHostWork,
+    walk: &'a TreeBuildWalk<'a>,
 ) -> DomTreeBuilderHost<'a> {
     assert!(!callbacks.is_null());
     assert!(!arena.is_null());
@@ -1338,7 +1346,8 @@ unsafe fn dom_tree_builder_host<'a>(
     DomTreeBuilderHost {
         callbacks: unsafe { &*callbacks },
         arena: arena.cast(),
-        main_thread,
+        work,
+        walk,
     }
 }
 
@@ -1402,11 +1411,11 @@ fn update_layout_tree_for_assigned_slottables(
 }
 
 /// What the shadow-including walk that clears stale layout boxes needs: the arena, whose style
-/// mirror the walk navigates by identity, and the main thread token freeing a box takes.
+/// mirror the walk navigates by identity, and who answers the host calls freeing a box makes.
 #[derive(Clone, Copy)]
 struct StaleSubtreeHost<'a> {
     arena: *mut LayoutNodeArena,
-    main_thread: &'a MainThread<'a>,
+    host_calls: HostCalls<'a>,
 }
 
 impl StaleSubtreeHost<'_> {
@@ -1433,13 +1442,13 @@ impl StaleSubtreeHost<'_> {
             }
             // SAFETY: The arena handle is the one the walk was given, and the clear borrows the
             // arena for itself.
-            unsafe { crate::painting::ffi::paintable_cleared_from_node(self.main_thread, self.arena.cast(), row) };
-            super::layout_node_arena::prepare_row_for_detach(self.main_thread, self.arena(), row);
+            unsafe { crate::painting::ffi::paintable_cleared_from_node(self.host_calls, self.arena.cast(), row) };
+            super::layout_node_arena::prepare_row_for_detach(self.host_calls, self.arena(), row);
             self.arena().unbind_row(row);
             let parent = self.arena().data(row).parent.get();
             if !parent.is_invalid() {
                 assert!(self.arena().detach_from_parent(row));
-                free_subtree_and_destroy_shells(self.main_thread, self.arena, row);
+                self.host_calls.free_subtree(self.arena, row);
                 // The parent may keep its subtree (a child lost its box in place); an emptied
                 // container reads as having block-level children, like a freshly built one.
                 let arena = self.arena();
@@ -1450,7 +1459,7 @@ impl StaleSubtreeHost<'_> {
         }
 
         if node.element_index().is_some() {
-            clear_synthetic_pseudo_element_boxes(self.main_thread, self.arena, node);
+            clear_synthetic_pseudo_element_boxes(self.host_calls, self.arena, node);
         }
         false
     }
@@ -1467,19 +1476,19 @@ fn node_kind_is_svg_resource_box(kind: NodeKind) -> bool {
 
 /// Every pseudo-element of the element gives up the box it holds, subtree and all.
 pub(crate) fn clear_synthetic_pseudo_element_boxes(
-    main_thread: &MainThread,
+    host_calls: HostCalls<'_>,
     arena: *mut LayoutNodeArena,
     node: StyleNodeID,
 ) {
     for generated_for in GENERATED_FOR_AFTER..=crate::layout::node_data::GENERATED_FOR_LAST_SYNTHETIC {
-        free_pseudo_element_box(main_thread, arena, node, generated_for);
+        free_pseudo_element_box(host_calls, arena, node, generated_for);
     }
 }
 
 /// The pseudo-element of kind `generated_for` on the element `node` gives up its box, subtree and
 /// all. Answers whether the box was attached under a parent, or none when there was no box.
 fn free_pseudo_element_box(
-    main_thread: &MainThread,
+    host_calls: HostCalls<'_>,
     arena: *mut LayoutNodeArena,
     node: StyleNodeID,
     generated_for: u8,
@@ -1495,11 +1504,11 @@ fn free_pseudo_element_box(
     for row in rows {
         // SAFETY: The arena handle is the one the walk was given, and the clear borrows the arena
         // for itself.
-        unsafe { crate::painting::ffi::paintable_cleared_from_node(main_thread, arena.cast(), row) };
+        unsafe { crate::painting::ffi::paintable_cleared_from_node(host_calls, arena.cast(), row) };
     }
-    super::layout_node_arena::prepare_subtree_for_detach(main_thread, arena_ref, row);
+    super::layout_node_arena::prepare_subtree_for_detach(host_calls, arena_ref, row);
     let was_attached = arena_ref.detach_from_parent(row);
-    free_subtree_and_destroy_shells(main_thread, arena, row);
+    host_calls.free_subtree(arena, row);
     Some(was_attached)
 }
 
@@ -2244,7 +2253,7 @@ fn construct_principal_layout_node(
         let element = update.identity;
         if should_create_layout_node {
             // The box is built again from scratch, so every pseudo-element box it holds goes.
-            clear_synthetic_pseudo_element_boxes(host.main_thread, host.arena, element);
+            clear_synthetic_pseudo_element_boxes(host.host_calls(), host.arena, element);
         } else if host.arena().layout_tree_update_reuse_reasons(element)
             & layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE
             != 0
@@ -2252,7 +2261,7 @@ fn construct_principal_layout_node(
             // The box stays and only its generated content is regenerated, which is the ::before
             // and ::after boxes and nothing else.
             for generated_for in [GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER] {
-                let freed = free_pseudo_element_box(host.main_thread, host.arena, element, generated_for);
+                let freed = free_pseudo_element_box(host.host_calls(), host.arena, element, generated_for);
                 assert!(
                     freed != Some(false),
                     "a regenerated pseudo-element's box was not attached"
@@ -2270,9 +2279,12 @@ fn construct_principal_layout_node(
         let mut record = published_record();
         if should_create_layout_node && record.is_none() {
             // Nothing published a style for the element, so a bypass path reached it without the
-            // style update settling it. Only the host can compute one.
-            // SAFETY: The builder remains live, and the identity names a live element.
-            unsafe { (host.callbacks.restyle_bypass_path_element)(host.callbacks.builder, element.raw()) };
+            // style update settling it. Only the host can compute one, and the style update it runs
+            // reaches layout through FFI.
+            host.walk.reentered_by(|| {
+                // SAFETY: The builder remains live, and the identity names a live element.
+                unsafe { (host.callbacks.restyle_bypass_path_element)(host.callbacks.builder, element.raw()) };
+            });
             record = published_record();
         }
         // The record the box is built from is held for the whole build.
@@ -2442,7 +2454,7 @@ fn update_principal_node_after_entry(
     if !construction.layout_node.is_invalid() {
         let layout_node = construction.layout_node;
         if update.kind.is_element() || update.kind.is_document() {
-            host.arena()
+            host.work
                 .owe_style_resources(layout_node, construction.owns_content_replacement_image);
         }
 
@@ -2459,7 +2471,7 @@ fn update_principal_node_after_entry(
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
             // SAFETY: The box the host just built is a live NodeWithStyle.
-            apply_replaced_display_adjustment(host.main_thread, host.layout().arena(), layout_node, adjustment);
+            apply_replaced_display_adjustment(host.host_calls(), host.layout().arena(), layout_node, adjustment);
         }
 
         let old_layout_node = update.old_layout_node;
@@ -2565,7 +2577,7 @@ fn update_principal_node_after_entry(
                     arena.set_committed_fragment_link(new_data, link, None);
                 }
                 transfer_fragments_to_replacement_box(arena, old_layout_node, layout_node);
-                super::layout_node_arena::prepare_subtree_for_detach(layout_host.main_thread, arena, old_layout_node);
+                super::layout_node_arena::prepare_subtree_for_detach(layout_host.host_calls(), arena, old_layout_node);
                 let old_parent = layout_host.parent(old_layout_node);
                 assert!(!old_parent.is_invalid());
                 let replaced_old_box = arena.replace_child(
@@ -3031,7 +3043,7 @@ fn stamp_pseudo_element_box_row(
     if decision == FfiPseudoElementDecision::Contents {
         layout_host
             .arena()
-            .update_layout_style(layout_host.main_thread, slot, |style| {
+            .update_layout_style(layout_host.host_calls(), slot, |style| {
                 style.set_display(FfiDisplay::outside_and_inside(
                     crate::css::css_enums::display_outside::INLINE,
                     crate::css::css_enums::display_inside::FLOW,
@@ -3079,7 +3091,7 @@ fn stamp_nested_list_marker_row(
         .arena()
         .set_node_flag(slot, NodeFlag::ListMarkerIsInside, marker_position_is_inside);
     layout_host.note_style_of_built_row(slot, None);
-    layout_host.arena().owe_style_resources(slot, false);
+    layout_host.work.owe_style_resources(slot, false);
     slot
 }
 
@@ -3183,13 +3195,13 @@ fn create_pseudo_element(
 
     host.arena()
         .stamp_pseudo_element_box(layout_node, element_identity, generated_for_of(pseudo_element));
-    host.arena()
+    host.work
         .owe_style_resources(layout_node, decision == FfiPseudoElementDecision::ContentReplacement);
     if decision == FfiPseudoElementDecision::ContentReplacement {
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
             // SAFETY: The box the host just built is a live NodeWithStyle.
-            apply_replaced_display_adjustment(layout_host.main_thread, layout_host.arena(), layout_node, adjustment);
+            apply_replaced_display_adjustment(layout_host.host_calls(), layout_host.arena(), layout_node, adjustment);
         }
     }
 
@@ -3385,7 +3397,7 @@ enum TraversalDecision {
 
 struct TreeBuilderHost<'a> {
     arena: *mut LayoutNodeArena,
-    main_thread: &'a MainThread<'a>,
+    work: &'a TreeBuildHostWork,
 }
 
 fn node_has_flag(data: &NodeData, flag: NodeFlag) -> bool {
@@ -3608,7 +3620,7 @@ impl TreeBuilderHost<'_> {
             NodeKind::FieldSetBox => {
                 let display = self.style(slot).map(|style| style.display());
                 if let Some(display) = display.filter(FfiDisplay::is_flow_inside) {
-                    self.arena().update_layout_style(self.main_thread, slot, |style| {
+                    self.arena().update_layout_style(self.host_calls(), slot, |style| {
                         style.set_display(FfiDisplay::outside_and_inside(
                             display.outside,
                             crate::css::css_enums::display_inside::FLOW_ROOT,
@@ -3744,7 +3756,7 @@ impl TreeBuilderHost<'_> {
             .with_style_store(|engine| engine.element_unique_node_id(document));
         self.arena().unique_node_ids().publish(slot, unique_node_id);
         self.arena()
-            .apply_reinherited_style_record(self.main_thread, slot, document_style);
+            .apply_reinherited_style_record(self.host_calls(), slot, document_style);
         self.arena().note_built_scroll_container(slot);
         slot
     }
@@ -3781,7 +3793,7 @@ impl TreeBuilderHost<'_> {
         self.arena().refresh_insets_use_anchor_functions_flag(slot);
         // An anonymous inline box takes its style from its parent, so it may name images too.
         if node_kind == NodeKind::InlineNode {
-            self.arena().owe_style_resources(slot, false);
+            self.work.owe_style_resources(slot, false);
         }
         UnplacedLayoutNode::new(slot)
     }
@@ -3815,7 +3827,11 @@ impl TreeBuilderHost<'_> {
     }
 
     fn free_subtree(&self, node: LayoutNode) {
-        free_subtree_and_destroy_shells(self.main_thread, self.arena, node);
+        self.host_calls().free_subtree(self.arena, node);
+    }
+
+    fn host_calls(&self) -> HostCalls<'_> {
+        HostCalls::AfterTreeBuild(self.work)
     }
 
     fn parent(&self, node: LayoutNode) -> LayoutNode {
@@ -4526,7 +4542,7 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID
         .arena()
         .stamp_pseudo_element_row(wrapper_slot, wrapper_kind, element, GENERATED_FOR_FIRST_LETTER);
     layout_host.note_style_of_built_row(wrapper_slot, None);
-    layout_host.arena().owe_style_resources(wrapper_slot, false);
+    layout_host.work.owe_style_resources(wrapper_slot, false);
     host.arena()
         .clear_pseudo_element_box(element, GENERATED_FOR_FIRST_LETTER);
     host.arena()
@@ -4696,7 +4712,7 @@ fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Lay
             overflow_y: style.box_values().overflow_y,
         };
         host.arena()
-            .update_layout_style(host.main_thread, layout_node, |style| {
+            .update_layout_style(host.host_calls(), layout_node, |style| {
                 style.set_overflow(
                     crate::css::css_enums::overflow::VISIBLE,
                     crate::css::css_enums::overflow::VISIBLE,
@@ -5100,7 +5116,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
                 NodeKind::TableWrapper,
             );
             host.arena()
-                .reset_table_box_style_used_by_wrapper(host.main_thread, table_root);
+                .reset_table_box_style_used_by_wrapper(host.host_calls(), table_root);
             let wrapper_slot = wrapper.slot();
             host.move_child(table_root, wrapper_slot, NodeSlotId::INVALID);
             host.attach_child(parent, wrapper, nearest_sibling);
@@ -5386,7 +5402,7 @@ mod tests {
         let main_thread = MainThread::for_test();
         let host = super::StaleSubtreeHost {
             arena: &raw mut arena,
-            main_thread: &main_thread,
+            host_calls: crate::layout::tree_mutation::HostCalls::Now(&main_thread),
         };
         assert!(!host.clear_stale_layout_node(element, None));
 
