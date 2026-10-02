@@ -548,6 +548,9 @@ pub struct ComputedLonghandTable {
     /// Values before automatic post-compute adjustments, retained only while
     /// animation processing may need to restore them.
     post_compute_restore_values: Option<Box<PostComputeRestoreValues>>,
+    /// The computed `overflow-x` and `overflow-y` keywords before the axes were adjusted against
+    /// each other, which an animation of one axis is adjusted against again, once known.
+    overflow_before_adjustment: Option<[u16; 2]>,
     /// The sum of every slot's `longhand_slot_hash`, once known. A table seeded from a published
     /// table inherits its sum and adjusts it on each slot write, so publishing hashes only the
     /// values the drive changed; a table that starts empty computes the sum once, when it is
@@ -636,6 +639,7 @@ impl ComputedLonghandTable {
                 in_display_none_subtree: false,
             },
             post_compute_restore_values: None,
+            overflow_before_adjustment: None,
             slot_hash_sum: MemoizedHashSum::default(),
             frozen_transition_longhands: OnceLock::new(),
             frozen: false,
@@ -834,6 +838,20 @@ impl ComputedLonghandTable {
         self.metadata.display_before_box_type_transformation
     }
 
+    pub(crate) fn set_overflow_before_adjustment(&mut self, overflow: [u16; 2]) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        self.overflow_before_adjustment = Some(overflow);
+    }
+
+    /// The computed `overflow-x` and `overflow-y` keywords before the axes were adjusted against
+    /// each other.
+    pub(crate) fn overflow_before_adjustment(&self) -> Option<[u16; 2]> {
+        self.overflow_before_adjustment
+    }
+
     pub(crate) fn inheritance_dependent_values(&self) -> impl Iterator<Item = (u16, *const c_void)> + '_ {
         self.inheritance_dependent
             .iter()
@@ -871,6 +889,7 @@ impl ComputedLonghandTable {
         self.inherited_bits = source.inherited_bits;
         self.evaluated_bits = source.evaluated_bits;
         self.metadata = source.metadata;
+        self.overflow_before_adjustment = source.overflow_before_adjustment;
         self.raw_cascaded_font_size.clone_from(&source.raw_cascaded_font_size);
         self.post_compute_restore_values = None;
     }
@@ -1167,10 +1186,11 @@ impl ComputedLonghandTable {
         &self.important_bits
     }
 
-    pub(crate) fn publication_sidecars(&self) -> (&[u8; LONGHAND_BITMAP_BYTES], u32, i16) {
+    pub(crate) fn publication_sidecars(&self) -> (&[u8; LONGHAND_BITMAP_BYTES], u32, Option<[u16; 2]>, i16) {
         (
             &self.evaluated_bits,
             self.metadata.display_before_box_type_transformation,
+            self.overflow_before_adjustment,
             self.metadata.effective_color_scheme,
         )
     }

@@ -4574,12 +4574,7 @@ pub(crate) unsafe fn drive_property_computation(
                     snapshot.and_then(|snapshot| snapshot.animated_property(inherited_property_id))
                 && let Some(animated_overlay) = unsafe { animated_overlay.as_mut() }
             {
-                animated_overlay.set_owned(
-                    property_id,
-                    animated_property.clone_value(),
-                    true,
-                    animated_property.result_of_transition,
-                );
+                animated_overlay.set_inherited(property_id, animated_property);
             }
 
             if property_id == prop::OVERFLOW_X {
@@ -4718,6 +4713,11 @@ pub(crate) unsafe fn drive_property_computation(
         }
         let display_before = computed_display.expect("display must be computed by the longhand driver");
         longhand_table.set_display_before_box_type_transformation(display_before.encoded());
+        let overflow_before = [
+            computed_overflow_x.expect("overflow-x must be computed by the longhand driver"),
+            computed_overflow_y.expect("overflow-y must be computed by the longhand driver"),
+        ];
+        longhand_table.set_overflow_before_adjustment(overflow_before);
         let mut box_type_input = *box_type_input;
         box_type_input.display = display_before;
         let float_before = computed_float.expect("float must be computed by the longhand driver");
@@ -4733,8 +4733,8 @@ pub(crate) unsafe fn drive_property_computation(
         let post_compute_adjustment = PostComputeAdjustment {
             display_before,
             float_before,
-            overflow_x_before: computed_overflow_x.expect("overflow-x must be computed by the longhand driver"),
-            overflow_y_before: computed_overflow_y.expect("overflow-y must be computed by the longhand driver"),
+            overflow_x_before: overflow_before[0],
+            overflow_y_before: overflow_before[1],
             text_align_before: computed_text_align_before_adjustment
                 .expect("text-align must be computed by the longhand driver"),
             position_before: box_type_input.position,
@@ -7330,13 +7330,22 @@ fn finalize_computed_style(
             longhand_table.set_display_before_box_type_transformation(box_type.display.encoded());
         }
     }
-    let (overflow_x, overflow_y) = if mode == FfiStyleFinalizationMode::All {
-        (
+    let (overflow_x, overflow_y) = match mode {
+        FfiStyleFinalizationMode::All => (
             effective_keyword(longhand_table, overlay, prop::OVERFLOW_X),
             effective_keyword(longhand_table, overlay, prop::OVERFLOW_Y),
-        )
-    } else {
-        (0, 0)
+        ),
+        // An axis the overlay does not animate is adjusted from its keyword before the base
+        // adjusted it against the other axis, which the overlay may animate out of that adjustment.
+        FfiStyleFinalizationMode::AnimatedBoxType => {
+            let before = longhand_table.overflow_before_adjustment();
+            let unadjusted = |property: u16, axis: usize| match before {
+                Some(before) if overlay.is_none_or(|overlay| overlay.get(property).is_none()) => before[axis],
+                _ => effective_keyword(longhand_table, overlay, property),
+            };
+            (unadjusted(prop::OVERFLOW_X, 0), unadjusted(prop::OVERFLOW_Y, 1))
+        }
+        _ => (0, 0),
     };
     let (has_parent_with_computed_values, parent_text_align, parent_direction_is_ltr) =
         parent_snapshot.map_or((false, 0, true), |snapshot| {
@@ -7402,7 +7411,7 @@ fn finalize_style(
     };
     let overflow = if matches!(
         input.mode,
-        FfiStyleFinalizationMode::All | FfiStyleFinalizationMode::Overflow
+        FfiStyleFinalizationMode::All | FfiStyleFinalizationMode::Overflow | FfiStyleFinalizationMode::AnimatedBoxType
     ) {
         resolve_effective_overflow_keywords(input.overflow_x, input.overflow_y)
     } else {
@@ -7568,6 +7577,32 @@ fn finalize_style(
     }
     finalization.invalidated_longhands = invalidated_longhands;
 
+    // An animated composition is adjusted in its overlay, over a base that stays as computed.
+    if animated_box_type {
+        let overlay = animated_overlay.expect("animated box-type finalization requires an overlay");
+        for (property, keyword) in [
+            (prop::OVERFLOW_X, finalization.overflow.x_keyword),
+            (prop::OVERFLOW_Y, finalization.overflow.y_keyword),
+        ] {
+            let value = retained_new(StyleValueData::Keyword { keyword });
+            let effective = longhand_table.effective_value(Some(overlay), property, true);
+            if unsafe { &*effective.value.cast::<StyleValueData>() } == value.data() {
+                continue;
+            }
+            // An axis the overlay animates keeps its animation's place; one it does not is adjusted
+            // over the base value.
+            match overlay
+                .get(property)
+                .map(|entry| (entry.inherited, entry.result_of_transition))
+            {
+                Some((inherited, result_of_transition)) => {
+                    overlay.set_owned(property, value, inherited, result_of_transition);
+                }
+                None => overlay.set_adjusted(property, value),
+            }
+        }
+        return finalization;
+    }
     if finalization.overflow.changed_x {
         longhand_table.set(
             prop::OVERFLOW_X,

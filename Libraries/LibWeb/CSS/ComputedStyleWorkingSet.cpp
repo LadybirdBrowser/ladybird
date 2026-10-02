@@ -140,6 +140,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_anima
             || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Position))
             || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Float))
             || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::LineHeight))
+            || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::OverflowX))
+            || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::OverflowY))
             || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::TextAlign));
         auto animated_properties = adopt_ref(*new AnimatedProperties(overlay, AnimatedProperties::InheritedOnly {}));
         working_set->m_animated_properties = move(animated_properties);
@@ -439,6 +441,8 @@ bool ComputedStyleWorkingSet::requires_animated_post_compute_adjustments() const
         || has_animated_property(PropertyID::Position)
         || has_animated_property(PropertyID::Float)
         || has_animated_property(PropertyID::LineHeight)
+        || has_animated_property(PropertyID::OverflowX)
+        || has_animated_property(PropertyID::OverflowY)
         || has_animated_property(PropertyID::TextAlign);
 }
 
