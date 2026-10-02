@@ -9,6 +9,7 @@ use super::scroll_state::NO_SCROLL_STATE_SLOT;
 use super::*;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::FfiVisualContextTreeInputs;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
@@ -88,11 +89,50 @@ impl BoxFacts {
             .is_some_and(|effects| effects.backdrop_filter.is_some())
     }
 
+    /// Gathers a box's facts for the visual context update, which keeps the bounds of the SVG
+    /// filter the box references on its row.
     pub(crate) fn gather(
         layout_arena: &impl PaintableRowsRead,
         slot: NodeSlotId,
         pixel_ratio: f64,
         consults_default_scroll_shift_anchors: bool,
+    ) -> Self {
+        let default_scroll_shift_anchor = if consults_default_scroll_shift_anchors {
+            layout_arena.default_scroll_shift_anchor(slot)
+        } else {
+            NodeSlotId::INVALID
+        };
+        Self::gather_with_effects(
+            layout_arena,
+            slot,
+            pixel_ratio,
+            default_scroll_shift_anchor,
+            |layout_arena| super::node_values::compute_effects_data(layout_arena, slot, pixel_ratio),
+        )
+    }
+
+    /// Gathers the facts of a box painted inside an SVG resource, which the visual context update
+    /// does not reach, along with the bounds of the SVG filter it references. Nothing is stored.
+    pub(crate) fn gather_for_resource_content(
+        layout_arena: &impl PaintRead,
+        slot: NodeSlotId,
+        pixel_ratio: f64,
+    ) -> (Self, Option<crate::layout::used_values::FfiCssPixelRect>) {
+        let mut svg_filter_bounds = None;
+        let facts = Self::gather_with_effects(layout_arena, slot, pixel_ratio, NodeSlotId::INVALID, |layout_arena| {
+            let resolved = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio)?;
+            svg_filter_bounds = resolved.svg_filter_bounds;
+            resolved.effects
+        });
+        (facts, svg_filter_bounds)
+    }
+
+    fn gather_with_effects<Arena: PaintRead>(
+        layout_arena: &Arena,
+        slot: NodeSlotId,
+        pixel_ratio: f64,
+        default_scroll_shift_anchor: NodeSlotId,
+        effects: impl FnOnce(&Arena) -> Option<EffectsData>,
     ) -> Self {
         let mut facts = Self {
             needs_compositor_background_color_effect: layout_arena.node_has_compositor_animation_frame(
@@ -113,11 +153,7 @@ impl BoxFacts {
             backface_hidden: false,
             establishes_or_extends_3d_rendering_context: false,
             may_have_clip: false,
-            default_scroll_shift_anchor: if consults_default_scroll_shift_anchors {
-                layout_arena.default_scroll_shift_anchor(slot)
-            } else {
-                NodeSlotId::INVALID
-            },
+            default_scroll_shift_anchor,
         };
         if let Some((transform, transform_is_invertible)) =
             super::node_values::compute_transform(layout_arena, slot, pixel_ratio)
@@ -126,7 +162,7 @@ impl BoxFacts {
             facts.transform_is_invertible = transform_is_invertible;
         }
         facts.perspective = super::node_values::compute_perspective_data(layout_arena, slot, pixel_ratio);
-        facts.effects = super::node_values::compute_effects_data(layout_arena, slot, pixel_ratio).map(std::rc::Rc::new);
+        facts.effects = effects(layout_arena).map(std::rc::Rc::new);
         facts.backface_hidden = super::node_values::backface_hidden(layout_arena, slot);
         let node = slot;
         facts.establishes_or_extends_3d_rendering_context =

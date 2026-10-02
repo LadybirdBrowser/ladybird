@@ -289,12 +289,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
         {
             return;
         }
-        let facts = BoxFacts::gather(
-            self.layout_arena,
-            svg_box,
-            self.inputs.device_pixels_per_css_pixel,
-            false,
-        );
+        let (facts, svg_filter_bounds) =
+            BoxFacts::gather_for_resource_content(self.layout_arena, svg_box, self.inputs.device_pixels_per_css_pixel);
         self.recorder.set_accumulated_visual_context(walk.enclosing_context);
 
         let effects_group = facts
@@ -322,7 +318,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
 
         let enclosing_transform = self.recorder.set_ambient_inline_transform(Some(to_enclosing_space));
-        self.paint_svg_box_own_content_inside_resource(svg_box);
+        self.paint_svg_box_own_content_inside_resource(svg_box, svg_filter_bounds);
 
         let clip_depth = self.recorder.ambient_inline_clip_depth();
         if facts.may_have_clip
@@ -383,10 +379,14 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
     }
 
-    fn paint_svg_box_own_content_inside_resource(&mut self, svg_box: NodeSlotId) {
+    fn paint_svg_box_own_content_inside_resource(
+        &mut self,
+        svg_box: NodeSlotId,
+        svg_filter_bounds: Option<crate::layout::used_values::FfiCssPixelRect>,
+    ) {
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
-        if let Some(svg_filter_bounds) = self.layout_arena.paintable_side_data(svg_box).svg_filter_bounds.get() {
+        if let Some(svg_filter_bounds) = svg_filter_bounds {
             let device_rect = self
                 .converter
                 .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));
