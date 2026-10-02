@@ -190,6 +190,26 @@ pub struct FfiEngineComputedRecord {
     pub pseudo_records: [u64; RETRY_PSEUDO_RECORD_SLOTS],
 }
 
+/// The synthetic pseudo-element records the engine settled beside an element's installed record.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiSettledPseudoRecords {
+    /// The engine settled none: one of the pseudo-elements reads a value it cannot compute, or one
+    /// of their rules a container condition it cannot decide. C++ computes them all, and nothing
+    /// else here is set.
+    pub computed_by_host: bool,
+    /// Whether a settled pseudo-element substituted custom properties.
+    pub uses_substitution: bool,
+    /// As [`FfiStyleDelta::record_reads`].
+    pub record_reads: u8,
+    /// As [`FfiStyleDelta::explicitly_inherited_groups`].
+    pub explicitly_inherited_groups: u32,
+    /// The kinds whose records the engine settled, as a bit per kind; a present slot holding zero
+    /// is a removal, and an absent kind keeps its record.
+    pub pseudo_records_present: u8,
+    pub pseudo_records: [u64; RETRY_PSEUDO_RECORD_SLOTS],
+}
+
 /// One record slot per synthetic pseudo-element kind in a retried record.
 pub const RETRY_PSEUDO_RECORD_SLOTS: usize = 8;
 
@@ -3720,7 +3740,6 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
 }
 
 /// Settle the synthetic pseudo-element records of an element whose record C++ has just installed.
-/// A zero `style_record` leaves them to C++.
 ///
 /// # Safety
 /// `engine` must be live.
@@ -3729,32 +3748,20 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
     engine: crate::css::style::StyleEngineHandle,
     node: u32,
     old_is_list_item: bool,
-) -> FfiEngineComputedRecord {
+) -> FfiSettledPseudoRecords {
     abort_on_panic(|| {
         let engine = unsafe { engine.get_mut() };
         let Some(style_node) = StyleNodeID::from_raw(node) else {
-            return FfiEngineComputedRecord::default();
+            return FfiSettledPseudoRecords::default();
         };
-        let (settled, uses_substitution) = engine.settle_pseudo_records_after_host_record(style_node, old_is_list_item);
-        let result = FfiEngineComputedRecord {
-            style_record: settled.style_record,
-            uses_substitution,
-            record_reads: if settled.style_record != 0 {
-                engine.node_record_reads(style_node)
-            } else {
-                0
-            },
-            explicitly_inherited_groups: settled.explicitly_inherited_groups,
-            owes_an_animation_plan: false,
-            owes_a_transition_step: false,
-            composed_by_the_host: false,
-            pseudo_records_present: settled.pseudo_records_present,
-            pseudo_records: settled.pseudo_records,
-        };
+        let mut result = engine.settle_pseudo_records_after_host_record(style_node, old_is_list_item);
+        if !result.computed_by_host {
+            result.record_reads = engine.node_record_reads(style_node);
+        }
         engine.record_boundary_call(EventKind::SettlePseudoRecordsAfterHostRecord, |payload| {
             payload.write_u32(node);
             payload.write_bool(old_is_list_item);
-            payload.write_u64(result.style_record);
+            payload.write_bool(result.computed_by_host);
             payload.write_u8(result.pseudo_records_present);
         });
         result

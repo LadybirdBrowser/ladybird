@@ -799,14 +799,22 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
                     let old_is_list_item = event.payload.read_bool()?;
-                    let expected = event.payload.read_u64()?;
+                    // Before version 19 the answer carried the element's record, zero where the
+                    // engine left the pseudo-elements to C++.
+                    let expected_computed_by_host = if format_version >= 19 {
+                        event.payload.read_bool()?
+                    } else {
+                        event.payload.read_u64()? == 0
+                    };
                     let expected_present = event.payload.read_u8()?;
                     let actual = unsafe {
                         bridge::style_engine_settle_pseudo_records_after_host_record(engine, node, old_is_list_item)
                     };
-                    if actual.style_record != expected || actual.pseudo_records_present != expected_present {
+                    if actual.computed_by_host != expected_computed_by_host
+                        || actual.pseudo_records_present != expected_present
+                    {
                         return Err(format!(
-                            "pseudo records settled after a host record diverged for node {node}: expected {expected} (present {expected_present:#x}), got {actual:?}"
+                            "pseudo records settled after a host record diverged for node {node}: expected computed by the host {expected_computed_by_host} (present {expected_present:#x}), got {actual:?}"
                         )
                         .into());
                     }

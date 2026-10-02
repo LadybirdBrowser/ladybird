@@ -327,7 +327,7 @@ StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_pseudo_element_record_
     return StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(m_render_document->host(), node.value(), demand, pseudo_element);
 }
 
-StyleEngineFFI::FfiEngineComputedRecord StyleEngine::settle_pseudo_records_after_host_record(StyleNodeID node, bool old_is_list_item)
+StyleEngineFFI::FfiSettledPseudoRecords StyleEngine::settle_pseudo_records_after_host_record(StyleNodeID node, bool old_is_list_item)
 {
     return StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(m_impl, node.value(), old_is_list_item);
 }

@@ -1042,7 +1042,7 @@ impl StyleEngine {
         &mut self,
         node: StyleNodeID,
         old_is_list_item: bool,
-    ) -> (publication::RetriedEngineRecord, bool) {
+    ) -> bridge::FfiSettledPseudoRecords {
         self.state
             .settle_pseudo_records_after_host_record(node, old_is_list_item, &mut self.counters)
     }

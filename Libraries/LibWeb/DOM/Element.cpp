@@ -1540,7 +1540,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         auto settled = style_computer.style_engine().settle_pseudo_records_after_host_record(style_node_id(), had_list_marker);
         // What the settled pseudo-elements' container-relative lengths read of the element's containers.
         record_engine_container_query_effects(*this);
-        if (settled.style_record == 0)
+        // The engine leaves the pseudo-elements to C++ where it cannot compute one of them.
+        if (settled.computed_by_host)
             return false;
         for (size_t kind = 0; kind < array_size(settled.pseudo_records); ++kind) {
             if (!((settled.pseudo_records_present >> kind) & 1))

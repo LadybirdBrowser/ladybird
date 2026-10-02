@@ -1146,14 +1146,16 @@ impl RetainedState {
 
     /// One attempt at the synthetic pseudo-elements of an element whose record C++ computed: the
     /// engine settles them against that record exactly as it settles them beside one of its own.
-    /// A resumed attempt has already passed the entry checks.
+    /// A resumed attempt has already brought the winners up to date. A refusal is a value the
+    /// engine cannot compute, or a container condition it cannot decide, which C++ computes.
     fn settle_pseudo_records_after_host_record_step(
         &mut self,
         node: StyleNodeID,
         old_is_list_item: bool,
+        republication: WinnerRepublication,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
-    ) -> Drive<computed::FinalStyleRecordID> {
+    ) -> Drive<()> {
         // The host installed the element's record before it asked.
         let record = self.computed_group_sets.assigned_style_record(node);
         debug_assert!(
@@ -1161,38 +1163,11 @@ impl RetainedState {
             "the pseudo settle follows the element's installed record"
         );
         let record = record.or_refused()?;
-        if !scratch.font_drive.is_pending_for(node) {
-            // A record the engine derived for the element itself carries its pseudo-elements.
-            if self.engine_computed_records_pending.contains_key(&node) {
-                return Err(Unanswered::Refused);
-            }
-            // Every declaration the pseudo-elements' rules make has to be a winner the engine
-            // holds, as it has for any record it derives. What the element's own declarations
-            // make is in the record C++ computed. An answer released between the element's
-            // installation and this settle is matched again, exactly: that answer publishes the
-            // winners and says whether they are complete.
-            let winners_are_complete = if self.holds_pseudo_match_answer(node) {
-                self.pseudo_winners_are_complete(node)
-            } else {
-                let republication = scratch.winner_republication().or_refused()?;
-                self.republish_winners_from_answer(node, republication, counters) == Some(true)
-            };
-            if !winners_are_complete {
-                counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
-                return Err(Unanswered::Refused);
-            }
-            // The pseudo-elements' container conditions ask about the element first, which the
-            // installed record may have just made a container: winners whose verdicts moved with
-            // it are published again, and ones the engine cannot decide leave them to C++.
-            if self.container_verdicts_moved(node) {
-                let republication = scratch.winner_republication().or_refused()?;
-                self.republish_pseudo_winners_from_retained_answer(node, republication, counters)
-                    .or_refused()?;
-            }
-            if !self.container_verdicts_stand(node) {
-                counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
-                return Err(Unanswered::Refused);
-            }
+        if !scratch.font_drive.is_pending_for(node)
+            && !self.refresh_pseudo_winners_beside_host_record(node, republication, scratch, counters)
+        {
+            counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
+            return Err(Unanswered::Refused);
         }
         let generation = self.winner_groups.generation();
         if let Err(unanswered) = self.engine_pseudo_records(
@@ -1206,19 +1181,80 @@ impl RetainedState {
             counters,
         ) {
             if unanswered != Unanswered::Suspended(Suspension::Font) {
-                // The element's record is C++'s and stays; only what was settled beside it goes.
-                for pending in self.engine_computed_records_pending.remove(&node).into_iter().flatten() {
-                    let derived = pending.new_style_record;
-                    self.revert_engine_computed_pseudo_record(pending, counters);
-                    scratch.pseudo_cohorts.retain(|_, record| *record != derived);
-                    self.engine_pseudo_record_cache.retain(|_, record| *record != derived);
-                }
-                scratch.pseudo_deltas.clear();
-                self.settle_computed_memory();
+                self.put_back_pseudo_records_beside_host_record(node, scratch, counters);
             }
             return Err(unanswered);
         }
-        Ok(record)
+        Ok(())
+    }
+
+    /// Bring the winners the pseudo-elements of an element are settled from up to date beside the
+    /// record C++ just installed for it, as a style update leaves them beside one of its own.
+    /// Whether the engine decides every container condition their rules ask.
+    fn refresh_pseudo_winners_beside_host_record(
+        &mut self,
+        node: StyleNodeID,
+        republication: WinnerRepublication,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> bool {
+        // What the engine settled for the node in a style update whose record the host computed
+        // instead was settled beside a record the host never installed, and goes back.
+        self.put_back_pseudo_records_beside_host_record(node, scratch, counters);
+        // Every declaration the pseudo-elements' rules make has to be a winner the engine holds, as
+        // it has for any record it derives; what the element's own declarations make is in the
+        // record C++ computed. Winners that are missing, or were published while an ancestor's
+        // answer moved, are published again from the node's answer, which decides their gated
+        // rules over the containers as the installed records leave them. So do winners whose
+        // verdicts the installed record moved by making the element a container, which the
+        // pseudo-elements' conditions ask about first.
+        let republished = if !self.holds_pseudo_match_answer(node) || !self.pseudo_winners_are_complete(node) {
+            self.republish_winners_from_answer(node, republication, counters)
+                .is_some()
+        } else {
+            !self.container_verdicts_moved(node)
+                || self
+                    .republish_pseudo_winners_from_retained_answer(node, republication, counters)
+                    .is_some()
+                || self
+                    .republish_winners_from_answer(node, republication, counters)
+                    .is_some()
+        };
+        // Matching the element again only fails for want of facts the host publishes before it
+        // styles the element.
+        debug_assert!(republished, "an element the host styled matches");
+        debug_assert!(
+            !republished || self.pseudo_winners_are_complete(node),
+            "winners published on their own hold the node's gated rules"
+        );
+        republished && self.container_verdicts_stand(node)
+    }
+
+    /// Put back every pseudo-element record settled for `node` that the host has not taken. The
+    /// element's own record is the one the host computed, which stays: a record the engine derived
+    /// for it is merely not installed.
+    fn put_back_pseudo_records_beside_host_record(
+        &mut self,
+        node: StyleNodeID,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) {
+        for pending in self.engine_computed_records_pending.remove(&node).into_iter().flatten() {
+            if pending.pseudo_kind == u8::MAX {
+                let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+                self.computed_group_sets.take_pending_cascade_state(target);
+                if let Some(detached) = pending.detached_composition {
+                    self.computed_group_sets.release_detached_composition(detached);
+                }
+                continue;
+            }
+            let derived = pending.new_style_record;
+            self.revert_engine_computed_pseudo_record(pending, counters);
+            scratch.pseudo_cohorts.retain(|_, record| *record != derived);
+            self.engine_pseudo_record_cache.retain(|_, record| *record != derived);
+        }
+        scratch.pseudo_deltas.clear();
+        self.settle_computed_memory();
     }
 
     /// Whether the winners hold every match the node's answer has for a pseudo-element, as
@@ -1272,14 +1308,14 @@ impl StyleEngineState {
     /// installed, so C++ installs the engine's records for them instead of computing each one:
     /// their inputs are the element's record and the published winner states, all current once
     /// the element's own computation has published its record. `old_is_list_item` is whether the
-    /// element generated a marker before. A zero `style_record` leaves the pseudo-elements to C++;
-    /// the flag says whether a settled one substituted custom properties.
+    /// element generated a marker before. Where the engine cannot compute one of them, C++
+    /// computes them all.
     pub(crate) fn settle_pseudo_records_after_host_record(
         &mut self,
         node: StyleNodeID,
         old_is_list_item: bool,
         counters: &mut Counters,
-    ) -> (RetriedEngineRecord, bool) {
+    ) -> bridge::FfiSettledPseudoRecords {
         let font_environment_generation = self
             .retained
             .document_style_computation_inputs
@@ -1289,10 +1325,13 @@ impl StyleEngineState {
         }
         let mut scratch = EngineComputedRecordScratch::default();
         let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
-        let record = loop {
+        // The settle runs in the host's style update, which publishes winners as a flush does.
+        let republication = WinnerRepublication::for_flush();
+        let attempt = loop {
             match self.retained.settle_pseudo_records_after_host_record_step(
                 node,
                 old_is_list_item,
+                republication,
                 &mut scratch,
                 counters,
             ) {
@@ -1301,14 +1340,18 @@ impl StyleEngineState {
                     suspended_memory.resize_required_to(&mut self.memory, scratch.font_drive.capacity_bytes());
                     self.refill_font_request(node, request, counters);
                 }
-                record => break record,
+                attempt => break attempt,
             }
         };
-        let mut settled = RetriedEngineRecord::default();
-        let Ok(record) = record else {
-            return (settled, false);
+        // The step put back what it settled before it refused.
+        let mut settled = bridge::FfiSettledPseudoRecords {
+            computed_by_host: attempt.is_err(),
+            ..Default::default()
         };
-        settled.style_record = record.raw();
+        if settled.computed_by_host {
+            return settled;
+        }
+        settled.uses_substitution = scratch.pseudo_uses_substitution;
         settled.explicitly_inherited_groups = scratch.element_explicitly_inherited_groups;
         for delta in &scratch.pseudo_deltas {
             let kind = usize::from(delta.kind);
@@ -1317,7 +1360,7 @@ impl StyleEngineState {
                 settled.pseudo_records[kind] = delta.new_style_record.raw();
             }
         }
-        (settled, scratch.pseudo_uses_substitution)
+        settled
     }
 }
 
