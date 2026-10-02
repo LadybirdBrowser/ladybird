@@ -156,6 +156,13 @@ public:
     // swap, so StyleEngine's final node-to-style relation remains authoritative.
     [[nodiscard]] StyleEngine::StyleRecordDelta publish_computed_style_inputs(DOM::AbstractElement, ComputedValues const&) const;
     [[nodiscard]] StyleEngine::StyleRecordDelta publish_animation_overlay(DOM::AbstractElement, ComputedValues const&) const;
+    // Has the engine compose a sampled overlay over the record it was sampled on, compares it with that record, and
+    // publishes it. `before_publication` sees the comparison first.
+    struct SampledAnimationOverlayPublication {
+        StyleEngineFFI::FfiAnimationInvalidation invalidation;
+        StyleEngine::StyleRecordDelta publication;
+    };
+    [[nodiscard]] SampledAnimationOverlayPublication publish_sampled_animation_overlay(DOM::AbstractElement, ComputedStyleWorkingSet&, StyleRecordID style_record, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication = {}) const;
     // Give a layout-only variant of an element or pseudo-element style an authoritative record
     // without replacing the StyleEngine assignment of its DOM target.
     [[nodiscard]] StyleRecordID intern_computed_style_inputs(DOM::AbstractElement, ComputedValues const&) const;
