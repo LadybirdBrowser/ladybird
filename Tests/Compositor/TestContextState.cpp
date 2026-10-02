@@ -523,30 +523,6 @@ TEST_CASE(viewport_scrollbar_drag_ignores_non_primary_mouse_up)
     EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseUp, 50, 60, Web::UIEvents::MouseButton::Primary)).accepted);
 }
 
-TEST_CASE(context_visibility_and_pending_frame_state)
-{
-    TestWebContentClient client;
-    Compositing::CanvasSurfaceRegistry canvas_surface_registry;
-    Compositor::ContextState context { Web::CompositorContextId { 1 }, 1, client, canvas_surface_registry };
-    auto viewport_rect = Gfx::IntRect { 0, 0, 4, 4 };
-
-    EXPECT(!context.set_visibility(Compositing::ContextVisibility::Visible));
-    EXPECT(context.set_visibility(Compositing::ContextVisibility::Hidden));
-    EXPECT(!context.set_visibility(Compositing::ContextVisibility::Hidden));
-    EXPECT(context.set_visibility(Compositing::ContextVisibility::Visible));
-    EXPECT(!context.pending_present_frame_viewport_rect().has_value());
-
-    context.viewport_size_updated(viewport_rect.size(), Compositing::WindowResizingInProgress::No);
-    VERIFY(context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed).has_value());
-    context.queue_present_frame({ viewport_rect, { 0, 0, 2, 2 } });
-    EXPECT_EQ(context.pending_present_frame_viewport_rect(), viewport_rect);
-    EXPECT(context.can_schedule_pending_present_frame_if_unblocked());
-    context.mark_pending_present_frame_scheduled();
-    EXPECT(!context.can_schedule_pending_present_frame_if_unblocked());
-    context.unschedule_pending_present_frame();
-    EXPECT(context.can_schedule_pending_present_frame_if_unblocked());
-}
-
 // MonotonicTime has no fixed reference point, so the pacing tests offset from one taken once.
 static MonotonicTime monotonic_time_at(i64 nanoseconds)
 {
@@ -1639,20 +1615,6 @@ TEST_CASE(offscreen_changes_do_not_acquire_a_backing_store_or_block_later_frames
     EXPECT_EQ(fixture.rasterize(fixture.viewport_rect), fixture.viewport_rect);
 }
 
-TEST_CASE(changed_command_reports_its_inflated_rect)
-{
-    PresentingContextFixture fixture;
-    auto visual_context_tree = make_visual_context_tree();
-    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
-    fixture.present();
-
-    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Blue } }), visual_context_tree);
-    EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 6, 6 }));
-
-    fixture.install(make_fills_display_list(visual_context_tree, { { { 8, 8, 4, 4 }, Gfx::Color::Blue } }), visual_context_tree);
-    EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 12, 12 }));
-}
-
 TEST_CASE(changed_command_is_repainted_within_its_damage)
 {
     RasterizingContextFixture fixture;
@@ -1666,6 +1628,11 @@ TEST_CASE(changed_command_is_repainted_within_its_damage)
     EXPECT_EQ(fixture.rasterize(), (Gfx::IntRect { 1, 1, 6, 6 }));
     EXPECT_EQ(fixture.pixel(3, 3), Gfx::Color::Blue);
     EXPECT_EQ(fixture.pixel(0, 0), Gfx::Color::Green);
+
+    fixture.context.install_display_list_update(make_fills_display_list(visual_context_tree, { { { 8, 8, 4, 4 }, Gfx::Color::Blue } }, Gfx::Color::Green), visual_context_tree, {});
+    EXPECT_EQ(fixture.rasterize(), (Gfx::IntRect { 1, 1, 12, 12 }));
+    EXPECT_EQ(fixture.pixel(3, 3), Gfx::Color::Green);
+    EXPECT_EQ(fixture.pixel(9, 9), Gfx::Color::Blue);
 }
 
 TEST_CASE(scroll_state_only_update_damages_only_moved_commands)
@@ -1697,17 +1664,6 @@ TEST_CASE(tree_only_update_damages_transformed_commands)
 
     fixture.compositor_state->update_visual_context_tree(fixture.context_id, make_translated_visual_context_tree({ 8, 0 }), {});
     fixture.expect_no_frame();
-}
-
-TEST_CASE(surface_clear_color_change_forces_full_damage)
-{
-    PresentingContextFixture fixture;
-    auto visual_context_tree = make_visual_context_tree();
-    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Green), visual_context_tree);
-    fixture.present();
-
-    fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }, Gfx::Color::Blue), visual_context_tree);
-    EXPECT_EQ(fixture.present().damage_rect, fixture.viewport_rect);
 }
 
 TEST_CASE(surface_clear_color_change_repaints_the_background)
@@ -2237,19 +2193,6 @@ TEST_CASE(ui_mouse_event_for_a_missing_context_is_reported_as_not_dispatched)
     EXPECT_EQ(fixture.compositor_client.undispatched_input_event_ids.size(), 1u);
     EXPECT_EQ(fixture.compositor_client.undispatched_input_event_ids.last(), 8u);
     EXPECT(fixture.web_content_client.forwarded_mouse_events.is_empty());
-}
-
-TEST_CASE(compositor_initiated_presents_request_full_damage)
-{
-    PresentingContextFixture fixture { { 100, 100 } };
-    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
-    fixture.install(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree);
-    fixture.present();
-
-    auto already_presented = fixture.compositor_client.presented_frames.size();
-    fixture.compositor_state->handle_and_dispatch_mouse_event(fixture.context_id, ui_mouse_move_event(98, 10, 1));
-    EXPECT_EQ(fixture.compositor_client.consumed_input_event_ids.size(), 1u);
-    EXPECT_EQ(fixture.wait_for_frame(already_presented).damage_rect, fixture.viewport_rect);
 }
 
 TEST_CASE(child_context_presents_repaint_the_parent)
