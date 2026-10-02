@@ -15,6 +15,7 @@ use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::value::Value;
+use crate::runtime::abstract_operations::construct;
 use crate::runtime::accessor::Accessor;
 use crate::runtime::aggregate_error_constructor::AggregateErrorConstructor;
 use crate::runtime::aggregate_error_prototype::AggregateErrorPrototype;
@@ -64,6 +65,20 @@ use crate::runtime::generator_function_constructor::GeneratorFunctionConstructor
 use crate::runtime::generator_function_prototype::GeneratorFunctionPrototype;
 use crate::runtime::generator_prototype::GeneratorPrototype;
 use crate::runtime::global_object::GlobalObject;
+use crate::runtime::intl::collator::Collator;
+use crate::runtime::intl::collator_constructor::CollatorConstructor;
+use crate::runtime::intl::collator_prototype::CollatorPrototype;
+use crate::runtime::intl::display_names_constructor::DisplayNamesConstructor;
+use crate::runtime::intl::display_names_prototype::DisplayNamesPrototype;
+use crate::runtime::intl::intl::Intl;
+use crate::runtime::intl::list_format_constructor::ListFormatConstructor;
+use crate::runtime::intl::list_format_prototype::ListFormatPrototype;
+use crate::runtime::intl::locale_constructor::LocaleConstructor;
+use crate::runtime::intl::locale_prototype::LocalePrototype;
+use crate::runtime::intl::segment_iterator_prototype::SegmentIteratorPrototype;
+use crate::runtime::intl::segmenter_constructor::SegmenterConstructor;
+use crate::runtime::intl::segmenter_prototype::SegmenterPrototype;
+use crate::runtime::intl::segments_prototype::SegmentsPrototype;
 use crate::runtime::iterator_constructor::IteratorConstructor;
 use crate::runtime::iterator_helper_prototype::IteratorHelperPrototype;
 use crate::runtime::iterator_prototype::IteratorPrototype;
@@ -390,7 +405,7 @@ define_intrinsics! {
     // JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_CONSTRUCTOR_FUNCTIONS
     from_async_array_constructor_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
 
-    default_collator: Cell<Option<Gc<Object>>>,
+    default_collator: Cell<Option<Gc<Collator>>>,
 }
 
 define_cell!(Intrinsics, Other);
@@ -675,6 +690,11 @@ initialize_builtin_function_types! {
     initialize_date: date_prototype: DatePrototype, date_constructor: DateConstructor, Date;
     initialize_shared_array_buffer: shared_array_buffer_prototype: SharedArrayBufferPrototype, shared_array_buffer_constructor: SharedArrayBufferConstructor, SharedArrayBuffer;
     initialize_typed_array: typed_array_prototype: TypedArrayPrototype, typed_array_constructor: TypedArrayConstructor, TypedArray;
+    initialize_intl_collator: intl_collator_prototype: CollatorPrototype, intl_collator_constructor: CollatorConstructor, Collator;
+    initialize_intl_display_names: intl_display_names_prototype: DisplayNamesPrototype, intl_display_names_constructor: DisplayNamesConstructor, DisplayNames;
+    initialize_intl_list_format: intl_list_format_prototype: ListFormatPrototype, intl_list_format_constructor: ListFormatConstructor, ListFormat;
+    initialize_intl_locale: intl_locale_prototype: LocalePrototype, intl_locale_constructor: LocaleConstructor, Locale;
+    initialize_intl_segmenter: intl_segmenter_prototype: SegmenterPrototype, intl_segmenter_constructor: SegmenterConstructor, Segmenter;
 }
 
 /// Intrinsics::initialize_snake_name() for the typed arrays, whose prototypes and constructors extend %TypedArray%'s.
@@ -736,16 +756,11 @@ macro_rules! unimplemented_builtin_types {
 }
 
 unimplemented_builtin_types! {
-    initialize_intl_collator => "Intl.Collator",
     initialize_intl_date_time_format => "Intl.DateTimeFormat",
-    initialize_intl_display_names => "Intl.DisplayNames",
     initialize_intl_duration_format => "Intl.DurationFormat",
-    initialize_intl_list_format => "Intl.ListFormat",
-    initialize_intl_locale => "Intl.Locale",
     initialize_intl_number_format => "Intl.NumberFormat",
     initialize_intl_plural_rules => "Intl.PluralRules",
     initialize_intl_relative_time_format => "Intl.RelativeTimeFormat",
-    initialize_intl_segmenter => "Intl.Segmenter",
     initialize_temporal_duration => "Temporal.Duration",
     initialize_temporal_instant => "Temporal.Instant",
     initialize_temporal_plain_date => "Temporal.PlainDate",
@@ -756,7 +771,7 @@ unimplemented_builtin_types! {
     initialize_temporal_zoned_date_time => "Temporal.ZonedDateTime",
 }
 
-/// The lazy accessors of the other namespace objects and the default collator, none of which the runtime has yet.
+/// The lazy accessors of the other namespace objects, none of which the runtime has yet.
 macro_rules! unimplemented_lazy_intrinsics {
     ($($name:ident: $type:ty => $description:literal,)*) => {
         impl Intrinsics {
@@ -791,14 +806,13 @@ macro_rules! namespace_object_accessors {
 
 namespace_object_accessors! {
     atomics_object: AtomicsObject;
+    intl_object: Intl;
     json_object: JSONObject;
     math_object: MathObject;
 }
 
 unimplemented_lazy_intrinsics! {
-    intl_object: Object => "%Intl%",
     temporal_object: Object => "%Temporal%",
-    default_collator: Object => "default Intl.Collator",
 }
 
 fn abstract_operations_source() -> Utf16String {
@@ -890,6 +904,26 @@ impl Intrinsics {
             self.console_object.set(Some(ConsoleObject::create(vm, self.realm)));
         }
         self.console_object.get().expect("the console object was just created")
+    }
+
+    pub fn default_collator(&self, vm: &Vm) -> Gc<Collator> {
+        if self.default_collator.get().is_none() {
+            let collator = construct(
+                vm,
+                self.intl_collator_constructor(vm),
+                &[Value::UNDEFINED, Value::UNDEFINED],
+                None,
+            )
+            .must();
+            self.default_collator.set(Some(
+                collator
+                    .downcast::<Collator>()
+                    .expect("the Intl.Collator constructor creates an Intl.Collator"),
+            ));
+        }
+        self.default_collator
+            .get()
+            .expect("the default collator was just created")
     }
 }
 
@@ -1108,7 +1142,9 @@ impl Intrinsics {
         assert!(self.async_iterator_prototype.get().is_none());
         self.async_iterator_prototype
             .set(Some(AsyncIteratorPrototype::create(vm, realm).upcast()));
-        // NB: %IntlSegmentIteratorPrototype% comes with Intl.
+        assert!(self.intl_segment_iterator_prototype.get().is_none());
+        self.intl_segment_iterator_prototype
+            .set(Some(SegmentIteratorPrototype::create(vm, realm).upcast()));
         assert!(self.iterator_helper_prototype.get().is_none());
         self.iterator_helper_prototype
             .set(Some(IteratorHelperPrototype::create(vm, realm).upcast()));
@@ -1132,7 +1168,8 @@ impl Intrinsics {
             .set(Some(AsyncGeneratorPrototype::create(vm, realm).upcast()));
         self.generator_prototype
             .set(Some(GeneratorPrototype::create(vm, realm).upcast()));
-        // NB: %IntlSegmentsPrototype% comes with Intl.
+        self.intl_segments_prototype
+            .set(Some(SegmentsPrototype::create(vm, realm).upcast()));
         self.wrap_for_valid_iterator_prototype
             .set(Some(WrapForValidIteratorPrototype::create(vm, realm).upcast()));
 

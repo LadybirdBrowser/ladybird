@@ -247,9 +247,11 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     });
 
     // 19.4 Other Properties of the Global Object, https://tc39.es/ecma262/#sec-other-properties-of-the-global-object
-    // NB: Intl comes with its builtins, before JSON.
     define_intrinsic_accessor(&names.Atomics, |vm, realm| {
         Value::from_object(realm.intrinsics().atomics_object(vm))
+    });
+    define_intrinsic_accessor(&names.Intl, |vm, realm| {
+        Value::from_object(realm.intrinsics().intl_object(vm))
     });
     define_intrinsic_accessor(&names.JSON, |vm, realm| {
         Value::from_object(realm.intrinsics().json_object(vm))

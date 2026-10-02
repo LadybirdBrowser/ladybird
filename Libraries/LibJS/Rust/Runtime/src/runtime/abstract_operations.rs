@@ -46,6 +46,7 @@ use crate::runtime::native_function::NativeFunction;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, PropertyKind, StackFrameInfo};
 use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment, name_for_message};
+use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::promise_capability::{new_promise_capability, try_or_reject};
 use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
@@ -2616,4 +2617,94 @@ pub fn get_options_object(vm: &Vm, options: Value) -> ThrowCompletionOr<Gc<Objec
 
     // 3. Throw a TypeError exception.
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&"Options"])
+}
+
+/// OptionType, the type GetOption converts an option to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OptionType {
+    Boolean,
+    String,
+}
+
+/// OptionDefault, the default of GetOption: REQUIRED, undefined (the C++ Empty), or a value.
+#[derive(Clone, Copy)]
+pub enum OptionDefault<'a> {
+    Required,
+    Empty,
+    Boolean(bool),
+    String(Utf16View<'a>),
+    Number(f64),
+}
+
+impl OptionDefault<'static> {
+    /// The default of an option whose default is the ASCII string `string`.
+    pub const fn string(string: &'static str) -> Self {
+        Self::String(Utf16View::Ascii(string.as_bytes()))
+    }
+}
+
+// 14.5.2.1 GetOption ( options, property, type, values, default ), https://tc39.es/proposal-temporal/#sec-getoption
+pub fn get_option(
+    vm: &Vm,
+    options: &Object,
+    property: &PropertyKey,
+    type_: OptionType,
+    values: &[&str],
+    default: OptionDefault<'_>,
+) -> ThrowCompletionOr<Value> {
+    assert!(property.is_string());
+
+    // 1. Let value be ? Get(options, property).
+    let mut value = options.get(vm, property)?;
+
+    // 2. If value is undefined, then
+    if value.is_undefined() {
+        return match default {
+            // a. If default is REQUIRED, throw a RangeError exception.
+            OptionDefault::Required => vm.throw_completion(
+                ErrorKind::RangeError,
+                ErrorType::OptionIsNotValidValue,
+                &[&"undefined", property],
+            ),
+            // b. Return default.
+            OptionDefault::Empty => Ok(Value::UNDEFINED),
+            OptionDefault::Boolean(default) => Ok(Value::from_bool(default)),
+            OptionDefault::Number(default) => Ok(Value::from_f64(default)),
+            OptionDefault::String(default) => {
+                Ok(Value::from_string(PrimitiveString::create_from_utf16_view(vm, default)))
+            }
+        };
+    }
+
+    // 3. If type is BOOLEAN, then
+    if type_ == OptionType::Boolean {
+        // a. Set value to ToBoolean(value).
+        value = Value::from_bool(value.to_boolean());
+    }
+    // 4. Else,
+    else {
+        // a. Assert: type is STRING.
+        assert!(type_ == OptionType::String);
+
+        // b. Set value to ? ToString(value).
+        let value_string = value.to_utf16_string(vm)?;
+
+        // 5. If values is not EMPTY and values does not contain value, throw a RangeError exception.
+        if !values.is_empty() {
+            let value_string_view = Utf16View::of_string(&value_string);
+            if !values.iter().any(|allowed_value| value_string_view == *allowed_value) {
+                let property_string = property.to_utf16_string();
+                return vm.throw_completion_with_utf16_message(
+                    ErrorKind::RangeError,
+                    ErrorType::OptionIsNotValidValue
+                        .utf16_message(&[value_string_view, Utf16View::of_string(&property_string)]),
+                );
+            }
+        }
+
+        value = Value::from_string(PrimitiveString::create(vm, value_string));
+    }
+
+    // 6. Return value.
+    Ok(value)
 }

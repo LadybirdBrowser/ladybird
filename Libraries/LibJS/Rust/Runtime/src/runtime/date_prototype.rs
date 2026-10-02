@@ -33,7 +33,7 @@ use crate::runtime::realm::Realm;
 use crate::runtime::value::PreferredType;
 use crate::runtime::value_conversions::to_integer_or_infinity;
 use crate::unicode::display_names::time_zone_display_name;
-use crate::unicode::locale::default_locale;
+use crate::unicode::intl::default_locale;
 use crate::unicode::time_zone::{InDST, current_time_zone};
 use crate::utf16::{Utf16StringBuilder, Utf16View};
 

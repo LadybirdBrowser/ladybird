@@ -10,19 +10,21 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{GcCell, define_cell};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    call, call_function_object, checked_js_string_length_product, checked_js_string_length_sum, get_substitution,
-    require_object_coercible,
+    call, call_function_object, checked_js_string_length_product, checked_js_string_length_sum, construct,
+    get_substitution, require_object_coercible,
 };
 use crate::runtime::array::Array;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::intl::abstract_operations::{canonicalize_locale_list, lookup_matching_locale_by_prefix};
+use crate::runtime::intl::collator::Collator;
+use crate::runtime::intl::collator_compare_function::compare_strings;
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::define_object_class;
 use crate::runtime::primitive_string::PrimitiveString;
@@ -34,7 +36,8 @@ use crate::runtime::regexp_prototype::RegExpPrototype;
 use crate::runtime::string_iterator::StringIterator;
 use crate::runtime::string_object::{STRING_OBJECT_METHODS, StringObject};
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
-use crate::unicode::{NormalizationForm, normalize};
+use crate::unicode::intl as unicode_intl;
+use crate::unicode::{self, NormalizationForm, normalize};
 use crate::utf16::{
     TrimMode, Utf16StringBuilder, Utf16View, decode_utf16_surrogate_pair, is_unicode_surrogate, is_utf16_low_surrogate,
     to_well_formed,
@@ -648,7 +651,7 @@ impl StringPrototype {
         let options = vm.argument(2);
 
         // OPTIMIZATION: If both locales and options are undefined, we can use a cached default-constructed Collator.
-        if locales.is_undefined() && options.is_undefined() {
+        let collator = if locales.is_undefined() && options.is_undefined() {
             // OPTIMIZATION: Identical strings are equal with the default options.
             if string == that_value {
                 return Ok(Value::from_i32(0));
@@ -660,16 +663,24 @@ impl StringPrototype {
             {
                 return Ok(Value::from_i32(result));
             }
-            realm.intrinsics().default_collator(vm);
+            realm.intrinsics().default_collator(vm)
         } else {
-            realm.intrinsics().intl_collator_constructor(vm);
-        }
+            construct(
+                vm,
+                realm.intrinsics().intl_collator_constructor(vm),
+                &[locales, options],
+                None,
+            )?
+            .downcast::<Collator>()
+            .expect("the Intl.Collator constructor creates an Intl.Collator")
+        };
 
         // 5. Return CompareStrings(collator, S, thatValue).
-        unimplemented_runtime_function(
-            "Intl::compare_strings in String.prototype.localeCompare, which needs Intl.Collator",
-            0,
-        )
+        Ok(Value::from_i32(compare_strings(
+            &collator,
+            Utf16View::of_string(&string),
+            Utf16View::of_string(&that_value),
+        )))
     }
 
     // 22.1.3.13 String.prototype.match ( regexp ), https://tc39.es/ecma262/#sec-string.prototype.match
@@ -1919,34 +1930,32 @@ enum TargetCase {
 }
 
 // 20.1.2.1 TransformCase ( S, locales, targetCase ), https://tc39.es/ecma402/#sec-transform-case
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "CanonicalizeLocaleList throws once the Intl abstract operations exist"
-)]
 fn transform_case(
-    _vm: &Vm,
+    vm: &Vm,
     string: &Utf16String,
     locales: Value,
     target_case: TargetCase,
 ) -> ThrowCompletionOr<Utf16String> {
     // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-    if !locales.is_undefined() {
-        unimplemented_runtime_function(
-            "Intl::canonicalize_locale_list of a locales argument that is not undefined in TransformCase, which \
-             needs the Intl abstract operations",
-            0,
-        );
-    }
+    let requested_locales = canonicalize_locale_list(vm, locales)?;
 
     // 2. If requestedLocales is not an empty List, then
     //     a. Let requestedLocale be requestedLocales[0].
     // 3. Else,
     //     a. Let requestedLocale be ! DefaultLocale().
+    let requested_locale = requested_locales
+        .into_iter()
+        .next()
+        .unwrap_or_else(unicode_intl::default_locale);
+
     // 4. Let availableLocales be an Available Locales List which includes the language tags for which the Unicode Character Database contains language-sensitive case mappings. If the implementation supports additional locale-sensitive case mappings, availableLocales should also include their corresponding language tags.
     // 5. Let match be LookupMatchingLocaleByPrefix(availableLocales, « requestedLocale »).
+    let match_ = lookup_matching_locale_by_prefix(core::slice::from_ref(&requested_locale));
+
     // 6. If match is not undefined, let locale be match.[[locale]]; else let locale be "und".
-    // NB: An undefined locales argument is the empty list, so the locale is LibUnicode's default locale, "en", which
-    //     has no language-sensitive case mappings.
+    // NB: LibUnicode reads locale views as bytes, so keep the fallback in ASCII storage.
+    let locale = match_.map_or_else(|| Utf16String::from_utf8("und"), |match_| match_.locale);
+    let locale = Utf16View::of_string(&locale);
 
     // 7. Let codePoints be StringToCodePoints(S).
     let string = Utf16View::of_string(string);
@@ -1955,13 +1964,13 @@ fn transform_case(
         // 8. If targetCase is lower, then
         TargetCase::Lower => {
             // a. Let newCodePoints be a List whose elements are the result of a lowercase transformation of codePoints according to an implementation-derived algorithm using locale or the Unicode Default Case Conversion algorithm.
-            string.to_lowercase()
+            unicode::apply_case_mapping(string, unicode::CaseMapping::Lowercase, Some(locale), false)
         }
         // 9. Else,
         TargetCase::Upper => {
             // a. Assert: targetCase is upper.
             // b. Let newCodePoints be a List whose elements are the result of an uppercase transformation of codePoints according to an implementation-derived algorithm using locale or the Unicode Default Case Conversion algorithm.
-            string.to_uppercase()
+            unicode::apply_case_mapping(string, unicode::CaseMapping::Uppercase, Some(locale), false)
         }
     };
 
