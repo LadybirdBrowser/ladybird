@@ -1,0 +1,3 @@
+a face whose range covers the text renders it: true
+the same font with a range that leaves the text out does not: true
+the covering face takes the text back: true

@@ -85,6 +85,8 @@ public:
             UnicodeRange enclosing_range;
 
             Vector<UnicodeRange> unicode_ranges;
+
+            bool operator==(RangeData const&) const = default;
         };
         Optional<RangeData> range_data;
     };

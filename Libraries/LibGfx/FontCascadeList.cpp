@@ -257,7 +257,8 @@ bool FontCascadeList::equals(FontCascadeList const& other) const
     if (m_fonts.size() != other.m_fonts.size())
         return false;
     for (size_t i = 0; i < m_fonts.size(); ++i) {
-        if (m_fonts[i].font != other.m_fonts[i].font)
+        // NB: Two entries with the same font but different Unicode ranges pick different code points.
+        if (m_fonts[i].font != other.m_fonts[i].font || m_fonts[i].range_data != other.m_fonts[i].range_data)
             return false;
     }
     return true;
