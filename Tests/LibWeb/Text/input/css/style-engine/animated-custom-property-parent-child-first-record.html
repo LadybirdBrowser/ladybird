@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --y { syntax: "<number>"; inherits: true; initial-value: 0; }
+    @keyframes animate-y { from { --y: 0; } to { --y: 100; } }
+    #outer { --x: 10px; }
+    #middle { animation: animate-y 1000s linear -500s paused; }
+    #child { width: var(--x); height: calc(var(--y) * 1px); }
+</style>
+<div id="outer"><div id="middle"><div id="child"></div></div></div>
+<script>
+    promiseTest(async () => {
+        const child = document.getElementById("child");
+        // The child's first record inherits what the middle element's animation samples into its
+        // custom properties, over the environment the outer element declares.
+        await animationFrame();
+        println(`first: ${getComputedStyle(child).width} ${getComputedStyle(child).height}`);
+        document.getElementById("outer").style.setProperty("--x", "20px");
+        println(`outer moved: ${getComputedStyle(child).width} ${getComputedStyle(child).height}`);
+    });
+</script>
