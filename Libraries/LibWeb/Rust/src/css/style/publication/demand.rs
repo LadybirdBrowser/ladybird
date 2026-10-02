@@ -19,8 +19,9 @@ pub(crate) enum RecordDemandAnswer {
         record: RetriedEngineRecord,
         uses_substitution: bool,
     },
-    /// The pseudo-element asked for generates no box.
-    Absent,
+    /// The pseudo-element asked for generates no box. Its rules still declare custom properties
+    /// a read sees: the environment they resolve to, or zero where no rule styles it.
+    Absent { custom_property_environment: u64 },
 }
 
 /// The pseudo-elements a demand may ask for: those the engine settles beside their element in a
@@ -250,6 +251,9 @@ impl StyleEngineState {
                 .retained
                 .record_demand_reads_current_inputs(node, &self.host, read_only, pseudo.is_some())
         {
+            if pseudo.is_some() {
+                counters.bump(Counter::PseudoRecordDemandsLeftToHost);
+            }
             return Err(Unanswered::Refused);
         }
         let font_environment_generation = self
@@ -337,6 +341,9 @@ impl StyleEngineState {
             self.retained
                 .restore_after_private_demand(node, saves, &mut scratch, counters);
             self.retained.published_match_answers = batch_answers;
+        }
+        if pseudo.is_some() && result.is_err() {
+            counters.bump(Counter::PseudoRecordDemandsLeftToHost);
         }
         result
     }
@@ -449,7 +456,9 @@ impl StyleEngineState {
             .is_some_and(|table| table.display_is_list_item());
         let generated = kinds_with_rules & (1 << kind) != 0 || (kind == pseudo_kind::MARKER && element_is_list_item);
         if !generated && !read_only {
-            return Ok(RecordDemandAnswer::Absent);
+            return Ok(RecordDemandAnswer::Absent {
+                custom_property_environment: 0,
+            });
         }
         if !self.retained.pseudo_winners_are_complete(node) {
             return Err(Unanswered::Refused);
@@ -498,7 +507,9 @@ impl StyleEngineState {
                 },
                 uses_substitution: scratch.pseudo_uses_substitution,
             },
-            None => RecordDemandAnswer::Absent,
+            None => RecordDemandAnswer::Absent {
+                custom_property_environment: scratch.boxless_read_environment,
+            },
         })
     }
 

@@ -1707,7 +1707,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             CSS::StyleRecordPin const before_change { style_computer, old_style_record };
             set_computed_style(pseudo_element, style_record_delta.new_style_record);
             if (engine_record.has_value())
-                install_engine_pseudo_element_custom_property_data(pseudo_element, *engine_record);
+                install_engine_pseudo_element_custom_property_data(pseudo_element, style_computer.style_engine().style_record_custom_property_environment(*engine_record));
             if (!!before_change.style_record()) {
                 auto follow_up = engine_record.has_value() ? CSS::StyleComputer::TransitionStepFollowUp::Request : CSS::StyleComputer::TransitionStepFollowUp::LeftToCaller;
                 invalidation |= style_computer.run_transition_step_for_installed_record({ *this, pseudo_element }, before_change.style_record(), follow_up);
@@ -5555,12 +5555,11 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
 
 // What C++ installs beside a pseudo-element it computes: its element's inheritable environment, or the one its own
 // custom declarations resolved to over that.
-void Element::install_engine_pseudo_element_custom_property_data(CSS::PseudoElement pseudo_element, CSS::StyleRecordID style_record)
+void Element::install_engine_pseudo_element_custom_property_data(CSS::PseudoElement pseudo_element, u64 environment)
 {
     auto& style_computer = document().style_computer();
     auto element_data = custom_property_data({});
     auto inherited = element_data ? element_data->inheritable(document()) : nullptr;
-    auto environment = style_computer.style_engine().style_record_custom_property_environment(style_record);
     auto data = inherited;
     if (CSS::StyleEngine::is_engine_custom_property_environment(environment) && environment != (inherited ? inherited->identity() : 0))
         data = style_computer.engine_custom_property_environment(environment, inherited);
