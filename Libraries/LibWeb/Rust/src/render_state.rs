@@ -23,9 +23,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 mod devtools;
 mod document_host;
+mod questions;
 mod wait;
 
 pub use document_host::DocumentHost;
+pub(crate) use questions::{Answer, Query, ask};
 pub(crate) use wait::{LockstepProof, RenderWait, ReplyTo, ScriptForcedRead, wait_for_render_state};
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
@@ -136,18 +138,11 @@ pub(crate) enum RenderMessage {
     Destroy { document: DocumentId },
     /// A write to a document's render state.
     Change { document: DocumentId, change: ArenaChange },
-    /// Publishes the document's rows as they are now.
-    CommittedRows {
+    /// A question about a document's render state the host waits for the answer to.
+    Ask {
         document: DocumentId,
-        /// Whether every row's scrollable overflow is measured first.
-        measure_overflow: bool,
-        reply: ReplyTo<crate::layout::row_reads::RowSnapshot>,
-    },
-    /// A write to a document's layout arena the host waits for, answering what it owes the host.
-    Write {
-        document: DocumentId,
-        write: crate::layout::layout_changes::LayoutWrite,
-        reply: ReplyTo<crate::layout::layout_changes::LayoutWritten>,
+        query: Query,
+        reply: ReplyTo<Answer>,
     },
     /// Panics answering, for a test that the host waiting for the answer crashes.
     PanicForTesting { reply: ReplyTo<()> },
@@ -194,23 +189,10 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
                 unsafe { change.apply((*arena).arena_mut(), engine) };
             }
         }
-        RenderMessage::CommittedRows {
-            document,
-            measure_overflow,
-            reply,
-        } => reply.answer(|| {
-            let (arena, _) = state_parts(document).expect("a document whose rows the host reads has a render state");
+        RenderMessage::Ask { document, query, reply } => reply.answer(|| {
+            let (arena, _) = state_parts(document).expect("a document the host asks about has a render state");
             // SAFETY: As for a change.
-            unsafe { &mut *arena }
-                .arena_mut()
-                .publish_row_snapshot(measure_overflow)
-        }),
-        RenderMessage::Write { document, write, reply } => reply.answer(|| {
-            // A document with no state is a bug of the sender's, whose write has nothing to write.
-            state_parts(document).map_or_else(Default::default, |(arena, _)| {
-                // SAFETY: As for a change.
-                write.apply(unsafe { &mut *arena }.arena_mut())
-            })
+            query.answer(unsafe { &mut *arena }.arena_mut())
         }),
         RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
     }
