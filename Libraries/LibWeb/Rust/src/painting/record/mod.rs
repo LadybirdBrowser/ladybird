@@ -287,17 +287,31 @@ impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn search_text_style(
         &mut self,
         node: crate::layout::node_data::NodeSlotId,
+        highlight: HighlightPseudoElement,
     ) -> Arc<paint::text::SelectionStyleAnswer> {
         let key = node.index;
-        if let Some(answer) = self.scratch.search_text_style_cache.get(&key) {
+        let is_current = highlight == HighlightPseudoElement::SearchTextCurrent;
+        let cached = if is_current {
+            self.scratch.search_text_current_style_cache.get(&key)
+        } else {
+            self.scratch.search_text_style_cache.get(&key)
+        };
+        if let Some(answer) = cached {
             return answer.clone();
         }
         let style_source = self.source.node_parent_if_live(node).unwrap_or(NodeSlotId::INVALID);
-        let committed = self.first_non_anonymous_ancestor_row(node).and_then(|element_row| {
-            self.committed_highlight_pseudo_style(HighlightPseudoElement::SearchText, node, element_row)
+        let committed = self
+            .first_non_anonymous_ancestor_row(node)
+            .and_then(|element_row| self.committed_highlight_pseudo_style(highlight, node, element_row));
+        let answer = Self::highlight_style_answer(committed, || {
+            self.default_search_text_style(node, style_source, highlight)
         });
-        let answer = Self::highlight_style_answer(committed, || self.default_search_text_style(node, style_source));
-        self.scratch.search_text_style_cache.insert(key, answer.clone());
+        let cache = if is_current {
+            &mut self.scratch.search_text_current_style_cache
+        } else {
+            &mut self.scratch.search_text_style_cache
+        };
+        cache.insert(key, answer.clone());
         answer
     }
 
@@ -381,11 +395,24 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &self,
         node: crate::layout::node_data::NodeSlotId,
         style_source: crate::layout::node_data::NodeSlotId,
+        highlight: HighlightPseudoElement,
     ) -> paint::text::SelectionStyleAnswer {
-        let background_color = self.default_selection_background(node, style_source, true);
+        if highlight == HighlightPseudoElement::SearchTextCurrent {
+            let background_color = self.default_selection_background(node, style_source, true);
+            return paint::text::SelectionStyleAnswer {
+                facts: crate::painting::host::FfiSelectionStyleFacts {
+                    background_color,
+                    wash_color: background_color,
+                    ..Default::default()
+                },
+                shadows: Vec::new(),
+            };
+        }
+        let background_color = libgfx_rust::Color::from_rgb(255, 255, 0);
         paint::text::SelectionStyleAnswer {
             facts: crate::painting::host::FfiSelectionStyleFacts {
                 background_color,
+                text_color: Some(libgfx_rust::Color::from_rgb(0, 0, 0)).into(),
                 wash_color: background_color,
                 ..Default::default()
             },

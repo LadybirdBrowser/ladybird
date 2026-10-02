@@ -150,6 +150,7 @@ pub(crate) struct PublishedPaintState {
     pub(crate) selection_pseudo_styles: Arc<SelectionPseudoStyles>,
     pub(crate) search_text: Option<Arc<SelectionRange>>,
     pub(crate) search_text_pseudo_styles: Arc<SelectionPseudoStyles>,
+    pub(crate) search_text_current_pseudo_styles: Arc<SelectionPseudoStyles>,
     pub(crate) hit_test_list_generation: u64,
     /// How many items the document's hit-test list held, which the recording's list reserves.
     pub(crate) hit_test_item_capacity_hint: usize,
@@ -160,6 +161,7 @@ impl PublishedPaintState {
         match highlight {
             HighlightPseudoElement::Selection => &self.selection_pseudo_styles,
             HighlightPseudoElement::SearchText => &self.search_text_pseudo_styles,
+            HighlightPseudoElement::SearchTextCurrent => &self.search_text_current_pseudo_styles,
         }
     }
 
@@ -175,6 +177,7 @@ impl PublishedPaintState {
             selection_pseudo_styles: paint_state.selection_pseudo_styles.clone(),
             search_text: paint_state.search_text.clone(),
             search_text_pseudo_styles: paint_state.search_text_pseudo_styles.clone(),
+            search_text_current_pseudo_styles: paint_state.search_text_current_pseudo_styles.clone(),
             hit_test_list_generation: paint_state.hit_test_list_generation,
             hit_test_item_capacity_hint,
         }

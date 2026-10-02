@@ -650,7 +650,7 @@ void NodeWithStyle::publish_style_record_to_node_data()
 
 void NodeWithStyle::did_update_style_record()
 {
-    if (auto const* element = as_if<DOM::Element>(dom_node()); element && (element->has_style(CSS::PseudoElement::Selection) || element->has_style(CSS::PseudoElement::SearchText)))
+    if (auto const* element = as_if<DOM::Element>(dom_node()); element && (element->has_style(CSS::PseudoElement::Selection) || element->has_style(CSS::PseudoElement::SearchText) || element->has_style(CSS::PseudoElement::SearchTextCurrent)))
         Painting::push_highlight_pseudo_styles(*element);
 
     if (scroll_snap_type().strictness != CSS::ScrollSnapStrictness::None)
@@ -761,6 +761,7 @@ static_assert(Node::encode_generated_for(CSS::first_synthetic_pseudo_element) ==
 static_assert(Node::encode_generated_for(CSS::last_synthetic_pseudo_element) == RustFFI::GENERATED_FOR_LAST_SYNTHETIC);
 static_assert(Node::encode_generated_for(CSS::PseudoElement::Selection) == RustFFI::SELECTION_PSEUDO_KIND + 1);
 static_assert(Node::encode_generated_for(CSS::PseudoElement::SearchText) == RustFFI::SEARCH_TEXT_PSEUDO_KIND + 1);
+static_assert(Node::encode_generated_for(CSS::PseudoElement::SearchTextCurrent) == RustFFI::SEARCH_TEXT_CURRENT_PSEUDO_KIND + 1);
 
 void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old_style_node)
 {

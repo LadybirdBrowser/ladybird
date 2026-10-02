@@ -318,6 +318,7 @@ bool element_matches_state(DOM::Element const& element, CSS::PseudoClass pseudo_
 
     // The rest are operators over other selectors, positions, or the tree rather than facts the
     // element carries, so none of them is a state to publish.
+    case CSS::PseudoClass::Current:
     case CSS::PseudoClass::Dir:
     case CSS::PseudoClass::Empty:
     case CSS::PseudoClass::FirstChild:

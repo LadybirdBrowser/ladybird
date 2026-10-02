@@ -35,6 +35,7 @@ use crate::css::selector::PseudoElementSelector;
 use crate::css::selector::PseudoElementType;
 use crate::css::selector::PseudoElementValue;
 use crate::css::selector::SimpleSelector;
+use crate::css::selector::search_text_match_filter_of_pseudo_class;
 
 use super::atoms::synthetic_text_atom_key;
 use super::fnv::fnv1a64;
@@ -237,6 +238,9 @@ pub struct SelectorCompiler<'a, A: AtomSpace = EngineAtoms> {
     /// A sheet's default namespace does not constrain that subject unless it writes a type or
     /// universal selector of its own.
     logical_pseudo_subject: Option<*const CompoundSelector>,
+    /// Whether the `::search-text` selector being compiled is compiled for the current match's
+    /// pseudo-element kind, which a rule naming neither `:current` nor `:not(:current)` styles too.
+    compiles_for_current_search_text_match: bool,
 }
 
 impl<'a> SelectorCompiler<'a> {
@@ -305,6 +309,7 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
             selector_names_the_scope: false,
             compound_names_the_host: false,
             logical_pseudo_subject: None,
+            compiles_for_current_search_text_match: false,
         }
     }
 
@@ -487,6 +492,13 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
         let root = self.compile_chain(compounds, compounds.len() - 1, &mut marker);
         let pseudo_element = selector
             .target_pseudo_element
+            .map(|kind| {
+                if self.compiles_for_current_search_text_match {
+                    PseudoElementType::SearchTextCurrent
+                } else {
+                    kind
+                }
+            })
             .map(|kind| PseudoElementTarget::new(PseudoElementKind(kind as u16)));
         let entry = self.builder.push_entry_for_pseudo(root, pseudo_element);
         self.builder.set_entry_specificity(entry, selector.specificity());
@@ -608,6 +620,17 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
         };
         let step = self.builder.push(constraint);
         self.builder.push_compound(&[compound, step])
+    }
+
+    pub(super) fn compile_in_scope_for_current_search_text_match(
+        &mut self,
+        selector: &CompiledSelector,
+        scope: &ScopeChain<'_>,
+    ) -> CompiledEntry {
+        self.compiles_for_current_search_text_match = true;
+        let entry = self.compile_in_scope(selector, scope);
+        self.compiles_for_current_search_text_match = false;
+        entry
     }
 
     fn compile_compound(
@@ -1026,7 +1049,11 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
                 }
                 Some(any_of)
             }
+            Pc::Current => None,
             Pc::Not => {
+                if search_text_match_filter_of_pseudo_class(pseudo_class).is_some() {
+                    return None;
+                }
                 let any_of = self.compile_argument_list(pseudo_class, marker)?;
                 Some(self.builder.push(SelectorOp::Not(any_of)))
             }

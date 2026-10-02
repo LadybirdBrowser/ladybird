@@ -39,6 +39,7 @@ pub(crate) struct RecordingScratch {
     pub(super) pattern_tile_records: HashMap<PatternTileKey, Arc<Vec<u8>>>,
     pub(super) selection_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
     pub(super) search_text_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
+    pub(super) search_text_current_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
     pub(super) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
 
@@ -100,6 +101,7 @@ impl RecordingScratch {
         self.pattern_tile_records.clear();
         self.selection_style_cache.clear();
         self.search_text_style_cache.clear();
+        self.search_text_current_style_cache.clear();
         self.wheel_hit_test_target_cache.clear();
     }
 

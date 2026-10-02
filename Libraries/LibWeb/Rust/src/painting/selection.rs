@@ -7,7 +7,9 @@
 use crate::css::css_pixels::CssPixels;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
-use crate::layout::node_data::{NodeSlotId, SEARCH_TEXT_PSEUDO_KIND, SELECTION_PSEUDO_KIND};
+use crate::layout::node_data::{
+    NodeSlotId, SEARCH_TEXT_CURRENT_PSEUDO_KIND, SEARCH_TEXT_PSEUDO_KIND, SELECTION_PSEUDO_KIND,
+};
 use crate::painting::display_list::commands::OptionalColor;
 use crate::painting::fragment_ownership;
 use crate::painting::host::FfiSelectionStyleFacts;
@@ -25,25 +27,27 @@ use std::sync::Arc;
 pub(crate) enum HighlightPseudoElement {
     Selection,
     SearchText,
+    SearchTextCurrent,
 }
 
 impl HighlightPseudoElement {
-    pub(crate) const ALL: [Self; 2] = [Self::Selection, Self::SearchText];
+    pub(crate) const ALL: [Self; 3] = [Self::Selection, Self::SearchText, Self::SearchTextCurrent];
 
     /// The pseudo-element's kind, as the style engine numbers an element's pseudo-element records.
     pub(crate) fn pseudo_kind(self) -> u8 {
         match self {
             Self::Selection => SELECTION_PSEUDO_KIND,
             Self::SearchText => SEARCH_TEXT_PSEUDO_KIND,
+            Self::SearchTextCurrent => SEARCH_TEXT_CURRENT_PSEUDO_KIND,
         }
     }
 }
 
 /// The committed styles of each highlight pseudo-element, for an element's rows.
-pub(crate) type HighlightStyleAnswers = [Option<Arc<SelectionStyleAnswer>>; 2];
+pub(crate) type HighlightStyleAnswers = [Option<Arc<SelectionStyleAnswer>>; 3];
 
 /// The records an element holds for each highlight pseudo-element, zero for none.
-pub(crate) type HighlightStyleRecords = [u64; 2];
+pub(crate) type HighlightStyleRecords = [u64; 3];
 
 #[derive(Debug)]
 pub(crate) struct SelectionRange {
