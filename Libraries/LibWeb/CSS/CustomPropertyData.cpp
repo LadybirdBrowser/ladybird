@@ -7,6 +7,7 @@
 #include <AK/Atomic.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -184,9 +185,24 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document c
     if (m_parent)
         inheritable_parent = m_parent->inheritable(document);
 
-    auto inheritable = inheritable_impl(
-        inheritable_parent,
-        [&](Utf16FlyString const& name) { return document.get_registered_custom_property(name); });
+    // NB: What an environment the style engine resolved hands down is the engine's to name, under the registrations
+    //     as they are now: the environments its records resolve over the element's are built over that one.
+    RefPtr<CustomPropertyData const> inheritable;
+    if (StyleEngine::is_engine_custom_property_environment(m_identity)) {
+        auto const& style_computer = document.style_computer();
+        auto inheritable_identity = style_computer.style_engine().inheritable_custom_property_environment(m_identity);
+        if (inheritable_identity == m_identity)
+            inheritable = this;
+        else if (inheritable_identity == (inheritable_parent ? inheritable_parent->identity() : 0))
+            inheritable = inheritable_parent;
+        else
+            inheritable = style_computer.engine_custom_property_environment(inheritable_identity, inheritable_parent);
+    }
+    if (!inheritable) {
+        inheritable = inheritable_impl(
+            inheritable_parent,
+            [&](Utf16FlyString const& name) { return document.get_registered_custom_property(name); });
+    }
 
     set_inheritable(document, inheritable);
     return inheritable;
