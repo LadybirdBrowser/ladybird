@@ -78,6 +78,7 @@ Vector<FlyString> FontPlugin::symbol_font_names()
 
 void FontPlugin::set_system_font_family(FlyString system_font_family)
 {
+    MutexLocker locker(m_generic_font_cache_mutex);
     if (m_system_font_family == system_font_family)
         return;
     m_system_font_family = move(system_font_family);
@@ -120,6 +121,7 @@ FlyString FontPlugin::generic_font_name(GenericFont generic_font)
     if (m_is_layout_test_mode)
         return "SerenitySans"_fly_string;
 
+    MutexLocker locker(m_generic_font_cache_mutex);
     return m_generic_font_cache.ensure(generic_font, [&] {
         return compute_generic_font_name(generic_font);
     });
