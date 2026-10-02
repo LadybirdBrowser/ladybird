@@ -6,6 +6,7 @@
 
 use super::HashMap;
 use super::bridge::{FONT_RESOLUTION_FEATURE_INPUT_COUNT, FfiFontResolutionRequest, FfiHostHandle, FfiResolvedFont};
+use crate::css::host_shared::HostShared;
 use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
 use libgfx_rust::font::FontCascadeListHandle;
 use std::ffi::c_void;
@@ -13,11 +14,11 @@ use std::ffi::c_void;
 /// Resolves one request against the document's published `@font-face` table, through the memo of
 /// what has been resolved from it. It is handed nothing else, so it cannot reach the document.
 pub type ResolveFontCallback =
-    unsafe extern "C" fn(memo: *mut c_void, snapshot: *const c_void, FfiFontResolutionRequest) -> FfiResolvedFont;
+    unsafe extern "C" fn(memo: *const c_void, snapshot: *const c_void, FfiFontResolutionRequest) -> FfiResolvedFont;
 
 unsafe extern "C" {
     fn web_css_resolve_font(
-        memo: *mut c_void,
+        memo: *const c_void,
         snapshot: *const c_void,
         request: FfiFontResolutionRequest,
     ) -> FfiResolvedFont;
@@ -144,37 +145,64 @@ impl FontResolutionCache {
     }
 }
 
-/// One reference to a host object, handed back when this is dropped. The raw pointer keeps it
-/// neither `Send` nor `Sync`: the host counts its references without atomics, and the memo behind
-/// one changes on every resolution, so it stays on the thread that published it.
-struct HostReference {
-    object: *mut c_void,
+/// A `Web::CSS::FontFaceSnapshot`, which Rust only names by pointer.
+#[repr(C)]
+struct FontFaceSnapshotObject {
+    _opaque: [u8; 0],
+    _not_send_or_sync: std::marker::PhantomData<*const ()>,
+}
+
+// SAFETY: The snapshot is immutable once built and counts its references atomically, so a shared
+// reference to one may be read, taken and given up on any thread.
+unsafe impl Sync for FontFaceSnapshotObject {}
+
+/// A `Web::CSS::FontCascadeMemo`, which Rust only names by pointer.
+#[repr(C)]
+struct FontCascadeMemoObject {
+    _opaque: [u8; 0],
+    _not_send_or_sync: std::marker::PhantomData<*const ()>,
+}
+
+// SAFETY: The memo counts its references atomically, so a shared reference to it may be taken and
+// given up on any thread. Resolving through it reads the document's font face state, which the
+// memo's lock does not cover, so only `FontResolverHost::refill` resolves, and only the document
+// thread reaches the host.
+unsafe impl Sync for FontCascadeMemoObject {}
+
+/// One reference to a host object, given up on drop. It may cross threads exactly when the object
+/// may be shared between them.
+struct HostReference<T> {
+    object: HostShared<T>,
     unreference: unsafe extern "C" fn(*const c_void),
 }
 
-impl HostReference {
+impl<T> HostReference<T> {
     /// # Safety
-    /// `object` must be live, with one reference this takes over and `unreference` gives up.
+    /// `object` must be a live `T`, with one reference this takes over and `unreference` gives up.
     unsafe fn adopt(object: *const c_void, unreference: unsafe extern "C" fn(*const c_void)) -> Self {
         Self {
-            object: object.cast_mut(),
+            object: HostShared::new(object.cast()),
             unreference,
         }
     }
+
+    fn as_ptr(&self) -> *const c_void {
+        self.object.as_ptr().cast()
+    }
 }
 
-impl Drop for HostReference {
+impl<T> Drop for HostReference<T> {
     fn drop(&mut self) {
         // SAFETY: This owns one reference, taken in `adopt`.
-        unsafe { (self.unreference)(self.object) };
+        unsafe { (self.unreference)(self.as_ptr()) };
     }
 }
 
 /// The document's `@font-face` table as published, and the memo of the cascades resolved from it:
 /// one reference to each host object.
 pub(super) struct PublishedFontFaces {
-    snapshot: HostReference,
-    memo: HostReference,
+    snapshot: HostReference<FontFaceSnapshotObject>,
+    memo: HostReference<FontCascadeMemoObject>,
 }
 
 impl PublishedFontFaces {
@@ -212,14 +240,15 @@ impl FontResolverHost {
         self.font_faces = font_faces;
     }
 
-    /// Service a synchronous request between evaluation passes. Pending web faces remain in
-    /// the returned cascade and retain the host's rendering-triggered loading behavior.
+    /// Service a synchronous request between evaluation passes, on the document thread: a memo miss
+    /// builds and freezes a cascade from the document's font face state. Pending web faces remain
+    /// in the returned cascade and retain the host's rendering-triggered loading behavior.
     pub fn refill(&self, cache: &mut FontResolutionCache, request: FontRequest) {
         cache.prepare(request.ffi.font_environment_generation);
         let ffi = unsafe {
             (self.resolve)(
-                self.font_faces.memo.object,
-                self.font_faces.snapshot.object,
+                self.font_faces.memo.as_ptr(),
+                self.font_faces.snapshot.as_ptr(),
                 request.ffi,
             )
         };
@@ -237,7 +266,7 @@ mod tests {
     static RESOLVES: AtomicUsize = AtomicUsize::new(0);
 
     unsafe extern "C" fn resolve_font(
-        _memo: *mut c_void,
+        _memo: *const c_void,
         _snapshot: *const c_void,
         _request: FfiFontResolutionRequest,
     ) -> FfiResolvedFont {

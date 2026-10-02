@@ -7731,7 +7731,7 @@ pub(crate) mod ffi_test_stubs {
     extern "C" fn web_css_font_cascade_memo_unreference(_memo: *const c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn web_css_resolve_font(
-        _memo: *mut c_void,
+        _memo: *const c_void,
         _snapshot: *const c_void,
         _request: crate::css::style::bridge::FfiFontResolutionRequest,
     ) -> crate::css::style::bridge::FfiResolvedFont {

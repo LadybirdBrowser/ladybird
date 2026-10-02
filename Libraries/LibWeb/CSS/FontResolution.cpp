@@ -548,8 +548,9 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_for_style_values(FontComp
     return font_list;
 }
 
-NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family)
+NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family) const
 {
+    MutexLocker locker(m_mutex);
     VERIFY(snapshot.generation() >= m_generation);
     m_generation = snapshot.generation();
     return m_cascades.ensure(key, [&] {
@@ -559,6 +560,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve(FontFaceSnaps
 
 void FontCascadeMemo::forget_matching(Function<bool(ComputedFontCacheKey const&, NonnullRefPtr<Gfx::FontCascadeList const> const&)> const& predicate)
 {
+    MutexLocker locker(m_mutex);
     m_cascades.remove_all_matching([&](auto const& key, auto const& font_list) { return predicate(key, font_list); });
 }
 
@@ -566,7 +568,7 @@ void FontCascadeMemo::forget_matching(Function<bool(ComputedFontCacheKey const&,
 
 // The style engine resolves a font through this, with nothing but the table and memo it was given and the request: the
 // request's family is an opaque handle the engine holds, which becomes a value again here.
-extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void* memo, void const* snapshot, Web::CSS::StyleEngineFFI::FfiFontResolutionRequest request)
+extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void const* memo, void const* snapshot, Web::CSS::StyleEngineFFI::FfiFontResolutionRequest request)
 {
     using namespace Web;
     using namespace Web::CSS;
@@ -594,7 +596,7 @@ extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void* 
     // NB: The engine names font-variant-alternates only for an element in the document's tree scope, whose
     //     @font-feature-values the snapshot carries.
     auto const& font_faces = *static_cast<FontFaceSnapshot const*>(snapshot);
-    auto font_list = static_cast<FontCascadeMemo*>(memo)->resolve(font_faces, key, [&](Utf16FlyString const& family) -> FontFeatureValues const& { return font_faces.font_feature_values(family); });
+    auto font_list = static_cast<FontCascadeMemo const*>(memo)->resolve(font_faces, key, [&](Utf16FlyString const& family) -> FontFeatureValues const& { return font_faces.font_feature_values(family); });
     // The metric probe must not load a face: the first available font answers without one.
     auto const& first_available_font = font_list->first_available_font();
     auto const metrics = first_available_font.pixel_metrics();
