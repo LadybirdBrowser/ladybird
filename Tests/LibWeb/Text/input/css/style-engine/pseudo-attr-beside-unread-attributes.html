@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target::before { content: attr(data-label); }
+</style>
+<div id="target" class="item" data-label="one" style="--width: 10cqw; width: var(--width)"></div>
+<script>
+    test(() => {
+        // The element's class, id and style attributes are no attr()'s to read. Its pseudo-element
+        // settles beside a record C++ computed: a container unit substituted into the element's own
+        // style keeps its record with C++, which the count of C++ recomputations shows.
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        const start = internals.styleEngineCounters();
+        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        target.setAttribute("data-label", "two");
+        internals.updateStyle();
+        const end = internals.styleEngineCounters();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
+        println(`before: ${getComputedStyle(target, "::before").content}`);
+        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
+    });
+</script>
