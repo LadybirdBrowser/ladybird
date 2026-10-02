@@ -194,7 +194,7 @@ PASS: inherited language stress pseudo-warm: part-shadow-host-internal: :has(:is
 PASS: inherited language stress pseudo-cold: part-shadow-host-internal: :has(:is(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: inherited language stress pseudo-warm: part-shadow-host-internal: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: inherited language stress pseudo-cold: part-shadow-host-internal: :has(:where(:lang(he), .fallback)) after ancestor lang change | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: descendant direction stress pseudo-warm: part-shadow-ancestor: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant direction stress pseudo-warm: part-shadow-ancestor: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant direction stress pseudo-cold: part-shadow-ancestor: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant direction stress pseudo-warm: part-shadow-ancestor: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant direction stress pseudo-cold: part-shadow-ancestor: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=5, elementStyleNoopRecomputations=1

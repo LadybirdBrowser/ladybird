@@ -471,9 +471,9 @@ PASS: descendant state pseudo-element mutation: document: :has(:disabled) after 
 PASS: descendant state mutation: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: descendant state pseudo-element mutation: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state pseudo-element mutation: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant state pseudo-element mutation: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: descendant state pseudo-element mutation: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
+PASS: descendant state pseudo-element mutation: document: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state mutation: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant state pseudo-element mutation: document: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state mutation: document: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -533,7 +533,7 @@ PASS: descendant state pseudo-element mutation: shadow-host: :has(:enabled) beco
 PASS: descendant state mutation: shadow-host: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
 PASS: descendant state pseudo-element mutation: shadow-host: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: descendant state mutation: shadow-host: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
-PASS: descendant state pseudo-element mutation: shadow-host: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=4, elementStyleNoopRecomputations=3
+PASS: descendant state pseudo-element mutation: shadow-host: :has(:placeholder-shown) becomes false after textarea value append | elementStyleRecomputations=5, elementStyleNoopRecomputations=3
 PASS: descendant state mutation: shadow-host: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=2
 PASS: descendant state pseudo-element mutation: shadow-host: :has(:checked:first-child) after first checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state mutation: shadow-host: :has(:checked:nth-child(2)) after second checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=2
@@ -668,26 +668,26 @@ PASS: descendant state mutation: part-shadow-host-ancestor: :has(:is(:checked, .
 PASS: descendant state pseudo-element mutation: part-shadow-host-ancestor: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state mutation: part-shadow-host-ancestor: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state pseudo-element mutation: part-shadow-host-ancestor: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: form child mutation: document: :invalid after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: form child mutation: document: :invalid after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: document: :valid after required input removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: form child mutation: document: :invalid after required fieldset input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: form child mutation: document: :has(:invalid) after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: form child mutation: document: :has(:valid) after optional input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: form child mutation: document: :has(:invalid) after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: form child mutation: document: :has(:valid) after optional input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: document: :has(:invalid) becomes false after required input removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: placeholder child mutation: document: :placeholder-shown becomes false after text insert | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: placeholder child mutation: document: :not(:placeholder-shown) becomes true after text insert | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: placeholder child mutation: document: :placeholder-shown becomes true after text removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: placeholder child mutation: document: :has(:placeholder-shown) after textarea child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: placeholder child mutation: document: :has(:not(:placeholder-shown)) after filled textarea child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: placeholder child mutation: document: :placeholder-shown becomes false after text insert | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: placeholder child mutation: document: :not(:placeholder-shown) becomes true after text insert | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: placeholder child mutation: document: :placeholder-shown becomes true after text removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: placeholder child mutation: document: :has(:placeholder-shown) after textarea child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: placeholder child mutation: document: :has(:not(:placeholder-shown)) after filled textarea child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: shadow-internal: :invalid after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: shadow-internal: :valid after required input removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: form child mutation: shadow-internal: :invalid after required fieldset input append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: form child mutation: shadow-internal: :has(:invalid) after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: shadow-internal: :has(:valid) after optional input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: shadow-internal: :has(:invalid) becomes false after required input removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: placeholder child mutation: shadow-internal: :placeholder-shown becomes false after text insert | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: placeholder child mutation: shadow-internal: :not(:placeholder-shown) becomes true after text insert | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: placeholder child mutation: shadow-internal: :placeholder-shown becomes true after text removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
+PASS: placeholder child mutation: shadow-internal: :placeholder-shown becomes false after text insert | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: placeholder child mutation: shadow-internal: :not(:placeholder-shown) becomes true after text insert | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: placeholder child mutation: shadow-internal: :placeholder-shown becomes true after text removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: placeholder child mutation: shadow-internal: :has(:placeholder-shown) after textarea child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: placeholder child mutation: shadow-internal: :has(:not(:placeholder-shown)) after filled textarea child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: part-document: :invalid after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -696,9 +696,9 @@ PASS: form child mutation: part-document: :invalid after required fieldset input
 PASS: form child mutation: part-document: :has(:invalid) after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: part-document: :has(:valid) after optional input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: form child mutation: part-document: :has(:invalid) becomes false after required input removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: placeholder child mutation: part-document: :placeholder-shown becomes false after text insert | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: placeholder child mutation: part-document: :not(:placeholder-shown) becomes true after text insert | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
-PASS: placeholder child mutation: part-document: :placeholder-shown becomes true after text removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
+PASS: placeholder child mutation: part-document: :placeholder-shown becomes false after text insert | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: placeholder child mutation: part-document: :not(:placeholder-shown) becomes true after text insert | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: placeholder child mutation: part-document: :placeholder-shown becomes true after text removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
 PASS: placeholder child mutation: part-document: :has(:placeholder-shown) after textarea child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: placeholder child mutation: part-document: :has(:not(:placeholder-shown)) after filled textarea child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: duplicate descendant invalidation rules merge: document | elementStyleRecomputations=0, elementStyleNoopRecomputations=0

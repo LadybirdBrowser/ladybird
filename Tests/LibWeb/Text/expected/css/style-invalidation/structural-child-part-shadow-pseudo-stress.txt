@@ -112,7 +112,7 @@ PASS: stress warm pseudo-element child mutation: part-shadow-internal: :has(:is(
 PASS: stress cold pseudo-element child mutation: part-shadow-internal: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: part-shadow-internal: :has(:where(:empty, :checked)) after empty child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: part-shadow-internal: :has(:where(:empty, :checked)) after empty child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: stress warm pseudo-element child mutation: part-shadow-internal: :has(rect.hit) after SVG child append | elementStyleRecomputations=9, elementStyleNoopRecomputations=7
+PASS: stress warm pseudo-element child mutation: part-shadow-internal: :has(rect.hit) after SVG child append | elementStyleRecomputations=8, elementStyleNoopRecomputations=6
 PASS: stress cold pseudo-element child mutation: part-shadow-internal: :has(rect.hit) after SVG child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: stress warm pseudo-element child mutation: part-shadow-internal: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: part-shadow-internal: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0

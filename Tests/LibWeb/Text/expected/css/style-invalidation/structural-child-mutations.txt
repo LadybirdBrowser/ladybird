@@ -847,13 +847,13 @@ PASS: pseudo-element child mutation without warmup: document: :has(:checked) aft
 PASS: pseudo-element child mutation: document: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation: document: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: pseudo-element child mutation: document: :has(:enabled) after enabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: pseudo-element child mutation: document: :has(:enabled) after enabled input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(:enabled) after enabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: pseudo-element child mutation: document: :has(:disabled) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: pseudo-element child mutation: document: :has(:disabled) after disabled input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(:disabled) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: pseudo-element child mutation: document: :has(:required) after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: pseudo-element child mutation: document: :has(:required) after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(:required) after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: pseudo-element child mutation: document: :has(:optional) after optional input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: pseudo-element child mutation: document: :has(:optional) after optional input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(:optional) after optional input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation: document: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation: document: :has(:not(:empty)) after non-empty child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
@@ -875,13 +875,13 @@ PASS: pseudo-element child mutation: document: :has(:nth-last-child(2)) after tr
 PASS: pseudo-element child mutation without warmup: document: :has(:nth-last-child(2)) after trailing child append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation: document: :has(:first-of-type) after typed child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(:first-of-type) after typed child append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: pseudo-element child mutation: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: pseudo-element child mutation: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation: document: :has(:where(:empty, :checked)) after empty child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(:where(:empty, :checked)) after empty child append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: pseudo-element child mutation: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: pseudo-element child mutation: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: pseudo-element child mutation: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: pseudo-element child mutation: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation: document: :has(.outer .middle .hit) after deep descendant append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: pseudo-element child mutation without warmup: document: :has(.outer .middle .hit) after deep descendant append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0

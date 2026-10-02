@@ -1,0 +1,3 @@
+25000: slot rgb(0, 0, 50), slotted rgb(0, 0, 50)
+50000: slot rgb(0, 0, 100), slotted rgb(0, 0, 100)
+75000: slot rgb(0, 0, 150), slotted rgb(0, 0, 150)
