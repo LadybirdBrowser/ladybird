@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<main id="main"></main>
+<template id="declaring"><style>:root { --a: 2; --z: 2; }</style><div id="target"></div></template>
+<template id="reading"><style>#target { --z: 13; z-index: var(--a, 4); order: inherit(--z, 7); }</style><div id="target"></div></template>
+<script>
+    // Removing the root's declarations and inserting a reader in the same update: the style engine
+    // resolves the reader's environment over the one its ancestors hold after the update, which the
+    // host does not hold yet. The engine's environment is installed whole, so C++ computes nothing.
+    function recomputations(update) {
+        const before = internals.getStyleInvalidationCounters();
+        update();
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        return after.elementStyleRecomputations - before.elementStyleRecomputations;
+    }
+    test(() => {
+        main.append(declaring.content.cloneNode(true));
+        internals.updateStyle();
+        println(`C++ recomputations after the ancestor's environment moved: ${recomputations(() => {
+            main.replaceChildren();
+            main.append(reading.content.cloneNode(true));
+        })}`);
+        const style = getComputedStyle(target);
+        println(`var(): ${style.zIndex}, inherit(): ${style.order}, own: ${style.getPropertyValue("--z")}, root's: '${style.getPropertyValue("--a")}'`);
+    });
+</script>

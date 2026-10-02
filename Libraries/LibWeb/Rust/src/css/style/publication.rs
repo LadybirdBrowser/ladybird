@@ -194,6 +194,60 @@ impl RetainedState {
         }
     }
 
+    /// A node's custom-property environment as this flush leaves it. A row this flush settles
+    /// holds its new environment already, but an ancestor between it and a first record may be one
+    /// the host refreshes only once the batch applies, so the first record would resolve over the
+    /// environment that ancestor held before. Each ancestor's is resolved again over its parent's
+    /// as it is now, and kept for the rows after it. A node whose animations compose keeps the
+    /// environment it holds. `None` for a node holding no environment.
+    fn current_custom_property_environment(
+        &mut self,
+        node: StyleNodeID,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+        scratch: &mut EngineComputedRecordScratch,
+    ) -> Option<u64> {
+        if let Some(&current) = scratch.current_custom_property_environments.get(&node) {
+            return Some(current);
+        }
+        self.computed_group_sets.custom_property_environment_identity(node)?;
+        let held = self
+            .held_custom_property_environment(node, &mut Counters::default())
+            .ok()?;
+        let animates =
+            self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
+                || self.element_samples_custom_properties(node);
+        let parent = self.tree.inheritance_parent(node).filter(|_| !animates);
+        let current = match parent.and_then(|parent| {
+            Some((
+                parent,
+                self.current_custom_property_environment(parent, inputs, scratch)?,
+            ))
+        }) {
+            // A node declaring none inherits its parent's environment as it is now.
+            Some((_, parent_environment)) if !self.node_declares_custom_properties(node) => {
+                self.custom_property_environments.inheritable(parent_environment)
+            }
+            // A node declaring custom properties was resolved over its parent's environment as the
+            // parent holds it, so it is stale only beneath a parent that moved.
+            Some((parent, parent_environment))
+                if self.computed_group_sets.custom_property_environment_identity(parent)
+                    != Some(parent_environment) =>
+            {
+                self.engine_custom_property_environment(
+                    node,
+                    parent_environment,
+                    inputs,
+                    None,
+                    &mut Counters::default(),
+                )
+                .unwrap_or(held)
+            }
+            _ => held,
+        };
+        scratch.current_custom_property_environments.insert(node, current);
+        Some(current)
+    }
+
     fn shared_style_record_key(
         &self,
         node: StyleNodeID,
@@ -1455,7 +1509,11 @@ impl RetainedState {
         // The document element's environment is its own, which is nothing without declarations;
         // any other node's is its declarations resolved over the parent's.
         let parent_environment = match parent {
-            Some(parent) => self.held_custom_property_environment(parent, counters)?,
+            Some(parent) => {
+                let held = self.held_custom_property_environment(parent, counters)?;
+                self.current_custom_property_environment(parent, &inputs, scratch)
+                    .unwrap_or(held)
+            }
             None => 0,
         };
         let pseudo_styles = self.pseudo_style_mask_or_rematch(node, counters);
@@ -5282,6 +5340,8 @@ pub(super) struct EngineComputedRecordScratch {
     /// Pseudo-element records derived this flush, by what they were derived from.
     pub(super) pseudo_cohorts: HashMap<PseudoCohortKey, computed::FinalStyleRecordID>,
     pub(super) pseudo_stores: HashMap<(u8, CascadeStateID, u64), std::sync::Arc<WinnerStore>>,
+    /// The nodes whose custom-property environment this flush has brought up to date.
+    current_custom_property_environments: HashMap<StyleNodeID, u64>,
     /// The pseudo-element records settled beside the element derived last.
     pub(super) pseudo_deltas: Vec<PseudoRecordDelta>,
     /// The custom-property environment of the pseudo-element a read settled without a box.
@@ -5404,7 +5464,7 @@ impl EngineComputedRecordScratch {
         capacity::capacity_bytes! {
             shallow [self.computability.states, self.cohorts, self.derived_child_inputs, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
-                self.pseudo_deltas, self.substitution_effects];
+                self.pseudo_deltas, self.substitution_effects, self.current_custom_property_environments];
             cached [self.store_capacity_bytes, self.font_drive.capacity_bytes(),
                 self.prepared_root_font.as_ref().map_or(0, |(_, _, drive)| drive.capacity_bytes())];
             nested [];

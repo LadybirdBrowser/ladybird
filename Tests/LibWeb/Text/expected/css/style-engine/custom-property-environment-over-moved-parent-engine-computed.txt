@@ -1,0 +1,2 @@
+C++ recomputations after the ancestor's environment moved: 0
+var(): 4, inherit(): 7, own: 13, root's: ''
