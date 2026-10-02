@@ -1215,6 +1215,12 @@ impl RetainedState {
         let mut reads_attributes = false;
         let mut declarations = Vec::with_capacity(visible_definitions.len());
         for (function, _, selected_inputs) in visible_definitions {
+            reads_attributes |= function
+                .signature
+                .parameters
+                .iter()
+                .filter_map(|parameter| parameter.default_value.as_deref())
+                .any(value_reads_attributes);
             let mut selected = Vec::new();
             for input in selected_inputs.iter().map(|&index| &function.inputs[index]) {
                 if !input.containers.is_empty() {
