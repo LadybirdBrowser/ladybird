@@ -483,6 +483,7 @@ impl RetainedState {
             let own_groups = state.map_or(0, |state| self.state_owned_inherited_groups(state));
             let derived_under_element = |engine: &Self, record: computed::FinalStyleRecordID| {
                 engine.computed_group_sets.final_style_record_is_live(record.raw())
+                    && engine.record_answers_counter_styles_for(record, node)
                     && engine
                         .computed_group_sets
                         .style_record_inherits_from_node(record.raw(), node, own_groups)
@@ -614,9 +615,8 @@ impl RetainedState {
                             return Err(unanswered);
                         }
                     };
-                    // Another element's marker may sit in another tree scope, so a record naming a
-                    // registry answers for this one alone, as does one that is the element's alone.
-                    if let Some(key) = key.filter(|_| registry == 0 && !self.records_are_the_elements_alone(node)) {
+                    // A record that is the element's alone answers for no other pseudo-element.
+                    if let Some(key) = key.filter(|_| !self.records_are_the_elements_alone(node)) {
                         scratch.pseudo_cohorts.insert(key, record);
                         if self.engine_pseudo_record_cache.len() >= COLD_RECORD_CACHE_LIMIT {
                             self.engine_pseudo_record_cache.clear();

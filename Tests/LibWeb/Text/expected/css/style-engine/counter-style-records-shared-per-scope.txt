@@ -1,4 +1,4 @@
-consumer records shared: 4
+consumer records shared: 8
 first scope's consumers share a record: true
 second scope's consumers share a record: true
 scopes' consumers hold different records: true
