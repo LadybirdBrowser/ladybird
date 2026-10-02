@@ -60,7 +60,7 @@ public:
     NodeArena& node_arena() const { return *m_arena; }
     RustFFI::DocumentHost* document_host() const;
 
-    Compositing::RustFFI::NodeSlotId linked_slot(RustFFI::FfiNodeLink link) const { return RustFFI::layout_arena_node_link_slot(m_arena->handle(), m_slot, link); }
+    Compositing::RustFFI::NodeSlotId linked_slot(RustFFI::FfiNodeLink link) const { return RustFFI::layout_row_link_slot(document_host(), m_slot, link); }
     bool has_parent() const { return linked_slot(RustFFI::FfiNodeLink::Parent).index != Compositing::RustFFI::INVALID_NODE_SLOT_INDEX; }
     Node* parent_ptr() { return linked_node(RustFFI::FfiNodeLink::Parent); }
     Node const* parent_ptr() const { return linked_node(RustFFI::FfiNodeLink::Parent); }
@@ -320,12 +320,12 @@ protected:
 
     bool has_flag(RustFFI::NodeFlag flag) const
     {
-        return (RustFFI::layout_arena_node_flags(m_arena->handle(), m_slot) & static_cast<u32>(flag)) != 0;
+        return (RustFFI::layout_row_flags(document_host(), m_slot) & static_cast<u32>(flag)) != 0;
     }
 
     bool has_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind kind) const
     {
-        return RustFFI::layout_arena_node_has_compositor_animation_frame(m_arena->handle(), m_slot, kind);
+        return RustFFI::layout_row_has_compositor_animation_frame(document_host(), m_slot, kind);
     }
 
     void set_needs_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind kind, bool value)
@@ -343,7 +343,7 @@ private:
 
     Node* linked_node(RustFFI::FfiNodeLink link) const
     {
-        return static_cast<Node*>(RustFFI::layout_arena_node_link_shell(m_arena->handle(), m_slot, link));
+        return static_cast<Node*>(RustFFI::layout_row_link_shell(document_host(), m_slot, link));
     }
 
     Node* containing_block_node_if_live() const
@@ -351,7 +351,7 @@ private:
         return static_cast<Node*>(RustFFI::layout_arena_node_containing_block_shell_if_live(m_arena->handle(), m_slot));
     }
 
-    u8 generated_for() const { return RustFFI::layout_arena_node_generated_for(m_arena->handle(), m_slot); }
+    u8 generated_for() const { return RustFFI::layout_row_generated_for(document_host(), m_slot); }
 
     NonnullRefPtr<NodeArena> m_arena;
     Compositing::RustFFI::NodeSlotId m_slot;

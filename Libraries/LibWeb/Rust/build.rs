@@ -3260,6 +3260,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &[
             manifest_dir.join("src/layout/layout_node_arena.rs"),
             manifest_dir.join("src/layout/layout_node_arena/main_thread_entries.rs"),
+            manifest_dir.join("src/layout/shell_reads.rs"),
             manifest_dir.join("src/layout/trace.rs"),
             manifest_dir.join("src/layout/rendered_text.rs"),
             manifest_dir.join("src/layout/text_queries.rs"),

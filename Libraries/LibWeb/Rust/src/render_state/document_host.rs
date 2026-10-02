@@ -8,8 +8,8 @@
 
 use super::{ArenaChange, DocumentId, RenderMessage, RenderWait, send, wait_for_render_state};
 use crate::css::style::bridge::FfiDeviceClass;
-use crate::layout::HostTables;
 use crate::layout::row_reads::RowSnapshot;
+use crate::layout::{HostTables, LayoutNodeArena};
 use crate::painting::recording_slot::RecordingSlot;
 use std::cell::{Cell, RefCell, RefMut};
 use std::ffi::c_void;
@@ -27,13 +27,12 @@ pub struct DocumentHost {
     host_tables: HostTables,
     recording: RefCell<RecordingSlot>,
     /// The rows the render state published last, which the host reads between messages.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the host reads the published rows from the next commit on")
-    )]
     rows: RefCell<Option<Rc<RowSnapshot>>>,
     /// Whether the host queued a change that alters the published rows since they were published.
     rows_may_be_stale: Cell<bool>,
+    /// The arena of the document's render state, whose rows version tells the host whether the rows it has still read
+    /// as the arena's after a write the host made through an entry that reaches the arena directly.
+    arena: Cell<Option<NonNull<LayoutNodeArena>>>,
 }
 
 impl DocumentHost {
@@ -44,6 +43,7 @@ impl DocumentHost {
             recording: RefCell::default(),
             rows: RefCell::default(),
             rows_may_be_stale: Cell::new(false),
+            arena: Cell::new(None),
         }
     }
 
@@ -72,28 +72,42 @@ impl DocumentHost {
         });
     }
 
-    /// The rows the render state published last, unless the host queued a change since that alters them, or none were
-    /// published yet. Reading them waits for nothing.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the host reads the published rows from the next commit on")
-    )]
+    /// Lets the host tell whether the rows it has read as the arena's do. The render state makes the arena, which stays
+    /// where it is until the state is destroyed.
+    pub(crate) fn watch_rows_of(&self, arena: NonNull<LayoutNodeArena>) {
+        self.arena.set(Some(arena));
+    }
+
+    /// The rows the render state published last, unless the host wrote them since, or none were published yet.
+    /// Reading them waits for nothing.
+    #[cfg_attr(not(test), expect(dead_code, reason = "only tests read the rows without a wait yet"))]
     pub(crate) fn rows(&self) -> Option<Rc<RowSnapshot>> {
+        self.rows
+            .borrow()
+            .clone()
+            .filter(|rows| self.still_reads_as_arena(rows))
+    }
+
+    /// Whether the host neither queued a change that alters `rows` since they were published nor wrote the arena
+    /// directly.
+    fn still_reads_as_arena(&self, rows: &RowSnapshot) -> bool {
         if self.rows_may_be_stale.get() {
-            return None;
+            return false;
         }
-        self.rows.borrow().clone()
+        // SAFETY: The arena lives as long as the document's render state, which outlives its host's reads.
+        self.arena
+            .get()
+            .is_none_or(|arena| rows.reads_as(unsafe { arena.as_ref() }.rows_version()))
     }
 
     /// The rows as of every change the host queued, which the render state publishes again first where the ones the
     /// host has may be stale, spending `wait`.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the host reads the published rows from the next commit on")
-    )]
     pub(crate) fn fresh_rows(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
-        if !self.rows_may_be_stale.get()
-            && let Some(rows) = self.rows.borrow().as_ref()
+        if let Some(rows) = self
+            .rows
+            .borrow()
+            .as_ref()
+            .filter(|rows| self.still_reads_as_arena(rows))
         {
             return Rc::clone(rows);
         }

@@ -273,8 +273,8 @@ pub struct FfiNodeConstructionFacts {
 pub(crate) struct NodeData {
     pub parent: ShapeCell<NodeSlotId>,
     pub first_child: ShapeCell<NodeSlotId>,
-    pub last_child: Cell<NodeSlotId>,
-    pub previous_sibling: Cell<NodeSlotId>,
+    pub last_child: ShapeCell<NodeSlotId>,
+    pub previous_sibling: ShapeCell<NodeSlotId>,
     pub next_sibling: ShapeCell<NodeSlotId>,
     pub kind: ShapeCell<NodeKind>,
     pub generated_for: ShapeCell<u8>,
@@ -301,8 +301,8 @@ impl Default for NodeData {
         Self {
             parent: ShapeCell::new(NodeSlotId::INVALID),
             first_child: ShapeCell::new(NodeSlotId::INVALID),
-            last_child: Cell::new(NodeSlotId::INVALID),
-            previous_sibling: Cell::new(NodeSlotId::INVALID),
+            last_child: ShapeCell::new(NodeSlotId::INVALID),
+            previous_sibling: ShapeCell::new(NodeSlotId::INVALID),
             next_sibling: ShapeCell::new(NodeSlotId::INVALID),
             kind: ShapeCell::new(NodeKind::Unset),
             generated_for: ShapeCell::new(0),
@@ -331,8 +331,14 @@ pub(crate) struct PaintNode {
     pub(crate) flags: u32,
     pub(crate) parent: NodeSlotId,
     pub(crate) first_child: NodeSlotId,
+    pub(crate) last_child: NodeSlotId,
+    pub(crate) previous_sibling: NodeSlotId,
     pub(crate) next_sibling: NodeSlotId,
     pub(crate) style: StylePayloadsRef,
+    /// The style record the row is built from, or 0.
+    pub(crate) style_record: u64,
+    /// The node whose style the row carries.
+    pub(crate) style_node: Option<crate::css::style::tree::StyleNodeID>,
 }
 
 impl Default for PaintNode {
@@ -346,15 +352,23 @@ impl Default for PaintNode {
             flags: 0,
             parent: NodeSlotId::INVALID,
             first_child: NodeSlotId::INVALID,
+            last_child: NodeSlotId::INVALID,
+            previous_sibling: NodeSlotId::INVALID,
             next_sibling: NodeSlotId::INVALID,
             style: StylePayloadsRef::null(),
+            style_record: 0,
+            style_node: None,
         }
     }
 }
 
 impl PaintNode {
-    /// The node's row as `data` holds it.
-    pub(crate) fn of(data: &NodeData) -> Self {
+    /// The node's row as `data` holds it, with the style record and node the arena keeps beside it.
+    pub(crate) fn of(
+        data: &NodeData,
+        style_record: u64,
+        style_node: Option<crate::css::style::tree::StyleNodeID>,
+    ) -> Self {
         Self {
             generation: data.slot_generation.get(),
             kind: data.kind.get(),
@@ -364,8 +378,12 @@ impl PaintNode {
             flags: data.flags.get(),
             parent: data.parent.get(),
             first_child: data.first_child.get(),
+            last_child: data.last_child.get(),
+            previous_sibling: data.previous_sibling.get(),
             next_sibling: data.next_sibling.get(),
             style: data.style.get(),
+            style_record,
+            style_node,
         }
     }
 

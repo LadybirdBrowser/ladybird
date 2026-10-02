@@ -261,9 +261,9 @@ bool NodeWithStyle::is_sticky_position() const
 NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : Node(document, bind, slot, kind)
 {
-    m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_arena_node_style_record(arena_handle(), slot) };
+    m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_row_style_record(document_host(), slot) };
     VERIFY(m_style_record_identity);
-    m_style_payloads = RustFFI::layout_arena_node_style_payloads(arena_handle(), slot);
+    m_style_payloads = RustFFI::layout_row_style_payloads(document_host(), slot);
     VERIFY(m_style_payloads);
     // The layout node reads its style through the row's payloads, which only a live record keeps.
     VERIFY(document.style_computer().style_record_payloads(m_style_record_identity));
@@ -525,12 +525,12 @@ bool NodeWithStyle::is_inline_table() const
 
 bool Node::is_atomic_inline() const
 {
-    return RustFFI::layout_arena_node_is_atomic_inline(arena_handle(), slot_id(this));
+    return RustFFI::layout_row_is_atomic_inline(document_host(), slot_id(this));
 }
 
 bool Node::is_fragmented_inline() const
 {
-    return RustFFI::layout_arena_node_is_fragmented_inline(arena_handle(), slot_id(this));
+    return RustFFI::layout_row_is_fragmented_inline(document_host(), slot_id(this));
 }
 
 // https://drafts.csswg.org/css-transforms-1/#transformable-element
@@ -778,7 +778,7 @@ void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old
 
 CSS::StyleNodeID Node::style_node_id() const
 {
-    return RustFFI::layout_arena_node_style_node(m_arena->handle(), m_slot);
+    return RustFFI::layout_row_style_node(document_host(), m_slot);
 }
 
 DOM::Document& Node::document()

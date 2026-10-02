@@ -747,6 +747,17 @@ impl LayoutNodeArena {
         }
     }
 
+    /// How far the paintable rows and the columns published beside them have been written. See
+    /// [`crate::cow_column::CowColumn::version`].
+    pub(crate) fn paintable_rows_version(&self) -> u64 {
+        let store = &self.paintable_rows;
+        store.rows.version()
+            + store.committed_fragment_links.borrow().version()
+            + store.committed_side_data.borrow().version()
+            + store.stacking_context_entries.borrow().version()
+            + store.visual_context_node_handles.borrow().version()
+    }
+
     pub(crate) fn paintable_rows_mut(&mut self) -> PaintableRowsMut<'_> {
         PaintableRows { arena: self }
     }
