@@ -56,14 +56,22 @@ public:
             return;
 
         auto now = AK::UnixDateTime::now();
+        HashTable<Messages::ResourceType> expired_types;
         for (size_t i = 0; i < m_cached_records.size();) {
             auto& record = m_cached_records[i];
             if (record.expiration < now) {
                 dbgln_if(DNS_DEBUG, "DNS: Removing expired record for {}", m_name.to_string());
+                expired_types.set(record.record.type);
                 m_cached_records.remove(i);
             } else {
                 ++i;
             }
+        }
+
+        // Once the last record of a type expires, we no longer know anything about that type so forget it ever existed.
+        for (auto type : expired_types) {
+            if (!has_record_of_type(type))
+                m_queried_types.remove(type);
         }
 
         if (m_cached_records.is_empty() && m_request_done)

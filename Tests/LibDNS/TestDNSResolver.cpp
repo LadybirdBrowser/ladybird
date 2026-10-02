@@ -791,3 +791,69 @@ TEST_CASE(test_truncated_udp_response_is_retried_over_tcp)
     EXPECT(udp_only_resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await().is_error());
     EXPECT_EQ(tcp_queries, 1u);
 }
+
+TEST_CASE(test_expired_addresses_are_not_mistaken_for_a_negative_answer)
+{
+    Core::EventLoop loop;
+
+    // A long-lived CNAME to short-lived addresses: Once the addresses expire, the CNAME is still cached.
+    size_t queries = 0;
+    auto server = Core::UDPServer::construct();
+    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
+    auto server_port = server->local_port().value();
+    server->on_ready_to_receive = [&] {
+        sockaddr_in from {};
+        auto query_bytes = MUST(server->receive(4096, from));
+        ++queries;
+
+        FixedMemoryStream stream { query_bytes.bytes() };
+        auto query = MUST(DNS::Messages::Message::from_raw(stream));
+
+        DNS::Messages::Message response;
+        response.header.id = query.header.id;
+        response.header.options.set_is_question(false);
+        response.header.question_count = query.questions.size();
+        response.questions = move(query.questions);
+
+        auto owner = response.questions.first().name;
+        auto target = DNS::Messages::DomainName::from_string("target.example"sv);
+        response.answers.append({ owner, DNS::Messages::ResourceType::CNAME, DNS::Messages::Class::IN, 3600,
+            DNS::Messages::Records::CNAME { target }, {} });
+        if (response.questions.first().type == DNS::Messages::ResourceType::A) {
+            response.answers.append({ target, DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, 1,
+                DNS::Messages::Records::A { IPv4Address { 192, 0, 2, 1 } }, {} });
+        }
+        response.header.answer_count = response.answers.size();
+
+        ByteBuffer out;
+        MUST(response.to_raw(out));
+        MUST(server->send(out.bytes(), from));
+    };
+
+    DNS::Resolver resolver {
+        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
+            return DNS::Resolver::SocketResult {
+                TRY(Core::UDPSocket::connect(address)),
+                DNS::Resolver::ConnectionMode::UDP,
+            };
+        }
+    };
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
+
+    auto lookup = [&] {
+        return resolver.lookup("expiring.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await();
+    };
+
+    auto first = TRY_OR_FAIL(lookup());
+    EXPECT_EQ(first->cached_addresses().size(), 1u);
+    auto queries_for_first_lookup = queries;
+
+    auto timer = Core::Timer::create_single_shot(2100, [&] { loop.quit(0); });
+    timer->start();
+    loop.exec();
+
+    auto second = TRY_OR_FAIL(lookup());
+    EXPECT_EQ(second->cached_addresses().size(), 1u);
+    EXPECT(queries > queries_for_first_lookup);
+}
