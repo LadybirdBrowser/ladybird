@@ -126,7 +126,10 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub create_first_letter_nodes: unsafe extern "C" fn(*mut c_void, u32, FfiFirstLetterTarget) -> FfiFirstLetterNodes,
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut FfiIdentifiedDomNode, usize),
-    pub prepare_principal_element: unsafe extern "C" fn(*mut c_void, u32, bool),
+    /// Computes the style of an element the walk reached through a bypass path without one. The
+    /// style update before the build settles every element it walks; a top layer, slot projection
+    /// or SVG reference path can reach one it did not.
+    pub restyle_bypass_path_element: unsafe extern "C" fn(*mut c_void, u32),
     /// Makes the principal box of the element the identity names. The element asks for a box of
     /// the `ElementBoxKind` given as its raw byte, which is what the style mirror publishes for it.
     pub create_principal_element_layout: unsafe extern "C" fn(*mut c_void, u32, FfiElementLayoutKind, u8) -> NodeSlotId,
@@ -2166,20 +2169,20 @@ fn construct_principal_layout_node(
                 host.layout().set_children_are_inline(box_kept, false);
             }
         }
-        // SAFETY: The builder remains live, and the identity names a live element.
-        unsafe {
-            (host.callbacks.prepare_principal_element)(
-                host.callbacks.builder,
-                element.raw(),
-                should_create_layout_node,
-            );
+        let published_record = || {
+            host.arena()
+                .with_style_store(|engine| engine.element_published_style_record(element))
+        };
+        let mut record = published_record();
+        if should_create_layout_node && record.is_none() {
+            // Nothing published a style for the element, so a bypass path reached it without the
+            // style update settling it. Only the host can compute one.
+            // SAFETY: The builder remains live, and the identity names a live element.
+            unsafe { (host.callbacks.restyle_bypass_path_element)(host.callbacks.builder, element.raw()) };
+            record = published_record();
         }
-        // The record the box is built from is held for the whole build, taken after the host has
-        // had its chance to compute a style the element arrived here without.
-        let record = host
-            .arena()
-            .with_style_store(|engine| engine.element_published_style_record(element))
-            .expect("an element the walk prepares has published its style");
+        // The record the box is built from is held for the whole build.
+        let record = record.expect("an element the walk prepares has published its style");
         update.state.pin_style_record_for_build(host.arena(), record);
         let display = host.published_display(update.style_node);
         let generation = principal_box_generation_decision(
