@@ -864,27 +864,14 @@ AnimationUpdateContext::~AnimationUpdateContext()
         if (!style_computer.style_engine().animation_overlay_changed(it.value.style_record_before_update, style->animated_overlay()))
             continue;
 
-        auto computed_values = [&] {
-            auto previous_values = element.computed_style();
-            if (previous_values)
-                return style_computer.build_animated_computed_values(*style, element, element.style_scope(), *previous_values);
-            return style_computer.build_computed_values(*style, element, element.style_scope());
-        }();
-        Array<void const*, to_underlying(CSS::StyleGroupIndex::Count)> payloads;
-        for (size_t index = 0; index < payloads.size(); ++index)
-            payloads[index] = computed_values->style_group_payload(static_cast<CSS::StyleGroupIndex>(index));
-        auto animated_property_invalidation = style_computer.style_engine().compare_animation_overlay(
-            it.value.style_record_before_update,
-            style->animated_overlay(),
-            payloads,
-            !element.pseudo_element().has_value() && target->is_document_element());
+        auto [animated_property_invalidation, publication] = style_computer.publish_sampled_animation_overlay(element, *style, it.value.style_record_before_update, [&](auto const& overlay_invalidation) {
+            if (style->animated_overlay() && !animated_overlay_entries(style->animated_overlay()).is_empty()
+                && target->document().is_in_style_stabilization_epoch()
+                && (target->document().style_stabilization_has_style_reactions() || overlay_invalidation.requires_base_style_recomputation)) {
+                style_computer.record_transition_stabilization_baseline(element);
+            }
+        });
         auto invalidation = CSS::decode_style_invalidation(animated_property_invalidation.invalidation);
-        if (style->animated_overlay() && !animated_overlay_entries(style->animated_overlay()).is_empty()
-            && target->document().is_in_style_stabilization_epoch()
-            && (target->document().style_stabilization_has_style_reactions() || animated_property_invalidation.requires_base_style_recomputation)) {
-            target->document().style_computer().record_transition_stabilization_baseline(element);
-        }
-        auto publication = target->document().style_computer().publish_animation_overlay(element, *computed_values);
         target->refresh_computed_style(element.pseudo_element(), publication.new_style_record);
         if (auto* svg_element = as_if<SVG::SVGElement>(*target); svg_element && !element.pseudo_element().has_value())
             svg_element->note_svg_paint_resource_description_may_have_changed();

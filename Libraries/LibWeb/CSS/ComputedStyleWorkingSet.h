@@ -163,6 +163,8 @@ public:
 
     // The font list for text in the given tree scope, whose @font-feature-values font-variant-alternates reads.
     ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> computed_font_list(FontComputer const&, TreeScopeID) const;
+    // The platform font and font facts the font group is built from. The font list it names stays cached here.
+    ComputedValuesFFI::FfiFontGroupBuildInputs font_group_build_inputs(DOM::Document const&, TreeScopeID) const;
     ValueComparingNonnullRefPtr<Gfx::Font const> first_available_computed_font(FontComputer const&) const;
 
     int math_depth() const;

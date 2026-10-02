@@ -3254,6 +3254,116 @@ pub unsafe extern "C" fn style_engine_current_color_dependent_group_mask(
         .unwrap_or(u32::MAX)
 }
 
+/// What the host hands over to have an element's sampled animation overlay composed into the
+/// payloads of its overlay record.
+#[repr(C)]
+pub struct FfiAnimationOverlayPayloadInput {
+    pub style_node: u32,
+    pub pseudo_kind: u8,
+    /// The record the overlay was sampled on, which it composes over.
+    pub style_record: u64,
+    /// The longhand table the overlay was sampled over.
+    pub longhand_table: *const c_void,
+    pub animated_overlay: *const c_void,
+    pub used_color_scheme: u8,
+    pub display_before_box_type_transformation_raw: u32,
+    pub callback_context: *mut c_void,
+    /// Writes the animated style's platform font, a `ComputedValuesFFI::FfiFontGroupBuildInputs`;
+    /// asked only where the font group is rebuilt.
+    pub font_group_inputs: unsafe extern "C" fn(*mut c_void, *mut c_void),
+}
+
+/// Which groups of a composed overlay record were rebuilt over its base record.
+#[repr(C)]
+pub struct FfiAnimationOverlayPayloads {
+    /// Whether the engine holds the record to compose over; nothing was written where it does not.
+    pub present: bool,
+    /// Whether the overlay named a value the groups could not be told from, or nothing at all.
+    pub rebuilt_every_group: bool,
+    /// The groups whose payloads the caller owns a reference to, given back with
+    /// `style_engine_release_animation_overlay_payloads`.
+    pub rebuilt_groups: u32,
+}
+
+/// Compose an element's sampled animation overlay into the payloads of its overlay record, one per
+/// style group, written to `payloads`; see `RetainedState::build_animation_overlay_payloads`.
+///
+/// # Safety
+/// `engine`, `input` and everything it points to must be live for the call, `input`'s table must
+/// be non-null, and `payloads` must hold `payload_count` entries, one per style group.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_build_animation_overlay_payloads(
+    engine: *const c_void,
+    input: *const FfiAnimationOverlayPayloadInput,
+    payloads: *mut *const c_void,
+    payload_count: usize,
+) -> FfiAnimationOverlayPayloads {
+    use crate::css::table_group_builder::group_index;
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let input = unsafe { &*input };
+    assert_eq!(payload_count, group_index::COUNT, "one payload per style group");
+    let payloads = unsafe { &mut *payloads.cast::<[*const c_void; group_index::COUNT]>() };
+    let table = unsafe {
+        &*input
+            .longhand_table
+            .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
+    };
+    let overlay = unsafe {
+        input
+            .animated_overlay
+            .cast::<crate::css::animated_overlay::AnimatedOverlay>()
+            .as_ref()
+    };
+    let font = || {
+        let mut inputs = std::mem::MaybeUninit::<crate::css::table_group_builder::FfiFontGroupBuildInputs>::uninit();
+        unsafe {
+            (input.font_group_inputs)(input.callback_context, inputs.as_mut_ptr().cast());
+            inputs.assume_init()
+        }
+    };
+    let rebuilt = StyleNodeID::from_raw(input.style_node).and_then(|node| {
+        engine.build_animation_overlay_payloads(
+            node,
+            input.pseudo_kind,
+            input.style_record,
+            table,
+            overlay,
+            input.used_color_scheme,
+            input.display_before_box_type_transformation_raw,
+            font,
+            payloads,
+        )
+    });
+    match rebuilt {
+        Some(rebuilt) => FfiAnimationOverlayPayloads {
+            present: true,
+            rebuilt_every_group: rebuilt.every_group,
+            rebuilt_groups: rebuilt.groups,
+        },
+        None => FfiAnimationOverlayPayloads {
+            present: false,
+            rebuilt_every_group: false,
+            rebuilt_groups: 0,
+        },
+    }
+}
+
+/// Give back the references to the payloads `style_engine_build_animation_overlay_payloads`
+/// rebuilt.
+///
+/// # Safety
+/// `payloads` must hold `payload_count` entries as that build wrote them, and `rebuilt_groups` be
+/// the groups it rebuilt, not given back before.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_release_animation_overlay_payloads(
+    payloads: *const *const c_void,
+    payload_count: usize,
+    rebuilt_groups: u32,
+) {
+    let payloads = unsafe { std::slice::from_raw_parts(payloads, payload_count) };
+    super::engine_sample::release_rebuilt_overlay_payloads(payloads, rebuilt_groups);
+}
+
 /// Computes property-dependent damage for the sparse changed values in an animation overlay.
 ///
 /// # Safety

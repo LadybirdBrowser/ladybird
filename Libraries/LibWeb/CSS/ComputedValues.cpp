@@ -1528,31 +1528,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
     Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_context_storage;
     auto ffi_color_input = make_rust_color_resolution_input(color_resolution_context, length_context_storage);
     Optional<ComputedValuesFFI::FfiFontGroupBuildInputs> font_group_inputs;
-    if (applies(StyleGroupIndex::FontValues)) {
-        // FIXME: A tree-scoped name is resolved in the tree of the declaration that named it, and inherits with that
-        //        tree (css-scoping). This resolves feature value names in the element's own tree scope instead.
-        auto font_list = computed_style.computed_font_list(document.font_computer(), style_scope.style_engine_tree_scope());
-        auto const& first_available_font = font_list->first_available_font();
-        auto const metrics = first_available_font.pixel_metrics();
-        auto math_shift = keyword_to_math_shift(computed_style.property(PropertyID::MathShift).to_keyword()).release_value();
-        auto math_style = keyword_to_math_style(computed_style.property(PropertyID::MathStyle).to_keyword()).release_value();
-        font_group_inputs = ComputedValuesFFI::FfiFontGroupBuildInputs {
-            .font_size_raw = computed_style.font_size().raw_value(),
-            .line_height_used_raw = computed_style.line_height(document.font_computer()).raw_value(),
-            .font_variant_emoji = to_underlying(computed_style.font_variant_emoji()),
-            .font_ascent = metrics.ascent,
-            .font_descent = metrics.descent,
-            .font_x_height = metrics.x_height,
-            .font_zero_advance = metrics.advance_of_ascii_zero,
-            .first_available_font = &first_available_font,
-            .font_cascade_list = font_list.ptr(),
-            .font_weight = computed_style.font_weight(),
-            .font_width = computed_style.font_width().value(),
-            .math_shift = to_underlying(math_shift),
-            .math_style = to_underlying(math_style),
-            .math_depth = computed_style.math_depth(),
-        };
-    }
+    if (applies(StyleGroupIndex::FontValues))
+        font_group_inputs = computed_style.font_group_build_inputs(document, style_scope.style_engine_tree_scope());
     ComputedValuesFFI::FfiTableGroupBuildInputs table_build_inputs {
         .color_input = &ffi_color_input,
         .used_color_scheme = static_cast<u8>(to_underlying(color_scheme)),

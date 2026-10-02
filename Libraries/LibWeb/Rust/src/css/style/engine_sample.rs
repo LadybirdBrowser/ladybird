@@ -12,16 +12,21 @@ use super::publication::drive_font_metric;
 use super::tree::StyleNodeID;
 use super::{RetainedState, bridge};
 use crate::css::animated_overlay::AnimatedOverlay;
+use crate::css::color_resolution::{ColorResolutionInput, FfiColorResolutionInput, Rgba, to_color};
 use crate::css::computed_longhand_table::{ComputedLonghandTable, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS};
-use crate::css::computed_value_types::{FontValues, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
+use crate::css::computed_value_types::{
+    FontValues, STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX,
+    STYLE_GROUP_INDEX_SURROUND,
+};
 use crate::css::computed_values::InheritedBoxValues;
 use crate::css::css_pixels::CssPixels;
+use crate::css::host_shared::SharedPayload;
 use crate::css::property_metadata::property_id as prop;
 use crate::css::style_compute::{
     FfiAnimationLengthContexts, FfiFontMetrics, FfiLengthResolutionContext, keyword, px_length_unit,
 };
 use crate::css::style_value::StyleValueData;
-use crate::css::table_group_builder::FfiFontGroupBuildInputs;
+use crate::css::table_group_builder::{FfiFontGroupBuildInputs, FfiTableGroupBuildInputs, group_index};
 
 /// One record's font, as a length resolves against it.
 struct RecordFont {
@@ -148,6 +153,156 @@ impl RetainedState {
             line_height,
             remaining,
         })
+    }
+
+    /// Compose an element's sampled animation overlay into the payloads of its overlay record,
+    /// over `style_record`, the record it was sampled on: the groups a value of the overlay lives
+    /// in, and the groups that read an animated `color`, are rebuilt from `table` with the overlay
+    /// applied, and every other group is the base record's. Writes every group's payload to
+    /// `payloads` and answers which ones it rebuilt, each of which the caller owns a reference to,
+    /// or `None` where the engine holds no such record.
+    ///
+    /// `font` supplies the platform font of the animated style, which only the host resolves,
+    /// where the font group is rebuilt. The overlay is adjusted already, as the sample's animated
+    /// box-type finalization leaves it.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn build_animation_overlay_payloads(
+        &self,
+        node: StyleNodeID,
+        pseudo_kind: u8,
+        style_record: u64,
+        table: &ComputedLonghandTable,
+        overlay: Option<&AnimatedOverlay>,
+        used_color_scheme: u8,
+        display_before_box_type_transformation_raw: u32,
+        font: impl FnOnce() -> FfiFontGroupBuildInputs,
+        payloads: &mut [*const std::ffi::c_void; group_index::COUNT],
+    ) -> Option<RebuiltOverlayGroups> {
+        let view = self.computed_group_sets.style_record_view(style_record)?;
+        payloads.copy_from_slice(SharedPayload::as_pointer_slice(view.base_payloads));
+        // An overlay that animates nothing leaves the base as it is: publishing it releases the
+        // element's overlay record.
+        let Some(overlay) = overlay.filter(|overlay| !overlay.is_empty()) else {
+            return Some(RebuiltOverlayGroups {
+                groups: 0,
+                every_group: true,
+            });
+        };
+        // A value no group is known to hold, or an animated `color` whose readers the engine cannot
+        // name, rebuilds every group.
+        let named_groups = overlay.entries().iter().try_fold(0u32, |groups, entry| {
+            let group = crate::css::property_metadata::property_style_group_index(entry.property)?;
+            let readers = match entry.property {
+                prop::COLOR => self.current_color_dependent_group_mask(node, pseudo_kind)?,
+                _ => 0,
+            };
+            Some(groups | 1 << group | readers)
+        });
+        let rebuilds_every_group = named_groups.is_none();
+        let mut groups = named_groups.unwrap_or((1 << group_index::COUNT) - 1);
+        // The surround group duplicates `position-anchor` for layout, so rebuilding the anchor
+        // group refreshes it too.
+        if groups & (1 << STYLE_GROUP_INDEX_ANCHOR) != 0 {
+            groups |= 1 << STYLE_GROUP_INDEX_SURROUND;
+        }
+
+        // Colors resolve against the element's font as it stood when the overlay was last
+        // published, or against the animated font where the overlay rebuilds the font group.
+        let record = self.record_font(style_record)?;
+        let font_inputs = (groups & (1 << STYLE_GROUP_INDEX_FONT) != 0).then(font);
+        let own_font = match &font_inputs {
+            Some(font) => FfiFontMetrics {
+                font_size: CssPixels::from_raw(font.font_size_raw).to_double(),
+                x_height: drive_font_metric(font.font_x_height),
+                cap_height: drive_font_metric(font.font_ascent),
+                zero_advance: drive_font_metric(font.font_zero_advance),
+                line_height: CssPixels::from_raw(font.line_height_used_raw).to_double(),
+            },
+            None => record.metrics,
+        };
+        let length = length_resolution_context(
+            &self.document_style_computation_inputs,
+            (own_font, record.depends_on_viewport_metrics),
+            self.root_font_metrics(),
+            record.inline_axis_is_horizontal,
+        );
+        // The element's own color resolves first, since every other group resolves `currentcolor`
+        // against it.
+        let color_value = table.effective_value(Some(overlay), prop::COLOR, true).value;
+        let color_data = unsafe { color_value.cast::<StyleValueData>().as_ref() };
+        let color = color_data
+            .and_then(|color| {
+                to_color(
+                    color,
+                    &ColorResolutionInput {
+                        scheme: Some(used_color_scheme),
+                        current_color: Some(Rgba::BLACK),
+                        current_color_value: color_data,
+                        length: Some(&length),
+                        channels: None,
+                    },
+                )
+            })
+            .unwrap_or(Rgba::BLACK);
+        let color_input = FfiColorResolutionInput {
+            has_scheme: true,
+            scheme: used_color_scheme,
+            has_current_color: true,
+            current_color_rgba: [color.r, color.g, color.b, color.a],
+            current_color_value: color_value,
+            length: (&raw const length).cast(),
+            channels_present: [false; 13],
+            channels: [0.0; 13],
+            has_channels: false,
+        };
+        let build_inputs = FfiTableGroupBuildInputs {
+            color_input: (&raw const color_input).cast(),
+            used_color_scheme,
+            animated_overlay: overlay,
+            box_display_before_transformation_raw: display_before_box_type_transformation_raw,
+            font: font_inputs.as_ref().map_or(std::ptr::null(), std::ptr::from_ref),
+        };
+        let parents = [std::ptr::null(); group_index::COUNT];
+        let mut rebuilt = [std::ptr::null(); group_index::COUNT];
+        unsafe {
+            crate::css::table_group_builder::rust_build_group_payloads_from_table(
+                table,
+                groups,
+                parents.as_ptr(),
+                &raw const build_inputs,
+                rebuilt.as_mut_ptr(),
+                group_index::COUNT,
+            );
+        }
+        let mut rebuilt_groups = 0;
+        for (group, payload) in rebuilt.into_iter().enumerate() {
+            if groups & (1 << group) != 0 && !payload.is_null() {
+                payloads[group] = payload;
+                rebuilt_groups |= 1 << group;
+            }
+        }
+        Some(RebuiltOverlayGroups {
+            groups: rebuilt_groups,
+            every_group: rebuilds_every_group,
+        })
+    }
+}
+
+/// The groups `build_animation_overlay_payloads` rebuilt over the base record.
+pub(crate) struct RebuiltOverlayGroups {
+    /// The groups whose payloads the caller owns a reference to.
+    pub(crate) groups: u32,
+    /// Whether the overlay named a value the groups could not be told from, or nothing at all, so
+    /// none of the base record's groups could be kept as they were.
+    pub(crate) every_group: bool,
+}
+
+/// Give back the references to the payloads `build_animation_overlay_payloads` rebuilt.
+pub(crate) fn release_rebuilt_overlay_payloads(payloads: &[*const std::ffi::c_void], groups: u32) {
+    for (group, payload) in payloads.iter().enumerate() {
+        if groups & (1 << group) != 0 {
+            crate::css::computed_values::release_group_payload(group, *payload);
+        }
     }
 }
 
