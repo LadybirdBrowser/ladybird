@@ -2196,13 +2196,16 @@ void WebContentPage::did_request_image_context_menu(Web::HTML::CrossProcessId lo
         target->view.did_request_image_context_menu({}, target->position, verified_navigation.release_value(), move(bitmap));
 }
 
-void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation)
+void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation)
 {
-    auto verified_navigation = navigation_from_page(client(), move(navigation));
-    if (!verified_navigation.has_value())
-        return;
+    Optional<Web::HTML::PreparedNavigationDescriptor> verified_navigation;
+    if (navigation.has_value()) {
+        verified_navigation = navigation_from_page(client(), navigation.release_value());
+        if (!verified_navigation.has_value())
+            return;
+    }
     if (auto target = view_position(local_root_id, content_position); target.has_value())
-        target->view.did_request_media_context_menu({}, *this, target->position, move(menu), verified_navigation.release_value());
+        target->view.did_request_media_context_menu({}, *this, target->position, move(menu), move(verified_navigation));
 }
 
 void WebContentPage::did_get_highlighted_source(String html)

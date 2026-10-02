@@ -1139,7 +1139,7 @@ void PageClient::page_did_request_image_context_menu(Web::HTML::CrossProcessId l
     client().async_did_request_image_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), move(navigation), target, modifiers, bitmap);
 }
 
-void PageClient::page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu, Web::HTML::PreparedNavigationDescriptor navigation)
+void PageClient::page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation)
 {
     client().async_did_request_media_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, menu, move(navigation));
 }

@@ -126,7 +126,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target) =|
     did_request_link_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString target, unsigned modifiers) =|
     did_request_image_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap) =|
-    did_request_media_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation) =|
+    did_request_media_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation) =|
     did_request_alert(Web::PageId page_id, Utf16String message) =|
     did_request_confirm(Web::PageId page_id, Utf16String message) =|
     did_request_prompt(Web::PageId page_id, Utf16String message, Utf16String default_) =|

@@ -13,7 +13,7 @@
 namespace Web {
 
 struct MediaContextMenu {
-    URL::URL media_url;
+    Optional<URL::URL> media_url;
     bool is_video { false };
     bool is_playing { false };
     bool is_muted { false };

@@ -2981,8 +2981,14 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
             auto& media_element = as<HTML::HTMLMediaElement>(*context_menu_node);
             auto is_video = is<HTML::HTMLVideoElement>(*context_menu_node);
 
+            // A media element without a source, or one whose source does not resolve against the document's base
+            // URL, has no URL to open or copy.
+            Optional<URL::URL> media_url;
+            if (auto const& current_src = media_element.current_src(); !current_src.is_empty())
+                media_url = media_element.document().encoding_parse_url(current_src);
+
             Page::MediaContextMenu menu {
-                .media_url = *media_element.document().encoding_parse_url(media_element.current_src()),
+                .media_url = move(media_url),
                 .is_video = is_video,
                 .is_playing = media_element.potentially_playing(),
                 .is_muted = media_element.muted(),
@@ -2991,7 +2997,9 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
                 .is_fullscreen = is_video && media_element.is_fullscreen_element(),
             };
 
-            auto navigation = HTML::prepare_navigation_from_document(media_element.document(), menu.media_url, ReferrerPolicy::ReferrerPolicy::EmptyString);
+            auto navigation = menu.media_url.map([&](auto const& url) {
+                return HTML::prepare_navigation_from_document(media_element.document(), url, ReferrerPolicy::ReferrerPolicy::EmptyString);
+            });
             m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Media, .target = media_element });
             m_navigable->page().did_request_media_context_menu(media_element.unique_id(), local_root_id, page_viewport_position, "", modifiers, menu, move(navigation));
         } else {

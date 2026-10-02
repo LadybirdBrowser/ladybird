@@ -1496,7 +1496,7 @@ Optional<Page::ContextMenuRequest> Page::take_context_menu_request()
     return request;
 }
 
-void Page::did_request_media_context_menu(UniqueNodeID media_id, HTML::CrossProcessId local_root_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu, HTML::PreparedNavigationDescriptor navigation)
+void Page::did_request_media_context_menu(UniqueNodeID media_id, HTML::CrossProcessId local_root_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu, Optional<HTML::PreparedNavigationDescriptor> navigation)
 {
     m_media_context_menu_element_id = media_id;
     client().page_did_request_media_context_menu(local_root_id, position, target, modifiers, menu, move(navigation));
