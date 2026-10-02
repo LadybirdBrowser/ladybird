@@ -51,6 +51,7 @@ private:
         TopLayerZoneRebuildNeeded,
         ListItemCounterValueRendered,
         SvgResourceReferenced,
+        UnstyledElementReached,
     };
 
     struct Message {

@@ -29,6 +29,10 @@ pub enum FfiCommitMessageKind {
     /// tree build laid out under the graphics element `other_style_node` names. The resource
     /// outlives that box, so removing it has to rebuild the subtree the box sits in.
     SvgResourceReferenced,
+    /// The node is an element a bypass path reached without a style, which no style update
+    /// settled. The tree build built no box for it: the document styles it and builds its box
+    /// again.
+    UnstyledElementReached,
 }
 
 /// One thing layout has to tell the document. The node it is about is named by the style node the
