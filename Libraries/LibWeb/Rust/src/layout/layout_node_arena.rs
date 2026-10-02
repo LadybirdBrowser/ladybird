@@ -6316,7 +6316,7 @@ mod tests {
             let data = arena.data(node);
             arena.set_committed_fragment_link(
                 data,
-                test_fragment_link(node),
+                fragment_tree::FragmentLink::for_test(node),
                 arena.epoch_of_geometry_laid_out_in_this_pass(data),
             );
         };
@@ -6348,52 +6348,6 @@ mod tests {
         arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
         assert_eq!(arena.data(node).fragment_cache_epoch.get(), 0);
         assert_eq!(current(&arena), None);
-    }
-
-    fn test_fragment_link(node: NodeSlotId) -> fragment_tree::FragmentLink {
-        fragment_tree::FragmentLink {
-            fragment: std::sync::Arc::new(fragment_tree::Fragment {
-                identity: 1,
-                node,
-                content_inline_size: CssPixels::default(),
-                content_block_size: CssPixels::default(),
-                margin_left: CssPixels::default(),
-                margin_right: CssPixels::default(),
-                margin_top: CssPixels::default(),
-                margin_bottom: CssPixels::default(),
-                border_left: CssPixels::default(),
-                border_right: CssPixels::default(),
-                border_top: CssPixels::default(),
-                border_bottom: CssPixels::default(),
-                padding_left: CssPixels::default(),
-                padding_right: CssPixels::default(),
-                padding_top: CssPixels::default(),
-                padding_bottom: CssPixels::default(),
-                uses_collapsing_borders_model: false,
-                is_collapsed_borders_table_box: false,
-                table_column_index: 0,
-                table_column_span: 0,
-                hidden_by_collapsed_columns: false,
-                collapsed_table_borders: None,
-                line_data: None,
-                grid_layout_data: None,
-                flex_layout_data: None,
-                used_grid_tracks: None,
-                svg: Default::default(),
-                computed_svg_path: None,
-                has_line_clamp_point: false,
-                is_invisible_for_line_clamp: false,
-                children: Vec::new(),
-            }),
-            committed_offset: Default::default(),
-            inset_left: CssPixels::default(),
-            inset_right: CssPixels::default(),
-            inset_top: CssPixels::default(),
-            inset_bottom: CssPixels::default(),
-            containing_line_box_index: None,
-            abspos_layout_inputs: None,
-            containing_block: NodeSlotId::INVALID,
-        }
     }
 
     #[test]
@@ -6718,7 +6672,7 @@ mod tests {
         let arena = unsafe { LayoutNodeArena::from_handle_mut(handle) };
         let allocation = arena.allocate_for_test();
         let inputs = test_abspos_layout_inputs();
-        let mut link = test_fragment_link(allocation.slot);
+        let mut link = fragment_tree::FragmentLink::for_test(allocation.slot);
         link.abspos_layout_inputs = Some(inputs);
         arena.set_committed_fragment_link(arena.data(allocation.slot), link, None);
         assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_some());
@@ -6750,7 +6704,7 @@ mod tests {
         let old = arena.allocate_for_test();
         let new = arena.allocate_for_test();
         let inputs = test_abspos_layout_inputs();
-        let mut link = test_fragment_link(old.slot);
+        let mut link = fragment_tree::FragmentLink::for_test(old.slot);
         link.abspos_layout_inputs = Some(inputs);
         let retained_fragment = link.fragment.clone();
         arena.set_committed_fragment_link(arena.data(old.slot), link, None);
@@ -6768,7 +6722,11 @@ mod tests {
             .committed_fragment_link(arena.data(new.slot))
             .expect("new slot must receive the committed fragment");
         assert!(std::sync::Arc::ptr_eq(&moved.fragment, &retained_fragment));
-        arena.set_committed_fragment_link(arena.data(new.slot), test_fragment_link(new.slot), None);
+        arena.set_committed_fragment_link(
+            arena.data(new.slot),
+            fragment_tree::FragmentLink::for_test(new.slot),
+            None,
+        );
         assert_eq!(arena.saved_abspos_layout_inputs(arena.data(new.slot)), None);
         arena
             .free_subtree(old.slot)
