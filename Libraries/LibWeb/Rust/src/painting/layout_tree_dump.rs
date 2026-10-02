@@ -15,7 +15,6 @@ use crate::painting::dump::{
     push_css_pixel_point, push_css_pixel_rect, push_css_pixels, push_indent,
 };
 use crate::painting::ffi::arena_from_handle;
-use crate::painting::host::visual_context::FfiVisualContextHostCallbacks;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::paintable_geometry;
@@ -62,7 +61,6 @@ pub struct FfiLayoutTreeDumpCallbacks {
         output_sink: *mut c_void,
     ),
     append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
-    visual_context: FfiVisualContextHostCallbacks,
 }
 
 impl FfiLayoutTreeDumpCallbacks {
