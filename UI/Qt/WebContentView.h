@@ -123,6 +123,8 @@ public:
     void prepare_for_window_move();
     void finish_window_move();
     void close_select_dropdown_after_crash();
+    // Offers the reports of earlier crashes on the crash screen, once this view is shown.
+    void show_earlier_crash_reports();
 
     enum class PaletteMode {
         Default,
@@ -188,7 +190,11 @@ private:
     void update_screen_rects(WebView::WebContentPage&);
 
     void set_crash_overlay_visible(bool);
-    void show_crash_report_review();
+    enum class CrashScreen : u8 {
+        ThisPage,
+        Earlier,
+    };
+    void show_crash_report_review(CrashScreen = CrashScreen::ThisPage);
 
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;
@@ -210,6 +216,7 @@ private:
     QShortcut* m_crash_overlay_reload_shortcut { nullptr };
     QWidget* m_crash_report_container { nullptr };
     CrashReportReviewWidget* m_crash_report_review { nullptr };
+    bool m_show_earlier_crash_reports_when_shown { false };
 
 #ifdef LADYBIRD_QT_USE_IOSURFACE_LAYER
     bool ensure_iosurface_layer_attached_to_native_view();

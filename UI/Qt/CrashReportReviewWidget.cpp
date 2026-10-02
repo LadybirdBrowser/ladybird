@@ -111,14 +111,8 @@ QLabel* CrashReportReviewWidget::create_title(QString const& text, QWidget* pare
     return create_heading(text, 1.5, parent);
 }
 
-QString CrashReportReviewWidget::reload_page_text()
-{
-    return tr("Reload page");
-}
-
-CrashReportReviewWidget::CrashReportReviewWidget(Mode mode, QWidget* parent, WebView::CrashReportStore& store)
+CrashReportReviewWidget::CrashReportReviewWidget(QString exit_text, QWidget* parent, WebView::CrashReportStore& store)
     : QWidget(parent)
-    , m_mode(mode)
     , m_review(store)
 {
     setObjectName("LadybirdCrashReportReview");
@@ -132,18 +126,6 @@ CrashReportReviewWidget::CrashReportReviewWidget(Mode mode, QWidget* parent, Web
     auto* review_layout = new QVBoxLayout(m_review_page);
     review_layout->setContentsMargins(0, 0, 0, 0);
     review_layout->setSpacing(CrashReportReviewWidget::group_spacing);
-
-    // A tab's crash screen says what crashed and why a report helps above the review.
-    auto* header = new QWidget(m_review_page);
-    auto* header_layout = create_group_layout(header);
-    m_title = create_title({}, header);
-    m_title->setObjectName("CrashReportTitle");
-    header_layout->addWidget(m_title);
-    auto* intro = create_label(tr("You can send us a crash report to help fix it."), header);
-    intro->setForegroundRole(QPalette::PlaceholderText);
-    header_layout->addWidget(intro);
-    header->setVisible(m_mode == Mode::Dialog);
-    review_layout->addWidget(header);
 
     auto* description = new QWidget(m_review_page);
     auto* description_layout = create_group_layout(description);
@@ -177,9 +159,7 @@ CrashReportReviewWidget::CrashReportReviewWidget(Mode mode, QWidget* parent, Web
 
     auto* contents = new QWidget(m_review_page);
     auto* contents_layout = create_group_layout(contents);
-    auto* contents_summary = create_label(tr("The report includes technical details about the crash, your Ladybird "
-                                             "version and platform."),
-        contents);
+    auto* contents_summary = create_label(tr("Includes technical crash details, your Ladybird version and platform."), contents);
     contents_summary->setForegroundRole(QPalette::PlaceholderText);
     contents_layout->addWidget(contents_summary);
     m_details = new QFrame(contents);
@@ -223,14 +203,11 @@ CrashReportReviewWidget::CrashReportReviewWidget(Mode mode, QWidget* parent, Web
     review_buttons->addWidget(send_button);
     review_buttons->addWidget(decline_button);
     review_buttons->addStretch();
-    if (m_mode == Mode::Tab) {
-        auto* reload_button = create_reload_button(m_review_page);
-        reload_button->setObjectName("CrashReportReviewReloadButton");
-        review_buttons->addWidget(reload_button);
-
-        // Keyboard focus starts on reloading, so a stray key press never sends a report.
-        setFocusProxy(reload_button);
-    }
+    auto* review_exit_button = new QPushButton(exit_text, m_review_page);
+    review_exit_button->setObjectName("CrashReportReviewExitButton");
+    review_buttons->addWidget(review_exit_button);
+    // Keyboard focus starts on leaving, so a stray key press never sends a report.
+    setFocusProxy(review_exit_button);
     review_layout->addLayout(review_buttons);
     review_layout->addStretch();
     m_pages->addWidget(m_review_page);
@@ -240,10 +217,10 @@ CrashReportReviewWidget::CrashReportReviewWidget(Mode mode, QWidget* parent, Web
     status_layout->setContentsMargins(0, 0, 0, 0);
     status_layout->setSpacing(CrashReportReviewWidget::group_spacing);
 
-    // Under a tab's crash screen, the outcome is a section of the screen rather than a headline of its own.
+    // The outcome is a section of the crash screen rather than a headline of its own.
     auto* outcome = new QWidget(m_status_page);
     auto* outcome_layout = create_group_layout(outcome);
-    m_status_title = m_mode == Mode::Dialog ? create_title({}, outcome) : create_heading({}, 1, outcome);
+    m_status_title = create_heading({}, 1, outcome);
     m_status_title->setObjectName("CrashReportStatusTitle");
     outcome_layout->addWidget(m_status_title);
     m_progress = new QProgressBar(outcome);
@@ -261,18 +238,13 @@ CrashReportReviewWidget::CrashReportReviewWidget(Mode mode, QWidget* parent, Web
     m_retry_button->setObjectName("CrashReportRetryButton");
     m_next_button = new QPushButton(tr("Review the next crash report"), m_status_page);
     m_next_button->setObjectName("CrashReportNextButton");
-    m_close_button = new QPushButton(tr("Close"), m_status_page);
-    m_close_button->setObjectName("CrashReportCloseButton");
+    m_exit_button = new QPushButton(exit_text, m_status_page);
+    m_exit_button->setObjectName("CrashReportExitButton");
     auto* status_buttons = new QHBoxLayout;
     status_buttons->setSpacing(BUTTON_SPACING);
     status_buttons->addWidget(m_retry_button);
     status_buttons->addWidget(m_next_button);
-    status_buttons->addWidget(m_close_button);
-    if (m_mode == Mode::Tab) {
-        m_reload_button = create_reload_button(m_status_page);
-        m_reload_button->setObjectName("CrashReportReloadButton");
-        status_buttons->addWidget(m_reload_button);
-    }
+    status_buttons->addWidget(m_exit_button);
     status_buttons->addStretch();
     status_layout->addLayout(status_buttons);
     status_layout->addStretch();
@@ -291,14 +263,16 @@ CrashReportReviewWidget::CrashReportReviewWidget(Mode mode, QWidget* parent, Web
     QObject::connect(m_next_button, &QPushButton::clicked, this, [this] {
         if (auto result = open_report(); result.is_error()) {
             warnln("Could not open the next crash report: {}", result.error());
-            if (on_close)
-                on_close();
+            if (on_exit)
+                on_exit();
         }
     });
-    QObject::connect(m_close_button, &QPushButton::clicked, this, [this] {
-        if (on_close)
-            on_close();
-    });
+    for (auto* button : { review_exit_button, m_exit_button }) {
+        QObject::connect(button, &QPushButton::clicked, this, [this] {
+            if (on_exit)
+                on_exit();
+        });
+    }
 
     m_review.on_progress = [this](auto stage) { show_progress(stage); };
     m_review.on_retry = [this](String const& reason, u32 retry_number, u32 maximum_retries, u32 delay_seconds) {
@@ -370,8 +344,6 @@ ErrorOr<void> CrashReportReviewWidget::open_report(Optional<ByteString> const& n
 {
     auto report = TRY(m_review.open(name));
 
-    m_title->setText(qstring_from_ak_string(report.title));
-
     clear_form(*m_fields);
     for (auto const& field : report.fields)
         add_field(*m_fields, field, m_details);
@@ -419,25 +391,13 @@ void CrashReportReviewWidget::show_status(QString const& title, QString const& m
 {
     m_status_title->setText(title);
     m_status_message->setText(message);
-    for (auto* button : { m_retry_button, m_next_button, m_close_button, m_reload_button }) {
-        if (!button)
-            continue;
+    for (auto* button : { m_retry_button, m_next_button, m_exit_button }) {
         button->setVisible(actions.contains_slow(button));
         button->setDefault(button == primary);
     }
     m_pages->setCurrentWidget(m_status_page);
     if (primary)
         primary->setFocus(Qt::OtherFocusReason);
-}
-
-QPushButton* CrashReportReviewWidget::create_reload_button(QWidget* parent)
-{
-    auto* button = new QPushButton(reload_page_text(), parent);
-    QObject::connect(button, &QPushButton::clicked, this, [this] {
-        if (on_reload)
-            on_reload();
-    });
-    return button;
 }
 
 void CrashReportReviewWidget::show_progress(WebView::CrashReportSubmission::Stage stage)
@@ -458,9 +418,9 @@ void CrashReportReviewWidget::show_progress(WebView::CrashReportSubmission::Stag
         VERIFY_NOT_REACHED();
     }();
 
-    // Reloading the page stays possible while the report is on its way, which carries on behind the reloaded page.
+    // Leaving stays possible while the report is on its way, which carries on behind the screen that follows.
     show_status(tr("Sending crash report"), stage == Stage::Sending ? tr("Sending crash report…") : tr("Preparing report…"),
-        { m_reload_button });
+        { m_exit_button });
     m_progress->setValue(percent);
     m_progress->show();
 }
@@ -492,22 +452,20 @@ void CrashReportReviewWidget::show_failure(WebView::CrashReportSubmission::Failu
 
     // Only sending can succeed on another attempt. A report that could not be prepared would fail the same way again.
     if (failure == WebView::CrashReportSubmission::Failure::Sending) {
-        show_status(tr("Couldn’t send report"), qstring_from_ak_string(reason), { m_retry_button, m_reload_button },
+        show_status(tr("Couldn’t send report"), qstring_from_ak_string(reason), { m_retry_button, m_exit_button },
             m_retry_button);
         return;
     }
     show_outcome(tr("Couldn’t send report"), qstring_from_ak_string(reason));
 }
 
-// Once the report is answered, a crashed tab is left to be reloaded, and the dialog moves on to the next report.
+// Once the report is answered, the review moves on to the next one waiting, or is left.
 void CrashReportReviewWidget::show_outcome(QString const& title, QString const& message)
 {
-    if (m_mode == Mode::Tab)
-        show_status(title, message, { m_reload_button }, m_reload_button);
-    else if (m_review.has_next_report())
-        show_status(title, message, { m_next_button, m_close_button }, m_next_button);
+    if (m_review.has_next_report())
+        show_status(title, message, { m_next_button, m_exit_button }, m_next_button);
     else
-        show_status(title, message, { m_close_button }, m_close_button);
+        show_status(title, message, { m_exit_button }, m_exit_button);
 }
 
 }
