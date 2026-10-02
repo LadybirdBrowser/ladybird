@@ -392,7 +392,22 @@ public:
         Optional<EngineRecordDamage> element;
         Array<Optional<EnginePseudoElementRecordDamage>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)> pseudo_elements {};
     };
-    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, EngineRecordDamages const* = nullptr);
+    // Whether installing a record also applies the change of the element's display, or leaves that to a caller that
+    // first composes the element's animations over the record and runs its transition step, as a C++ computation does.
+    enum class DisplayNoneChange : u8 {
+        Apply,
+        LeftToCaller,
+    };
+    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, DisplayNoneChange, EngineRecordDamages const* = nullptr);
+    // Whether the element's display is none, with its animations and ignoring them; none for an element without style.
+    struct DisplayNoneState {
+        bool display_is_none { true };
+        bool display_ignoring_animations_is_none { true };
+    };
+    [[nodiscard]] Optional<DisplayNoneState> display_none_state() const;
+    // Terminates or resumes the animations of a subtree whose display, ignoring animations, left or entered none since
+    // `before`, and clears the styles of a subtree that became display:none.
+    void apply_display_none_change(DisplayNoneState before);
     // The custom-property environment an engine-computed record was published with: the one the
     // element inherits, or one the engine resolved over it. Nothing when it cannot be installed.
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_environment_of_engine_record(CSS::StyleRecordID, bool& installable) const;

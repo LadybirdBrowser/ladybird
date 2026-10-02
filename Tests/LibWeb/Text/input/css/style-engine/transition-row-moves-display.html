@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { transition: opacity 100s linear, display 100s allow-discrete; opacity: 1; }
+    #target.hidden { display: none; opacity: 0; }
+</style>
+<div id="target"><span id="child">x</span></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const measure = (label, mutation) => {
+            internals.updateStyle();
+            const before = internals.getStyleInvalidationCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            const animations = target.getAnimations().map(animation => animation.transitionProperty).sort().join(",");
+            println(`${label}: C++ recomputations ${after.elementStyleRecomputations - before.elementStyleRecomputations}, display ${getComputedStyle(target).display}, transitions ${animations}`);
+        };
+        target.firstChild.remove();
+        // The class change moves display beside a value a transition runs on: the display
+        // transition keeps the element displayed, and both transitions start.
+        measure("hidden", () => target.classList.add("hidden"));
+        measure("shown", () => target.classList.remove("hidden"));
+    });
+</script>

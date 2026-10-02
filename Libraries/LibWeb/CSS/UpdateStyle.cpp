@@ -559,6 +559,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             // records must equal the engine's by value.
             auto apply_engine_computed_records = [&](DOM::Element::EnginePseudoElementRecords const& pseudo_element_records, bool acknowledge) {
                 auto& style_engine = document.style_computer().style_engine();
+                // A C++ computation applies a change of the element's display once the record holds the element's
+                // animations and its transition step has run; so does the installation of the record the engine
+                // settled, below.
+                auto const display_none_before = element->display_none_state();
                 // https://drafts.csswg.org/css-transitions-1/#starting
                 // The transition step the row owes compares the record the element moved away from with the one it
                 // installs, so the old record has to outlive its replacement until the step has read it.
@@ -635,7 +639,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     counters = counters_before_verification;
                     auto const computed_style_changes_before_application = counters.element_computed_style_changes;
                     if (engine_record_is_installable) {
-                        invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, &engine_record_damages);
+                        invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, DOM::Element::DisplayNoneChange::LeftToCaller, &engine_record_damages);
                         // The reference pass already installed equal values, so applying the engine
                         // record may be a no-op. Preserve the invalidation it proved the originating
                         // record or pseudo-element transitions need.
@@ -672,7 +676,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                             element->set_computed_style(pseudo_element, *previous_pseudo_element_records[kind]);
                     }
                 } else {
-                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, &engine_record_damages);
+                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, DOM::Element::DisplayNoneChange::LeftToCaller, &engine_record_damages);
                 }
                 if (acknowledge)
                     style_engine.acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
@@ -700,6 +704,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 }
                 if (!!before_change.style_record())
                     invalidation |= document.style_computer().run_transition_step_for_installed_record({ *element }, before_change.style_record(), StyleComputer::TransitionStepFollowUp::Request);
+                if (display_none_before.has_value())
+                    element->apply_display_none_change(*display_none_before);
             };
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::None) {
                 VERIFY(!needs_regular_style_recompute);
@@ -1128,7 +1134,7 @@ static Optional<RequiredInvalidationAfterStyleChange> install_targeted_record_de
         if ((answer.pseudo_records_present >> kind) & 1)
             pseudo_element_records[kind] = StyleRecordID { answer.pseudo_records[kind] };
     }
-    auto invalidation = element.apply_engine_computed_style_record(StyleRecordID { answer.style_record }, pseudo_element_records, answer.uses_substitution, answer.record_reads, answer.explicitly_inherited_groups, did_change_custom_properties);
+    auto invalidation = element.apply_engine_computed_style_record(StyleRecordID { answer.style_record }, pseudo_element_records, answer.uses_substitution, answer.record_reads, answer.explicitly_inherited_groups, did_change_custom_properties, DOM::Element::DisplayNoneChange::Apply);
     style_engine.acknowledge_engine_computed_record(element.style_node_id());
     return invalidation;
 }

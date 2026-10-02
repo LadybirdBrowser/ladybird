@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    .feature { color: green; }
+</style>
+<div id="host"><div id="panel"><div id="feature" class="feature"></div></div></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = "<style>.hidden { display: none; }</style><slot></slot>";
+        const slot = root.querySelector("slot");
+        document.body.offsetWidth;
+
+        // The slot hides the panel, which restyles below it, and the feature inside the panel
+        // gains shadow content, which stays unstyled.
+        slot.classList.add("hidden");
+        host.style.fontSize = "20px";
+        const featureRoot = feature.attachShadow({ mode: "open" });
+        featureRoot.innerHTML = "<div id='content'>content</div>";
+        const content = featureRoot.getElementById("content");
+        document.body.offsetWidth;
+
+        // The slot leaving display:none reveals the panel, and everything below it.
+        slot.classList.remove("hidden");
+        document.body.offsetWidth;
+        println(`content: ${getComputedStyle(content).display} ${getComputedStyle(content).color} ${content.offsetHeight > 0}`);
+    });
+</script>
