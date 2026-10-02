@@ -717,93 +717,10 @@ Optional<String> flex_layout_json(Layout::Node const& node, UniqueNodeID contain
     return result;
 }
 
-struct SelectionPseudoStyleFacts {
-    bool has_styling { false };
-    Layout::RustFFI::FfiSelectionStyleFacts facts {};
-    Vector<Layout::RustFFI::FfiSelectionShadowLayer> shadows;
-};
-
-static SelectionPseudoStyleFacts selection_pseudo_style_facts_of_element(DOM::Element const& element)
-{
-    auto computed_selection_style = element.computed_style(CSS::PseudoElement::Selection);
-    if (!computed_selection_style)
-        return {};
-
-    SelectionPseudoStyleFacts result;
-    auto& facts = result.facts;
-
-    // https://drafts.csswg.org/css-pseudo-4/#paired-defaults
-    // Paired default highlight colors must only be used when neither 'color' nor 'background-color' yield a
-    // cascaded value from the author origin (or inherit their value from the author origin).
-    facts.colors_authored = computed_selection_style->highlight_colors_authored();
-    if (facts.colors_authored) {
-        facts.background_color = computed_selection_style->background_color();
-        // https://drafts.csswg.org/css-pseudo-4/#highlight-text
-        // currentColor on a highlight pseudo-element's 'color' property represents the color of the next active
-        // highlight pseudo-element layer below, falling back finally to the colors that would otherwise have been
-        // used.
-        if (!computed_selection_style->highlight_color_is_current_color())
-            facts.text_color = computed_selection_style->color();
-
-        // https://drafts.csswg.org/css-pseudo-4/#highlight-replaced
-        // This wash should be of the specified 'background-color' if that is not 'transparent', else of the
-        // specified 'color'; however the UA may adjust the alpha channel.
-        auto wash_color = facts.background_color;
-        if (wash_color.alpha() == 0)
-            wash_color = facts.text_color.has_value() ? facts.text_color.value() : element.computed_style()->color();
-        facts.wash_color = CSS::SystemColor::transform_selection_background_color(wash_color);
-    }
-
-    auto const& shadows = computed_selection_style->text_shadow();
-    if (!shadows.is_empty()) {
-        facts.has_text_shadow = true;
-        for (auto const& shadow : shadows)
-            result.shadows.append({ .color = shadow.color, .offset_x = shadow.offset_x, .offset_y = shadow.offset_y, .blur_radius = shadow.blur_radius });
-    }
-
-    auto lines = computed_selection_style->text_decoration_line();
-    if (!lines.is_empty()) {
-        facts.has_text_decoration = true;
-        facts.text_decoration_line_count = min(lines.size(), array_size(facts.text_decoration_lines));
-        for (size_t i = 0; i < facts.text_decoration_line_count; ++i)
-            facts.text_decoration_lines[i] = to_underlying(lines[i]);
-        facts.text_decoration_style = to_underlying(computed_selection_style->text_decoration_style());
-        facts.text_decoration_color = computed_selection_style->text_decoration_color();
-    }
-
-    result.has_styling = facts.colors_authored || facts.has_text_shadow || facts.has_text_decoration;
-    return result;
-}
-
-static void push_selection_pseudo_style_onto(Layout::Node const& layout_node, SelectionPseudoStyleFacts const& style)
-{
-    Layout::RustFFI::layout_arena_set_node_selection_pseudo_style(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), style.has_styling, style.facts, style.shadows.data(), style.shadows.size());
-}
-
 void push_selection_pseudo_style(DOM::Element const& element)
 {
-    auto style = selection_pseudo_style_facts_of_element(element);
-    if (auto const* layout_node = element.unsafe_layout_node()) {
-        push_selection_pseudo_style_onto(*layout_node, style);
-        return;
-    }
-    for (auto const* child = element.first_child(); child; child = child->next_sibling()) {
-        if (!is<DOM::Text>(*child))
-            continue;
-        if (auto const* text_layout_node = child->unsafe_layout_node())
-            push_selection_pseudo_style_onto(*text_layout_node, style);
-    }
-}
-
-void push_selection_pseudo_style_of_parent(Layout::TextNode& text_layout_node)
-{
-    auto const* text = text_layout_node.dom_text();
-    auto const* parent_element = text ? text->parent_element().ptr() : nullptr;
-    if (!parent_element || parent_element->unsafe_layout_node())
-        return;
-    if (!parent_element->computed_style(CSS::PseudoElement::Selection))
-        return;
-    push_selection_pseudo_style_onto(text_layout_node, selection_pseudo_style_facts_of_element(*parent_element));
+    if (auto* arena = const_cast<DOM::Document&>(element.document()).layout_node_arena_if_created())
+        Layout::RustFFI::layout_arena_sync_selection_pseudo_style(arena->handle(), element.style_node_id().value());
 }
 
 class BoxViewRepaintAccess {

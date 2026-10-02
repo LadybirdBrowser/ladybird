@@ -9,7 +9,7 @@
 
 use super::layout_node_arena::LayoutNodeArena;
 use super::node_data::{
-    GENERATED_FOR_AFTER, GENERATED_FOR_BACKDROP, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId,
+    GENERATED_FOR_AFTER, GENERATED_FOR_BACKDROP, GENERATED_FOR_BEFORE, GENERATED_FOR_MARKER, NodeSlotId, pseudo_kind_of,
 };
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_string::CssString;
@@ -203,7 +203,7 @@ pub(crate) fn style_of<'a>(
                 .style_payloads(row)
                 .map(|payloads| ComputedValuesView::new(&payloads.groups))
         }
-        generated_for => engine.published_style_view(owner.element, Some(generated_for - 1)),
+        generated_for => engine.published_style_view(owner.element, Some(pseudo_kind_of(generated_for))),
     }
 }
 

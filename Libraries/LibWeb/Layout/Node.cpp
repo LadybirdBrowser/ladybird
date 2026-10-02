@@ -749,6 +749,7 @@ static_assert(Node::encode_generated_for(CSS::PseudoElement::FirstLetter) == Rus
 static_assert(Node::encode_generated_for(CSS::PseudoElement::Marker) == RustFFI::GENERATED_FOR_MARKER);
 static_assert(Node::encode_generated_for(CSS::first_synthetic_pseudo_element) == RustFFI::GENERATED_FOR_AFTER);
 static_assert(Node::encode_generated_for(CSS::last_synthetic_pseudo_element) == RustFFI::GENERATED_FOR_LAST_SYNTHETIC);
+static_assert(Node::encode_generated_for(CSS::PseudoElement::Selection) == RustFFI::SELECTION_PSEUDO_KIND + 1);
 
 void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old_style_node)
 {

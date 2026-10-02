@@ -877,6 +877,18 @@ impl RetainedState {
         self.published_style_record_view(style_record)
     }
 
+    /// The dependency flags of the element's published style record, or of its record for one
+    /// pseudo-element kind. `None` while there is no such record.
+    #[must_use]
+    pub(crate) fn published_style_dependency_flags(&self, node: StyleNodeID, pseudo_kind: Option<u8>) -> Option<u8> {
+        let style_record = match pseudo_kind {
+            Some(pseudo_kind) => self.computed_group_sets.pseudo_style_record(node, pseudo_kind),
+            None => self.computed_group_sets.assigned_style_record(node),
+        }?;
+        self.computed_group_sets
+            .style_record_dependency_flags(style_record.raw())
+    }
+
     pub(super) fn published_style_record_view(
         &self,
         style_record: Option<computed::FinalStyleRecordID>,

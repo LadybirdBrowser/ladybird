@@ -27,7 +27,7 @@ use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
     AncestorFact, DomPaintFact, FfiNodeLink, FfiStylePayloads, GENERATED_FOR_AFTER, GENERATED_FOR_LAST_SYNTHETIC,
-    MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef,
+    MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef, pseudo_kind_of,
 };
 use crate::stage::MainThread;
 use std::cell::Cell;
@@ -2838,7 +2838,7 @@ impl LayoutNodeArena {
         self.set_node_generated_for(slot, generated_for, Some(generator));
         let (record, payloads) = self.with_style_store(|engine| {
             let record = engine
-                .pseudo_published_style_record(generator, generated_for - 1)
+                .pseudo_published_style_record(generator, pseudo_kind_of(generated_for))
                 .expect("a pseudo-element the build stamps a box for has published its style");
             let payloads = engine
                 .style_record_payloads(record)
