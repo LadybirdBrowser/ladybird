@@ -142,12 +142,11 @@ pub(crate) fn take_in_published_output(
     publishes_recording: bool,
 ) -> u64 {
     let mut paint_state = arena.paint_state().borrow_mut();
-    let recorder_state = recording.recorder();
     let list = std::mem::take(&mut output.hit_test_list);
-    let mut hit_test_list = arena.hit_test_list.borrow_mut();
-    let previous_list_is_the_source = hit_test_list
+    let previous_list_is_the_source = recording
+        .hit_test_list
         .as_ref()
-        .zip(recorder_state.published_hit_test_items.as_ref())
+        .zip(recording.recorder.published_hit_test_items.as_ref())
         .is_some_and(|(list, source)| std::sync::Arc::ptr_eq(&list.items, &source.items));
     if output.is_identical_to_published_recording && previous_list_is_the_source {
         drop(list);
@@ -155,22 +154,22 @@ pub(crate) fn take_in_published_output(
         paint_state.hit_test_list_generation += 1;
         debug_assert_eq!(list.generation, paint_state.hit_test_list_generation);
         if publishes_recording {
-            recorder_state.published_hit_test_items =
+            recording.recorder.published_hit_test_items =
                 Some(std::sync::Arc::new(crate::painting::record::PublishedHitTestItems {
                     items: list.items.clone(),
                 }));
         }
-        *hit_test_list = Some(list);
+        recording.hit_test_list = Some(list);
     }
     let output = std::sync::Arc::new(output);
     if publishes_recording {
-        recorder_state.published_recording = Some(output.clone());
+        recording.recorder.published_recording = Some(output.clone());
         // Read-only recordings publish nothing and must not consume the damage.
         arena.clear_paint_damage_consumed_by_published_recording();
         paint_state.visual_context.quarantined_slots_are_releasable = true;
     }
     paint_state.last_recording = Some(output);
-    hit_test_list.as_ref().map_or(0, |list| list.generation)
+    recording.hit_test_list.as_ref().map_or(0, |list| list.generation)
 }
 
 #[cfg(test)]

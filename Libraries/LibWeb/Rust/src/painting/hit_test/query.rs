@@ -5,10 +5,10 @@
  */
 
 use super::*;
-use crate::layout::LayoutNodeArena;
 use crate::painting::chrome_geometry::{ChromeGeometry, scrollbar_is_enlarged};
 use crate::painting::ffi::ScrollDirection;
 use crate::painting::host::FfiHitTestQueryCallbacks;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::visual_context::{NO_SORTING_CONTEXT, SortingContexts, SpatialNodeIndex, VisualContextTree};
 use std::collections::HashMap;
 
@@ -92,7 +92,7 @@ struct TopmostSearch<'a> {
 impl HitTestList {
     fn item_contains(
         &self,
-        layout_arena: &LayoutNodeArena,
+        layout_arena: &impl PaintRead,
         callbacks: &FfiHitTestQueryCallbacks,
         item: &HitTestItem,
         local: (f32, f32),
@@ -129,8 +129,8 @@ impl HitTestList {
                     "chrome widget hit testing needs the chrome metrics"
                 );
                 let node = item.paintable;
-                let rows = layout_arena.paintable_rows();
-                let chrome_geometry = ChromeGeometry::for_hit_test_query(&rows, callbacks);
+                let rows = layout_arena;
+                let chrome_geometry = ChromeGeometry::for_hit_test_query(rows, callbacks);
                 match item.chrome_widget_kind {
                     1 => chrome_geometry.resizer_contains(node, local_point),
                     2 | 3 => {
@@ -140,7 +140,7 @@ impl HitTestList {
                             ScrollDirection::Vertical
                         };
                         chrome_geometry
-                            .absolute_scrollbar_rect(node, direction, scrollbar_is_enlarged(&rows, node, direction))
+                            .absolute_scrollbar_rect(node, direction, scrollbar_is_enlarged(rows, node, direction))
                             .is_some_and(|rect| rect.contains_point(local_point))
                     }
                     _ => false,
@@ -151,7 +151,7 @@ impl HitTestList {
 
     fn find_topmost_item_in_list(
         &self,
-        layout_arena: &LayoutNodeArena,
+        layout_arena: &impl PaintRead,
         callbacks: &FfiHitTestQueryCallbacks,
         item_indices: &[usize],
         local: (f32, f32),
@@ -185,7 +185,7 @@ impl HitTestList {
 
     fn find_topmost(
         &self,
-        layout_arena: &LayoutNodeArena,
+        layout_arena: &impl PaintRead,
         visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
@@ -252,7 +252,7 @@ impl HitTestList {
 
     fn topmost_item_by_plane_depth(
         &self,
-        layout_arena: &LayoutNodeArena,
+        layout_arena: &impl PaintRead,
         visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
@@ -297,7 +297,7 @@ impl HitTestList {
 
     pub(crate) fn find_topmost_item(
         &self,
-        layout_arena: &LayoutNodeArena,
+        layout_arena: &impl PaintRead,
         visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
@@ -313,7 +313,7 @@ impl HitTestList {
 
     pub(crate) fn find_topmost_items_for_caret(
         &self,
-        layout_arena: &LayoutNodeArena,
+        layout_arena: &impl PaintRead,
         visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,
@@ -324,7 +324,7 @@ impl HitTestList {
 
     pub(crate) fn hit_test_all(
         &self,
-        layout_arena: &LayoutNodeArena,
+        layout_arena: &impl PaintRead,
         visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
         point: CssPixelPoint,

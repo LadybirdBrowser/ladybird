@@ -841,24 +841,6 @@ pub struct FfiImageMapArea {
     pub coords_count: u32,
 }
 
-/// The style-tree identity of the first `<area>` of the image's map, in tree order, whose shape
-/// covers the point. Zero when the image has no map, or when no shape covers the point.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_image_map_area_for_point(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    x: f32,
-    y: f32,
-) -> u32 {
-    unsafe { arena_from_handle(arena) }
-        .image_map_areas()
-        .area_for_point(slot, x, y)
-}
-
 /// # Safety
 ///
 /// `sink` must be the pointer handed to the callback, used synchronously.
@@ -1905,49 +1887,6 @@ pub unsafe extern "C" fn layout_arena_publish_compositor_animations(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread; the
-/// sink pointer must stay valid for this synchronous call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_visit_chrome_widgets(
-    arena: *mut c_void,
-    sink: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, NodeSlotId, u8),
-) {
-    with_hit_test_list_items_only(arena, (), |list, _arena| {
-        for item in list.items.iter() {
-            if item.chrome_widget_kind == crate::painting::hit_test::CHROME_WIDGET_NONE {
-                continue;
-            }
-            // SAFETY: The C++ host consumes the visit synchronously.
-            unsafe { visit(sink, item.paintable, item.chrome_widget_kind) };
-        }
-    });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
-/// the callback context and function pointers must remain valid for this synchronous call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_caret_line_for_position(
-    arena: *mut c_void,
-    query: crate::painting::host::FfiCaretPositionQuery,
-    offset: usize,
-    affinity_is_downstream: bool,
-) -> crate::painting::host::FfiCaretLineForPosition {
-    with_hit_test_list_and_caret_lines(arena, Default::default(), |list, arena| {
-        match list.caret_line_for_position(arena, &query, offset, affinity_is_downstream) {
-            Some(line_index) => crate::painting::host::FfiCaretLineForPosition {
-                has_line: true,
-                line_index,
-            },
-            None => Default::default(),
-        }
-    })
-}
-
-/// # Safety
-///
 /// `sink` must be the pointer handed to the callback, used synchronously; `bytes` must point at
 /// `length` readable bytes.
 #[unsafe(no_mangle)]
@@ -2043,146 +1982,6 @@ pub unsafe extern "C" fn layout_arena_filter_functions_serialize(
     let bytes = graph.serialize();
     unsafe { append(context, bytes.as_ptr(), bytes.len()) };
     true
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`; `line_index` in range.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_caret_line(
-    arena: *mut c_void,
-    line_index: usize,
-) -> crate::painting::host::FfiCaretLineExport {
-    with_hit_test_list_and_caret_lines(arena, Default::default(), |list, _| {
-        let line = &list.caret_lines[line_index];
-        crate::painting::host::FfiCaretLineExport {
-            rect: line.rect.into(),
-            context: line.context,
-            first_caret_item_index: line.first_caret_item_index,
-            last_caret_item_index: line.last_caret_item_index,
-        }
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_list_generation(arena: *mut c_void) -> u64 {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.hit_test_list.borrow().as_ref().map_or(0, |list| list.generation)
-}
-
-/// The DOM node a hit on the paintable dispatches events to.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_target(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-) -> crate::painting::host::FfiNodeIdentity {
-    crate::painting::hit_test::resolve::event_dispatch_target_of_paintable(unsafe { arena_from_handle(arena) }, slot)
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
-/// `index` in range.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_item_facts(
-    arena: *mut c_void,
-    index: usize,
-) -> crate::painting::host::FfiHitTestItemExport {
-    with_hit_test_list_items_only(arena, None, |list, arena| {
-        let item = &list.items[index];
-        assert!(
-            arena.paintable_row_is_populated(item.paintable),
-            "exporting a hit-test item for a non-live paintable"
-        );
-        assert!(
-            arena.paintable_row_is_populated(item.hit_node),
-            "exporting a hit-test item that names a non-live paintable"
-        );
-        Some(crate::painting::host::FfiHitTestItemExport {
-            can_produce_caret_position: item.can_produce_caret_position,
-            paintable: item.paintable,
-            hit_node: item.hit_node,
-            chrome_widget_kind: item.chrome_widget_kind,
-            caret_rect: item.caret_rect.into(),
-            context: item.context,
-        })
-    })
-    .expect("no hit-test list")
-}
-
-/// The DOM node the hit-test item stands for.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
-/// `item_index` must be in range for the current hit-test list.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_item_target(
-    arena: *mut c_void,
-    item_index: usize,
-) -> crate::painting::host::FfiNodeIdentity {
-    with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
-        list.item_target(arena, item_index)
-    })
-}
-
-/// The DOM node the hit-test item dispatches events to.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
-/// `item_index` must be in range for the current hit-test list.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_item_dispatch_target(
-    arena: *mut c_void,
-    item_index: usize,
-) -> crate::painting::host::FfiNodeIdentity {
-    with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
-        list.item_dispatch_target(arena, item_index)
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
-/// `item_index` must be in range for the current hit-test list.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_resolve_hit(
-    arena: *mut c_void,
-    item_index: usize,
-    local_point: FfiCssPixelPoint,
-) -> crate::painting::host::FfiResolvedHit {
-    with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
-        list.resolve_hit(arena, item_index, local_point.into())
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
-/// `item_index` must be in range for the current hit-test list.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_resolve_caret(
-    arena: *mut c_void,
-    item_index: usize,
-    local_point: FfiCssPixelPoint,
-    position_type: u8,
-) -> crate::painting::host::FfiResolvedCaret {
-    with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
-        list.resolve_caret(
-            arena,
-            item_index,
-            local_point.into(),
-            crate::painting::hit_test::caret::CaretPositionType::from_u8(position_type),
-        )
-    })
 }
 
 /// An SVG paint resource of an enrolled row the host resolves from the DOM.
@@ -2351,197 +2150,6 @@ pub unsafe extern "C" fn layout_arena_sync_svg_paint_resources(
     publish_resolved_svg_paint_resources(unsafe { arena_from_handle(arena) }, resolved)
 }
 
-fn with_hit_test_list_items_only<R>(
-    arena: *mut c_void,
-    default: R,
-    query: impl FnOnce(&crate::painting::hit_test::HitTestList, &crate::layout::LayoutNodeArena) -> R,
-) -> R {
-    // SAFETY: The caller passes a live arena handle (documented on every entry point below).
-    let arena = unsafe { arena_from_handle(arena) };
-    // Hit testing reads overflow, and reading overflow never measures it.
-    arena.measure_scrollable_overflow();
-    let hit_test_list = arena.hit_test_list.borrow();
-    let Some(list) = hit_test_list.as_ref() else {
-        return default;
-    };
-    query(list, arena)
-}
-
-fn with_hit_test_list_and_caret_lines<R>(
-    arena: *mut c_void,
-    default: R,
-    query: impl FnOnce(&crate::painting::hit_test::HitTestList, &crate::layout::LayoutNodeArena) -> R,
-) -> R {
-    // SAFETY: The caller passes a live arena handle (documented on every entry point below).
-    let arena = unsafe { arena_from_handle(arena) };
-    // Hit testing reads overflow, and reading overflow never measures it.
-    arena.measure_scrollable_overflow();
-    let mut hit_test_list = arena.hit_test_list.borrow_mut();
-    let Some(list) = hit_test_list.as_mut() else {
-        return default;
-    };
-    list.build_caret_lines_if_needed(arena);
-    query(list, arena)
-}
-
-fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
-    arena: *mut c_void,
-    needs_caret_lines: bool,
-    default: R,
-    query: impl FnOnce(
-        &crate::painting::hit_test::HitTestList,
-        &crate::painting::visual_context::VisualContextTree,
-        &crate::layout::LayoutNodeArena,
-    ) -> R,
-) -> R {
-    // SAFETY: The caller passes a live arena handle (documented on every entry point below).
-    let arena = unsafe { arena_from_handle(arena) };
-    // Hit testing reads overflow, and reading overflow never measures it.
-    arena.measure_scrollable_overflow();
-    let mut hit_test_list = arena.hit_test_list.borrow_mut();
-    let Some(list) = hit_test_list.as_mut() else {
-        return default;
-    };
-    list.build_spatial_indexes_if_needed();
-    if needs_caret_lines {
-        list.build_caret_lines_if_needed(arena);
-    }
-    // Geometry queries can update overflow and dirty the visual context state. Keep the
-    // current tree alive without borrowing that state for the duration of the query.
-    let Some(tree) = arena.paint_state().borrow().visual_context.tree.clone() else {
-        return default;
-    };
-    query(list, &tree, arena)
-}
-
-fn ffi_topmost(item: Option<crate::painting::hit_test::query::TopmostItem>) -> crate::painting::host::FfiTopmostItem {
-    match item {
-        Some(item) => crate::painting::host::FfiTopmostItem {
-            has_item: true,
-            index: item.index,
-            local: item.local_point.into(),
-        },
-        None => crate::painting::host::FfiTopmostItem::default(),
-    }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_item(
-    arena: *mut c_void,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    point: FfiCssPixelPoint,
-) -> crate::painting::host::FfiTopmostItem {
-    with_hit_test_list_spatial_indexes_and_visual_context_tree(arena, false, Default::default(), |list, tree, arena| {
-        ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into()))
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_items_for_caret(
-    arena: *mut c_void,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    point: FfiCssPixelPoint,
-) -> crate::painting::host::FfiTopmostItemsForCaret {
-    with_hit_test_list_spatial_indexes_and_visual_context_tree(arena, false, Default::default(), |list, tree, arena| {
-        let (caret_item, hit_item) = list.find_topmost_items_for_caret(arena, tree, &callbacks, point.into());
-        crate::painting::host::FfiTopmostItemsForCaret {
-            caret_item: ffi_topmost(caret_item),
-            hit_item: ffi_topmost(hit_item),
-        }
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_all(
-    arena: *mut c_void,
-    callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
-    point: FfiCssPixelPoint,
-    push_context: *mut c_void,
-    push: unsafe extern "C" fn(*mut c_void, usize),
-) {
-    let indices =
-        with_hit_test_list_spatial_indexes_and_visual_context_tree(arena, false, Vec::new(), |list, tree, arena| {
-            list.hit_test_all(arena, tree, &callbacks, point.into())
-        });
-    for index in indices {
-        // SAFETY: The C++ sink consumes the index synchronously.
-        unsafe { push(push_context, index) };
-    }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_item_at_line_edge(
-    arena: *mut c_void,
-    line_index: usize,
-    position_type: u8,
-) -> usize {
-    let position_type = crate::painting::hit_test::caret::CaretPositionType::from_u8(position_type);
-    with_hit_test_list_and_caret_lines(arena, usize::MAX, |list, _| {
-        list.item_at_line_edge(line_index, position_type)
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_caret_item_for_line(
-    arena: *mut c_void,
-    line_index: usize,
-    point: FfiCssPixelPoint,
-    mode: u8,
-) -> crate::painting::host::FfiCaretItemForLine {
-    with_hit_test_list_and_caret_lines(arena, Default::default(), |list, arena| {
-        match list.caret_item_for_line(
-            arena,
-            line_index,
-            point.into(),
-            crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode),
-        ) {
-            Some((item_index, position_type)) => crate::painting::host::FfiCaretItemForLine {
-                has_item: true,
-                item_index,
-                position_type: position_type as u8,
-            },
-            None => Default::default(),
-        }
-    })
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_line_block_coordinate(arena: *mut c_void, line_index: usize) -> i32 {
-    with_hit_test_list_and_caret_lines(arena, 0, |list, _| list.line_block_coordinate(line_index).raw_value())
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_item_is_inline_adjacent_to_line(
-    arena: *mut c_void,
-    item_index: usize,
-    line_index: usize,
-) -> bool {
-    with_hit_test_list_and_caret_lines(arena, false, |list, _| {
-        list.item_is_inline_adjacent_to_line(item_index, line_index)
-    })
-}
-
 /// # Safety
 /// `arena` is live and used on the document thread.
 #[unsafe(no_mangle)]
@@ -2558,7 +2166,6 @@ mod tests {
     use crate::css::css_pixels::CssPixelRect;
     use crate::layout::LayoutNodeArena;
     use crate::layout::node_data::NodeKind;
-    use crate::painting::hit_test::HitTestList;
     use crate::painting::host::RootBackgroundSource;
     use crate::painting::paintable_data::FfiOverflowData;
     use crate::painting::record::damage::PaintDamage;
@@ -2566,8 +2173,8 @@ mod tests {
     use crate::painting::visual_context::{TransformData, TransformDataRole, VisualContextTree};
 
     #[test]
-    fn hit_test_queries_can_remeasure_viewport_overflow_and_invalidate_painting() {
-        for (spatial_indexes, caret_lines) in [(true, false), (true, true), (false, true), (false, false)] {
+    fn publishing_measured_rows_can_remeasure_viewport_overflow_and_invalidate_painting() {
+        {
             let mut arena = LayoutNodeArena::new();
             let viewport = arena.allocate_for_test().slot;
             arena.write_shape(viewport).set_kind(NodeKind::Viewport);
@@ -2575,7 +2182,6 @@ mod tests {
             arena.scrollable_overflow.viewport.set(Some(viewport));
             let root = arena.allocate_for_test().slot;
             arena.populate_paintable_row(root);
-            *arena.hit_test_list.borrow_mut() = Some(HitTestList::default());
             {
                 let mut state = arena.paint_state().borrow_mut();
                 state.root_background_source = Some(RootBackgroundSource {
@@ -2612,22 +2218,11 @@ mod tests {
             arena.note_publishing_paint_recording_started();
             arena.clear_paint_damage_consumed_by_published_recording();
 
-            let handle = std::ptr::from_mut(&mut arena).cast();
-            let query = |_: &HitTestList, arena: &LayoutNodeArena| {
-                crate::painting::paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), viewport)
-            };
-            let rect = if spatial_indexes {
-                with_hit_test_list_spatial_indexes_and_visual_context_tree(
-                    handle,
-                    caret_lines,
-                    None,
-                    |list, _, arena| query(list, arena),
-                )
-            } else if caret_lines {
-                with_hit_test_list_and_caret_lines(handle, None, query)
-            } else {
-                with_hit_test_list_items_only(handle, None, query)
-            };
+            // Hit testing reads rows published with every row's overflow measured.
+            let rows = arena.publish_row_snapshot(true);
+            let absolute_rects = std::cell::RefCell::default();
+            let source = crate::painting::paint_read::PaintSource::over_rows(&rows.paintable, &absolute_rects);
+            let rect = crate::painting::paintable_geometry::scrollable_overflow_rect(&source, viewport);
             assert_eq!(rect, Some(CssPixelRect::default()));
             assert!(arena.scrollable_overflow.geometry_changed.get());
             assert!(arena.scrollable_overflow.scrollability_changed.get());

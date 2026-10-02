@@ -13,6 +13,7 @@
 //! and the trace reach it, through [`crate::render_state::DocumentHost::recording`].
 
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::hit_test::HitTestList;
 use crate::painting::paint_read::PaintSource;
 use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
 use crate::painting::published_frame::PublishedFrame;
@@ -141,12 +142,14 @@ impl RecordingJob {
 }
 
 /// What a document keeps of its recordings: the recording its host is to publish, the trace that
-/// recording left, and the recorder state the next recording records with.
+/// recording left, the recorder state the next recording records with, and the hit-test list of the
+/// last recording published, which hit testing reads.
 #[derive(Default)]
 pub(crate) struct RecordingSlot {
     pending_recording: Option<PendingRecording>,
     pending_recording_trace: Option<PendingRecordingTrace>,
-    recorder: RecorderState,
+    pub(super) recorder: RecorderState,
+    pub(super) hit_test_list: Option<HitTestList>,
 }
 
 impl RecordingSlot {
@@ -167,6 +170,16 @@ impl RecordingSlot {
     /// The recorder state, which the recording entry and the publication read and write.
     pub(crate) fn recorder(&mut self) -> &mut RecorderState {
         &mut self.recorder
+    }
+
+    /// The hit-test list of the last recording published, if any was.
+    pub(crate) fn hit_test_list(&mut self) -> &mut Option<HitTestList> {
+        &mut self.hit_test_list
+    }
+
+    /// How many items the next recording's hit-test list may hold, going by the last one's.
+    pub(crate) fn hit_test_item_capacity_hint(&self) -> usize {
+        self.hit_test_list.as_ref().map_or(0, |list| list.items.len())
     }
 
     /// The recorder state, for a recording to take until it answers.
@@ -231,7 +244,7 @@ mod tests {
         let published = Arc::new(RecordingOutput::default());
         slot.recorder().published_recording = Some(published.clone());
 
-        let job = RecordingJob::new(arena.freeze_frame(), slot.take_recorder(), NodeSlotId::INVALID, false);
+        let job = RecordingJob::new(arena.freeze_frame(0), slot.take_recorder(), NodeSlotId::INVALID, false);
         assert!(slot.recorder().published_recording.is_none());
         let RecordingJob { recorder, .. } = job;
         slot.accept_recording_answer(RecordingAnswer {

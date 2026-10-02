@@ -9,6 +9,7 @@ use crate::layout::node_data::NodeSlotId;
 use libgfx_rust::WindingRule;
 use libgfx_rust::path::{OwnedPath, PathBuilder};
 use std::cell::RefCell;
+use std::sync::Arc;
 
 /// The state an `<area>`'s `shape` attribute represents, as the HTML image map processing model
 /// enumerates it.
@@ -179,8 +180,12 @@ fn shape_path(shape: AreaShape, coords: &[f64]) -> Option<OwnedPath> {
 // row can ask for. An image with no image map has no entry, which is nearly every image.
 #[derive(Default)]
 pub struct ImageMapAreaColumn {
-    maps: RefCell<FastMap<NodeSlotId, Box<[PublishedImageMapArea]>>>,
+    /// Shared with the rows published for the host, so a write copies the maps only while those hold them.
+    maps: RefCell<Arc<ImageMaps>>,
 }
+
+/// The `<area>` elements of the image map of every image that has one, by the image's paintable row.
+pub type ImageMaps = FastMap<NodeSlotId, Arc<[PublishedImageMapArea]>>;
 
 impl ImageMapAreaColumn {
     /// Publishes the `<area>` elements of the image map an image is associated with, in tree order.
@@ -190,33 +195,46 @@ impl ImageMapAreaColumn {
         }
         let mut published = self.maps.borrow_mut();
         if areas.is_empty() {
-            published.remove(&slot);
+            if published.contains_key(&slot) {
+                Arc::make_mut(&mut published).remove(&slot);
+            }
         } else {
-            published.insert(slot, areas);
+            Arc::make_mut(&mut published).insert(slot, areas.into());
         }
     }
 
     pub fn forget(&self, slot: NodeSlotId) {
-        self.maps.borrow_mut().remove(&slot);
+        let mut published = self.maps.borrow_mut();
+        if published.contains_key(&slot) {
+            Arc::make_mut(&mut published).remove(&slot);
+        }
     }
 
-    /// The first area of the image's map, in tree order, whose shape covers the point, named by
-    /// its style-tree identity. Zero when the image has no map, or no shape covers the point.
-    pub fn area_for_point(&self, slot: NodeSlotId, x: f32, y: f32) -> u32 {
-        let published = self.maps.borrow();
-        let Some(areas) = published.get(&slot) else {
-            return 0;
-        };
-        // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
-        // Pointing device interaction with an image associated with a set of layered shapes per the above algorithm
-        // must result in the relevant user interaction events being first fired to the top-most shape covering the
-        // point that the pointing device indicated, if any, or to the image element itself, if there is no shape
-        // covering that point.
-        // NB: The shapes are layered in reverse tree order, so the top-most shape covering the point belongs to the
-        //     first area element in tree order whose shape contains the point.
-        areas
-            .iter()
-            .find(|area| area.coverage.contains_point(x, y))
-            .map_or(0, |area| area.style_node)
+    /// The maps as they are now, for the host to read.
+    pub(crate) fn snapshot(&self) -> Arc<ImageMaps> {
+        self.maps.borrow().clone()
     }
+
+    /// Where the maps are, which moves when a write copies the ones a snapshot shares.
+    pub(crate) fn address(&self) -> usize {
+        Arc::as_ptr(&self.maps.borrow()).addr()
+    }
+}
+
+/// The first area of the map of the image whose paintable row is `slot`, in tree order, whose shape covers the point,
+/// named by its style-tree identity. Zero when the image has no map, or no shape covers the point.
+pub(crate) fn area_for_point(maps: &ImageMaps, slot: NodeSlotId, x: f32, y: f32) -> u32 {
+    let Some(areas) = maps.get(&slot) else {
+        return 0;
+    };
+    // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
+    // Pointing device interaction with an image associated with a set of layered shapes per the above algorithm must
+    // result in the relevant user interaction events being first fired to the top-most shape covering the point that
+    // the pointing device indicated, if any, or to the image element itself, if there is no shape covering that point.
+    // NB: The shapes are layered in reverse tree order, so the top-most shape covering the point belongs to the first
+    //     area element in tree order whose shape contains the point.
+    areas
+        .iter()
+        .find(|area| area.coverage.contains_point(x, y))
+        .map_or(0, |area| area.style_node)
 }

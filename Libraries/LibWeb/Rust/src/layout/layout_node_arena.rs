@@ -655,8 +655,9 @@ struct TextNodeState {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub(crate) struct RowsVersion {
     writes: u64,
-    /// Where the paint fact tables are, which moves when a write copies one a publication shares.
-    tables: [usize; 3],
+    /// Where the paint fact tables, the image maps and the visual context tree are, which moves
+    /// when a write copies one a publication shares or replaces the tree.
+    tables: [usize; 5],
 }
 
 #[derive(Default)]
@@ -1137,7 +1138,6 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     // Hit testing can measure overflow and invalidate painting state while querying this list.
-    pub(crate) hit_test_list: RefCell<Option<crate::painting::hit_test::HitTestList>>,
     // Reuse workspace allocations without making recording scratch part of the committed paint state.
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
@@ -1257,7 +1257,6 @@ impl LayoutNodeArena {
             innermost_run: Cell::new((NodeSlotId::INVALID, NodeSlotId::INVALID)),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
-            hit_test_list: RefCell::new(None),
             scrollable_overflow: Default::default(),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
             nodes_with_layout_update_flags: RefCell::new(Vec::new()),
@@ -3553,6 +3552,13 @@ impl LayoutNodeArena {
                 Arc::as_ptr(&self.replaced_paint_facts.borrow()).addr(),
                 Arc::as_ptr(&self.layer_image_paint_facts.borrow()).addr(),
                 self.svg_paint_resources.address(),
+                self.image_map_areas().address(),
+                self.paint_state
+                    .borrow()
+                    .visual_context
+                    .tree
+                    .as_ref()
+                    .map_or(0, |tree| Arc::as_ptr(tree).addr()),
             ],
         }
     }
