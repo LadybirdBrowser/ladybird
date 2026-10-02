@@ -15,11 +15,14 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
+use crate::runtime::boolean_object::BooleanObject;
 use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::Error;
 use crate::runtime::native_function::NativeFunction;
+use crate::runtime::number_object::NumberObject;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shared_function_instance_data::FunctionKind;
+use crate::runtime::string_object::StringObject;
 use crate::utf16::Utf16View;
 
 /// Where and how to print. A Vec<u8> stream stands in for the StringBuilder C++ can print into.
@@ -279,6 +282,26 @@ fn print_error(
     Ok(())
 }
 
+fn print_boolean_object(
+    print_context: &mut PrintContext<'_>,
+    boolean_object: Gc<BooleanObject>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Boolean")?;
+    js_out(print_context, " ")?;
+    print_value(print_context, Value::from_bool(boolean_object.boolean()), seen_objects)
+}
+
+fn print_number_object(
+    print_context: &mut PrintContext<'_>,
+    number_object: Gc<NumberObject>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Number")?;
+    js_out(print_context, " ")?;
+    print_value(print_context, Value::from_f64(number_object.number()), seen_objects)
+}
+
 fn is_error_object(object: Gc<Object>) -> bool {
     object.is::<Error>()
 }
@@ -287,6 +310,20 @@ fn is_error_object(object: Gc<Object>) -> bool {
 /// of the realm it was made in.
 fn is_error_prototype_of_its_realm(vm: &Vm, prototype: Gc<Object>) -> bool {
     prototype == prototype.shape().realm().intrinsics().error_prototype(vm)
+}
+
+fn print_string_object(
+    print_context: &mut PrintContext<'_>,
+    string_object: Gc<StringObject>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "String")?;
+    js_out(print_context, " ")?;
+    print_value(
+        print_context,
+        Value::from_string(string_object.primitive_string()),
+        seen_objects,
+    )
 }
 
 fn print_value(
@@ -333,12 +370,22 @@ fn print_value(
 
         // NB: Print.cpp goes on to check for the classes the runtime does not have yet, which their units add here in
         //     this order, each printed by the function Print.cpp names after it: RegExpObject, Map, Set, WeakMap,
-        //     WeakSet, WeakRef, DataView, ProxyObject, Promise, ArrayBuffer, GeneratorObject, AsyncGenerator, the typed
-        //     arrays (object.is_typed_array()), BooleanObject, NumberObject, StringObject, then Intl.DisplayNames,
-        //     Intl.Locale, Intl.ListFormat, Intl.NumberFormat, Intl.DateTimeFormat, Intl.RelativeTimeFormat,
-        //     Intl.PluralRules, Intl.Collator, Intl.Segmenter, Segments, Intl.DurationFormat, and Temporal.Duration,
-        //     Temporal.Instant, Temporal.PlainDate, Temporal.PlainDateTime, Temporal.PlainMonthDay, Temporal.PlainTime,
-        //     Temporal.PlainYearMonth and Temporal.ZonedDateTime. Everything else is printed as an ordinary object.
+        //     WeakSet, WeakRef, DataView, ProxyObject, Promise, ArrayBuffer, GeneratorObject, AsyncGenerator and the
+        //     typed arrays (object.is_typed_array()).
+        if let Some(boolean_object) = object.downcast::<BooleanObject>() {
+            return print_boolean_object(print_context, boolean_object, seen_objects);
+        }
+        if let Some(number_object) = object.downcast::<NumberObject>() {
+            return print_number_object(print_context, number_object, seen_objects);
+        }
+        if let Some(string_object) = object.downcast::<StringObject>() {
+            return print_string_object(print_context, string_object, seen_objects);
+        }
+        // NB: Print.cpp then checks for Intl.DisplayNames, Intl.Locale, Intl.ListFormat, Intl.NumberFormat,
+        //     Intl.DateTimeFormat, Intl.RelativeTimeFormat, Intl.PluralRules, Intl.Collator, Intl.Segmenter, Segments,
+        //     Intl.DurationFormat, and Temporal.Duration, Temporal.Instant, Temporal.PlainDate, Temporal.PlainDateTime,
+        //     Temporal.PlainMonthDay, Temporal.PlainTime, Temporal.PlainYearMonth and Temporal.ZonedDateTime.
+        //     Everything else is printed as an ordinary object.
         return print_object(print_context, object, seen_objects);
     }
 

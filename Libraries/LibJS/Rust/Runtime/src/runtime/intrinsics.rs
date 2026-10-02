@@ -48,11 +48,14 @@ use crate::runtime::function_prototype::FunctionPrototype;
 use crate::runtime::generator_function_constructor::GeneratorFunctionConstructor;
 use crate::runtime::generator_function_prototype::GeneratorFunctionPrototype;
 use crate::runtime::generator_prototype::GeneratorPrototype;
+use crate::runtime::global_object::GlobalObject;
 use crate::runtime::iterator_constructor::IteratorConstructor;
 use crate::runtime::iterator_helper_prototype::IteratorHelperPrototype;
 use crate::runtime::iterator_prototype::IteratorPrototype;
+use crate::runtime::json_object::JSONObject;
 use crate::runtime::map_iterator_prototype::MapIteratorPrototype;
-use crate::runtime::native_function::NativeFunction;
+use crate::runtime::math_object::MathObject;
+use crate::runtime::native_function::{NativeFunction, RawNativeFunction, raw_native};
 use crate::runtime::number_constructor::NumberConstructor;
 use crate::runtime::number_prototype::NumberPrototype;
 use crate::runtime::object::{Object, allocate_object};
@@ -647,7 +650,7 @@ unimplemented_builtin_types! {
     initialize_temporal_zoned_date_time => "Temporal.ZonedDateTime",
 }
 
-/// The lazy accessors of the namespace objects, the abstract operations written in JavaScript and the default
+/// The lazy accessors of the other namespace objects, the abstract operations written in JavaScript and the default
 /// collator, none of which the runtime has yet.
 macro_rules! unimplemented_lazy_intrinsics {
     ($($name:ident: $type:ty => $description:literal,)*) => {
@@ -664,12 +667,32 @@ macro_rules! unimplemented_lazy_intrinsics {
     };
 }
 
+/// The lazy accessors of the namespace objects, which create the object the first time it is asked for, as the C++
+/// Intrinsics::snake_name_object() does.
+macro_rules! namespace_object_accessors {
+    ($($name:ident: $type:ty;)*) => {
+        impl Intrinsics {
+            $(
+                pub fn $name(&self, vm: &Vm) -> Gc<Object> {
+                    if self.$name.get().is_none() {
+                        self.$name.set(Some(<$type>::create(vm, self.realm).upcast()));
+                    }
+                    self.$name.get().expect("the namespace object was just created")
+                }
+            )*
+        }
+    };
+}
+
+namespace_object_accessors! {
+    json_object: JSONObject;
+    math_object: MathObject;
+}
+
 unimplemented_lazy_intrinsics! {
     atomics_object: Object => "%Atomics%",
     console_object: Object => "console",
     intl_object: Object => "%Intl%",
-    json_object: Object => "%JSON%",
-    math_object: Object => "%Math%",
     temporal_object: Object => "%Temporal%",
     async_iterator_close_abstract_operation_function: FunctionObject => "AsyncIteratorClose, written in JavaScript",
     get_method_abstract_operation_function: FunctionObject => "GetMethod, written in JavaScript",
@@ -947,8 +970,75 @@ impl Intrinsics {
         // Not included in JS_ENUMERATE_NATIVE_OBJECTS due to missing distinct prototype
         self.proxy_constructor.set(Some(ProxyConstructor::create(vm, realm)));
 
-        // NB: The global object functions (eval, isFinite, isNaN, parseFloat, parseInt, the URI functions, escape and
-        //     unescape) come with the global object's functions.
+        // Global object functions
+        // NB: %eval% comes with eval, before %isFinite%.
+        let global_object_functions = [
+            (
+                &self.is_finite_function,
+                raw_native!(GlobalObject::is_finite),
+                1,
+                &names.isFinite,
+            ),
+            (
+                &self.is_nan_function,
+                raw_native!(GlobalObject::is_nan),
+                1,
+                &names.isNaN,
+            ),
+            (
+                &self.parse_float_function,
+                raw_native!(GlobalObject::parse_float),
+                1,
+                &names.parseFloat,
+            ),
+            (
+                &self.parse_int_function,
+                raw_native!(GlobalObject::parse_int),
+                2,
+                &names.parseInt,
+            ),
+            (
+                &self.decode_uri_function,
+                raw_native!(GlobalObject::decode_uri),
+                1,
+                &names.decodeURI,
+            ),
+            (
+                &self.decode_uri_component_function,
+                raw_native!(GlobalObject::decode_uri_component),
+                1,
+                &names.decodeURIComponent,
+            ),
+            (
+                &self.encode_uri_function,
+                raw_native!(GlobalObject::encode_uri),
+                1,
+                &names.encodeURI,
+            ),
+            (
+                &self.encode_uri_component_function,
+                raw_native!(GlobalObject::encode_uri_component),
+                1,
+                &names.encodeURIComponent,
+            ),
+            (
+                &self.escape_function,
+                raw_native!(GlobalObject::escape),
+                1,
+                &names.escape,
+            ),
+            (
+                &self.unescape_function,
+                raw_native!(GlobalObject::unescape),
+                1,
+                &names.unescape,
+            ),
+        ];
+        for (slot, function, length, name) in global_object_functions {
+            slot.set(Some(
+                RawNativeFunction::create(vm, function, length, name, Some(realm), None, None).upcast(),
+            ));
+        }
 
         self.object_constructor.set(Some(ObjectConstructor::create(vm, realm)));
 
@@ -1080,8 +1170,17 @@ impl Intrinsics {
                 .get_without_side_effects(vm, &names.toString)
                 .as_function(),
         ));
-        // NB: Date.now, JSON.parse and JSON.stringify come with their builtins; until a realm has them, their
-        //     intrinsic accessors stop the process.
+        self.json_parse_function.set(Some(
+            self.json_object(vm)
+                .get_without_side_effects(vm, &names.parse)
+                .as_function(),
+        ));
+        self.json_stringify_function.set(Some(
+            self.json_object(vm)
+                .get_without_side_effects(vm, &names.stringify)
+                .as_function(),
+        ));
+        // NB: Date.now comes with the Date builtins; until a realm has them, its intrinsic accessor stops the process.
 
         assert!(self.array_prototype(vm).indexed_array_like_size() == 0);
         assert!(self.object_prototype(vm).indexed_array_like_size() == 0);
