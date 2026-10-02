@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target::before { content: "before"; color: rgb(255, 0, 0); transition: color 1000s steps(2, start); }
+    #target.changed::before { color: rgb(0, 0, 255); }
+</style>
+<div id="target" style="--width: 10cqw; width: var(--width)"></div>
+<script>
+    test(() => {
+        // The pseudo-element settles beside a record C++ computed: a container unit substituted into
+        // the element's own style keeps its record with C++, which the count of C++ recomputations
+        // shows. The pseudo-element's transition starts where the host installs the record the
+        // engine settled.
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        const start = internals.styleEngineCounters();
+        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        target.className = "changed";
+        internals.updateStyle();
+        const end = internals.styleEngineCounters();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
+        const transitions = target.getAnimations({ subtree: true }).map(animation => `${animation.transitionProperty} ${animation.effect.pseudoElement}`);
+        println(`transitions: ${transitions.join(",")}`);
+        println(`before: ${getComputedStyle(target, "::before").color}`);
+        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
+        println(`property bails: ${end.engineComputedRecordBailProperty - start.engineComputedRecordBailProperty}`);
+    });
+</script>
