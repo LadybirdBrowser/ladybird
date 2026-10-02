@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .outer { color: rgb(255, 0, 0); transition: color 1000s steps(2, start); }
+    .outer.green { color: rgb(0, 255, 0); }
+    .inner { transition: color 1000s steps(2, start); }
+</style>
+<div class="outer"><div><div class="inner"></div></div><span class="plain"></span></div>
+<script>
+    test(() => {
+        const outer = document.querySelector(".outer");
+        const inner = document.querySelector(".inner");
+        const plain = document.querySelector(".plain");
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        // The row owing the step has element children: they read the values the step started from,
+        // and a child declaring its own transition starts it towards the parent's after-change value.
+        outer.classList.add("green");
+        internals.updateStyle();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - before}`);
+        println(`outer: ${getComputedStyle(outer).color}, transitions ${outer.getAnimations().length}`);
+        println(`inner: ${getComputedStyle(inner).color}, transitions ${inner.getAnimations().length}`);
+        println(`plain: ${getComputedStyle(plain).color}, transitions ${plain.getAnimations().length}`);
+    });
+</script>

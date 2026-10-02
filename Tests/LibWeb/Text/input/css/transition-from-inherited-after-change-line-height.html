@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container { line-height: 1; }
+    .container.to { line-height: 2; }
+    .container.how { transition: line-height 1000s linear 0s; }
+    .transition { line-height: inherit; }
+    .transition.how { transition: line-height 1000s linear 0s; }
+</style>
+<div class="container"><div class="transition">Text sample</div></div>
+<script>
+    test(() => {
+        // The child's after-change line-height inherits the parent's after-change one, so the
+        // child starts its own transition in the same style change as the parent.
+        const container = document.querySelector(".container");
+        const child = document.querySelector(".transition");
+        container.classList.add("how");
+        child.classList.add("how");
+        internals.updateStyle();
+        container.classList.add("to");
+        internals.updateStyle();
+        println("container started one transition: " + (container.getAnimations().length === 1));
+        println("child started one transition: " + (child.getAnimations().length === 1));
+
+        container.getAnimations()[0].currentTime = 500000;
+        child.getAnimations()[0].currentTime = 500000;
+        println("container midpoint: " + getComputedStyle(container).lineHeight);
+        println("child midpoint: " + getComputedStyle(child).lineHeight);
+    });
+</script>

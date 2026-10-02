@@ -952,15 +952,11 @@ impl RetainedState {
                     .winner_groups
                     .semantic_delta_properties(None, state)
                     .any(super::property_declares_transitions);
-                // Its pseudo-element cascades include ones it does not have, from the UA style
-                // sheet's universal ::marker, ::backdrop and ::file-selector-button rules, so only
-                // the pseudo-elements it holds a record for inherit from it.
                 self.decide_transition_step(
                     node,
                     underlying_style_record,
                     moves_transition_declarations,
                     scratch.host_applies_animation_plans,
-                    self.computed_group_sets.assigned_pseudo_kinds(node).next().is_some(),
                     counters,
                 )?
             }

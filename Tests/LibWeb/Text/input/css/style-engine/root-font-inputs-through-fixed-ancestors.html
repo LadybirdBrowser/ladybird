@@ -56,7 +56,8 @@
         document.body.offsetWidth;
         println(`viewport after constant: ${values(target)}; new: ${values(added)}`);
 
-        // A root that starts a transition is computed in C++, so its font inputs fall back to the host's.
+        // A root that starts a transition is settled in the engine as well, so its font inputs need
+        // no fallback to the host's.
         root.classList.add("transitioning");
         root.style.fontSize = "30px";
         println(`transitioning root: ${values(target)}`);

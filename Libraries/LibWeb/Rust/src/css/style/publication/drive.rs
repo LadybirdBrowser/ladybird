@@ -186,21 +186,6 @@ struct DriveProgress {
 }
 
 impl RetainedState {
-    /// Whether what an explicit `inherit` of a non-inherited property reads from the parent, the
-    /// parent's record with the composition its animations laid over it, is what the child's
-    /// after-change style inherits. A parent that declares transitions may hold the current value
-    /// of one, which the after-change style leaves out and the host's transition decision cannot
-    /// tell from the parent's own.
-    fn parent_record_answers_explicit_inheritance(&self, parent: Option<StyleNodeID>) -> bool {
-        parent.is_none_or(|parent| {
-            self.computed_group_sets
-                .assigned_style_record(parent)
-                .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
-                .and_then(|view| unsafe { view.longhand_table.as_ref() })
-                .is_some_and(|table| !crate::css::style_compute::has_active_transition_properties(table))
-        })
-    }
-
     /// The font size the monospace recascade gives a drive target: the cascaded font-size of every
     /// ancestor it inherits from, root first, walked again from a 13px default. A pseudo-element
     /// inherits from its originating element. A length the walk cannot resolve from the document's
@@ -549,15 +534,6 @@ impl RetainedState {
         );
         // A tree-counting value is admitted only where the retained tree places the element.
         if results.uses_tree_counting_function && sibling_position.is_none() {
-            counters.bump(Counter::EngineComputedRecordBailDrive);
-            return Err(Unanswered::Refused);
-        }
-        // An `inherit` of a non-inherited property reads the half of the parent's style a child
-        // normally cannot see. The value is computed here, and the mark C++ leaves on the parent
-        // beside it travels with the row.
-        if results.explicitly_inherited_non_inherited_style_groups != 0
-            && !self.parent_record_answers_explicit_inheritance(parent)
-        {
             counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }
@@ -1156,15 +1132,6 @@ impl RetainedState {
         );
         // A tree-counting value is admitted only where the retained tree places the element.
         if results.uses_tree_counting_function && sibling_position.is_none() {
-            counters.bump(Counter::EngineComputedRecordBailDrive);
-            return Err(Unanswered::Refused);
-        }
-        // An `inherit` of a non-inherited property reads the half of the parent's style a child
-        // normally cannot see; a pseudo-element's parent is its originating element. The mark C++
-        // leaves beside it travels with the element's row.
-        if results.explicitly_inherited_non_inherited_style_groups != 0
-            && !self.parent_record_answers_explicit_inheritance(parent)
-        {
             counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }
