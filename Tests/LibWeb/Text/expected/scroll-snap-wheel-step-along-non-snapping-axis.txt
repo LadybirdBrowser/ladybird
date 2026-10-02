@@ -1,0 +1,1 @@
+scroll offset after a horizontal step: 10,0
