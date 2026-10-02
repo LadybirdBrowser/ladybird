@@ -55,3 +55,14 @@ const _: () = {
     const fn assert_send<T: Send>() {}
     assert_send::<RecorderState>();
 };
+
+impl RecorderState {
+    /// A recording that publishes assembles its frame in the retained paint-order tree, which no
+    /// longer describes the published recording once that recording is dropped: the next recording
+    /// copies nothing from it and records from scratch into a tree of its own.
+    pub(crate) fn forget_published_recording(&mut self) {
+        self.published_recording = None;
+        self.published_hit_test_items = None;
+        self.paint_order_tree = Default::default();
+    }
+}

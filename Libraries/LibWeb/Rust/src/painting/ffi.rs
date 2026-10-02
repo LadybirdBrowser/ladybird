@@ -1149,96 +1149,6 @@ pub unsafe extern "C" fn layout_arena_sticky_spatial_node_index(arena: *mut c_vo
         .map_or(u32::MAX, |state| state.node_index.0)
 }
 
-/// What a recording stage records from: the arena, borrowed for the stage, the frame frozen for
-/// it, the viewport it records, the inputs the document lent for the call, and the recorder's own
-/// state, which nothing else borrows while it runs.
-struct RecordingStageInput<'a> {
-    arena: &'a LayoutNodeArena,
-    frame: &'a crate::painting::published_frame::PublishedFrame,
-    viewport: NodeSlotId,
-    inputs: crate::painting::record::RecordingInputs<'a>,
-    recorder_state: &'a mut crate::painting::record::recorder_state::RecorderState,
-}
-
-/// What a recording stage recorded, which the document thread publishes.
-struct RecordingStageOutput {
-    recording: crate::painting::record::RecordingResult,
-    recording_from_scratch: Option<crate::painting::record::RecordingResult>,
-}
-
-const _: () = {
-    const fn assert_send<T: Send>() {}
-    assert_send::<RecordingStageOutput>();
-};
-
-/// The display list recording stage. It takes no main thread token, so nothing it calls can reach
-/// the host.
-fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOutput {
-    let RecordingStageInput {
-        arena,
-        frame,
-        viewport,
-        inputs,
-        recorder_state,
-    } = input;
-    let crate::painting::record::recorder_state::RecorderState {
-        published_recording,
-        published_hit_test_items,
-        paint_order_tree,
-        scratch,
-        absolute_rects,
-    } = recorder_state;
-    let source = crate::painting::paint_read::PaintSource::new(frame, absolute_rects);
-    // The retained tree describes the published tape and is written in place while a frame
-    // is assembled, so only a recording that publishes may copy from that frame or touch
-    // the tree; any other recording records from scratch into a tree of its own.
-    let mut throwaway_tree = crate::painting::record::order_tree::PaintOrderTree::default();
-    let (tree, source_recording, source_items) = if inputs.publishes_recording {
-        (
-            paint_order_tree,
-            published_recording.clone(),
-            published_hit_test_items.clone(),
-        )
-    } else {
-        (&mut throwaway_tree, None, None)
-    };
-    let copies_from_published_recording = source_recording.is_some();
-    let recording = crate::painting::record::traversal::record_display_list(
-        &source,
-        scratch,
-        tree,
-        viewport,
-        &inputs,
-        source_recording,
-        source_items,
-        true,
-        arena.paint_state().borrow().trace_recordings || crate::painting::record::verify::enabled_by_environment(),
-    );
-    // The oracle records the same frame from scratch into a throwaway tree whenever the
-    // published recording could have been copied from.
-    let recording_from_scratch =
-        (crate::painting::record::verify::enabled_by_environment() && copies_from_published_recording).then(|| {
-            let mut inputs_for_recording_from_scratch = inputs.clone();
-            inputs_for_recording_from_scratch.publishes_recording = false;
-            let mut tree_for_recording_from_scratch = crate::painting::record::order_tree::PaintOrderTree::default();
-            crate::painting::record::traversal::record_display_list(
-                &source,
-                scratch,
-                &mut tree_for_recording_from_scratch,
-                viewport,
-                &inputs_for_recording_from_scratch,
-                None,
-                None,
-                false,
-                false,
-            )
-        });
-    RecordingStageOutput {
-        recording,
-        recording_from_scratch,
-    }
-}
-
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
@@ -1296,52 +1206,30 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     // done.
     let frame = arena.freeze_frame();
     let arena: &LayoutNodeArena = arena;
-    let RecordingStageOutput {
-        recording,
-        recording_from_scratch,
-    } = {
+    let (tree_inputs, root_background_source, trace_recordings) = {
         let paint_state = arena.paint_state().borrow();
-        let visual_context = &paint_state.visual_context;
-        // SAFETY: The host lends the input arrays and buffers for this call. Only owned
-        // output and retained resources escape into the pending recording below.
-        let recording_inputs = unsafe {
-            inputs.borrow_recording_inputs(
-                visual_context
-                    .last_tree_inputs
-                    .expect("a recording follows a visual context update"),
-                paint_state
-                    .root_background_source
-                    .expect("a recording follows paint preparation"),
-            )
-        };
-        drop(paint_state);
-        let mut recorder = arena.recording().take_recorder();
-        let output = record_display_list_stage(RecordingStageInput {
-            arena,
-            frame: &frame,
-            viewport,
-            inputs: recording_inputs,
-            recorder_state: &mut recorder,
-        });
-        arena.recording().give_back_recorder(recorder);
-        output
+        (
+            paint_state
+                .visual_context
+                .last_tree_inputs
+                .expect("a recording follows a visual context update"),
+            paint_state
+                .root_background_source
+                .expect("a recording follows paint preparation"),
+            paint_state.trace_recordings,
+        )
     };
-    let trace_recordings = arena.paint_state().borrow().trace_recordings;
-    let trace = (trace_recordings && recording.output.capture_log_for_verification.is_some()).then_some(
-        crate::painting::paint_state::PendingRecordingTrace {
-            viewport,
-            should_paint_overlay: inputs.should_paint_overlay,
-        },
+    // SAFETY: The host lends the input arrays and buffers for this call. Only owned output and
+    // retained resources escape into the pending recording below.
+    let inputs = unsafe { inputs.borrow_recording_inputs(tree_inputs, root_background_source) };
+    let job = crate::painting::recording_slot::RecordingJob::new(
+        frame,
+        arena.recording().take_recorder(),
+        viewport,
+        trace_recordings,
     );
-    arena.recording().leave_pending(
-        crate::painting::paint_state::PendingRecording {
-            recording,
-            recording_from_scratch,
-            publishes_recording: inputs.publishes_recording,
-            svg_paint_resources: frame.svg_paint_resources().clone(),
-        },
-        trace,
-    );
+    let answer = job.run(&inputs);
+    arena.recording().accept_recording_answer(answer);
     true
 }
 
