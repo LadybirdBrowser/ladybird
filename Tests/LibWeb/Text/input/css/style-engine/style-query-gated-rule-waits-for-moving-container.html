@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --state {
+        syntax: "<custom-ident>";
+        inherits: false;
+        initial-value: off;
+    }
+    #container { --state: off; }
+    #container.on { --state: on; }
+    #target { color: rgb(255, 0, 0); }
+    @container style(--state: on) {
+        #target { color: rgb(0, 128, 0); }
+    }
+</style>
+<div id="container"><span id="target">target</span></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const refusals = () => internals.styleEngineCounters().engineComputedRecordGateIncompleteAnswer;
+        // The target's winners are published while its container's answer moves, so its gated
+        // rule waits for the container, and is decided again once the container settles.
+        for (const step of [1, 2, 3]) {
+            const before = refusals();
+            container.classList.toggle("on");
+            internals.updateStyle();
+            println(`step ${step}: ${getComputedStyle(target).color}, incomplete answers refused ${refusals() - before}`);
+        }
+    });
+</script>
