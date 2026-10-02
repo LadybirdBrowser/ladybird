@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        internals.grantTransientActivation();
+        const request = video.requestPictureInPicture();
+        video.setAttributeNS("urn:x", "x:disablepictureinpicture", "");
+        try {
+            await request;
+            println("Request with the namespaced attribute: resolved");
+        } catch (error) {
+            println(`Request with the namespaced attribute: ${error.name}`);
+        }
+        println(`Picture-in-Picture element: ${document.pictureInPictureElement === video ? "video" : document.pictureInPictureElement}`);
+
+        const left = new Promise(resolve => video.addEventListener("leavepictureinpicture", resolve, { once: true }));
+        video.setAttribute("disablepictureinpicture", "");
+        if (document.pictureInPictureElement)
+            await left;
+        println(`Picture-in-Picture element after the attribute without a namespace: ${document.pictureInPictureElement}`);
+        done();
+    });
+</script>

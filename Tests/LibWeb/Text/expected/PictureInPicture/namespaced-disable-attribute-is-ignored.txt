@@ -1,0 +1,3 @@
+Request with the namespaced attribute: resolved
+Picture-in-Picture element: video
+Picture-in-Picture element after the attribute without a namespace: null
