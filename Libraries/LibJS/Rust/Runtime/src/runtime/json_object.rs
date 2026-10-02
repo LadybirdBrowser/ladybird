@@ -377,6 +377,15 @@ impl JSONTextBytes<'_> {
         &self.utf8[..self.length]
     }
 
+    /// The text of a string or key without escapes, which `bytes` holds between two quotes, as C++ makes it with
+    /// from_utf8_without_validation().
+    fn unescaped_text<'a>(&self, bytes: &'a [u8]) -> &'a str {
+        assert!(self.bytes().as_ptr_range().contains(&bytes.as_ptr()) || bytes.is_empty());
+        debug_assert!(core::str::from_utf8(bytes).is_ok());
+        // SAFETY: The text is UTF-8 by construction, and `bytes` runs between two of its ASCII quotes.
+        unsafe { core::str::from_utf8_unchecked(bytes) }
+    }
+
     fn byte_offset_to_code_unit_offset(&self, byte_offset: usize) -> usize {
         if self.text.has_ascii_storage() {
             return byte_offset;
@@ -712,7 +721,7 @@ fn parse_simdjson_string<'a, T: SimdjsonValueOrDocument<'a>>(
     let candidate = &remaining[..quote_offset];
 
     let Some(backslash_offset) = candidate.iter().position(|byte| *byte == b'\\') else {
-        let candidate = core::str::from_utf8(candidate).expect("the text is UTF-8");
+        let candidate = json_text.unescaped_text(candidate);
         return Ok(Value::from_string(PrimitiveString::create(
             vm,
             Utf16String::from_utf8(candidate),
@@ -751,9 +760,7 @@ fn json_property_key(
         };
         PropertyKey::from(&unescaped_key)
     } else {
-        PropertyKey::from(Utf16FlyString::from_utf8(
-            core::str::from_utf8(raw_key).expect("the text is UTF-8"),
-        ))
+        PropertyKey::from(Utf16FlyString::from_utf8(state.text.unescaped_text(raw_key)))
     };
     let entry = state.property_keys.entry_for(raw_key);
     entry.raw_key = raw_key.to_vec();

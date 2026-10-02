@@ -226,7 +226,7 @@ unsafe extern "C" fn bytecode_dump_append_identifier(ctx: *mut c_void, index: u3
 unsafe extern "C" fn bytecode_dump_append_property_key(ctx: *mut c_void, index: u32, quoted: bool) {
     // SAFETY: The dumper passes our context.
     let builder = unsafe { bytecode_dump_builder(ctx) };
-    let property_key = Utf16View::of_fly_string(&builder.executable.property_key_table[index as usize]);
+    let property_key = Utf16View::of_fly_string(&builder.executable.property_key_table()[index as usize]);
     if quoted {
         builder.output.extend_from_slice(b"\x1b[36m`");
         property_key.append_as_wtf8_to(builder.output);

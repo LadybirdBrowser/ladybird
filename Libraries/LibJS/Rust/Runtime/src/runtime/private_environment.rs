@@ -15,11 +15,25 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 pub use crate::layout::environment::PrivateEnvironment;
 
-#[derive(Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default)]
 pub struct PrivateName {
     pub unique_id: u64,
     pub description: Utf16FlyString,
 }
+
+/// Utf16FlyString::operator==, which compares the raw words of the interned strings. Private names are never empty,
+/// the one string the Rust equality also matches by contents.
+fn fly_strings_are_equal(lhs: &Utf16FlyString, rhs: &Utf16FlyString) -> bool {
+    lhs.raw_identity() == rhs.raw_identity()
+}
+
+impl PartialEq for PrivateName {
+    fn eq(&self, other: &Self) -> bool {
+        self.unique_id == other.unique_id && fly_strings_are_equal(&self.description, &other.description)
+    }
+}
+
+impl Eq for PrivateName {}
 
 impl core::fmt::Debug for PrivateName {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -76,7 +90,7 @@ impl PrivateEnvironment {
             .private_names
             .borrow()
             .iter()
-            .find(|private_name| private_name.description == *description)
+            .find(|private_name| fly_strings_are_equal(&private_name.description, description))
             .cloned()
     }
 

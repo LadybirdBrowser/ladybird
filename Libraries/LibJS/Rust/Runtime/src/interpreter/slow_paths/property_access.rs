@@ -14,8 +14,8 @@ use libjs_abi::PutKind;
 use libjs_abi::value as nan_box;
 
 use crate::bytecode::executable::{
-    ObjectPropertyIteratorCache, ObjectPropertyIteratorCacheData, ObjectPropertyIteratorFastPath, PropertyLookupCache,
-    PropertyLookupCacheEntryType,
+    Executable, ObjectPropertyIteratorCache, ObjectPropertyIteratorCacheData, ObjectPropertyIteratorFastPath,
+    PropertyLookupCache, PropertyLookupCacheEntryType,
 };
 use crate::bytecode::op;
 use crate::bytecode::operand::{IdentifierTableIndex, OptionalIndex};
@@ -143,7 +143,7 @@ pub fn get_by_id(vm: &Vm, pc: u32, instruction: &op::GetById, values: &mut op::G
             vm,
             GetByIdMode::Normal,
             || optional_identifier(vm, &instruction.base_identifier),
-            &property_key,
+            property_key,
             base_value,
             base_value,
             cache,
@@ -207,7 +207,7 @@ pub fn get_by_id_with_this(
             vm,
             GetByIdMode::Normal,
             || None,
-            &property_key,
+            property_key,
             base_value,
             this_value,
             cache,
@@ -233,7 +233,7 @@ pub fn put_by_id(vm: &Vm, pc: u32, instruction: &op::PutById, values: &mut op::P
             base,
             value,
             || optional_identifier(vm, &instruction.base_identifier),
-            &property_key,
+            property_key,
             put_kind_from_operand(instruction.kind),
             strict_of(instruction.header.strict),
             Some(cache),
@@ -262,7 +262,7 @@ pub fn put_by_id_with_this(
             values.this_value,
             value,
             || None,
-            &name,
+            name,
             put_kind_from_operand(instruction.kind),
             strict_of(instruction.header.strict),
             Some(cache),
@@ -318,8 +318,7 @@ pub fn get_by_value_with_this(vm: &Vm, pc: u32, values: &mut op::GetByValueWithT
     SlowPathControl::continue_at(pc + op::GetByValueWithThis::LENGTH)
 }
 
-fn length_property_key(vm: &Vm) -> PropertyKey {
-    let executable = vm.current_executable();
+fn length_property_key(executable: &Executable) -> &PropertyKey {
     executable.get_property_key(
         executable
             .length_identifier
@@ -338,7 +337,7 @@ pub fn get_length(vm: &Vm, pc: u32, instruction: &op::GetLength, values: &mut op
             vm,
             GetByIdMode::Length,
             || optional_identifier(vm, &instruction.base_identifier),
-            &length_property_key(vm),
+            length_property_key(&executable),
             base_value,
             base_value,
             cache,
@@ -366,7 +365,7 @@ pub fn get_length_with_this(
             vm,
             GetByIdMode::Length,
             || None,
-            &length_property_key(vm),
+            length_property_key(&executable),
             base_value,
             this_value,
             cache,
@@ -378,8 +377,9 @@ pub fn get_length_with_this(
 }
 
 pub fn get_method(vm: &Vm, pc: u32, instruction: &op::GetMethod, values: &mut op::GetMethodValues) -> SlowPathControl {
-    let property_key = vm.current_executable().get_property_key(instruction.property);
-    let method = asm_try!(vm, pc, values.object.get_method(vm, &property_key));
+    let executable = vm.current_executable();
+    let property_key = executable.get_property_key(instruction.property);
+    let method = asm_try!(vm, pc, values.object.get_method(vm, property_key));
     values.dst = method.map_or(Value::UNDEFINED, Value::from_object);
     SlowPathControl::continue_at(pc + op::GetMethod::LENGTH)
 }
@@ -461,7 +461,7 @@ pub fn delete_by_id(
     instruction: &op::DeleteById,
     values: &mut op::DeleteByIdValues,
 ) -> SlowPathControl {
-    let property_key = vm.current_executable().get_property_key(instruction.property);
+    let property_key = vm.current_executable().get_property_key(instruction.property).clone();
     let result = asm_try!(
         vm,
         pc,
@@ -592,13 +592,13 @@ pub fn init_object_literal_property(
     let property_key = executable.get_property_key(instruction.property);
     object.define_direct_property(
         vm,
-        &property_key,
+        property_key,
         value,
         PropertyAttributes::new(Attribute::ENUMERABLE | Attribute::WRITABLE | Attribute::CONFIGURABLE),
     );
 
     if !object.shape().is_dictionary()
-        && let Some(metadata) = object.shape().lookup(&property_key)
+        && let Some(metadata) = object.shape().lookup(property_key)
     {
         let mut property_offsets = cache.property_offsets.borrow_mut();
         if property_slot >= property_offsets.len() {
@@ -645,16 +645,15 @@ pub fn get_private_by_id(
 
     if !base_value.is_object() {
         asm_try!(vm, pc, base_value.to_object(vm));
-        let name = vm.current_executable().get_identifier(instruction.property).clone();
-        let private_name = make_private_reference(vm, &name);
+        let private_name = make_private_reference(vm, vm.current_executable().get_identifier(instruction.property));
         let result = asm_try!(vm, pc, get_private_reference_value(vm, base_value, &private_name));
         values.dst = result;
         return SlowPathControl::continue_at(pc + op::GetPrivateById::LENGTH);
     }
 
-    let name = vm.current_executable().get_identifier(instruction.property).clone();
     let private_environment = running_private_environment(vm);
-    let private_name = private_environment.resolve_private_identifier(&name);
+    let private_name =
+        private_environment.resolve_private_identifier(vm.current_executable().get_identifier(instruction.property));
     let result = asm_try!(vm, pc, base_value.as_object().private_get(vm, &private_name));
     values.dst = result;
     SlowPathControl::continue_at(pc + op::GetPrivateById::LENGTH)
@@ -672,8 +671,7 @@ pub fn put_private_by_id(
 
     if !base_value.is_object() {
         let object = asm_try!(vm, pc, base_value.to_object(vm));
-        let name = vm.current_executable().get_identifier(instruction.property).clone();
-        let private_name = make_private_reference(vm, &name);
+        let private_name = make_private_reference(vm, vm.current_executable().get_identifier(instruction.property));
         asm_try!(
             vm,
             pc,
@@ -682,9 +680,9 @@ pub fn put_private_by_id(
         return SlowPathControl::continue_at(pc + op::PutPrivateById::LENGTH);
     }
 
-    let name = vm.current_executable().get_identifier(instruction.property).clone();
     let private_environment = running_private_environment(vm);
-    let private_name = private_environment.resolve_private_identifier(&name);
+    let private_name =
+        private_environment.resolve_private_identifier(vm.current_executable().get_identifier(instruction.property));
     asm_try!(vm, pc, base_value.as_object().private_set(vm, &private_name, value));
     SlowPathControl::continue_at(pc + op::PutPrivateById::LENGTH)
 }
@@ -1245,58 +1243,59 @@ pub fn try_put_by_id_cache(vm: &Vm, instruction: &op::PutById, values: &op::PutB
     let executable = vm.current_executable();
     let cache = executable.property_lookup_cache(instruction.cache as usize);
 
-    for entry in cache.entries_for_shape(object.shape()).as_slice() {
-        match entry.entry_type {
+    for entry in cache.entry_slots_for_shape(object.shape()) {
+        match entry.entry_type.get() {
             PropertyLookupCacheEntryType::ChangeOwnProperty => {
-                let Some(cached_shape) = entry.shape else {
+                let Some(cached_shape) = entry.shape.get() else {
                     continue;
                 };
                 if cached_shape != object.shape() {
                     continue;
                 }
                 if cached_shape.is_dictionary()
-                    && cached_shape.dictionary_generation() != entry.shape_dictionary_generation
+                    && cached_shape.dictionary_generation() != entry.shape_dictionary_generation.get()
                 {
                     continue;
                 }
-                let current = object.get_direct(entry.property_offset);
-                if current.is_accessor() || !entry.writes_data_property {
+                let current = object.get_direct(entry.property_offset.get());
+                if current.is_accessor() || !entry.writes_data_property.get() {
                     return false;
                 }
-                object.put_direct(entry.property_offset, value);
+                object.put_direct(entry.property_offset.get(), value);
                 return true;
             }
             PropertyLookupCacheEntryType::AddOwnProperty => {
-                if entry.from_shape != Some(object.shape()) {
+                if entry.from_shape.get() != Some(object.shape()) {
                     continue;
                 }
                 if !object_can_cache_property_additions(&object) {
                     continue;
                 }
                 if object.has_magical_length_property()
-                    && !property_addition_is_cacheable(vm, &object, &executable.get_property_key(instruction.property))
+                    && !property_addition_is_cacheable(vm, &object, executable.get_property_key(instruction.property))
                 {
                     continue;
                 }
-                let Some(cached_shape) = entry.shape else {
+                let Some(cached_shape) = entry.shape.get() else {
                     continue;
                 };
                 if !object.extensible() {
                     continue;
                 }
                 if cached_shape.is_dictionary()
-                    && object.shape().dictionary_generation() != entry.shape_dictionary_generation
+                    && object.shape().dictionary_generation() != entry.shape_dictionary_generation.get()
                 {
                     continue;
                 }
                 if entry
                     .prototype_chain_validity
+                    .get()
                     .is_some_and(|validity| !validity.is_valid())
                 {
                     continue;
                 }
                 object.unsafe_set_shape(cached_shape);
-                object.put_direct(entry.property_offset, value);
+                object.put_direct(entry.property_offset.get(), value);
                 return true;
             }
             _ => continue,
@@ -1314,20 +1313,22 @@ pub fn try_get_by_id_cache(base: Value, cache: &PropertyLookupCache) -> Value {
     let object = base.as_object();
     let shape = object.shape();
 
-    for entry in cache.entries_for_shape(shape).as_slice() {
-        if entry.entry_type == PropertyLookupCacheEntryType::GetMissingProperty {
+    for entry in cache.entry_slots_for_shape(shape) {
+        let entry_type = entry.entry_type.get();
+        if entry_type == PropertyLookupCacheEntryType::GetMissingProperty {
             if !object.is_cacheable_for_property_absence() {
                 continue;
             }
-            if Some(shape) != entry.shape {
+            if Some(shape) != entry.shape.get() {
                 continue;
             }
-            if shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation {
+            if shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation.get() {
                 continue;
             }
             if shape.prototype().is_some()
                 && !entry
                     .prototype_chain_validity
+                    .get()
                     .is_some_and(|validity| validity.is_valid())
             {
                 continue;
@@ -1335,35 +1336,36 @@ pub fn try_get_by_id_cache(base: Value, cache: &PropertyLookupCache) -> Value {
             return Value::UNDEFINED;
         }
 
-        if entry.entry_type != PropertyLookupCacheEntryType::GetOwnProperty
-            && entry.entry_type != PropertyLookupCacheEntryType::GetPropertyInPrototypeChain
+        if entry_type != PropertyLookupCacheEntryType::GetOwnProperty
+            && entry_type != PropertyLookupCacheEntryType::GetPropertyInPrototypeChain
         {
             continue;
         }
 
-        if let Some(cached_prototype) = entry.prototype {
-            if Some(shape) != entry.shape {
+        if let Some(cached_prototype) = entry.prototype.get() {
+            if Some(shape) != entry.shape.get() {
                 continue;
             }
-            if shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation {
+            if shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation.get() {
                 continue;
             }
             if !entry
                 .prototype_chain_validity
+                .get()
                 .is_some_and(|validity| validity.is_valid())
             {
                 continue;
             }
-            let value = cached_prototype.get_direct(entry.property_offset);
+            let value = cached_prototype.get_direct(entry.property_offset.get());
             if value.is_accessor() {
                 return Value::EMPTY;
             }
             return value;
-        } else if Some(shape) == entry.shape {
-            if shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation {
+        } else if Some(shape) == entry.shape.get() {
+            if shape.is_dictionary() && shape.dictionary_generation() != entry.shape_dictionary_generation.get() {
                 continue;
             }
-            let value = object.get_direct(entry.property_offset);
+            let value = object.get_direct(entry.property_offset.get());
             if value.is_accessor() {
                 return Value::EMPTY;
             }

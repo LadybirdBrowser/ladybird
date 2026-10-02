@@ -331,8 +331,15 @@ impl PropertyLookupCache {
     /// The entries that may be for `shape`. A megamorphic cache finds the one for the shape and moves it first, where
     /// the interpreter looks.
     pub fn entries_for_shape(&self, shape: Gc<Shape>) -> PropertyLookupCacheEntries {
+        Self::copy_entries(self.entry_slots_for_shape(shape))
+    }
+
+    /// entries_for_shape() in place, for the cache-only fast paths. The entries must not be held across anything that
+    /// may update the cache.
+    #[inline]
+    pub fn entry_slots_for_shape(&self, shape: Gc<Shape>) -> &[PropertyLookupCacheEntry] {
         let Some(data) = self.megamorphic_data() else {
-            return Self::copy_entries(self.entries());
+            return self.entries();
         };
 
         let find_entry = |entries: &[PropertyLookupCacheEntry], index: usize| {
@@ -343,11 +350,11 @@ impl PropertyLookupCache {
         let entry = find_entry(&data.primary_entries, megamorphic_primary_index(shape))
             .or_else(|| find_entry(&data.secondary_entries, megamorphic_secondary_index(shape)));
         let Some(entry) = entry else {
-            return Self::copy_entries(&[]);
+            return &[];
         };
 
         data.entry.set(entry);
-        Self::copy_entries(core::slice::from_ref(&data.entry))
+        core::slice::from_ref(&data.entry)
     }
 
     /// Records a new entry of `entry_type`, filled in by `callback`, moving the cache to the next tier when it has no
@@ -974,7 +981,11 @@ pub struct Executable {
     pub number_of_arguments: u32,
     pub is_strict_mode: bool,
     pub identifier_table: Vec<ak::Utf16FlyString>,
-    pub property_key_table: Vec<ak::Utf16FlyString>,
+    /// The property keys as the strings they were made from, which is how the bytecode dump prints them.
+    property_key_table: Vec<ak::Utf16FlyString>,
+    /// The property keys themselves, made once like the C++ PropertyKeyTable holds them, since turning a string into
+    /// a property key checks whether it is an array index.
+    property_keys: Box<[PropertyKey]>,
     pub string_table: Vec<ak::Utf16FlyString>,
     /// Sorted by start offset, and not overlapping.
     pub exception_handlers: Box<[ExceptionHandler]>,
@@ -1040,8 +1051,17 @@ impl Executable {
         &self.identifier_table[index.0 as usize]
     }
 
-    pub fn get_property_key(&self, index: PropertyKeyTableIndex) -> PropertyKey {
-        PropertyKey::from(self.property_key_table[index.0 as usize].clone())
+    pub fn get_property_key(&self, index: PropertyKeyTableIndex) -> &PropertyKey {
+        &self.property_keys[index.0 as usize]
+    }
+
+    pub fn property_key_table(&self) -> &[ak::Utf16FlyString] {
+        &self.property_key_table
+    }
+
+    pub fn set_property_key_table(&mut self, property_key_table: Vec<ak::Utf16FlyString>) {
+        self.property_keys = property_key_table.iter().cloned().map(PropertyKey::from).collect();
+        self.property_key_table = property_key_table;
     }
 
     pub fn get_string(&self, index: StringTableIndex) -> &Utf16FlyString {
@@ -1126,6 +1146,7 @@ impl Executable {
             is_strict_mode,
             identifier_table: Vec::new(),
             property_key_table: Vec::new(),
+            property_keys: Box::new([]),
             string_table: Vec::new(),
             exception_handlers: Box::new([]),
             shared_function_data: Box::new([]),
@@ -1214,7 +1235,7 @@ impl Executable {
             data.is_strict,
         );
         executable.identifier_table = data.identifier_table;
-        executable.property_key_table = data.property_key_table;
+        executable.set_property_key_table(data.property_key_table);
         executable.string_table = data.string_table;
         executable.exception_handlers = data.exception_handlers.into_boxed_slice();
         executable.shared_function_data = shared_function_data;
@@ -1611,6 +1632,7 @@ fn parse_big_int_literal(literal: &str) -> SignedBigInteger {
 unsafe impl Trace for Executable {
     fn trace(&self, visitor: &mut Visitor) {
         visitor.visit_values(&self.constants);
+        self.property_keys.trace(visitor);
         for cache in &self.object_property_iterator_caches {
             cache.data.trace(visitor);
         }

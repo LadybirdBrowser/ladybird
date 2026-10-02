@@ -57,13 +57,18 @@ fn str4ncmp(json: &[u8], atom: &[u8]) -> bool {
 /// Stage 1: the offsets of the structural characters and of the first byte of every scalar outside a string, as
 /// simdjson's structural indexer finds them.
 fn find_structural_indexes(buffer: &[u8], length: usize) -> SimdjsonResult<Vec<u32>> {
-    let mut structural_indexes = Vec::new();
+    // NB: Like simdjson, make room for a structural character at every byte up front, plus the padding entries.
+    let mut structural_indexes = Vec::with_capacity(length + 3);
     let mut in_string = false;
     let mut is_escaped = false;
     let mut follows_nonquote_scalar = false;
     let mut unescaped_chars_error = false;
 
-    for (index, &character) in buffer[..length].iter().enumerate() {
+    let text = &buffer[..length];
+    let mut index = 0;
+    while index < length {
+        let character = text[index];
+
         // A backslash escapes the byte after it, inside strings or not, unless it is escaped itself.
         let escaped = is_escaped;
         is_escaped = character == b'\\' && !escaped;
@@ -86,6 +91,14 @@ fn find_structural_indexes(buffer: &[u8], length: usize) -> SimdjsonResult<Vec<u
             structural_indexes.push(index as u32);
         }
         follows_nonquote_scalar = is_scalar && !is_quote;
+        index += 1;
+
+        // NB: Inside a string, a byte other than a quote, a backslash or a control character changes nothing above:
+        //     it is not structural, escapes nothing and is no error, and the closing quote decides what follows the
+        //     string. So the loop skips such bytes without tracking that state for each of them.
+        if in_string && !is_escaped {
+            index += offset_of_first_string_special_byte(&text[index..]);
+        }
     }
 
     if in_string {
@@ -103,6 +116,33 @@ fn find_structural_indexes(buffer: &[u8], length: usize) -> SimdjsonResult<Vec<u
     structural_indexes.push(length as u32);
     structural_indexes.push(0);
     Ok(structural_indexes)
+}
+
+/// The offset of the first quote, backslash or control character in `text`, or its length if there is none. Eight
+/// bytes are checked at a time: in each word, a byte's high bit is set in the mask if the byte is one of those, with
+/// false positives only above the first true one, which the lowest set bit ignores.
+fn offset_of_first_string_special_byte(text: &[u8]) -> usize {
+    const ONES: u64 = u64::from_ne_bytes([0x01; 8]);
+    const HIGH_BITS: u64 = u64::from_ne_bytes([0x80; 8]);
+    let has_zero_byte = |word: u64| word.wrapping_sub(ONES) & !word & HIGH_BITS;
+
+    let mut offset = 0;
+    while offset + 8 <= text.len() {
+        let word = u64::from_le_bytes(text[offset..offset + 8].try_into().expect("the chunk has eight bytes"));
+        let quotes = has_zero_byte(word ^ u64::from_ne_bytes([b'"'; 8]));
+        let backslashes = has_zero_byte(word ^ u64::from_ne_bytes([b'\\'; 8]));
+        let control_characters = word.wrapping_sub(u64::from_ne_bytes([0x20; 8])) & !word & HIGH_BITS;
+        let special_bytes = quotes | backslashes | control_characters;
+        if special_bytes != 0 {
+            return offset + (special_bytes.trailing_zeros() / 8) as usize;
+        }
+        offset += 8;
+    }
+    offset
+        + text[offset..]
+            .iter()
+            .position(|&character| character == b'"' || character == b'\\' || character <= 0x1F)
+            .unwrap_or(text.len() - offset)
 }
 
 /// The json_iterator of a document: the position of the next token and the depth of the value being read.

@@ -105,7 +105,7 @@ impl ReflectObject {
 
         // 3. Perform PrepareForTailCall().
         // 4. Return ? Call(target, thisArgument, args).
-        call_function_object(vm, target.as_function(), this_argument, &args.to_vec())
+        args.with_values(|args| call_function_object(vm, target.as_function(), this_argument, args))
     }
 
     // 28.1.2 Reflect.construct ( target, argumentsList [ , newTarget ] ), https://tc39.es/ecma262/#sec-reflect.construct

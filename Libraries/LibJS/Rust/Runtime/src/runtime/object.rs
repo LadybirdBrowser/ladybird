@@ -1266,12 +1266,15 @@ impl Object {
             .position(|element| element.key == *name)
     }
 
-    fn private_element_at(&self, index: usize) -> PrivateElement {
-        self.private_elements
+    /// The [[Kind]] and [[Value]] of the private element at `index`, without copying its key.
+    fn private_element_kind_and_value_at(&self, index: usize) -> (PrivateElementKind, Value) {
+        let private_elements = self
+            .private_elements
             .get()
             .expect("the object has private elements")
-            .borrow()[index]
-            .clone()
+            .borrow();
+        let element = &private_elements[index];
+        (element.kind, element.value)
     }
 
     // 7.3.28 PrivateFieldAdd ( O, P, value ), https://tc39.es/ecma262/#sec-privatefieldadd
@@ -1342,12 +1345,10 @@ impl Object {
                 &[&name.description],
             );
         };
-        let entry = self.private_element_at(entry);
-
-        let value = entry.value;
+        let (kind, value) = self.private_element_kind_and_value_at(entry);
 
         // 3. If entry.[[Kind]] is either field or method, then
-        if entry.kind != PrivateElementKind::Accessor {
+        if kind != PrivateElementKind::Accessor {
             // a. Return entry.[[Value]].
             return Ok(value);
         }
@@ -1384,10 +1385,10 @@ impl Object {
                 &[&name.description],
             );
         };
-        let entry = self.private_element_at(entry_index);
+        let (kind, accessor) = self.private_element_kind_and_value_at(entry_index);
 
         // 3. If entry.[[Kind]] is field, then
-        if entry.kind == PrivateElementKind::Field {
+        if kind == PrivateElementKind::Field {
             // a. Set entry.[[Value]] to value.
             self.private_elements
                 .get()
@@ -1397,7 +1398,7 @@ impl Object {
             return Ok(());
         }
         // 4. Else if entry.[[Kind]] is method, then
-        else if entry.kind == PrivateElementKind::Method {
+        else if kind == PrivateElementKind::Method {
             // a. Throw a TypeError exception.
             return vm.throw_completion(
                 ErrorKind::TypeError,
@@ -1409,9 +1410,8 @@ impl Object {
         // 5. Else,
 
         // a. Assert: entry.[[Kind]] is accessor.
-        assert!(entry.kind == PrivateElementKind::Accessor);
+        assert!(kind == PrivateElementKind::Accessor);
 
-        let accessor = entry.value;
         assert!(accessor.is_accessor());
 
         // c. Let setter be entry.[[Set]].
@@ -2464,8 +2464,8 @@ impl Object {
         mut callback: impl FnMut(&PropertyKey, bool) -> ThrowCompletionOr<()>,
     ) -> ThrowCompletionOr<()> {
         if self.eligible_for_own_property_enumeration_fast_path() {
-            let keys = MarkedVec::with_capacity(
-                vm,
+            // NB: These are index and string keys, which hold no cells, so they need no rooting.
+            let mut keys = Vec::with_capacity(
                 self.indexed_real_size()
                     + self.shape().property_count() as usize
                     + usize::from(self.has_magical_length_property()),
@@ -2496,9 +2496,8 @@ impl Object {
                     ControlFlow::Continue(())
                 });
 
-            for index in 0..keys.len() {
-                let (property_key, enumerable) = keys.get(index).expect("the index is in bounds");
-                callback(&property_key, enumerable)?;
+            for (property_key, enumerable) in &keys {
+                callback(property_key, *enumerable)?;
             }
         } else {
             let keys = self.internal_own_property_keys(vm)?;
@@ -3716,13 +3715,26 @@ impl Object {
 
     // For FunctionPrototype.apply fast path
     pub fn indexed_packed_elements<'vm>(&self, vm: &'vm Vm) -> MarkedVec<'vm, Value> {
-        assert!(self.indexed_storage_kind() == IndexedStorageKind::Packed);
-        let count = self.indexed_packed_element_count();
+        let count = self.indexed_packed_elements_span_size();
         let elements = MarkedVec::with_capacity(vm, count as usize);
         for index in 0..count {
             elements.push(self.indexed_element(index));
         }
         elements
+    }
+
+    /// The size of indexed_packed_elements_span() in C++, which only packed storage has.
+    pub fn indexed_packed_elements_span_size(&self) -> u32 {
+        assert!(self.indexed_storage_kind() == IndexedStorageKind::Packed);
+        self.indexed_packed_element_count()
+    }
+
+    /// Copies the first elements of packed storage into `destination`.
+    pub fn copy_indexed_packed_elements(&self, destination: &mut [Value]) {
+        assert!(destination.len() <= self.indexed_packed_elements_span_size() as usize);
+        for (index, element) in destination.iter_mut().enumerate() {
+            *element = self.indexed_element(index as u32);
+        }
     }
 
     /// Writes one element of packed storage in place, as C++ writes through the span of
