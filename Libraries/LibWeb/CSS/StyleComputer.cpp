@@ -750,12 +750,13 @@ static RefPtr<CustomPropertyData const> inheritable_custom_property_data(DOM::Ab
 void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, AnimationRefresh refresh) const
 {
     if (refresh == AnimationRefresh::No) {
-        collect_animation_effects_into(abstract_element, effects, computed_properties);
+        collect_animation_effects_into(abstract_element, effects, computed_properties, {});
         publish_animated_custom_properties(computed_properties, abstract_element);
         return;
     }
     m_keyframes_inherited_non_inherited_style_groups = 0;
-    collect_animation_effects_into(abstract_element, effects, computed_properties);
+    // A refresh samples over the record the element holds, which the working set was reconstructed from.
+    collect_animation_effects_into(abstract_element, effects, computed_properties, abstract_element.style_record_identity());
     publish_animated_custom_properties(computed_properties, abstract_element);
     // An animation-only overlay update resolves keyframe values just like a full style computation does, so a
     // keyframe-borne `inherit` on a non-inherited property discovered here must leave the same invalidation
@@ -771,7 +772,7 @@ void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_elemen
     }
 }
 
-void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties) const
+void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, StyleRecordID sampled_style_record) const
 {
     // The style engine samples each effect from the description it holds of it, kept current here, right before
     // the element is sampled.
@@ -851,6 +852,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         .effect_count = sampled_effects.size(),
         .longhand_table = computed_properties.computed_longhand_table(),
         .animated_overlay = computed_properties.animated_overlay(Badge<StyleComputer> {}),
+        .style_record = sampled_style_record.value(),
         .custom_property_store = custom_property_data ? custom_property_data->rust_store() : nullptr,
         .base_custom_property_store = base_custom_property_data ? base_custom_property_data->rust_store() : nullptr,
         .inheritance_custom_property_store = inheritance_custom_property_data ? inheritance_custom_property_data->rust_store() : nullptr,

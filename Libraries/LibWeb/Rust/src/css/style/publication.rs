@@ -69,6 +69,21 @@ impl ElementAnswer {
 }
 
 impl RootFontInputs {
+    /// The metrics a `rem` resolves against, and whether they read the viewport.
+    pub(super) fn font_metrics(self) -> (crate::css::style_compute::FfiFontMetrics, bool) {
+        let [font_size, x_height, cap_height, zero_advance, line_height] = self.metrics.map(f64::from_bits);
+        (
+            crate::css::style_compute::FfiFontMetrics {
+                font_size,
+                x_height,
+                cap_height,
+                zero_advance,
+                line_height,
+            },
+            self.depends_on_viewport,
+        )
+    }
+
     fn apply_to(self, inputs: &mut bridge::FfiDocumentStyleComputationInputs) {
         inputs.root_font_size = f64::from_bits(self.metrics[0]);
         inputs.root_font_x_height = f64::from_bits(self.metrics[1]);
@@ -2284,7 +2299,7 @@ impl RetainedState {
             })
     }
 
-    fn root_font_inputs_from_record(&self, record: computed::FinalStyleRecordID) -> Option<RootFontInputs> {
+    pub(super) fn root_font_inputs_from_record(&self, record: computed::FinalStyleRecordID) -> Option<RootFontInputs> {
         use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
         let view = self.computed_group_sets.style_record_view(record.raw())?;
         let font = unsafe {

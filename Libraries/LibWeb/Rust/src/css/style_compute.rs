@@ -6042,6 +6042,9 @@ pub struct FfiHostAnimationSample {
     pub longhand_table: *const c_void,
     /// The working set's overlay before this sample, or null.
     pub animated_overlay: *const c_void,
+    /// The record the host holds for the element where the working set was reconstructed from it,
+    /// which the engine builds the length contexts over, or zero where the host builds them.
+    pub style_record: u64,
     /// The custom-property store the element holds now, which keyframes substitute against.
     pub custom_property_store: *const c_void,
     /// The same beneath the overlay of the sample before, which animations compose over.
@@ -6306,15 +6309,24 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
                 .map_or(u32::MAX, |index| 1 << index);
     }
 
-    let mut length_contexts = std::mem::MaybeUninit::<FfiAnimationLengthContexts>::uninit();
-    let length_contexts = unsafe {
-        (input.length_contexts)(
-            input.callback_context,
-            resolved.container_relative_length_unit_mask,
-            length_contexts.as_mut_ptr(),
-        );
-        length_contexts.assume_init()
-    };
+    // Over a record the host holds, the engine builds the length contexts itself. The host builds
+    // them over a working set it is computing, and wherever they need a container base: resolving
+    // one marks the container asked about and, before layout, has it evaluated again after.
+    let container_unit_mask = resolved.container_relative_length_unit_mask;
+    let length_contexts = (input.style_record != 0 && container_unit_mask == 0)
+        .then(|| engine.animation_sample_length_contexts(node, pseudo, input.style_record))
+        .flatten()
+        .unwrap_or_else(|| {
+            let mut length_contexts = std::mem::MaybeUninit::<FfiAnimationLengthContexts>::uninit();
+            unsafe {
+                (input.length_contexts)(
+                    input.callback_context,
+                    container_unit_mask,
+                    length_contexts.as_mut_ptr(),
+                );
+                length_contexts.assume_init()
+            }
+        });
 
     // The element's own side of the environment: its place among its siblings, and the random base
     // value each random function a keyframe holds draws.

@@ -68,6 +68,7 @@ mod custom_property_environments;
 #[cfg(test)]
 mod differential_tests;
 pub(crate) mod effect_descriptions;
+mod engine_sample;
 mod environment_move;
 pub mod exact_matcher;
 pub use crate::fast_hash;
@@ -935,6 +936,9 @@ pub struct RetainedState {
     animation_keyframes: animations::AnimationKeyframes,
     /// The animation effects the host holds for each element, described for sampling.
     animation_effect_descriptions: effect_descriptions::AnimationEffectDescriptions,
+    /// The font metrics of the record the host holds for the document element, which a `rem` the
+    /// host resolves reads, once it holds one.
+    held_root_font_inputs: Option<publication::RootFontInputs>,
     /// The random base value each random caching key has been given, for the random functions the
     /// document's styles hold.
     random_base_values: random_bases::RandomBaseValues,
