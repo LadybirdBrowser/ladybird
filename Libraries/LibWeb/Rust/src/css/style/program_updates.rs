@@ -85,13 +85,12 @@ impl RetainedState {
         &mut self,
         declarations: &[declaration_block::DeclaredProperty],
         counters: &mut Counters,
-    ) -> (Vec<DeclaredProperty>, Vec<RetainedStyleValueData>) {
+    ) -> Vec<(DeclaredProperty, RetainedStyleValueData)> {
         fn append(
             engine: &mut RetainedState,
             property: u16,
             declaration: &declaration_block::DeclaredProperty,
-            declared: &mut Vec<DeclaredProperty>,
-            written: &mut Vec<RetainedStyleValueData>,
+            declarations: &mut Vec<(DeclaredProperty, RetainedStyleValueData)>,
             counters: &mut Counters,
         ) {
             use crate::css::property_metadata::{longhands_for_shorthand, property_is_shorthand};
@@ -99,30 +98,21 @@ impl RetainedState {
             // whose children are themselves shorthands, so expand the complete property inventory.
             if property_is_shorthand(property) && !matches!(&*declaration.value, StyleValueData::Unresolved { .. }) {
                 for &longhand in longhands_for_shorthand(property) {
-                    append(engine, longhand, declaration, declared, written, counters);
+                    append(engine, longhand, declaration, declarations, counters);
                 }
             } else {
                 let mut value = engine.intern_declared_property(declaration, counters);
                 value.property = property;
-                declared.push(value);
-                written.push(unsafe {
+                declarations.push((value, unsafe {
                     RetainedStyleValueData::from_retained_pointer(Arc::into_raw(declaration.value.clone()))
-                });
+                }));
             }
         }
-        let mut declared = Vec::with_capacity(declarations.len());
-        let mut written = Vec::with_capacity(declarations.len());
+        let mut interned = Vec::with_capacity(declarations.len());
         for declaration in declarations {
-            append(
-                self,
-                declaration.property_id,
-                declaration,
-                &mut declared,
-                &mut written,
-                counters,
-            );
+            append(self, declaration.property_id, declaration, &mut interned, counters);
         }
-        (declared, written)
+        interned
     }
 
     pub(crate) fn intern_declared_property(

@@ -2761,14 +2761,10 @@ impl RetainedState {
                 ))
                 .then(group_mask),
                 WinnerSource::Element(kind) => {
-                    let (declared, _) = self.facts.element_declared_properties(node, kind);
-                    let written = self.facts.element_written_declared_values(node, kind);
-                    let index = declared.iter().rposition(|declared| {
-                        declared.property == winner.property
-                            && declared.important == winner.important
-                            && declared.value == winner.key.value
-                    });
-                    is_inherit_keyword(index.and_then(|index| written.get(index))).then(group_mask)
+                    is_inherit_keyword(self.facts.element_declarations(node, kind).and_then(|declarations| {
+                        declarations.winner_value(winner.property, winner.important, winner.key.value)
+                    }))
+                    .then(group_mask)
                 }
                 WinnerSource::ExactCascade => Some(u32::MAX),
             }
@@ -2937,28 +2933,16 @@ impl RetainedState {
                 .written_winner_declaration(rule, winner.property, winner.important, winner.key.value)
                 .map(|(index, value)| (index, value, self.program.written_value_checks(rule, index)))),
             WinnerSource::Element(kind) => {
-                let (declared, _) = self.facts.element_declared_properties(node, kind);
-                let complete = self
+                if !self
                     .facts
-                    .element_declarations_are_complete_but_for_custom_properties(node, kind);
-                let written = self.facts.element_written_declared_values(node, kind);
-                if !complete || written.len() != declared.len() {
+                    .element_declarations_are_complete_but_for_custom_properties(node, kind)
+                {
                     return Err(Counter::EngineComputedRecordBailWinnerElement);
                 }
-                Ok(declared
-                    .iter()
-                    .rposition(|declared| {
-                        declared.property == winner.property
-                            && declared.important == winner.important
-                            && declared.value == winner.key.value
-                    })
-                    .map(|index| {
-                        (
-                            index,
-                            &written[index],
-                            self.facts.element_written_value_checks(node, kind, index),
-                        )
-                    }))
+                Ok(self.facts.element_declarations(node, kind).and_then(|declarations| {
+                    let index = declarations.winner_index(winner.property, winner.important, winner.key.value)?;
+                    Some((index, declarations.written(index), declarations.checks(index)))
+                }))
             }
             WinnerSource::ExactCascade => Err(Counter::EngineComputedRecordBailWinnerOperator),
         }
@@ -2973,21 +2957,9 @@ impl RetainedState {
                 .program
                 .written_winner_declaration(rule, winner.property, winner.important, winner.key.value)
                 .map(|(_, value)| value),
-            WinnerSource::Element(kind) => {
-                let (declared, _) = self.facts.element_declared_properties(node, kind);
-                let written = self.facts.element_written_declared_values(node, kind);
-                if written.len() != declared.len() {
-                    return false;
-                }
-                declared
-                    .iter()
-                    .rposition(|declared| {
-                        declared.property == winner.property
-                            && declared.important == winner.important
-                            && declared.value == winner.key.value
-                    })
-                    .map(|index| &written[index])
-            }
+            WinnerSource::Element(kind) => self.facts.element_declarations(node, kind).and_then(|declarations| {
+                declarations.winner_value(winner.property, winner.important, winner.key.value)
+            }),
             WinnerSource::ExactCascade => None,
         };
         written.is_some_and(|value| match value.data() {
@@ -3010,24 +2982,21 @@ impl RetainedState {
         source: WinnerSource,
         written_value: *const crate::css::style_value::StyleValueData,
     ) -> Option<(u16, crate::css::style_value::RetainedStyleValueData)> {
-        let (declared, written): (&[DeclaredProperty], &[crate::css::style_value::RetainedStyleValueData]) =
-            match source {
-                WinnerSource::Rule(rule) => (
-                    self.program.declared_properties_of(rule),
-                    self.program.written_values_of(rule),
-                ),
-                WinnerSource::Element(kind) => (
-                    self.facts.element_declared_properties(node, kind).0,
-                    self.facts.element_written_declared_values(node, kind),
-                ),
-                WinnerSource::ExactCascade => return None,
-            };
-        if written.len() != declared.len() {
-            return None;
-        }
+        let declarations = match source {
+            WinnerSource::Rule(rule) => {
+                let declared = self.program.declared_properties_of(rule);
+                let written = self.program.written_values_of(rule);
+                if written.len() != declared.len() {
+                    return None;
+                }
+                declared.iter().zip(written)
+            }
+            WinnerSource::Element(kind) => self.facts.element_declarations(node, kind)?.iter(),
+            WinnerSource::ExactCascade => return None,
+        };
         let mut written_value = written_value;
         loop {
-            let (shorthand, value) = declared.iter().zip(written).find(|(declared, written)| {
+            let (shorthand, value) = declarations.clone().find(|(declared, written)| {
                 declared.property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
                     && std::ptr::eq(written.pointer(), written_value)
             })?;
@@ -3238,18 +3207,9 @@ impl RetainedState {
                     self.program
                         .written_winner_value(rule, winner.property, winner.important, winner.key.value)
                 }
-                WinnerSource::Element(kind) => {
-                    let (declared, _) = self.facts.element_declared_properties(node, kind);
-                    let written = self.facts.element_written_declared_values(node, kind);
-                    declared
-                        .iter()
-                        .rposition(|declared| {
-                            declared.property == winner.property
-                                && declared.important == winner.important
-                                && declared.value == winner.key.value
-                        })
-                        .and_then(|index| written.get(index))
-                }
+                WinnerSource::Element(kind) => self.facts.element_declarations(node, kind).and_then(|declarations| {
+                    declarations.winner_value(winner.property, winner.important, winner.key.value)
+                }),
                 WinnerSource::ExactCascade => None,
             }?;
             matches!(
@@ -5817,18 +5777,14 @@ mod tests {
             value: SpecifiedValueID(1),
         };
         let kind = ElementDeclarationKind::InlineStyle;
-        engine.facts.set_element_declared_properties(
-            first,
-            kind,
-            vec![declaration],
-            vec![RetainedStyleValueData::from_owned(StyleValueData::Number {
-                value: 0.5,
-            })],
-            true,
-        );
+        let written = || RetainedStyleValueData::from_owned(StyleValueData::Number { value: 0.5 });
         engine
             .facts
-            .set_element_declared_properties(second, kind, vec![declaration], Vec::new(), true);
+            .set_element_declared_properties(first, kind, vec![(declaration, written())], true);
+        // The second element's declarations are incomplete, which keeps its record from the engine.
+        engine
+            .facts
+            .set_element_declared_properties(second, kind, vec![(declaration, written())], false);
         let winner = PropertyWinner {
             property: declaration.property,
             important: false,

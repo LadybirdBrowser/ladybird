@@ -1608,10 +1608,8 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         kind: ElementDeclarationKind,
-        declared: &[DeclaredProperty],
-        written_values: Vec<RetainedStyleValueData>,
-        custom_declarations: Vec<CustomDeclaration>,
-        custom_written_values: Vec<RetainedStyleValueData>,
+        declarations: Vec<(DeclaredProperty, RetainedStyleValueData)>,
+        custom_declarations: Vec<(CustomDeclaration, RetainedStyleValueData)>,
         declarations_are_complete: bool,
         counters: &mut Counters,
     ) {
@@ -1621,7 +1619,7 @@ impl RetainedState {
             ElementDeclarationKind::PresentationalHint | ElementDeclarationKind::SvgPresentationAttribute
         ) {
             verify_cascade_winners(self, |_| {
-                let mut properties: Vec<u16> = declared.iter().map(|declared| declared.property).collect();
+                let mut properties: Vec<u16> = declarations.iter().map(|(declared, _)| declared.property).collect();
                 properties.sort_unstable();
                 assert!(
                     properties.windows(2).all(|pair| pair[0] != pair[1]),
@@ -1631,9 +1629,15 @@ impl RetainedState {
         }
         let (current_declared, current_declarations_are_complete) = self.facts.element_declared_properties(node, kind);
         if current_declarations_are_complete == declarations_are_complete
-            && current_declared == declared
+            && current_declared
+                .iter()
+                .eq(declarations.iter().map(|(declared, _)| declared))
             && (kind != ElementDeclarationKind::InlineStyle
-                || self.facts.element_custom_declarations(node) == custom_declarations.as_slice())
+                || self
+                    .facts
+                    .element_custom_declarations(node)
+                    .iter()
+                    .eq(custom_declarations.iter().map(|(declared, _)| declared)))
         {
             return;
         }
@@ -1650,20 +1654,15 @@ impl RetainedState {
                 Some((previous, retained, current_declared.to_vec()))
             })
             .flatten();
-        self.facts.set_element_declared_properties(
-            node,
-            kind,
-            declared.to_vec(),
-            written_values,
-            declarations_are_complete,
-        );
+        self.facts
+            .set_element_declared_properties(node, kind, declarations, declarations_are_complete);
         if kind == ElementDeclarationKind::InlineStyle {
-            self.facts
-                .set_element_custom_declarations(node, custom_declarations, custom_written_values);
+            self.facts.set_element_custom_declarations(node, custom_declarations);
         }
         let Some((previous, retained, previous_declared)) = repair_inputs else {
             return;
         };
+        let (declared, _) = self.facts.element_declared_properties(node, kind);
         let mut changed_properties: Vec<u16> = previous_declared
             .iter()
             .chain(declared)
