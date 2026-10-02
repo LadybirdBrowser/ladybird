@@ -23,6 +23,7 @@ use crate::runtime::big_int::SignedBigInteger;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::intl::abstract_operations::get_available_named_time_zone_identifier;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::realm::Realm;
 use crate::runtime::value_conversions::to_integer_or_infinity;
@@ -541,7 +542,7 @@ pub fn system_time_zone_identifier() -> Utf16String {
             return Utf16String::from_utf8("UTC");
         };
 
-        system_time_zone_string = time_zone_identifier.primary_identifier;
+        system_time_zone_string = time_zone_identifier.primary_identifier.clone();
     }
 
     // 3. Return systemTimeZoneString.
@@ -1344,68 +1345,4 @@ pub fn system_utc_epoch_milliseconds() -> f64 {
     (now_ns / 1_000_000) as f64
 }
 
-/// Whether two time zone identifiers are an ASCII-case-insensitive match.
-fn equals_ignoring_ascii_case(left: &[u16], right: Utf16View<'_>) -> bool {
-    let to_ascii_lowercase = |code_unit: u16| {
-        if (u16::from(b'A')..=u16::from(b'Z')).contains(&code_unit) {
-            code_unit + 0x20
-        } else {
-            code_unit
-        }
-    };
-    left.len() == right.length_in_code_units()
-        && left
-            .iter()
-            .zip(right.code_units())
-            .all(|(&left, right)| to_ascii_lowercase(left) == to_ascii_lowercase(right))
-}
-
 // 6.5.1 AvailableNamedTimeZoneIdentifiers ( ), https://tc39.es/ecma402/#sup-availablenamedtimezoneidentifiers
-/// The Time Zone Identifier Record that AvailableNamedTimeZoneIdentifiers() has for `identifier`.
-fn available_named_time_zone_identifier_record(identifier: &[u16]) -> TimeZoneIdentifier {
-    let identifier = Utf16String::from_utf16(identifier);
-    let identifier_view = Utf16View::of_string(&identifier);
-
-    // a. Let primary be identifier.
-    let mut primary = identifier.clone();
-
-    // b. If identifier is a Link name and identifier is not "UTC", then
-    if identifier_view != "UTC"
-        && let Some(resolved) = unicode_time_zone::resolve_primary_time_zone(identifier_view)
-        && identifier_view != Utf16View::of_string(&resolved)
-    {
-        // i. Set primary to the Zone name that identifier resolves to, according to the rules for resolving Link
-        //    names in the IANA Time Zone Database.
-        // ii. NOTE: An implementation may need to resolve identifier iteratively.
-        primary = resolved;
-    }
-
-    // c. If primary is one of "Etc/UTC", "Etc/GMT", or "GMT", set primary to "UTC".
-    let primary_view = Utf16View::of_string(&primary);
-    if primary_view == "Etc/UTC" || primary_view == "Etc/GMT" || primary_view == "GMT" {
-        primary = Utf16String::from_utf8("UTC");
-    }
-
-    // d. Let record be the Time Zone Identifier Record { [[Identifier]]: identifier, [[PrimaryIdentifier]]: primary }.
-    TimeZoneIdentifier {
-        identifier,
-        primary_identifier: primary,
-    }
-}
-
-// 6.5.2 GetAvailableNamedTimeZoneIdentifier ( timeZoneIdentifier ), https://tc39.es/ecma402/#sec-getavailablenamedtimezoneidentifier
-pub fn get_available_named_time_zone_identifier(time_zone_identifier: Utf16View<'_>) -> Option<TimeZoneIdentifier> {
-    // 1. For each element record of AvailableNamedTimeZoneIdentifiers(), do
-    //     a. If record.[[Identifier]] is an ASCII-case-insensitive match for timeZoneIdentifier, return record.
-    // NB: The records are made from the time zones LibUnicode has, in the same order, so only the one that matches is
-    //     made.
-    let Some(identifier) = unicode_time_zone::available_time_zones()
-        .iter()
-        .find(|identifier| equals_ignoring_ascii_case(identifier, time_zone_identifier))
-    else {
-        // 2. Return EMPTY.
-        return None;
-    };
-
-    Some(available_named_time_zone_identifier_record(identifier))
-}

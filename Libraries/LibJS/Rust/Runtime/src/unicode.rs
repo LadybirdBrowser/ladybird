@@ -14,7 +14,7 @@ use ak::Utf16String;
 use crate::utf16::Utf16View;
 
 pub mod display_names;
-pub mod locale;
+pub mod intl;
 pub mod time_zone;
 
 #[repr(C)]

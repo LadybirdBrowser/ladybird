@@ -90,6 +90,7 @@ pub mod generator_prototype;
 pub mod global_environment;
 pub mod global_object;
 pub mod indexed_properties;
+pub mod intl;
 pub mod intrinsics;
 pub mod iterator;
 pub mod iterator_constructor;

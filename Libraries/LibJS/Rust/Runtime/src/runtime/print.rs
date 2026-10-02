@@ -26,9 +26,16 @@ use crate::runtime::date_prototype::to_date_string;
 use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::Error;
 use crate::runtime::generator_object::GeneratorObject;
+use crate::runtime::intl::collator::Collator;
+use crate::runtime::intl::display_names::DisplayNames;
+use crate::runtime::intl::list_format::ListFormat;
+use crate::runtime::intl::locale::Locale;
+use crate::runtime::intl::segmenter::Segmenter;
+use crate::runtime::intl::segments::Segments;
 use crate::runtime::map::Map;
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::number_object::NumberObject;
+use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::promise::{Promise, PromiseState};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::proxy_object::ProxyObject;
@@ -428,6 +435,144 @@ fn print_proxy_object(
     print_value(print_context, Value::from_object(proxy_object.handler()), seen_objects)
 }
 
+fn print_string_property(
+    print_context: &mut PrintContext<'_>,
+    name: &str,
+    string: ak::Utf16String,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    js_out(print_context, name)?;
+    let value = Value::from_string(PrimitiveString::create(print_context.vm, string));
+    print_value(print_context, value, seen_objects)
+}
+
+fn print_ascii_property(
+    print_context: &mut PrintContext<'_>,
+    name: &str,
+    string: &str,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_string_property(print_context, name, ak::Utf16String::from_utf8(string), seen_objects)
+}
+
+fn print_intl_display_names(
+    print_context: &mut PrintContext<'_>,
+    display_names: Gc<DisplayNames>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Intl.DisplayNames")?;
+    print_string_property(print_context, "\n  locale: ", display_names.locale(), seen_objects)?;
+    print_ascii_property(print_context, "\n  type: ", display_names.type_string(), seen_objects)?;
+    print_ascii_property(print_context, "\n  style: ", display_names.style_string(), seen_objects)?;
+    print_ascii_property(
+        print_context,
+        "\n  fallback: ",
+        display_names.fallback_string(),
+        seen_objects,
+    )?;
+    if display_names.has_language_display() {
+        print_ascii_property(
+            print_context,
+            "\n  languageDisplay: ",
+            display_names.language_display_string(),
+            seen_objects,
+        )?;
+    }
+    Ok(())
+}
+
+fn print_intl_locale(
+    print_context: &mut PrintContext<'_>,
+    locale: Gc<Locale>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Intl.Locale")?;
+    print_string_property(print_context, "\n  locale: ", locale.locale(), seen_objects)?;
+    if let Some(calendar) = locale.calendar() {
+        print_string_property(print_context, "\n  calendar: ", calendar, seen_objects)?;
+    }
+    if let Some(case_first) = locale.case_first() {
+        print_string_property(print_context, "\n  caseFirst: ", case_first, seen_objects)?;
+    }
+    if let Some(collation) = locale.collation() {
+        print_string_property(print_context, "\n  collation: ", collation, seen_objects)?;
+    }
+    if let Some(hour_cycle) = locale.hour_cycle() {
+        print_string_property(print_context, "\n  hourCycle: ", hour_cycle, seen_objects)?;
+    }
+    if let Some(numbering_system) = locale.numbering_system() {
+        print_string_property(print_context, "\n  numberingSystem: ", numbering_system, seen_objects)?;
+    }
+    js_out(print_context, "\n  numeric: ")?;
+    print_value(print_context, Value::from_bool(locale.numeric()), seen_objects)
+}
+
+fn print_intl_list_format(
+    print_context: &mut PrintContext<'_>,
+    list_format: Gc<ListFormat>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Intl.ListFormat")?;
+    print_string_property(print_context, "\n  locale: ", list_format.locale(), seen_objects)?;
+    print_ascii_property(print_context, "\n  type: ", list_format.type_string(), seen_objects)?;
+    print_ascii_property(print_context, "\n  style: ", list_format.style_string(), seen_objects)
+}
+
+fn print_intl_collator(
+    print_context: &mut PrintContext<'_>,
+    collator: Gc<Collator>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Intl.Collator")?;
+    print_string_property(print_context, "\n  locale: ", collator.locale(), seen_objects)?;
+    print_ascii_property(print_context, "\n  usage: ", collator.usage_string(), seen_objects)?;
+    print_ascii_property(
+        print_context,
+        "\n  sensitivity: ",
+        collator.sensitivity_string(),
+        seen_objects,
+    )?;
+    print_ascii_property(
+        print_context,
+        "\n  caseFirst: ",
+        collator.case_first_string(),
+        seen_objects,
+    )?;
+    print_string_property(print_context, "\n  collation: ", collator.collation(), seen_objects)?;
+    js_out(print_context, "\n  ignorePunctuation: ")?;
+    print_value(
+        print_context,
+        Value::from_bool(collator.ignore_punctuation()),
+        seen_objects,
+    )?;
+    js_out(print_context, "\n  numeric: ")?;
+    print_value(print_context, Value::from_bool(collator.numeric()), seen_objects)
+}
+
+fn print_intl_segmenter(
+    print_context: &mut PrintContext<'_>,
+    segmenter: Gc<Segmenter>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Intl.Segmenter")?;
+    print_string_property(print_context, "\n  locale: ", segmenter.locale(), seen_objects)?;
+    print_ascii_property(
+        print_context,
+        "\n  granularity: ",
+        segmenter.segmenter_granularity_string(),
+        seen_objects,
+    )
+}
+
+fn print_intl_segments(
+    print_context: &mut PrintContext<'_>,
+    segments: Gc<Segments>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Segments")?;
+    print_string_property(print_context, "\n  string: ", segments.segments_string(), seen_objects)
+}
+
 fn print_regexp_object(print_context: &mut PrintContext<'_>, regexp_object: Gc<RegExpObject>) -> io::Result<()> {
     print_type(print_context, "RegExp")?;
     js_out(print_context, " \x1b[34;1m/")?;
@@ -708,11 +853,29 @@ fn print_value(
         if let Some(string_object) = object.downcast::<StringObject>() {
             return print_string_object(print_context, string_object, seen_objects);
         }
-        // NB: Print.cpp then checks for Intl.DisplayNames, Intl.Locale, Intl.ListFormat, Intl.NumberFormat,
-        //     Intl.DateTimeFormat, Intl.RelativeTimeFormat, Intl.PluralRules, Intl.Collator, Intl.Segmenter, Segments,
-        //     Intl.DurationFormat, and Temporal.Duration, Temporal.Instant, Temporal.PlainDate, Temporal.PlainDateTime,
-        //     Temporal.PlainMonthDay, Temporal.PlainTime, Temporal.PlainYearMonth and Temporal.ZonedDateTime.
-        //     Everything else is printed as an ordinary object.
+        if let Some(display_names) = object.downcast::<DisplayNames>() {
+            return print_intl_display_names(print_context, display_names, seen_objects);
+        }
+        if let Some(locale) = object.downcast::<Locale>() {
+            return print_intl_locale(print_context, locale, seen_objects);
+        }
+        if let Some(list_format) = object.downcast::<ListFormat>() {
+            return print_intl_list_format(print_context, list_format, seen_objects);
+        }
+        // NB: Print.cpp then checks for Intl.NumberFormat, Intl.DateTimeFormat, Intl.RelativeTimeFormat and
+        //     Intl.PluralRules, which come with later units.
+        if let Some(collator) = object.downcast::<Collator>() {
+            return print_intl_collator(print_context, collator, seen_objects);
+        }
+        if let Some(segmenter) = object.downcast::<Segmenter>() {
+            return print_intl_segmenter(print_context, segmenter, seen_objects);
+        }
+        if let Some(segments) = object.downcast::<Segments>() {
+            return print_intl_segments(print_context, segments, seen_objects);
+        }
+        // NB: Print.cpp then checks for Intl.DurationFormat, and Temporal.Duration, Temporal.Instant,
+        //     Temporal.PlainDate, Temporal.PlainDateTime, Temporal.PlainMonthDay, Temporal.PlainTime,
+        //     Temporal.PlainYearMonth and Temporal.ZonedDateTime. Everything else is printed as an ordinary object.
         return print_object(print_context, object, seen_objects);
     }
 
