@@ -431,8 +431,8 @@ public:
     }
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList);
-    // The facts about this node that its box paints (inertness, editability, and so on) may have changed.
-    void note_dom_paint_facts();
+    // The facts about this node that a box built for it paints (inertness, editability, and so on) may have changed.
+    void publish_dom_paint_facts();
     void set_needs_layout_update(SetNeedsLayoutReason);
     void set_needs_layout_update(SetNeedsLayoutReason, Layout::LayoutUpdatePropagation);
 

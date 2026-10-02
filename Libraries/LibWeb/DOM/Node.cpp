@@ -2358,8 +2358,8 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         // did not, hence unconditionally for every node. A flipped stamp changes geometry
         // (an editing host gains a minimum block size, an empty editable text node gains
         // a zero-width fragment), so the affected node also needs a relayout.
+        node.publish_dom_paint_facts();
         if (auto* layout_node = node.unsafe_layout_node()) {
-            node.note_dom_paint_facts();
             auto is_editing_host = node.is_editing_host();
             if (layout_node->is_editing_host() != is_editing_host) {
                 layout_node->set_is_editing_host(is_editing_host);
@@ -2736,6 +2736,10 @@ void Node::inserted()
         if (text)
             CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
     }
+
+    // Inertness, editability and the wheel handler state are all inherited, so a node that arrives somewhere new
+    // holds what its new place gives it. The identity it publishes them under was taken above.
+    publish_dom_paint_facts();
 }
 
 void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
@@ -2764,6 +2768,7 @@ void Node::moved_from(IsSubtreeRoot, GC::Ptr<Node>)
         document().page().keyboard_scroll_dom_tree_changed(*this);
     recompute_editable_subtree_flag();
     derive_inside_blocking_wheel_event_handler_state_after_tree_change(*this);
+    publish_dom_paint_facts();
 }
 
 static bool is_root_wheel_event_target(Node const& node)
@@ -2796,7 +2801,7 @@ bool Node::update_inside_blocking_wheel_event_handler_state()
 
     bool const flipped = was_inside_blocking_wheel_event_handler != m_inside_blocking_wheel_event_handler;
     if (flipped)
-        note_dom_paint_facts();
+        publish_dom_paint_facts();
     return flipped;
 }
 
@@ -3872,10 +3877,25 @@ void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_lis
         document().invalidation_journal().note_needs_repaint(identity, should_invalidate_display_list);
 }
 
-void Node::note_dom_paint_facts()
+// The facts are published under the node's identity in the style mirror, for the rows the build has yet to stamp,
+// and journalled for the box the node already has. Neither half needs the node to have a box: the build reads the
+// published answer for a node that gains one.
+void Node::publish_dom_paint_facts()
 {
+    auto& document = this->document();
+    auto facts = Layout::Node::dom_paint_facts_of(this);
+    // A document where nothing is ever inert, editable or inside a wheel handler publishes nothing, which keeps a
+    // node's arrival free there. The flag is set before the first fact is published, so a later drop back to none is
+    // still published.
+    if (facts == 0 && !document.may_have_dom_paint_facts())
+        return;
+    if (facts != 0)
+        document.set_may_have_dom_paint_facts();
+    auto style_node = is_document() ? document.style_node_id() : Layout::Node::style_node_of(this);
+    if (style_node.value() != 0)
+        document.style_computer().style_engine().set_node_dom_paint_facts(style_node, facts);
     if (auto identity = identity_of_box_owner(*this))
-        document().invalidation_journal().note_dom_paint_facts(identity, Layout::Node::dom_paint_facts_of(this));
+        document.invalidation_journal().note_dom_paint_facts(identity, facts);
 }
 
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason)

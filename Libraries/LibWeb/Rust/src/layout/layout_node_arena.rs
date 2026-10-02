@@ -2602,6 +2602,9 @@ impl LayoutNodeArena {
         });
         data.flags
             .set(super::node_facts::construction_flags(kind, false, construction_facts));
+        if let Some(style_node) = style_node {
+            self.stamp_dom_paint_facts(slot, style_node);
+        }
         self.set_node_style_node(slot, style_node);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
@@ -2626,11 +2629,11 @@ impl LayoutNodeArena {
         self.enroll_node_for_svg_paint_resources_sync(slot);
     }
 
-    /// The paint facts a row is built with, which the layout node made for a stamped row hands
-    /// over. A row being built is not committed, so this is the plain write `bind_shell` makes
-    /// rather than the change a live row's facts go through.
-    pub(crate) fn set_constructed_row_dom_paint_facts(&self, slot: NodeSlotId, facts: u8) {
-        self.assert_owner_thread();
+    /// Gives a row being built the paint facts the DOM published under `style_node`, the node the
+    /// row is built for. The row is not committed yet, so this is a plain write rather than the
+    /// change a live row's facts go through.
+    pub(crate) fn stamp_dom_paint_facts(&self, slot: NodeSlotId, style_node: StyleNodeID) {
+        let facts = self.with_style_store(|engine| engine.node_dom_paint_facts(style_node));
         self.data(slot).dom_paint_facts.set(facts);
     }
 
@@ -5050,19 +5053,6 @@ pub(crate) fn prepare_subtree_for_detach(main_thread: &MainThread, arena: &Layou
     }
 }
 
-/// # Safety
-///
-/// `arena` must be a live handle on the document thread, and `slot` a row the build stamped.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_constructed_row_dom_paint_facts(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    facts: u8,
-) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_constructed_row_dom_paint_facts(slot, facts);
-}
-
 /// Whether the layout tree build about to run may build the viewport, and so needs the document's
 /// style handed to it.
 ///
@@ -5748,6 +5738,39 @@ mod tests {
         let freed = arena.free_subtree(element);
         assert_eq!(freed.arena_pinned_style_record_count(), 0);
         freed.destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+    }
+
+    #[test]
+    fn a_restamped_row_takes_the_paint_facts_its_node_published_since() {
+        use crate::css::style::StyleEngine;
+        use crate::css::style::memory::DeviceClass;
+        use crate::css::style::tree::StyleNodeID;
+        use crate::layout::node_data::DomPaintFact;
+
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut text = [0_u32];
+        engine.allocate_text_style_nodes(&mut text);
+        let text = StyleNodeID::from_raw(text[0]).unwrap();
+        let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine((&raw mut engine).cast());
+        let main_thread = crate::stage::MainThread::for_test();
+
+        engine.set_node_dom_paint_facts(text, DomPaintFact::Inert as u8);
+        let row = arena.allocate_unbound();
+        arena.stamp_dom_row(row, NodeKind::TextNode, Some(text));
+        assert_eq!(arena.data(row).dom_paint_facts.get(), DomPaintFact::Inert as u8);
+        arena
+            .free_subtree(row)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+
+        engine.set_node_dom_paint_facts(text, 0);
+        let row = arena.allocate_unbound();
+        arena.stamp_dom_row(row, NodeKind::TextNode, Some(text));
+        assert_eq!(arena.data(row).dom_paint_facts.get(), 0);
+        arena
+            .free_subtree(row)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+        arena.set_style_engine(std::ptr::null_mut());
     }
 
     #[test]

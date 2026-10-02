@@ -900,7 +900,7 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
 void HTMLElement::set_subtree_inertness(bool is_inert)
 {
     auto repaint_if_inertness_reaches_painted_output = [](DOM::Node& node) {
-        node.note_dom_paint_facts();
+        node.publish_dom_paint_facts();
     };
     auto update_inertness = [&](HTMLElement& element) {
         if (element.is_inert() == is_inert)

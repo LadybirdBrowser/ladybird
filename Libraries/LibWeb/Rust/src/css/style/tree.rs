@@ -649,6 +649,12 @@ pub struct StyleNodeTree {
     previous_sibling: Vec<Option<StyleNodeID>>,
     text: TextRows,
 
+    /// What a row built for the node is painted and hit-tested with: whether the node is inert,
+    /// editable or an editing host, inside a blocking wheel event handler, or a navigable container
+    /// holding a navigable. Nearly every node holds none of them, which is the absence of an entry.
+    /// Element, text and document identities publish here, as each gets a row.
+    dom_paint_facts: HashMap<StyleNodeID, u8>,
+
     capacity_bytes: u64,
 
     #[cfg(test)]
@@ -693,6 +699,7 @@ impl StyleNodeTree {
             next_sibling: Vec::new(),
             previous_sibling: Vec::new(),
             text: TextRows::default(),
+            dom_paint_facts: HashMap::default(),
             capacity_bytes: 0,
             #[cfg(test)]
             depth_recompute_visits: 0,
@@ -829,6 +836,7 @@ impl StyleNodeTree {
                 ids.set(node, StyleAtomID::NONE);
             }
             self.live.set(index as usize, false);
+            self.dom_paint_facts.remove(&node);
             if !self.relation_only.set(index as usize, false).0 {
                 self.connected_element_count -= 1;
             }
@@ -905,6 +913,7 @@ impl StyleNodeTree {
             is_ascii_whitespace.set(index as usize, false);
             is_in_user_agent_shadow_tree.set(index as usize, false);
             is_password_input.set(index as usize, false);
+            self.dom_paint_facts.remove(&node);
             // Lets go of the reference the mirror held to the document's string.
             data[index as usize] = ak::Utf16String::default();
             parent[index as usize] = None;
@@ -978,6 +987,26 @@ impl StyleNodeTree {
         let before = self.text.capacity_bytes();
         self.text.is_password_input.set(index as usize, value);
         let current = self.text.capacity_bytes();
+        self.record_capacity_change(memory, before, current);
+    }
+
+    /// What a row built for the node is painted and hit-tested with. An identity with nothing
+    /// published holds none of the facts.
+    #[must_use]
+    pub fn dom_paint_facts(&self, node: StyleNodeID) -> u8 {
+        self.dom_paint_facts.get(&node).copied().unwrap_or(0)
+    }
+
+    /// Record what a row built for the node is painted and hit-tested with. Holding none of the
+    /// facts is the absence of an entry.
+    pub fn set_dom_paint_facts(&mut self, node: StyleNodeID, facts: u8, memory: &mut MemoryController) {
+        let before = self.identity_capacity_bytes();
+        if facts == 0 {
+            self.dom_paint_facts.remove(&node);
+        } else {
+            self.dom_paint_facts.insert(node, facts);
+        }
+        let current = self.identity_capacity_bytes();
         self.record_capacity_change(memory, before, current);
     }
 
@@ -1798,6 +1827,7 @@ impl StyleNodeTree {
                 self.first_child,
                 self.next_sibling,
                 self.previous_sibling,
+                self.dom_paint_facts,
             ];
             cached [];
             nested [
@@ -2335,6 +2365,28 @@ mod tests {
         assert_eq!(reused, first);
         assert!(fixture.tree.is_live(reused));
         assert_eq!(fixture.tree.live_nodes().collect::<Vec<_>>(), vec![element]);
+    }
+
+    #[test]
+    fn a_retired_identity_holds_no_paint_facts_when_it_is_reused() {
+        let mut fixture = TreeFixture::new();
+        let element = fixture.element();
+        let text = fixture.tree.allocate_text(&mut fixture.memory);
+        fixture.tree.set_dom_paint_facts(element, 3, &mut fixture.memory);
+        fixture.tree.set_dom_paint_facts(text, 4, &mut fixture.memory);
+        assert_eq!(fixture.tree.dom_paint_facts(element), 3);
+        assert_eq!(fixture.tree.dom_paint_facts(text), 4);
+        fixture.tree.set_dom_paint_facts(element, 0, &mut fixture.memory);
+        assert_eq!(fixture.tree.dom_paint_facts(element), 0);
+        fixture.tree.set_dom_paint_facts(element, 1, &mut fixture.memory);
+
+        fixture.tree.retire_element(element, &mut fixture.memory);
+        fixture.tree.retire_texts([text], &mut fixture.memory);
+        fixture.tree.release_retired_identities(&mut fixture.memory);
+        assert_eq!(fixture.tree.allocate_element(&mut fixture.memory), element);
+        assert_eq!(fixture.tree.allocate_text(&mut fixture.memory), text);
+        assert_eq!(fixture.tree.dom_paint_facts(element), 0);
+        assert_eq!(fixture.tree.dom_paint_facts(text), 0);
     }
 
     #[test]
