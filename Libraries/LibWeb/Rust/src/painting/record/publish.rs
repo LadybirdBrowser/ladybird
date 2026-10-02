@@ -14,6 +14,7 @@ use crate::painting::record::vector_images::{
     VectorImageRenderRequest, is_vector_image_placeholder, vector_image_placeholder_index,
 };
 use crate::painting::record::{RecordingOutput, RecordingResult};
+use crate::painting::recording_slot::RecordingSlot;
 use crate::painting::svg_paint_resources::published_filter_image_frames_in;
 use crate::stage::MainThread;
 
@@ -59,13 +60,14 @@ fn resolve_vector_image_placeholders(
 /// its output in.
 pub(crate) fn publish_recording(
     arena: &LayoutNodeArena,
+    recording: &mut RecordingSlot,
     pending: PendingRecording,
     main_thread: &MainThread,
     publish: &FfiRecordingPublishCallbacks,
 ) {
     let publishes_recording = pending.publishes_recording;
-    let output = publish_to_host(pending, arena.recording().recorder(), main_thread, publish);
-    take_in_published_output(arena, output, publishes_recording);
+    let output = publish_to_host(pending, recording.recorder(), main_thread, publish);
+    take_in_published_output(arena, recording, output, publishes_recording);
 }
 
 /// Hands a recording's resources to the host and makes its output, reading nothing but the
@@ -135,11 +137,11 @@ pub(crate) fn publish_to_host(
 /// of the document's hit-test list.
 pub(crate) fn take_in_published_output(
     arena: &LayoutNodeArena,
+    recording: &mut RecordingSlot,
     mut output: RecordingOutput,
     publishes_recording: bool,
 ) -> u64 {
     let mut paint_state = arena.paint_state().borrow_mut();
-    let mut recording = arena.recording();
     let recorder_state = recording.recorder();
     let list = std::mem::take(&mut output.hit_test_list);
     let mut hit_test_list = arena.hit_test_list.borrow_mut();
@@ -181,6 +183,7 @@ mod tests {
     #[test]
     fn read_only_publication_keeps_the_source_recording_and_the_pending_damage() {
         let mut arena = LayoutNodeArena::new();
+        let mut recording = RecordingSlot::default();
         let row = arena.allocate_for_test().slot;
         arena.populate_paintable_row(row);
         let mut original_source = None;
@@ -197,10 +200,10 @@ mod tests {
                 ..Default::default()
             };
             assert_eq!(
-                take_in_published_output(&arena, output, read_write),
+                take_in_published_output(&arena, &mut recording, output, read_write),
                 hit_test_generation
             );
-            let source = arena.recording().recorder().published_recording.clone().unwrap();
+            let source = recording.recorder().published_recording.clone().unwrap();
             match hit_test_generation {
                 1 => {
                     original_source = Some(source);

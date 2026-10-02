@@ -263,9 +263,10 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let owner = arena.allocate_for_test();
         arena.write_shape(owner.slot).set_kind(NodeKind::BlockContainer);
-        let host_tables = crate::layout::HostTables::default();
+        let host = crate::render_state::DocumentHost::for_test();
+        let host_tables = host.host_tables();
         host_tables.layout_trace_describe_node.set(Some(describe));
-        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let main_thread = MainThread::for_test_with_host(&host);
 
         arena.layout_trace.begin();
         arena.begin_active_layout_pass();

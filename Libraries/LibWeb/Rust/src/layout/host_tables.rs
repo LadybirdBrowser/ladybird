@@ -18,6 +18,7 @@ use super::update_layout::FfiLayoutUpdateHostCallbacks;
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::painting::host::FfiGeometryHostCallbacks;
 use crate::painting::paintable_rows::ChromeStateCallback;
+use crate::render_state::DocumentHost;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::ffi::c_void;
@@ -69,9 +70,8 @@ impl HostTables {
     /// stay live for `'a`.
     pub(crate) unsafe fn from_handle<'a>(handle: *mut c_void) -> &'a Self {
         assert!(!handle.is_null(), "layout node arena handle is null");
-        // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it,
-        // and the document host owns the tables the handle names.
-        unsafe { (*handle.cast::<ArenaHandle>()).host_tables.as_ref() }
+        // SAFETY: Guaranteed by the caller.
+        unsafe { ArenaHandle::host(handle) }.host_tables()
     }
 
     /// Marks a tree build's walk as running until the answer is dropped.
@@ -179,25 +179,25 @@ impl Drop for TreeBuildWalk<'_> {
 }
 
 /// The arena of a document's render state, first, so that a handle is also a pointer to it, the
-/// layout stage's scratch beside it, and the host tables of the document's host, which entries
-/// the host calls with the handle reach through the main thread token until they reach the render
-/// state through messages.
+/// layout stage's scratch beside it, and the document's host, which entries the host calls with
+/// the handle reach through the main thread token until they reach the render state through
+/// messages.
 #[repr(C)]
 pub(crate) struct ArenaHandle {
     arena: LayoutNodeArena,
-    host_tables: NonNull<HostTables>,
+    host: NonNull<DocumentHost>,
     layout_scratch: super::run_records::LayoutScratch,
 }
 
 const _: () = assert!(std::mem::offset_of!(ArenaHandle, arena) == 0);
 
 impl ArenaHandle {
-    /// An arena whose entries answer to `host_tables`, which must outlive every entry called
-    /// with the handle.
-    pub(crate) fn new(host_tables: NonNull<HostTables>) -> Self {
+    /// An arena whose entries answer to `host`, which must outlive every entry called with the
+    /// handle.
+    pub(crate) fn new(host: NonNull<DocumentHost>) -> Self {
         Self {
             arena: LayoutNodeArena::new(),
-            host_tables,
+            host,
             layout_scratch: Default::default(),
         }
     }
@@ -211,6 +211,18 @@ impl ArenaHandle {
         assert!(!handle.is_null(), "layout node arena handle is null");
         // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
         unsafe { &(*handle.cast::<ArenaHandle>()).layout_scratch }
+    }
+
+    /// The document host the arena `handle` names.
+    ///
+    /// # Safety
+    ///
+    /// `handle` must come from `render_state_arena_for_unconverted_entry` and its document host
+    /// stay live for `'a`.
+    pub(crate) unsafe fn host<'a>(handle: *mut c_void) -> &'a DocumentHost {
+        assert!(!handle.is_null(), "layout node arena handle is null");
+        // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
+        unsafe { (*handle.cast::<ArenaHandle>()).host.as_ref() }
     }
 
     pub(crate) fn arena(&self) -> &LayoutNodeArena {
@@ -230,7 +242,8 @@ mod tests {
 
     #[test]
     fn replacing_image_observers_hands_back_the_set_a_row_held() {
-        let host_tables = HostTables::default();
+        let host = crate::render_state::DocumentHost::for_test();
+        let host_tables = host.host_tables();
         let mut arena = LayoutNodeArena::new();
         let row = arena.allocate_for_test().slot;
         assert!(host_tables.replace_image_observers(row, object(8)).is_null());
@@ -243,13 +256,14 @@ mod tests {
         assert!(host_tables.image_observers(row).is_null());
         arena
             .free_subtree(row)
-            .destroy_shells_and_invoke_callbacks(&MainThread::for_test_with_host(&host_tables));
+            .destroy_shells_and_invoke_callbacks(&MainThread::for_test_with_host(&host));
     }
 
     #[test]
     fn freeing_a_subtree_takes_its_rows_image_objects_from_the_host_tables() {
-        let host_tables = HostTables::default();
-        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let host = crate::render_state::DocumentHost::for_test();
+        let host_tables = host.host_tables();
+        let main_thread = MainThread::for_test_with_host(&host);
         let mut arena = LayoutNodeArena::new();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
@@ -276,8 +290,9 @@ mod tests {
     fn a_restamped_slot_does_not_answer_with_the_layout_node_of_the_row_it_replaced() {
         use crate::layout::tree_mutation::{HostCalls, TreeBuildHostWork};
 
-        let host_tables = HostTables::default();
-        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let host = crate::render_state::DocumentHost::for_test();
+        let host_tables = host.host_tables();
+        let main_thread = MainThread::for_test_with_host(&host);
         let mut arena = LayoutNodeArena::new();
         arena.queue_box_presence_for_tree_build();
         let work = TreeBuildHostWork::default();
@@ -309,8 +324,9 @@ mod tests {
 
     #[test]
     fn freeing_rows_destroys_exactly_their_layout_nodes() {
-        let host_tables = HostTables::default();
-        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let host = crate::render_state::DocumentHost::for_test();
+        let host_tables = host.host_tables();
+        let main_thread = MainThread::for_test_with_host(&host);
         let mut arena = LayoutNodeArena::new();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
@@ -337,8 +353,9 @@ mod tests {
     fn a_tree_build_lets_go_of_a_freed_rows_image_objects_once_the_walk_is_over() {
         use crate::layout::tree_mutation::{HostCalls, TreeBuildHostWork};
 
-        let host_tables = HostTables::default();
-        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let host = crate::render_state::DocumentHost::for_test();
+        let host_tables = host.host_tables();
+        let main_thread = MainThread::for_test_with_host(&host);
         let mut arena = LayoutNodeArena::new();
         arena.queue_box_presence_for_tree_build();
         let work = TreeBuildHostWork::default();
@@ -370,8 +387,9 @@ mod tests {
 
     #[test]
     fn preparing_a_subtree_for_detach_drops_the_image_observers_of_its_styled_rows() {
-        let host_tables = HostTables::default();
-        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let host = crate::render_state::DocumentHost::for_test();
+        let host_tables = host.host_tables();
+        let main_thread = MainThread::for_test_with_host(&host);
         let mut arena = LayoutNodeArena::new();
         let root = arena.allocate_for_test().slot;
         let text = arena.allocate_for_test().slot;

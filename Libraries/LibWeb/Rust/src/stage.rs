@@ -7,19 +7,20 @@
 //! The capability separating code that may call into C++ from code that computes layout or
 //! records paint.
 
-use crate::layout::HostTables;
+use crate::layout::{ArenaHandle, HostTables};
+use crate::render_state::DocumentHost;
 use std::ffi::c_void;
 use std::marker::PhantomData;
 
-/// Proof that a call entered Rust from the document's main thread, and the way to the host
-/// callbacks that document registered with its arena.
+/// Proof that a call entered Rust from the document's main thread, and the way to that document's
+/// host: the host callbacks it registered, and what it keeps of its recordings.
 ///
 /// Only FFI entry points mint one, and every wrapper around a C++ host callback requires it, so
-/// code that is not handed a token cannot call into C++. The host tables are reached only
-/// through it. The raw pointer marker makes the token neither [`Send`] nor [`Sync`], so the proof
+/// code that is not handed a token cannot call into C++. The host is reached only through it.
+/// The raw pointer marker makes the token neither [`Send`] nor [`Sync`], so the proof
 /// cannot cross onto another thread.
 pub(crate) struct MainThread<'host> {
-    host_tables: Option<&'host HostTables>,
+    host: Option<&'host DocumentHost>,
     not_send_or_sync: PhantomData<*const ()>,
 }
 
@@ -36,23 +37,28 @@ impl<'host> MainThread<'host> {
     #[cfg(test)]
     pub(crate) fn for_test() -> Self {
         Self {
-            host_tables: None,
+            host: None,
             not_send_or_sync: PhantomData,
         }
     }
 
-    /// Mint a token for a unit test whose arena answers to `host_tables`.
+    /// Mint a token for a unit test whose arena answers to `host`.
     #[cfg(test)]
-    pub(crate) fn for_test_with_host(host_tables: &'host HostTables) -> Self {
+    pub(crate) fn for_test_with_host(host: &'host DocumentHost) -> Self {
         Self {
-            host_tables: Some(host_tables),
+            host: Some(host),
             not_send_or_sync: PhantomData,
         }
     }
 
-    /// The host tables of the arena the entry was called for, or none in a unit test.
+    /// The host of the document the entry was called for, or none in a unit test.
+    pub(crate) fn host(&self) -> Option<&'host DocumentHost> {
+        self.host
+    }
+
+    /// The host tables of the document the entry was called for, or none in a unit test.
     pub(crate) fn host_tables(&self) -> Option<&'host HostTables> {
-        self.host_tables
+        self.host.map(DocumentHost::host_tables)
     }
 }
 
@@ -70,14 +76,14 @@ impl<'host> MainThread<'host> {
 /// `arena_handle` must come from `render_state_arena_for_unconverted_entry` and outlive the token.
 pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, arena_handle: *mut c_void) -> MainThread<'host> {
     // SAFETY: Guaranteed by the caller.
-    let host_tables = unsafe { HostTables::from_handle(arena_handle) };
+    let host = unsafe { ArenaHandle::host(arena_handle) };
     // A tree build's walk runs without a token, so the C++ its callbacks run must not mint one.
     assert!(
-        !host_tables.tree_build_walk_is_open(),
+        !host.host_tables().tree_build_walk_is_open(),
         "a tree build walk's callback entered Rust again"
     );
     MainThread {
-        host_tables: Some(host_tables),
+        host: Some(host),
         not_send_or_sync: PhantomData,
     }
 }

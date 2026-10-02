@@ -12,7 +12,7 @@
 //! that the states are reached with, so code that is not handed one cannot reach a document's render state.
 
 use crate::fast_hash::FastMap as HashMap;
-use crate::layout::{ArenaHandle, HostTables};
+use crate::layout::ArenaHandle;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::marker::PhantomData;
@@ -46,15 +46,14 @@ pub(crate) struct RenderingSide {
 
 /// One document's render state.
 pub(crate) struct RenderState {
-    /// The layout arena, which names the host tables of the document's host for the entries that still reach it
-    /// directly.
+    /// The layout arena, which names the document's host for the entries that still reach it directly.
     arena: Box<ArenaHandle>,
 }
 
 impl RenderState {
-    fn new(host_tables: NonNull<HostTables>) -> Self {
+    fn new(host: NonNull<DocumentHost>) -> Self {
         Self {
-            arena: Box::new(ArenaHandle::new(host_tables)),
+            arena: Box::new(ArenaHandle::new(host)),
         }
     }
 
@@ -72,10 +71,10 @@ impl RenderState {
 
 /// A message the host sends a document's render state.
 pub(crate) enum RenderMessage {
-    /// Makes the render state of a new document, whose arena names the host tables of its host.
+    /// Makes the render state of a new document, whose arena names the document's host.
     Create {
         document: DocumentId,
-        host_tables: NonNull<HostTables>,
+        host: NonNull<DocumentHost>,
     },
     /// Drops the render state of a document the host has let go of.
     Destroy { document: DocumentId },
@@ -98,8 +97,8 @@ pub(crate) fn handle(message: RenderMessage) {
 
 fn handle_message(_: &RenderingSide, message: RenderMessage) {
     match message {
-        RenderMessage::Create { document, host_tables } => STATES.with_borrow_mut(|states| {
-            let previous = states.insert(document, RenderState::new(host_tables));
+        RenderMessage::Create { document, host } => STATES.with_borrow_mut(|states| {
+            let previous = states.insert(document, RenderState::new(host));
             debug_assert!(previous.is_none(), "document {document:?} created twice");
         }),
         RenderMessage::Destroy { document } => {
@@ -176,11 +175,11 @@ mod tests {
     #[test]
     #[should_panic(expected = "destroyed twice")]
     fn destroying_a_document_twice_is_a_senders_bug() {
-        let host_tables = HostTables::default();
+        let host = DocumentHost::for_test();
         let document = DocumentId::mint();
         send(RenderMessage::Create {
             document,
-            host_tables: NonNull::from(&host_tables),
+            host: NonNull::from(&host),
         });
         send(RenderMessage::Destroy { document });
         send(RenderMessage::Destroy { document });

@@ -8,18 +8,16 @@
 //! that runs on it.
 //!
 //! A [`RecordingJob`] owns the frame it records and the recorder state it records with, and returns
-//! what it recorded with that state in a [`RecordingAnswer`]. Neither names the layout arena. Only
-//! the recording entry, the publication and the trace reach the slot, through
-//! [`LayoutNodeArena::recording`].
+//! what it recorded with that state in a [`RecordingAnswer`]. Neither names the layout arena. The
+//! slot is the document host's, on the host's thread: only the recording entry, the publication
+//! and the trace reach it, through [`crate::render_state::DocumentHost::recording`].
 
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintSource;
 use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
 use crate::painting::published_frame::PublishedFrame;
 use crate::painting::record::RecordingInputs;
 use crate::painting::record::recorder_state::RecorderState;
-use std::cell::RefMut;
 
 /// A display list recording: the frame it records, which it drops before it returns, and the
 /// recorder state it records with, which it returns in its answer.
@@ -197,16 +195,10 @@ impl RecordingSlot {
     }
 }
 
-impl LayoutNodeArena {
-    /// What the document keeps of its recordings.
-    pub(crate) fn recording(&self) -> RefMut<'_, RecordingSlot> {
-        self.recording_slot().borrow_mut()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layout::LayoutNodeArena;
     use crate::painting::record::{RecordingOutput, RecordingResult};
     use std::sync::Arc;
 
@@ -235,23 +227,18 @@ mod tests {
     #[test]
     fn the_slot_lends_its_recorder_state_to_a_job_and_takes_it_back_with_the_answer() {
         let mut arena = LayoutNodeArena::new();
+        let mut slot = RecordingSlot::default();
         let published = Arc::new(RecordingOutput::default());
-        arena.recording().recorder().published_recording = Some(published.clone());
+        slot.recorder().published_recording = Some(published.clone());
 
-        let job = RecordingJob::new(
-            arena.freeze_frame(),
-            arena.recording().take_recorder(),
-            NodeSlotId::INVALID,
-            false,
-        );
-        assert!(arena.recording().recorder().published_recording.is_none());
+        let job = RecordingJob::new(arena.freeze_frame(), slot.take_recorder(), NodeSlotId::INVALID, false);
+        assert!(slot.recorder().published_recording.is_none());
         let RecordingJob { recorder, .. } = job;
-        arena.recording().accept_recording_answer(RecordingAnswer {
+        slot.accept_recording_answer(RecordingAnswer {
             recorder,
             pending: pending(true),
             trace: None,
         });
-        let mut slot = arena.recording();
         assert!(Arc::ptr_eq(
             slot.recorder().published_recording.as_ref().unwrap(),
             &published
@@ -261,9 +248,8 @@ mod tests {
 
     #[test]
     fn a_discarded_publishing_recording_forgets_its_source() {
-        let arena = LayoutNodeArena::new();
+        let mut slot = RecordingSlot::default();
         let published = Arc::new(RecordingOutput::default());
-        let mut slot = arena.recording();
         slot.recorder().published_recording = Some(published.clone());
 
         accept_pending(&mut slot, pending(false));
