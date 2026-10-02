@@ -24,8 +24,6 @@ pub struct VisualContextState {
     pub last_tree_inputs: Option<crate::painting::host::FfiVisualContextTreeInputs>,
     pub last_full_build_reason: dirty::VisualContextGlobalRebuildReason,
     pub quarantined_slots_are_releasable: bool,
-    // The compositor animations the effects of the current update pass have published so far.
-    pub pending_compositor_animations: Vec<VisualAnimation>,
     // The list the tree was last given, which the next pass compares its own against.
     pub published_compositor_animations: Vec<VisualAnimation>,
 }
@@ -56,14 +54,8 @@ impl VisualContextState {
 /// changed for the counters the document keeps.
 pub fn publish_compositor_animations(
     visual_context: &mut VisualContextState,
-    publish_pending: bool,
+    animations: Vec<VisualAnimation>,
 ) -> FfiCompositorAnimationPublishOutcome {
-    let animations = if publish_pending {
-        std::mem::take(&mut visual_context.pending_compositor_animations)
-    } else {
-        visual_context.pending_compositor_animations.clear();
-        Vec::new()
-    };
     let Some(tree) = visual_context.tree.as_mut() else {
         return FfiCompositorAnimationPublishOutcome::default();
     };

@@ -416,6 +416,63 @@ pub unsafe extern "C" fn render_state_update_visual_viewport_transform(host: *mu
     run_paint_pass(unsafe { &*host }, PaintPass::UpdateVisualViewportTransform);
 }
 
+/// Starts an update pass of the compositor animations of `host`'s document, with none published.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_begin_compositor_animation_update(
+    host: *const crate::render_state::DocumentHost,
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.begin_compositor_animation_update();
+}
+
+/// Publishes the effect's pending animations: they become the ones it retains, and copies join the compositor
+/// animations of the current update pass of `host`'s document.
+///
+/// # Safety
+///
+/// `state` must be a live effect state handle and `host` a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_publish_pending(
+    state: *mut c_void,
+    host: *const crate::render_state::DocumentHost,
+    reuse_retained_timing_anchors: bool,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let animations = unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }
+        .publish_pending(reuse_retained_timing_anchors);
+    // SAFETY: As above.
+    unsafe { &*host }.publish_compositor_animations(animations);
+}
+
+/// Ends the current update pass of the compositor animations of `host`'s document, and gives the visual context tree
+/// what its effects published where `publish_pending`, or none.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_publish_compositor_animations(
+    host: *mut crate::render_state::DocumentHost,
+    publish_pending: bool,
+) -> crate::painting::host::FfiCompositorAnimationPublishOutcome {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let mut animations = host.take_compositor_animations();
+    if !publish_pending {
+        animations.clear();
+    }
+    let PaintPassAnswer::CompositorAnimationsPublished(outcome) =
+        run_paint_pass(host, PaintPass::PublishCompositorAnimations(animations))
+    else {
+        unreachable!("publishing compositor animations answers what changed");
+    };
+    outcome
+}
+
 /// Resolves the SVG paint resources the enrolled rows of `host`'s document name: the render state answers what to
 /// resolve, the host resolves it from the DOM, and the render state publishes what it resolved. Answers whether a
 /// published resource changed.
