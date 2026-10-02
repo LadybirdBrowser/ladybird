@@ -6,21 +6,23 @@
 
 //! What the host keeps of a document's render state.
 
-use super::{ArenaChange, CommittedRows, DocumentId, RenderMessage, RenderWait, ask, send};
+use super::{
+    ArenaChange, CommittedRows, CreatedState, DocumentId, LockstepProof, RenderMessage, RenderWait, ask, send,
+    wait_for_render_state,
+};
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::style_job::StyleJobAnswer;
+use crate::layout::HostTables;
 use crate::layout::row_reads::{RowIdentities, RowSnapshot};
-use crate::layout::{HostTables, LayoutNodeArena};
 use crate::painting::paint_read::PaintSource;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::recording_slot::RecordingSlot;
 use crate::painting::visual_animation::VisualAnimation;
-use std::cell::{Cell, OnceCell, RefCell, RefMut};
+use std::cell::{OnceCell, RefCell, RefMut};
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::rc::Rc;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 
 /// The host's side of one document's render state: the document's name, the host tables the host answers layout
 /// through, and what the document keeps of its display list recordings, which are made on the host's thread from the
@@ -39,14 +41,13 @@ pub struct DocumentHost {
     /// The absolute rects the host's reads of the rows computed, kept for as long as the geometry they were computed
     /// from stays.
     absolute_rects: RefCell<AbsoluteRectMemo>,
-    /// The arena of the document's render state, whose rows version tells the host whether the rows it has still read
-    /// as the arena's after a write the host made through an entry that reaches the arena directly.
-    arena: Cell<Option<NonNull<LayoutNodeArena>>>,
+    /// What the host keeps of the document's render state once it is made: the arena, whose rows version tells the host
+    /// whether the rows it has still read as the arena's after a write the host made through an entry that reaches the
+    /// arena directly, the style engine such entries reach, and whether any element has had random base values.
+    state: OnceCell<CreatedState>,
     /// The compositor animations the document's effects published in the current update pass, which the host hands
     /// the render state as the pass ends.
     compositor_animations: RefCell<Vec<VisualAnimation>>,
-    /// Whether any element has had random base values, which the render state raises and never lowers.
-    element_random_base_values_exist: OnceCell<Arc<AtomicBool>>,
 }
 
 impl DocumentHost {
@@ -58,9 +59,8 @@ impl DocumentHost {
             rows: RefCell::default(),
             style_transaction: RefCell::default(),
             absolute_rects: RefCell::default(),
-            arena: Cell::new(None),
+            state: OnceCell::new(),
             compositor_animations: RefCell::default(),
-            element_random_base_values_exist: OnceCell::new(),
         }
     }
 
@@ -86,25 +86,32 @@ impl DocumentHost {
         });
     }
 
-    /// Lets the host tell whether the rows it has read as the arena's do. The render state makes the arena, which stays
-    /// where it is until the state is destroyed.
-    pub(crate) fn watch_rows_of(&self, arena: NonNull<LayoutNodeArena>) {
-        self.arena.set(Some(arena));
-    }
-
-    /// Watches the flag the render state raises once any element has random base values.
-    pub(crate) fn watch_element_random_base_values(&self, exist: Arc<AtomicBool>) {
-        assert!(
-            self.element_random_base_values_exist.set(exist).is_ok(),
-            "a document has one render state"
-        );
-    }
-
     /// Whether some element may have random base values to keep, which only then is worth asking the render state.
     pub(crate) fn element_random_base_values_may_exist(&self) -> bool {
-        self.element_random_base_values_exist
+        self.state
             .get()
-            .is_some_and(|exist| exist.load(Ordering::Relaxed))
+            .is_some_and(|state| state.element_random_base_values_exist.load(Ordering::Relaxed))
+    }
+
+    /// The arena of the document's render state, for the host's entries that still reach it directly.
+    ///
+    /// This is the one door from the host into a render state that does not go through a message; every use of it is
+    /// an entry that has not been converted yet. The arena stays at the address answered until the document is
+    /// destroyed.
+    pub(crate) fn arena_for_unconverted_entry(&self) -> *mut c_void {
+        self.created_state().arena.as_ptr().cast()
+    }
+
+    /// The style engine of the document's render state, for the host's entries that still reach it directly, as
+    /// [`Self::arena_for_unconverted_entry`] answers its arena.
+    pub(crate) fn style_engine_for_unconverted_entry(&self) -> crate::css::style::StyleEngineHandle {
+        self.created_state().engine
+    }
+
+    fn created_state(&self) -> &CreatedState {
+        self.state
+            .get()
+            .expect("the host of a live document has a render state")
     }
 
     /// The rows the render state published last, unless the host wrote them since, or none were published yet.
@@ -121,9 +128,9 @@ impl DocumentHost {
     /// arena's rows version moves with every write to the rows, queued or direct, and with nothing else.
     fn still_reads_as_arena(&self, rows: &RowSnapshot) -> bool {
         // SAFETY: The arena lives as long as the document's render state, which outlives its host's reads.
-        self.arena
+        self.state
             .get()
-            .is_none_or(|arena| rows.reads_as(unsafe { arena.as_ref() }.rows_version()))
+            .is_none_or(|state| rows.reads_as(unsafe { state.arena.as_ref() }.arena().rows_version()))
     }
 
     /// The rows as of every change the host queued, which the render state publishes again first where the ones the
@@ -151,9 +158,9 @@ impl DocumentHost {
     /// [`Self::still_reads_as_arena`]).
     fn identities_still_read_as_arena(&self, rows: &RowSnapshot) -> bool {
         // SAFETY: The arena lives as long as the document's render state, which outlives its host's reads.
-        self.arena
+        self.state
             .get()
-            .is_none_or(|arena| rows.reads_identity_as(unsafe { arena.as_ref() }.rows_identity_version()))
+            .is_none_or(|state| rows.reads_identity_as(unsafe { state.arena.as_ref() }.arena().rows_identity_version()))
     }
 
     /// Like [`Self::fresh_rows`], with every row's scrollable overflow measured, as a read of overflow needs.
@@ -237,13 +244,26 @@ pub extern "C" fn document_host_create(device_class: u8) -> *mut DocumentHost {
     let document = DocumentId::mint();
     // The render state and the host's document hold the one pointer the box was let go of as.
     let host = NonNull::from(Box::leak(Box::new(DocumentHost::new(document))));
-    send(RenderMessage::Create {
-        document,
-        host,
-        device_class,
+    // SAFETY: The host was made above, and only its document reaches it after.
+    let host_ref = unsafe { host.as_ref() };
+    let created = wait_for_render_state(LockstepProof::for_reason(&NEW_DOCUMENT), host_ref, |reply| {
+        RenderMessage::Create {
+            document,
+            host,
+            device_class,
+            reply,
+        }
     });
+    assert!(host_ref.state.set(created).is_ok(), "a document has one render state");
     host.as_ptr()
 }
+
+/// The reason a new document's host waits for its render state: it keeps where the state's arena and style engine are.
+pub(crate) struct NewDocument {
+    _private: (),
+}
+
+const NEW_DOCUMENT: NewDocument = NewDocument { _private: () };
 
 /// Destroys `host` and the render state of its document.
 ///
@@ -277,7 +297,7 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
 pub unsafe extern "C" fn render_state_arena_for_unconverted_entry(host: *const DocumentHost) -> *mut c_void {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    super::arena_for_unconverted_entry(unsafe { (*host).document })
+    unsafe { &*host }.arena_for_unconverted_entry()
 }
 
 /// The style engine of the render state of `host`'s document, which the host's entries that have not been converted
@@ -292,5 +312,5 @@ pub unsafe extern "C" fn render_state_style_engine_for_unconverted_entry(
 ) -> crate::css::style::StyleEngineHandle {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    super::style_engine_for_unconverted_entry(unsafe { (*host).document })
+    unsafe { &*host }.style_engine_for_unconverted_entry()
 }

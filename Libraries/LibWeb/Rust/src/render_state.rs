@@ -16,10 +16,10 @@ use crate::css::style::bridge::{FfiDeviceClass, create_document_style_engine};
 use crate::fast_hash::FastMap as HashMap;
 use crate::layout::ArenaHandle;
 use std::cell::RefCell;
-use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 mod devtools;
 mod document_host;
@@ -61,17 +61,30 @@ pub(crate) struct RenderState {
     engine: StyleEngineHandle,
 }
 
+/// What the host keeps of its document's new render state.
+pub(crate) struct CreatedState {
+    /// Where the state keeps its arena until it is destroyed, for the host's entries that still reach it directly.
+    pub(crate) arena: NonNull<ArenaHandle>,
+    /// Where the state keeps its style engine until it is destroyed, for the same entries.
+    pub(crate) engine: StyleEngineHandle,
+    /// The flag the state raises once any element has random base values, and never lowers.
+    pub(crate) element_random_base_values_exist: Arc<AtomicBool>,
+}
+
 impl RenderState {
-    fn new(host: NonNull<DocumentHost>, device_class: FfiDeviceClass) -> Self {
-        let arena = Box::new(ArenaHandle::new(host));
-        // SAFETY: The host outlives its document's render state.
-        let host = unsafe { host.as_ref() };
-        host.watch_rows_of(NonNull::from(arena.arena()));
+    /// Makes the state of the document whose host is `host`, and answers what the host keeps of it.
+    fn new(host: NonNull<DocumentHost>, device_class: FfiDeviceClass) -> (Self, CreatedState) {
+        let mut arena = Box::new(ArenaHandle::new(host));
         let engine = create_document_style_engine(device_class);
-        host.watch_element_random_base_values(engine.element_random_base_values_exist());
+        let element_random_base_values_exist = engine.element_random_base_values_exist();
         let engine = StyleEngineHandle::create(engine);
         arena.arena().set_style_engine(engine);
-        Self { arena, engine }
+        let created = CreatedState {
+            arena: NonNull::from(&mut *arena),
+            engine,
+            element_random_base_values_exist,
+        };
+        (Self { arena, engine }, created)
     }
 
     /// Drops the state, which must hold no layout node any more.
@@ -125,6 +138,7 @@ pub(crate) enum RenderMessage<'a> {
         document: DocumentId,
         host: NonNull<DocumentHost>,
         device_class: FfiDeviceClass,
+        reply: ReplyTo<'a, CreatedState>,
     },
     /// Drops the render state of a document the host has let go of.
     Destroy { document: DocumentId },
@@ -175,9 +189,12 @@ fn handle_message(_: &RenderingSide, message: RenderMessage<'_>) {
             document,
             host,
             device_class,
-        } => STATES.with_borrow_mut(|states| {
-            let previous = states.insert(document, RenderState::new(host, device_class));
+            reply,
+        } => reply.answer(|| {
+            let (state, created) = RenderState::new(host, device_class);
+            let previous = STATES.with_borrow_mut(|states| states.insert(document, state));
             debug_assert!(previous.is_none(), "document {document:?} created twice");
+            created
         }),
         RenderMessage::Destroy { document } => {
             let state = STATES.with_borrow_mut(|states| states.remove(&document));
@@ -219,17 +236,6 @@ fn handle_message(_: &RenderingSide, message: RenderMessage<'_>) {
     }
 }
 
-/// The style engine of `document`'s render state, for the host's entries that still reach it directly, as
-/// [`arena_for_unconverted_entry`] answers its arena.
-pub(crate) fn style_engine_for_unconverted_entry(document: DocumentId) -> StyleEngineHandle {
-    STATES.with_borrow(|states| {
-        states
-            .get(&document)
-            .expect("the render state of a live document is on this thread")
-            .engine
-    })
-}
-
 /// The arena and the style engine of `document`'s render state, which stay where they are until the state is destroyed.
 /// The map is not borrowed while a message reaches them, so a message handled meanwhile for another document finds its
 /// own.
@@ -244,20 +250,6 @@ fn state_parts(document: DocumentId) -> Option<(*mut ArenaHandle, StyleEngineHan
 /// Sends `message` to the render side, which handles it right here.
 pub(crate) fn send(message: RenderMessage<'_>) {
     handle(message);
-}
-
-/// The arena of `document`'s render state, for the host's entries that still reach it directly.
-///
-/// This is the one door from the host into a render state that does not go through a message; every use of it is an
-/// entry that has not been converted yet. The state is made in place, on the host's thread, so the arena stays at the
-/// address answered until the document is destroyed.
-pub(crate) fn arena_for_unconverted_entry(document: DocumentId) -> *mut c_void {
-    STATES.with_borrow_mut(|states| {
-        let state = states
-            .get_mut(&document)
-            .expect("the render state of a live document is on this thread");
-        std::ptr::from_mut::<ArenaHandle>(&mut state.arena).cast::<c_void>()
-    })
 }
 
 // A render state is to move to the thread that renders, where nothing of the host may follow it: the shells and the
@@ -319,10 +311,11 @@ mod tests {
     fn destroying_a_document_twice_is_a_senders_bug() {
         let host = DocumentHost::for_test();
         let document = DocumentId::mint();
-        send(RenderMessage::Create {
+        wait_for_render_state(ScriptForcedRead::for_test(), &host, |reply| RenderMessage::Create {
             document,
             host: NonNull::from(&host),
             device_class: FfiDeviceClass::ForegroundDesktop,
+            reply,
         });
         send(RenderMessage::Destroy { document });
         send(RenderMessage::Destroy { document });
@@ -336,8 +329,11 @@ mod tests {
         // SAFETY: The host lives until it is destroyed below.
         let host = unsafe { &*pointer };
         // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
-        let arena =
-            unsafe { &mut *arena_for_unconverted_entry(host.document()).cast::<crate::layout::LayoutNodeArena>() };
+        let arena = unsafe {
+            &mut *host
+                .arena_for_unconverted_entry()
+                .cast::<crate::layout::LayoutNodeArena>()
+        };
         let row = arena.allocate_for_test().slot;
         host.fresh_rows(ScriptForcedRead::for_test());
         host.queue_change(ArenaChange::Layout(LayoutChange::SetNeedsFullLayoutTreeUpdate(true)));
@@ -384,8 +380,11 @@ mod tests {
         host.fresh_rows(ScriptForcedRead::for_test());
         assert!(host.rows().is_some());
         // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
-        let arena =
-            unsafe { &mut *arena_for_unconverted_entry(host.document()).cast::<crate::layout::LayoutNodeArena>() };
+        let arena = unsafe {
+            &mut *host
+                .arena_for_unconverted_entry()
+                .cast::<crate::layout::LayoutNodeArena>()
+        };
         let row = arena.allocate_for_test().slot;
         assert!(host.rows().is_none());
         assert!(host.fresh_rows(ScriptForcedRead::for_test()).node(row).is_some());
@@ -404,8 +403,11 @@ mod tests {
         // SAFETY: The host lives until it is destroyed below.
         let host = unsafe { &*pointer };
         // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
-        let arena =
-            unsafe { &mut *arena_for_unconverted_entry(host.document()).cast::<crate::layout::LayoutNodeArena>() };
+        let arena = unsafe {
+            &mut *host
+                .arena_for_unconverted_entry()
+                .cast::<crate::layout::LayoutNodeArena>()
+        };
         let row = arena.allocate_for_test().slot;
         arena.write_shape(row).set_kind(NodeKind::BlockContainer);
         host.fresh_rows(ScriptForcedRead::for_test());

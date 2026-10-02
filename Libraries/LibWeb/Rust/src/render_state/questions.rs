@@ -220,7 +220,7 @@ mod tests {
 
     fn arena_of(host: &DocumentHost) -> &'static mut LayoutNodeArena {
         // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between questions.
-        unsafe { &mut *crate::render_state::arena_for_unconverted_entry(host.document()).cast::<LayoutNodeArena>() }
+        unsafe { &mut *host.arena_for_unconverted_entry().cast::<LayoutNodeArena>() }
     }
 
     fn destroy(pointer: *mut DocumentHost) {
