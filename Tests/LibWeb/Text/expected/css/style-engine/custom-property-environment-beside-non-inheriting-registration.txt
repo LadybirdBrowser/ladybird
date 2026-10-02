@@ -1,0 +1,6 @@
+environment refusals: 0
+environments the engine resolved: 4
+parent: --local 40px, --shared 6px, width 40px, height 42px, margin-left 0px
+child: --local 1px, --shared 6px, width 34px, height 1px, margin-left 6px
+declaring: --local 1px, --shared 6px, width 40px, height 1px, margin-left 0px
+explicit: --local 40px, --shared 6px, width 40px, height 40px, margin-left 0px

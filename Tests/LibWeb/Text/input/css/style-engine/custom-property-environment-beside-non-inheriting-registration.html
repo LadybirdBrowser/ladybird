@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --local { syntax: "<length>"; inherits: false; initial-value: 1px; }
+    #parent { --local: 20px; --shared: 3px; width: var(--local); }
+    #parent.wide { --local: 40px; --shared: 6px; }
+    #child { height: var(--local); margin-left: var(--shared); }
+    #declaring { --own: 2px; height: var(--local); }
+    #explicit { --local: inherit; height: var(--local); }
+</style>
+<div id="parent"><div id="child"></div><div id="declaring"></div><div id="explicit"></div></div>
+<script>
+    // A registration that keeps a name from inheriting leaves its environments to the style engine:
+    // a child inherits its parent's environment without the name, and `inherit` reads it whole.
+    test(() => {
+        internals.updateStyle();
+        const before = Object.assign({}, internals.styleEngineCounters());
+        internals.resetStyleInvalidationCounters();
+
+        document.getElementById("parent").classList.add("wide");
+        internals.updateStyle();
+
+        const after = internals.styleEngineCounters();
+        println(`environment refusals: ${after.engineCustomPropertyEnvironmentBails - before.engineCustomPropertyEnvironmentBails}`);
+        println(`environments the engine resolved: ${after.engineCustomPropertyEnvironmentsResolved - before.engineCustomPropertyEnvironmentsResolved}`);
+        for (const id of ["parent", "child", "declaring", "explicit"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${id}: --local ${style.getPropertyValue("--local")}, --shared ${style.getPropertyValue("--shared")}, width ${style.width}, height ${style.height}, margin-left ${style.marginLeft}`);
+        }
+    });
+</script>

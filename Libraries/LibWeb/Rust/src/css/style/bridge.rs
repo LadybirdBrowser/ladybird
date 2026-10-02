@@ -1489,6 +1489,48 @@ pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> StyleEngi
     abort_on_panic(|| StyleEngineHandle::create(Box::new(StyleEngine::new_for_replay(device_class.decode()))))
 }
 
+/// Keeps the store behind an environment an element holds, and what a child inherits of it,
+/// `inheritable` with its store: the engine resolves the environments of an element's children
+/// over it.
+///
+/// # Safety
+/// `engine` must be live, and `store` and `inheritable_store` null or live raw `Arc` pointers to
+/// a `CustomPropertyStore`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_note_custom_property_environment(
+    engine: crate::css::style::StyleEngineHandle,
+    identity: u64,
+    store: *const c_void,
+    inheritable: u64,
+    inheritable_store: *const c_void,
+) {
+    let engine = unsafe { engine.get_mut() };
+    unsafe {
+        engine.custom_property_environments.retain(identity, store);
+        engine
+            .custom_property_environments
+            .note_inheritable(identity, inheritable, inheritable_store);
+    }
+    engine.record_boundary_call(EventKind::NoteCustomPropertyEnvironment, |payload| {
+        payload.write_u64(identity);
+        payload.write_u64(inheritable);
+    });
+}
+
+/// The environment a child inherits from one the engine resolved: itself, unless a registration
+/// keeps some of its custom properties from inheriting.
+///
+/// # Safety
+/// `engine` must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_inheritable_custom_property_environment(
+    engine: crate::css::style::StyleEngineHandle,
+    identity: u64,
+) -> u64 {
+    let engine = unsafe { engine.get() };
+    engine.custom_property_environments.inheritable(identity)
+}
+
 /// How one animation effect's description travels across the boundary: the ranges of the flat
 /// buffers that belong to it.
 #[repr(C)]
@@ -4074,7 +4116,7 @@ pub(crate) unsafe fn take_style_transaction(
         .custom_property_registration_generation
         != computation_inputs.custom_property_registration_generation;
     if engine.custom_property_registrations_changed {
-        engine.custom_property_environments.forget_substitutions();
+        engine.custom_property_environments.registrations_changed();
     }
     if engine.document_style_computation_inputs != computation_inputs || resource_contexts_moved {
         // Persistent records are derived from every document computation input, not only the

@@ -94,8 +94,8 @@
             `;
             document.body.appendChild(variables);
         });
-        println(`custom-property cascade used the bulk Rust entry: ${
-            customPropertyCounters.cascadeBulkEntries > 0
+        println(`engine-computed custom properties entered no C++ cascade: ${
+            !customPropertyCounters.cascadeBulkEntries
             && !("cascadeCustomPropertyEntries" in customPropertyCounters)
         }`);
 

@@ -188,23 +188,22 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document c
         inheritable_parent,
         [&](Utf16FlyString const& name) { return document.get_registered_custom_property(name); });
 
+    set_inheritable(document, inheritable);
+    return inheritable;
+}
+
+void CustomPropertyData::set_inheritable(DOM::Document const& document, RefPtr<CustomPropertyData const> inheritable) const
+{
     // Registration generations are local to each document, so the cache has to include the destination document
     // identity as well. Otherwise a subtree adopted into another document can incorrectly reuse a filtered result
     // that was computed under a different registration set.
-    m_cached_inheritable_document_identity = document_identity;
-    m_cached_inheritable_generation = generation;
+    m_cached_inheritable_document_identity = reinterpret_cast<FlatPtr>(&document);
+    m_cached_inheritable_generation = document.custom_property_registration_generation();
 
     // We can't store a RefPtr to `this` in m_cached_inheritable_data since it would create a reference cycle so we store
     // that case as a special boolean flag instead.
-    if (inheritable.ptr() == this) {
-        m_cached_inheritable_data = nullptr;
-        m_cached_inheritable_is_self = true;
-    } else {
-        m_cached_inheritable_is_self = false;
-        m_cached_inheritable_data = inheritable;
-    }
-
-    return inheritable;
+    m_cached_inheritable_is_self = inheritable.ptr() == this;
+    m_cached_inheritable_data = m_cached_inheritable_is_self ? nullptr : move(inheritable);
 }
 
 void CustomPropertyData::for_each_property(Function<void(Utf16FlyString const&, StyleProperty const&)> callback) const

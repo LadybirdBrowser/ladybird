@@ -374,6 +374,21 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let text = event.payload.read_u16_vec()?;
                     unsafe { bridge::replay_note_custom_property_name(engine, name, &text) };
                 }
+                EventKind::NoteCustomPropertyEnvironment => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let identity = event.payload.read_u64()?;
+                    let inheritable = event.payload.read_u64()?;
+                    // Replay has no stores, only the identities that name them.
+                    unsafe {
+                        bridge::style_engine_note_custom_property_environment(
+                            engine,
+                            identity,
+                            std::ptr::null(),
+                            inheritable,
+                            std::ptr::null(),
+                        )
+                    };
+                }
                 EventKind::SetRuleDeclaredProperties => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let rule = event.payload.read_u32()?;
