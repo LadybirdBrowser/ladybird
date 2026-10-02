@@ -474,22 +474,45 @@ pub(crate) fn has_ancestor_fact(data: &NodeData, fact: AncestorFact) -> bool {
     data.ancestor_facts.get() & fact as u8 != 0
 }
 
-pub(crate) fn construction_flags(facts: &FfiNodeConstructionFacts) -> u32 {
-    let has_style = facts.kind != NodeKind::Node && !kind_is_text(facts.kind);
+/// The construction facts a layout node hands over, as the word the style mirror publishes them in.
+pub(crate) fn construction_fact_word(facts: &FfiNodeConstructionFacts) -> u32 {
+    use crate::css::style::bridge::element_construction_fact as fact;
+    [
+        (fact::IS_HTML_INPUT_ELEMENT, facts.is_html_input_element),
+        (fact::IS_HTML_HTML_ELEMENT, facts.is_html_html_element),
+        (fact::IS_IN_USER_AGENT_SHADOW_TREE, facts.is_in_user_agent_shadow_tree),
+        (fact::USES_BUTTON_LAYOUT, facts.uses_button_layout),
+        (fact::IS_EDITING_HOST, facts.is_editing_host),
+        (fact::IS_BODY, facts.is_body),
+        (fact::IS_DOCUMENT_ELEMENT, facts.is_document_element),
+    ]
+    .into_iter()
+    .filter(|&(_, is_set)| is_set)
+    .fold(0, |word, (bit, _)| word | bit)
+}
+
+/// The flags a row of `kind` is built with, from its node's published construction facts.
+pub(crate) fn construction_flags(kind: NodeKind, is_anonymous: bool, construction_facts: u32) -> u32 {
+    use crate::css::style::bridge::element_construction_fact as fact;
+    let has = |bit: u32| construction_facts & bit != 0;
+    let has_style = kind != NodeKind::Node && !kind_is_text(kind);
     // Some native controls use a generic box so they can host their internal shadow tree, but
     // remain replaced elements for CSS box generation and inline layout.
-    let is_replaced_element = kind_is_replaced_box(facts.kind) || facts.is_html_input_element;
+    let is_replaced_element = kind_is_replaced_box(kind) || has(fact::IS_HTML_INPUT_ELEMENT);
     [
-        (NodeFlag::Anonymous, facts.is_anonymous),
+        (NodeFlag::Anonymous, is_anonymous),
         (NodeFlag::HasStyle, has_style),
         (NodeFlag::IsReplacedElement, is_replaced_element),
-        (NodeFlag::IsHtmlInputElement, facts.is_html_input_element),
-        (NodeFlag::IsHtmlHtmlElement, facts.is_html_html_element),
-        (NodeFlag::IsDocumentElement, facts.is_document_element),
-        (NodeFlag::IsInUserAgentShadowTree, facts.is_in_user_agent_shadow_tree),
-        (NodeFlag::UsesButtonLayout, facts.uses_button_layout),
-        (NodeFlag::IsEditingHost, facts.is_editing_host),
-        (NodeFlag::IsBody, facts.is_body),
+        (NodeFlag::IsHtmlInputElement, has(fact::IS_HTML_INPUT_ELEMENT)),
+        (NodeFlag::IsHtmlHtmlElement, has(fact::IS_HTML_HTML_ELEMENT)),
+        (NodeFlag::IsDocumentElement, has(fact::IS_DOCUMENT_ELEMENT)),
+        (
+            NodeFlag::IsInUserAgentShadowTree,
+            has(fact::IS_IN_USER_AGENT_SHADOW_TREE),
+        ),
+        (NodeFlag::UsesButtonLayout, has(fact::USES_BUTTON_LAYOUT)),
+        (NodeFlag::IsEditingHost, has(fact::IS_EDITING_HOST)),
+        (NodeFlag::IsBody, has(fact::IS_BODY)),
     ]
     .into_iter()
     .filter(|(_, is_set)| *is_set)

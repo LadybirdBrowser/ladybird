@@ -12,7 +12,7 @@ namespace Web::Layout {
 
 class Viewport final : public Box {
 public:
-    explicit Viewport(DOM::Document&, CSS::LayoutStyle);
+    Viewport(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
     virtual ~Viewport() override;
 
     DOM::Document const& dom_node() const;

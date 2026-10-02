@@ -71,7 +71,6 @@ void LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(DOM::Element& el
 }
 
 static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
-static Compositing::RustFFI::NodeSlotId create_layout_node_for_text(DOM::Text&);
 
 class GeneratedContentImageProvider final
     : public ImageProvider {
@@ -600,11 +599,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 break;
             }
             return Node::slot_id(layout_node); },
-        .create_principal_document_layout = [](void* builder_pointer) -> Compositing::RustFFI::NodeSlotId {
-            VERIFY(builder_pointer);
-            auto& document = *static_cast<LayoutTreeBuildBridge*>(builder_pointer)->m_document;
-            return Node::slot_id(&allocate_layout_node<Layout::Viewport>(document, document.style_computer().create_document_style())); },
-        .create_principal_text_layout = [](void* builder_pointer, u32 style_node) -> Compositing::RustFFI::NodeSlotId { return create_layout_node_for_text(as<DOM::Text>(node_for_style_node(builder_pointer, style_node))); },
         .attach_style_resources = [](void* builder_pointer, Compositing::RustFFI::NodeSlotId slot) {
             VERIFY(builder_pointer);
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
@@ -625,17 +619,20 @@ static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element& ele
         element.document().update_style_for_element({ element });
 }
 
-static Compositing::RustFFI::NodeSlotId create_layout_node_for_text(DOM::Text& text_node)
-{
-    return Node::slot_id(&allocate_layout_node<Layout::TextNode>(text_node.document(), text_node));
-}
-
 RustFFI::FfiLayoutTreeBuildOutcome LayoutTreeBuildBridge::build(DOM::Node& dom_node)
 {
     m_document = &dom_node.document();
     auto callbacks = make_ffi_dom_tree_builder_callbacks();
     auto& document = dom_node.document();
-    return RustFFI::rust_build_layout_tree(&callbacks, document.layout_node_arena().handle(), &dom_node, document.style_node_id().value());
+    auto* arena = document.layout_node_arena().handle();
+    // The viewport's style is the document's, which the style computer makes rather than publishes, so a build that may
+    // build the viewport is handed it before it starts.
+    CSS::StyleRecordID document_style_record;
+    if (RustFFI::layout_arena_tree_build_may_create_viewport(arena, document.style_node_id().value())) {
+        auto& style_computer = document.style_computer();
+        document_style_record = style_computer.intern_anonymous_layout_style(*style_computer.create_document_style());
+    }
+    return RustFFI::rust_build_layout_tree(&callbacks, arena, &dom_node, document.style_node_id().value(), document_style_record.value());
 }
 
 RustFFI::FfiLayoutTreeBuildOutcome build_layout_tree(DOM::Node& dom_node)

@@ -73,6 +73,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     arena: *mut c_void,
     document: *mut c_void,
     document_style_node: u32,
+    document_style_record: u64,
 ) -> FfiLayoutTreeBuildOutcome {
     assert!(!document.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
@@ -83,6 +84,15 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         StyleNodeID::from_raw(document_style_node).expect("a document that lays out is named in the style mirror");
     host.layout().arena().set_document_style_node(document_identity);
     let mut state = TreeBuilderState::default();
+    // The viewport's style is the document's, which the host makes rather than publishes, so a
+    // build that may build the viewport is handed it before it starts.
+    if document_style_record != 0 {
+        state.document_style = Some(
+            host.layout()
+                .arena()
+                .with_style_engine(|engine| DerivedStyleRecord::pin(engine, document_style_record)),
+        );
+    }
     let mut context = TreeBuilderContext {
         document_needs_full_layout_tree_update: host.layout().arena().needs_full_layout_tree_update(),
         ..Default::default()

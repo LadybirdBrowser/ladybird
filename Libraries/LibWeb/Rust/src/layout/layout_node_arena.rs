@@ -911,8 +911,11 @@ impl LayoutNodeArena {
         );
         data.kind.set(construction_facts.kind);
         data.shell.set(construction_facts.shell);
-        data.flags
-            .set(super::node_facts::construction_flags(&construction_facts));
+        data.flags.set(super::node_facts::construction_flags(
+            construction_facts.kind,
+            construction_facts.is_anonymous,
+            super::node_facts::construction_fact_word(&construction_facts),
+        ));
         data.dom_paint_facts.set(construction_facts.dom_paint_facts);
         #[cfg(debug_assertions)]
         self.assert_published_construction_facts(&construction_facts);
@@ -925,25 +928,13 @@ impl LayoutNodeArena {
     /// does, the shell that hands them over checks that the two agree.
     #[cfg(debug_assertions)]
     fn assert_published_construction_facts(&self, facts: &FfiNodeConstructionFacts) {
-        use crate::css::style::bridge::element_construction_fact as fact;
         let Some(style_node) = StyleNodeID::from_raw(facts.style_node) else {
             return;
         };
         if !self.has_style_engine() {
             return;
         }
-        let expected = [
-            (fact::IS_HTML_INPUT_ELEMENT, facts.is_html_input_element),
-            (fact::IS_HTML_HTML_ELEMENT, facts.is_html_html_element),
-            (fact::IS_IN_USER_AGENT_SHADOW_TREE, facts.is_in_user_agent_shadow_tree),
-            (fact::USES_BUTTON_LAYOUT, facts.uses_button_layout),
-            (fact::IS_EDITING_HOST, facts.is_editing_host),
-            (fact::IS_BODY, facts.is_body),
-            (fact::IS_DOCUMENT_ELEMENT, facts.is_document_element),
-        ]
-        .into_iter()
-        .filter(|&(_, is_set)| is_set)
-        .fold(0, |word, (bit, _)| word | bit);
+        let expected = super::node_facts::construction_fact_word(facts);
         let published = self.with_style_store(|engine| engine.element_construction_facts(style_node));
         assert_eq!(
             published,
@@ -1444,6 +1435,33 @@ impl LayoutNodeArena {
             self.notify_box_presence(node);
         }
         true
+    }
+
+    /// The row `node` is bound to, if any.
+    fn bound_row_of(&self, node: BoundNode) -> NodeSlotId {
+        match node {
+            BoundNode::Identity(style_node) => self.bound_row(style_node),
+            BoundNode::PseudoElement(generator, generated_for) => {
+                self.bound_pseudo_element_row(generator, generated_for)
+            }
+            BoundNode::Document => self.bound_viewport_row(),
+        }
+    }
+
+    /// What a row the build stamped for a DOM node owes the node's other rows, and the node itself.
+    /// The row bound before joins the ring of rows built for the same node and keeps its style
+    /// readable for as long as the host holds it; the stamped row becomes the node's.
+    pub(crate) fn take_over_rows_of_bound_node(&self, slot: NodeSlotId) {
+        self.assert_owner_thread();
+        let Some(node) = self.bound_node_of(slot) else {
+            return;
+        };
+        let previously_bound = self.bound_row_of(node);
+        if !previously_bound.is_invalid() {
+            self.note_rows_share_dom_node(previously_bound, slot);
+            self.pin_style_record_for_detachment(previously_bound);
+        }
+        self.bind_row(slot);
     }
 
     /// Binds the node `id` belongs to to `id`, replacing any row bound to it before.
@@ -2312,7 +2330,12 @@ impl LayoutNodeArena {
         }
     }
 
-    fn apply_reinherited_style_record(&self, main_thread: &MainThread, slot: NodeSlotId, derived: DerivedStyleRecord) {
+    pub(crate) fn apply_reinherited_style_record(
+        &self,
+        main_thread: &MainThread,
+        slot: NodeSlotId,
+        derived: DerivedStyleRecord,
+    ) {
         let previous_payloads = self.data(slot).style.get();
         let changes_layout_affecting_style =
             !style_payloads_equal_in_layout_affecting_groups(previous_payloads, derived.payloads);
@@ -2566,6 +2589,44 @@ impl LayoutNodeArena {
         self.text_nodes_enrolled_for_content_sync.borrow_mut().insert(node);
     }
 
+    /// Stamps a row the build allocated for a DOM node, with the facts the style mirror publishes
+    /// under the node's identity. The document names no identity of its own, and its row is
+    /// recognized by its kind. The layout node made for the row answers for the paint facts the row
+    /// is built with, which are not published.
+    pub(crate) fn stamp_dom_row(&self, slot: NodeSlotId, kind: NodeKind, style_node: Option<StyleNodeID>) {
+        self.assert_owner_thread();
+        let data = self.data(slot);
+        assert_eq!(
+            data.kind.get(),
+            NodeKind::Unset,
+            "stamped a row the build allocated onto a bound slot"
+        );
+        data.kind.set(kind);
+        let construction_facts = style_node.map_or(0, |style_node| {
+            self.with_style_store(|engine| engine.element_construction_facts(style_node))
+        });
+        data.flags
+            .set(super::node_facts::construction_flags(kind, false, construction_facts));
+        self.set_node_style_node(slot, style_node);
+        self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
+    }
+
+    /// The paint facts a row is built with, which the layout node made for a stamped row hands
+    /// over. A row being built is not committed, so this is the plain write `bind_shell` makes
+    /// rather than the change a live row's facts go through.
+    pub(crate) fn set_constructed_row_dom_paint_facts(&self, slot: NodeSlotId, facts: u8) {
+        self.assert_owner_thread();
+        self.data(slot).dom_paint_facts.set(facts);
+    }
+
+    /// Whether the build about to run may build the viewport, which is what needs the document's
+    /// style: there is no viewport row yet, the whole tree is to be rebuilt, or the document is.
+    pub(crate) fn tree_build_may_create_viewport(&self, document_style_node: Option<StyleNodeID>) -> bool {
+        self.bound_viewport_row().is_invalid()
+            || self.needs_full_layout_tree_update()
+            || document_style_node.is_some_and(|document| self.needs_layout_tree_update(document))
+    }
+
     pub(crate) fn stamp_anonymous_box(&self, slot: NodeSlotId, kind: NodeKind, derived: DerivedStyleRecord) {
         self.assert_owner_thread();
         let data = self.data(slot);
@@ -2576,21 +2637,7 @@ impl LayoutNodeArena {
         );
         assert!(derived.record != 0 && !derived.payloads.is_null());
         data.kind.set(kind);
-        data.flags
-            .set(super::node_facts::construction_flags(&FfiNodeConstructionFacts {
-                kind,
-                shell: std::ptr::null_mut(),
-                is_anonymous: true,
-                is_html_input_element: false,
-                is_html_html_element: false,
-                is_document_element: false,
-                is_in_user_agent_shadow_tree: false,
-                uses_button_layout: false,
-                is_editing_host: false,
-                is_body: false,
-                dom_paint_facts: 0,
-                style_node: 0,
-            }));
+        data.flags.set(super::node_facts::construction_flags(kind, true, 0));
         self.style_records[slot.slot_index() as usize].set(derived.record);
         self.style_records_pinned_by_arena[slot.slot_index() as usize].set(true);
         data.style.set(derived.payloads);
@@ -2655,7 +2702,7 @@ impl LayoutNodeArena {
             return std::ptr::null_mut();
         };
         let data = self.data(id);
-        if data.kind.get() == NodeKind::Unset || data.flags.get() & NodeFlag::Anonymous as u32 == 0 {
+        if data.kind.get() == NodeKind::Unset {
             return std::ptr::null_mut();
         }
         // SAFETY: Registration and unregistration keep the factory context live; the factory binds a
@@ -4934,6 +4981,35 @@ pub(crate) fn prepare_subtree_for_detach(main_thread: &MainThread, arena: &Layou
     for row in rows {
         prepare_row_for_detach(main_thread, arena, row);
     }
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread, and `slot` a row the build stamped.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_constructed_row_dom_paint_facts(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    facts: u8,
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_constructed_row_dom_paint_facts(slot, facts);
+}
+
+/// Whether the layout tree build about to run may build the viewport, and so needs the document's
+/// style handed to it.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_tree_build_may_create_viewport(
+    arena: *mut c_void,
+    document_style_node: u32,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }
+        .tree_build_may_create_viewport(StyleNodeID::from_raw(document_style_node))
 }
 
 /// Pins, for the host, the style record of the box the element or text node `style_node` names is
