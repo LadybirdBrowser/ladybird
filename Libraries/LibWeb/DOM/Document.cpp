@@ -3577,6 +3577,12 @@ void Document::adopt_node_steps(Node& node)
 
     // 3. If document is not oldDocument, then:
     if (&old_document != this) {
+        // NB: A node brings its blocking wheel listeners and the state it inherited from them with it, and this
+        //     document was never told that either exists. The old document's answer covers both, and both only ever
+        //     make the answer more conservative.
+        if (old_document.may_have_blocking_wheel_event_listener())
+            set_may_have_blocking_wheel_event_listener();
+
         Vector<GC::Ref<ShadowRoot>> shadow_roots_with_adopted_sheets;
 
         // A sheet adopted into a shadow root travels with it, and its identity in the style engine

@@ -293,6 +293,9 @@ static void invalidate_compositor_wheel_event_listener_state(EventTarget& event_
     }
 
     if (auto* node = as_if<Node>(event_target)) {
+        // The document remembers that a blocking listener lives in it, so that a node arriving
+        // under this one later derives the state it inherits.
+        node->document().set_may_have_blocking_wheel_event_listener();
         node->update_inside_blocking_wheel_event_handler_state_for_subtree();
         node->set_needs_repaint();
         node->document().page().invalidate_compositor_wheel_event_listener_state();
