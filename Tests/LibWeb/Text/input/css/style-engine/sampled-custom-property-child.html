@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes sample {
+        from { --sampled: rgb(0, 128, 0); }
+        to { --sampled: rgb(0, 128, 0); }
+    }
+    #parent {
+        --sampled: rgb(255, 0, 0);
+        animation: sample 100s paused;
+    }
+    #child { color: var(--sampled); }
+    #child.moved { background-color: var(--sampled); }
+</style>
+<div id="parent"><div id="child">x</div></div>
+<script>
+    // A child inherits the custom properties its parent's animations sample. Count who computed the child's
+    // record once a rule it matches moves.
+    asyncTest(async done => {
+        await document.getAnimations()[0].ready;
+        const child = document.getElementById("child");
+        println(`color: ${getComputedStyle(child).color}`);
+        child.className = "moved";
+        const recomputationsBefore = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        internals.updateStyle();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - recomputationsBefore}`);
+        println(`background-color: ${getComputedStyle(child).backgroundColor}`);
+        done();
+    });
+</script>

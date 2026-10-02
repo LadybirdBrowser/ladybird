@@ -149,8 +149,9 @@ impl RetainedCustomPropertyData {
 pub(crate) struct HeldCustomPropertyEnvironment {
     /// The identity the host's object names the environment by.
     pub(crate) identity: u64,
-    /// Whether it is the element's animation overlay, over the environment its style resolves to.
-    pub(crate) is_animation_overlay: bool,
+    /// For the element's animation overlay, the environment its style resolved to, which its
+    /// animations sampled their custom properties over.
+    pub(crate) sampled_over: Option<u64>,
     /// Whether the environment the style resolves to declares custom properties of its own, over
     /// the one it inherits.
     pub(crate) declares: bool,
@@ -1069,7 +1070,7 @@ impl RetainedState {
         node: StyleNodeID,
         data: Option<RetainedCustomPropertyData>,
         identity: u64,
-        is_animation_overlay: bool,
+        sampled_over: Option<u64>,
         declares: bool,
     ) {
         let Some(data) = data else {
@@ -1087,7 +1088,7 @@ impl RetainedState {
             node,
             HeldCustomPropertyEnvironment {
                 identity,
-                is_animation_overlay,
+                sampled_over,
                 declares,
                 data,
             },
@@ -1125,7 +1126,7 @@ impl RetainedState {
         };
         let held = HeldCustomPropertyEnvironment {
             identity,
-            is_animation_overlay: false,
+            sampled_over: None,
             declares: false,
             data,
         };

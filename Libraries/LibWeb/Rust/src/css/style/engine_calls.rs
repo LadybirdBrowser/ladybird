@@ -37,7 +37,7 @@ pub(crate) enum EngineWrite {
         node: StyleNodeID,
         data: Option<RetainedCustomPropertyData>,
         identity: u64,
-        is_animation_overlay: bool,
+        sampled_over: Option<u64>,
         declares: bool,
     },
     /// The custom-property environment one of an element's synthetic pseudo-elements holds, or none.
@@ -91,9 +91,9 @@ impl EngineWrite {
                 node,
                 data,
                 identity,
-                is_animation_overlay,
+                sampled_over,
                 declares,
-            } => engine.set_element_custom_property_data(node, data, identity, is_animation_overlay, declares),
+            } => engine.set_element_custom_property_data(node, data, identity, sampled_over, declares),
             Self::PseudoElementCustomPropertyData {
                 node,
                 pseudo,
@@ -273,9 +273,9 @@ pub unsafe extern "C" fn style_engine_publish_font_faces(
     unsafe { queue(host, write) };
 }
 
-/// Keeps the custom-property environment an element now holds, named by `identity`: whether it is the element's
-/// animation overlay, and whether the environment its style resolves to declares custom properties of its own. A null
-/// `data` is none.
+/// Keeps the custom-property environment an element now holds, named by `identity`: for the element's animation
+/// overlay, the environment `base` its style resolved to beneath it, and whether `base` declares custom properties of its
+/// own over the one it inherits. A null `data` is none.
 ///
 /// # Safety
 /// `host` must be a live document host, and `data` null or a live `Web::CSS::CustomPropertyData`.
@@ -287,6 +287,7 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
     identity: u64,
     is_animation_overlay: bool,
     declares: bool,
+    base: u64,
 ) {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
@@ -297,7 +298,7 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
         node,
         data,
         identity,
-        is_animation_overlay,
+        sampled_over: is_animation_overlay.then_some(base),
         declares,
     };
     // SAFETY: Guaranteed by the caller.
