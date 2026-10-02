@@ -17,6 +17,15 @@ pub const GENERATED_FOR_MARKER: u8 = 6;
 /// The last pseudo-element an element holds a box for in its own right; the ones from
 /// `GENERATED_FOR_AFTER` up to it are an element's synthetic pseudo-elements.
 pub const GENERATED_FOR_LAST_SYNTHETIC: u8 = 8;
+/// `CSS::PseudoElement::Selection`, as the style engine numbers an element's pseudo-element
+/// records. It generates no box, so no row names it.
+pub const SELECTION_PSEUDO_KIND: u8 = 6;
+
+/// The pseudo-element a row generated for `generated_for` stands for, as the style engine numbers
+/// an element's pseudo-element records. `Layout::Node::encode_generated_for` is its inverse.
+pub(crate) const fn pseudo_kind_of(generated_for: u8) -> u8 {
+    generated_for - 1
+}
 
 // The full C++ StyleGroupIndex space; LayoutRustBridge.cpp static-asserts the
 // count so the style container array and the registered group indices line up.

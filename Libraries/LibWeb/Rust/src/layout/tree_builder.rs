@@ -15,7 +15,7 @@ use crate::css::style::tree::StyleNodeID;
 use crate::layout::layout_node_arena::{LayoutNodeArena, StaleWalkFacts};
 use crate::layout::node_data::{
     GENERATED_FOR_AFTER, GENERATED_FOR_BACKDROP, GENERATED_FOR_BEFORE, GENERATED_FOR_FIRST_LETTER,
-    GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId,
+    GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId, SELECTION_PSEUDO_KIND, pseudo_kind_of,
 };
 use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_length_for_code_point};
 use crate::layout::tree_mutation::{UnplacedLayoutNode, free_subtree_and_destroy_shells};
@@ -663,7 +663,7 @@ fn may_update_pseudo_elements_in_place(
             }
         }
 
-        let pseudo_kind = generated_for - 1;
+        let pseudo_kind = pseudo_kind_of(generated_for);
         let Some(content) = engine.pseudo_published_content_facts(element, pseudo_kind) else {
             continue;
         };
@@ -841,7 +841,7 @@ impl ChildListInsertionReuse<'_, '_> {
 
             let pseudo_display = self
                 .engine
-                .pseudo_published_box_facts(self.element, generated_for - 1)
+                .pseudo_published_box_facts(self.element, pseudo_kind_of(generated_for))
                 .map(|facts| facts.display);
             let parent_display = self.layout.display(self.layout_node);
             let pseudo_belongs_to_inline_run = pseudo_display
@@ -2960,7 +2960,7 @@ fn published_pseudo_element_facts(
     };
     let published = layout.arena().with_style_store(|engine| {
         engine
-            .pseudo_published_style_view(element, generated_for_of(pseudo_element) - 1)
+            .pseudo_published_style_view(element, pseudo_kind_of(generated_for_of(pseudo_element)))
             .map(|view| {
                 let display = view.display();
                 PseudoElementFacts {
@@ -3024,7 +3024,7 @@ fn stamp_pseudo_element_box_row(
             .arena()
             .with_style_store(|engine| {
                 engine
-                    .pseudo_published_style_view(generator, generated_for - 1)
+                    .pseudo_published_style_view(generator, pseudo_kind_of(generated_for))
                     .map(|view| view.display())
             })
             .and_then(node_kind_for_display)?,
@@ -3051,6 +3051,7 @@ fn stamp_pseudo_element_box_row(
             .arena()
             .set_node_flag(slot, NodeFlag::ListMarkerIsInside, facts.marker_position_is_inside);
     }
+    layout_host.note_style_of_built_row(slot, None);
     assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
     Some(slot)
 }
@@ -3085,6 +3086,7 @@ fn stamp_nested_list_marker_row(
     layout_host
         .arena()
         .set_node_flag(slot, NodeFlag::ListMarkerIsInside, marker_position_is_inside);
+    layout_host.note_style_of_built_row(slot, None);
     assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
     // SAFETY: The builder remains live, and the row the build stamped is a live NodeWithStyle.
     unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, slot, false) };
@@ -3160,7 +3162,7 @@ fn create_pseudo_element(
 ) -> Option<UnplacedLayoutNode> {
     // The record the pseudo-element's boxes are built from is held for the whole build.
     let record = host.arena().with_style_store(|engine| {
-        engine.pseudo_published_style_record(element_identity, generated_for_of(pseudo_element) - 1)
+        engine.pseudo_published_style_record(element_identity, pseudo_kind_of(generated_for_of(pseudo_element)))
     });
     if let Some(record) = record {
         state.pin_style_record_for_build(host.arena(), record);
@@ -3642,6 +3644,7 @@ impl TreeBuilderHost<'_> {
             }
             _ => {}
         }
+        self.note_style_of_built_row(slot, Some(element));
         assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
         slot
     }
@@ -3672,8 +3675,69 @@ impl TreeBuilderHost<'_> {
     /// layout node made for it.
     fn create_text_box(&self, style_node: StyleNodeID) -> NodeSlotId {
         let slot = self.stamp_dom_box(NodeKind::TextNode, Some(style_node));
+        self.stamp_text_row_facts(slot, style_node);
         assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
         slot
+    }
+
+    /// What giving a row its style tells the rest of the document: what an element's `::selection`
+    /// style paints selected text with.
+    fn note_style_of_built_row(&self, slot: NodeSlotId, element: Option<StyleNodeID>) {
+        if let Some(element) = element
+            && self.holds_selection_style(element)
+        {
+            crate::painting::selection::note_built_row_selection_pseudo_style(self.arena(), slot, element);
+        }
+    }
+
+    /// A text row is stamped with whether an empty text produces a line box fragment, which text
+    /// controls and editing hosts rely on: the fragment keeps the line box alive with real font
+    /// metrics, giving the caret an anchor to paint at and the control its baseline. The document
+    /// restamps it when editability changes. Under an element with a `::selection` style and no
+    /// box of its own, the row takes that style's paint facts itself.
+    fn stamp_text_row_facts(&self, slot: NodeSlotId, text: StyleNodeID) {
+        use crate::css::style::bridge::element_construction_fact::{IS_EDITING_HOST, IS_HTML_INPUT_ELEMENT};
+        let is_in_user_agent_shadow_tree =
+            self.arena().node_flags(slot) & NodeFlag::IsInUserAgentShadowTree as u32 != 0;
+        let (produces_line_box_fragment_when_empty, parent_element) = self.arena().with_style_store(|engine| {
+            let tree = engine.tree();
+            let parent = tree.text_parent(text);
+            let parent_element = parent.filter(|parent| parent.element_index().is_some());
+            let parent_is_editing_host =
+                parent_element.is_some_and(|parent| engine.element_construction_facts(parent) & IS_EDITING_HOST != 0);
+            // NB: Tree relations are keyed by element identity, so the walk to the host starts at the
+            //     text's parent.
+            let is_in_text_control = is_in_user_agent_shadow_tree
+                && parent
+                    .and_then(|parent| tree.shadow_host_of(parent))
+                    .is_some_and(|host| {
+                        engine.element_construction_facts(host) & IS_HTML_INPUT_ELEMENT != 0
+                            || engine.element_box_kind(host) == ElementBoxKind::TextArea
+                    });
+            (parent_is_editing_host || is_in_text_control, parent_element)
+        });
+        self.arena().set_node_flag(
+            slot,
+            NodeFlag::ProducesLineBoxFragmentWhenEmpty,
+            produces_line_box_fragment_when_empty,
+        );
+        if let Some(parent) = parent_element
+            && self.holds_selection_style(parent)
+            && self.arena().bound_row(parent).is_invalid()
+        {
+            crate::painting::selection::note_built_row_selection_pseudo_style(self.arena(), slot, parent);
+        }
+    }
+
+    /// Whether the element published a `::selection` record. An element whose own rules style no
+    /// `::selection` still holds one inherited from an ancestor's, which the published
+    /// pseudo-element mask does not show.
+    fn holds_selection_style(&self, element: StyleNodeID) -> bool {
+        self.arena().with_style_store(|engine| {
+            engine
+                .pseudo_published_style_record(element, SELECTION_PSEUDO_KIND)
+                .is_some()
+        })
     }
 
     /// The row the document's viewport is built in, stamped out of its kind and the document's
@@ -4431,6 +4495,11 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID
             layout_host.stamp_generated_text_box(&source[letter_end..]),
         )
     };
+    if let Some(text) = layout_host.arena().node_style_node(first_letter_slice) {
+        for slice in [first_letter_slice, remainder_slice] {
+            layout_host.stamp_text_row_facts(slice, text);
+        }
+    }
     for slice in [first_letter_slice, remainder_slice] {
         assert!(!layout_host.arena().node_shell(layout_host.main_thread, slice).is_null());
     }
@@ -4443,7 +4512,7 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID
         .arena()
         .with_style_store(|engine| {
             engine
-                .pseudo_published_style_view(element, GENERATED_FOR_FIRST_LETTER - 1)
+                .pseudo_published_style_view(element, pseudo_kind_of(GENERATED_FOR_FIRST_LETTER))
                 .map(|view| view.display())
         })
         .and_then(node_kind_for_display);
@@ -4470,6 +4539,7 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID
     layout_host
         .arena()
         .stamp_pseudo_element_row(wrapper_slot, wrapper_kind, element, GENERATED_FOR_FIRST_LETTER);
+    layout_host.note_style_of_built_row(wrapper_slot, None);
     assert!(
         !layout_host
             .arena()

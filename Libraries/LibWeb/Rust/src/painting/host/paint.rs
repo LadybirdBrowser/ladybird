@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixels;
 use crate::layout::svg_formatting_context::FfiSvgNumberPercentage;
 use crate::layout::used_values;
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
@@ -418,15 +417,6 @@ pub struct FfiSvgPatternDescription {
     pub width: FfiSvgNumberPercentage,
     pub height: FfiSvgNumberPercentage,
     pub pattern_transform_attribute: OptionalAffineTransform,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiSelectionShadowLayer {
-    pub color: Color,
-    pub offset_x: CssPixels,
-    pub offset_y: CssPixels,
-    pub blur_radius: CssPixels,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

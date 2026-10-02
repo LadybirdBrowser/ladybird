@@ -1459,47 +1459,18 @@ pub unsafe extern "C" fn layout_arena_scroll_snap_axes(
     crate::painting::scroll_snap::snap_axes_of_scroll_container(arena, snap_container)
 }
 
+/// Gives the rows that paint text under the element what its published `::selection` record says
+/// selected text paints with, after the element's style changed.
+///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
-/// `shadows` points at `shadow_count` layers, or is null when the count is zero.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_node_selection_pseudo_style(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    has_styling: bool,
-    facts: crate::painting::host::FfiSelectionStyleFacts,
-    shadows: *const crate::painting::host::FfiSelectionShadowLayer,
-    shadow_count: usize,
-) {
-    let arena = unsafe { arena_from_handle(arena) };
-    let rows = arena.rows_sharing_dom_node_with(slot);
-    let mut paint_state = arena.paint_state().borrow_mut();
-    if !has_styling {
-        for row in rows {
-            paint_state.selection_pseudo_styles.remove(&row);
-        }
+pub unsafe extern "C" fn layout_arena_sync_selection_pseudo_style(arena: *mut c_void, element_style_node: u32) {
+    let Some(element) = crate::css::style::tree::StyleNodeID::from_raw(element_style_node) else {
         return;
-    }
-    let shadows = if shadow_count == 0 {
-        &[][..]
-    } else {
-        // SAFETY: The host passes `shadow_count` layers that stay alive for this call.
-        unsafe { std::slice::from_raw_parts(shadows, shadow_count) }
     };
-    let shadows = shadows
-        .iter()
-        .map(|layer| crate::painting::record::paint::text::ShadowLayer {
-            color: layer.color.0,
-            offset_x: layer.offset_x,
-            offset_y: layer.offset_y,
-            blur_radius: layer.blur_radius,
-        })
-        .collect();
-    let answer = std::sync::Arc::new(crate::painting::record::paint::text::SelectionStyleAnswer { facts, shadows });
-    for row in rows {
-        paint_state.selection_pseudo_styles.insert(row, answer.clone());
-    }
+    crate::painting::selection::sync_selection_pseudo_style(unsafe { arena_from_handle(arena) }, element);
 }
 
 /// # Safety
