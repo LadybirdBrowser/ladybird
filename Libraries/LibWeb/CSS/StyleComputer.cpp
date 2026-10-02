@@ -1180,8 +1180,9 @@ static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::
 // which is the record just installed. Both are records, and the step reads the before-change half only through
 // `decide_transitions`' baseline. A transition the step starts layers its current values into the after-change style to
 // keep the frame from jumping; publishing that is the same animation overlay publication an animation sample performs,
-// on the same element, over the same base.
-RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_installed_record(DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record, TransitionStepFollowUp follow_up) const
+// on the same element, over the same base, and the step samples the transitions over the installed record as such a
+// sample does: the box-type transformation of the values they take adjusts the composition, and the base stays current.
+RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_installed_record(DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
 {
     auto installed_style_record = abstract_element.style_record_identity();
     if (!installed_style_record || !before_change_style_record)
@@ -1233,11 +1234,6 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     element.refresh_computed_style(pseudo_element, publication.publication.new_style_record);
     if (auto* svg_element = as_if<SVG::SVGElement>(element); svg_element && !pseudo_element.has_value())
         svg_element->note_svg_paint_resource_description_may_have_changed();
-    // Box-type, overflow and text-alignment adjustments consume the unadjusted base values, which an overlay
-    // publication does not reconstruct.
-    if (follow_up == TransitionStepFollowUp::Request && publication.invalidation.requires_base_style_recomputation)
-        const_cast<StyleComputer&>(*this).style_engine().record_derived_element_style_input_change(
-            element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
     return decode_style_invalidation(publication.invalidation.invalidation);
 }
 
@@ -1576,13 +1572,13 @@ void StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style,
                 remaining_effects.append(keyframe_effect);
             }
             if (!remaining_effects.is_empty())
-                collect_animations_into(abstract_element, remaining_effects.span(), new_style, AnimationRefresh::No);
+                collect_animations_into(abstract_element, remaining_effects.span(), new_style, AnimationRefresh::Yes);
         }
     }
 
     // Immediately set the properties to the transitions' current values, to prevent single-frame jumps.
     if (!newly_started_transition_effects.is_empty()) {
-        collect_animations_into(abstract_element, newly_started_transition_effects.span(), new_style, AnimationRefresh::No);
+        collect_animations_into(abstract_element, newly_started_transition_effects.span(), new_style, AnimationRefresh::Yes);
         // NB: Construction does not invalidate animated style because the effects were just evaluated. Request the
         //     first animation frame directly so timeline updates can schedule subsequent animated style updates.
         m_document->page().client().request_frame();
@@ -3142,7 +3138,10 @@ void StyleComputer::finalize_style(ComputedStyleWorkingSet& style, DOM::Abstract
     VERIFY(animated_box_type || mode == ComputedValuesFFI::FfiStyleFinalizationMode::BoxType);
     ComputedValuesFFI::FfiStyleFinalizationInput input {};
     input.mode = mode;
-    input.box_type = make_box_type_transformation_input(abstract_element);
+    // A composition sampled over a record is transformed against the input the engine drove the record against.
+    input.box_type = animated_box_type
+        ? ComputedValuesFFI::rust_animated_box_type_transformation_input(m_style_engine.rust_handle(), abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()))
+        : make_box_type_transformation_input(abstract_element);
     auto line_height_metrics = input_line_height_metrics(style, abstract_element, input.box_type.check_input_line_height);
     auto* animated_overlay = style.prepare_animated_overlay_for_rust_finalization(
         Badge<StyleComputer> {}, animated_box_type ? ComputedStyleWorkingSet::CreateAnimatedOverlay::Yes : ComputedStyleWorkingSet::CreateAnimatedOverlay::No);

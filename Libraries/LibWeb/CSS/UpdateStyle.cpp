@@ -522,7 +522,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                         sample_animations_for_installed_record(abstract_element);
                 }
                 if (!!before_change.style_record())
-                    invalidation |= document.style_computer().run_transition_step_for_installed_record({ *element }, before_change.style_record(), StyleComputer::TransitionStepFollowUp::Request);
+                    invalidation |= document.style_computer().run_transition_step_for_installed_record({ *element }, before_change.style_record());
                 if (old_computed_values)
                     element->apply_display_none_change(DOM::Element::DisplayNoneState::of(*old_computed_values));
                 // The pseudo-elements of a record the host composes inherit the composition, so the engine settles them
