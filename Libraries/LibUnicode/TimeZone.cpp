@@ -9,6 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/QuickSort.h>
 #include <LibUnicode/ICU.h>
+#include <LibUnicode/TextMapping.h>
 #include <LibUnicode/TimeZone.h>
 
 #include <unicode/basictz.h>
@@ -304,4 +305,83 @@ Optional<TimeZoneTransition> get_time_zone_transition(Utf16View time_zone, UnixD
     return OptionalNone {};
 }
 
+}
+
+static UnixDateTime unix_date_time_from_parts(i64 seconds, u32 nanoseconds)
+{
+    return UnixDateTime::from_seconds_since_epoch(seconds) + AK::Duration::from_nanoseconds(nanoseconds);
+}
+
+static void write_utf16_to(UnicodeTextMappingOutput output, Utf16View text)
+{
+    auto* destination = output.allocate_text(output.context, text.length_in_code_units());
+    for (size_t i = 0; i < text.length_in_code_units(); ++i)
+        destination[i] = text.code_unit_at(i);
+}
+
+extern "C" void unicode_current_time_zone(UnicodeTextMappingOutput output)
+{
+    auto time_zone = Unicode::current_time_zone();
+    write_utf16_to(output, time_zone.utf16_view());
+}
+
+extern "C" bool unicode_set_current_time_zone(u16 const* time_zone, size_t length)
+{
+    return !Unicode::set_current_time_zone(Utf16View { reinterpret_cast<char16_t const*>(time_zone), length }).is_error();
+}
+
+extern "C" void unicode_available_time_zones(void* context, void (*append)(void*, u16 const*, size_t))
+{
+    for (auto const& time_zone : Unicode::available_time_zones()) {
+        auto view = time_zone.utf16_view();
+        Vector<u16> code_units;
+        code_units.ensure_capacity(view.length_in_code_units());
+        for (size_t i = 0; i < view.length_in_code_units(); ++i)
+            code_units.unchecked_append(view.code_unit_at(i));
+        append(context, code_units.data(), code_units.size());
+    }
+}
+
+extern "C" bool unicode_resolve_primary_time_zone(u16 const* time_zone, size_t length, UnicodeTextMappingOutput output)
+{
+    auto primary = Unicode::resolve_primary_time_zone(Utf16View { reinterpret_cast<char16_t const*>(time_zone), length });
+    if (!primary.has_value())
+        return false;
+    write_utf16_to(output, primary->utf16_view());
+    return true;
+}
+
+extern "C" bool unicode_time_zone_offset(u16 const* time_zone, size_t length, i64 seconds, u32 nanoseconds, i64* offset_nanoseconds, bool* in_dst)
+{
+    auto offset = Unicode::time_zone_offset(Utf16View { reinterpret_cast<char16_t const*>(time_zone), length }, unix_date_time_from_parts(seconds, nanoseconds));
+    if (!offset.has_value())
+        return false;
+    *offset_nanoseconds = offset->offset.to_nanoseconds();
+    *in_dst = offset->in_dst == Unicode::TimeZoneOffset::InDST::Yes;
+    return true;
+}
+
+extern "C" size_t unicode_disambiguated_time_zone_offsets(u16 const* time_zone, size_t length, i64 seconds, u32 nanoseconds, i64* offset_nanoseconds, bool* in_dst, size_t capacity)
+{
+    auto offsets = Unicode::disambiguated_time_zone_offsets(Utf16View { reinterpret_cast<char16_t const*>(time_zone), length }, unix_date_time_from_parts(seconds, nanoseconds));
+    VERIFY(offsets.size() <= capacity);
+    for (size_t i = 0; i < offsets.size(); ++i) {
+        offset_nanoseconds[i] = offsets[i].offset.to_nanoseconds();
+        in_dst[i] = offsets[i].in_dst == Unicode::TimeZoneOffset::InDST::Yes;
+    }
+    return offsets.size();
+}
+
+extern "C" bool unicode_time_zone_transition(u16 const* time_zone, size_t length, i64 seconds, u32 nanoseconds, u8 direction, bool include_given_time, u8 transition_rule, i64* transition_milliseconds)
+{
+    Unicode::TimeZoneTransition::Options options {
+        .direction = static_cast<Unicode::TimeZoneTransition::Options::Direction>(direction),
+        .include_given_time = include_given_time ? Unicode::TimeZoneTransition::Options::IncludeGivenTime::Yes : Unicode::TimeZoneTransition::Options::IncludeGivenTime::No,
+        .transition_rule = static_cast<Unicode::TimeZoneTransition::Options::TransitionRule>(transition_rule),
+    };
+    auto transition = Unicode::get_time_zone_transition(Utf16View { reinterpret_cast<char16_t const*>(time_zone), length }, unix_date_time_from_parts(seconds, nanoseconds), options);
+    if (!transition.has_value())
+        return false;
+    *transition_milliseconds = transition->transition.to_milliseconds();
+    return true;
 }

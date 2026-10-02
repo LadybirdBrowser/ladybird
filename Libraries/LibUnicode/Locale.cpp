@@ -13,6 +13,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Locale.h>
+#include <LibUnicode/TextMapping.h>
 
 #include <unicode/localebuilder.h>
 #include <unicode/locid.h>
@@ -877,4 +878,12 @@ Utf16String LocaleID::to_utf16_string() const
     return builder.to_string();
 }
 
+}
+
+extern "C" void unicode_default_locale(UnicodeTextMappingOutput output)
+{
+    auto locale = Unicode::default_locale();
+    auto* destination = output.allocate_text(output.context, locale.length_in_code_units());
+    for (size_t i = 0; i < locale.length_in_code_units(); ++i)
+        destination[i] = locale.code_unit_at(i);
 }

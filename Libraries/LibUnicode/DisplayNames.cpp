@@ -8,6 +8,7 @@
 #include <AK/ByteString.h>
 #include <LibUnicode/DisplayNames.h>
 #include <LibUnicode/ICU.h>
+#include <LibUnicode/TextMapping.h>
 
 #include <unicode/dtptngen.h>
 #include <unicode/localebuilder.h>
@@ -238,4 +239,17 @@ Optional<Utf16String> currency_display_name(StringView locale, StringView curren
     return icu_string_to_utf16_string(result, length);
 }
 
+}
+
+extern "C" bool unicode_time_zone_display_name(u8 const* locale, size_t locale_length, u8 const* time_zone, size_t time_zone_length, bool in_dst, double time, UnicodeTextMappingOutput output)
+{
+    auto name = Unicode::time_zone_display_name(StringView { locale, locale_length }, StringView { time_zone, time_zone_length },
+        in_dst ? Unicode::TimeZoneOffset::InDST::Yes : Unicode::TimeZoneOffset::InDST::No, time);
+    if (!name.has_value())
+        return false;
+    auto view = name->utf16_view();
+    auto* destination = output.allocate_text(output.context, view.length_in_code_units());
+    for (size_t i = 0; i < view.length_in_code_units(); ++i)
+        destination[i] = view.code_unit_at(i);
+    return true;
 }

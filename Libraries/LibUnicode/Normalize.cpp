@@ -8,6 +8,7 @@
 #include <AK/StringBuilder.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Normalize.h>
+#include <LibUnicode/TextMapping.h>
 
 #include <unicode/normalizer2.h>
 
@@ -93,4 +94,14 @@ Utf16String normalize(Utf16View string, NormalizationForm form)
     return icu_string_to_utf16_string(icu_output);
 }
 
+}
+
+extern "C" void unicode_normalize(u16 const* text, size_t length, u8 form, UnicodeTextMappingOutput output)
+{
+    VERIFY(form <= to_underlying(Unicode::NormalizationForm::NFKC));
+    auto normalized = Unicode::normalize(Utf16View { reinterpret_cast<char16_t const*>(text), length }, static_cast<Unicode::NormalizationForm>(form));
+    auto view = normalized.utf16_view();
+    auto* destination = output.allocate_text(output.context, view.length_in_code_units());
+    for (size_t i = 0; i < view.length_in_code_units(); ++i)
+        destination[i] = view.code_unit_at(i);
 }

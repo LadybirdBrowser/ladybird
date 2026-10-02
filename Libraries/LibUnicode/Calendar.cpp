@@ -6,6 +6,7 @@
 
 #include <LibUnicode/Calendar.h>
 #include <LibUnicode/RustFFI.h>
+#include <LibUnicode/TextMapping.h>
 
 namespace Unicode {
 
@@ -174,4 +175,97 @@ bool calendar_year_contains_month_code(StringView calendar, i32 arithmetic_year,
     return FFI::icu_year_contains_month_code(calendar.bytes().data(), calendar.bytes().size(), arithmetic_year, month_code_bytes.data(), month_code_bytes.size());
 }
 
+}
+
+static void write_utf16_to(UnicodeTextMappingOutput output, Utf16View text)
+{
+    auto* destination = output.allocate_text(output.context, text.length_in_code_units());
+    for (size_t i = 0; i < text.length_in_code_units(); ++i)
+        destination[i] = text.code_unit_at(i);
+}
+
+static bool write_iso_date_to(Optional<Unicode::ISODate> const& date, UnicodeISODate* iso_date)
+{
+    if (!date.has_value())
+        return false;
+    *iso_date = { date->year, date->month, date->day };
+    return true;
+}
+
+extern "C" bool unicode_parse_month_code(u16 const* month_code, size_t length, u8* month_number, bool* is_leap_month)
+{
+    auto parsed = Unicode::parse_month_code(Utf16View { reinterpret_cast<char16_t const*>(month_code), length });
+    if (!parsed.has_value())
+        return false;
+    *month_number = parsed->month_number;
+    *is_leap_month = parsed->is_leap_month;
+    return true;
+}
+
+extern "C" void unicode_create_month_code(u8 month_number, bool is_leap_month, UnicodeTextMappingOutput output)
+{
+    auto month_code = Unicode::create_month_code(month_number, is_leap_month);
+    write_utf16_to(output, month_code.utf16_view());
+}
+
+extern "C" void unicode_iso_date_to_calendar_date(u8 const* calendar, size_t calendar_length, UnicodeISODate iso_date, UnicodeCalendarDate* calendar_date, UnicodeTextMappingOutput era, UnicodeTextMappingOutput month_code)
+{
+    auto date = Unicode::iso_date_to_calendar_date(StringView { calendar, calendar_length }, { iso_date.year, iso_date.month, iso_date.day });
+    *calendar_date = {
+        .has_era = date.era.has_value(),
+        .has_era_year = date.era_year.has_value(),
+        .era_year = date.era_year.value_or(0),
+        .year = date.year,
+        .month = date.month,
+        .day = date.day,
+        .day_of_week = date.day_of_week,
+        .day_of_year = date.day_of_year,
+        .has_week_of_year = date.week_of_year.week.has_value(),
+        .week_of_year = date.week_of_year.week.value_or(0),
+        .has_year_of_week = date.week_of_year.year.has_value(),
+        .year_of_week = date.week_of_year.year.value_or(0),
+        .days_in_week = date.days_in_week,
+        .days_in_month = date.days_in_month,
+        .days_in_year = date.days_in_year,
+        .months_in_year = date.months_in_year,
+        .in_leap_year = date.in_leap_year,
+    };
+    if (date.era.has_value())
+        write_utf16_to(era, date.era->utf16_view());
+    write_utf16_to(month_code, date.month_code.utf16_view());
+}
+
+extern "C" bool unicode_calendar_date_to_iso_date(u8 const* calendar, size_t calendar_length, i32 year, u8 month, u8 day, UnicodeISODate* iso_date)
+{
+    return write_iso_date_to(Unicode::calendar_date_to_iso_date(StringView { calendar, calendar_length }, year, month, day), iso_date);
+}
+
+extern "C" bool unicode_iso_year_and_month_code_to_iso_date(u8 const* calendar, size_t calendar_length, i32 year, u16 const* month_code, size_t month_code_length, u8 day, UnicodeISODate* iso_date)
+{
+    return write_iso_date_to(Unicode::iso_year_and_month_code_to_iso_date(StringView { calendar, calendar_length }, year, Utf16View { reinterpret_cast<char16_t const*>(month_code), month_code_length }, day), iso_date);
+}
+
+extern "C" bool unicode_calendar_year_and_month_code_to_iso_date(u8 const* calendar, size_t calendar_length, i32 arithmetic_year, u16 const* month_code, size_t month_code_length, u8 day, UnicodeISODate* iso_date)
+{
+    return write_iso_date_to(Unicode::calendar_year_and_month_code_to_iso_date(StringView { calendar, calendar_length }, arithmetic_year, Utf16View { reinterpret_cast<char16_t const*>(month_code), month_code_length }, day), iso_date);
+}
+
+extern "C" u8 unicode_calendar_months_in_year(u8 const* calendar, size_t calendar_length, i32 arithmetic_year)
+{
+    return Unicode::calendar_months_in_year(StringView { calendar, calendar_length }, arithmetic_year);
+}
+
+extern "C" u8 unicode_calendar_days_in_month(u8 const* calendar, size_t calendar_length, i32 arithmetic_year, u8 ordinal_month)
+{
+    return Unicode::calendar_days_in_month(StringView { calendar, calendar_length }, arithmetic_year, ordinal_month);
+}
+
+extern "C" u8 unicode_calendar_max_days_in_month_code(u8 const* calendar, size_t calendar_length, u16 const* month_code, size_t month_code_length)
+{
+    return Unicode::calendar_max_days_in_month_code(StringView { calendar, calendar_length }, Utf16View { reinterpret_cast<char16_t const*>(month_code), month_code_length });
+}
+
+extern "C" bool unicode_calendar_year_contains_month_code(u8 const* calendar, size_t calendar_length, i32 arithmetic_year, u16 const* month_code, size_t month_code_length)
+{
+    return Unicode::calendar_year_contains_month_code(StringView { calendar, calendar_length }, arithmetic_year, Utf16View { reinterpret_cast<char16_t const*>(month_code), month_code_length });
 }
