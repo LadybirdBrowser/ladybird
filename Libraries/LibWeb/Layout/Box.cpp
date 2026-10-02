@@ -41,11 +41,16 @@ static ImageProvider const& image_provider_for_element(DOM::Element const& eleme
     VERIFY_NOT_REACHED();
 }
 
+ImageProvider* Box::owned_image_provider() const
+{
+    return static_cast<ImageProvider*>(RustFFI::layout_arena_owned_image_provider(arena_handle(), Node::slot_id(this)));
+}
+
 ImageProvider const& Box::image_provider() const
 {
     VERIFY(kind() == RustFFI::NodeKind::ImageBox);
-    if (m_owned_image_provider)
-        return *m_owned_image_provider;
+    if (auto const* owned = owned_image_provider())
+        return *owned;
 
     auto const* element = dom_node();
     VERIFY(element);
@@ -55,7 +60,7 @@ ImageProvider const& Box::image_provider() const
 void Box::set_owned_image_provider(NonnullOwnPtr<ImageProvider> image_provider)
 {
     VERIFY(kind() == RustFFI::NodeKind::ImageBox);
-    m_owned_image_provider = move(image_provider);
+    RustFFI::layout_arena_set_owned_image_provider(arena_handle(), Node::slot_id(this), image_provider.leak_ptr());
 }
 
 // An element's image provider outlives its box and keeps nothing about it, so only a provider the
@@ -64,8 +69,8 @@ void Box::set_owned_image_provider(NonnullOwnPtr<ImageProvider> image_provider)
 void Box::notify_owned_image_provider_of_detach()
 {
     VERIFY(kind() == RustFFI::NodeKind::ImageBox);
-    if (m_owned_image_provider)
-        m_owned_image_provider->layout_node_was_detached();
+    if (auto* owned = owned_image_provider())
+        owned->layout_node_was_detached();
 }
 
 bool Box::is_partial_relayout_boundary() const

@@ -369,16 +369,17 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
 
 NodeWithStyle::~NodeWithStyle()
 {
-    clear_image_observers();
+    // NB: The arena destroys a shell only after it has freed the shell's row, and it destroys the
+    //     row's image observers itself, so nothing is left to drop by slot here.
     release_pinned_style_record();
 }
 
 void NodeWithStyle::clear_image_observers()
 {
-    m_image_observers = {};
+    delete static_cast<ImageObserverSlots*>(RustFFI::layout_arena_replace_image_observers(arena_handle(), slot_id(this), nullptr));
 }
 
-void NodeWithStyle::rebuild_image_observers()
+void NodeWithStyle::rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue const>> cursor_style_values)
 {
     auto observer_for = [&](CSS::AbstractImageStyleValue const* abstract_image) -> OwnPtr<ImageObserver> {
         if (!abstract_image)
@@ -389,19 +390,32 @@ void NodeWithStyle::rebuild_image_observers()
         return make<ImageObserver>(*this, *image_to_observe);
     };
 
-    ImageObserverSlots new_observers;
+    auto new_observers = make<ImageObserverSlots>();
     for (auto const& layer : background_layers())
-        new_observers.background_layers.append(observer_for(layer.background_image.ptr()));
+        new_observers->background_layers.append(observer_for(layer.background_image.ptr()));
     for (auto const& layer : mask_layers())
-        new_observers.mask_layers.append(observer_for(layer.background_image.ptr()));
-    for (auto const& cursor_style_value : m_cursor_style_values)
-        new_observers.cursors.append(cursor_style_value ? observer_for(&cursor_style_value->image()) : nullptr);
-    new_observers.border_image_source = observer_for(border_image().source.ptr());
-    new_observers.list_style_image = observer_for(list_style_image());
+        new_observers->mask_layers.append(observer_for(layer.background_image.ptr()));
+    for (auto const& cursor_style_value : cursor_style_values)
+        new_observers->cursors.append(cursor_style_value ? observer_for(&cursor_style_value->image()) : nullptr);
+    new_observers->border_image_source = observer_for(border_image().source.ptr());
+    new_observers->list_style_image = observer_for(list_style_image());
+    new_observers->cursor_style_values = move(cursor_style_values);
     // TODO: Observe other <image> accepting properties once we support them.
 
     // Register the new observers before the old ones unregister so a shared resource is never dropped and refetched.
-    m_image_observers = move(new_observers);
+    delete static_cast<ImageObserverSlots*>(RustFFI::layout_arena_replace_image_observers(arena_handle(), slot_id(this), new_observers.leak_ptr()));
+}
+
+NodeWithStyle::ImageObserverSlots const* NodeWithStyle::image_observers() const
+{
+    return static_cast<ImageObserverSlots const*>(RustFFI::layout_arena_image_observers(arena_handle(), slot_id(this)));
+}
+
+ReadonlySpan<RefPtr<CSS::CursorStyleValue const>> NodeWithStyle::cursor_style_values() const
+{
+    if (auto const* observers = image_observers())
+        return observers->cursor_style_values;
+    return {};
 }
 
 static NodeWithStyle::ImageObserver const* image_observer_at(Vector<OwnPtr<NodeWithStyle::ImageObserver>> const& observers, size_t index)
@@ -413,17 +427,26 @@ static NodeWithStyle::ImageObserver const* image_observer_at(Vector<OwnPtr<NodeW
 
 NodeWithStyle::ImageObserver const* NodeWithStyle::background_image_observer(size_t layer_index) const
 {
-    return image_observer_at(m_image_observers.background_layers, layer_index);
+    auto const* observers = image_observers();
+    return observers ? image_observer_at(observers->background_layers, layer_index) : nullptr;
 }
 
 NodeWithStyle::ImageObserver const* NodeWithStyle::mask_image_observer(size_t layer_index) const
 {
-    return image_observer_at(m_image_observers.mask_layers, layer_index);
+    auto const* observers = image_observers();
+    return observers ? image_observer_at(observers->mask_layers, layer_index) : nullptr;
 }
 
 NodeWithStyle::ImageObserver const* NodeWithStyle::cursor_image_observer(size_t cursor_index) const
 {
-    return image_observer_at(m_image_observers.cursors, cursor_index);
+    auto const* observers = image_observers();
+    return observers ? image_observer_at(observers->cursors, cursor_index) : nullptr;
+}
+
+NodeWithStyle::ImageObserver const* NodeWithStyle::border_image_source_observer() const
+{
+    auto const* observers = image_observers();
+    return observers ? observers->border_image_source.ptr() : nullptr;
 }
 
 }
@@ -463,7 +486,6 @@ void NodeWithStyle::attach_style_resources()
     // observe one. Nearly every style holds none, and that answer is one flag read; the walk below stays for the
     // styles that do.
     if (!style_record_holds_image_values(document().style_computer().style_engine(), m_style_record_identity)) {
-        m_cursor_style_values.clear();
         clear_image_observers();
         Painting::push_paint_facts_after_style_attach(*this, Painting::StyleHoldsImageValues::No);
         return;
@@ -479,17 +501,17 @@ void NodeWithStyle::attach_style_resources()
     for (auto const& layer : mask_layers())
         load_image(layer.background_image.ptr());
     load_image(border_image().source.ptr());
-    m_cursor_style_values.clear();
-    m_cursor_style_values.ensure_capacity(cursor().size());
+    Vector<RefPtr<CSS::CursorStyleValue const>> cursor_style_values;
+    cursor_style_values.ensure_capacity(cursor().size());
     for (auto const& cursor_data : cursor()) {
         auto cursor_style_value = CSS::ComputedValues::InheritedUIValues::cursor_style_value(cursor_data);
         if (cursor_style_value)
             load_image(&cursor_style_value->image());
-        m_cursor_style_values.unchecked_append(move(cursor_style_value));
+        cursor_style_values.unchecked_append(move(cursor_style_value));
     }
     load_image(list_style_image());
 
-    rebuild_image_observers();
+    rebuild_image_observers(move(cursor_style_values));
     Painting::push_paint_facts_after_style_attach(*this, Painting::StyleHoldsImageValues::Yes);
 }
 

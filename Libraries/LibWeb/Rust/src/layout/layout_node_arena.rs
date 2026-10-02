@@ -442,7 +442,8 @@ fn style_payloads_equal_in_layout_affecting_groups(a: StylePayloadsRef, b: Style
 
 #[must_use]
 pub(crate) struct FreedSubtree {
-    shells: Vec<*mut c_void>,
+    /// Each freed row, as it was named before it was freed, with its shell.
+    rows: Vec<(NodeSlotId, *mut c_void)>,
     paintable_row_resets: Vec<crate::painting::paintable_rows::PaintableRowReset>,
     arena_pinned_style_records: Vec<u64>,
     style_engine: *mut c_void,
@@ -473,7 +474,7 @@ impl BoundNode {
 impl FreedSubtree {
     #[cfg(test)]
     pub(crate) fn shell_count(&self) -> usize {
-        self.shells.len()
+        self.rows.len()
     }
 
     #[cfg(test)]
@@ -481,9 +482,20 @@ impl FreedSubtree {
         self.arena_pinned_style_records.len()
     }
 
+    /// Destroys the freed rows' shells, then what the host holds for the rows by slot.
     pub(crate) fn destroy_shells_and_invoke_callbacks(self, main_thread: &crate::stage::MainThread) {
-        for shell in self.shells {
+        for &(_, shell) in &self.rows {
             crate::layout::tree_mutation::destroy_shell(main_thread, shell);
+        }
+        if let Some(host_tables) = main_thread.host_tables() {
+            for &(slot, _) in &self.rows {
+                let provider = host_tables.owned_image_providers.borrow_mut().remove(&slot);
+                if let Some(provider) = provider {
+                    crate::layout::tree_mutation::destroy_owned_image_provider(main_thread, provider);
+                }
+                let observers = host_tables.replace_image_observers(slot, std::ptr::null_mut());
+                crate::layout::tree_mutation::destroy_image_observers(main_thread, observers);
+            }
         }
         for reset in self.paintable_row_resets {
             reset.tell(main_thread);
@@ -1060,14 +1072,12 @@ impl LayoutNodeArena {
                 .clear();
             self.needs_full_scrollable_overflow_recalculation.set(false);
         }
-        let mut slots_in_pre_order = Vec::new();
-        self.for_each_node_in_layout_subtree_in_pre_order(root, |slot| slots_in_pre_order.push(slot));
+        let mut rows = Vec::new();
+        self.for_each_node_in_layout_subtree_in_pre_order(root, |slot| rows.push((slot, self.data(slot).shell.get())));
 
-        let mut shells = Vec::with_capacity(slots_in_pre_order.len());
         let mut paintable_row_resets = Vec::new();
         let mut arena_pinned_style_records = Vec::new();
-        for slot in slots_in_pre_order {
-            shells.push(self.data(slot).shell.get());
+        for &(slot, _) in &rows {
             if self.style_records_pinned_by_arena[slot.slot_index() as usize].get() {
                 arena_pinned_style_records.push(self.style_records[slot.slot_index() as usize].get());
             }
@@ -1077,7 +1087,7 @@ impl LayoutNodeArena {
             }
         }
         FreedSubtree {
-            shells,
+            rows,
             paintable_row_resets,
             arena_pinned_style_records,
             style_engine: self.style_engine.get(),

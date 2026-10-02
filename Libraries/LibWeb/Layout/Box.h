@@ -26,6 +26,8 @@ public:
     {
         return const_cast<ImageProvider&>(const_cast<Box const&>(*this).image_provider());
     }
+    // The provider a box owns belongs to the layout arena's host tables, which delete it with the
+    // box's row.
     void set_owned_image_provider(NonnullOwnPtr<ImageProvider>);
     void notify_owned_image_provider_of_detach();
 
@@ -39,7 +41,7 @@ public:
 private:
     virtual bool is_box() const final { return true; }
 
-    OwnPtr<ImageProvider> m_owned_image_provider;
+    ImageProvider* owned_image_provider() const;
 };
 
 template<>

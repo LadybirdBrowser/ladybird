@@ -56,3 +56,5 @@ extern "C" WEB_API bool ladybird_layout_code_point_has_emoji_property(u32);
 extern "C" WEB_API Web::Layout::RustFFI::FfiCodePointCategoryFacts ladybird_layout_code_point_category_facts(u32);
 
 extern "C" WEB_API void ladybird_layout_node_shell_destroy(void*);
+extern "C" WEB_API void ladybird_layout_owned_image_provider_destroy(void*);
+extern "C" WEB_API void ladybird_layout_image_observers_destroy(void*);
