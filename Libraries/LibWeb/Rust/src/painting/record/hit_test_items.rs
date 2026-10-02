@@ -16,10 +16,26 @@ use crate::painting::display_list::commands::ContextRef;
 use crate::painting::fragment_ownership;
 use crate::painting::hit_test::*;
 use crate::painting::node_painting;
+use crate::painting::paintable_data::CommittedSideData;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
 use crate::painting::text_fragment;
 use libgfx_rust::WindingRule;
+
+/// A fragment of a row's inline content, read through whatever holds the row's committed side
+/// data.
+struct CommittedFragment<SideData> {
+    side_data: SideData,
+    index: usize,
+}
+
+impl<SideData: std::ops::Deref<Target = CommittedSideData>> std::ops::Deref for CommittedFragment<SideData> {
+    type Target = FragmentRecord;
+
+    fn deref(&self) -> &FragmentRecord {
+        &self.side_data.fragments()[self.index]
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct HitTestFacts {
@@ -149,7 +165,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         if phase != PaintPhase::Foreground {
             return;
         }
-        let fragment_count = self.source.paintable_side_data(paintable).fragments().len();
+        let fragment_count = self.source.committed_side_data(paintable).fragments().len();
         if fragment_count == 0 && crate::painting::paint_order::first_paint_child(self.source, paintable).is_none() {
             if self.is_visible(paintable) && self.visible_for_hit_testing(paintable) {
                 self.record_empty_editable_hit_test_item(paintable);
@@ -174,7 +190,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             self.append_empty_line_for_fragment(paintable, 0, target.offset, target.line_index, target.rect, context);
         }
         let empty_lines_ended_by_forced_breaks: Vec<(usize, NodeSlotId, CssPixelRect)> = {
-            let side = self.source.paintable_side_data(paintable);
+            let side = self.source.committed_side_data(paintable);
             if side.fragments().is_empty() {
                 return;
             }
@@ -218,7 +234,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
                 return;
             };
             let context = self.data(paintable).accumulated_visual_context_for_descendants;
-            let fragment_count = self.source.paintable_side_data(root).fragments().len();
+            let fragment_count = self.source.committed_side_data(root).fragments().len();
             let filter = fragment_ownership::effective_filter(self.source, paintable);
             // Hit-test precedence follows paint order: this box's own text loses to the box itself
             // (re-recorded so its z-order matches this box's paint order), while nested content
@@ -229,7 +245,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
                 if self.fragment_is_block_level_box(root, index) {
                     return;
                 }
-                let fragment_node = self.source.paintable_side_data(root).fragments()[index].layout_node;
+                let fragment_node = self.source.committed_side_data(root).fragments()[index].layout_node;
                 if fragment_ownership::nearest_fragmented_inline_ancestor(self.source, fragment_node)
                     == Some(own_layout_node)
                 {
@@ -262,14 +278,14 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     }
 
     fn piece_of(&self, root: NodeSlotId, piece_index: u32) -> InlineBoxPieceRecord {
-        self.source.paintable_side_data(root).inline_box_pieces()[piece_index as usize]
+        self.source.committed_side_data(root).inline_box_pieces()[piece_index as usize]
     }
 
     fn inline_has_content(&self, paintable: NodeSlotId) -> bool {
         let has_content_pieces = self.inline_root(paintable).is_some_and(|root| {
             self.source
-                .paintable_side_data(paintable)
-                .piece_indices
+                .committed_side_data(paintable)
+                .piece_indices()
                 .iter()
                 .any(|piece_index| !self.piece_of(root, *piece_index).is_geometry_only_placeholder)
         });
@@ -283,8 +299,8 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let root_position = paintable_geometry::absolute_position(self.source, root);
         let layout_arena = self.source;
         let context = self.data(paintable).accumulated_visual_context;
-        for piece_index in &layout_arena.paintable_side_data(paintable).piece_indices {
-            let side = layout_arena.paintable_side_data(root);
+        for piece_index in layout_arena.committed_side_data(paintable).piece_indices() {
+            let side = layout_arena.committed_side_data(root);
             let piece = &side.inline_box_pieces()[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
                 continue;
@@ -342,10 +358,15 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         self.append_empty_editable(paintable, rect, context);
     }
 
-    fn fragment(&self, owner: NodeSlotId, index: usize) -> std::cell::Ref<'a, FragmentRecord> {
-        std::cell::Ref::map(self.source.paintable_side_data(owner), |side_data| {
-            &side_data.fragments()[index]
-        })
+    fn fragment(
+        &self,
+        owner: NodeSlotId,
+        index: usize,
+    ) -> CommittedFragment<impl std::ops::Deref<Target = CommittedSideData> + 'a> {
+        CommittedFragment {
+            side_data: self.source.committed_side_data(owner),
+            index,
+        }
     }
 
     fn fragment_is_block_level_box(&self, owner: NodeSlotId, index: usize) -> bool {

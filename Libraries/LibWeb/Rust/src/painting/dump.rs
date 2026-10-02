@@ -157,7 +157,7 @@ pub(crate) fn dump_block_fragments(
     interactive: bool,
 ) {
     let mut fragment_index = 0usize;
-    for fragment in layout_arena.paintable_side_data(block).fragments() {
+    for fragment in layout_arena.committed_side_data(block).fragments() {
         if layout_arena.node_kind_if_live(fragment.layout_node).is_some()
             && fragment_ownership::nearest_fragmented_inline_ancestor(layout_arena, fragment.layout_node).is_some()
         {
@@ -178,8 +178,8 @@ pub(crate) fn dump_inline_piece_fragments(
     let Some(root) = layout_arena.inline_pieces_root(inline_paintable) else {
         return;
     };
-    let root_side = layout_arena.paintable_side_data(root);
-    for piece_index in &layout_arena.paintable_side_data(inline_paintable).piece_indices {
+    let root_side = layout_arena.committed_side_data(root);
+    for piece_index in layout_arena.committed_side_data(inline_paintable).piece_indices() {
         let piece = &root_side.inline_box_pieces()[*piece_index as usize];
         let mut fragment_index_within_piece = 0usize;
         for fragment_index in piece.first_fragment_index..piece.first_fragment_index + piece.fragment_count {

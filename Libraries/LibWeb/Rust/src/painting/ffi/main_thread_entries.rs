@@ -325,7 +325,7 @@ pub unsafe extern "C" fn layout_arena_paintable_empty_line_caret_rect(
     }
     let fragments = arena.text_fragments(primary);
     let node_slots = fragments.as_slice();
-    let side = arena.paintable_side_data(block);
+    let side = arena.committed_side_data(block);
     let Some(first_fragment) = side.fragments().first() else {
         return result;
     };
@@ -359,7 +359,7 @@ pub unsafe extern "C" fn layout_arena_for_each_subtree_fragment_rect(
         return;
     }
     crate::painting::paint_order::for_each_in_paint_subtree(&paintable_rows, root, |current| {
-        for fragment in arena.paintable_side_data(current).fragments() {
+        for fragment in arena.committed_side_data(current).fragments() {
             let rect = crate::painting::text_fragment::absolute_rect(&paintable_rows, fragment).into();
             // SAFETY: The consumer copies its plain-data arguments synchronously.
             unsafe { consume(context, fragment.layout_node, rect) };

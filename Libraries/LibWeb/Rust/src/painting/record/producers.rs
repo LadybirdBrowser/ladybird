@@ -102,7 +102,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     fn record_scope_preamble(&mut self, owner: NodeSlotId) {
         let context = self.own_context(owner);
         self.recorder.set_accumulated_visual_context(context);
-        if let Some(svg_filter_bounds) = self.source.paintable_side_data(owner).svg_filter_bounds.get() {
+        if let Some(svg_filter_bounds) = self.source.committed_side_data(owner).svg_filter_bounds {
             let device_rect = self
                 .converter
                 .enclosing_device_rect(CssPixelRect::from(svg_filter_bounds));

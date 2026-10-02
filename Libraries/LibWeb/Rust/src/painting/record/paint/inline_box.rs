@@ -27,12 +27,12 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
         recorder,
         paintable,
         phase,
-        &arena.paintable_side_data(paintable).piece_indices,
+        arena.committed_side_data(paintable).piece_indices(),
     );
 }
 
 pub(crate) fn paint_piece<O: Observer>(recorder: &mut PaintRecorder<'_, O>, root: NodeSlotId, index: u32) {
-    let paintable = recorder.source.paintable_side_data(root).inline_box_pieces()[index as usize].node;
+    let paintable = recorder.source.committed_side_data(root).inline_box_pieces()[index as usize].node;
     let facts = recorder.base_paint_facts(paintable);
     for phase in [PaintPhase::Background, PaintPhase::Border] {
         if facts.paint_phase_mask & phase.bit() == 0 {
@@ -66,7 +66,7 @@ fn paint_pieces<O: Observer>(
     };
     let root_position = paintable_geometry::absolute_position(recorder.source, root);
     let layout_arena = recorder.source;
-    let side = layout_arena.paintable_side_data(root);
+    let side = layout_arena.committed_side_data(root);
     let root_pieces = &side.inline_box_pieces();
     let facts = recorder.base_paint_facts(paintable);
 

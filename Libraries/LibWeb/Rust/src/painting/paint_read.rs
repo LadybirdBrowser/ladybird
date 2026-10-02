@@ -22,14 +22,14 @@ use crate::layout::{RenderedTextBoundary, TextContent, TextFragments};
 use crate::painting::host::FfiLayerImageList;
 use crate::painting::layer_image_paint_facts::LayerImagePaintFacts;
 use crate::painting::paint_order_plan::PaintOrderInputs;
-use crate::painting::paintable_data::{PaintableData, PaintableSideData};
+use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
 use crate::painting::stacking_context::entries::StackingContextEntries;
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
 use crate::painting::visual_context::BoxVisualContextNodeHandles;
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -38,8 +38,8 @@ pub(crate) trait GeometryRead: Sized {
     fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool;
     /// Reads the fragment link a populated row committed.
     fn with_committed_fragment_link<R>(&self, id: NodeSlotId, read: impl FnOnce(Option<&FragmentLink>) -> R) -> R;
-    /// The side data of a populated row.
-    fn paintable_side_data(&self, id: NodeSlotId) -> Ref<'_, PaintableSideData>;
+    /// The side data a populated row committed.
+    fn committed_side_data(&self, id: NodeSlotId) -> impl Deref<Target = CommittedSideData> + '_;
 
     fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind>;
     fn node_flags_if_live(&self, id: NodeSlotId) -> u32;
@@ -102,7 +102,9 @@ pub(crate) trait PaintRead: GeometryRead {
     fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage;
     fn damaged_paint_rows(&self) -> Vec<NodeSlotId>;
     /// The paint-order inputs paint preparation gathered for the row, if it gathered them.
-    fn prepared_paint_order_inputs(&self, row: NodeSlotId) -> Option<PaintOrderInputs>;
+    fn prepared_paint_order_inputs(&self, row: NodeSlotId) -> Option<PaintOrderInputs> {
+        self.committed_side_data(row).prepared_order_inputs()
+    }
     fn stacking_context_entries(&self, root: NodeSlotId) -> Option<impl Deref<Target = StackingContextEntries> + '_>;
 
     /// Whether the row was built for a DOM node: an element, a text node or the document.
@@ -216,8 +218,8 @@ impl<Live: AsRef<LayoutNodeArena>> GeometryRead for Live {
         self.as_ref().with_committed_fragment_link(id, read)
     }
 
-    fn paintable_side_data(&self, id: NodeSlotId) -> Ref<'_, PaintableSideData> {
-        self.as_ref().paintable_side_data(id)
+    fn committed_side_data(&self, id: NodeSlotId) -> impl Deref<Target = CommittedSideData> + '_ {
+        self.as_ref().committed_side_data(id)
     }
 
     fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
@@ -339,10 +341,6 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
         self.as_ref().damaged_paint_rows()
     }
 
-    fn prepared_paint_order_inputs(&self, row: NodeSlotId) -> Option<PaintOrderInputs> {
-        self.as_ref().row_paint_state(row).order_inputs()
-    }
-
     fn with_paintable_visual_context_node_handles<R>(
         &self,
         id: NodeSlotId,
@@ -390,8 +388,8 @@ impl GeometryRead for PaintSource<'_> {
         self.arena.with_committed_fragment_link(id, read)
     }
 
-    fn paintable_side_data(&self, id: NodeSlotId) -> Ref<'_, PaintableSideData> {
-        self.arena.paintable_side_data(id)
+    fn committed_side_data(&self, id: NodeSlotId) -> impl Deref<Target = CommittedSideData> + '_ {
+        self.arena.committed_side_data(id)
     }
 
     fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
@@ -511,10 +509,6 @@ impl PaintRead for PaintSource<'_> {
 
     fn damaged_paint_rows(&self) -> Vec<NodeSlotId> {
         self.arena.damaged_paint_rows()
-    }
-
-    fn prepared_paint_order_inputs(&self, row: NodeSlotId) -> Option<PaintOrderInputs> {
-        self.arena.row_paint_state(row).order_inputs()
     }
 
     fn with_paintable_visual_context_node_handles<R>(

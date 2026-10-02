@@ -543,7 +543,10 @@ fn set_svg_filter_bounds(
     slot: NodeSlotId,
     bounds: Option<crate::layout::used_values::FfiCssPixelRect>,
 ) {
-    let previous = layout_arena.paintable_side_data(slot).svg_filter_bounds.replace(bounds);
+    let previous = std::mem::replace(
+        &mut layout_arena.committed_side_data_mut(slot).svg_filter_bounds,
+        bounds,
+    );
     if previous != bounds {
         use crate::painting::record::damage::PaintDamage;
         layout_arena.push_paint_damage(slot, PaintDamage::SCOPE_PREAMBLE | PaintDamage::SVG);

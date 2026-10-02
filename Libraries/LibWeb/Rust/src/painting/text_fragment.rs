@@ -51,7 +51,7 @@ pub(crate) fn absolute_line_box_rect(
     owner: NodeSlotId,
     fragment: &FragmentRecord,
 ) -> CssPixelRect {
-    let side = layout_arena.paintable_side_data(owner);
+    let side = layout_arena.committed_side_data(owner);
     let lines = &side.lines();
     let Some(line) = lines.get(fragment.line_index as usize) else {
         return CssPixelRect::default();
@@ -168,7 +168,7 @@ pub(crate) fn for_each_fragment_of_nodes(
         let Some(block) = containing_block_paintable_of_node(layout_arena, node) else {
             continue;
         };
-        for (index, fragment) in layout_arena.paintable_side_data(block).fragments().iter().enumerate() {
+        for (index, fragment) in layout_arena.committed_side_data(block).fragments().iter().enumerate() {
             if fragment.layout_node != node {
                 continue;
             }

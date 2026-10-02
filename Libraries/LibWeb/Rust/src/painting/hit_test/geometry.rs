@@ -53,7 +53,7 @@ fn absolute_containing_line_box_rect(rows: &PaintableRowsRef<'_>, paintable: Nod
     if block.is_invalid() || !rows.paintable_row_is_populated(block) || !node_painting::has_lines(rows, block) {
         return None;
     }
-    let side_data = rows.paintable_side_data(block);
+    let side_data = rows.committed_side_data(block);
     let line = side_data.lines().get(containing_line_box_index)?;
     Some(CssPixelRect::from(line.rect).translated_by(paintable_geometry::absolute_position(rows, block)))
 }

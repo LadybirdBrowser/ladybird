@@ -277,25 +277,23 @@ impl OverflowAssignment {
             .overflow_measured_this_commit
             .get();
         let (scroll_metadata_changed, scrollability_flipped) = {
-            let data = layout_arena.paintable_side_data(self.box_paintable);
+            let mut data = layout_arena.committed_side_data_mut(self.box_paintable);
             let scroll_metadata_changed = self
                 .overflow_relative_to_padding_box
-                .is_some_and(|overflow| overflow != data.overflow_relative_to_padding_box.get());
+                .is_some_and(|overflow| overflow != data.overflow_relative_to_padding_box);
             let scrollability_flipped = self.overflow_relative_to_padding_box.is_some_and(|overflow| {
-                overflow.has_scrollable_overflow != data.overflow_relative_to_padding_box.get().has_scrollable_overflow
+                overflow.has_scrollable_overflow != data.overflow_relative_to_padding_box.has_scrollable_overflow
             });
             if let Some(overflow) = self.overflow_relative_to_padding_box {
-                data.overflow_relative_to_padding_box.set(overflow);
+                data.overflow_relative_to_padding_box = overflow;
+                data.overflow_valid_across_recommits = true;
             }
-            data.overflow_measured_this_commit.set(true);
             (scroll_metadata_changed, scrollability_flipped)
         };
-        if self.overflow_relative_to_padding_box.is_some() {
-            layout_arena
-                .paintable_side_data(self.box_paintable)
-                .overflow_valid_across_recommits
-                .set(true);
-        }
+        layout_arena
+            .paintable_side_data(self.box_paintable)
+            .overflow_measured_this_commit
+            .set(true);
         use crate::painting::record::damage::PaintDamage;
         if scroll_metadata_changed {
             if previously_measured {
@@ -369,16 +367,17 @@ fn measure_scrollable_overflow_impl(
     assignments: &mut Vec<OverflowAssignment>,
 ) -> CssPixelRect {
     let still_valid_overflow = {
-        let data = layout_arena.paintable_side_data(box_paintable);
-        if data.overflow_measured_this_commit.get() && data.overflow_valid_across_recommits.get() {
-            return CssPixelRect::from(data.overflow_relative_to_padding_box.get().rect)
+        let data = layout_arena.committed_side_data(box_paintable);
+        let measured_this_commit = layout_arena
+            .paintable_side_data(box_paintable)
+            .overflow_measured_this_commit
+            .get();
+        if measured_this_commit && data.overflow_valid_across_recommits {
+            return CssPixelRect::from(data.overflow_relative_to_padding_box.rect)
                 .translated_by(paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable).location());
         }
-        layout_arena
-            .paintable_side_data(box_paintable)
-            .overflow_valid_across_recommits
-            .get()
-            .then_some(data.overflow_relative_to_padding_box.get())
+        data.overflow_valid_across_recommits
+            .then_some(data.overflow_relative_to_padding_box)
     };
 
     let box_node = box_paintable;
@@ -422,7 +421,7 @@ fn measure_scrollable_overflow_impl(
 
     // - All line boxes it directly contains.
     if crate::painting::node_painting::has_lines(layout_arena, box_paintable) {
-        let side_data = layout_arena.paintable_side_data(box_paintable);
+        let side_data = layout_arena.committed_side_data(box_paintable);
         let absolute_position = paintable_geometry::absolute_position(layout_arena, box_paintable);
         for line in side_data.lines() {
             let line_rect = CssPixelRect::from(line.rect).translated_by(absolute_position);
@@ -504,15 +503,14 @@ fn measure_scrollable_overflow_impl(
         let child_display = child_style.map_or_else(FfiDisplay::block, |style| style.display());
 
         {
-            let child_data = layout_arena.paintable_side_data(child_node);
+            let child_data = layout_arena.committed_side_data(child_node);
             if child_position == positioning::STATIC
                 && child_display.is_inline_outside()
                 && !child_is_floating
                 && !child_has_css_transform
                 && layout_arena
-                    .paintable_side_data(child_node)
+                    .committed_side_data(child_node)
                     .overflow_valid_across_recommits
-                    .get()
             {
                 let border = crate::painting::paintable_geometry::committed_border(layout_arena, child_node);
                 let zero = CssPixels::from_raw(0);
@@ -527,7 +525,7 @@ fn measure_scrollable_overflow_impl(
                     // The committed line fragment already contributes this content box. A box with no border whose
                     // cached overflow fits inside the content box cannot expand its containing block's overflow.
                     if content_box_relative_to_padding_box
-                        .contains_rect(child_data.overflow_relative_to_padding_box.get().rect.into())
+                        .contains_rect(child_data.overflow_relative_to_padding_box.rect.into())
                     {
                         continue;
                     }
@@ -800,12 +798,9 @@ impl LayoutNodeArena {
         {
             return;
         }
-        {
-            let cache = self.paintable_side_data(slot);
-            if cache.overflow_valid_across_recommits.get() {
-                cache.overflow_measured_this_commit.set(true);
-                return;
-            }
+        if self.committed_side_data(slot).overflow_valid_across_recommits {
+            self.paintable_side_data(slot).overflow_measured_this_commit.set(true);
+            return;
         }
         // Ordinary inline fragments have paint geometry but no independently measured scrolling area.
         // Rows holding scroll state still need measurement, as they do during rendering preparation.

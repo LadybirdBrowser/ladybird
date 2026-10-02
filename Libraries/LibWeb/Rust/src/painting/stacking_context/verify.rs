@@ -124,13 +124,13 @@ impl Verifier<'_> {
 
         let paintable_rows = self.arena.paintable_rows();
         if node_painting::has_lines(&paintable_rows, slot)
-            && !self.arena.paintable_side_data(slot).inline_box_pieces().is_empty()
+            && !self.arena.committed_side_data(slot).inline_box_pieces().is_empty()
         {
             for (owner, recomputed_filter) in
                 crate::painting::fragment_ownership::compute_fragment_ownership_for_block(&paintable_rows, slot)
             {
-                let stored_filter = self.arena.paintable_side_data(owner).fragment_ownership.clone();
-                if stored_filter.as_ref() != Some(&recomputed_filter) {
+                let stored_filter = self.arena.committed_side_data(owner).fragment_ownership.clone();
+                if stored_filter.as_deref() != Some(&recomputed_filter) {
                     self.report.note(format_args!(
                         "fragment ownership of {owner:?} under line root {slot:?} diverges from a fresh computation"
                     ));
