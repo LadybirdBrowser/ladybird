@@ -369,9 +369,9 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
 
 NodeWithStyle::~NodeWithStyle()
 {
-    // NB: The arena destroys a shell only after it has freed the shell's row, and it destroys the
-    //     row's image observers itself, so nothing is left to drop by slot here.
-    release_pinned_style_record();
+    // NB: The arena destroys a shell only after it has freed the shell's row, which destroyed the
+    //     row's image observers and released its host-pinned style record. Nothing is left to drop
+    //     by slot, and asking would reach whichever row holds the slot next.
 }
 
 void NodeWithStyle::clear_image_observers()
@@ -633,7 +633,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
         return;
     }
 
-    bool should_repin_style_record = m_style_record_pinned;
+    bool should_repin_style_record = RustFFI::layout_arena_node_style_record_pinned_by_host(arena_handle(), slot_id(this)) != 0;
     // Both answers come from the records themselves, so neither side needs a ComputedValues built
     // for it. An overlay record borrows different payloads than its base, so carrying one is already
     // reason enough to treat the style as layout-affecting.
@@ -667,20 +667,13 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
 
 void NodeWithStyle::pin_style_record_for_cxx_consumers()
 {
-    if (m_style_record_pinned)
-        return;
-
     VERIFY(m_style_record_identity);
-    document().style_computer().pin_style_record(m_style_record_identity);
-    m_style_record_pinned = true;
+    RustFFI::layout_arena_pin_node_style_record_for_host(arena_handle(), slot_id(this), m_style_record_identity.value());
 }
 
 void NodeWithStyle::release_pinned_style_record()
 {
-    if (!m_style_record_pinned)
-        return;
-    document().style_computer().unpin_style_record(m_style_record_identity);
-    m_style_record_pinned = false;
+    RustFFI::layout_arena_release_node_style_record_pin_for_host(arena_handle(), slot_id(this));
 }
 
 void NodeWithStyle::bind_generated_style_record(CSS::StyleRecordID target_style_record_identity)
