@@ -41,6 +41,8 @@ use crate::runtime::completion::Must;
 use crate::runtime::console_object::ConsoleObject;
 use crate::runtime::data_view_constructor::DataViewConstructor;
 use crate::runtime::data_view_prototype::DataViewPrototype;
+use crate::runtime::date_constructor::DateConstructor;
+use crate::runtime::date_prototype::DatePrototype;
 use crate::runtime::disposable_stack_constructor::DisposableStackConstructor;
 use crate::runtime::disposable_stack_prototype::DisposableStackPrototype;
 use crate::runtime::error::ErrorKind;
@@ -670,6 +672,7 @@ macro_rules! initialize_builtin_function_types {
 initialize_builtin_function_types! {
     initialize_array_buffer: array_buffer_prototype: ArrayBufferPrototype, array_buffer_constructor: ArrayBufferConstructor, ArrayBuffer;
     initialize_data_view: data_view_prototype: DataViewPrototype, data_view_constructor: DataViewConstructor, DataView;
+    initialize_date: date_prototype: DatePrototype, date_constructor: DateConstructor, Date;
     initialize_shared_array_buffer: shared_array_buffer_prototype: SharedArrayBufferPrototype, shared_array_buffer_constructor: SharedArrayBufferConstructor, SharedArrayBuffer;
     initialize_typed_array: typed_array_prototype: TypedArrayPrototype, typed_array_constructor: TypedArrayConstructor, TypedArray;
 }
@@ -733,7 +736,6 @@ macro_rules! unimplemented_builtin_types {
 }
 
 unimplemented_builtin_types! {
-    initialize_date => "Date",
     initialize_intl_collator => "Intl.Collator",
     initialize_intl_date_time_format => "Intl.DateTimeFormat",
     initialize_intl_display_names => "Intl.DisplayNames",
@@ -1368,7 +1370,11 @@ impl Intrinsics {
                 .get_without_side_effects(vm, &names.stringify)
                 .as_function(),
         ));
-        // NB: Date.now comes with the Date builtins; until a realm has them, its intrinsic accessor stops the process.
+        self.date_constructor_now_function.set(Some(
+            self.date_constructor(vm)
+                .get_without_side_effects(vm, &names.now)
+                .as_function(),
+        ));
 
         assert!(self.array_prototype(vm).indexed_array_like_size() == 0);
         assert!(self.object_prototype(vm).indexed_array_like_size() == 0);

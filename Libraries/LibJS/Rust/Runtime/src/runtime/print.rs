@@ -21,6 +21,8 @@ use crate::runtime::boolean_object::BooleanObject;
 use crate::runtime::data_view::{
     DataView, get_view_byte_length, is_view_out_of_bounds, make_data_view_with_buffer_witness_record,
 };
+use crate::runtime::date::Date;
+use crate::runtime::date_prototype::to_date_string;
 use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::Error;
 use crate::runtime::generator_object::GeneratorObject;
@@ -574,6 +576,13 @@ fn print_data_view(
     )
 }
 
+fn print_date(print_context: &mut PrintContext<'_>, date: Gc<Date>) -> io::Result<()> {
+    print_type(print_context, "Date")?;
+    js_out(print_context, " \x1b[34;1m")?;
+    js_out_utf16_argument(print_context, Utf16View::of_string(&to_date_string(date.date_value())))?;
+    js_out(print_context, "\x1b[0m")
+}
+
 fn print_generator(print_context: &mut PrintContext<'_>, generator: Gc<Object>) -> io::Result<()> {
     print_type(print_context, generator.class().class_name())
 }
@@ -636,7 +645,9 @@ fn print_value(
         if object.is_function() {
             return print_function(print_context, object);
         }
-        // NB: Date objects are printed by print_date() here, before errors, once the runtime has them.
+        if let Some(date) = object.downcast::<Date>() {
+            return print_date(print_context, date);
+        }
         if is_error_object(object) {
             return print_error(print_context, object, seen_objects);
         }

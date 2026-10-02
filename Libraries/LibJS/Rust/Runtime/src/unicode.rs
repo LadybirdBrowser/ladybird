@@ -13,6 +13,10 @@ use ak::Utf16String;
 
 use crate::utf16::Utf16View;
 
+pub mod display_names;
+pub mod locale;
+pub mod time_zone;
+
 #[repr(C)]
 struct UnicodeTextMappingOutput {
     context: *mut c_void,
@@ -66,6 +70,18 @@ unsafe extern "C" fn allocate_text(context: *mut c_void, length: usize) -> *mut 
 }
 
 unsafe extern "C" fn ignore_edit(_: *mut c_void, _: usize, _: usize, _: usize, _: usize) {}
+
+/// Calls a LibUnicode export that writes text through a UnicodeTextMappingOutput, and collects the text it writes,
+/// along with what the export returns.
+fn collect_text<R>(write: impl FnOnce(UnicodeTextMappingOutput) -> R) -> (R, Vec<u16>) {
+    let mut output: Vec<u16> = Vec::new();
+    let result = write(UnicodeTextMappingOutput {
+        context: (&raw mut output).cast(),
+        allocate_text,
+        append_edit: ignore_edit,
+    });
+    (result, output)
+}
 
 /// Calls a LibUnicode text mapping with `text` and collects the text it writes.
 fn map_text(text: Utf16View<'_>, map: impl FnOnce(&[u16], UnicodeTextMappingOutput)) -> Utf16String {
