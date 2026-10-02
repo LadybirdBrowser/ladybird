@@ -155,6 +155,25 @@ impl RetainedState {
         })
     }
 
+    /// What a transition on an element resolves its lengths against: the font of the record the
+    /// element has installed, a sampled animated font included, the root's font and the viewport.
+    /// A mirror of the host's computation context for `color` over that record. `None` where the
+    /// engine cannot read the record.
+    pub(crate) fn transition_length_resolution_context(
+        &self,
+        style_record: u64,
+    ) -> Option<crate::css::animation::FfiAnimationLengthResolutionContext> {
+        let record = self.record_font(style_record)?;
+        Some(crate::css::style_compute::animation_length_resolution_context(
+            &length_resolution_context(
+                &self.document_style_computation_inputs,
+                (record.metrics, record.depends_on_viewport_metrics),
+                self.root_font_metrics(),
+                record.inline_axis_is_horizontal,
+            ),
+        ))
+    }
+
     /// Compose an element's sampled animation overlay into the payloads of its overlay record,
     /// over `style_record`, the record it was sampled on: the groups a value of the overlay lives
     /// in, and the groups that read an animated `color`, are rebuilt from `table` with the overlay
