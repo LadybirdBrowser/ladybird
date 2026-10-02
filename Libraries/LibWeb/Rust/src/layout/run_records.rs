@@ -17,6 +17,11 @@ pub(crate) struct LayoutScratch {
     next_run_nonce: Cell<u64>,
     live_run_nonces: RefCell<Vec<u64>>,
     run_record_stack: RunRecordStack,
+    /// The intrinsic sizes passes measured, kept for the passes after them.
+    pub(crate) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
+    /// The inline items a block container generated, kept for its next run in the same pass. The
+    /// items borrow fonts for the current pass, so the stashes are cleared when the pass ends.
+    inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
 }
 
 // Between passes the scratch holds no record, so it can move to the thread a layout stage runs on.
@@ -40,6 +45,8 @@ impl Default for LayoutScratch {
             next_run_nonce: Cell::new(1),
             live_run_nonces: RefCell::new(Vec::new()),
             run_record_stack: RunRecordStack::default(),
+            intrinsic_size_caches: Default::default(),
+            inline_item_stashes: RefCell::new(HashMap::default()),
         }
     }
 }
@@ -55,7 +62,24 @@ impl LayoutScratch {
         unsafe { super::host_tables::ArenaHandle::layout_scratch_of(handle) }
     }
 
+    pub(crate) fn store_inline_item_stash(
+        &self,
+        block_container: NodeSlotId,
+        stash: super::inline_level_iterator::StashedInlineItems,
+    ) {
+        self.inline_item_stashes.borrow_mut().insert(block_container, stash);
+    }
+
+    pub(crate) fn take_inline_item_stash(
+        &self,
+        block_container: NodeSlotId,
+    ) -> Option<super::inline_level_iterator::StashedInlineItems> {
+        self.inline_item_stashes.borrow_mut().remove(&block_container)
+    }
+
+    /// Lets go of what the pass that just committed kept for itself.
     pub(crate) fn end_layout_pass(&self) {
+        self.inline_item_stashes.borrow_mut().clear();
         self.run_record_stack.release_spare_chunks();
     }
 
@@ -172,6 +196,11 @@ impl<'arena> RunRecords<'arena> {
         run: impl FnOnce(&Self) -> R,
     ) -> R {
         let _read_scope = arena.enter_read_scope(root);
+        // What the arena let go of since the last run is dropped before this run reads a cache.
+        let drops = arena.take_intrinsic_size_cache_drops();
+        if !drops.is_empty() {
+            scratch.intrinsic_size_caches.drop_slots(drops);
+        }
         let _innermost_run = InnermostRunGuard {
             arena,
             previous: arena.innermost_run.replace((root, root_containing_block)),

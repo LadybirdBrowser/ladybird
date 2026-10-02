@@ -2513,9 +2513,9 @@ impl<'pass> TableFormattingContext<'pass> {
             uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
             adopt_automatic_content_block_size,
         };
-        let arena = self.callbacks.arena();
-        let data = self.callbacks.node_data(cell.box_);
-        if let Some(cached) = arena.table_cell_measurement_cache_get(data, key) {
+        let caches = self.callbacks.intrinsic_size_caches();
+        let stamp = self.callbacks.intrinsic_size_cache_stamp(cell.box_);
+        if let Some(cached) = caches.table_cell_measurement_cache_get(stamp, key) {
             return Some(cached);
         }
 
@@ -2547,8 +2547,8 @@ impl<'pass> TableFormattingContext<'pass> {
                 depends_on_percentage_block_size: result.depends_on_percentage_block_size,
             })
             .unwrap_or_else(|| self.measure_cell_content(cell, used, inner, adopt_automatic_content_block_size));
-        arena.note_table_cell_measurement_cache_miss();
-        arena.table_cell_measurement_cache_put(data, key, measured);
+        self.callbacks.arena().note_table_cell_measurement_cache_miss();
+        caches.table_cell_measurement_cache_put(self.callbacks.intrinsic_size_cache_stamp(cell.box_), key, measured);
         Some(measured)
     }
 

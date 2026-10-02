@@ -76,6 +76,17 @@ impl<'arena> LayoutPass<'arena> {
         self.scratch
     }
 
+    /// The intrinsic sizes passes measured, kept for the passes after them.
+    pub(crate) fn intrinsic_size_caches(&self) -> &'arena super::layout_node_arena::IntrinsicSizeCaches {
+        &self.scratch.intrinsic_size_caches
+    }
+
+    /// What an intrinsic size cache entry measured for `node` now is valid for.
+    pub(crate) fn intrinsic_size_cache_stamp(&self, node: Node) -> super::layout_node_arena::IntrinsicSizeCacheStamp {
+        self.arena.assert_layout_read_is_in_scope(node);
+        self.arena.intrinsic_size_cache_stamp(node)
+    }
+
     pub(crate) fn node_data(&self, node: Node) -> &'arena NodeData {
         self.arena.assert_layout_read_is_in_scope(node);
         self.arena().data(node)

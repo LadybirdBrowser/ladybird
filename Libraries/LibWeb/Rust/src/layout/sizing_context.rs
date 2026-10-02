@@ -105,46 +105,46 @@ impl<'pass> SizingContext<'pass> {
         // OPTIMIZATION: A definite block size only distinguishes intrinsic inline measurements when a cross-axis
         // dependency can transfer it back into the inline axis. Reuse the common horizontal-flow measurement across
         // assigned block sizes, while preserving distinct entries for orthogonal flows and aspect-ratio transfers.
-        let depends_on_block_size =
-            self.callbacks
-                .arena()
-                .intrinsic_inline_size_depends_on_block_size(self.callbacks.node_data(root), || {
-                    let mut pending = vec![root];
-                    while let Some(node) = pending.pop() {
-                        let facts = self.facts(node);
-                        if !facts.is_text_node() {
-                            let style = self.style(node);
-                            if style.writing_mode() != writing_mode::HORIZONTAL_TB {
-                                return true;
-                            }
-                            if style.display().is_flex_inside()
-                                && matches!(
-                                    style.effective_flex_direction(),
-                                    flex_direction::COLUMN | flex_direction::COLUMN_REVERSE
-                                )
-                                && style.flex_wrap() != flex_wrap::NOWRAP
-                            {
-                                return true;
-                            }
-                            if facts.has_preferred_aspect_ratio()
-                                && (style.height().contains_percentage()
-                                    || style.min_height().contains_percentage()
-                                    || style.max_height().contains_percentage()
-                                    || (style.height().is_auto()
-                                        && (node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem)
-                                            || node_facts::has_flag(facts.data(), NodeFlag::IsGridItem))))
-                            {
-                                return true;
-                            }
+        let depends_on_block_size = self
+            .callbacks
+            .intrinsic_size_caches()
+            .intrinsic_inline_size_depends_on_block_size(self.callbacks.intrinsic_size_cache_stamp(root), || {
+                let mut pending = vec![root];
+                while let Some(node) = pending.pop() {
+                    let facts = self.facts(node);
+                    if !facts.is_text_node() {
+                        let style = self.style(node);
+                        if style.writing_mode() != writing_mode::HORIZONTAL_TB {
+                            return true;
                         }
-                        let mut child = self.first_child(node);
-                        while !child.is_invalid() {
-                            pending.push(child);
-                            child = self.next_sibling(child);
+                        if style.display().is_flex_inside()
+                            && matches!(
+                                style.effective_flex_direction(),
+                                flex_direction::COLUMN | flex_direction::COLUMN_REVERSE
+                            )
+                            && style.flex_wrap() != flex_wrap::NOWRAP
+                        {
+                            return true;
+                        }
+                        if facts.has_preferred_aspect_ratio()
+                            && (style.height().contains_percentage()
+                                || style.min_height().contains_percentage()
+                                || style.max_height().contains_percentage()
+                                || (style.height().is_auto()
+                                    && (node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem)
+                                        || node_facts::has_flag(facts.data(), NodeFlag::IsGridItem))))
+                        {
+                            return true;
                         }
                     }
-                    false
-                });
+                    let mut child = self.first_child(node);
+                    while !child.is_invalid() {
+                        pending.push(child);
+                        child = self.next_sibling(child);
+                    }
+                }
+                false
+            });
         depends_on_block_size.then_some(block_size)
     }
 
@@ -1898,10 +1898,11 @@ impl<'pass> SizingContext<'pass> {
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicBlockSizeMeasurement> {
-        let measurement =
-            self.callbacks
-                .arena()
-                .intrinsic_block_size_cache_get(self.callbacks.node_data(node), kind, key)?;
+        let measurement = self.callbacks.intrinsic_size_caches().intrinsic_block_size_cache_get(
+            self.callbacks.intrinsic_size_cache_stamp(node),
+            kind,
+            key,
+        )?;
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
             node,
             measurement.depends_on_percentage_block_size,
@@ -1916,9 +1917,12 @@ impl<'pass> SizingContext<'pass> {
         key: IntrinsicSizeCacheKey,
         value: IntrinsicBlockSizeMeasurement,
     ) {
-        self.callbacks
-            .arena()
-            .intrinsic_block_size_cache_put(self.callbacks.node_data(node), kind, key, value);
+        self.callbacks.intrinsic_size_caches().intrinsic_block_size_cache_put(
+            self.callbacks.intrinsic_size_cache_stamp(node),
+            kind,
+            key,
+            value,
+        );
     }
 
     fn intrinsic_inline_measurement_cache_get(
@@ -1927,11 +1931,10 @@ impl<'pass> SizingContext<'pass> {
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicInlineSizeMeasurement> {
-        let measurement = self.callbacks.arena().intrinsic_inline_size_measurement_cache_get(
-            self.callbacks.node_data(node),
-            kind,
-            key,
-        )?;
+        let measurement = self
+            .callbacks
+            .intrinsic_size_caches()
+            .intrinsic_inline_size_measurement_cache_get(self.callbacks.intrinsic_size_cache_stamp(node), kind, key)?;
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
             node,
             measurement.depends_on_percentage_block_size,
@@ -1946,12 +1949,14 @@ impl<'pass> SizingContext<'pass> {
         key: IntrinsicSizeCacheKey,
         value: IntrinsicInlineSizeMeasurement,
     ) {
-        self.callbacks.arena().intrinsic_inline_size_measurement_cache_put(
-            self.callbacks.node_data(node),
-            kind,
-            key,
-            value,
-        );
+        self.callbacks
+            .intrinsic_size_caches()
+            .intrinsic_inline_size_measurement_cache_put(
+                self.callbacks.intrinsic_size_cache_stamp(node),
+                kind,
+                key,
+                value,
+            );
     }
 
     #[allow(clippy::too_many_arguments)]
