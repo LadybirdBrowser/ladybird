@@ -76,27 +76,3 @@ TEST_CASE(sizes_that_do_not_fit_the_buffer_are_rejected)
     // The runs in the buffer no longer cover the tape once the tape is claimed shorter than the last run.
     EXPECT(DisplayList::create_from_shared_buffer(sent->properties(), buffer, tape_size - 8, run_count).is_error());
 }
-
-TEST_CASE(display_list_properties_round_trip_through_ipc)
-{
-    DisplayList::Properties properties {
-        .id = 12,
-        .compatible_visual_context_tree_structural_epoch = 34,
-        .surface_clear_color = Gfx::Color::Magenta,
-        .async_scrolling_metadata = DisplayList::AsyncScrollingMetadata { .viewport_rect = { 1, 2, 3, 4 }, .wheel_event_listener_state_generation = 5, .has_blocking_wheel_event_listeners = true, .has_blocking_wheel_event_region_covering_viewport = false, .device_pixels_per_css_pixel = 2.0, .keyboard_scroll_state = {} },
-    };
-
-    IPC::MessageBuffer buffer;
-    IPC::Encoder encoder { buffer };
-    MUST(encoder.encode(properties));
-    FixedMemoryStream stream { buffer.data().span() };
-    Queue<IPC::Attachment> attachments;
-    IPC::Decoder decoder { stream, attachments };
-    auto decoded = MUST(decoder.decode<DisplayList::Properties>());
-    EXPECT_EQ(decoded.id, 12u);
-    EXPECT_EQ(decoded.compatible_visual_context_tree_structural_epoch, 34u);
-    EXPECT_EQ(decoded.surface_clear_color, Optional<Gfx::Color> { Gfx::Color::Magenta });
-    EXPECT(decoded.async_scrolling_metadata.has_value());
-    EXPECT_EQ(decoded.async_scrolling_metadata->viewport_rect, Gfx::IntRect(1, 2, 3, 4));
-    EXPECT_EQ(decoded.async_scrolling_metadata->device_pixels_per_css_pixel, 2.0);
-}

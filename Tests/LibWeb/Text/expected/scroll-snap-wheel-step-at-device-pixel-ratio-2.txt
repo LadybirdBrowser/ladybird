@@ -1,0 +1,2 @@
+scroll offset after a downward step: 0,260
+scroll offset after another downward step: 0,460
