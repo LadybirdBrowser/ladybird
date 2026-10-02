@@ -1024,7 +1024,6 @@ pub(crate) struct LayoutNodeArena {
     // Hit testing can measure overflow and invalidate painting state while querying this list.
     pub(crate) hit_test_list: RefCell<Option<crate::painting::hit_test::HitTestList>>,
     // Reuse workspace allocations without making recording scratch part of the committed paint state.
-    recording_slot: RefCell<crate::painting::recording_slot::RecordingSlot>,
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
     nodes_with_layout_update_flags: RefCell<Vec<NodeSlotId>>,
@@ -1145,7 +1144,6 @@ impl LayoutNodeArena {
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             hit_test_list: RefCell::new(None),
-            recording_slot: RefCell::default(),
             scrollable_overflow: Default::default(),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
             nodes_with_layout_update_flags: RefCell::new(Vec::new()),
@@ -4591,10 +4589,6 @@ impl LayoutNodeArena {
         &self.paint_state
     }
 
-    pub(crate) fn recording_slot(&self) -> &RefCell<crate::painting::recording_slot::RecordingSlot> {
-        &self.recording_slot
-    }
-
     pub(crate) fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {
         if !self.slot_is_live(id) {
             return 0;
@@ -6716,8 +6710,8 @@ mod tests {
 
     #[test]
     fn clearing_a_committed_box_evicts_its_fragment_link_and_abspos_inputs() {
-        let host_tables = crate::layout::HostTables::default();
-        let mut handle = crate::layout::ArenaHandle::new(std::ptr::NonNull::from(&host_tables));
+        let host = crate::render_state::DocumentHost::for_test();
+        let mut handle = crate::layout::ArenaHandle::new(std::ptr::NonNull::from(&host));
         let handle = std::ptr::from_mut(&mut handle).cast::<c_void>();
         // SAFETY: The handle lives until the end of the test, and the entry below borrows the
         // arena only for its call.

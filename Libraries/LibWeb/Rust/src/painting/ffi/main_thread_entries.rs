@@ -184,10 +184,12 @@ pub unsafe extern "C" fn layout_arena_publish_recording(
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { arena_from_handle(arena) };
-    let pending = arena.recording().take_pending_recording();
+    let mut recording = document_host(&main_thread).recording();
+    let pending = recording.take_pending_recording();
     if let Some(pending) = pending {
-        crate::painting::record::publish::publish_recording(arena, pending, &main_thread, &publish);
+        crate::painting::record::publish::publish_recording(arena, &mut recording, pending, &main_thread, &publish);
     }
+    drop(recording);
     // SAFETY: The caller provides writable storage for what it reads of the recording.
     unsafe { out.write(crate::painting::ffi::FfiPresentedRecording::of_last_recording(arena)) };
 }
@@ -204,8 +206,10 @@ pub unsafe extern "C" fn layout_arena_take_recording_trace(
     describe_node: unsafe extern "C" fn(*mut c_void, NodeSlotId, *mut c_void),
     append_text: unsafe extern "C" fn(*mut c_void, *const u8, usize),
 ) -> bool {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { arena_from_handle(arena) };
-    let Some(pending) = arena.recording().take_pending_recording_trace() else {
+    let Some(pending) = document_host(&main_thread).recording().take_pending_recording_trace() else {
         return false;
     };
     let Some(recording) = arena.paint_state().borrow().last_recording.clone() else {
@@ -442,4 +446,92 @@ pub unsafe extern "C" fn layout_arena_hit_test_adjacent_line(
             None => Default::default(),
         }
     })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
+/// Input arrays and byte buffers must remain valid and immutable throughout this call;
+/// fonts for enabled overlays must be live `Gfx::Font`s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_record_display_list(
+    arena: *mut c_void,
+    viewport: NodeSlotId,
+    inputs: crate::painting::host::FfiRecordingInputs,
+) -> bool {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    let mut recording = document_host(&main_thread).recording();
+    let arena = unsafe { arena_from_handle_mut(arena) };
+    // Recording reads overflow, and reading overflow never measures it.
+    arena.measure_scrollable_overflow();
+    debug_assert!(
+        !recording.has_pending_recording(),
+        "a recording must be published before the next one starts"
+    );
+    recording.discard_pending_recording();
+    if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
+        return false;
+    }
+    // The root background paints the union of the viewport and the root's overflow, so it is the
+    // one output a viewport move can change. Drop its caches before the frame is published instead
+    // of treating the viewport position as a frame-wide input.
+    let published_root_background_canvas_rect = recording
+        .recorder()
+        .published_recording
+        .as_ref()
+        .map(|recording| recording.root_background_canvas_rect);
+    if let Some(published_canvas_rect) = published_root_background_canvas_rect {
+        let root = arena
+            .paint_state()
+            .borrow()
+            .root_background_source
+            .expect("a recording follows paint preparation")
+            .root_layout_node;
+        let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
+            &arena.paintable_rows(),
+            root,
+            inputs.css_viewport_rect.into(),
+        );
+        if canvas_rect != published_canvas_rect {
+            arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
+        }
+    }
+    if inputs.publishes_recording {
+        arena.note_publishing_paint_recording_started();
+    }
+    // The recording reads the document as it is now, and nothing writes the document before it is
+    // done.
+    let frame = arena.freeze_frame();
+    let arena: &LayoutNodeArena = arena;
+    let (tree_inputs, root_background_source, trace_recordings) = {
+        let paint_state = arena.paint_state().borrow();
+        (
+            paint_state
+                .visual_context
+                .last_tree_inputs
+                .expect("a recording follows a visual context update"),
+            paint_state
+                .root_background_source
+                .expect("a recording follows paint preparation"),
+            paint_state.trace_recordings,
+        )
+    };
+    // SAFETY: The host lends the input arrays and buffers for this call. Only owned output and
+    // retained resources escape into the pending recording below.
+    let inputs = unsafe { inputs.borrow_recording_inputs(tree_inputs, root_background_source) };
+    let job = crate::painting::recording_slot::RecordingJob::new(
+        frame,
+        recording.take_recorder(),
+        viewport,
+        trace_recordings,
+    );
+    let answer = job.run(&inputs);
+    recording.accept_recording_answer(answer);
+    true
+}
+
+/// The host of the document an entry's token was minted for.
+fn document_host<'host>(main_thread: &crate::stage::MainThread<'host>) -> &'host crate::render_state::DocumentHost {
+    main_thread.host().expect("an entry's token names its document's host")
 }
