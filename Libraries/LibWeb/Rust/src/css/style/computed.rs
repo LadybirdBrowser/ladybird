@@ -294,6 +294,36 @@ impl FinalStyleRecordID {
     }
 }
 
+/// An element's composition, which `ComputedGroupSets::detach_composition` took off the record its
+/// winners decided so that a record derived beneath it can take that record's place. It stays
+/// pinned until it is reattached or released, each of which consumes it, so it cannot be copied.
+/// Dropping it any other way would leave the pin behind, which debug builds catch.
+#[derive(Debug)]
+#[must_use]
+pub(crate) struct DetachedComposition {
+    record: FinalStyleRecordID,
+    /// The record the composition is laid over.
+    pub(crate) base: FinalStyleRecordID,
+}
+
+impl DetachedComposition {
+    /// The pinned record, with the obligation to unpin it handed to the caller.
+    fn into_pinned_record(self) -> FinalStyleRecordID {
+        let record = self.record;
+        std::mem::forget(self);
+        record
+    }
+}
+
+impl Drop for DetachedComposition {
+    fn drop(&mut self) {
+        debug_assert!(
+            std::thread::panicking(),
+            "a detached composition was dropped without being reattached or released"
+        );
+    }
+}
+
 struct AnimationOverlayRecord {
     // NB: No sampled value enters a permanent interning table. The current assignment owns one
     //     reference, while detached layout and stabilization baselines can pin an old generation.
@@ -1145,6 +1175,61 @@ impl ComputedGroupSets {
 
     fn final_base_style_record(&self, identity: StyleRecordID) -> FinalStyleRecordID {
         FinalStyleRecordID::base(identity, self.style_record_generations[identity.index()])
+    }
+
+    /// The record a composition is laid over: the base record an animation overlay record composes
+    /// over, or the record itself where it composes nothing.
+    pub(crate) fn underlying_style_record(&self, record: FinalStyleRecordID) -> Option<FinalStyleRecordID> {
+        if record.base_record().is_some() {
+            return Some(record);
+        }
+        let slot = *self.animation_overlay_slots_by_record.get(&record)?;
+        let overlay = self.animation_overlay_slots[slot as usize].as_ref()?;
+        Some(self.final_base_style_record(overlay.base_style_record))
+    }
+
+    /// Stop composing an element's animations over the record its winners decided, so that a record
+    /// derived beneath the composition can take that record's place. The composition stays live,
+    /// pinned, for whoever still holds it, until the caller puts it back with
+    /// `reattach_composition` or lets it go with `release_detached_composition`. `None` where the
+    /// element composes nothing.
+    pub(super) fn detach_composition(&mut self, node: StyleNodeID) -> Option<DetachedComposition> {
+        let index = node.element_index()? as usize;
+        let slot = self.columns.animation_overlay_slot(index)?;
+        let overlay = self.animation_overlay_slots[slot as usize].as_ref()?;
+        let detached = DetachedComposition {
+            record: overlay.final_style_record,
+            base: self.final_base_style_record(overlay.base_style_record),
+        };
+        self.pin_style_record(detached.record.raw());
+        self.release_animation_overlay_assignment(slot);
+        self.columns.set_animation_overlay_slot(index, None);
+        Some(detached)
+    }
+
+    /// Compose an element's animations over its record again as they were before
+    /// `detach_composition`, whose pin this takes over: the record derived beneath the composition
+    /// was not installed. A composition laid over a record the element no longer holds stays
+    /// detached.
+    pub(super) fn reattach_composition(&mut self, node: StyleNodeID, detached: DetachedComposition) {
+        let base = detached.base;
+        let record = detached.into_pinned_record();
+        let slot = self.animation_overlay_slots_by_record.get(&record).copied();
+        if let Some((index, slot)) = node.element_index().zip(slot)
+            && self.columns.animation_overlay_slot(index as usize).is_none()
+            && self.style_record_column.get(index as usize).copied().flatten() == base.base_record()
+            && let Some(overlay) = self.animation_overlay_slots[slot as usize].as_mut()
+        {
+            overlay.is_assigned = true;
+            self.live_animation_overlay_assignments += 1;
+            self.columns.set_animation_overlay_slot(index as usize, Some(slot));
+        }
+        self.unpin_style_record(record.raw());
+    }
+
+    /// Let go of a composition `detach_composition` kept: the record derived beneath it took its place.
+    pub(super) fn release_detached_composition(&mut self, detached: DetachedComposition) {
+        self.unpin_style_record(detached.into_pinned_record().raw());
     }
 
     /// Interns one frozen computed longhand table. Values and publication

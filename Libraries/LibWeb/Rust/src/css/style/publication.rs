@@ -622,7 +622,21 @@ impl RetainedState {
         let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node) else {
             return self.engine_cold_record(node, (generation, state), scratch, goal, counters);
         };
-        if self.record_holds_an_animation_overlay(old_style_record) {
+        // A row derives the record beneath the composition the element's animations laid over it:
+        // the delta starts at the record the winners decided, and the composition stays the record
+        // the row moves the element away from.
+        let Some(underlying_style_record) = self.computed_group_sets.underlying_style_record(old_style_record) else {
+            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            return Err(Unanswered::Refused);
+        };
+        let composes_animations = underlying_style_record != old_style_record;
+        // The custom properties an element's animations sample are what its own `var()` references
+        // read, which a record derived from the environment beneath them would miss.
+        let samples_custom_properties = self
+            .element_custom_property_data
+            .get(&node)
+            .is_some_and(|held| held.is_animation_overlay);
+        if (composes_animations && !scratch.host_applies_animation_plans) || samples_custom_properties {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
@@ -658,7 +672,7 @@ impl RetainedState {
         // transitions the host tears down beside the decision, and one no host installs. A record
         // driven from its winners alone takes its declarations from them. The row carries what is
         // decided here to the host, for a record that moves.
-        let owes_a_transition_step = self.record_declares_transitions(old_style_record)
+        let owes_a_transition_step = self.record_declares_transitions(underlying_style_record)
             || if holds_no_current_cascade_state {
                 self.winner_groups
                     .semantic_delta_properties(None, state)
@@ -699,7 +713,7 @@ impl RetainedState {
         // republished as moved.
         let old_environment = self
             .computed_group_sets
-            .style_record_custom_property_environment(old_style_record.raw());
+            .style_record_custom_property_environment(underlying_style_record.raw());
         debug_assert!(
             old_environment.is_some(),
             "an installed record was published with a custom-property environment"
@@ -741,8 +755,12 @@ impl RetainedState {
         // to declarations no winner names.
         let drive_in_full = holds_no_current_cascade_state
             || scratch.document_environment_moved
-            || (scratch.viewport_moved && self.record_reads_the_viewport(old_style_record))
+            || (scratch.viewport_moved && self.record_reads_the_viewport(underlying_style_record))
             || full_drive_reason.is_some()
+            // A composition holds what the element inherits of its parent's animations beside what
+            // its own sample: the record beneath it is driven in full, inheriting from the parent's
+            // composition, and the host samples the element's own animations over it.
+            || composes_animations
             || ((environment.is_some() || self.custom_property_registrations_changed)
                 && self.state_has_substitutions(node, state))
             || self.state_reads_beyond_environment(node, state)
@@ -855,7 +873,7 @@ impl RetainedState {
             self.state_reads_beyond_environment(node, state) || (has_registered_declarations && full_drive);
         let cohort = (!record_is_the_elements_alone).then(|| {
             (
-                old_style_record.raw(),
+                underlying_style_record.raw(),
                 state,
                 facts,
                 cohort_parent,
@@ -873,14 +891,23 @@ impl RetainedState {
             self.note_node_substitution(node, scratch, state, current_environment);
             // The mark is per node: an element taking the record owes its own parent the mark.
             scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
-            let delta = self
-                .computed_group_sets
-                .assign_engine_computed_record(node, old_style_record, new_style_record)
-                .or_refused()?;
+            let detached_composition = composes_animations
+                .then(|| self.computed_group_sets.detach_composition(node))
+                .flatten();
+            let Some(delta) =
+                self.computed_group_sets
+                    .assign_engine_computed_record(node, underlying_style_record, new_style_record)
+            else {
+                if let Some(detached) = detached_composition {
+                    self.computed_group_sets.reattach_composition(node, detached);
+                }
+                return Err(Unanswered::Refused);
+            };
+            let delta = (old_style_record, delta.1);
             if delta.0 == delta.1 {
                 counters.bump(Counter::ComputedWinnerPropagationStops);
             }
-            self.note_engine_computed_record(
+            let pending = self.note_engine_computed_record(
                 node,
                 delta,
                 (generation, state),
@@ -888,8 +915,9 @@ impl RetainedState {
                 delta_property_count,
                 0,
                 counters,
-            )
-            .owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
+            );
+            pending.detached_composition = detached_composition;
+            pending.owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
             counters.bump(Counter::EngineComputedRecordCohortHits);
             return Ok(ElementAnswer::Delta(delta));
         }
@@ -906,7 +934,10 @@ impl RetainedState {
         // The record being driven again has a view. A record without one cannot say what a
         // partial drive would leave standing: it is driven in full.
         let mut old_record_is_unreadable = false;
-        let (writing_mode, direction) = match self.computed_group_sets.style_record_view(old_style_record.raw()) {
+        let (writing_mode, direction) = match self
+            .computed_group_sets
+            .style_record_view(underlying_style_record.raw())
+        {
             Some(view) => {
                 let inherited_box = unsafe {
                     view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
@@ -1052,7 +1083,7 @@ impl RetainedState {
         } else {
             Some(self.engine_driven_table(
                 node,
-                old_style_record,
+                underlying_style_record,
                 &store,
                 &selected,
                 &inputs,
@@ -1078,7 +1109,7 @@ impl RetainedState {
                 let subject = self.element_drive_subject(node, scratch.installed_ancestors.as_ref(), counters)?;
                 let mut driven = self.engine_full_drive(
                     subject,
-                    Some(old_style_record),
+                    Some(underlying_style_record),
                     &store,
                     &inputs,
                     &mut scratch.font_drive,
@@ -1117,7 +1148,7 @@ impl RetainedState {
                     self.note_node_substitution(node, scratch, state, current_environment);
                     driven = self.engine_full_drive(
                         subject,
-                        Some(old_style_record),
+                        Some(underlying_style_record),
                         &store,
                         &inputs,
                         &mut scratch.font_drive,
@@ -1144,9 +1175,12 @@ impl RetainedState {
         // The record names the counter-style registry its `content` or `list-style-type` reads,
         // which a moved `content` may have started or stopped reading.
         let counter_style_registry = self.table_counter_style_environment_identity(target, &table);
+        let detached_composition = composes_animations
+            .then(|| self.computed_group_sets.detach_composition(node))
+            .flatten();
         let assembly = self.computed_group_sets.replace_engine_computed_table(
             node,
-            old_style_record,
+            underlying_style_record,
             old_style_record,
             table,
             groups_to_rebuild,
@@ -1157,7 +1191,12 @@ impl RetainedState {
             Some(counter_style_registry),
         );
         self.settle_computed_memory();
-        let assembly = assembly.or_refused()?;
+        let Some(assembly) = assembly else {
+            if let Some(detached) = detached_composition {
+                self.computed_group_sets.reattach_composition(node, detached);
+            }
+            return Err(Unanswered::Refused);
+        };
         counters.add(
             Counter::ComputedOutputGroupsCanonicalized,
             u64::from(assembly.canonicalized_groups),
@@ -1169,7 +1208,7 @@ impl RetainedState {
         // The record reads the element's place among its siblings where its state's winners do, as
         // the store substitutes them.
         let reads_sibling_position = store.uses_tree_counting_function(self);
-        self.note_engine_computed_record(
+        let pending = self.note_engine_computed_record(
             node,
             delta,
             (generation, state),
@@ -1177,8 +1216,9 @@ impl RetainedState {
             delta_property_count,
             longhand_evaluations,
             counters,
-        )
-        .owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
+        );
+        pending.detached_composition = detached_composition;
+        pending.owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
         // A record driven in full stands for a cohort keyed by the parent's inherited inputs only
         // when the drive was partial. One naming its tree scope's counter-style registry answers
         // for no element of another scope, and the key names no scope.
@@ -1300,6 +1340,7 @@ impl RetainedState {
             cascade_state: Some(cascade_state),
             longhand_evaluations,
             owes_a_transition_step: false,
+            detached_composition: None,
         });
         let last = records.len() - 1;
         &mut records[last]
@@ -1321,6 +1362,10 @@ impl RetainedState {
                 if let Some(cascade_state) = pending.cascade_state {
                     self.computed_group_sets.bind_cascade_state(target, cascade_state);
                 }
+                // The host holds the record that replaced the composition now.
+                if let Some(detached) = pending.detached_composition {
+                    self.computed_group_sets.release_detached_composition(detached);
+                }
                 // A pseudo-element's record was computed from this very state, as the retained
                 // cascade would have observed had C++ computed it.
                 if pending.pseudo_kind != u8::MAX {
@@ -1336,11 +1381,22 @@ impl RetainedState {
         self.mark_published_answer_observed(node);
     }
 
+    /// The host computed the target's record itself: the record the engine derived for it is not
+    /// installed, and a composition the derivation detached gives way to what the host published.
     pub(super) fn forget_engine_computed_record(&mut self, target: computed::ComputedStyleTarget) {
         let Some(pending_records) = self.engine_computed_records_pending.get_mut(&target.node()) else {
             return;
         };
-        pending_records.retain(|pending| pending.pseudo_kind != target.pseudo_kind());
+        let computed_group_sets = &mut self.computed_group_sets;
+        pending_records.retain(|pending| {
+            if pending.pseudo_kind != target.pseudo_kind() {
+                return true;
+            }
+            if let Some(detached) = pending.detached_composition.take() {
+                computed_group_sets.release_detached_composition(detached);
+            }
+            false
+        });
         if pending_records.is_empty() {
             self.engine_computed_records_pending.remove(&target.node());
         }
@@ -1357,20 +1413,24 @@ impl RetainedState {
                 self.revert_engine_computed_pseudo_record(&pending, counters);
                 continue;
             }
-            self.revert_engine_computed_element_record(&pending);
+            self.revert_engine_computed_element_record(pending);
         }
     }
 
     /// Put an element back on the record it held before the engine derived one for it, unless a
-    /// publication has moved it on since, and its container query inputs back on the record the
-    /// host holds: the derived record they were read from goes with the derivation, and may be
-    /// reclaimed.
-    fn revert_engine_computed_element_record(&mut self, pending: &PendingEngineComputedRecord) {
-        self.computed_group_sets.revert_engine_computed_record(
-            pending.node,
-            pending.new_style_record,
-            pending.old_style_record,
-        );
+    /// publication has moved it on since, with the composition the derivation detached composing
+    /// over it again, and its container query inputs back on the record the host holds: the
+    /// derived record they were read from goes with the derivation, and may be reclaimed.
+    fn revert_engine_computed_element_record(&mut self, pending: PendingEngineComputedRecord) {
+        let previous = pending
+            .detached_composition
+            .as_ref()
+            .map_or(pending.old_style_record, |detached| detached.base);
+        self.computed_group_sets
+            .revert_engine_computed_record(pending.node, pending.new_style_record, previous);
+        if let Some(detached) = pending.detached_composition {
+            self.computed_group_sets.reattach_composition(pending.node, detached);
+        }
         let held_style_record = self.held_style_records.get(&pending.node).copied().unwrap_or(0);
         self.set_element_container_query_inputs(pending.node, held_style_record);
     }
@@ -2286,7 +2346,7 @@ impl RetainedState {
             if pending.pseudo_kind == u8::MAX {
                 let target = computed::ComputedStyleTarget::new(node, u8::MAX);
                 self.computed_group_sets.take_pending_cascade_state(target);
-                self.revert_engine_computed_element_record(&pending);
+                self.revert_engine_computed_element_record(pending);
                 scratch.cohorts.retain(|_, (record, ..)| *record != derived);
                 scratch.cold_cohorts.retain(|_, record| record.record != derived);
                 self.engine_cold_record_cache
@@ -4932,6 +4992,9 @@ pub(super) struct PendingEngineComputedRecord {
     /// record moves, and either the one it replaces declares transitions or the move changes the
     /// declarations.
     owes_a_transition_step: bool,
+    /// The composition the element's animations laid over the record this one replaces, detached
+    /// and pinned until C++ installs the record, computes one itself, or the derivation is reverted.
+    detached_composition: Option<computed::DetachedComposition>,
 }
 
 /// What one flush accumulates while deriving engine-computed records: the record each cohort
@@ -5808,6 +5871,7 @@ mod tests {
                     cascade_state: None,
                     longhand_evaluations: 1,
                     owes_a_transition_step: false,
+                    detached_composition: None,
                 });
             record
         };
@@ -5851,6 +5915,64 @@ mod tests {
         assert_eq!(
             engine.computed_group_sets.pseudo_style_record(first, 0),
             Some(first_pseudo)
+        );
+    }
+
+    #[test]
+    fn a_record_the_host_computes_instead_releases_the_detached_composition() {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut raw_node = [0];
+        engine.allocate_style_nodes(&mut raw_node);
+        let node = StyleNodeID::from_raw(raw_node[0]).unwrap();
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        let animated_overlay = crate::css::animated_overlay::AnimatedOverlay::default();
+        let composition = engine
+            .publish_computed_groups(
+                target,
+                &[],
+                0,
+                0,
+                computed::ComputedMetadataInput {
+                    pseudo_element_styles: 0,
+                    dependency_flags: 0,
+                    counter_style_environment_identity: 0,
+                    animation_overlay_identity: 1,
+                    animated_overlay: HostShared::new(std::ptr::from_ref(&animated_overlay)),
+                    animation_overlay_payloads: &[],
+                    longhand_table: HostShared::null(),
+                },
+            )
+            .style_record_identity;
+        let detached = engine.computed_group_sets.detach_composition(node);
+        assert!(detached.is_some());
+        assert!(
+            engine
+                .computed_group_sets
+                .underlying_style_record(composition)
+                .is_some()
+        );
+        engine
+            .engine_computed_records_pending
+            .entry(node)
+            .or_default()
+            .push(PendingEngineComputedRecord {
+                node,
+                pseudo_kind: u8::MAX,
+                old_style_record: composition,
+                new_style_record: computed::FinalStyleRecordID::NONE,
+                cascade_state: None,
+                longhand_evaluations: 0,
+                owes_a_transition_step: true,
+                detached_composition: detached,
+            });
+
+        engine.forget_engine_computed_record(target);
+        assert!(engine.engine_computed_records_pending.is_empty());
+        assert!(
+            engine
+                .computed_group_sets
+                .underlying_style_record(composition)
+                .is_none()
         );
     }
 }
