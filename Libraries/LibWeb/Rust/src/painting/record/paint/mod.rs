@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
 pub mod background;
@@ -37,7 +38,7 @@ pub(crate) fn paint_phase_mask<O: Observer>(
     style: ComputedValuesView<'_>,
     facts: &BasePaintFacts,
 ) -> u8 {
-    let kind = recorder.layout_arena.node_kind_if_live(paintable);
+    let kind = recorder.source.node_kind_if_live(paintable);
     // SVG painters also track dependencies on other elements, even in phases that
     // produce no commands. Keep those painters on their regular path.
     if kind.is_some_and(node_painting::is_svg) {
@@ -53,7 +54,7 @@ pub(crate) fn paint_phase_mask<O: Observer>(
         if facts.has_backdrop_filter
             || facts.has_box_shadow
             || background_resolution::has_background_to_paint(
-                recorder.layout_arena,
+                recorder.source,
                 paintable,
                 recorder.inputs.uncaptured.root_background_source,
             )
@@ -71,7 +72,7 @@ pub(crate) fn paint_phase_mask<O: Observer>(
     if kind == Some(NodeKind::Viewport)
         || recorder.data(paintable).own_scroll_node_index
             != crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX
-        || crate::painting::chrome_geometry::has_resizer(recorder.layout_arena, paintable)
+        || crate::painting::chrome_geometry::has_resizer(recorder.source, paintable)
     {
         phases |= PaintPhase::Overlay.bit();
     }
@@ -79,14 +80,14 @@ pub(crate) fn paint_phase_mask<O: Observer>(
 }
 
 pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
-    let Some(kind) = recorder.layout_arena.node_kind_if_live(paintable) else {
+    let Some(kind) = recorder.source.node_kind_if_live(paintable) else {
         return;
     };
-    if node_painting::is_inline(recorder.layout_arena, paintable) {
+    if node_painting::is_inline(recorder.source, paintable) {
         inline_box::paint(recorder, paintable, phase);
         return;
     }
-    if node_painting::has_lines(recorder.layout_arena, paintable) {
+    if node_painting::has_lines(recorder.source, paintable) {
         if kind == NodeKind::SVGForeignObjectBox && !recorder.is_visible(paintable) {
             return;
         }
@@ -94,7 +95,7 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
         if phase == PaintPhase::Foreground {
             if recorder.is_recording_svg_resource_content()
                 || recorder
-                    .layout_arena
+                    .source
                     .paintable_side_data(paintable)
                     .inline_content
                     .as_ref()
@@ -202,18 +203,15 @@ pub(crate) fn paint_base_with<O: Observer>(
         paint_background(recorder, paintable);
         if facts.has_box_shadow {
             let border_box_rect =
-                crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
+                crate::painting::paintable_geometry::absolute_border_box_rect(recorder.source, paintable);
             let padding_box_rect =
-                crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.layout_arena, paintable);
+                crate::painting::paintable_geometry::absolute_padding_box_rect(recorder.source, paintable);
             let border_radii = recorder.border_radii(paintable);
             shadow::paint_box_shadow(recorder, paintable, border_box_rect, padding_box_rect, border_radii);
         }
     }
     if phase == PaintPhase::Border
-        && !crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(
-            recorder.layout_arena,
-            paintable,
-        )
+        && !crate::painting::paintable_geometry::committed_uses_collapsing_borders_model(recorder.source, paintable)
         && !facts.empty_cells_property_applies
     {
         let previous = set_own_background_as_contrast_backdrop(recorder, paintable);
@@ -242,7 +240,7 @@ fn set_own_background_as_contrast_backdrop<O: Observer>(
     paintable: NodeSlotId,
 ) -> Option<libgfx_rust::Color> {
     let backdrop = recorder
-        .layout_arena
+        .source
         .node_style_if_live(paintable)
         .map(|style| libgfx_rust::Color(style.background().background_color));
     recorder.recorder.set_contrast_backdrop(backdrop)
@@ -259,7 +257,7 @@ pub(crate) fn paint_backdrop_filter<O: Observer>(
     let region = recorder
         .converter
         .rounded_device_rect(crate::painting::paintable_geometry::absolute_border_box_rect(
-            recorder.layout_arena,
+            recorder.source,
             paintable,
         ));
     recorder.recorder.backdrop_filter_region(region);

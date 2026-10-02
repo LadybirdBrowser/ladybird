@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::PaintRead;
 use crate::painting::record::trace::Observer;
 
 use crate::css::computed_value_views::ComputedValuesView;
@@ -1413,14 +1414,13 @@ pub(crate) fn paint_box_borders_from_style<O: Observer>(
     facts: &BasePaintFacts,
 ) {
     let converter = recorder.converter;
-    let Some(style) = recorder.layout_arena.node_style_if_live(paintable) else {
+    let Some(style) = recorder.source.node_style_if_live(paintable) else {
         return;
     };
-    let border = crate::painting::paintable_geometry::committed_border(recorder.layout_arena, paintable);
+    let border = crate::painting::paintable_geometry::committed_border(recorder.source, paintable);
     let borders_data = style_borders_data(style, border, ALL_PIECE_EDGES, &converter);
     let css_border_widths = present_css_border_widths(style, border, ALL_PIECE_EDGES);
-    let border_box_rect =
-        crate::painting::paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
+    let border_box_rect = crate::painting::paintable_geometry::absolute_border_box_rect(recorder.source, paintable);
     let border_radii = recorder.border_radii(paintable);
     paint_box_borders(
         recorder,

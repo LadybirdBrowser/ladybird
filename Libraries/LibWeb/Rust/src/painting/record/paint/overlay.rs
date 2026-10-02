@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::CssPixels;
@@ -19,7 +20,7 @@ use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, FloatPoint, IntRect, LineStyle, ShouldAntiAlias, WindingRule};
 
 pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
-    let is_viewport = recorder.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport);
+    let is_viewport = recorder.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport);
     let own_scroll_node_index = recorder.data(paintable).own_scroll_node_index;
     if !is_viewport
         && own_scroll_node_index == VISUAL_VIEWPORT_NODE_INDEX
@@ -28,15 +29,15 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
         return;
     }
     let converter = recorder.converter;
-    let chrome_geometry = ChromeGeometry::for_recording(recorder.layout_arena, recorder.inputs);
-    let style = recorder.layout_arena.node_style_if_live(paintable);
+    let chrome_geometry = ChromeGeometry::for_recording(recorder.source, recorder.inputs);
+    let style = recorder.source.node_style_if_live(paintable);
     let paints_scrollbars = style.is_some_and(|style| {
         !is_viewport && style.misc_reset().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
     });
 
     if paints_scrollbars {
         let (thumb_color, track_color) = scrollbar_colors_for_paint(
-            recorder.layout_arena,
+            recorder.source,
             paintable,
             recorder.inputs.uncaptured.root_background_source,
             recorder
@@ -47,7 +48,7 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
         );
         let scroll_node_index = own_scroll_node_index;
         for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
-            let enlarged = scrollbar_is_enlarged(recorder.layout_arena, paintable, direction);
+            let enlarged = scrollbar_is_enlarged(recorder.source, paintable, direction);
             let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, enlarged, None) else {
                 continue;
             };
@@ -72,7 +73,7 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
     }
 
     if let Some(mut css_rect) = chrome_geometry.absolute_resizer_rect(paintable) {
-        let bottom_left_resizer = is_chrome_mirrored(recorder.layout_arena, paintable);
+        let bottom_left_resizer = is_chrome_mirrored(recorder.source, paintable);
         let padding = recorder.inputs.uncaptured.chrome_metrics.resize_gripper_padding;
         let two = CssPixels::from_integer(2);
         let half = padding.div_as_fraction(two);
@@ -130,7 +131,7 @@ fn paint_middle_button_scroll_indicator<O: Observer>(recorder: &mut PaintRecorde
     const ARROW_SIZE: f32 = 6.0;
     const ARROW_OFFSET: f32 = 8.0;
 
-    if recorder.layout_arena.node_kind_if_live(paintable) != Some(NodeKind::Viewport) {
+    if recorder.source.node_kind_if_live(paintable) != Some(NodeKind::Viewport) {
         return;
     }
     let Some(origin) = recorder.inputs.uncaptured.middle_button_scroll_origin else {

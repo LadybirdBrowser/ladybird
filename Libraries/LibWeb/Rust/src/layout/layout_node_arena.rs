@@ -29,6 +29,7 @@ use crate::layout::node_data::{
     MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef, pseudo_kind_of,
 };
 use crate::layout::tree_mutation::HostCalls;
+use crate::painting::paint_read::PaintRead;
 use crate::stage::MainThread;
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -3509,46 +3510,6 @@ impl LayoutNodeArena {
         });
     }
 
-    pub(crate) fn for_each_node_in_layout_subtree_in_pre_order_with_pruning(
-        &self,
-        root: NodeSlotId,
-        mut visit_node_and_report_whether_to_descend: impl FnMut(NodeSlotId) -> bool,
-    ) {
-        let mut current = root;
-        loop {
-            let descend_into_children = visit_node_and_report_whether_to_descend(current);
-            let data = self.data(current);
-            let (parent, first_child, next_sibling) =
-                { (data.parent.get(), data.first_child.get(), data.next_sibling.get()) };
-
-            if descend_into_children && !first_child.is_invalid() {
-                current = first_child;
-                continue;
-            }
-            if current == root {
-                break;
-            }
-            if !next_sibling.is_invalid() {
-                current = next_sibling;
-                continue;
-            }
-
-            current = parent;
-            while current != root {
-                let data = self.data(current);
-                let next_sibling = data.next_sibling.get();
-                if !next_sibling.is_invalid() {
-                    current = next_sibling;
-                    break;
-                }
-                current = data.parent.get();
-            }
-            if current == root {
-                break;
-            }
-        }
-    }
-
     fn remove_layout_update_flag_node(&self, node: NodeSlotId) {
         let mut indices = self.layout_update_flag_node_indices.borrow_mut();
         let Some(index) = indices.remove(&node) else {
@@ -4675,24 +4636,14 @@ impl LayoutNodeArena {
             .is_some_and(|metadata| metadata.occupied && metadata.generation == id.generation())
     }
 
-    /// Whether the row was built for a DOM node: an element, a text node or the document. Anonymous
-    /// boxes and generated content were not, so they have none. The node itself is named by the row's
-    /// identity and resolved on the host side.
+    /// Whether the row was built for a DOM node. The node itself is named by the row's identity
+    /// and resolved on the host side.
     pub(crate) fn node_is_dom_backed(&self, id: NodeSlotId) -> bool {
-        self.node_data_if_live(id).is_some_and(|data| {
-            // A slot that has not been given a shell yet stands for nothing at all, and its flags
-            // do not say so.
-            data.kind.get() != NodeKind::Unset && !crate::layout::node_facts::has_flag(data, NodeFlag::Anonymous)
-        })
+        crate::painting::paint_read::PaintRead::node_is_dom_backed(self, id)
     }
 
-    /// Whether the row was built for an element, as opposed to the document, a text node or nothing.
     pub(crate) fn node_is_element_backed(&self, id: NodeSlotId) -> bool {
-        if !self.node_is_dom_backed(id) {
-            return false;
-        }
-        let kind = self.data(id).kind.get();
-        kind != NodeKind::Viewport && !crate::layout::node_facts::kind_is_text(kind)
+        crate::painting::paint_read::PaintRead::node_is_element_backed(self, id)
     }
 
     pub(crate) fn previous_dom_backed_or_generated_node(

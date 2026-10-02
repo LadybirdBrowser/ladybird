@@ -41,7 +41,7 @@ pub(crate) fn paints_background_in_cells(display: FfiDisplay) -> bool {
 /// So the background layers are resolved against the part's own box and painted once per originating cell, clipped
 /// to that cell's border box.
 pub(crate) fn paint_table_part_background<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
-    let layout_arena = recorder.layout_arena;
+    let layout_arena = recorder.source;
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return;
     };

@@ -20,6 +20,7 @@ use crate::painting::display_list::builder::CommandRange;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paint_order_plan::{PaintScope, PaintScopePlan};
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::PaintableFlag;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::svg_resources::MaskLayerSet;
@@ -93,7 +94,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     // is animated is retained so the compositor can reveal it without a main-thread repaint.
     fn stacking_context_paints(&self, owner: NodeSlotId) -> bool {
         !(self.data(owner).has_flag(PaintableFlag::HasNonInvertibleCssTransform)
-            && self.layout_arena.node_flags_if_live(owner) & NodeFlag::HasAnimatedOpacityOrTransform as u32 == 0)
+            && self.source.node_flags_if_live(owner) & NodeFlag::HasAnimatedOpacityOrTransform as u32 == 0)
     }
 
     // The transparent fill that triggers a content-generating SVG filter, and the mask
@@ -101,7 +102,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     fn record_scope_preamble(&mut self, owner: NodeSlotId) {
         let context = self.own_context(owner);
         self.recorder.set_accumulated_visual_context(context);
-        if let Some(svg_filter_bounds) = self.layout_arena.paintable_side_data(owner).svg_filter_bounds.get() {
+        if let Some(svg_filter_bounds) = self.source.paintable_side_data(owner).svg_filter_bounds.get() {
             let device_rect = self
                 .converter
                 .enclosing_device_rect(CssPixelRect::from(svg_filter_bounds));
@@ -169,13 +170,13 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
     fn plan_scope(&mut self, scope: PaintScope) -> ScopePlan {
         let use_prepared_inputs = self.plan_from_prepared_inputs;
         let plan = PaintScopePlan::build(
-            self.layout_arena,
+            self.source,
             scope,
             self.inputs.should_paint_overlay,
             use_prepared_inputs,
         );
         if use_prepared_inputs && crate::painting::record::verify::enabled_by_environment() {
-            let canonical = PaintScopePlan::build(self.layout_arena, scope, self.inputs.should_paint_overlay, false);
+            let canonical = PaintScopePlan::build(self.source, scope, self.inputs.should_paint_overlay, false);
             assert!(
                 plan.items == canonical.items
                     && plan.establishes_stacking_context == canonical.establishes_stacking_context,
@@ -208,7 +209,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
             ProducerKind::ScrollMetadata => self.record_scroll_metadata(owner),
             ProducerKind::Svg => self.record_svg_box_foreground(owner),
             ProducerKind::InlinePiece(index) | ProducerKind::TextFragment(index) => {
-                let root = if crate::painting::node_painting::has_lines(self.layout_arena, owner) {
+                let root = if crate::painting::node_painting::has_lines(self.source, owner) {
                     owner
                 } else {
                     self.data(owner).containing_block
@@ -308,25 +309,25 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
     }
 
     fn damaged_rows(&mut self) -> Vec<NodeSlotId> {
-        let mut rows = self.layout_arena.damaged_paint_rows();
+        let mut rows = self.source.damaged_paint_rows();
         // A moved row moves its whole layout subtree, whose rows were not pushed themselves. A
         // moved row inside that subtree is listed already and expands its own subtree, so the
         // walk stops there, and a row expanded from another moved ancestor stops it as well.
         let mut expanded = Vec::new();
         for row in &rows {
-            if !self.layout_arena.paint_damage_of_row(*row).contains(PaintDamage::MOVED) {
+            if !self.source.paint_damage_of_row(*row).contains(PaintDamage::MOVED) {
                 continue;
             }
             let root = *row;
-            self.layout_arena
+            self.source
                 .for_each_node_in_layout_subtree_in_pre_order_with_pruning(root, |node| {
                     if node == root {
                         return true;
                     }
-                    if self.layout_arena.paint_damage_of_row(node).contains(PaintDamage::MOVED) {
+                    if self.source.paint_damage_of_row(node).contains(PaintDamage::MOVED) {
                         return false;
                     }
-                    if !self.layout_arena.paintable_row_is_populated(node) {
+                    if !self.source.paintable_row_is_populated(node) {
                         return true;
                     }
                     let newly_expanded = self.moved_expansion.insert(node);
@@ -341,7 +342,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
     }
 
     fn effective_damage(&mut self, row: NodeSlotId) -> PaintDamage {
-        let mut damage = self.layout_arena.paint_damage_of_row(row);
+        let mut damage = self.source.paint_damage_of_row(row);
         if self.moved_expansion.contains(&row) {
             damage |= PaintDamage::ALL_PRODUCERS | PaintDamage::MOVED;
         }
@@ -354,7 +355,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
         match kind {
             ProducerKind::Svg => true,
             ProducerKind::ScopePreamble => self.paints_svg_mask_or_clip_resource_subtree(owner),
-            ProducerKind::ScrollMetadata => scroll_snap::snap_container_geometry(self.layout_arena, owner).is_some(),
+            ProducerKind::ScrollMetadata => scroll_snap::snap_container_geometry(self.source, owner).is_some(),
             ProducerKind::InlinePiece(_) | ProducerKind::TextFragment(_) => true,
             _ => false,
         }

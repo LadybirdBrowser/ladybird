@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
@@ -55,11 +56,11 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     fn nearest_scrollable_ancestor(&mut self, paintable: NodeSlotId) -> Option<NodeSlotId> {
         let mut candidate = self.data(paintable).containing_block;
-        while !candidate.is_invalid() && self.layout_arena.paintable_row_is_populated(candidate) {
+        while !candidate.is_invalid() && self.source.paintable_row_is_populated(candidate) {
             if self.could_be_scrolled_by_wheel_event(candidate) {
                 return Some(candidate);
             }
-            if style_queries::is_fixed_position(self.layout_arena, candidate) {
+            if style_queries::is_fixed_position(self.source, candidate) {
                 return None;
             }
             candidate = self.data(candidate).containing_block;
@@ -86,10 +87,10 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
             let raw_containing_block = self.data(current).containing_block;
             let mut containing_block = (!raw_containing_block.is_invalid()
-                && self.layout_arena.paintable_row_is_populated(raw_containing_block))
+                && self.source.paintable_row_is_populated(raw_containing_block))
             .then_some(raw_containing_block);
             if let Some(block) = containing_block
-                && style_queries::is_fixed_position(self.layout_arena, block)
+                && style_queries::is_fixed_position(self.source, block)
             {
                 let block_own = self.data(block).own_scroll_node_index;
                 if block_own != VISUAL_VIEWPORT_NODE_INDEX && self.could_be_scrolled_by_wheel_event(block) {
@@ -136,7 +137,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
         let scale = self.inputs.device_pixels_per_css_pixel;
         let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable),
+            paintable_geometry::absolute_border_box_rect(self.source, paintable),
             scale,
         );
         if rect.is_empty() {
@@ -172,13 +173,13 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return;
         }
         if !self
-            .layout_arena
+            .source
             .node_has_dom_paint_fact(paintable, DomPaintFact::InsideBlockingWheelEventHandler)
         {
             return;
         }
         let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable),
+            paintable_geometry::absolute_border_box_rect(self.source, paintable),
             self.inputs.device_pixels_per_css_pixel,
         );
         if rect.is_empty() {
@@ -191,7 +192,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     fn record_main_thread_wheel_event_region(&mut self, paintable: NodeSlotId) {
         let rect = css_rect_to_device_rect(
-            paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable),
+            paintable_geometry::absolute_border_box_rect(self.source, paintable),
             self.inputs.device_pixels_per_css_pixel,
         );
         if rect.is_empty() {
@@ -207,18 +208,18 @@ impl<O: Observer> PaintRecorder<'_, O> {
     ) -> Option<CompositorScrollNodeKind> {
         if !self.inputs.uncaptured.is_recording_async_scrolling_metadata
             || self
-                .layout_arena
+                .source
                 .node_has_dom_paint_fact(paintable, DomPaintFact::NestedNavigableContainer)
             || self.data(paintable).own_scroll_node_index == VISUAL_VIEWPORT_NODE_INDEX
             || !self.could_be_scrolled_by_wheel_event(paintable)
         {
             return None;
         }
-        if self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport) {
+        if self.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport) {
             Some(CompositorScrollNodeKind::Viewport)
-        } else if self.layout_arena.node_generated_for(paintable) != 0 {
+        } else if self.source.node_generated_for(paintable) != 0 {
             Some(CompositorScrollNodeKind::PseudoElement)
-        } else if self.layout_arena.node_is_element_backed(paintable) {
+        } else if self.source.node_is_element_backed(paintable) {
             Some(CompositorScrollNodeKind::Element)
         } else {
             None
@@ -226,7 +227,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn record_scroll_node(&mut self, paintable: NodeSlotId, scroll_node_kind: CompositorScrollNodeKind) {
-        let generated_for = self.layout_arena.node_generated_for(paintable);
+        let generated_for = self.source.node_generated_for(paintable);
         let node_identity = self.data(paintable).node_identity;
         debug_assert!(
             node_identity != 0,
@@ -236,7 +237,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             Some(ancestor) => self.data(ancestor).own_scroll_node_index,
             None => VISUAL_VIEWPORT_NODE_INDEX,
         };
-        let is_viewport = self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport);
+        let is_viewport = self.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport);
         let scrollport_rect = if is_viewport {
             IntRect::new(
                 0,
@@ -246,10 +247,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             )
         } else {
             self.converter
-                .rounded_device_rect(paintable_geometry::absolute_padding_box_rect(
-                    self.layout_arena,
-                    paintable,
-                ))
+                .rounded_device_rect(paintable_geometry::absolute_padding_box_rect(self.source, paintable))
         };
         let scale = self.inputs.device_pixels_per_css_pixel;
         let hit_test_facts = self.hit_test_facts(paintable);
@@ -259,15 +257,15 @@ impl<O: Observer> PaintRecorder<'_, O> {
             scroll_node_index: self.data(paintable).own_scroll_node_index,
             parent_scroll_node_index,
             scrollport_rect,
-            min_scroll_offset: css_point_to_device_point(minimum_scroll_offset(self.layout_arena, paintable), scale),
-            max_scroll_offset: css_point_to_device_point(maximum_scroll_offset(self.layout_arena, paintable), scale),
+            min_scroll_offset: css_point_to_device_point(minimum_scroll_offset(self.source, paintable), scale),
+            max_scroll_offset: css_point_to_device_point(maximum_scroll_offset(self.source, paintable), scale),
             scroll_node_kind,
             pseudo_element_type: generated_for.saturating_sub(1),
             is_viewport,
             can_be_wheel_scrolled_horizontally: hit_test_facts.could_be_scrolled_horizontally,
             can_be_wheel_scrolled_vertically: hit_test_facts.could_be_scrolled_vertically,
         });
-        if let Some(geometry) = scroll_snap::snap_container_geometry(self.layout_arena, paintable) {
+        if let Some(geometry) = scroll_snap::snap_container_geometry(self.source, paintable) {
             self.record_snap_geometry(paintable, geometry);
         }
     }
@@ -290,7 +288,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             horizontal_writing_mode: geometry.horizontal_writing_mode,
         });
         let recorder = &mut self.recorder;
-        scroll_snap::for_each_snap_area(self.layout_arena, paintable, |_, area| {
+        scroll_snap::for_each_snap_area(self.source, paintable, |_, area| {
             recorder.compositor_snap_area(CompositorSnapArea {
                 document_id,
                 scroll_node_index,
@@ -312,14 +310,14 @@ impl<O: Observer> PaintRecorder<'_, O> {
         is_painted_by_compositor: bool,
         display_list_paints_enlarged_scrollbar: bool,
     ) -> Option<CompositorScrollbar> {
-        let chrome_geometry = ChromeGeometry::for_recording(self.layout_arena, self.inputs);
+        let chrome_geometry = ChromeGeometry::for_recording(self.source, self.inputs);
         let scrollbar = chrome_geometry.compute_scrollbar_data(paintable, direction, false, None)?;
         let expanded = chrome_geometry
             .compute_scrollbar_data(paintable, direction, true, None)
             .expect("an enlarged scrollbar must exist when the regular scrollbar exists");
         let scale = self.inputs.device_pixels_per_css_pixel;
-        let min_scroll_offset = css_point_to_device_point(minimum_scroll_offset(self.layout_arena, paintable), scale);
-        let max_scroll_offset = css_point_to_device_point(maximum_scroll_offset(self.layout_arena, paintable), scale);
+        let min_scroll_offset = css_point_to_device_point(minimum_scroll_offset(self.source, paintable), scale);
+        let max_scroll_offset = css_point_to_device_point(maximum_scroll_offset(self.source, paintable), scale);
         let vertical = direction == ScrollDirection::Vertical;
         Some(CompositorScrollbar {
             document_id: self.inputs.uncaptured.document_id,
@@ -350,16 +348,16 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn record_viewport_scrollbar_state(&mut self, paintable: NodeSlotId) {
-        let records_viewport_scrollbars = self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
+        let records_viewport_scrollbars = self.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
             && self.inputs.uncaptured.paint_viewport_scrollbars
-            && self.layout_arena.node_style_if_live(paintable).is_some_and(|style| {
+            && self.source.node_style_if_live(paintable).is_some_and(|style| {
                 style.misc_reset().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
             });
         if !records_viewport_scrollbars {
             return;
         }
         let colors = scrollbar_colors_for_paint(
-            self.layout_arena,
+            self.source,
             paintable,
             self.inputs.uncaptured.root_background_source,
             self.inputs
@@ -384,7 +382,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         colors: (Color, Color),
         display_list_paints_enlarged_scrollbar: bool,
     ) {
-        if self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
+        if self.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
             || self.kind_of_compositor_scroll_node_recorded_for(paintable).is_none()
             || !self.visibility_is_visible(paintable)
             || !self.visible_for_hit_testing(paintable)
@@ -418,7 +416,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.record_blocking_wheel_event_region(paintable);
 
         if self
-            .layout_arena
+            .source
             .node_has_dom_paint_fact(paintable, DomPaintFact::NestedNavigableContainer)
         {
             self.record_main_thread_wheel_event_region(paintable);

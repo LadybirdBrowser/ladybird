@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::PaintRead;
 use crate::painting::record::trace::Observer;
 
 use crate::css::computed_value_views::LengthPercentageRef;
@@ -394,7 +395,7 @@ pub(crate) fn paint_border_image<O: Observer>(
     css_border_widths: [CssPixels; 4],
     border_box_rect: CssPixelRect,
 ) -> bool {
-    let layout_arena = recorder.layout_arena;
+    let layout_arena = recorder.source;
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return false;
     };
@@ -409,7 +410,7 @@ pub(crate) fn paint_border_image<O: Observer>(
     }
     let image_rendering = style.image_rendering();
     let Some(crate::painting::image_content::ImageContent::Raster(Some(frame))) = recorder
-        .layout_arena
+        .source
         .layer_image_paint_facts(paintable, FfiLayerImageList::BorderImageSource, 0)
         .map(|facts| facts.content)
     else {

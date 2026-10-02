@@ -114,7 +114,7 @@ pub(crate) fn fieldset_borders_data(
 pub(crate) fn paint_background<O: Observer>(recorder: &mut PaintRecorder<'_, O>, fieldset: NodeSlotId) {
     let device_border_rect = recorder
         .converter
-        .rounded_device_rect(visual_border_box_rect(recorder.layout_arena, fieldset));
+        .rounded_device_rect(visual_border_box_rect(recorder.source, fieldset));
     let visual_border_box_clip = PendingInlineClip::intersecting_float_rect(device_border_rect.to_float());
     recorder.record_with_inline_clips(&[visual_border_box_clip], |recorder| {
         background::paint_background(recorder, fieldset);
@@ -122,15 +122,15 @@ pub(crate) fn paint_background<O: Observer>(recorder: &mut PaintRecorder<'_, O>,
 }
 
 pub(crate) fn paint_border<O: Observer>(recorder: &mut PaintRecorder<'_, O>, fieldset: NodeSlotId) {
-    let Some(legend) = legend_paintable(recorder.layout_arena, fieldset) else {
+    let Some(legend) = legend_paintable(recorder.source, fieldset) else {
         super::paint_base(recorder, fieldset, crate::painting::record::PaintPhase::Border);
         return;
     };
-    let Some(style) = recorder.layout_arena.node_style_if_live(fieldset) else {
+    let Some(style) = recorder.source.node_style_if_live(fieldset) else {
         return;
     };
     let converter = recorder.converter;
-    let device_border_rect = converter.rounded_device_rect(visual_border_box_rect(recorder.layout_arena, fieldset));
+    let device_border_rect = converter.rounded_device_rect(visual_border_box_rect(recorder.source, fieldset));
     let corners = recorder.border_radii(fieldset).as_corners(&converter);
     let borders = fieldset_borders_data(style, &converter);
     paint_all_borders(
@@ -141,14 +141,14 @@ pub(crate) fn paint_border<O: Observer>(recorder: &mut PaintRecorder<'_, O>, fie
     );
 
     // The top border is not expected to be painted behind the border box of the legend.
-    let top_border = converter.enclosing_device_pixels(css_border_top_width(recorder.layout_arena, fieldset));
+    let top_border = converter.enclosing_device_pixels(css_border_top_width(recorder.source, fieldset));
     let top_border_band = IntRect::new(
         device_border_rect.x,
         device_border_rect.y,
         device_border_rect.width,
         top_border,
     );
-    let legend_border_rect = converter.rounded_device_rect(absolute_border_box_rect(recorder.layout_arena, legend));
+    let legend_border_rect = converter.rounded_device_rect(absolute_border_box_rect(recorder.source, legend));
     let legend_cutout = IntRect::new(
         legend_border_rect.x,
         device_border_rect.y,

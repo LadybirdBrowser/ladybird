@@ -9,6 +9,7 @@ use crate::layout::abspos_inputs::AbsposLayoutInputs;
 use crate::layout::formatting_context::{FormattingContextType, formatting_context_type_created_by_node_data};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
+use crate::painting::paint_read::PaintRead;
 use std::ffi::c_void;
 
 #[repr(C)]
