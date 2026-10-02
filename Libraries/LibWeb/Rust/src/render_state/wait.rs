@@ -48,6 +48,14 @@ impl private::RenderWait for LockstepProof {}
 impl RenderWait for LockstepProof {}
 
 impl ScriptForcedRead {
+    /// A forced read for a unit test.
+    #[cfg(test)]
+    pub(crate) fn for_test() -> Self {
+        Self {
+            not_send_or_sync: PhantomData,
+        }
+    }
+
     /// The forced read of the script API call that entered the host through the entry `_` marks.
     pub(crate) fn at_script_entry(_: &impl ScriptEntry) -> Self {
         Self {
