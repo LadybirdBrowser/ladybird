@@ -817,6 +817,16 @@ void LocalNavigable::set_delaying_load_events(bool value)
     report_state_to_remote_container();
 }
 
+// AD-HOC: The spec leaves "is delaying load events" alone when a superseded navigation is dropped; we clear it there so
+//         a dropped navigation does not delay the load event forever. The flag is the navigable's, though, so only
+//         clear it when no newer navigation is ongoing: that one set it as it started and clears it as it ends.
+void LocalNavigable::stop_delaying_load_events_for_navigation(Utf16String const& navigation_id)
+{
+    if (auto const* ongoing_navigation_id = m_ongoing_navigation.get_pointer<Utf16String>(); ongoing_navigation_id && *ongoing_navigation_id != navigation_id)
+        return;
+    set_delaying_load_events(false);
+}
+
 void LocalNavigable::set_navigation_load_event_guard(DOM::Document& parent_doc)
 {
     m_navigation_load_event_guard.emplace(parent_doc);
@@ -3349,7 +3359,7 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
         return;
     }
     if (ongoing_navigation() != navigation_id) {
-        set_delaying_load_events(false);
+        stop_delaying_load_events_for_navigation(navigation_id);
         return;
     }
 
@@ -3839,13 +3849,13 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
             // NB: The UI process learns of the canceled check from the population-failure report and ends the
             //     recorded load itself.
             if (unload_prompt_canceled != CheckIfUnloadingIsCanceledResult::Continue) {
-                set_delaying_load_events(false);
+                stop_delaying_load_events_for_navigation(navigation_id);
                 completion_steps->function()(false);
                 return;
             }
 
             if (ongoing_navigation() != navigation_id) {
-                set_delaying_load_events(false);
+                stop_delaying_load_events_for_navigation(navigation_id);
                 completion_steps->function()(false);
                 return;
             }
@@ -3861,7 +3871,7 @@ bool LocalNavigable::resume_navigation_params_creation(Utf16String const& naviga
         return false;
 
     if (!request.has_value()) {
-        set_delaying_load_events(false);
+        stop_delaying_load_events_for_navigation(navigation_id);
         return true;
     }
 
@@ -4100,7 +4110,7 @@ void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure:
     // AD-HOC: These return paths do not run finalize_a_cross_document_navigation(). Clear a child navigable's
     //         load-event delay and tell the UI that the admitted navigation produced no document.
     auto finish_loading_without_navigation = [&] {
-        set_delaying_load_events(false);
+        stop_delaying_load_events_for_navigation(navigation_id);
         if (is_top_level_traversable())
             active_browsing_context()->page().client().navigation_population_failed(id(), navigation_id);
     };
@@ -4289,7 +4299,7 @@ static bool prepare_to_finalize_a_cross_document_navigation(GC::Ref<LocalNavigab
 
     // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
     if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() != *expected_ongoing_navigation_id) {
-        navigable->set_delaying_load_events(false);
+        navigable->stop_delaying_load_events_for_navigation(*expected_ongoing_navigation_id);
         return false;
     }
 
