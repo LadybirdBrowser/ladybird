@@ -38,7 +38,7 @@ static DOM::Element const* element_of_snap_area(Compositing::SnapAreaIdentity co
 // https://drafts.csswg.org/css-scroll-snap-1/#snap-axis
 Compositing::SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container)
 {
-    auto axes = Layout::RustFFI::layout_arena_scroll_snap_axes(snap_container.arena_handle(), Layout::Node::slot_id(&snap_container));
+    auto axes = Layout::RustFFI::layout_row_scroll_snap_axes(snap_container.document_host(), Layout::Node::slot_id(&snap_container));
     return { .x = axes.x, .y = axes.y };
 }
 
@@ -48,7 +48,7 @@ Optional<Compositing::SnapContainerGeometry> snap_container_geometry(Layout::Nod
         return {};
 
     Layout::RustFFI::FfiSnapContainerGeometry geometry {};
-    if (!Layout::RustFFI::layout_arena_snap_container_geometry(snap_container.arena_handle(), committed_row_slot(snap_container), &geometry))
+    if (!Layout::RustFFI::layout_row_snap_container_geometry(snap_container.document_host(), committed_row_slot(snap_container), &geometry))
         return {};
 
     return Compositing::SnapContainerGeometry {

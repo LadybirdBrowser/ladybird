@@ -27,6 +27,8 @@ pub(crate) struct RowSnapshot {
     bound: PublishedBoundRows,
     /// How far the arena's rows had been written when they were published.
     version: RowsVersion,
+    /// Whether every row's scrollable overflow was measured when the rows were published.
+    overflow_is_measured: bool,
 }
 
 // The host reads a snapshot while the render state writes the arena it was published from: it holds no cell, no
@@ -40,6 +42,12 @@ impl RowSnapshot {
     /// Whether the rows read as the arena's do at `version`.
     pub(crate) fn reads_as(&self, version: RowsVersion) -> bool {
         self.version == version
+    }
+
+    /// Whether every row's scrollable overflow was measured when the rows were published, which a read of overflow
+    /// needs.
+    pub(crate) fn overflow_is_measured(&self) -> bool {
+        self.overflow_is_measured
     }
 
     /// The row in slot `id`, if the slot held it when the rows were published.
@@ -126,15 +134,20 @@ impl RowSnapshot {
 }
 
 impl LayoutNodeArena {
-    /// The rows as they are now, for the host to read. A host callback a layout pass makes reads the rows as the pass
-    /// has left them so far.
-    pub(crate) fn publish_row_snapshot(&mut self) -> RowSnapshot {
+    /// The rows as they are now, for the host to read, once every row's scrollable overflow is measured where
+    /// `measure_overflow` says so. A host callback a layout pass makes reads the rows as the pass has left them so far,
+    /// and measures nothing: the pass is not done with the geometry overflow is measured from.
+    pub(crate) fn publish_row_snapshot(&mut self, measure_overflow: bool) -> RowSnapshot {
+        if measure_overflow && !self.layout_pass_is_running() {
+            self.measure_scrollable_overflow();
+        }
         let paintable = self.publish_rows();
         let bound = self.bound_rows_mut().publish();
         RowSnapshot {
             paintable,
             bound,
             version: self.rows_version(),
+            overflow_is_measured: self.scrollable_overflow_is_measured(),
         }
     }
 }
@@ -148,17 +161,17 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let row = arena.allocate_for_test().slot;
         arena.write_shape(row).set_kind(NodeKind::BlockContainer);
-        let before = arena.publish_row_snapshot();
+        let before = arena.publish_row_snapshot(false);
         assert!(before.reads_as(arena.rows_version()));
         arena.write_shape(row).set_kind(NodeKind::InlineNode);
         assert!(!before.reads_as(arena.rows_version()));
-        let after = arena.publish_row_snapshot();
+        let after = arena.publish_row_snapshot(false);
         assert_eq!(before.node(row).map(|node| node.kind), Some(NodeKind::BlockContainer));
         assert_eq!(after.node(row).map(|node| node.kind), Some(NodeKind::InlineNode));
         arena
             .free_subtree(row)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-        assert!(arena.publish_row_snapshot().node(row).is_none());
+        assert!(arena.publish_row_snapshot(false).node(row).is_none());
         assert!(after.node(row).is_some());
     }
 
@@ -170,7 +183,7 @@ mod tests {
         let last = arena.allocate_for_test().slot;
         arena.insert_child(parent, first, NodeSlotId::INVALID);
         arena.insert_child(parent, last, NodeSlotId::INVALID);
-        let rows = arena.publish_row_snapshot();
+        let rows = arena.publish_row_snapshot(false);
         assert_eq!(rows.link(parent, FfiNodeLink::FirstChild), first);
         assert_eq!(rows.link(parent, FfiNodeLink::LastChild), last);
         assert_eq!(rows.link(last, FfiNodeLink::PreviousSibling), first);
@@ -179,7 +192,9 @@ mod tests {
         arena.detach_child(parent, first);
         assert!(!rows.reads_as(arena.rows_version()));
         assert_eq!(
-            arena.publish_row_snapshot().link(last, FfiNodeLink::PreviousSibling),
+            arena
+                .publish_row_snapshot(false)
+                .link(last, FfiNodeLink::PreviousSibling),
             NodeSlotId::INVALID
         );
         let main_thread = crate::stage::MainThread::for_test();

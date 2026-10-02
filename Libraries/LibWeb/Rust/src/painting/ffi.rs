@@ -28,7 +28,7 @@ use std::ffi::c_void;
 
 mod main_thread_entries;
 
-pub(crate) use main_thread_entries::MainThreadFfiEntry;
+pub(crate) use main_thread_entries::{InputReadsBoxes, MainThreadFfiEntry, ScrollSnaps};
 
 /// SAFETY: `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, borrowed for this call on
 /// the document thread.
@@ -113,120 +113,6 @@ pub struct FfiOptionalScrollbarData {
 ///
 /// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_physical_resize_axes(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-) -> FfiPhysicalResizeAxes {
-    let arena = unsafe { arena_from_handle(arena) };
-    let axes = crate::painting::chrome_geometry::physical_resize_axes(&arena.paintable_rows(), slot);
-    FfiPhysicalResizeAxes {
-        horizontal: axes.horizontal,
-        vertical: axes.vertical,
-    }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_compute_scrollbar_data(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    direction: ScrollDirection,
-    metrics: FfiChromeMetrics,
-    viewport_overflow_x: u8,
-    viewport_overflow_y: u8,
-    enlarged: bool,
-    has_device_scroll_offset: bool,
-    device_scroll_offset: f32,
-    device_pixels_per_css_pixel: f64,
-) -> FfiOptionalScrollbarData {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.measure_scrollable_overflow();
-    let paintable_rows = arena.paintable_rows();
-    let data = crate::painting::chrome_geometry::ChromeGeometry {
-        arena: &paintable_rows,
-        metrics,
-        viewport_wheel_overflow_x: viewport_overflow_x,
-        viewport_wheel_overflow_y: viewport_overflow_y,
-    }
-    .compute_scrollbar_data(
-        slot,
-        direction,
-        enlarged,
-        has_device_scroll_offset.then_some(crate::painting::chrome_geometry::ScrollbarScrollState {
-            device_scroll_offset,
-            device_pixels_per_css_pixel,
-        }),
-    );
-    let Some(data) = data else {
-        return FfiOptionalScrollbarData::default();
-    };
-    FfiOptionalScrollbarData {
-        has_value: true,
-        value: FfiScrollbarData {
-            gutter_rect: data.gutter_rect.into(),
-            thumb_rect: data.thumb_rect.into(),
-            track_rect: data.track_rect.into(),
-            thumb_travel_to_scroll_ratio: data.thumb_travel_to_scroll_ratio.to_double(),
-        },
-    }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_minimum_scroll_offset(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-) -> FfiCssPixelPoint {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.measure_scrollable_overflow();
-    crate::painting::chrome_geometry::minimum_scroll_offset(&arena.paintable_rows(), slot).into()
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_maximum_scroll_offset(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-) -> FfiCssPixelPoint {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.measure_scrollable_overflow();
-    crate::painting::chrome_geometry::maximum_scroll_offset(&arena.paintable_rows(), slot).into()
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_wheel_scrollable_axes(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    viewport_overflow_x: u8,
-    viewport_overflow_y: u8,
-) -> FfiPhysicalResizeAxes {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.measure_scrollable_overflow();
-    let axes = crate::painting::chrome_geometry::wheel_scrollable_axes(
-        &arena.paintable_rows(),
-        slot,
-        viewport_overflow_x,
-        viewport_overflow_y,
-    );
-    FfiPhysicalResizeAxes {
-        horizontal: axes.horizontal,
-        vertical: axes.vertical,
-    }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_chrome_state_callback(
     arena: *mut c_void,
     context: *mut c_void,
@@ -245,18 +131,6 @@ pub unsafe extern "C" fn layout_arena_clear_chrome_state_callback(arena: *mut c_
     unsafe { crate::layout::HostTables::from_handle(arena) }
         .chrome_state_callback
         .set(None);
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_has_css_transform(arena: *mut c_void, node: NodeSlotId) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    let Some(style) = arena.node_style_if_live(node) else {
-        return false;
-    };
-    crate::painting::style_queries::has_css_transform(arena, node, style)
 }
 
 /// # Safety
@@ -908,40 +782,6 @@ fn paintables_with_mask_nodes_in_paint_order(
     owners
 }
 
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-/// `out_geometry` must point to writable storage.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_snap_container_geometry(
-    arena: *mut c_void,
-    snap_container: NodeSlotId,
-    out_geometry: *mut crate::painting::host::FfiSnapContainerGeometry,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.measure_scrollable_overflow();
-    let Some(geometry) = crate::painting::scroll_snap::snap_container_geometry(&arena.paintable_rows(), snap_container)
-    else {
-        return false;
-    };
-    // SAFETY: The caller provides writable storage for the geometry.
-    unsafe { *out_geometry = geometry };
-    true
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_scroll_snapport_rect(
-    arena: *mut c_void,
-    snap_container: NodeSlotId,
-    scrollport: FfiCssPixelRect,
-) -> FfiCssPixelRect {
-    let arena = unsafe { arena_from_handle(arena) };
-    crate::painting::scroll_snap::scroll_snapport_rect(arena, snap_container, scrollport.into()).into()
-}
-
 /// The index of the sticky node the accumulated visual context tree holds for `paintable`, which
 /// is where the scroll state snapshot keeps its resolved sticky offset, or `u32::MAX` when the tree
 /// holds none.
@@ -1017,18 +857,6 @@ pub unsafe extern "C" fn layout_arena_image_map_area_for_point(
     unsafe { arena_from_handle(arena) }
         .image_map_areas()
         .area_for_point(slot, x, y)
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_scroll_snap_axes(
-    arena: *mut c_void,
-    snap_container: NodeSlotId,
-) -> crate::painting::host::FfiSnapAxes {
-    let arena = unsafe { arena_from_handle(arena) };
-    crate::painting::scroll_snap::snap_axes_of_scroll_container(arena, snap_container)
 }
 
 /// # Safety

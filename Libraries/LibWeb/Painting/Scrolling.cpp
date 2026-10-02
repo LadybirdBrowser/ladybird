@@ -31,12 +31,12 @@ CSSPixelPoint scroll_offset(Layout::Node const& node)
 
 CSSPixelPoint minimum_scroll_offset(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_arena_paintable_minimum_scroll_offset(node.arena_handle(), committed_row_slot(node));
+    return Layout::RustFFI::layout_row_paintable_minimum_scroll_offset(node.document_host(), committed_row_slot(node));
 }
 
 CSSPixelPoint maximum_scroll_offset(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_arena_paintable_maximum_scroll_offset(node.arena_handle(), committed_row_slot(node));
+    return Layout::RustFFI::layout_row_paintable_maximum_scroll_offset(node.document_host(), committed_row_slot(node));
 }
 
 CSSPixelPoint clamp_scroll_offset(Layout::Node const& node, CSSPixelPoint offset)
@@ -63,7 +63,7 @@ CSSPixelRect scroll_snapport_rect(Layout::Node const& node, CSSPixelRect scrollp
 {
     if (!has_committed_box(node))
         return scrollport;
-    return Layout::RustFFI::layout_arena_scroll_snapport_rect(node.arena_handle(), committed_row_slot(node), scrollport);
+    return Layout::RustFFI::layout_row_scroll_snapport_rect(node.document_host(), committed_row_slot(node), scrollport);
 }
 
 ViewportWheelOverflow overflow_values_applied_to_viewport_for_wheel_scrolling(DOM::Document const& document)
@@ -105,8 +105,8 @@ ViewportWheelOverflow overflow_values_applied_to_viewport_for_wheel_scrolling(DO
 WheelScrollableAxes wheel_scrollable_axes(Layout::Node const& node)
 {
     auto overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(node.document());
-    auto axes = Layout::RustFFI::layout_arena_paintable_wheel_scrollable_axes(
-        node.arena_handle(), committed_row_slot(node), to_underlying(overflow.x), to_underlying(overflow.y));
+    auto axes = Layout::RustFFI::layout_row_paintable_wheel_scrollable_axes(
+        node.document_host(), committed_row_slot(node), to_underlying(overflow.x), to_underlying(overflow.y));
     return { axes.horizontal, axes.vertical };
 }
 

@@ -17,6 +17,237 @@ pub(crate) struct MainThreadFfiEntry {
 
 const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
 
+/// The reason the host waits for its document's rows as input or chrome reads boxes: scroll limits, wheel targets and
+/// scrollbars, which are read with the overflow every row's commit left measured.
+pub(crate) struct InputReadsBoxes {
+    _private: (),
+}
+
+const INPUT_READS_BOXES: InputReadsBoxes = InputReadsBoxes { _private: () };
+
+/// The reason the host waits for its document's rows as it snaps a scroll container to its snap areas.
+pub(crate) struct ScrollSnaps {
+    _private: (),
+}
+
+const SCROLL_SNAPS: ScrollSnaps = ScrollSnaps { _private: () };
+
+/// Answers `read` from the rows of `host`'s document as of every write the host made, with every row's overflow
+/// measured, spending `wait`.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+unsafe fn read_measured_rows<R>(
+    host: *mut crate::render_state::DocumentHost,
+    wait: crate::render_state::LockstepProof,
+    read: impl FnOnce(&crate::painting::paint_read::PaintSource<'_>) -> R,
+) -> R {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let rows = unsafe { &*host }.fresh_measured_rows(wait);
+    let absolute_rects = std::cell::RefCell::default();
+    read(&crate::painting::paint_read::PaintSource::over_rows(
+        &rows.paintable,
+        &absolute_rects,
+    ))
+}
+
+fn input_reads_boxes() -> crate::render_state::LockstepProof {
+    crate::render_state::LockstepProof::for_reason(&INPUT_READS_BOXES)
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_paintable_physical_resize_axes(
+    host: *mut crate::render_state::DocumentHost,
+    slot: NodeSlotId,
+) -> FfiPhysicalResizeAxes {
+    // SAFETY: Guaranteed by the caller.
+    let axes = unsafe {
+        read_measured_rows(host, input_reads_boxes(), |rows| {
+            crate::painting::chrome_geometry::physical_resize_axes(rows, slot)
+        })
+    };
+    FfiPhysicalResizeAxes {
+        horizontal: axes.horizontal,
+        vertical: axes.vertical,
+    }
+}
+
+/// # Safety
+///
+/// As for [`layout_row_paintable_physical_resize_axes`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_paintable_compute_scrollbar_data(
+    host: *mut crate::render_state::DocumentHost,
+    slot: NodeSlotId,
+    direction: ScrollDirection,
+    metrics: FfiChromeMetrics,
+    viewport_overflow_x: u8,
+    viewport_overflow_y: u8,
+    enlarged: bool,
+    has_device_scroll_offset: bool,
+    device_scroll_offset: f32,
+    device_pixels_per_css_pixel: f64,
+) -> FfiOptionalScrollbarData {
+    // SAFETY: Guaranteed by the caller.
+    let data = unsafe {
+        read_measured_rows(host, input_reads_boxes(), |rows| {
+            crate::painting::chrome_geometry::ChromeGeometry {
+                arena: rows,
+                metrics,
+                viewport_wheel_overflow_x: viewport_overflow_x,
+                viewport_wheel_overflow_y: viewport_overflow_y,
+            }
+            .compute_scrollbar_data(
+                slot,
+                direction,
+                enlarged,
+                has_device_scroll_offset.then_some(crate::painting::chrome_geometry::ScrollbarScrollState {
+                    device_scroll_offset,
+                    device_pixels_per_css_pixel,
+                }),
+            )
+        })
+    };
+    let Some(data) = data else {
+        return FfiOptionalScrollbarData::default();
+    };
+    FfiOptionalScrollbarData {
+        has_value: true,
+        value: FfiScrollbarData {
+            gutter_rect: data.gutter_rect.into(),
+            thumb_rect: data.thumb_rect.into(),
+            track_rect: data.track_rect.into(),
+            thumb_travel_to_scroll_ratio: data.thumb_travel_to_scroll_ratio.to_double(),
+        },
+    }
+}
+
+/// # Safety
+///
+/// As for [`layout_row_paintable_physical_resize_axes`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_paintable_minimum_scroll_offset(
+    host: *mut crate::render_state::DocumentHost,
+    slot: NodeSlotId,
+) -> FfiCssPixelPoint {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_measured_rows(host, input_reads_boxes(), |rows| {
+            crate::painting::chrome_geometry::minimum_scroll_offset(rows, slot)
+        })
+    }
+    .into()
+}
+
+/// # Safety
+///
+/// As for [`layout_row_paintable_physical_resize_axes`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_paintable_maximum_scroll_offset(
+    host: *mut crate::render_state::DocumentHost,
+    slot: NodeSlotId,
+) -> FfiCssPixelPoint {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_measured_rows(host, input_reads_boxes(), |rows| {
+            crate::painting::chrome_geometry::maximum_scroll_offset(rows, slot)
+        })
+    }
+    .into()
+}
+
+/// # Safety
+///
+/// As for [`layout_row_paintable_physical_resize_axes`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_paintable_wheel_scrollable_axes(
+    host: *mut crate::render_state::DocumentHost,
+    slot: NodeSlotId,
+    viewport_overflow_x: u8,
+    viewport_overflow_y: u8,
+) -> FfiPhysicalResizeAxes {
+    // SAFETY: Guaranteed by the caller.
+    let axes = unsafe {
+        read_measured_rows(host, input_reads_boxes(), |rows| {
+            crate::painting::chrome_geometry::wheel_scrollable_axes(
+                rows,
+                slot,
+                viewport_overflow_x,
+                viewport_overflow_y,
+            )
+        })
+    };
+    FfiPhysicalResizeAxes {
+        horizontal: axes.horizontal,
+        vertical: axes.vertical,
+    }
+}
+
+/// # Safety
+///
+/// As for [`layout_row_paintable_physical_resize_axes`], and `out_geometry` must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_snap_container_geometry(
+    host: *mut crate::render_state::DocumentHost,
+    snap_container: NodeSlotId,
+    out_geometry: *mut crate::painting::host::FfiSnapContainerGeometry,
+) -> bool {
+    let wait = crate::render_state::LockstepProof::for_reason(&SCROLL_SNAPS);
+    // SAFETY: Guaranteed by the caller.
+    let geometry = unsafe {
+        read_measured_rows(host, wait, |rows| {
+            crate::painting::scroll_snap::snap_container_geometry(rows, snap_container)
+        })
+    };
+    let Some(geometry) = geometry else {
+        return false;
+    };
+    // SAFETY: The caller provides writable storage for the geometry.
+    unsafe { *out_geometry = geometry };
+    true
+}
+
+/// # Safety
+///
+/// As for [`layout_row_paintable_physical_resize_axes`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_scroll_snapport_rect(
+    host: *mut crate::render_state::DocumentHost,
+    snap_container: NodeSlotId,
+    scrollport: FfiCssPixelRect,
+) -> FfiCssPixelRect {
+    let wait = crate::render_state::LockstepProof::for_reason(&SCROLL_SNAPS);
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_measured_rows(host, wait, |rows| {
+            crate::painting::scroll_snap::scroll_snapport_rect(rows, snap_container, scrollport.into())
+        })
+    }
+    .into()
+}
+
+/// # Safety
+///
+/// As for [`layout_row_paintable_physical_resize_axes`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_scroll_snap_axes(
+    host: *mut crate::render_state::DocumentHost,
+    snap_container: NodeSlotId,
+) -> crate::painting::host::FfiSnapAxes {
+    let wait = crate::render_state::LockstepProof::for_reason(&SCROLL_SNAPS);
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_measured_rows(host, wait, |rows| {
+            crate::painting::scroll_snap::snap_axes_of_scroll_container(rows, snap_container)
+        })
+    }
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.

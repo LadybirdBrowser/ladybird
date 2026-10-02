@@ -764,17 +764,22 @@ impl LayoutNodeArena {
         self.clear_pending_rebuilt_subtree_roots();
     }
 
-    /// Measures every row whose overflow a read could find unmeasured, so that reading overflow
-    /// never measures it. Rendering preparation, hit testing, the recording and every query that
-    /// reads overflow run this first; it never clamps a stored scroll offset.
-    pub(crate) fn measure_scrollable_overflow(&self) {
-        if self.scrollable_overflow.rows_to_measure.borrow().is_empty()
+    /// Whether no row's overflow is waiting to be measured, which reading overflow then finds as
+    /// it is.
+    pub(crate) fn scrollable_overflow_is_measured(&self) -> bool {
+        self.scrollable_overflow.rows_to_measure.borrow().is_empty()
             || !self
                 .scrollable_overflow
                 .viewport
                 .get()
                 .is_some_and(|viewport| self.paintable_row_is_populated(viewport))
-        {
+    }
+
+    /// Measures every row whose overflow a read could find unmeasured, so that reading overflow
+    /// never measures it. Rendering preparation, hit testing, the recording and every query that
+    /// reads overflow run this first; it never clamps a stored scroll offset.
+    pub(crate) fn measure_scrollable_overflow(&self) {
+        if self.scrollable_overflow_is_measured() {
             return;
         }
         let rows = std::mem::take(&mut *self.scrollable_overflow.rows_to_measure.borrow_mut());

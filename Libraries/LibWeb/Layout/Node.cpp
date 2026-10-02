@@ -210,7 +210,7 @@ bool NodeWithStyle::establishes_a_fixed_positioning_containing_block() const
 
 bool NodeWithStyle::has_css_transform() const
 {
-    return RustFFI::layout_arena_node_has_css_transform(arena_handle(), Node::slot_id(this));
+    return RustFFI::layout_row_has_css_transform(document_host(), Node::slot_id(this));
 }
 
 GC::Ptr<HTML::LocalNavigable> Node::navigable() const
