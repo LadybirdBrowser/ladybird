@@ -342,7 +342,6 @@ private:
     [[nodiscard]] RefPtr<ComputedStyleWorkingSet> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&, IncludeInlineStyle, StyleEngineMatchResult* = nullptr, StyleSharingCandidate* = nullptr) const;
     [[nodiscard]] NonnullRefPtr<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, CascadeInput const&, IncludeInlineStyle, StyleSharingCandidate* sharing = nullptr, Vector<StyleProperty> const* precomputed_presentational_hints = nullptr) const;
     void collect_animation_effects_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
-    NonnullRefPtr<StyleValue const> compute_animated_custom_property_value(Utf16FlyString const& name, NonnullRefPtr<StyleValue const> specified_value, ComputedStyleWorkingSet&, DOM::AbstractElement) const;
     void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
     void invalidate_animated_custom_property_readers(DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values) const;
     Vector<GC::Ref<Animations::KeyframeEffect>> start_needed_transitions(ComputedStyleWorkingSet&, DOM::AbstractElement) const;

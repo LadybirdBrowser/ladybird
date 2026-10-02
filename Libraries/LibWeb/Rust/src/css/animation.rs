@@ -189,7 +189,7 @@ pub unsafe extern "C" fn rust_evaluate_easing(
     evaluate_easing_descriptor(unsafe { &*descriptor }, input_progress, before_flag)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct FfiAnimationFontMetrics {
     pub font_size: f64,
@@ -199,7 +199,7 @@ pub struct FfiAnimationFontMetrics {
     pub line_height: f64,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct FfiAnimationLengthResolutionContext {
     pub viewport_width: f64,
@@ -242,42 +242,7 @@ pub struct FfiAnimationValueInput {
     pub keyframe_count: usize,
 }
 
-/// One effect the host is about to sample: which of the element's described effects it is, and how
-/// far along it is, on the scale the host keys keyframes by.
-#[repr(C)]
-pub struct FfiSampledAnimationEffect {
-    pub identity: u64,
-    pub current_key: f64,
-}
-
-/// What resolving the declarations of the effects an element is about to sample reads besides the
-/// effects' descriptions.
-#[repr(C)]
-pub struct FfiPublishedAnimationResolution {
-    pub style_engine: *const std::ffi::c_void,
-    pub style_node: u32,
-    /// The pseudo-element sampled, or `u8::MAX` for the element itself.
-    pub pseudo_kind: u8,
-    pub effects: *const FfiSampledAnimationEffect,
-    pub effect_count: usize,
-    /// The longhands the animations compose over, which a keyframe holding the element's own value
-    /// takes it from.
-    pub underlying_longhand_table: *const std::ffi::c_void,
-    /// The custom-property store the element holds beneath the animations, which a keyframe holding
-    /// the element's own value takes it from.
-    pub custom_property_store: *const std::ffi::c_void,
-    /// The store the element holds now, which a keyframe's substitution reads, and the one it
-    /// inherits from.
-    pub substitution_custom_property_store: *const std::ffi::c_void,
-    pub inheritance_custom_property_store: *const std::ffi::c_void,
-    /// Whether the element declares custom properties of its own, which may be important.
-    pub element_declares_custom_properties: bool,
-    pub writing_mode: u8,
-    pub direction: u8,
-    pub important_property_bitmap: *const u8,
-    pub important_property_bitmap_length: usize,
-}
-
+/// The version of an effect a preparation was made from.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiAnimationPreparationEffect {
@@ -285,18 +250,20 @@ pub struct FfiAnimationPreparationEffect {
     pub generation: u64,
 }
 
+/// One effect a sample composes, in composite order: the version a preparation is keyed by, and
+/// where the effect is.
+#[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiAnimationPreparationKey {
-    pub effects: *const FfiAnimationPreparationEffect,
-    pub effect_count: usize,
+pub struct FfiSampledAnimationEffect {
+    pub effect: FfiAnimationPreparationEffect,
+    pub current_key: f64,
 }
 
 #[repr(C)]
 pub struct FfiComputedAnimationBatch {
     pub context: FfiAnimationContext,
-    pub preparation_key: *const FfiAnimationPreparationKey,
-    pub current_keys: *const f64,
-    pub current_key_count: usize,
+    pub sampled_effects: *const FfiSampledAnimationEffect,
+    pub sampled_effect_count: usize,
     pub cache_preparation: bool,
     pub resolved_animation_storage: *mut std::ffi::c_void,
     pub computed_keyframe_storage: *mut std::ffi::c_void,
@@ -509,56 +476,33 @@ pub struct FfiResolvedAnimationProperty {
     pub is_transition: bool,
 }
 
-#[repr(C)]
-pub struct FfiResolvedAnimationProperties {
-    pub properties: *const FfiResolvedAnimationProperty,
-    pub count: usize,
-    pub animation_value_count: usize,
-    pub uses_tree_counting_function: bool,
-    pub container_relative_length_unit_mask: u8,
-    pub needs_document_base_url: bool,
-    pub unfixed_random_sharings: *const FfiAnimationUnfixedRandomSharing,
-    pub unfixed_random_sharing_count: usize,
-    /// The custom properties the declarations animate, the one each `custom_name_id` names first.
-    pub custom_names: *const crate::css::retained_fly_string::RetainedUtf16FlyString,
-    pub custom_name_count: usize,
-    /// The arbitrary-substitution functions the values and easings substituted against the element
-    /// held, which read what the element's style then depends on.
-    pub substitution_marks: FfiSubstitutionMarks,
-    /// The custom properties a substituted `style()` query read, transferred to the caller, or null.
-    pub style_query_dependencies: *mut std::ffi::c_void,
-    pub storage: *mut std::ffi::c_void,
-}
-
-/// Which arbitrary-substitution functions a set of substituted values held.
-#[repr(C)]
-#[derive(Clone, Copy, Default)]
-pub struct FfiSubstitutionMarks {
-    pub var: bool,
-    pub attr: bool,
-    pub if_function: bool,
-    pub inherit: bool,
-    pub custom_function: bool,
-}
-
-impl FfiSubstitutionMarks {
-    fn note(&mut self, written: &StyleValueData) {
-        if let StyleValueData::Unresolved {
-            presence_var,
-            presence_attr,
-            presence_if,
-            presence_inherit,
-            presence_dashed_function,
-            ..
-        } = written
-        {
-            self.var |= *presence_var;
-            self.attr |= *presence_attr;
-            self.if_function |= *presence_if;
-            self.inherit |= *presence_inherit;
-            self.custom_function |= *presence_dashed_function;
-        }
-    }
+/// The `SUBSTITUTION_MARK_*` bits of the arbitrary-substitution functions a written value holds.
+fn substitution_marks_of(written: &StyleValueData) -> u8 {
+    use crate::css::style_compute::{
+        SUBSTITUTION_MARK_ATTR, SUBSTITUTION_MARK_CUSTOM_FUNCTION, SUBSTITUTION_MARK_IF, SUBSTITUTION_MARK_INHERIT,
+        SUBSTITUTION_MARK_VAR,
+    };
+    let StyleValueData::Unresolved {
+        presence_var,
+        presence_attr,
+        presence_if,
+        presence_inherit,
+        presence_dashed_function,
+        ..
+    } = written
+    else {
+        return 0;
+    };
+    [
+        (*presence_var, SUBSTITUTION_MARK_VAR),
+        (*presence_attr, SUBSTITUTION_MARK_ATTR),
+        (*presence_if, SUBSTITUTION_MARK_IF),
+        (*presence_inherit, SUBSTITUTION_MARK_INHERIT),
+        (*presence_dashed_function, SUBSTITUTION_MARK_CUSTOM_FUNCTION),
+    ]
+    .into_iter()
+    .filter(|&(present, _)| present)
+    .fold(0, |marks, (_, mark)| marks | mark)
 }
 
 #[repr(C)]
@@ -746,20 +690,20 @@ fn resolve_animation_declarations(
     }
 }
 
+/// The declarations of the effects an element samples, resolved into what the animation core
+/// interpolates.
 #[derive(Default)]
-struct ResolvedAnimationDeclarations {
-    properties: Vec<FfiResolvedAnimationProperty>,
+pub(crate) struct ResolvedAnimationDeclarations {
+    pub(crate) properties: Vec<FfiResolvedAnimationProperty>,
     _retained_values: Vec<RetainedStyleValueData>,
     /// The base URLs the properties' resource contexts point into.
     _base_urls: Vec<std::sync::Arc<[u8]>>,
-    /// The custom properties the declarations animate, by the number each was minted under.
-    custom_names: Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
     keyframes: Vec<AnimationKeyframePlan>,
     value_plans: Vec<AnimationValuePlan>,
-    uses_tree_counting_function: bool,
-    container_relative_length_unit_mask: u8,
-    needs_document_base_url: bool,
-    unfixed_random_sharings: Vec<FfiAnimationUnfixedRandomSharing>,
+    pub(crate) uses_tree_counting_function: bool,
+    pub(crate) container_relative_length_unit_mask: u8,
+    pub(crate) needs_document_base_url: bool,
+    pub(crate) unfixed_random_sharings: Vec<FfiAnimationUnfixedRandomSharing>,
 }
 
 struct AnimationValuePlan {
@@ -6930,17 +6874,54 @@ fn evaluate_animation_value(
     }
 }
 
+/// One effect an element samples: its description, and how far along it is on the scale the host
+/// keys keyframes by.
+pub(crate) struct SelectedEffect<'a> {
+    pub(crate) effect: &'a crate::css::style::effect_descriptions::PublishedEffect,
+    pub(crate) current_key: f64,
+}
+
+/// The custom-property stores the keyframes of an element being sampled read.
+#[derive(Clone, Copy)]
+pub(crate) struct KeyframeStores {
+    /// The store the element holds now, which a keyframe's substitution reads, as the host's
+    /// resolver read it.
+    pub(crate) substitution: *const std::ffi::c_void,
+    /// The same beneath this sample's animations, which an animation composes over.
+    pub(crate) base: *const std::ffi::c_void,
+    /// The store of the element the sampled one inherits from, which a keyframe saying `inherit`
+    /// takes from.
+    pub(crate) inheritance: *const std::ffi::c_void,
+    /// Whether the element declares custom properties of its own, which may be important.
+    pub(crate) element_declares_custom_properties: bool,
+}
+
+impl KeyframeStores {
+    /// # Safety
+    /// `store` must be null or a live custom-property store.
+    unsafe fn store<'a>(
+        store: *const std::ffi::c_void,
+    ) -> Option<&'a crate::css::custom_properties::CustomPropertyStore> {
+        unsafe {
+            store
+                .cast::<crate::css::custom_properties::CustomPropertyStore>()
+                .as_ref()
+        }
+    }
+}
+
 /// The custom properties the effects an element samples declare, each minted into the number the
-/// animation core keys it by, with what the element's own environment says of it.
-struct AnimatedCustomNames<'a> {
-    registry: &'a crate::css::custom_properties::CustomPropertyRegistry,
-    store: Option<&'a crate::css::custom_properties::CustomPropertyStore>,
-    element_declares_custom_properties: bool,
+/// animation core keys it by, with what the element's environment and the document's registry say
+/// of it.
+pub(crate) struct AnimatedCustomProperties {
+    stores: KeyframeStores,
     names: Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
     units: Vec<Vec<u16>>,
 }
 
-impl AnimatedCustomNames<'_> {
+type Registry = crate::css::custom_properties::CustomPropertyRegistry;
+
+impl AnimatedCustomProperties {
     /// The number a name animates under, minting one where it is new.
     fn mint(&mut self, name: &crate::css::retained_fly_string::RetainedUtf16FlyString) -> u32 {
         if let Some(index) = self.names.iter().position(|minted| minted == name) {
@@ -6956,124 +6937,163 @@ impl AnimatedCustomNames<'_> {
         self.names.len() as u32
     }
 
+    pub(crate) fn len(&self) -> usize {
+        self.names.len()
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.names.is_empty()
+    }
+
+    pub(crate) fn name(&self, name_id: u32) -> &crate::css::retained_fly_string::RetainedUtf16FlyString {
+        &self.names[name_id as usize - 1]
+    }
+
     fn units(&self, name_id: u32) -> &[u16] {
         &self.units[name_id as usize - 1]
     }
 
     /// Whether the element declares the name `!important` itself, which keeps an animation from
     /// animating it.
-    fn is_important(&self, name: &crate::css::retained_fly_string::RetainedUtf16FlyString) -> bool {
-        self.element_declares_custom_properties
-            && self.store.is_some_and(|store| {
-                store.declared_names.contains(&name.raw())
-                    && store.own_values.get(&name.raw()).is_some_and(|entry| entry.important)
+    fn is_important(&self, name_id: u32) -> bool {
+        let name_raw = self.name(name_id).raw();
+        self.stores.element_declares_custom_properties
+            && unsafe { KeyframeStores::store(self.stores.base) }.is_some_and(|store| {
+                store.declared_names.contains(&name_raw)
+                    && store.own_values.get(&name_raw).is_some_and(|entry| entry.important)
             })
     }
 
-    /// The value an animation of a name composes over: the element's own, beneath this sample's
-    /// animations, and otherwise the name's initial value.
-    fn underlying_value(&self, name_id: u32) -> RetainedStyleValueData {
-        let name = &self.names[name_id as usize - 1];
-        self.store.and_then(|store| store.get(name.raw())).map_or_else(
-            || self.registry.initial_value(self.units(name_id)),
-            |entry| entry.value.clone(),
-        )
+    fn initial_value(&self, registry: &Registry, name_id: u32) -> RetainedStyleValueData {
+        registry.initial_value(self.units(name_id))
+    }
+
+    /// The value an animation of a name composes over: the element's own beneath this sample's
+    /// animations, and otherwise the initial value.
+    fn underlying_value(&self, registry: &Registry, name_id: u32) -> RetainedStyleValueData {
+        unsafe { KeyframeStores::store(self.stores.base) }
+            .and_then(|store| store.get(self.name(name_id).raw()))
+            .map_or_else(|| self.initial_value(registry, name_id), |entry| entry.value.clone())
+    }
+
+    /// What a keyframe saying `inherit` takes: the whole environment the element inherits from,
+    /// which makes `inherit` on a name registered `inherits: false` take the parent's value, and
+    /// otherwise the initial value.
+    fn inherited_value(&self, registry: &Registry, name_id: u32) -> RetainedStyleValueData {
+        unsafe { KeyframeStores::store(self.stores.inheritance) }
+            .and_then(|store| store.get(self.name(name_id).raw()))
+            .map_or_else(|| self.initial_value(registry, name_id), |entry| entry.value.clone())
+    }
+
+    /// The buffers the evaluation indexes by name number: what an animation of each name composes
+    /// over, and what a keyframe saying `initial` takes.
+    pub(crate) fn underlying_and_initial_values(
+        &self,
+        registry: &Registry,
+    ) -> (Vec<RetainedStyleValueData>, Vec<RetainedStyleValueData>) {
+        (1..=self.names.len() as u32)
+            .map(|name_id| {
+                (
+                    self.underlying_value(registry, name_id),
+                    self.initial_value(registry, name_id),
+                )
+            })
+            .unzip()
+    }
+
+    /// The computed value of one resolved custom-property declaration: the value its source names,
+    /// computed against a registration's syntax in the element's computation context, which is
+    /// what gives a registered name its typed interpolation, and as written otherwise.
+    pub(crate) fn computed_value(
+        &self,
+        registry: &Registry,
+        property: &FfiResolvedAnimationProperty,
+        finalization: &crate::css::custom_properties::CustomPropertyFinalization<'_>,
+    ) -> RetainedStyleValueData {
+        let name_id = property.custom_name_id;
+        let value = match property.value_source {
+            FfiAnimationSpecifiedValueSource::Inherited => self.inherited_value(registry, name_id),
+            FfiAnimationSpecifiedValueSource::Initial => self.initial_value(registry, name_id),
+            FfiAnimationSpecifiedValueSource::Underlying => self.underlying_value(registry, name_id),
+            // SAFETY: a resolved declaration's value is retained by the resolution's storage.
+            FfiAnimationSpecifiedValueSource::Value => unsafe {
+                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                    property.value,
+                ))
+            },
+        };
+        if !registry.name_has_syntax(self.units(name_id)) {
+            return value;
+        }
+        registry
+            .finalize_custom_property_value(
+                unsafe { KeyframeStores::store(self.stores.inheritance) },
+                self.name(name_id).raw(),
+                self.units(name_id),
+                value,
+                finalization,
+            )
+            .map_or_else(|fallback| fallback, |(value, _)| value)
     }
 }
 
-fn empty_resolution() -> FfiResolvedAnimationProperties {
-    FfiResolvedAnimationProperties {
-        properties: std::ptr::null(),
-        count: 0,
-        animation_value_count: 0,
-        uses_tree_counting_function: false,
-        container_relative_length_unit_mask: 0,
-        needs_document_base_url: false,
-        unfixed_random_sharings: std::ptr::null(),
-        unfixed_random_sharing_count: 0,
-        custom_names: std::ptr::null(),
-        custom_name_count: 0,
-        substitution_marks: FfiSubstitutionMarks::default(),
-        style_query_dependencies: std::ptr::null_mut(),
-        storage: std::ptr::null_mut(),
-    }
+/// The declarations of the effects an element samples, resolved, and what resolving them read.
+pub(crate) struct PublishedAnimationDeclarations {
+    pub(crate) resolved: Box<ResolvedAnimationDeclarations>,
+    pub(crate) custom_properties: AnimatedCustomProperties,
+    /// The `SUBSTITUTION_MARK_*` bits of what the values and easings substituted against the
+    /// element held.
+    pub(crate) substitution_marks: u8,
+    /// The custom properties a substituted `style()` query read.
+    pub(crate) style_query_dependencies: Option<Box<crate::css::custom_properties::StyleQueryDependencies>>,
 }
 
-/// Resolve the declarations of the effects an element is about to sample from the descriptions the
-/// style engine holds of them, into one owned batch for C++ computation: each keyframe's easing and
-/// each value substituted against the element where it was written as a token stream, a keyframe
-/// holding the element's own value given it, and every custom property minted into a number.
-///
-/// # Safety
-/// `input` must point to a live value whose effect range, bitmap, longhand table and stores remain
-/// live for the call, and whose engine describes the effects sampled.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_resolve_published_animation_declarations(
-    input: *const FfiPublishedAnimationResolution,
-) -> FfiResolvedAnimationProperties {
+/// Resolve the declarations of the effects an element samples from their descriptions: each
+/// keyframe's easing and each value written as a token stream substituted against the element, a
+/// keyframe holding the element's own value given it, and every custom property minted into a
+/// number.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn resolve_published_animation_declarations(
+    engine: &crate::css::style::StyleEngine,
+    node: crate::css::style::tree::StyleNodeID,
+    pseudo: Option<u8>,
+    selected: &[SelectedEffect<'_>],
+    table: &crate::css::computed_longhand_table::ComputedLonghandTable,
+    stores: KeyframeStores,
+    writing_mode: u8,
+    direction: u8,
+    important_property_bitmap: &[u8],
+) -> PublishedAnimationDeclarations {
     use crate::css::style::effect_descriptions::{PublishedValue, easing_from_computed_timing_function};
-    let input = unsafe { &*input };
-    let engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
-    let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(input.style_node) else {
-        return empty_resolution();
-    };
-    let pseudo = (input.pseudo_kind != u8::MAX).then_some(input.pseudo_kind);
-    let slot = pseudo.map_or(0, |pseudo| pseudo + 1);
-    let sampled = unsafe { crate::css::custom_properties::ffi_slice(input.effects, input.effect_count) };
-    let table = unsafe {
-        &*input
-            .underlying_longhand_table
-            .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
-    };
-    let important_property_bitmap = unsafe {
-        crate::css::custom_properties::ffi_slice(
-            input.important_property_bitmap,
-            input.important_property_bitmap_length,
-        )
-    };
     let registry = engine.custom_property_registry();
-    let mut custom_names = AnimatedCustomNames {
-        registry,
-        store: unsafe {
-            input
-                .custom_property_store
-                .cast::<crate::css::custom_properties::CustomPropertyStore>()
-                .as_ref()
-        },
-        element_declares_custom_properties: input.element_declares_custom_properties,
+    let mut custom_properties = AnimatedCustomProperties {
+        stores,
         names: Vec::new(),
         units: Vec::new(),
     };
-    let substitution_marks = std::cell::Cell::new(FfiSubstitutionMarks::default());
+    let substitution_marks = std::cell::Cell::new(0_u8);
     let style_query_references = std::cell::RefCell::new(None);
     let substitute = |property, root_name: &[u16], written: &RetainedStyleValueData| {
-        let mut marks = substitution_marks.get();
-        marks.note(written.data());
-        substitution_marks.set(marks);
+        substitution_marks.set(substitution_marks.get() | substitution_marks_of(written.data()));
         engine.substitute_keyframe_value(
             node,
             pseudo,
-            input.substitution_custom_property_store,
-            input.inheritance_custom_property_store,
+            stores.substitution,
+            stores.inheritance,
             property,
             root_name,
             written,
             &style_query_references,
         )
     };
-    let described = engine.element_animation_effects(node, slot);
+    let mut keyframes = Vec::new();
     let mut easings = Vec::new();
-    let mut keyframe_composites = Vec::new();
-    let mut keys = Vec::new();
     let mut effects = Vec::new();
     let mut declarations = Vec::new();
     let mut values = Vec::new();
     let mut base_urls = Vec::new();
-    for sample in sampled {
-        let Some(effect) = described.iter().find(|effect| effect.identity == sample.identity) else {
-            debug_assert!(false, "the host describes every effect it samples");
-            continue;
-        };
+    for selection in selected {
+        let effect = selection.effect;
         let is_transition = effect.is_transition;
         let style_sheet_resource_context = match &effect.resource_context {
             None => FfiAnimationStyleSheetResourceContext {
@@ -7092,11 +7112,10 @@ pub unsafe extern "C" fn rust_resolve_published_animation_declarations(
                 }
             }
         };
-        let first_keyframe_index = keys.len();
+        let first_keyframe_index = keyframes.len();
         for keyframe in &effect.keyframes {
-            let keyframe_index = keys.len();
-            keys.push(keyframe.key);
-            keyframe_composites.push(keyframe.composite);
+            let keyframe_index = keyframes.len();
+            keyframes.push((keyframe.key, keyframe.composite));
             // A keyframe's own easing written as a value substitutes against the element; one that
             // resolves to no easing runs its animation's.
             let substituted_easing = keyframe.easing_value.as_ref().and_then(|written| {
@@ -7150,29 +7169,27 @@ pub unsafe extern "C" fn rust_resolve_published_animation_declarations(
                 values.push(value);
             }
             for declaration in effect.custom_declarations_of(keyframe) {
-                let name_id = custom_names.mint(&declaration.name);
+                let name_id = custom_properties.mint(&declaration.name);
                 let (value, use_initial) = match &declaration.value {
-                    PublishedValue::ElementValue => (custom_names.underlying_value(name_id), true),
+                    PublishedValue::ElementValue => (custom_properties.underlying_value(registry, name_id), true),
                     // A custom property's value is a token stream; only the substitution functions
-                    // in it are resolved against the element.
-                    PublishedValue::Declared(value) => match value.data() {
-                        StyleValueData::Unresolved { .. } if holds_arbitrary_substitution(value.data()) => (
-                            substitute(
-                                crate::css::property_metadata::property_id::CUSTOM,
-                                custom_names.units(name_id),
-                                value,
-                            ),
-                            false,
+                    // in it resolve against the element.
+                    PublishedValue::Declared(value) if holds_arbitrary_substitution(value.data()) => (
+                        substitute(
+                            crate::css::property_metadata::property_id::CUSTOM,
+                            custom_properties.units(name_id),
+                            value,
                         ),
-                        _ => (value.clone_retained(), false),
-                    },
+                        false,
+                    ),
+                    PublishedValue::Declared(value) => (value.clone_retained(), false),
                 };
                 declarations.push(FfiAnimationDeclaration {
                     keyframe_index,
                     property_id: crate::css::property_metadata::property_id::CUSTOM,
                     custom_name_id: name_id,
-                    custom_is_inherited: registry.name_inherits(custom_names.units(name_id)),
-                    custom_is_important: custom_names.is_important(&declaration.name),
+                    custom_is_inherited: registry.name_inherits(custom_properties.units(name_id)),
+                    custom_is_important: custom_properties.is_important(name_id),
                     value: value.pointer(),
                     style_sheet_resource_context,
                     use_initial,
@@ -7183,16 +7200,15 @@ pub unsafe extern "C" fn rust_resolve_published_animation_declarations(
         }
         effects.push(FfiAnimationEffect {
             first_keyframe_index,
-            keyframe_count: keys.len() - first_keyframe_index,
-            current_key: sample.current_key,
+            keyframe_count: keyframes.len() - first_keyframe_index,
+            current_key: selection.current_key,
             result_of_transition: is_transition,
         });
     }
-    let keyframes = keys
+    let keyframes = keyframes
         .iter()
         .zip(&easings)
-        .zip(&keyframe_composites)
-        .map(|((&key, easing), &composite)| FfiAnimationKeyframe {
+        .map(|(&(key, composite), easing)| FfiAnimationKeyframe {
             key,
             easing: easing_descriptor(easing),
             composite,
@@ -7202,39 +7218,16 @@ pub unsafe extern "C" fn rust_resolve_published_animation_declarations(
         &declarations,
         &effects,
         &keyframes,
-        input.writing_mode,
-        input.direction,
+        writing_mode,
+        direction,
         important_property_bitmap,
     );
-    // What the substitutions read is the element's to record whether or not anything animates.
-    let substitution_marks = substitution_marks.get();
-    let style_query_dependencies = style_query_references
-        .into_inner()
-        .map_or(std::ptr::null_mut(), |dependencies| Box::into_raw(dependencies).cast());
-    if resolved.properties.is_empty() {
-        return FfiResolvedAnimationProperties {
-            substitution_marks,
-            style_query_dependencies,
-            ..empty_resolution()
-        };
-    }
     resolved._base_urls = base_urls;
-    resolved.custom_names = custom_names.names;
-    let resolved = Box::new(resolved);
-    FfiResolvedAnimationProperties {
-        properties: resolved.properties.as_ptr(),
-        count: resolved.properties.len(),
-        animation_value_count: resolved.value_plans.len(),
-        uses_tree_counting_function: resolved.uses_tree_counting_function,
-        container_relative_length_unit_mask: resolved.container_relative_length_unit_mask,
-        needs_document_base_url: resolved.needs_document_base_url,
-        unfixed_random_sharings: resolved.unfixed_random_sharings.as_ptr(),
-        unfixed_random_sharing_count: resolved.unfixed_random_sharings.len(),
-        custom_names: resolved.custom_names.as_ptr(),
-        custom_name_count: resolved.custom_names.len(),
-        substitution_marks,
-        style_query_dependencies,
-        storage: Box::into_raw(resolved).cast(),
+    PublishedAnimationDeclarations {
+        resolved: Box::new(resolved),
+        custom_properties,
+        substitution_marks: substitution_marks.get(),
+        style_query_dependencies: style_query_references.into_inner(),
     }
 }
 
@@ -7287,18 +7280,17 @@ fn easing_descriptor(easing: &crate::css::easing::Easing) -> FfiEasingDescriptor
 }
 
 struct AnimationPreparationKey {
-    effects: Vec<FfiAnimationPreparationEffect>,
+    effects: Box<[FfiAnimationPreparationEffect]>,
 }
 
 impl AnimationPreparationKey {
-    unsafe fn from_ffi(key: &FfiAnimationPreparationKey) -> Self {
-        Self {
-            effects: unsafe { std::slice::from_raw_parts(key.effects, key.effect_count) }.to_vec(),
-        }
-    }
-
-    unsafe fn matches_ffi(&self, key: &FfiAnimationPreparationKey) -> bool {
-        self.effects.as_slice() == unsafe { std::slice::from_raw_parts(key.effects, key.effect_count) }
+    fn matches(&self, sampled: &[FfiSampledAnimationEffect]) -> bool {
+        self.effects.len() == sampled.len()
+            && self
+                .effects
+                .iter()
+                .zip(sampled)
+                .all(|(effect, sampled)| *effect == sampled.effect)
     }
 }
 
@@ -7321,24 +7313,14 @@ pub(crate) struct PreparedAnimationBatch {
 unsafe impl Send for PreparedAnimationBatch {}
 unsafe impl Sync for PreparedAnimationBatch {}
 
-/// Whether an animated overlay already holds the endpoint preparation identified by `key`.
-///
-/// # Safety
-/// `overlay` and `key` must point at live values and the key's effect range must be readable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_animation_preparation_matches(
-    overlay: *const std::ffi::c_void,
-    key: *const FfiAnimationPreparationKey,
+/// Whether an animated overlay already holds the endpoint preparation for the `sampled` effects.
+pub(crate) fn animation_preparation_matches(
+    overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
+    sampled: &[FfiSampledAnimationEffect],
 ) -> bool {
-    if overlay.is_null() || key.is_null() {
-        return false;
-    }
-    let overlay = unsafe { &*overlay.cast::<crate::css::animated_overlay::AnimatedOverlay>() };
-    let key = unsafe { &*key };
     overlay
-        .animation_preparation
-        .as_ref()
-        .is_some_and(|preparation| unsafe { preparation.key.matches_ffi(key) })
+        .and_then(|overlay| overlay.animation_preparation.as_ref())
+        .is_some_and(|preparation| preparation.key.matches(sampled))
 }
 
 /// Complete the Rust-owned animation plan and compose every interval without
@@ -7347,24 +7329,21 @@ pub unsafe extern "C" fn rust_animation_preparation_matches(
 /// preparation from the animated overlay.
 ///
 /// # Safety
-/// `computed` must point to a live batch. Its preparation key and current-key range must be
-/// readable. On a cache miss both storage pointers must be live, unconsumed results from their
+/// `computed` must point to a live batch. Its range of sampled effects must be readable. On a cache miss both storage pointers must be live, unconsumed results from their
 /// producing calls. `underlying_longhand_table` and `overlay` must point at live values, and the
 /// overlay must be uniquely owned for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAnimationBatch) -> usize {
     crate::css::ffi_stats::rust_style_ffi_note_animation_evaluation();
     let computed = unsafe { &*computed };
-    assert!(!computed.preparation_key.is_null());
     assert!(!computed.underlying_longhand_table.is_null());
     assert!(!computed.overlay.is_null());
-    let preparation_key = unsafe { &*computed.preparation_key };
-    let current_keys = unsafe { std::slice::from_raw_parts(computed.current_keys, computed.current_key_count) };
+    let sampled = unsafe { std::slice::from_raw_parts(computed.sampled_effects, computed.sampled_effect_count) };
     let overlay = unsafe { &mut *computed.overlay.cast::<crate::css::animated_overlay::AnimatedOverlay>() };
     let preparation = overlay
         .animation_preparation
         .as_ref()
-        .filter(|preparation| unsafe { preparation.key.matches_ffi(preparation_key) })
+        .filter(|preparation| preparation.key.matches(sampled))
         .cloned()
         .unwrap_or_else(|| {
             assert!(!computed.resolved_animation_storage.is_null());
@@ -7400,7 +7379,9 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
                 })
                 .collect();
             std::sync::Arc::new(PreparedAnimationBatch {
-                key: unsafe { AnimationPreparationKey::from_ffi(preparation_key) },
+                key: AnimationPreparationKey {
+                    effects: sampled.iter().map(|sampled| sampled.effect).collect(),
+                },
                 resolved,
                 _computed_keyframe_values: computed_keyframe_values,
                 keyframes_by_value,
@@ -7430,7 +7411,7 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
     let mut custom_final_values = Vec::<(u32, RetainedStyleValueData)>::new();
     let mut previous_values = Vec::<(u16, u32, *const StyleValueData)>::with_capacity(resolved.value_plans.len());
     for (plan, keyframes) in resolved.value_plans.iter().zip(&preparation.keyframes_by_value) {
-        assert!(plan.effect_index < current_keys.len());
+        assert!(plan.effect_index < sampled.len());
         let (underlying, initial) = if plan.custom_name_id != 0 {
             let custom_index = (plan.custom_name_id - 1) as usize;
             assert!(custom_index < computed.custom_value_count);
@@ -7453,7 +7434,7 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
             result_of_transition: plan.result_of_transition,
             underlying,
             initial,
-            current_key: current_keys[plan.effect_index],
+            current_key: sampled[plan.effect_index].current_key,
             keyframes: keyframes.as_ptr(),
             keyframe_count: keyframes.len(),
         };

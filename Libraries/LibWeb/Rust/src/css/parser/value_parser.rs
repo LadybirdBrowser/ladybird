@@ -3367,7 +3367,7 @@ fn parse_long_tail_property(context: &ParseContext, property: u16, values: &[Com
     }
 }
 
-fn contains_tree_counting_function(values: &[ComponentValue]) -> bool {
+pub(crate) fn contains_tree_counting_function(values: &[ComponentValue]) -> bool {
     values.iter().any(|value| match &value.kind {
         ComponentKind::Function { name, values } => {
             equals_ascii_case_insensitive(name, b"sibling-count")
