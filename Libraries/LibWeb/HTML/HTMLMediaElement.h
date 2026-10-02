@@ -287,6 +287,7 @@ private:
     void attach_selected_video_track_sink(Media::Track const&);
 
     bool video_sink_should_tick() const;
+    virtual bool is_shown_elsewhere() const { return false; }
 
     // Mirrors what PlaybackManager and the compositor were last told; a freshly reserved sink is assumed to tick.
     mutable bool m_video_sink_is_ticking { true };

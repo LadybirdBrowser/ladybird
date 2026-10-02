@@ -2689,6 +2689,9 @@ bool HTMLMediaElement::video_sink_should_tick() const
     Layout::ForcedReadScope read { document() };
     if (m_video_frame_was_recently_captured)
         return true;
+    // Another element, such as one in a Picture-in-Picture window, shows the frames whatever happens to this one's box.
+    if (is_shown_elsewhere())
+        return true;
     if (document().visibility_state() != VisibilityState::Visible)
         return false;
     auto const* layout_node = this->layout_node(read);

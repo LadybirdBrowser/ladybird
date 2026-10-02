@@ -64,6 +64,12 @@ public:
     bool has_pending_picture_in_picture_promise(WebIDL::Promise const&) const;
     bool take_pending_picture_in_picture_promise(WebIDL::Promise const&);
 
+    // The element whose frames this element shows in place of its own, such as in a Picture-in-Picture window.
+    GC::Ptr<HTMLVideoElement> visual_source() const { return m_visual_source; }
+    void set_visual_source(GC::Ptr<HTMLVideoElement>);
+    void for_each_visual_clone(Function<void(HTMLVideoElement&)> const&) const;
+    void clear_visual_clones();
+
     WebIDL::CallbackType* onenterpictureinpicture();
     void set_onenterpictureinpicture(WebIDL::CallbackType*);
     WebIDL::CallbackType* onleavepictureinpicture();
@@ -81,6 +87,7 @@ private:
     virtual bool supports_dimension_attributes() const override { return true; }
 
     virtual bool is_html_video_element() const override { return true; }
+    virtual bool is_shown_elsewhere() const override;
 
     virtual CSS::ElementBoxKind box_kind() const override;
 
@@ -99,6 +106,9 @@ private:
 
     GC::Ptr<PictureInPicture::PictureInPictureWindow> m_picture_in_picture_window;
     Vector<GC::Ref<WebIDL::Promise>> m_pending_picture_in_picture_promises;
+
+    GC::Ptr<HTMLVideoElement> m_visual_source;
+    Vector<GC::Weak<HTMLVideoElement>> m_visual_clones;
 };
 
 }

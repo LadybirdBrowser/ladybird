@@ -1,0 +1,2 @@
+ticking while hidden in Picture-in-Picture: true
+ticking while hidden after exiting: false

@@ -209,6 +209,40 @@ function (generate_html_implementation)
     set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
 endfunction()
 
+function (generate_picture_in_picture_implementation)
+    set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    invoke_py_generator(
+        "PictureInPicturePlayerDOM.cpp"
+        "generate_dom_tree.py"
+        "${LIBWEB_INPUT_FOLDER}/PictureInPicture/PictureInPicturePlayer.html"
+        "PictureInPicture/PictureInPicturePlayerDOM.h"
+        "PictureInPicture/PictureInPicturePlayerDOM.cpp"
+        arguments -i "${LIBWEB_INPUT_FOLDER}/PictureInPicture/PictureInPicturePlayer.html"
+                  -s PictureInPicturePlayerDOM
+                  -n "Web::PictureInPicture"
+                  --html-tags "${LIBWEB_INPUT_FOLDER}/HTML/TagNames.h"
+                  --html-attributes "${LIBWEB_INPUT_FOLDER}/HTML/AttributeNames.h"
+                  --svg-tags "${LIBWEB_INPUT_FOLDER}/SVG/TagNames.h"
+                  --svg-attributes "${LIBWEB_INPUT_FOLDER}/SVG/AttributeNames.h"
+        dependencies "${LIBWEB_INPUT_FOLDER}/HTML/TagNames.h"
+                     "${LIBWEB_INPUT_FOLDER}/HTML/AttributeNames.h"
+                     "${LIBWEB_INPUT_FOLDER}/SVG/TagNames.h"
+                     "${LIBWEB_INPUT_FOLDER}/SVG/AttributeNames.h"
+                     "${LIBWEB_INPUT_FOLDER}/PictureInPicture/PictureInPicturePlayer.css"
+    )
+
+    set(PICTURE_IN_PICTURE_GENERATED_HEADERS
+       "PictureInPicture/PictureInPicturePlayerDOM.h"
+    )
+    list(TRANSFORM PICTURE_IN_PICTURE_GENERATED_HEADERS PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+    if (ENABLE_INSTALL_HEADERS)
+        install(FILES ${PICTURE_IN_PICTURE_GENERATED_HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/PictureInPicture")
+    endif()
+    list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${PICTURE_IN_PICTURE_GENERATED_HEADERS})
+    set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
+endfunction()
+
 function (generate_webgl_implementation)
     set(LIBCOMPOSITING_INPUT_FOLDER "${LADYBIRD_SOURCE_DIR}/Libraries/LibCompositing")
 

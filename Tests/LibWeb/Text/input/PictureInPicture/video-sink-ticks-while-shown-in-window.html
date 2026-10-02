@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video" muted loop src="../../../Assets/test-webm.webm"></video>
+<script>
+    const video = document.getElementById("video");
+
+    asyncTest(async done => {
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+        await video.play();
+
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+
+        await setSystemVisibilityState("hidden");
+        println(`ticking while hidden in Picture-in-Picture: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+
+        await document.exitPictureInPicture();
+        println(`ticking while hidden after exiting: ${internals.mediaElementVideoSinkIsTicking(video)}`);
+
+        await setSystemVisibilityState("visible");
+        done();
+    });
+</script>
