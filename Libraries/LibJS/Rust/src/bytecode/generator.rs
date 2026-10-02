@@ -18,6 +18,7 @@ use super::basic_block::BasicBlock;
 use super::basic_block::SourceMapEntry;
 use super::constant::AbstractOperationKind;
 use super::constant::WellKnownSymbolKind;
+use super::executable::ExecutableData;
 use super::instruction::{Instruction, specialize_instruction_sequence};
 use super::operand::*;
 use crate::ast::AstArena;
@@ -74,8 +75,7 @@ pub struct FunctionSfdMetadata {
 
 /// GC-free compiled bytecode for a function that top-level code will immediately invoke.
 pub struct PrecompiledFunction {
-    pub generator: Box<Generator>,
-    pub assembled: AssembledBytecode,
+    pub executable: ExecutableData,
     pub metadata: FunctionSfdMetadata,
 }
 
@@ -435,11 +435,7 @@ pub struct Generator {
     // Used for builtin JS files.
     pub builtin_abstract_operations_enabled: bool,
 
-    // --- FFI context ---
-    // These are set by the top-level compiler and passed through for
-    // creating SharedFunctionInstanceData via FFI callbacks.
-    pub vm_ptr: *mut std::ffi::c_void,
-    pub source_code_ptr: *const std::ffi::c_void,
+    // --- Source ---
     pub source_len: usize,
 
     // --- Function table ---
@@ -590,8 +586,6 @@ impl Generator {
             catch_handler_labels: HashSet::new(),
             annexb_function_names: HashSet::new(),
             builtin_abstract_operations_enabled: false,
-            vm_ptr: std::ptr::null_mut(),
-            source_code_ptr: std::ptr::null(),
             source_len: 0,
             function_table: crate::ast::FunctionTable::new(),
             arena: Arc::new(AstArena::new()),

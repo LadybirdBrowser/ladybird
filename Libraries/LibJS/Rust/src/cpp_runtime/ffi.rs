@@ -25,10 +25,9 @@ use std::mem::align_of;
 
 use crate::ast::Utf16String;
 use crate::bytecode::basic_block::SourceMapEntry;
-use crate::bytecode::generator::AssembledBytecode;
+use crate::bytecode::executable::ExecutableData;
 use crate::bytecode::generator::ConstantValue;
 use crate::bytecode::generator::ExceptionHandler;
-use crate::bytecode::generator::Generator;
 use crate::bytecode::generator::PendingClassBlueprint;
 use crate::bytecode::generator::PendingClassElement;
 use crate::bytecode::generator::PendingLiteralValueKind;
@@ -391,74 +390,49 @@ pub unsafe fn create_shared_function_data(
     arena: std::sync::Arc<crate::ast::AstArena>,
     enclosing_environment_scope: Option<std::sync::Arc<crate::bytecode::generator::EnclosingEnvironmentScope>>,
 ) -> *mut c_void {
+    let description = crate::compile::describe_shared_function(
+        function_data,
+        subtable,
+        is_strict,
+        name_override,
+        arena,
+        enclosing_environment_scope,
+    );
+    unsafe { create_shared_function_data_from_description(description, context) }
+}
+
+/// Create a C++ SharedFunctionInstanceData for a described function.
+///
+/// # Safety
+/// `vm_ptr` and `source_code_ptr` must be valid pointers.
+pub(crate) unsafe fn create_shared_function_data_from_description(
+    description: crate::compile::SharedFunctionDescription,
+    context: SharedFunctionDataCreationContext,
+) -> *mut c_void {
     unsafe {
-        use crate::ast::FunctionParameterBinding;
-
-        let source_start = function_data.source_text_start as usize;
-        let source_end = function_data.source_text_end as usize;
-        let source_text_len = source_end - source_start;
-
-        let (name_ptr, name_len) = if let Some(name) = name_override {
-            (name.as_ptr(), name.len())
-        } else if let Some(name_ident) = function_data.name {
-            let name = arena.name_of(name_ident);
-            (name.as_ptr(), name.len())
-        } else {
+        let (name_ptr, name_len) = if description.name.is_empty() {
             (std::ptr::null(), 0)
-        };
-
-        let has_simple_parameter_list = function_data.parameters.iter().all(|p| {
-            !p.is_rest && p.default_value.is_none() && matches!(p.binding, FunctionParameterBinding::Identifier(_))
-        });
-
-        let parameter_names: Vec<ak::Utf16FlyString> = if has_simple_parameter_list {
-            function_data
-                .parameters
-                .iter()
-                .map(|p| {
-                    if let FunctionParameterBinding::Identifier(id) = p.binding {
-                        ak::Utf16FlyString::from_utf16(arena.name_slice(id))
-                    } else {
-                        unreachable!("has_simple_parameter_list guarantees all bindings are identifiers")
-                    }
-                })
-                .collect()
         } else {
-            Vec::new()
+            (description.name.as_ptr(), description.name.len())
         };
-
-        let function_kind = function_data.kind as u8;
-        let strict = function_data.is_strict_mode || is_strict;
-        let function_length = function_data.function_length;
-        let formal_parameter_count = u32_from_usize(function_data.parameters.len());
-        let is_arrow = function_data.is_arrow_function;
-        let uses_this = function_data.parsing_insights.uses_this;
-        let uses_this_from_environment = function_data.parsing_insights.uses_this_from_environment;
-
-        let payload = Box::new(crate::ast::FunctionPayload {
-            data: *function_data,
-            function_table: subtable,
-            arena,
-            enclosing_environment_scope,
-        });
-        let rust_ast_ptr = Box::into_raw(payload) as *mut c_void;
+        let rust_ast_ptr = Box::into_raw(description.payload) as *mut c_void;
 
         let ffi_data = FFISharedFunctionData {
             name: name_ptr,
             name_len,
-            function_kind,
-            function_length,
-            formal_parameter_count,
-            strict,
-            is_arrow,
-            has_simple_parameter_list,
-            parameter_names: parameter_names.as_ptr().cast(),
-            parameter_name_count: parameter_names.len(),
-            source_text_offset: source_start,
-            source_text_length: source_text_len,
+            function_kind: description.function_kind as u8,
+            function_length: description.function_length,
+            formal_parameter_count: description.formal_parameter_count,
+            strict: description.strict,
+            is_arrow: description.is_arrow,
+            has_simple_parameter_list: description.has_simple_parameter_list,
+            parameter_names: description.parameter_names.as_ptr().cast(),
+            parameter_name_count: description.parameter_names.len(),
+            source_text_offset: description.source_text_offset,
+            source_text_length: description.source_text_length,
             rust_function_ast: rust_ast_ptr,
-            uses_this,
-            uses_this_from_environment,
+            uses_this: description.uses_this,
+            uses_this_from_environment: description.uses_this_from_environment,
         };
 
         let sfd_ptr = match context.owner {
@@ -494,30 +468,14 @@ pub unsafe fn create_sfd_for_gdi(
 }
 
 unsafe fn materialize_shared_function_data(
-    generator: &mut Generator,
+    executable: &mut ExecutableData,
     context: SharedFunctionDataCreationContext,
 ) -> Vec<*const c_void> {
     unsafe {
-        let mut sfd_ptrs = Vec::with_capacity(generator.shared_function_data.len());
-        for pending in &mut generator.shared_function_data {
-            let function_data = pending
-                .function_data
-                .take()
-                .expect("pending shared function data was already materialized");
-            let subtable = pending
-                .subtable
-                .take()
-                .expect("pending shared function data subtable was already materialized");
-            let arena = pending.arena.clone().unwrap_or_else(|| generator.arena.clone());
-            let sfd_ptr = create_shared_function_data(
-                function_data,
-                subtable,
-                context,
-                generator.strict,
-                pending.name_override.as_ref().map(|name| name.as_slice()),
-                arena,
-                pending.enclosing_environment_scope.clone(),
-            );
+        let mut sfd_ptrs = Vec::with_capacity(executable.shared_function_data.len());
+        for pending in &mut executable.shared_function_data {
+            let sfd_ptr =
+                create_shared_function_data_from_description(pending.take_description(executable.is_strict), context);
             if let Some((name, is_private)) = &pending.class_field_initializer_name {
                 rust_sfd_set_class_field_initializer_name(sfd_ptr, name.as_ptr(), name.len(), *is_private);
             }
@@ -550,12 +508,12 @@ unsafe fn materialize_shared_function_data(
 }
 
 unsafe fn materialize_class_blueprints(
-    generator: &mut Generator,
+    executable: &ExecutableData,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
 ) -> Vec<*mut c_void> {
     unsafe {
-        generator
+        executable
             .class_blueprints
             .iter()
             .map(|blueprint| materialize_class_blueprint(blueprint, vm_ptr, source_code_ptr))
@@ -688,48 +646,39 @@ fn align_buffer_to(buffer: &mut Vec<u8>, alignment: usize) {
     buffer.extend(std::iter::repeat_n(0, padding));
 }
 
-/// Create a C++ Executable from the generator's assembled output.
+/// Create a C++ Executable from compiled executable data.
 ///
 /// # Safety
 /// `vm_ptr` must be a valid `JS::VM*` and `source_code_ptr` a valid
 /// `JS::SourceCode const*`.
 pub unsafe fn create_executable(
-    generator: &mut Generator,
-    assembled: &AssembledBytecode,
+    mut executable: ExecutableData,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
     owner: SharedFunctionDataOwner,
 ) -> ExecutableHandle {
     unsafe {
         let sfd_ptrs = materialize_shared_function_data(
-            generator,
+            &mut executable,
             SharedFunctionDataCreationContext {
                 vm_ptr,
                 source_code_ptr,
                 owner,
             },
         );
-        let bp_ptrs = materialize_class_blueprints(generator, vm_ptr, source_code_ptr);
-        let executable =
-            create_executable_with_dependencies(generator, assembled, vm_ptr, source_code_ptr, &sfd_ptrs, &bp_ptrs);
-
+        let bp_ptrs = materialize_class_blueprints(&executable, vm_ptr, source_code_ptr);
         // C++ takes ownership of the compiled regular expressions while constructing the executable.
-        generator.compiled_regexes.clear();
-        executable
+        create_executable_with_dependencies(&executable, vm_ptr, source_code_ptr, &sfd_ptrs, &bp_ptrs)
     }
 }
 
-/// Create a C++ Executable from already materialized dependency objects.
-///
-/// This is used by bytecode cache materialization, where the cache blob
-/// contains precompiled nested functions and class blueprints instead of
-/// AST-backed `PendingSharedFunctionData` records.
+/// Create a C++ Executable from executable data whose nested functions and
+/// class blueprints are already materialized.
 ///
 /// # Safety
 /// `vm_ptr`, `source_code_ptr`, and all dependency pointers must be valid.
-pub unsafe fn create_executable_with_dependencies(
-    generator: &Generator,
-    assembled: &AssembledBytecode,
+unsafe fn create_executable_with_dependencies(
+    executable: &ExecutableData,
     vm_ptr: *mut c_void,
     source_code_ptr: *const c_void,
     sfd_ptrs: &[*const c_void],
@@ -737,15 +686,56 @@ pub unsafe fn create_executable_with_dependencies(
 ) -> ExecutableHandle {
     unsafe {
         let parts = ExecutableParts {
-            bytecode: &assembled.bytecode,
+            bytecode: &executable.bytecode,
             bytecode_owner: std::ptr::null_mut(),
-            exception_handlers: &assembled.exception_handlers,
-            source_map: &assembled.source_map,
-            basic_block_start_offsets: &assembled.basic_block_start_offsets,
-            number_of_registers: assembled.number_of_registers,
-            number_of_arguments: assembled.number_of_arguments,
+            exception_handlers: &executable.exception_handlers,
+            source_map: &executable.source_map,
+            basic_block_start_offsets: &executable.basic_block_start_offsets,
+            number_of_registers: executable.number_of_registers,
+            number_of_arguments: executable.number_of_arguments,
         };
-        create_executable_with_dependencies_from_parts(generator, parts, vm_ptr, source_code_ptr, sfd_ptrs, bp_ptrs)
+
+        // Encode constants
+        let constants_buffer = encode_constants(&executable.constants);
+
+        let local_variable_metadata: Vec<FFILocalVariableMetadata> = executable
+            .local_variables
+            .iter()
+            .map(|variable| FFILocalVariableMetadata {
+                name: variable.name.raw_identity(),
+                is_mutable: variable.is_mutable,
+                has_scope_range: variable.scope_range.is_some(),
+                scope_start_line: variable.scope_range.map_or(0, |range| range.start.line),
+                scope_start_column: variable.scope_range.map_or(0, |range| range.start.column),
+                scope_end_line: variable.scope_range.map_or(0, |range| range.end.line),
+                scope_end_column: variable.scope_range.map_or(0, |range| range.end.column),
+            })
+            .collect();
+
+        let metadata = ExecutableMetadata {
+            property_lookup_cache_count: executable.cache_counts.property_lookup,
+            global_variable_cache_count: executable.cache_counts.global_variable,
+            environment_coordinate_cache_count: executable.cache_counts.environment_coordinate,
+            template_object_cache_count: executable.cache_counts.template_object,
+            object_shape_cache_count: executable.cache_counts.object_shape,
+            object_property_iterator_cache_count: executable.cache_counts.object_property_iterator,
+            environment_shape_cache_count: executable.cache_counts.environment_shape,
+            is_strict: executable.is_strict,
+            length_identifier: executable.length_identifier.map(|index| index.0),
+        };
+
+        let slices = ExecutableSlices {
+            identifier_table: &executable.identifier_table,
+            property_key_table: &executable.property_key_table,
+            string_table: &executable.string_table,
+            constants_data: &constants_buffer,
+            constants_count: executable.constants.len(),
+            local_variable_metadata: &local_variable_metadata,
+            argument_variable_names: &executable.argument_variable_names,
+            compiled_regexes: &executable.compiled_regexes,
+        };
+
+        create_executable_from_slices(parts, metadata, slices, vm_ptr, source_code_ptr, sfd_ptrs, bp_ptrs)
     }
 }
 
@@ -863,67 +853,5 @@ pub unsafe fn create_executable_from_slices(
         };
 
         rust_create_executable(vm_ptr, source_code_ptr, &raw const ffi_data)
-    }
-}
-
-/// Create a C++ Executable from already materialized dependency objects and
-/// borrowed bytecode/table slices.
-///
-/// This variant lets bytecode cache materialization point at mmap-backed cache
-/// blob bytes without first cloning executable bytecode into a Rust Vec.
-///
-/// # Safety
-/// `vm_ptr`, `source_code_ptr`, all dependency pointers, and all borrowed
-/// slices must be valid for the duration of the call.
-pub unsafe fn create_executable_with_dependencies_from_parts(
-    generator: &Generator,
-    parts: ExecutableParts<'_>,
-    vm_ptr: *mut c_void,
-    source_code_ptr: *const c_void,
-    sfd_ptrs: &[*const c_void],
-    bp_ptrs: &[*mut c_void],
-) -> ExecutableHandle {
-    unsafe {
-        // Encode constants
-        let constants_buffer = encode_constants(&generator.constants);
-
-        let local_variable_metadata: Vec<FFILocalVariableMetadata> = generator
-            .local_variables
-            .iter()
-            .map(|variable| FFILocalVariableMetadata {
-                name: variable.name.raw_identity(),
-                is_mutable: variable.is_mutable,
-                has_scope_range: variable.scope_range.is_some(),
-                scope_start_line: variable.scope_range.map_or(0, |range| range.start.line),
-                scope_start_column: variable.scope_range.map_or(0, |range| range.start.column),
-                scope_end_line: variable.scope_range.map_or(0, |range| range.end.line),
-                scope_end_column: variable.scope_range.map_or(0, |range| range.end.column),
-            })
-            .collect();
-
-        let metadata = ExecutableMetadata {
-            property_lookup_cache_count: generator.next_property_lookup_cache,
-            global_variable_cache_count: generator.next_global_variable_cache,
-            environment_coordinate_cache_count: generator.next_environment_coordinate_cache,
-            template_object_cache_count: generator.next_template_object_cache,
-            object_shape_cache_count: generator.next_object_shape_cache,
-            object_property_iterator_cache_count: generator.next_object_property_iterator_cache,
-            environment_shape_cache_count: generator.next_environment_shape_cache,
-            is_strict: generator.strict,
-            length_identifier: generator.length_identifier.map(|index| index.0),
-        };
-
-        let slices = ExecutableSlices {
-            identifier_table: &generator.identifier_table,
-            property_key_table: &generator.property_key_table,
-            string_table: &generator.string_table,
-            constants_data: &constants_buffer,
-            constants_count: generator.constants.len(),
-            local_variable_metadata: &local_variable_metadata,
-            argument_variable_names: &generator.argument_variable_names,
-            compiled_regexes: &generator.compiled_regexes,
-        };
-
-        create_executable_from_slices(parts, metadata, slices, vm_ptr, source_code_ptr, sfd_ptrs, bp_ptrs)
     }
 }

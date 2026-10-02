@@ -18,11 +18,13 @@
 //! - `generator` -- Generator: manages registers, constants, tables, and assembly
 //! - `codegen` -- AST-walking code that emits instructions via the Generator
 //! - `constant` -- VM-dependent constants codegen refers to by kind
+//! - `executable` -- ExecutableData: a compiled body and everything needed to run it
 
 pub mod basic_block;
 pub mod codegen;
 pub mod constant;
 pub mod dump;
+pub mod executable;
 pub mod generator;
 pub mod instruction;
 mod native_disassembler;
