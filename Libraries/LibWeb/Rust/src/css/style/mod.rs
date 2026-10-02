@@ -105,6 +105,7 @@ mod routing;
 mod sorted_merge;
 mod style_invalidation;
 mod transition_baselines;
+pub(crate) use transition_baselines::InheritedAnimatedValue;
 mod weak_pool;
 #[cfg(not(feature = "style-recording"))]
 pub mod record_replay {

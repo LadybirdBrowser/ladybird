@@ -1444,6 +1444,8 @@ void StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style,
         .context = transition_animation_context,
         .properties = ffi_properties.data(),
         .property_count = ffi_properties.size(),
+        .target_node = style_node_id.value(),
+        .target_pseudo_kind = pseudo_element_to_ffi(pseudo_element),
     };
     Vector<StyleValueFFI::FfiTransitionAction> actions;
     actions.resize(prepared_transitions.size());

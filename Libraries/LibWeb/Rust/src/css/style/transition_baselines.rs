@@ -8,6 +8,18 @@
 
 use super::RetainedState;
 use super::tree::StyleNodeID;
+use crate::css::animated_overlay::FfiAnimatedOverlayEntry;
+use crate::css::computed_longhand_table::ComputedLonghandTable;
+use crate::css::style_value::StyleValueData;
+
+/// What a transition decides an inherited, animated value against.
+#[derive(Clone, Copy)]
+pub(crate) enum InheritedAnimatedValue<'a> {
+    /// An ancestor's animation, other than a transition, sets the value.
+    Animation(&'a FfiAnimatedOverlayEntry),
+    /// Ancestors transition the value; this is the base value beneath their transitions.
+    BeneathTransitions(&'a StyleValueData),
+}
 
 impl RetainedState {
     /// An epoch begins: the one before it committed and released every style it pinned.
@@ -39,6 +51,44 @@ impl RetainedState {
             .get(&node)
             .and_then(|baselines| baselines.iter().find(|&&(kind, _)| kind == pseudo_kind))
             .map_or(0, |&(_, style_record)| style_record)
+    }
+
+    /// Where an inherited value of `property` in `table`, a record of `node`'s, comes from when an
+    /// ancestor animates it. A record the engine derives holds the animated value its parent passed
+    /// on in its table, where a transition decides against the value beneath the animations: an
+    /// animation's value, where an ancestor's animation other than a transition sets it, or else the
+    /// base value of the nearest ancestor that does not inherit the property, above one that
+    /// transitions it. None when no ancestor along that chain animates the property.
+    pub(crate) fn inherited_animated_value(
+        &self,
+        node: StyleNodeID,
+        table: &ComputedLonghandTable,
+        property: u16,
+    ) -> Option<InheritedAnimatedValue<'_>> {
+        if !table.is_inherited(property) {
+            return None;
+        }
+        let mut transition_entry = None;
+        let mut ancestor = self.tree.inheritance_parent(node);
+        while let Some(current) = ancestor {
+            let record = self.computed_group_sets.assigned_style_record(current)?;
+            let view = self.computed_group_sets.style_record_view(record.raw())?;
+            let ancestor_table = unsafe { view.longhand_table.as_ref() }?;
+            if let Some(entry) = unsafe { view.animated_overlay.as_ref() }.and_then(|overlay| overlay.get(property)) {
+                if !entry.result_of_transition {
+                    return Some(InheritedAnimatedValue::Animation(entry));
+                }
+                transition_entry = Some(entry);
+            }
+            if !ancestor_table.is_inherited(property) {
+                transition_entry?;
+                return Some(InheritedAnimatedValue::BeneathTransitions(
+                    ancestor_table.get(property)?.data(),
+                ));
+            }
+            ancestor = self.tree.inheritance_parent(current);
+        }
+        None
     }
 
     /// The epoch committed: no later pass decides against these styles.

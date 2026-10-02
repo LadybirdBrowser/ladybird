@@ -41,6 +41,10 @@ pub struct FfiTransitionInput {
     pub context: crate::css::animation::FfiAnimationContext,
     pub properties: *mut FfiTransitionPropertyInput,
     pub property_count: usize,
+    /// The target's style node, or 0 when it has none.
+    pub target_node: u32,
+    /// The target's pseudo-element kind, or `u8::MAX` for an element.
+    pub target_pseudo_kind: u8,
 }
 
 #[repr(C)]
@@ -299,6 +303,7 @@ fn prepare_transition_values(
     ),
     after_table: &crate::css::computed_longhand_table::ComputedLonghandTable,
     after_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
+    inherited_animation: Option<crate::css::style::InheritedAnimatedValue<'_>>,
     property: &mut FfiTransitionPropertyInput,
 ) -> bool {
     let (before_table, before_overlay) = before_style;
@@ -306,9 +311,16 @@ fn prepare_transition_values(
     if !property.has_matching_transition {
         return false;
     }
+    // NB: A record the engine derived holds an inherited animated value in its table, where one
+    //     the host computed holds the ancestor's base value and an inherited overlay entry: the
+    //     ancestor's entry and base value stand in for that entry and table value.
     if let Some(entry) = after_overlay
         .and_then(|overlay| overlay.get(property.property_id))
         .filter(|entry| !entry.result_of_transition && !entry.post_compute_adjustment)
+        .or(match inherited_animation {
+            Some(crate::css::style::InheritedAnimatedValue::Animation(entry)) => Some(entry),
+            _ => None,
+        })
     {
         property.before_change_value = entry.value_pointer();
         property.after_change_value = entry.value_pointer();
@@ -317,6 +329,9 @@ fn prepare_transition_values(
             property.current_value = computed_value(after_table, after_overlay, property.property_id);
         }
         return originates_from_current_color;
+    } else if let Some(crate::css::style::InheritedAnimatedValue::BeneathTransitions(base_value)) = inherited_animation
+    {
+        property.after_change_value = std::ptr::from_ref(base_value);
     } else {
         property.after_change_value = computed_value(after_table, None, property.property_id);
     }
@@ -380,13 +395,25 @@ pub unsafe extern "C" fn rust_decide_transitions(
             .cast::<crate::css::animated_overlay::AnimatedOverlay>()
             .as_ref()
     };
+    let after_table = after_table.expect("transition decisions require an after-change table");
+    // Only an element's own record inherits from its inheritance parent.
+    let target = (input.target_pseudo_kind == u8::MAX)
+        .then(|| crate::css::style::tree::StyleNodeID::from_raw(input.target_node))
+        .flatten();
     for (index, property) in properties.iter_mut().enumerate() {
-        let values_originate_from_current_color = prepare_transition_values(
-            before_style,
-            after_table.expect("transition decisions require an after-change table"),
-            after_overlay,
-            property,
-        );
+        let inherited_animation = target
+            .filter(|_| {
+                after_overlay
+                    .and_then(|overlay| overlay.get(property.property_id))
+                    .is_none_or(|entry| !entry.inherited)
+            })
+            .and_then(|target| {
+                style_engine
+                    .expect("transition decisions require a style engine")
+                    .inherited_animated_value(target, after_table, property.property_id)
+            });
+        let values_originate_from_current_color =
+            prepare_transition_values(before_style, after_table, after_overlay, inherited_animation, property);
         unsafe {
             actions.add(index).write(decide_transition(
                 &input.context,
@@ -560,6 +587,8 @@ mod tests {
             context: animation_context(),
             properties: std::ptr::null_mut(),
             property_count: 0,
+            target_node: 0,
+            target_pseudo_kind: u8::MAX,
         };
         unsafe {
             rust_decide_transitions(
