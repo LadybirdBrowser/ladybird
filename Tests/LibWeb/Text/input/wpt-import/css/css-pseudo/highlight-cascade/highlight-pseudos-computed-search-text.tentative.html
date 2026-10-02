@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: ::search-text getComputedStyle</title>
+<link rel="author" name="Delan Azabani" href="mailto:dazabani@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-selectors">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #target::search-text {
+    background-color: blue;
+    color: lime;
+  }
+  #target::search-text:not(:current) {
+    background-color: green;
+  }
+  #target::search-text:current {
+    /* FAIL if this matches */
+    background-color: red;
+  }
+</style>
+<div id="target"></div>
+<script>
+  for (const pseudo of ["::search-text"]) {
+    test(() => {
+      let style = getComputedStyle(target, pseudo);
+      assert_equals(style.backgroundColor, "rgb(0, 128, 0)", "Background color is green.");
+      assert_equals(style.color, "rgb(0, 255, 0)", "Color is lime.");
+    }, `getComputedStyle() for ${pseudo}`);
+
+    for (illFormedPseudo of [`${pseudo}:`, `${pseudo})`, `${pseudo}(`, `${pseudo}(foo)`, `${pseudo}()`, `:${pseudo}`, `${pseudo}.`]) {
+      test(() => {
+        let style = getComputedStyle(target, illFormedPseudo);
+        let defaultStyle = getComputedStyle(target);
+        assert_equals(style.backgroundColor, "");
+        assert_equals(style.color,  "");
+      }, `getComputedStyle() for ${illFormedPseudo} should return an empty CSSStyleDeclaration`);
+    }
+  }
+</script>

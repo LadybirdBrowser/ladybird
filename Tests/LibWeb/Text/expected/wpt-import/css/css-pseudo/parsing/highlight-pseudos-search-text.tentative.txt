@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 39 tests
 
-31 Pass
-8 Fail
+39 Pass
 Pass	"::search-text" should be a valid selector
 Pass	".a::search-text" should be a valid selector
 Pass	"div ::search-text" should be a valid selector
@@ -17,10 +16,10 @@ Pass	"::search-text:current(*)" should be an invalid selector
 Pass	"::search-text:past" should be an invalid selector
 Pass	"::search-text:future" should be an invalid selector
 Pass	":not(::search-text)" should be an invalid selector
-Fail	"::search-text:current" should be a valid selector
-Fail	".a::search-text:current" should be a valid selector
-Fail	"div ::search-text:current" should be a valid selector
-Fail	"::part(my-part)::search-text:current" should be a valid selector
+Pass	"::search-text:current" should be a valid selector
+Pass	".a::search-text:current" should be a valid selector
+Pass	"div ::search-text:current" should be a valid selector
+Pass	"::part(my-part)::search-text:current" should be a valid selector
 Pass	"::before::search-text:current" should be an invalid selector
 Pass	"::search-text:current.a" should be an invalid selector
 Pass	"::search-text:current div" should be an invalid selector
@@ -30,10 +29,10 @@ Pass	"::search-text:current:current(*)" should be an invalid selector
 Pass	"::search-text:current:past" should be an invalid selector
 Pass	"::search-text:current:future" should be an invalid selector
 Pass	":not(::search-text:current)" should be an invalid selector
-Fail	"::search-text:not(:current)" should be a valid selector
-Fail	".a::search-text:not(:current)" should be a valid selector
-Fail	"div ::search-text:not(:current)" should be a valid selector
-Fail	"::part(my-part)::search-text:not(:current)" should be a valid selector
+Pass	"::search-text:not(:current)" should be a valid selector
+Pass	".a::search-text:not(:current)" should be a valid selector
+Pass	"div ::search-text:not(:current)" should be a valid selector
+Pass	"::part(my-part)::search-text:not(:current)" should be a valid selector
 Pass	"::before::search-text:not(:current)" should be an invalid selector
 Pass	"::search-text:not(:current).a" should be an invalid selector
 Pass	"::search-text:not(:current) div" should be an invalid selector

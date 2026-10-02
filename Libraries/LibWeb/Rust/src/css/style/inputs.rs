@@ -197,12 +197,20 @@ pub(super) fn compile_selector_program(
         html_element_namespace,
         namespaces,
     );
-    for selector in selectors {
-        let compiled = compiler.compile_in_scope(selector, scope);
+    let count_entry = |compiled: &compiler::CompiledEntry, counters: &mut Counters| {
         if let Some(counter) = compiled.marker.and_then(|marker| marker.counter()) {
             counters.bump(counter);
         }
         counters.bump(Counter::ExactSelectorEntries);
+    };
+    for selector in selectors {
+        count_entry(&compiler.compile_in_scope(selector, scope), counters);
+        if selector.styles_every_search_text_match() {
+            count_entry(
+                &compiler.compile_in_scope_for_current_search_text_match(selector, scope),
+                counters,
+            );
+        }
     }
     compiler.finish()
 }

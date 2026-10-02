@@ -40,6 +40,8 @@ pub struct PaintState {
     pub(crate) search_text: Option<Arc<SelectionRange>>,
     /// The `::search-text` styles, shared as the `::selection` styles are.
     pub(crate) search_text_pseudo_styles: Arc<SelectionPseudoStyles>,
+    /// The `::search-text:current` styles, shared as the `::selection` styles are.
+    pub(crate) search_text_current_pseudo_styles: Arc<SelectionPseudoStyles>,
 }
 
 /// Each row's committed style for one highlight pseudo-element.
@@ -53,6 +55,7 @@ impl PaintState {
         match highlight {
             HighlightPseudoElement::Selection => &mut self.selection_pseudo_styles,
             HighlightPseudoElement::SearchText => &mut self.search_text_pseudo_styles,
+            HighlightPseudoElement::SearchTextCurrent => &mut self.search_text_current_pseudo_styles,
         }
     }
 

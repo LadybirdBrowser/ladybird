@@ -220,7 +220,7 @@ pub struct FfiSettledPseudoRecords {
 }
 
 /// One record slot per synthetic pseudo-element kind in an engine record answer.
-pub const PSEUDO_RECORD_SLOTS: usize = 9;
+pub const PSEUDO_RECORD_SLOTS: usize = 10;
 
 #[derive(Default)]
 pub(crate) struct FfiStyleTransactionOutput {
@@ -733,9 +733,9 @@ pub struct FfiElementArrival {
 /// The last pseudo-element kind C++ materializes as a synthetic pseudo-element; the kinds up to
 /// it are the bits a style record's pseudo-element mask carries. Mirrors the C++
 /// `last_synthetic_pseudo_element`.
-pub const LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND: u16 = 8;
-pub const FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 9;
-pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 14;
+pub const LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND: u16 = 9;
+pub const FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 10;
+pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 15;
 
 /// What C++ reports about a style reaction it applied, for the engine to derive the reactions of
 /// the element's children. Mirrors C++ `StyleReactionAppliedFact`.
@@ -3551,18 +3551,19 @@ pub enum FfiDemandedPseudoElement {
     FirstLine = 4,
     Marker = 5,
     SearchText = 6,
-    Selection = 7,
-    ViewTransition = 8,
-    DetailsContent = 9,
-    FileSelectorButton = 10,
-    Placeholder = 11,
-    SliderFill = 12,
-    SliderThumb = 13,
-    SliderTrack = 14,
-    ViewTransitionGroup = 17,
-    ViewTransitionImagePair = 18,
-    ViewTransitionNew = 19,
-    ViewTransitionOld = 20,
+    SearchTextCurrent = 7,
+    Selection = 8,
+    ViewTransition = 9,
+    DetailsContent = 10,
+    FileSelectorButton = 11,
+    Placeholder = 12,
+    SliderFill = 13,
+    SliderThumb = 14,
+    SliderTrack = 15,
+    ViewTransitionGroup = 18,
+    ViewTransitionImagePair = 19,
+    ViewTransitionNew = 20,
+    ViewTransitionOld = 21,
 }
 
 /// The answer to a record demand: the record, or that the pseudo-element read generates no box

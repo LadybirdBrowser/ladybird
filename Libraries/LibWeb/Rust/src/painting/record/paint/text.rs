@@ -79,8 +79,11 @@ pub(crate) struct SelectionStyleAnswer {
 // https://drafts.csswg.org/css-pseudo-4/#highlight-backgrounds
 // The ::search-text overlay is drawn directly over or below the ::selection overlay depending on the UA, and drawn
 // over all other overlays.
-const HIGHLIGHT_OVERLAY_ORDER: [HighlightPseudoElement; 2] =
-    [HighlightPseudoElement::Selection, HighlightPseudoElement::SearchText];
+const HIGHLIGHT_OVERLAY_ORDER: [HighlightPseudoElement; 3] = [
+    HighlightPseudoElement::Selection,
+    HighlightPseudoElement::SearchText,
+    HighlightPseudoElement::SearchTextCurrent,
+];
 
 fn range_offsets_for_fragment<O: Observer>(
     recorder: &PaintRecorder<'_, O>,
@@ -117,7 +120,8 @@ fn highlight_offsets_for_fragment<O: Observer>(
                 range_offsets_for_fragment(recorder, range, fragment)
             }
         }
-        HighlightPseudoElement::SearchText => {
+        HighlightPseudoElement::SearchText => None,
+        HighlightPseudoElement::SearchTextCurrent => {
             let range = recorder.paint_state.search_text.as_ref()?;
             range_offsets_for_fragment(recorder, range, fragment)
         }
@@ -132,7 +136,9 @@ fn highlight_style<O: Observer>(
 ) -> Arc<SelectionStyleAnswer> {
     match highlight {
         HighlightPseudoElement::Selection => recorder.selection_style(node),
-        HighlightPseudoElement::SearchText => recorder.search_text_style(node),
+        HighlightPseudoElement::SearchText | HighlightPseudoElement::SearchTextCurrent => {
+            recorder.search_text_style(node, highlight)
+        }
     }
 }
 

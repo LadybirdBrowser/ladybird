@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	getComputedStyle() for ::search-text
+Pass	getComputedStyle() for ::search-text: should return an empty CSSStyleDeclaration
+Pass	getComputedStyle() for ::search-text) should return an empty CSSStyleDeclaration
+Pass	getComputedStyle() for ::search-text( should return an empty CSSStyleDeclaration
+Pass	getComputedStyle() for ::search-text(foo) should return an empty CSSStyleDeclaration
+Pass	getComputedStyle() for ::search-text() should return an empty CSSStyleDeclaration
+Pass	getComputedStyle() for :::search-text should return an empty CSSStyleDeclaration
+Pass	getComputedStyle() for ::search-text. should return an empty CSSStyleDeclaration

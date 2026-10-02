@@ -2052,18 +2052,19 @@ fn read_record_demand(
             4 => Pseudo::FirstLine,
             5 => Pseudo::Marker,
             6 => Pseudo::SearchText,
-            7 => Pseudo::Selection,
-            8 => Pseudo::ViewTransition,
-            9 => Pseudo::DetailsContent,
-            10 => Pseudo::FileSelectorButton,
-            11 => Pseudo::Placeholder,
-            12 => Pseudo::SliderFill,
-            13 => Pseudo::SliderThumb,
-            14 => Pseudo::SliderTrack,
-            17 => Pseudo::ViewTransitionGroup,
-            18 => Pseudo::ViewTransitionImagePair,
-            19 => Pseudo::ViewTransitionNew,
-            20 => Pseudo::ViewTransitionOld,
+            7 => Pseudo::SearchTextCurrent,
+            8 => Pseudo::Selection,
+            9 => Pseudo::ViewTransition,
+            10 => Pseudo::DetailsContent,
+            11 => Pseudo::FileSelectorButton,
+            12 => Pseudo::Placeholder,
+            13 => Pseudo::SliderFill,
+            14 => Pseudo::SliderThumb,
+            15 => Pseudo::SliderTrack,
+            18 => Pseudo::ViewTransitionGroup,
+            19 => Pseudo::ViewTransitionImagePair,
+            20 => Pseudo::ViewTransitionNew,
+            21 => Pseudo::ViewTransitionOld,
             _ => return Err(format!("record demand of pseudo-element kind {kind}").into()),
         })
     };
@@ -2138,19 +2139,27 @@ fn read_pseudo_records_present(
     payload: &mut PayloadReader,
     format_version: u64,
 ) -> Result<u16, Box<dyn std::error::Error>> {
-    Ok(if format_version >= 20 {
+    let present = if format_version >= 20 {
         payload.read_u16()?
     } else {
-        u16::try_from(pseudo_kind_mask_from_recording(
-            u64::from(payload.read_u8()?),
-            format_version,
-        ))?
-    })
+        u16::from(payload.read_u8()?)
+    };
+    Ok(u16::try_from(pseudo_kind_mask_from_recording(
+        u64::from(present),
+        format_version,
+    ))?)
 }
 
 fn pseudo_kind_from_recording(kind: u8, format_version: u64) -> u8 {
     // Before version 20 there was no ::search-text, so the kinds after ::marker were numbered one lower.
-    if format_version < 20 && (6..u8::MAX).contains(&kind) {
+    let kind = if format_version < 20 && (6..u8::MAX).contains(&kind) {
+        kind + 1
+    } else {
+        kind
+    };
+    // Before version 21 there was no internal ::search-text:current kind, so the kinds after ::search-text were
+    // numbered one lower.
+    if format_version < 21 && (7..u8::MAX).contains(&kind) {
         kind + 1
     } else {
         kind
@@ -2158,6 +2167,11 @@ fn pseudo_kind_from_recording(kind: u8, format_version: u64) -> u8 {
 }
 
 fn pseudo_kind_to_recording(kind: u8, format_version: u64) -> u8 {
+    let kind = if format_version < 21 && (8..u8::MAX).contains(&kind) {
+        kind - 1
+    } else {
+        kind
+    };
     if format_version < 20 && (7..u8::MAX).contains(&kind) {
         kind - 1
     } else {
@@ -2166,8 +2180,13 @@ fn pseudo_kind_to_recording(kind: u8, format_version: u64) -> u8 {
 }
 
 fn pseudo_kind_mask_from_recording(mask: u64, format_version: u64) -> u64 {
-    if format_version < 20 {
+    let mask = if format_version < 20 {
         (mask & 0x3f) | ((mask & !0x3f) << 1)
+    } else {
+        mask
+    };
+    if format_version < 21 {
+        (mask & 0x7f) | ((mask & !0x7f) << 1)
     } else {
         mask
     }
@@ -2193,7 +2212,7 @@ fn element_arrivals_from_recording(
     arrivals: &[FfiElementArrival],
     format_version: u64,
 ) -> Cow<'_, [FfiElementArrival]> {
-    if format_version >= 20 {
+    if format_version >= 21 {
         return Cow::Borrowed(arrivals);
     }
     Cow::Owned(
@@ -3236,16 +3255,21 @@ mod tests {
     }
 
     #[test]
-    fn pseudo_records_present_from_before_search_text_are_renumbered() {
+    fn pseudo_records_present_from_older_formats_are_renumbered() {
         let mut payload = PayloadWriter::default();
         payload.write_u8(0b1110_0000);
         let present = read_pseudo_records_present(&mut PayloadReader::new(payload.as_bytes()), 19).unwrap();
-        assert_eq!(present, 0b1_1010_0000);
+        assert_eq!(present, 0b11_0010_0000);
+
+        let mut payload = PayloadWriter::default();
+        payload.write_u16(0b1_1110_0000);
+        let present = read_pseudo_records_present(&mut PayloadReader::new(payload.as_bytes()), 20).unwrap();
+        assert_eq!(present, 0b11_0110_0000);
     }
 
     #[test]
-    fn rule_matches_from_before_search_text_are_renumbered() {
-        for (version, recorded, expected) in [(19, 5, 5), (19, 6, 7), (20, 6, 6)] {
+    fn rule_matches_from_older_formats_are_renumbered() {
+        for (version, recorded, expected) in [(19, 5, 5), (19, 6, 8), (20, 6, 6), (20, 7, 8), (21, 7, 7)] {
             let mut payload = PayloadWriter::default();
             payload.write_length(2);
             for pseudo_element in [recorded, u32::MAX] {
@@ -3262,7 +3286,7 @@ mod tests {
     }
 
     #[test]
-    fn selector_targets_from_before_search_text_are_renumbered() {
+    fn selector_targets_from_older_formats_are_renumbered() {
         use libweb_rust::css::style::selector::SelectorProgramBuilder;
         use libweb_rust::css::style::tree::PseudoElementKind;
         use libweb_rust::css::style::tree::PseudoElementTarget;
@@ -3273,7 +3297,7 @@ mod tests {
             builder.push_entry_for_pseudo(root, Some(PseudoElementTarget::new(PseudoElementKind(kind))));
             builder.finish()
         };
-        for (version, recorded, expected) in [(19, 5, 5), (19, 6, 7), (20, 6, 6)] {
+        for (version, recorded, expected) in [(19, 5, 5), (19, 6, 8), (20, 6, 6), (20, 7, 8), (21, 7, 7)] {
             let mut payload = PayloadWriter::default();
             libweb_rust::css::style::selector::replay::write(&program_targeting(recorded), &mut payload);
             let program = read_selector_program(&mut PayloadReader::new(payload.as_bytes()), version).unwrap();

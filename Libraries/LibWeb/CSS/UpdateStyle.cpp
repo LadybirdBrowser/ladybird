@@ -1470,6 +1470,8 @@ void Document::update_highlight_style_observability(CSS::PseudoElement pseudo_el
         return;
     state = { .observable = observable, .needs_update = false };
     style_computer().style_engine().set_pseudo_element_style_deferred(to_underlying(pseudo_element), !observable);
+    if (pseudo_element == CSS::PseudoElement::SearchText)
+        style_computer().style_engine().set_pseudo_element_style_deferred(to_underlying(CSS::PseudoElement::SearchTextCurrent), !observable);
     for (auto const& input : inputs)
         record_highlight_style_inputs(*this, input.root, input.range.ptr());
 }

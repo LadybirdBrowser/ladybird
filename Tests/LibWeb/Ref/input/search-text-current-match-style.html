@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-current-match-style-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+p::search-text {
+    background-color: lime;
+    color: blue;
+}
+p::search-text:current {
+    color: red;
+}
+p::search-text:not(:current) {
+    background-color: yellow;
+}
+</style>
+<p>Find the needle in this haystack</p>
+<script>
+internals.findInPage("needle");
+</script>

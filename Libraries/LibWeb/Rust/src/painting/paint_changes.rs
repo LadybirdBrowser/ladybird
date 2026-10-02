@@ -374,13 +374,18 @@ pub unsafe extern "C" fn render_state_sync_highlight_pseudo_styles(
     element: u32,
     selection_style_record: u64,
     search_text_style_record: u64,
+    search_text_current_style_record: u64,
 ) {
     let Some(element) = StyleNodeID::from_raw(element) else {
         return;
     };
     let change = PaintChange::SyncHighlightPseudoStyles {
         element,
-        style_records: [selection_style_record, search_text_style_record],
+        style_records: [
+            selection_style_record,
+            search_text_style_record,
+            search_text_current_style_record,
+        ],
     };
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, change) };

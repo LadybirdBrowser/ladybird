@@ -298,6 +298,39 @@ impl Specificity {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SearchTextMatchFilter {
+    Current,
+    NotCurrent,
+}
+
+pub fn search_text_match_filter_of_pseudo_class(pseudo_class: &PseudoClassSelector) -> Option<SearchTextMatchFilter> {
+    match pseudo_class.pseudo_class {
+        PseudoClassType::Current => Some(SearchTextMatchFilter::Current),
+        PseudoClassType::Not => {
+            let [argument] = &*pseudo_class.argument_selector_list else {
+                return None;
+            };
+            let [compound] = &*argument.compound_selectors else {
+                return None;
+            };
+            matches!(
+                &*compound.simple_selectors,
+                [SimpleSelector::PseudoClass(inner)] if inner.pseudo_class == PseudoClassType::Current
+            )
+            .then_some(SearchTextMatchFilter::NotCurrent)
+        }
+        _ => None,
+    }
+}
+
+pub fn search_text_match_filter(simple: &SimpleSelector) -> Option<SearchTextMatchFilter> {
+    match simple {
+        SimpleSelector::PseudoClass(pseudo_class) => search_text_match_filter_of_pseudo_class(pseudo_class),
+        _ => None,
+    }
+}
+
 impl PartialEq for CompiledSelector {
     fn eq(&self, other: &Self) -> bool {
         self.compound_selectors == other.compound_selectors
@@ -325,6 +358,20 @@ impl CompiledSelector {
                     Some(selector.pseudo_element)
                 }
                 _ => None,
+            })
+            .map(|pseudo_element| {
+                let names_current_match = pseudo_element == PseudoElementType::SearchText
+                    && compound_selectors.last().is_some_and(|compound| {
+                        compound
+                            .simple_selectors
+                            .iter()
+                            .any(|simple| search_text_match_filter(simple) == Some(SearchTextMatchFilter::Current))
+                    });
+                if names_current_match {
+                    PseudoElementType::SearchTextCurrent
+                } else {
+                    pseudo_element
+                }
             });
 
         let can_use_fast_matches = compound_selectors.iter().all(|compound| {
@@ -347,6 +394,16 @@ impl CompiledSelector {
 
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    pub fn styles_every_search_text_match(&self) -> bool {
+        self.target_pseudo_element == Some(PseudoElementType::SearchText)
+            && self.compound_selectors.last().is_some_and(|compound| {
+                compound
+                    .simple_selectors
+                    .iter()
+                    .all(|simple| search_text_match_filter(simple).is_none())
+            })
     }
 
     /// https://www.w3.org/TR/selectors-4/#specificity-rules

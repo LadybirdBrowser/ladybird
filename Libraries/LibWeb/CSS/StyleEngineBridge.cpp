@@ -49,6 +49,7 @@ StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer
     if (m_style_computer) {
         set_pseudo_element_style_deferred(to_underlying(PseudoElement::Selection), true);
         set_pseudo_element_style_deferred(to_underlying(PseudoElement::SearchText), true);
+        set_pseudo_element_style_deferred(to_underlying(PseudoElement::SearchTextCurrent), true);
     }
 }
 
@@ -267,6 +268,7 @@ StyleRecordID StyleEngine::republish_record_environment(Layout::BegunRead const&
     static_assert(to_underlying(StyleEngine::DemandedPseudoElement::name) == to_underlying(PseudoElement::name));
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(After)
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(SearchText)
+ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(SearchTextCurrent)
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(ViewTransition)
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(DetailsContent)
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(SliderTrack)

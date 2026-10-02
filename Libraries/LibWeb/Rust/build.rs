@@ -1155,6 +1155,9 @@ fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result
     )?;
     for (name, value) in &pseudo_elements {
         let object = value.as_object().unwrap();
+        if object.get("is-internal").and_then(serde_json::Value::as_bool) == Some(true) {
+            continue;
+        }
         let (target, serialized_alias) = match object.get("alias-for").and_then(serde_json::Value::as_str) {
             Some(target) => (target, format!("Some(\"{name}\")")),
             None => (name.as_str(), "None".to_string()),
