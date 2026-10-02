@@ -4936,6 +4936,35 @@ pub(crate) fn prepare_subtree_for_detach(main_thread: &MainThread, arena: &Layou
     }
 }
 
+/// Pins, for the host, the style record of the box the element or text node `style_node` names is
+/// bound to, or of the box of its pseudo-element `generated_for`, so that the box keeps its style
+/// readable once the node has left the document. The row is found by identity, so this makes no
+/// shell.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_pin_bound_box_style_record_for_detachment(
+    arena: *mut c_void,
+    style_node: u32,
+    generated_for: u8,
+) {
+    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
+        return;
+    };
+    // SAFETY: Guaranteed by the caller.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    let row = if generated_for == 0 {
+        arena.bound_row(style_node)
+    } else {
+        arena.bound_pseudo_element_row(style_node, generated_for)
+    };
+    if !row.is_invalid() {
+        arena.pin_style_record_for_detachment(row);
+    }
+}
+
 /// Pins the style record `record` for the host's readers of the row `slot`, until the host
 /// releases it or the row is freed.
 ///

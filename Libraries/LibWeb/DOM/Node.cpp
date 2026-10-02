@@ -1367,6 +1367,18 @@ bool Node::list_item_box_change_renumbers_list(Element const& list_item)
     return !final_direct_list_item_does_not_renumber_existing_content(list_item);
 }
 
+// Pins the style record of the box `node`, or its pseudo-element of kind `pseudo_element`, is bound to, for its
+// readers once the node leaves the document. The row is found by the node's StyleNodeID, so no layout node is made
+// just to pin it.
+static void pin_bound_box_style_record_for_detachment(Node& node, Optional<CSS::PseudoElement> pseudo_element = {})
+{
+    auto* arena = node.document().layout_node_arena_if_created();
+    if (!arena)
+        return;
+    auto generated_for = pseudo_element.has_value() ? Layout::Node::encode_generated_for(*pseudo_element) : 0;
+    Layout::RustFFI::layout_arena_pin_bound_box_style_record_for_detachment(arena->handle(), Layout::Node::style_node_of(&node).value(), generated_for);
+}
+
 class RemovalStyleRecordPins {
 public:
     explicit RemovalStyleRecordPins(CSS::StyleComputer const& style_computer)
@@ -1384,14 +1396,12 @@ public:
         if (!was_connected)
             return;
         node.for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
-            if (auto* layout_node = inclusive_descendant.unsafe_layout_node())
-                layout_node->pin_style_record_for_detachment();
+            pin_bound_box_style_record_for_detachment(inclusive_descendant);
 
             if (auto* element = as_if<Element>(inclusive_descendant)) {
                 pin_dom_style_record(element->style_record_identity());
-                element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
-                    if (auto* layout_node = pseudo_element.unsafe_layout_node())
-                        layout_node->pin_style_record_for_detachment();
+                element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement type, SyntheticPseudoElement& pseudo_element) {
+                    pin_bound_box_style_record_for_detachment(*element, type);
                     pin_dom_style_record(pseudo_element.style_record_identity());
                 });
             }
@@ -1407,13 +1417,11 @@ public:
         // Detached subtrees do not need DOM-held record pins, but layout nodes can still outlive removing steps and
         // keep their detachment pins.
         node.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
-            if (auto* layout_node = inclusive_descendant.unsafe_layout_node())
-                layout_node->pin_style_record_for_detachment();
+            pin_bound_box_style_record_for_detachment(inclusive_descendant);
 
             if (auto* element = as_if<Element>(inclusive_descendant)) {
-                element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
-                    if (auto* layout_node = pseudo_element.unsafe_layout_node())
-                        layout_node->pin_style_record_for_detachment();
+                element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement type, SyntheticPseudoElement&) {
+                    pin_bound_box_style_record_for_detachment(*element, type);
                 });
             }
 
