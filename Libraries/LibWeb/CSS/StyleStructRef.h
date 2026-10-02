@@ -19,9 +19,12 @@ namespace Web::CSS {
 // NB: Must match STYLE_GROUP_STATIC_REFCOUNT in computed_values.rs.
 static constexpr size_t style_group_static_refcount = NumericLimits<size_t>::max();
 
-// Returns the intentionally leaked default payload for the given style group,
-// registering all group vtables with the Rust ownership machinery on first use.
+// Registers every style group with the Rust side: its vtable and default payload, its fields, and the
+// groups each longhand reaches. Runs once; every later call returns at once.
 // Defined in ComputedValues.cpp, where the group types are visible.
+WEB_API void register_style_groups();
+
+// Returns the intentionally leaked default payload for the given style group.
 WEB_API void const* style_group_default_payload(size_t group_index);
 
 // A copy-on-write reference to a style value group struct.

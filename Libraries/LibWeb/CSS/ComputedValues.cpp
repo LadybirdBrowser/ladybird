@@ -557,8 +557,7 @@ static void register_style_group_field_descriptors()
 Optional<StyleGroupIndex> ComputedValues::style_group_of_property(PropertyID property_id)
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-    // The bindings are filled with the descriptor registration, which the default payloads trigger.
-    style_group_default_payload(0);
+    register_style_groups();
     return style_group_by_property()[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
 }
 
@@ -660,7 +659,7 @@ static_assert(to_underlying(MathShift::Compact) == 1);
 static_assert(to_underlying(MathStyle::Normal) == 0);
 static_assert(to_underlying(MathStyle::Compact) == 1);
 
-void const* style_group_default_payload(size_t group_index)
+static auto const& registered_default_payloads()
 {
     StyleComputer::ensure_style_metadata_tables_installed();
     static auto const default_payloads = [] {
@@ -675,7 +674,17 @@ void const* style_group_default_payload(size_t group_index)
         register_style_group_field_descriptors();
         return payloads;
     }();
-    return default_payloads[group_index];
+    return default_payloads;
+}
+
+void register_style_groups()
+{
+    (void)registered_default_payloads();
+}
+
+void const* style_group_default_payload(size_t group_index)
+{
+    return registered_default_payloads()[group_index];
 }
 
 bool ComputedValues::property_inheritance_is_standard() const

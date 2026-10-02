@@ -90,6 +90,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         held_root_font_inputs,
         random_base_values,
         replaced_content_inputs,
+        style_groups,
         transition_baselines,
         custom_property_registrations_changed,
         pending_element_style_computation_selections,
@@ -202,6 +203,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(held_root_font_inputs);
     assert_member_is_sync(random_base_values);
     assert_member_is_sync(replaced_content_inputs);
+    assert_member_is_sync(style_groups);
     assert_member_is_sync(transition_baselines);
     assert_member_is_sync(custom_property_registrations_changed);
     assert_member_is_sync(pending_element_style_computation_selections);

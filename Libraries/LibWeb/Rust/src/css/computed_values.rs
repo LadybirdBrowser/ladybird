@@ -2100,17 +2100,45 @@ pub(crate) fn registered_group_field_descriptors(group_index: usize) -> Option<&
     Some(&descriptors.entries[range])
 }
 
-struct PropertyDependencyMasks {
-    first_property: u16,
-    masks: Box<[u32]>,
-    output_masks: Box<[u32]>,
+/// The computed style groups each longhand reaches, as the C++ group builders register them once
+/// per process.
+pub(crate) struct StyleGroupMasks {
+    pub(crate) first_property: u16,
+    /// Per longhand, the groups a change of its specified winner may change.
+    pub(crate) masks: &'static [u32],
+    /// Per longhand, the group that owns its output.
+    pub(crate) output_masks: &'static [u32],
 }
 
-static PROPERTY_DEPENDENCY_MASKS: OnceLock<PropertyDependencyMasks> = OnceLock::new();
+static PROPERTY_DEPENDENCY_MASKS: OnceLock<StyleGroupMasks> = OnceLock::new();
 
-pub(crate) fn property_dependency_masks_snapshot() -> Option<(u16, &'static [u32], &'static [u32])> {
-    let mapping = PROPERTY_DEPENDENCY_MASKS.get()?;
-    Some((mapping.first_property, &mapping.masks, &mapping.output_masks))
+/// What an engine created before the host registered any groups holds: no longhand reaches a group.
+static UNREGISTERED_STYLE_GROUPS: StyleGroupMasks = StyleGroupMasks {
+    first_property: 0,
+    masks: &[],
+    output_masks: &[],
+};
+
+impl StyleGroupMasks {
+    pub(crate) fn registered() -> Option<&'static Self> {
+        PROPERTY_DEPENDENCY_MASKS.get()
+    }
+
+    /// The registered groups, or none for a process that registered none: an engine of a test or a
+    /// replay, which takes the registered ones once the recording names them.
+    pub(crate) fn registered_or_none() -> &'static Self {
+        Self::registered().unwrap_or(&UNREGISTERED_STYLE_GROUPS)
+    }
+
+    /// The computed style groups which may change when `property`'s specified winner changes; none
+    /// for a longhand that feeds no group of its own.
+    pub(crate) fn dependencies(&self, property: u16) -> u32 {
+        property
+            .checked_sub(self.first_property)
+            .and_then(|index| self.masks.get(usize::from(index)))
+            .copied()
+            .unwrap_or(0)
+    }
 }
 
 #[cfg(feature = "style-replay")]
@@ -2118,15 +2146,15 @@ pub fn register_replay_property_dependency_masks(first_property: u16, masks: &[u
     assert_eq!(masks.len(), output_masks.len());
     if let Some(existing) = PROPERTY_DEPENDENCY_MASKS.get() {
         assert_eq!(existing.first_property, first_property);
-        assert_eq!(existing.masks.as_ref(), masks);
-        assert_eq!(existing.output_masks.as_ref(), output_masks);
+        assert_eq!(existing.masks, masks);
+        assert_eq!(existing.output_masks, output_masks);
         return;
     }
     PROPERTY_DEPENDENCY_MASKS
-        .set(PropertyDependencyMasks {
+        .set(StyleGroupMasks {
             first_property,
-            masks: masks.into(),
-            output_masks: output_masks.into(),
+            masks: masks.to_vec().leak(),
+            output_masks: output_masks.to_vec().leak(),
         })
         .unwrap_or_else(|_| unreachable!("property dependency masks were checked above"));
 }
@@ -2136,9 +2164,7 @@ pub fn register_replay_property_dependency_masks(first_property: u16, masks: &[u
 /// The mapping comes from the C++ group builders which own the remaining cross-property
 /// computation rules. Missing coverage stays typed so callers can widen to every group.
 pub(crate) fn computed_group_dependency_mask(property: u16) -> Option<u32> {
-    let mapping = PROPERTY_DEPENDENCY_MASKS.get()?;
-    let index = property.checked_sub(mapping.first_property)?;
-    mapping.masks.get(index as usize).copied().filter(|mask| *mask != 0)
+    Some(StyleGroupMasks::registered()?.dependencies(property)).filter(|mask| *mask != 0)
 }
 
 /// The computed style group which directly owns one longhand's output.
@@ -2208,10 +2234,10 @@ pub unsafe extern "C" fn rust_style_group_register_property_dependency_masks(
     let output_masks = unsafe { std::slice::from_raw_parts(output_masks, count) };
     assert!(
         PROPERTY_DEPENDENCY_MASKS
-            .set(PropertyDependencyMasks {
+            .set(StyleGroupMasks {
                 first_property,
-                masks: masks.into(),
-                output_masks: output_masks.into(),
+                masks: masks.to_vec().leak(),
+                output_masks: output_masks.to_vec().leak(),
             })
             .is_ok(),
         "property dependency masks installed twice"

@@ -17,6 +17,7 @@ use super::*;
 use crate::css::computed_longhand_table::{
     ComputedLonghandTable, DEPENDS_ON_VIEWPORT_METRICS, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS,
 };
+use crate::css::computed_values::StyleGroupMasks;
 use animations::DeclarationScope;
 pub(super) use demand::WinnerRepublication;
 pub(crate) use demand::{RecordDemand, RecordDemandAnswer};
@@ -964,11 +965,7 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
                 return Err(Unanswered::Refused);
             }
-            let Some(groups) = moved_longhand_groups(property) else {
-                counters.bump(Counter::EngineComputedRecordBailProperty);
-                return Err(Unanswered::Refused);
-            };
-            groups_to_rebuild |= groups;
+            groups_to_rebuild |= moved_longhand_groups(self.style_groups, property);
             select(property);
             let bits = crate::css::style_compute::table_row_bits(property);
             let counterpart = if bits & crate::css::style_compute::LOGICAL_ALIAS_BIT != 0 {
@@ -979,11 +976,7 @@ impl RetainedState {
                 property
             };
             if counterpart != property {
-                let Some(groups) = moved_longhand_groups(counterpart) else {
-                    counters.bump(Counter::EngineComputedRecordBailProperty);
-                    return Err(Unanswered::Refused);
-                };
-                groups_to_rebuild |= groups;
+                groups_to_rebuild |= moved_longhand_groups(self.style_groups, counterpart);
                 select(counterpart);
             }
         }
@@ -1494,9 +1487,7 @@ impl RetainedState {
             });
         // A winner that starts an animation keeps the record in C++, unless it declares CSS
         // animations and the host can be handed the plan the record decides, which is asked of every
-        // node, a shared record's too. The font-phase longhands feed no group of their own: the full
-        // drive resolves the font from them and rebuilds every group, rejecting the values the font
-        // resolution does not pass on yet.
+        // node, a shared record's too.
         for property in self.winner_groups.semantic_delta_properties(None, state) {
             if self.first_record_winner_needs_cpp(property)
                 && !(property_declares_css_animations(property) && self.may_plan_css_animations(node, state, scratch))
@@ -1905,11 +1896,9 @@ impl RetainedState {
     /// Whether a first record's winner keeps the record's computation in C++: a property that
     /// starts an animation. A transition declaration is computed into the record like any other
     /// value: a first record has no before-change style to start a transition from, and a record
-    /// driven in full that replaces one leaves the transition step to the host. The font-phase
-    /// longhands without a group of their own are inputs of the font group the full drive builds.
+    /// driven in full that replaces one leaves the transition step to the host.
     fn first_record_winner_needs_cpp(&self, property: u16) -> bool {
-        (property_starts_animation(property) && !property_declares_transitions(property))
-            || (computed_group_dependency_mask(property).is_none() && !font_group_carries_longhand(property))
+        property_starts_animation(property) && !property_declares_transitions(property)
     }
 
     /// The counter-style registry a record computed for `target` from `table` names, as C++ stamps
@@ -2200,7 +2189,6 @@ impl RetainedState {
         use crate::css::computed_value_types::{
             STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_SURROUND,
         };
-        use crate::css::computed_values::computed_group_dependency_mask;
         use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT};
 
         if properties.is_empty()
@@ -2226,8 +2214,7 @@ impl RetainedState {
             if property_starts_animation(property) {
                 return None;
             }
-            let groups = computed_group_dependency_mask(property)?;
-            groups_to_rebuild |= groups;
+            groups_to_rebuild |= moved_longhand_groups(self.style_groups, property);
             select(property);
             let bits = crate::css::style_compute::table_row_bits(property);
             let counterpart = if bits & crate::css::style_compute::LOGICAL_ALIAS_BIT != 0 {
@@ -2246,7 +2233,7 @@ impl RetainedState {
                 property
             };
             if counterpart != property {
-                groups_to_rebuild |= computed_group_dependency_mask(counterpart)?;
+                groups_to_rebuild |= moved_longhand_groups(self.style_groups, counterpart);
                 select(counterpart);
             }
         }
@@ -5524,11 +5511,14 @@ fn font_resolution_selects_by(property: u16) -> bool {
 
 /// The computed style groups a moved longhand reaches. One the font group carries feeds no group of
 /// its own and reaches every value the font feeds, through the font group: a delta moving it is
-/// driven in full.
-fn moved_longhand_groups(property: u16) -> Option<u32> {
+/// driven in full, as is one moving a longhand no registered group names.
+fn moved_longhand_groups(style_groups: &StyleGroupMasks, property: u16) -> u32 {
     use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
-    computed_group_dependency_mask(property)
-        .or_else(|| font_group_carries_longhand(property).then_some(1 << STYLE_GROUP_INDEX_FONT))
+    match style_groups.dependencies(property) {
+        0 if font_group_carries_longhand(property) => 1 << STYLE_GROUP_INDEX_FONT,
+        0 => (1 << crate::css::table_group_builder::group_index::COUNT) - 1,
+        groups => groups,
+    }
 }
 
 /// The font-phase longhands the font group carries without a group binding of their own.

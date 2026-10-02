@@ -194,7 +194,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     engine_count += 1;
                 }
                 EventKind::SetComputedGroupDependencyMasks => {
-                    let _engine = read_engine(&mut event.payload, &live_engines)?;
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
                     if event.payload.read_bool()? {
                         let first_property = event.payload.read_u16()?;
                         let masks = event.payload.read_u32_vec()?;
@@ -204,6 +204,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             &masks,
                             &output_masks,
                         );
+                        unsafe { bridge::style_engine_use_registered_style_groups(engine) };
                     }
                 }
                 EventKind::DestroyGraph => {
