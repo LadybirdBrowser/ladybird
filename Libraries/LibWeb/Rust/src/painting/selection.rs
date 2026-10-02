@@ -232,11 +232,16 @@ fn set_selection_pseudo_style_of_rows(
     rows: impl Iterator<Item = NodeSlotId>,
     answer: Option<&Arc<SelectionStyleAnswer>>,
 ) {
-    let mut paint_state = arena.paint_state().borrow_mut();
+    let styles = &mut arena.paint_state().borrow_mut().selection_pseudo_styles;
     for row in rows {
         match answer {
-            Some(answer) => paint_state.selection_pseudo_styles.insert(row, answer.clone()),
-            None => paint_state.selection_pseudo_styles.remove(&row),
-        };
+            Some(answer) => {
+                Arc::make_mut(styles).insert(row, answer.clone());
+            }
+            None if styles.contains_key(&row) => {
+                Arc::make_mut(styles).remove(&row);
+            }
+            None => {}
+        }
     }
 }

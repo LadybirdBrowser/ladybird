@@ -124,12 +124,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         // OPTIMIZATION: The compositor falls back to the viewport when there are no explicit
         // targets. Avoid generating redundant per-box targets when no non-viewport scroller
         // could need one.
-        if !self
-            .paint_state
-            .visual_context
-            .scroll_state
-            .has_non_viewport_wheel_scroll_target_candidate
-        {
+        if !self.paint_state.has_non_viewport_wheel_scroll_target_candidate {
             return;
         }
         if !self.is_visible(paintable) || !self.visible_for_hit_testing(paintable) {

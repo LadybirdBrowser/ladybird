@@ -24,8 +24,8 @@ use crate::painting::host::FfiLayerImageList;
 use crate::painting::layer_image_paint_facts::{LayerImagePaintFacts, layer_image_paint_facts_in};
 use crate::painting::paint_order_plan::PaintOrderInputs;
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
-use crate::painting::published_frame::PublishedRows;
-use crate::painting::record::damage::{FrameDamage, PaintDamage};
+use crate::painting::published_frame::{PublishedFrame, PublishedRows};
+use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
 use crate::painting::stacking_context::entries::StackingContextEntries;
@@ -399,39 +399,33 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
 }
 
 /// What the display list recording reads a document through: [`PaintRead`] and nothing else. It
-/// has no `Deref` to the arena, so a read the trait does not name does not compile. It reads the
-/// rows, their fragment links and their side data from what the document published when the
-/// recording started. The absolute rects it computes go to the recorder's own memo, stamped with
-/// the geometry epoch the recording started at.
+/// has no `Deref` to the arena, so a read the trait does not name does not compile, and it reads
+/// everything from the frame the document published when the recording started. The absolute rects
+/// it computes go to the recorder's own memo, stamped with the geometry epoch of the frame.
 #[derive(Clone, Copy)]
 pub(crate) struct PaintSource<'a> {
-    rows: &'a PublishedRows,
-    damage: &'a FrameDamage,
+    frame: &'a PublishedFrame,
     absolute_rects: &'a RefCell<AbsoluteRectMemo>,
 }
 
 impl<'a> PaintSource<'a> {
-    pub(crate) fn new(
-        rows: &'a PublishedRows,
-        damage: &'a FrameDamage,
-        absolute_rects: &'a RefCell<AbsoluteRectMemo>,
-    ) -> Self {
-        Self {
-            rows,
-            damage,
-            absolute_rects,
-        }
+    pub(crate) fn new(frame: &'a PublishedFrame, absolute_rects: &'a RefCell<AbsoluteRectMemo>) -> Self {
+        Self { frame, absolute_rects }
     }
 
-    /// The paint damage the frame was published with.
-    pub(crate) fn damage(&self) -> &'a FrameDamage {
-        self.damage
+    /// The frame the recording reads.
+    pub(crate) fn frame(&self) -> &'a PublishedFrame {
+        self.frame
+    }
+
+    fn rows(&self) -> &'a PublishedRows {
+        &self.frame.rows
     }
 }
 
 impl PaintSource<'_> {
     fn node(&self, id: NodeSlotId) -> Option<&PaintNode> {
-        self.rows.node(id)
+        self.rows().node(id)
     }
 
     /// A node's link to another, which is none for an invalid slot.
@@ -442,19 +436,19 @@ impl PaintSource<'_> {
 
 impl GeometryRead for PaintSource<'_> {
     fn paintable_data(&self, id: NodeSlotId) -> &PaintableData {
-        self.rows.paintable_data(id)
+        self.rows().paintable_data(id)
     }
 
     fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool {
-        self.rows.paintable_row_is_populated(id)
+        self.rows().paintable_row_is_populated(id)
     }
 
     fn with_committed_fragment_link<R>(&self, id: NodeSlotId, read: impl FnOnce(Option<&FragmentLink>) -> R) -> R {
-        self.rows.with_committed_fragment_link(id, read)
+        self.rows().with_committed_fragment_link(id, read)
     }
 
     fn committed_side_data(&self, id: NodeSlotId) -> impl Deref<Target = CommittedSideData> + '_ {
-        self.rows.committed_side_data(id)
+        self.rows().committed_side_data(id)
     }
 
     fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
@@ -475,11 +469,13 @@ impl GeometryRead for PaintSource<'_> {
     }
 
     fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
-        self.absolute_rects.borrow().get(id, self.rows.geometry_epoch)
+        self.absolute_rects.borrow().get(id, self.rows().geometry_epoch)
     }
 
     fn memoize_absolute_rect(&self, id: NodeSlotId, rect: CssPixelRect) {
-        self.absolute_rects.borrow_mut().set(id, self.rows.geometry_epoch, rect);
+        self.absolute_rects
+            .borrow_mut()
+            .set(id, self.rows().geometry_epoch, rect);
     }
 }
 
@@ -538,11 +534,11 @@ impl PaintRead for PaintSource<'_> {
     }
 
     fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
-        self.damage.of_row(row)
+        self.frame.damage().of_row(row)
     }
 
     fn damaged_paint_rows(&self) -> impl Iterator<Item = NodeSlotId> + '_ {
-        self.damage.rows()
+        self.frame.damage().rows()
     }
 
     fn with_paintable_visual_context_node_handles<R>(
@@ -550,15 +546,15 @@ impl PaintRead for PaintSource<'_> {
         id: NodeSlotId,
         read: impl FnOnce(&BoxVisualContextNodeHandles) -> R,
     ) -> R {
-        read(self.rows.visual_context_node_handles(id))
+        read(self.rows().visual_context_node_handles(id))
     }
 
     fn stacking_context_entries(&self, root: NodeSlotId) -> Option<impl Deref<Target = StackingContextEntries> + '_> {
-        self.rows.stacking_context_entries(root)
+        self.rows().stacking_context_entries(root)
     }
 
     fn rendered_text(&self, id: NodeSlotId) -> Option<&RenderedText> {
-        self.rows.text(id)?.rendered.as_deref()
+        self.rows().text(id)?.rendered.as_deref()
     }
 
     fn with_grapheme_segmenter<R>(&self, id: NodeSlotId, read: impl FnOnce(&GraphemeSegmenter) -> R) -> Option<R> {
@@ -574,7 +570,7 @@ impl PaintRead for PaintSource<'_> {
         if !self.node_kind_if_live(primary).is_some_and(node_facts::kind_is_text) {
             return fragments;
         }
-        if let Some(text) = self.rows.text(primary)
+        if let Some(text) = self.rows().text(primary)
             && self.slot_is_live(text.first_letter)
         {
             fragments.nodes[0] = text.first_letter;
@@ -586,7 +582,7 @@ impl PaintRead for PaintSource<'_> {
     }
 
     fn published_svg_filter(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgFilter>> {
-        published_filter_in(&self.rows.paint_facts.svg_paint_resources, slot, kind)
+        published_filter_in(&self.rows().paint_facts.svg_paint_resources, slot, kind)
     }
 
     fn published_svg_paint_server(
@@ -594,11 +590,11 @@ impl PaintRead for PaintSource<'_> {
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
     ) -> Option<Arc<PublishedSvgPaintServer>> {
-        published_paint_server_in(&self.rows.paint_facts.svg_paint_resources, slot, kind)
+        published_paint_server_in(&self.rows().paint_facts.svg_paint_resources, slot, kind)
     }
 
     fn replaced_paint_facts(&self, id: NodeSlotId) -> Option<ReplacedPaintFacts> {
-        self.rows.paint_facts.replaced.get(&id).cloned()
+        self.rows().paint_facts.replaced.get(&id).cloned()
     }
 
     fn layer_image_paint_facts(
@@ -607,6 +603,6 @@ impl PaintRead for PaintSource<'_> {
         list: FfiLayerImageList,
         computed_index: u32,
     ) -> Option<LayerImagePaintFacts> {
-        layer_image_paint_facts_in(&self.rows.paint_facts.layer_images, id, list, computed_index)
+        layer_image_paint_facts_in(&self.rows().paint_facts.layer_images, id, list, computed_index)
     }
 }

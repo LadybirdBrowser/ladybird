@@ -327,7 +327,6 @@ pub(crate) struct PaintableRowStore {
     absolute_rect_memo: RefCell<Vec<Option<(NodeSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
     absolute_rect_memo_epoch: Cell<u64>,
     committed_fragment_links: RefCell<CowColumn<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>>,
-    paint_recording_in_progress: Cell<bool>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
     unique_node_ids: UniqueNodeIdColumn,
     visual_context_tree_inputs: Cell<Option<crate::painting::host::FfiVisualContextTreeInputs>>,
@@ -803,17 +802,6 @@ impl LayoutNodeArena {
 
     pub(crate) fn paintable_row_count(&self) -> usize {
         self.paintable_rows.side_data.borrow().len()
-    }
-
-    pub(crate) fn set_paint_recording_in_progress(&self, in_progress: bool) {
-        self.paintable_rows.paint_recording_in_progress.set(in_progress);
-    }
-
-    pub(crate) fn debug_assert_not_recording(&self) {
-        debug_assert!(
-            !self.paintable_rows.paint_recording_in_progress.get(),
-            "paint damage pushed during display list recording would be missed by it"
-        );
     }
 
     pub(crate) fn populate_paintable_row(&mut self, layout_node: NodeSlotId) {

@@ -197,7 +197,7 @@ pub(crate) fn refresh_scroll_state(layout_arena: &impl PaintableRowsRead, scroll
         let paintable = state.paintable;
         if layout_arena.paintable_row_is_populated(paintable) {
             let offset = layout_arena.row_scroll_offset(paintable);
-            scroll_state.state_at_slot_mut(slot).own_offset = CssPixelPoint::new(-offset.x, -offset.y);
+            scroll_state.set_own_offset(slot, CssPixelPoint::new(-offset.x, -offset.y));
         }
     }
 }

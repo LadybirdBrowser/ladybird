@@ -6,23 +6,30 @@
 
 //! What a document publishes for the display list recording to read.
 //!
-//! [`PublishedRows`] is one generation of a document's layout tree shape and paintable rows, and of
-//! the columns read beside them. It is immutable: every column in it is a [`ColumnSnapshot`] the document shares
-//! with it, so the document writes its live columns (copying a chunk a publication still shares)
-//! while it is read.
+//! A [`PublishedFrame`] is what one recording reads: [`PublishedRows`], one generation of a
+//! document's layout tree shape, paintable rows and paint facts and of the columns read beside them,
+//! with the paint damage and the paint state the recording reads. It is immutable: every column in
+//! it is a [`ColumnSnapshot`] or an `Arc` the document shares with it, so the document writes its
+//! live columns (copying a chunk a frame still shares) while it is read.
 
 use crate::cow_column::ColumnSnapshot;
+use crate::css::css_pixels::CssPixelPoint;
+use crate::layout::LayoutNodeArena;
 use crate::layout::PublishedTextSlot;
 use crate::layout::SLOTS_PER_CHUNK;
 use crate::layout::fragment_tree::FragmentLink;
 use crate::layout::node_data::{NodeSlotId, PaintNode};
 use crate::layout::tree_shape::PUBLISHED_ROWS_PER_CHUNK;
 use crate::painting::layer_image_paint_facts::LayerImagePaintFactsTable;
+use crate::painting::paint_state::{PaintState, SelectionPseudoStyles};
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::paintable_rows::{CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK};
+use crate::painting::record::damage::FrameDamage;
 use crate::painting::replaced_paint_facts::ReplacedPaintFactsTable;
+use crate::painting::selection::SelectionRange;
 use crate::painting::stacking_context::entries::StackingContextEntries;
 use crate::painting::svg_paint_resources::SvgPaintResourceRows;
+use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::{BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES};
 use std::sync::Arc;
 
@@ -132,12 +139,96 @@ impl PublishedRows {
     }
 }
 
-// The rows are read on whichever thread paints them while the document writes its live columns:
-// they hold no cell, no raw pointer and no borrow of the document.
+/// What a recording reads of the document's paint state, as it was when the frame was published.
+pub(crate) struct PublishedPaintState {
+    pub(crate) visual_context_tree: Option<Arc<VisualContextTree>>,
+    /// Each scroll state slot's own scroll offset, shared with the document's scroll state.
+    scroll_own_offsets: Arc<Vec<CssPixelPoint>>,
+    pub(crate) has_non_viewport_wheel_scroll_target_candidate: bool,
+    pub(crate) selection: Option<Arc<SelectionRange>>,
+    pub(crate) selection_pseudo_styles: Arc<SelectionPseudoStyles>,
+    pub(crate) hit_test_list_generation: u64,
+    /// How many items the document's hit-test list held, which the recording's list reserves.
+    pub(crate) hit_test_item_capacity_hint: usize,
+}
+
+impl PublishedPaintState {
+    fn new(paint_state: &PaintState, hit_test_item_capacity_hint: usize) -> Self {
+        let visual_context = &paint_state.visual_context;
+        Self {
+            visual_context_tree: visual_context.tree.clone(),
+            scroll_own_offsets: visual_context.scroll_state.own_offsets().clone(),
+            has_non_viewport_wheel_scroll_target_candidate: visual_context
+                .scroll_state
+                .has_non_viewport_wheel_scroll_target_candidate,
+            selection: paint_state.selection.clone(),
+            selection_pseudo_styles: paint_state.selection_pseudo_styles.clone(),
+            hit_test_list_generation: paint_state.hit_test_list_generation,
+            hit_test_item_capacity_hint,
+        }
+    }
+
+    pub(crate) fn structural_epoch(&self) -> u64 {
+        self.visual_context_tree
+            .as_ref()
+            .map_or(0, |tree| tree.structural_epoch)
+    }
+
+    pub(crate) fn scroll_own_offset(&self, slot: usize) -> CssPixelPoint {
+        let offset = self.scroll_own_offsets.get(slot).copied();
+        debug_assert!(offset.is_some(), "the tree's scroll node has a scroll state");
+        offset.unwrap_or_default()
+    }
+}
+
+/// What a document published for one recording to read: its rows, its paint damage and the paint
+/// state the recording reads. [`LayoutNodeArena::freeze_frame`] is its only constructor and it has
+/// no `Clone`: a recording takes a frame and drops it before it returns, and nothing keeps one past
+/// the next write to the arena.
+pub(crate) struct PublishedFrame {
+    pub(super) rows: PublishedRows,
+    damage: FrameDamage,
+    paint_state: PublishedPaintState,
+}
+
+// A frame is read on whichever thread paints it while the document writes its live columns: it
+// holds no cell and no borrow of the document, and owns everything it reads but its nodes' styles.
+// Those are `HostShared` pointers to style records, which stay valid only because no style record
+// is released while a recording runs.
 const _: () = {
     const fn assert_published<T: Send + Sync + 'static>() {}
-    assert_published::<PublishedRows>();
+    assert_published::<PublishedFrame>();
 };
+
+impl LayoutNodeArena {
+    /// What the next recording reads of the document, as it is now.
+    pub(crate) fn freeze_frame(&mut self) -> PublishedFrame {
+        let rows = self.publish_rows();
+        let hit_test_item_capacity_hint = self.hit_test_list.borrow().as_ref().map_or(0, |list| list.items.len());
+        PublishedFrame {
+            rows,
+            damage: self.paint_damage_for_frame(),
+            paint_state: PublishedPaintState::new(&self.paint_state().borrow(), hit_test_item_capacity_hint),
+        }
+    }
+}
+
+impl PublishedFrame {
+    /// What the frame's recording reads of the document's paint state.
+    pub(crate) fn paint_state(&self) -> &PublishedPaintState {
+        &self.paint_state
+    }
+
+    /// The paint damage the frame was published with.
+    pub(crate) fn damage(&self) -> &FrameDamage {
+        &self.damage
+    }
+
+    /// How many paintable rows the frame has room for.
+    pub(crate) fn paintable_row_capacity(&self) -> usize {
+        self.rows.rows.slot_capacity()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -216,10 +307,9 @@ mod tests {
         arena.set_node_flag(slots[3], NodeFlag::Anonymous, true);
         arena.write_shape(slots[4]).set_generated_for(1);
 
-        let published = arena.publish_rows();
-        let damage = arena.paint_damage_for_frame();
+        let frame = arena.freeze_frame();
         let absolute_rects = RefCell::new(AbsoluteRectMemo::default());
-        let source = PaintSource::new(&published, &damage, &absolute_rects);
+        let source = PaintSource::new(&frame, &absolute_rects);
         for &node in &slots {
             assert_eq!(source.slot_is_live(node), arena.slot_is_live(node));
             assert_eq!(source.node_kind_if_live(node), arena.node_kind_if_live(node));
@@ -239,6 +329,23 @@ mod tests {
                 source.node_is_fragmented_inline(node),
                 arena.node_is_fragmented_inline(node)
             );
+            assert_eq!(
+                source.node_is_out_of_flow_if_live(node),
+                arena.node_is_out_of_flow_if_live(node)
+            );
+            assert_eq!(source.node_is_atomic_inline(node), arena.node_is_atomic_inline(node));
+            assert_eq!(source.node_is_positioned(node), arena.node_is_positioned(node));
+            assert_eq!(source.node_is_floating(node), arena.node_is_floating(node));
+            assert_eq!(
+                source.node_style_if_live(node).is_some(),
+                arena.node_style_if_live(node).is_some()
+            );
+            assert_eq!(
+                source.text_fragments(node).as_slice(),
+                arena.text_fragments(node).as_slice()
+            );
+            assert_eq!(source.rendered_text(node).is_some(), arena.text_content(node).is_some());
+            assert_eq!(source.replaced_paint_facts(node), arena.replaced_paint_facts(node));
         }
         for node in slots {
             assert_eq!(

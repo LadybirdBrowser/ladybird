@@ -27,12 +27,16 @@ pub struct PaintState {
     pub(crate) root_background_source: Option<crate::painting::host::RootBackgroundSource>,
     pub(crate) hit_test_list_generation: u64,
     pub(crate) last_recording: Option<Arc<crate::painting::record::RecordingOutput>>,
-    pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
-    pub(crate) selection_pseudo_styles: std::collections::HashMap<
-        NodeSlotId,
-        std::sync::Arc<crate::painting::record::paint::text::SelectionStyleAnswer>,
-    >,
+    /// The selection, shared with the frames published while it holds.
+    pub(crate) selection: Option<Arc<crate::painting::selection::SelectionRange>>,
+    /// The `::selection` styles, shared with the frames published while they hold, so a write
+    /// copies the table only while a frame still holds it.
+    pub(crate) selection_pseudo_styles: Arc<SelectionPseudoStyles>,
 }
+
+/// Each row's committed `::selection` style.
+pub(crate) type SelectionPseudoStyles =
+    std::collections::HashMap<NodeSlotId, Arc<crate::painting::record::paint::text::SelectionStyleAnswer>>;
 
 impl PaintState {
     pub(crate) fn update_root_background_source(
