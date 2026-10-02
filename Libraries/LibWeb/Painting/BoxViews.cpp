@@ -763,7 +763,7 @@ void apply_repaint_damage(Layout::Node const& node, InvalidateDisplayList should
 
     auto& document = const_cast<DOM::Document&>(node.document());
     if (should_invalidate_display_list != InvalidateDisplayList::No) {
-        Layout::RustFFI::layout_arena_paintable_invalidate_for_repaint(node.arena_handle(), committed_row_slot(node), should_invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList);
+        Layout::RustFFI::render_state_repaint(node.document_host(), committed_row_slot(node), should_invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList);
 
         // The root element paints the body's propagated background, so a body repaint must also refresh the
         // root's cached background. Changes to the propagation source are handled during paint preparation.
@@ -777,13 +777,19 @@ void apply_repaint_damage(Layout::Node const& node, InvalidateDisplayList should
     BoxViewRepaintAccess::set_document_needs_repaint(document, should_invalidate_display_list);
 }
 
+void request_document_repaint(Layout::Node const& node, InvalidateDisplayList should_invalidate_display_list)
+{
+    if (has_committed_box(node))
+        BoxViewRepaintAccess::set_document_needs_repaint(const_cast<DOM::Document&>(node.document()), should_invalidate_display_list);
+}
+
 void apply_text_repaint_damage(Layout::TextNode const& node, InvalidateDisplayList should_invalidate_display_list)
 {
     if (auto* containing_block = node.containing_block())
         apply_repaint_damage(*containing_block, should_invalidate_display_list);
 
     if (should_invalidate_display_list != InvalidateDisplayList::No)
-        Layout::RustFFI::layout_arena_invalidate_nearest_self_painting_inline_paint_cache(node.arena_handle(), Layout::Node::slot_id(&node));
+        Layout::RustFFI::render_state_invalidate_nearest_self_painting_inline_paint_cache(node.document_host(), Layout::Node::slot_id(&node));
 }
 
 void set_needs_repaint_in_subtree(Layout::Node const& node)
@@ -802,7 +808,7 @@ void apply_subtree_repaint_damage(Layout::Node const& node)
 {
     if (!has_committed_box(node))
         return;
-    Layout::RustFFI::layout_arena_paintable_invalidate_subtree_for_repaint(node.arena_handle(), committed_row_slot(node));
+    Layout::RustFFI::render_state_repaint_subtree(node.document_host(), committed_row_slot(node));
 }
 
 void invalidate_propagated_text_decoration_caches(Layout::Node const& node)
@@ -815,7 +821,7 @@ void invalidate_propagated_text_decoration_caches(Layout::Node const& node)
 
 void apply_paint_cache_invalidation(Layout::Node const& node, PaintCacheInvalidation invalidation)
 {
-    Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), invalidation == PaintCacheInvalidation::PropagatedTextDecorations);
+    Layout::RustFFI::render_state_invalidate_paint_cache(node.document_host(), committed_row_slot(node), invalidation == PaintCacheInvalidation::PropagatedTextDecorations);
 }
 
 void repaint_after_style_change(Layout::Node const& node, CSS::RequiredInvalidationAfterStyleChange const& invalidation)

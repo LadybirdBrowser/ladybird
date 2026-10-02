@@ -306,24 +306,6 @@ pub unsafe extern "C" fn layout_arena_node_has_css_transform(arena: *mut c_void,
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
-/// `node` must name a live node in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_invalidate_nearest_self_painting_inline_paint_cache(
-    arena: *mut c_void,
-    node: NodeSlotId,
-) {
-    let arena = unsafe { arena_from_handle(arena) };
-    if let Some(ancestor) =
-        crate::painting::fragment_ownership::nearest_self_painting_inline_box(&arena.paintable_rows(), node)
-    {
-        use crate::painting::record::damage::PaintDamage;
-        arena.push_paint_damage(ancestor, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
-    }
-}
-
-/// # Safety
-///
 /// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: NodeSlotId) -> *const PaintableData {
@@ -797,29 +779,6 @@ pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
 ///
 /// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_visual_context_note_box_dirty(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    kind: crate::painting::host::FfiVisualContextBoxDirtyKind,
-) {
-    use crate::painting::host::FfiVisualContextBoxDirtyKind;
-    use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
-    let arena = unsafe { arena_from_handle(arena) };
-    if !arena.paintable_row_is_populated(slot) {
-        return;
-    }
-    let kind = match kind {
-        FfiVisualContextBoxDirtyKind::StyleValueChange => VisualContextBoxDirtyKind::StyleValueChange,
-        FfiVisualContextBoxDirtyKind::StyleStructuralChange => VisualContextBoxDirtyKind::StyleStructuralChange,
-        FfiVisualContextBoxDirtyKind::ScrollableOverflowFlipped => VisualContextBoxDirtyKind::ScrollableOverflowFlipped,
-    };
-    arena.note_visual_context_box_dirty(slot, kind);
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_context_request_full_rebuild(
     arena: *mut c_void,
     reason: crate::painting::host::FfiVisualContextGlobalRebuildReason,
@@ -1096,87 +1055,6 @@ impl FfiPresentedRecording {
     }
 }
 
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_form_control_paint_facts(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    facts: crate::painting::host::FfiFormControlPaintFacts,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.set_replaced_paint_facts(
-        slot,
-        crate::painting::replaced_paint_facts::ReplacedPaintFacts::FormControl(facts),
-    )
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_canvas_paint_facts(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    facts: crate::painting::host::FfiCanvasPaintFacts,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.set_replaced_paint_facts(
-        slot,
-        crate::painting::replaced_paint_facts::ReplacedPaintFacts::Canvas(facts),
-    )
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
-/// `entries` must point at `count` readable entries whose frame pointers are null or live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_layer_image_paint_facts(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    entries: *const crate::painting::host::FfiLayerImagePaintFactsEntry,
-    count: usize,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    let entries = if count == 0 {
-        Vec::new()
-    } else {
-        unsafe { std::slice::from_raw_parts(entries, count) }
-            .iter()
-            .map(
-                |entry| crate::painting::layer_image_paint_facts::LayerImagePaintFactsEntry {
-                    list: entry.list,
-                    computed_index: entry.computed_index,
-                    facts: unsafe {
-                        crate::painting::layer_image_paint_facts::LayerImagePaintFacts::from_ffi(&entry.facts)
-                    },
-                },
-            )
-            .collect()
-    };
-    arena.set_layer_image_paint_facts(slot, entries)
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
-/// `facts.frame` must be null or point to a live `Gfx::DecodedImageFrame`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_replaced_image_paint_facts(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    facts: crate::painting::host::FfiReplacedImagePaintFacts,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    let facts = unsafe { crate::painting::replaced_paint_facts::ImagePaintFacts::from_ffi(&facts) };
-    arena.set_replaced_paint_facts(
-        slot,
-        crate::painting::replaced_paint_facts::ReplacedPaintFacts::Image(facts),
-    )
-}
-
 /// One `<area>` of an image map, as the document hands it over: the style-tree identity to name as
 /// the hit target, the state of its `shape` attribute, and where its parsed `coords` sit in the
 /// flat array published beside it.
@@ -1187,43 +1065,6 @@ pub struct FfiImageMapArea {
     pub shape: u8,
     pub coords_offset: u32,
     pub coords_count: u32,
-}
-
-/// Publishes the `<area>` elements of the image map an image is associated with, in tree order.
-/// Publishing no area is how an image with no image map is named.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`. `areas` must point at `area_count`
-/// areas and `coords` at `coords_count` values, and every area's coordinate range must lie within
-/// them.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_publish_image_map_areas(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    areas: *const FfiImageMapArea,
-    area_count: usize,
-    coords: *const f64,
-    coords_count: usize,
-) {
-    use crate::painting::image_map_areas::{AreaCoverage, AreaShape, PublishedImageMapArea};
-    let arena = unsafe { arena_from_handle(arena) };
-    let areas = unsafe { ffi_slice(areas, area_count) };
-    let coords = unsafe { ffi_slice(coords, coords_count) };
-    let published = areas
-        .iter()
-        .map(|area| {
-            let start = area.coords_offset as usize;
-            PublishedImageMapArea {
-                style_node: area.style_node,
-                coverage: AreaCoverage::new(
-                    AreaShape::from_raw(area.shape),
-                    &coords[start..start + area.coords_count as usize],
-                ),
-            }
-        })
-        .collect();
-    arena.image_map_areas().publish(slot, published);
 }
 
 /// The style-tree identity of the first `<area>` of the image's map, in tree order, whose shape
@@ -1242,40 +1083,6 @@ pub unsafe extern "C" fn layout_arena_image_map_area_for_point(
     unsafe { arena_from_handle(arena) }
         .image_map_areas()
         .area_for_point(slot, x, y)
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
-/// `facts.poster_frame` must be null or point to a live `Gfx::DecodedImageFrame`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_video_paint_facts(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    facts: crate::painting::host::FfiVideoPaintFacts,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    let facts = unsafe { crate::painting::replaced_paint_facts::VideoPaintFacts::from_ffi(&facts) };
-    arena.set_replaced_paint_facts(
-        slot,
-        crate::painting::replaced_paint_facts::ReplacedPaintFacts::Video(facts),
-    )
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_navigable_container_paint_facts(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    facts: crate::painting::host::FfiNavigableContainerPaintFacts,
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.set_replaced_paint_facts(
-        slot,
-        crate::painting::replaced_paint_facts::ReplacedPaintFacts::NavigableContainer(facts),
-    )
 }
 
 /// # Safety
@@ -1463,64 +1270,6 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
             std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
         );
     }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
-    arena: *mut c_void,
-    paintable: NodeSlotId,
-    propagated_text_decorations: bool,
-) {
-    use crate::painting::record::damage::PaintDamage;
-    let arena = unsafe { arena_from_handle(arena) };
-    if propagated_text_decorations {
-        arena.push_propagated_text_decoration_damage(paintable);
-    } else {
-        arena.push_paint_damage(paintable, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
-    }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(
-    arena: *mut c_void,
-    paintable: NodeSlotId,
-    include_hit_test_items: bool,
-) {
-    use crate::painting::record::damage::PaintDamage;
-    let arena = unsafe { arena_from_handle(arena) };
-    let damage = if include_hit_test_items {
-        PaintDamage::ALL_PRODUCERS
-    } else {
-        PaintDamage::ALL_DRAW
-    };
-    arena.push_paint_damage_for_repaint(paintable, damage);
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_invalidate_subtree_for_repaint(
-    arena: *mut c_void,
-    paintable: NodeSlotId,
-) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.push_paint_damage_to_paint_subtree(paintable, crate::painting::record::damage::PaintDamage::ALL_PRODUCERS);
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_invalidate_all_paint_caches(arena: *mut c_void) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.push_all_paint_damage();
 }
 
 /// # Safety

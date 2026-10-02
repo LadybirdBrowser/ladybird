@@ -7,15 +7,24 @@
 //! What the host writes of a document's paint state, as typed changes its render state applies to the arena: what the
 //! user scrolled, what is selected, and the state of the chrome the host draws.
 
-use super::ffi::ScrollDirection;
+use super::ffi::{FfiImageMapArea, ScrollDirection};
+use super::host::{
+    FfiCanvasPaintFacts, FfiFormControlPaintFacts, FfiLayerImagePaintFactsEntry, FfiNavigableContainerPaintFacts,
+    FfiReplacedImagePaintFacts, FfiVideoPaintFacts, FfiVisualContextBoxDirtyKind,
+};
+use super::image_map_areas::{AreaCoverage, AreaShape, PublishedImageMapArea};
+use super::layer_image_paint_facts::{LayerImagePaintFacts, LayerImagePaintFactsEntry};
 use super::paint_read::GeometryRead;
 use super::paintable_data::{FfiSelectionEntry, PaintableFlag};
 use super::record::damage::PaintDamage;
+use super::replaced_paint_facts::{ImagePaintFacts, ReplacedPaintFacts, VideoPaintFacts};
+use super::visual_context::dirty::VisualContextBoxDirtyKind;
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::render_state::{ArenaChange, DocumentHost};
+use libcompositing_rust::ffi::ffi_slice;
 use std::sync::Arc;
 
 /// One write of the host to a document's paint state.
@@ -42,6 +51,44 @@ pub(crate) enum PaintChange {
         direction: ScrollDirection,
         enlarged: bool,
     },
+    /// What the rows built for the DOM node of `node` are painted and hit-tested with.
+    SetDomPaintFacts { node: NodeSlotId, facts: u8 },
+    /// The images the row's background, mask and border image layers paint.
+    SetLayerImagePaintFacts {
+        node: NodeSlotId,
+        entries: Vec<LayerImagePaintFactsEntry>,
+    },
+    /// What the replaced content of the rows of the DOM node of `node` paints. A row whose facts changed paints again.
+    SetReplacedPaintFacts {
+        node: NodeSlotId,
+        facts: ReplacedPaintFacts,
+    },
+    /// The `<area>` elements of the image map the image `node` is associated with, in tree order.
+    PublishImageMapAreas {
+        node: NodeSlotId,
+        areas: Box<[PublishedImageMapArea]>,
+    },
+    /// What the row's visual context is derived from changed.
+    NoteVisualContextBoxDirty {
+        node: NodeSlotId,
+        kind: VisualContextBoxDirtyKind,
+    },
+    /// The row paints again, and is hit-tested again where `includes_hit_testing`.
+    Repaint {
+        node: NodeSlotId,
+        includes_hit_testing: bool,
+    },
+    /// The paint subtree of the row paints and is hit-tested again.
+    RepaintSubtree { node: NodeSlotId },
+    /// The row's paint cache goes: what it propagates as text decorations to the text below it, or all of it.
+    InvalidatePaintCache {
+        node: NodeSlotId,
+        propagated_text_decorations: bool,
+    },
+    /// The paint cache of the nearest inline box that paints itself, above the text `node`, goes.
+    InvalidateNearestSelfPaintingInlinePaintCache { node: NodeSlotId },
+    /// Every row paints again.
+    InvalidateAllPaintCaches,
 }
 
 impl PaintChange {
@@ -97,6 +144,63 @@ impl PaintChange {
                 rows.paintable_data_mut(node).set_flag(flag, enlarged);
                 rows.push_paint_damage(node, PaintDamage::DRAW_OVERLAY | PaintDamage::HIT_OVERLAY);
             }
+            Self::SetDomPaintFacts { node, facts } => {
+                if arena.slot_is_live(node) {
+                    arena.set_node_dom_paint_facts(node, facts);
+                }
+            }
+            Self::SetLayerImagePaintFacts { node, entries } => {
+                arena.set_layer_image_paint_facts(node, entries);
+            }
+            Self::SetReplacedPaintFacts { node, facts } => arena.set_replaced_paint_facts(node, facts),
+            Self::PublishImageMapAreas { node, areas } => arena.image_map_areas().publish(node, areas),
+            Self::NoteVisualContextBoxDirty { node, kind } => {
+                if arena.paintable_row_is_populated(node) {
+                    arena.note_visual_context_box_dirty(node, kind);
+                }
+            }
+            Self::Repaint {
+                node,
+                includes_hit_testing,
+            } => {
+                if arena.paintable_row_is_populated(node) {
+                    let damage = if includes_hit_testing {
+                        PaintDamage::ALL_PRODUCERS
+                    } else {
+                        PaintDamage::ALL_DRAW
+                    };
+                    arena.push_paint_damage_for_repaint(node, damage);
+                }
+            }
+            Self::RepaintSubtree { node } => {
+                if arena.paintable_row_is_populated(node) {
+                    arena.push_paint_damage_to_paint_subtree(node, PaintDamage::ALL_PRODUCERS);
+                }
+            }
+            Self::InvalidatePaintCache {
+                node,
+                propagated_text_decorations,
+            } => {
+                if !arena.paintable_row_is_populated(node) {
+                    return;
+                }
+                if propagated_text_decorations {
+                    arena.push_propagated_text_decoration_damage(node);
+                } else {
+                    arena.push_paint_damage(node, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
+                }
+            }
+            Self::InvalidateNearestSelfPaintingInlinePaintCache { node } => {
+                if !arena.slot_is_live(node) {
+                    return;
+                }
+                if let Some(ancestor) =
+                    super::fragment_ownership::nearest_self_painting_inline_box(&arena.paintable_rows(), node)
+                {
+                    arena.push_paint_damage(ancestor, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
+                }
+            }
+            Self::InvalidateAllPaintCaches => arena.push_all_paint_damage(),
         }
     }
 }
@@ -197,4 +301,248 @@ pub unsafe extern "C" fn render_state_set_scrollbar_enlarged(
     };
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, change) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_set_dom_paint_facts(host: *const DocumentHost, node: NodeSlotId, facts: u8) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, PaintChange::SetDomPaintFacts { node, facts }) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread, and `entries` must point at `count` readable
+/// entries whose images are live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_set_layer_image_paint_facts(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+    entries: *const FfiLayerImagePaintFactsEntry,
+    count: usize,
+) {
+    let entries = if count == 0 {
+        Vec::new()
+    } else {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { std::slice::from_raw_parts(entries, count) }
+            .iter()
+            .map(|entry| LayerImagePaintFactsEntry {
+                list: entry.list,
+                computed_index: entry.computed_index,
+                // SAFETY: Guaranteed by the caller.
+                facts: unsafe { LayerImagePaintFacts::from_ffi(&entry.facts) },
+            })
+            .collect()
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, PaintChange::SetLayerImagePaintFacts { node, entries }) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+unsafe fn queue_replaced_paint_facts(host: *const DocumentHost, node: NodeSlotId, facts: ReplacedPaintFacts) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, PaintChange::SetReplacedPaintFacts { node, facts }) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_set_form_control_paint_facts(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+    facts: FfiFormControlPaintFacts,
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::FormControl(facts)) };
+}
+
+/// The canvas paints its surface's content of this size and generation now: where that changed, so does what its row
+/// paints.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_set_canvas_paint_facts(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+    facts: FfiCanvasPaintFacts,
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::Canvas(facts)) };
+}
+
+/// The navigable container paints the compositor context of its content, if it has one: where that changed, so does
+/// what its row paints.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_set_navigable_container_paint_facts(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+    facts: FfiNavigableContainerPaintFacts,
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::NavigableContainer(facts)) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread, and the image `facts` names must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_set_replaced_image_paint_facts(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+    facts: FfiReplacedImagePaintFacts,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let facts = unsafe { ImagePaintFacts::from_ffi(&facts) };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::Image(facts)) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread, and the poster frame `facts` names, if any, must be
+/// live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_set_video_paint_facts(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+    facts: FfiVideoPaintFacts,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let facts = unsafe { VideoPaintFacts::from_ffi(&facts) };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::Video(facts)) };
+}
+
+/// Publishes the `<area>` elements of the image map the image `node` is associated with, in tree order. Publishing no
+/// area is how an image with no image map is named.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread; `areas` must point at `area_count` readable areas,
+/// and `coords` at `coords_count` readable coordinates, which the areas index.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_publish_image_map_areas(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+    areas: *const FfiImageMapArea,
+    area_count: usize,
+    coords: *const f64,
+    coords_count: usize,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let (areas, coords) = unsafe { (ffi_slice(areas, area_count), ffi_slice(coords, coords_count)) };
+    let areas = areas
+        .iter()
+        .map(|area| {
+            let start = area.coords_offset as usize;
+            PublishedImageMapArea {
+                style_node: area.style_node,
+                coverage: AreaCoverage::new(
+                    AreaShape::from_raw(area.shape),
+                    &coords[start..start + area.coords_count as usize],
+                ),
+            }
+        })
+        .collect();
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, PaintChange::PublishImageMapAreas { node, areas }) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_note_visual_context_box_dirty(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+    kind: FfiVisualContextBoxDirtyKind,
+) {
+    let kind = match kind {
+        FfiVisualContextBoxDirtyKind::StyleValueChange => VisualContextBoxDirtyKind::StyleValueChange,
+        FfiVisualContextBoxDirtyKind::StyleStructuralChange => VisualContextBoxDirtyKind::StyleStructuralChange,
+        FfiVisualContextBoxDirtyKind::ScrollableOverflowFlipped => VisualContextBoxDirtyKind::ScrollableOverflowFlipped,
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, PaintChange::NoteVisualContextBoxDirty { node, kind }) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_repaint(host: *const DocumentHost, node: NodeSlotId, includes_hit_testing: bool) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        queue(
+            host,
+            PaintChange::Repaint {
+                node,
+                includes_hit_testing,
+            },
+        );
+    }
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_repaint_subtree(host: *const DocumentHost, node: NodeSlotId) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, PaintChange::RepaintSubtree { node }) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_invalidate_paint_cache(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+    propagated_text_decorations: bool,
+) {
+    let change = PaintChange::InvalidatePaintCache {
+        node,
+        propagated_text_decorations,
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, change) };
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_invalidate_nearest_self_painting_inline_paint_cache(
+    host: *const DocumentHost,
+    node: NodeSlotId,
+) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        queue(
+            host,
+            PaintChange::InvalidateNearestSelfPaintingInlinePaintCache { node },
+        );
+    }
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_invalidate_all_paint_caches(host: *const DocumentHost) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, PaintChange::InvalidateAllPaintCaches) };
 }

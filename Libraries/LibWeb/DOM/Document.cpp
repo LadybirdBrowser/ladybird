@@ -9998,8 +9998,8 @@ void Document::schedule_accumulated_visual_context_update(Layout::Node const& la
     if (!Painting::has_committed_box(layout_node))
         return;
     auto slot = Painting::committed_row_slot(layout_node);
-    Layout::RustFFI::layout_arena_visual_context_note_box_dirty(
-        layout_node_arena().handle(),
+    Layout::RustFFI::render_state_note_visual_context_box_dirty(
+        layout_node_arena().host(),
         slot,
         scope == AccumulatedVisualContextUpdateScope::Values
             ? Layout::RustFFI::FfiVisualContextBoxDirtyKind::StyleValueChange
