@@ -8,6 +8,7 @@
 
 use super::{Answer, ArenaChange, DocumentId, Query, RenderMessage, RenderWait, ask, send};
 use crate::css::style::bridge::FfiDeviceClass;
+use crate::css::style::style_job::StyleJobAnswer;
 use crate::layout::row_reads::RowSnapshot;
 use crate::layout::{HostTables, LayoutNodeArena};
 use crate::painting::paint_read::PaintSource;
@@ -34,6 +35,8 @@ pub struct DocumentHost {
     rows: RefCell<Option<Rc<RowSnapshot>>>,
     /// Whether the host queued a change that alters the published rows since they were published.
     rows_may_be_stale: Cell<bool>,
+    /// The reactions of the style transaction the host took last, which it reads until it ends the transaction.
+    style_transaction: RefCell<Option<StyleJobAnswer>>,
     /// The absolute rects the host's reads of the rows computed, kept for as long as the geometry they were computed
     /// from stays.
     absolute_rects: RefCell<AbsoluteRectMemo>,
@@ -52,6 +55,7 @@ impl DocumentHost {
             recording: RefCell::default(),
             rows: RefCell::default(),
             rows_may_be_stale: Cell::new(false),
+            style_transaction: RefCell::default(),
             absolute_rects: RefCell::default(),
             arena: Cell::new(None),
             element_random_base_values_exist: OnceCell::new(),
@@ -162,6 +166,19 @@ impl DocumentHost {
         *self.rows.borrow_mut() = Some(Rc::clone(&rows));
         self.rows_may_be_stale.set(false);
         rows
+    }
+
+    /// Keeps what the style transaction the host took answered, until the host ends the transaction.
+    pub(crate) fn keep_style_transaction(&self, answer: StyleJobAnswer) -> std::cell::Ref<'_, StyleJobAnswer> {
+        *self.style_transaction.borrow_mut() = Some(answer);
+        std::cell::Ref::map(self.style_transaction.borrow(), |answer| {
+            answer.as_ref().expect("the answer was kept above")
+        })
+    }
+
+    /// Lets go of what the style transaction the host took last answered.
+    pub(crate) fn end_style_transaction(&self) {
+        self.style_transaction.borrow_mut().take();
     }
 
     /// What the document keeps of its recordings.

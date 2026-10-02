@@ -116,24 +116,6 @@ pub unsafe extern "C" fn style_node_id_allocator_mint(
     }
 }
 
-/// Takes back the identities a transaction's finish released.
-///
-/// # Safety
-/// `allocator` must be live, and `released` must point at `count` readable `u32` values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_node_id_allocator_release(
-    allocator: *mut StyleNodeIdAllocator,
-    released: *const u32,
-    count: usize,
-) {
-    if count == 0 {
-        return;
-    }
-    // SAFETY: Guaranteed by the caller.
-    let (allocator, released) = unsafe { (&mut *allocator, std::slice::from_raw_parts(released, count)) };
-    allocator.release(released);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

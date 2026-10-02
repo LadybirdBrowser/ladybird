@@ -25,6 +25,27 @@ mod main_thread_entries;
 
 pub(crate) use main_thread_entries::MainThreadFfiEntry;
 
+/// The reason the host waits for its document's render state in a rendering update: the style and layout jobs it
+/// runs.
+pub(crate) struct LayoutUpdate {
+    _private: (),
+}
+
+const LAYOUT_UPDATE: LayoutUpdate = LayoutUpdate { _private: () };
+
+/// Runs `job`, the style transaction of `host`'s document, on its render state, and answers what it answered.
+pub(crate) fn run_style_job(
+    host: &crate::render_state::DocumentHost,
+    job: crate::css::style::style_job::StyleJob,
+) -> crate::css::style::style_job::StyleJobAnswer {
+    let document = host.document();
+    crate::render_state::wait_for_render_state(
+        crate::render_state::LockstepProof::for_reason(&LAYOUT_UPDATE),
+        host,
+        |reply| crate::render_state::RenderMessage::Style { document, job, reply },
+    )
+}
+
 /// The document-side steps of a layout update. Each callback receives the registered
 /// `context`, the owning document, first and answers synchronously; any of them may run the
 /// layout update of another document, so the loop holds no arena borrow across a call. The
