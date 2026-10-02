@@ -50,7 +50,7 @@ impl FfiStackingContextDumpCallbacks {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
 /// `debug_description` is called synchronously with a `Vec<u8>` sink the host fills through
 /// `layout_arena_paint_push_bytes`, and `append_text` copies the completed dump synchronously.
 #[unsafe(no_mangle)]

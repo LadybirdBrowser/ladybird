@@ -65,7 +65,7 @@ impl HostTables {
     ///
     /// # Safety
     ///
-    /// `handle` must come from `layout_arena_create` and stay live for `'a`.
+    /// `handle` must come from `render_state_create_document` and stay live for `'a`.
     pub(crate) unsafe fn from_handle<'a>(handle: *mut c_void) -> &'a Self {
         assert!(!handle.is_null(), "layout node arena handle is null");
         // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
@@ -176,7 +176,7 @@ impl Drop for TreeBuildWalk<'_> {
     }
 }
 
-/// What `layout_arena_create` hands C++: the arena, first, so that a handle is also a pointer to
+/// What `render_state_create_document` hands C++: the arena, first, so that a handle is also a pointer to
 /// it, and beside it the host tables and the layout stage's scratch.
 #[repr(C)]
 pub(crate) struct ArenaHandle {
@@ -200,7 +200,7 @@ impl ArenaHandle {
     ///
     /// # Safety
     ///
-    /// `handle` must come from `layout_arena_create` and stay live for `'a`.
+    /// `handle` must come from `render_state_create_document` and stay live for `'a`.
     pub(crate) unsafe fn layout_scratch_of<'a>(handle: *mut c_void) -> &'a super::run_records::LayoutScratch {
         assert!(!handle.is_null(), "layout node arena handle is null");
         // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.

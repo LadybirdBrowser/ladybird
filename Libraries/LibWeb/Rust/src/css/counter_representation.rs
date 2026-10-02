@@ -1129,7 +1129,7 @@ pub unsafe extern "C" fn rust_counter_style_representation_depends_on_value(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The name
+/// `arena` must be a live handle from `render_state_create_document`, used on the document thread. The name
 /// and style columns must address `count` elements, every name word must carry one leaked string
 /// reference, and every style handle must be live.
 #[unsafe(no_mangle)]

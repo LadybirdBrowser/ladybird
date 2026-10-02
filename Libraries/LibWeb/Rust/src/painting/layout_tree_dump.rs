@@ -133,7 +133,7 @@ impl FfiLayoutTreeDumpCallbacks {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, with no
+/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, with no
 /// outstanding borrows of the arena. The host callbacks fill their sinks synchronously through
 /// `layout_arena_paint_push_bytes`; `dump_nested_layout_tree` may re-enter this function for a
 /// different document's arena.
