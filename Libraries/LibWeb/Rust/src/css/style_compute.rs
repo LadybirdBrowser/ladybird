@@ -6053,6 +6053,9 @@ pub struct FfiHostAnimationSample {
     /// The store of the element the sampled one inherits from.
     pub inheritance_custom_property_store: *const c_void,
     pub element_declares_own_custom_properties: bool,
+    /// The identities of the element's custom-property environment and the one it inherits, under
+    /// which values substituted against the element hold.
+    pub custom_property_environments: [u64; 2],
     pub inheritance_parent_style_record: u64,
     /// The document's side of the environment keyframes compute in. The engine fills in the
     /// element's own: its place among its siblings and its random bases.
@@ -6234,12 +6237,14 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
 
     // A preparation the overlay already holds for exactly these effects needs no declarations and
     // no keyframe values at all.
-    if anim::animation_preparation_matches(overlay, &composed) {
+    if anim::animation_preparation_matches(overlay, &composed, input.custom_property_environments) {
         let batch = anim::FfiComputedAnimationBatch {
             context: animation_context(None),
             sampled_effects: composed.as_ptr(),
             sampled_effect_count: composed.len(),
+            custom_property_environments: input.custom_property_environments,
             cache_preparation: true,
+            preparation_reads_custom_property_environments: false,
             resolved_animation_storage: std::ptr::null_mut(),
             computed_keyframe_storage: std::ptr::null_mut(),
             underlying_longhand_table: input.longhand_table,
@@ -6424,7 +6429,8 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
         .collect::<Vec<_>>();
     let mut custom_result_count = 0_usize;
     // A preparation cached under these effects must hold for as long as they stand, so one that
-    // read anything outside them is not kept.
+    // read anything outside them is not kept, and one that substituted against the element's
+    // custom-property environments is kept only under those.
     let cache_preparation = custom_properties.is_empty()
         && !resolved.uses_tree_counting_function
         && resolved.container_relative_length_unit_mask == 0
@@ -6434,7 +6440,9 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
         context: animation_context(Some(&length_contexts.remaining)),
         sampled_effects: composed.as_ptr(),
         sampled_effect_count: composed.len(),
+        custom_property_environments: input.custom_property_environments,
         cache_preparation,
+        preparation_reads_custom_property_environments: substitution_marks != 0,
         resolved_animation_storage: Box::into_raw(resolved).cast(),
         computed_keyframe_storage: computed_keyframes.storage,
         underlying_longhand_table: input.longhand_table,

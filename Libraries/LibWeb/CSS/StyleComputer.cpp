@@ -867,6 +867,10 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         .base_custom_property_store = base_custom_property_data ? base_custom_property_data->rust_store() : nullptr,
         .inheritance_custom_property_store = inheritance_custom_property_data ? inheritance_custom_property_data->rust_store() : nullptr,
         .element_declares_own_custom_properties = element_declares_own_custom_properties,
+        .custom_property_environments = {
+            custom_property_data ? custom_property_data->identity() : 0,
+            inheritance_custom_property_data ? inheritance_custom_property_data->identity() : 0,
+        },
         .inheritance_parent_style_record = inheritance_parent.has_value() ? inheritance_parent->style_record_identity().value() : 0,
         .environment = &environment,
         .has_transform_reference_box = false,
