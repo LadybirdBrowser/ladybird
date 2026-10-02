@@ -3423,12 +3423,12 @@ impl LayoutNodeArena {
         &self,
         id: NodeSlotId,
         facts: crate::painting::replaced_paint_facts::ReplacedPaintFacts,
-    ) -> bool {
+    ) {
         self.assert_owner_thread();
         if !self.slot_is_live(id) {
-            return false;
+            return;
         }
-        let mut any_changed = false;
+        let damage = facts.damage_when_changed();
         for row in self.rows_sharing_dom_node_with(id) {
             let mut table = self.replaced_paint_facts.borrow_mut();
             if table.get(&row) == Some(&facts) {
@@ -3436,10 +3436,8 @@ impl LayoutNodeArena {
             }
             Arc::make_mut(&mut table).insert(row, facts.clone());
             drop(table);
-            any_changed = true;
-            self.push_paint_damage_for_repaint(row, crate::painting::record::damage::PaintDamage::DRAW_FOREGROUND);
+            self.push_paint_damage_for_repaint(row, damage);
         }
-        any_changed
     }
 
     /// The text rows and the replaced, layer image and SVG paint resource tables as they are now,
@@ -5123,14 +5121,6 @@ pub unsafe extern "C" fn layout_arena_node_has_compositor_animation_frame(
 pub unsafe extern "C" fn layout_arena_node_generated_for(arena: *mut c_void, id: NodeSlotId) -> u8 {
     // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
     unsafe { LayoutNodeArena::from_handle(arena) }.node_generated_for(id)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_node_dom_paint_facts(arena: *mut c_void, id: NodeSlotId, facts: u8) -> bool {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_dom_paint_facts(id, facts)
 }
 
 #[unsafe(no_mangle)]

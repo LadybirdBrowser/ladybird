@@ -9,6 +9,7 @@ use crate::painting::host::{
     FfiVideoPaintFacts, FfiVideoRepresentation,
 };
 use crate::painting::image_content::ImageContent;
+use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::paint::replaced::SizeWithAspectRatio;
 use libgfx_rust::image_frame::ImageFrameHandle;
 
@@ -86,6 +87,16 @@ pub(crate) enum ReplacedPaintFacts {
 }
 
 impl ReplacedPaintFacts {
+    /// The damage a row takes where its facts change to these. A canvas or a navigable container caches what it paints
+    /// and is hit-tested with beside its row, which goes with the facts.
+    pub(crate) fn damage_when_changed(&self) -> PaintDamage {
+        match self {
+            Self::FormControl(_) => PaintDamage::DRAW_FOREGROUND,
+            Self::Canvas(_) | Self::NavigableContainer(_) => PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT,
+            Self::Image(_) | Self::Video(_) => PaintDamage::ALL_DRAW,
+        }
+    }
+
     pub(crate) fn image(self) -> Option<ImagePaintFacts> {
         match self {
             Self::Image(facts) => Some(facts),

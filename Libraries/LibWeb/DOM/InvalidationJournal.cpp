@@ -151,7 +151,9 @@ void InvalidationJournal::drain()
                     layout_node->set_needs_layout_update(entry.layout_reason, entry.layout_propagation);
                 auto needs_repaint = entry.needs_repaint;
                 auto invalidate_display_list = entry.invalidate_display_list;
-                if (entry.has_dom_paint_facts && Layout::RustFFI::layout_arena_set_node_dom_paint_facts(arena->handle(), Layout::Node::slot_id(layout_node), entry.dom_paint_facts)) {
+                // The rows take the facts the DOM node noted, which they are painted and hit-tested with again.
+                if (entry.has_dom_paint_facts) {
+                    Layout::RustFFI::render_state_set_dom_paint_facts(arena->host(), Layout::Node::slot_id(layout_node), entry.dom_paint_facts);
                     needs_repaint = true;
                     invalidate_display_list = InvalidateDisplayList::PaintCommandsAndHitTestList;
                 }

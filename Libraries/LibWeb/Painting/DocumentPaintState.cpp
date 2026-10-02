@@ -139,7 +139,7 @@ void DocumentPaintState::append_paint_command_cache_source_resources(Compositing
 
 void DocumentPaintState::invalidate_all_cached_paint(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_invalidate_all_paint_caches(m_layout_node_arena->handle());
+    Layout::RustFFI::render_state_invalidate_all_paint_caches(m_layout_node_arena->host());
     Painting::set_needs_repaint(*document.unsafe_layout_node());
 }
 

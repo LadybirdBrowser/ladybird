@@ -99,6 +99,9 @@ WEB_API void set_needs_repaint_in_subtree(Layout::Node const&);
 WEB_API void apply_repaint_damage(Layout::Node const&, InvalidateDisplayList);
 WEB_API void apply_text_repaint_damage(Layout::TextNode const&, InvalidateDisplayList);
 WEB_API void apply_subtree_repaint_damage(Layout::Node const&);
+// Records the document's display list again without damaging any row, for a change that pushes the damage of the rows it
+// changes itself.
+WEB_API void request_document_repaint(Layout::Node const&, InvalidateDisplayList);
 
 enum class PaintCacheInvalidation : u8 {
     PaintAndHitTest,
