@@ -604,7 +604,7 @@ impl RetainedState {
         // resized, or an ancestor whose container type moved or that left display:none, whose
         // record this batch settled before the node), are published again from the node's
         // retained answer, over the containers as they stand now.
-        if self.published_container_verdicts.contains_key(&node) || self.container_gates_unheld.contains(&node) {
+        if self.node_holds_container_gates(node) {
             if self.container_ancestor_is_unsettled(node, scratch) {
                 counters.bump(Counter::EngineComputedRecordBailRecordParent);
                 return Err(Unanswered::AwaitsParent);
@@ -619,9 +619,10 @@ impl RetainedState {
                 };
                 cascade_winners_are_complete = complete;
             }
+            // A container the host styles in this update decides the verdicts once it is installed.
             if !self.container_verdicts_stand(node) {
-                counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
-                return Err(Unanswered::Refused);
+                counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                return Err(Unanswered::AwaitsParent);
             }
         }
         // A custom property the cascade declares is no winner the columns hold; the engine
@@ -2454,6 +2455,12 @@ impl RetainedState {
         }
         scratch.pseudo_deltas.clear();
         self.settle_computed_memory();
+    }
+
+    /// Whether a node's winners hold gated rules, decided where they were published or left for
+    /// the record drive to decide once its containers settle.
+    pub(super) fn node_holds_container_gates(&self, node: StyleNodeID) -> bool {
+        self.published_container_verdicts.contains_key(&node) || self.container_gates_unheld.contains(&node)
     }
 
     /// How much of an element's held record a row drives again, given the winner `delta` since

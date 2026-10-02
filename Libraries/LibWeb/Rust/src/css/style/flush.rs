@@ -2112,8 +2112,11 @@ impl StyleEngineState {
                         .map_or(0, |style_record| style_record.raw());
                     // A record computed from an answer declaring past its winners (custom properties,
                     // `all`) is no function of a winner state: the engine derives nothing from it.
+                    // An answer whose gated rules waited on a moving container is published again
+                    // where the record is driven, once the container settles.
                     let previous_answer_was_incomplete =
-                        self.retained.computed_group_sets.node_answer_is_incomplete(node);
+                        self.retained.computed_group_sets.node_answer_is_incomplete(node)
+                            && !self.retained.node_holds_container_gates(node);
                     // Custom properties alone leave an answer complete enough: the engine computes
                     // the environment they decide.
                     let answer_is_incomplete = !answer.cascade_winners_are_complete
