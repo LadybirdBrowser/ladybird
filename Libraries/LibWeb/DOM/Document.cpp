@@ -1487,7 +1487,7 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16View title)
 
     // -> If the document element is an SVG svg element
     if (is<SVG::SVGSVGElement>(document_element)) {
-        GC::Ptr<Element> element;
+        GC::Ptr<SVG::SVGTitleElement> element;
 
         // 1. If there is an SVG title element that is a child of the document element, let element be the first such
         //    element.
@@ -1498,14 +1498,14 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16View title)
         else {
             // 1. Let element be the result of creating an element given the document element's node document, "title",
             //    and the SVG namespace.
-            element = TRY(DOM::create_element(*this, HTML::TagNames::title, Namespace::SVG));
+            element = as<SVG::SVGTitleElement>(*TRY(DOM::create_element(*this, HTML::TagNames::title, Namespace::SVG)));
 
             // 2. Insert element as the first child of the document element.
             document_element->insert_before(*element, document_element->first_child());
         }
 
         // 3. String replace all with the given value within element.
-        element->string_replace_all(title);
+        element->set_text(title);
     }
 
     // -> If the document element is in the HTML namespace
@@ -1517,7 +1517,7 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16View title)
         if (title_element == nullptr && head_element == nullptr)
             return {};
 
-        GC::Ptr<Element> element;
+        GC::Ptr<HTML::HTMLTitleElement> element;
 
         // 2. If the title element is non-null, let element be the title element.
         if (title_element) {
@@ -1527,14 +1527,14 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16View title)
         else {
             // 1. Let element be the result of creating an element given the document element's node document, "title",
             //    and the HTML namespace.
-            element = TRY(DOM::create_element(*this, HTML::TagNames::title, Namespace::HTML));
+            element = as<HTML::HTMLTitleElement>(*TRY(DOM::create_element(*this, HTML::TagNames::title, Namespace::HTML)));
 
             // 2. Append element to the head element.
             TRY(head_element->append_child(*element));
         }
 
         // 4. String replace all with the given value within element.
-        element->string_replace_all(title);
+        element->set_text(title);
     }
 
     // -> Otherwise
