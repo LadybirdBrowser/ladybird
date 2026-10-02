@@ -629,15 +629,16 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
 }
 
 // Install the style engine's record for a synthetic pseudo-element a CSSOM read asks for, settled against its
-// element's installed record as a style update settles it. False where the engine leaves the read to C++.
-static bool install_engine_pseudo_element_style(DOM::AbstractElement target)
+// element's installed record as a style update settles it. A pseudo-element the engine gives no answer for keeps the
+// record it holds.
+static void install_engine_pseudo_element_style(DOM::AbstractElement target)
 {
     auto pseudo_element = *target.pseudo_element();
     auto& element = target.element();
     auto& style_engine = element.document().style_computer().style_engine();
     auto answer = style_engine.answer_pseudo_element_record_demand(element.style_node_id(), StyleEngine::PseudoElementRecordDemand::CssomRead, *StyleEngine::demanded_pseudo_element(pseudo_element));
     if (!answer.is_absent && answer.record.style_record == 0)
-        return false;
+        return;
     StyleRecordID record { answer.record.style_record };
     element.set_computed_style(pseudo_element, record);
     // A pseudo-element that generates no box holds the environment its rules declare, if any rule styles it.
@@ -649,7 +650,6 @@ static bool install_engine_pseudo_element_style(DOM::AbstractElement target)
     if (!!record)
         element.document().style_computer().compose_installed_engine_record(target, {});
     style_engine.acknowledge_engine_computed_record(element.style_node_id());
-    return true;
 }
 
 static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_element)
@@ -683,17 +683,6 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
     ScopeGuard end_stabilization_epoch = [&] {
         document.end_style_stabilization_epoch();
     };
-    auto& style_computer = abstract_element.document().style_computer();
-
-    auto compute = [&](DOM::AbstractElement target) {
-        if (install_engine_pseudo_element_style(target))
-            return;
-        bool did_change_custom_properties = false;
-        StyleEngine::StyleRecordDelta style_record_delta {};
-        auto style = style_computer.compute_pseudo_element_style_if_needed(target, did_change_custom_properties, nullptr, style_record_delta);
-        target.element().set_computed_style(*pseudo_element, style ? style_record_delta.new_style_record : StyleRecordID {});
-    };
-
     // A highlight pseudo-element inherits from its parent element's, which nothing keeps current while selection
     // styles are unobservable, so the chain is computed outermost first.
     if (is_highlight_pseudo_element(*pseudo_element) && !document.selection_styles_are_observable()) {
@@ -701,9 +690,9 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
         for (auto ancestor = abstract_element.element().element_to_inherit_style_from({}); ancestor; ancestor = ancestor->element_to_inherit_style_from({}))
             ancestors.append({ *ancestor, pseudo_element });
         for (auto& ancestor : ancestors.in_reverse())
-            compute(ancestor);
+            install_engine_pseudo_element_style(ancestor);
     }
-    compute(abstract_element);
+    install_engine_pseudo_element_style(abstract_element);
 }
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, ColorResolutionContext const* = nullptr);
@@ -861,14 +850,14 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             if (!style_record) {
                 // A pseudo-element without a box has no durable style: a synthetic one without matching rules, one no
                 // element in the shadow tree backs, or a named view transition one. The style engine derives the one
-                // it would have for this read alone; where it leaves the read to C++, C++ computes it.
+                // it would have for this read alone; a read it answers with none has no value.
                 auto& style_computer = abstract_element.document().style_computer();
                 if (auto pseudo_element = abstract_element.pseudo_element(); pseudo_element.has_value()) {
                     if (auto demanded_pseudo_element = StyleEngine::demanded_pseudo_element(*pseudo_element); demanded_pseudo_element.has_value())
                         transient_style = style_computer.engine_transient_pseudo_element_style(abstract_element.element(), *demanded_pseudo_element);
                 }
                 if (!transient_style)
-                    transient_style = style_computer.materialize_style_record(abstract_element);
+                    return {};
             }
             auto const* computed_values = style_record ? &*style_record : transient_style.ptr();
             VERIFY(computed_values);
