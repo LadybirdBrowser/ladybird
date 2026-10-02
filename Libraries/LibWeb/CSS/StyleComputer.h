@@ -89,12 +89,9 @@ public:
     [[nodiscard]] CSSPixelRect const& viewport_rect_for_style_environment() const { return m_viewport_rect; }
     [[nodiscard]] Length::FontMetrics const& root_element_font_metrics() const { return m_root_element_font_metrics; }
     [[nodiscard]] bool root_element_font_metrics_depend_on_viewport_metrics() const { return m_root_element_font_metrics_depend_on_viewport_metrics; }
-    // Moves with the viewport rect the environment resolves viewport units against. A style input
-    // record names it apart from the environment version, so that a computation that read no
-    // viewport metric survives a resize.
-    [[nodiscard]] u64 viewport_environment_version() const { return m_viewport_environment_version; }
+    // Moves with the viewport rect the environment resolves viewport units against.
     void bump_viewport_environment_version() { ++m_viewport_environment_version; }
-    // The environment as the sharing caches name it: the document's version and the viewport's.
+    // The environment as a compositor animation request names it: the document's version and the viewport's.
     [[nodiscard]] u64 style_environment_version_for_sharing() const;
 
     // Drop caches whose keys contain inputs that are stable only within one engine transaction.
@@ -170,7 +167,6 @@ public:
     static NonnullRefPtr<StyleValue const> compute_font_weight(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent);
     static NonnullRefPtr<StyleValue const> compute_font_width(NonnullRefPtr<StyleValue const> const& absolutized_value);
 
-    [[nodiscard]] NonnullRefPtr<ComputedValues const> build_computed_values(ComputedStyleWorkingSet&, DOM::AbstractElement, StyleScope const&, ComputedValues const* previous_base = nullptr, u32 groups_to_apply = ComputedValues::all_style_groups) const;
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties(ComputedValues const&) const;
     void apply_animated_properties_to_reconstruction(ComputedStyleWorkingSet&, ComputedValues const&) const;
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties_for_animation(StyleRecordID) const;
@@ -199,7 +195,6 @@ private:
     [[nodiscard]] Parser::ValueParserFFI::FfiMediaEnvironment const* cached_media_environment_for_style_update() const;
 
 private:
-    [[nodiscard]] Optional<u32> animated_overlay_style_groups(AnimatedProperties const&, DOM::AbstractElement) const;
     // `sampled_style_record` names the record the working set was reconstructed from, where it was.
     void collect_animation_effects_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, StyleRecordID sampled_style_record) const;
     void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
@@ -271,10 +266,6 @@ private:
     mutable u64 m_style_update_depth { 0 };
     mutable Optional<MediaEnvironmentSnapshot> m_style_update_media_environment;
     mutable Optional<Parser::ValueParserFFI::FfiMediaEnvironment> m_style_update_ffi_media_environment;
-    // The style most recently built, kept as a payload donor: a run of elements computing the same
-    // style shares group payloads through it, which no parent or previous-style adoption can do.
-    mutable RefPtr<ComputedValues const> m_last_built_computed_values;
-
     u64 m_viewport_environment_version { 0 };
     // The environments the style engine resolved, by the identity it minted, materialized once.
     mutable HashMap<u64, NonnullRefPtr<CustomPropertyData const>> m_engine_custom_property_environments;

@@ -2204,8 +2204,7 @@ bool Document::layout_is_up_to_date() const
 
 void Document::update_style_computer_viewport_rect()
 {
-    // A viewport unit is resolved against this. A style input record names the viewport environment
-    // apart from the rest, so only a computation that read a viewport metric moves with it.
+    // A viewport unit is resolved against this.
     if (style_computer().viewport_rect_for_style_environment() != viewport_rect())
         style_computer().bump_viewport_environment_version();
     style_computer().set_viewport_rect({}, viewport_rect());

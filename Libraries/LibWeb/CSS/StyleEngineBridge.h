@@ -122,19 +122,11 @@ public:
         StyleRecordID new_style_record;
     };
     using StyleRecordView = StyleEngineFFI::FfiStyleRecordView;
-    using ExactCascadePublication = StyleEngineFFI::FfiExactCascadePublication;
-    // The returned assignments borrow Rust storage until the next mutable engine call or an
-    // explicit discard. Consume them synchronously before asking the engine anything else.
-    [[nodiscard]] ReadonlySpan<ComputedValuesFFI::FfiSourceSlotAssignment> materialize_retained_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore*, ReadonlySpan<ComputedValuesFFI::FfiCascadeBlock>);
-    void discard_retained_cascade_assignments();
-    [[nodiscard]] ExactCascadePublication publish_exact_cascade_state(StyleNodeID node, u8 pseudo_kind, ComputedValuesFFI::CascadedPropertyStore const*, u8 inherited_style_groups = 0, StyleNodeID donor_node = {}, StyleRecordID donor_style_record = {});
     // Publish the immutable input identities of an element or pseudo-element's base style and
     // return its previous and current StyleRecordID assignments. A zero node interns an unassigned
     // record for a style target which is not registered in the engine.
     [[nodiscard]] StyleRecordDelta publish_computed_groups(StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store);
     [[nodiscard]] Optional<StyleRecordDelta> publish_animation_overlay(StyleNodeID node, u8 pseudo_kind, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> payloads);
-    [[nodiscard]] StyleRecordDelta assign_shared_style_record(StyleNodeID node, u8 pseudo_kind, StyleRecordID style_record, bool inherited_group_swap_eligible);
-    [[nodiscard]] Optional<StyleRecordDelta> reaffirm_style_record(StyleNodeID node, u8 pseudo_kind);
     // The borrowed payload array is stable while a base record exists or an animation-overlay
     // generation remains assigned or pinned.
     [[nodiscard]] void const* style_record_payloads(StyleRecordID style_record) const;
@@ -149,7 +141,6 @@ public:
     // none. The host compares the counter styles the box was built with.
     [[nodiscard]] u32 pseudo_element_record_damage(StyleNodeID, PseudoElement, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const;
     [[nodiscard]] bool animation_overlay_changed(StyleRecordID old_style_record, void const* animated_overlay) const;
-    [[nodiscard]] Optional<u32> current_color_dependent_style_groups(StyleNodeID node, u8 pseudo_kind) const;
     [[nodiscard]] StyleEngineFFI::FfiAnimationInvalidation compare_animation_overlay(StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const;
     [[nodiscard]] StyleRecordView style_record_view(StyleRecordID style_record) const;
     void decide_transitions(StyleRecordID before_style_record, void const* after_longhand_table, void const* after_animated_overlay, StyleValueFFI::FfiTransitionInput&, StyleValueFFI::FfiTransitionAction*) const;
@@ -336,9 +327,6 @@ public:
     // callers may omit rules whose declarations cannot win; exact callers receive the same answer
     // as the document pass. Returns false when matching could not complete.
     bool match_element(StyleNodeID node, Vector<RuleMatch>&, MatchPurpose);
-    // Reads the complete match answer published by the style transaction which opened the active
-    // traversal. False means that transaction did not publish an answer for this node.
-    bool consume_published_match_answer(StyleNodeID node, Vector<RuleMatch>&);
 
     // Give the engine the document's @font-face table and cascade memo, when they moved since it was last given them.
     void publish_font_faces(FontComputer const&);
@@ -364,7 +352,6 @@ public:
 private:
     using InputTransaction = StyleEngineFFI::FfiStyleInputTransaction;
 
-    bool read_matches(StyleNodeID, Vector<RuleMatch>&, Optional<MatchPurpose>);
     void apply_transaction(InputTransaction const&);
     void submit_recorded_input();
     bool refresh_attribute_value_text_requirements();

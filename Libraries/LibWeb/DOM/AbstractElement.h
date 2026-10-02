@@ -44,8 +44,6 @@ public:
     Optional<AbstractElement> highlight_inheritance_parent() const;
     GC::Ptr<Node> root();
 
-    void set_inheritance_override(GC::Ref<Element> element) { m_inheritance_override = element; }
-
     [[nodiscard]] CSS::ComputedStyleRecordView computed_style() const;
     [[nodiscard]] CSS::StyleRecordID style_record_identity() const;
     [[nodiscard]] bool has_style() const { return !!style_record_identity(); }
@@ -80,8 +78,6 @@ public:
 private:
     GC::Ref<Element> m_element;
     Optional<CSS::PseudoElement> m_pseudo_element;
-
-    GC::Ptr<Element> m_inheritance_override;
 };
 
 }
