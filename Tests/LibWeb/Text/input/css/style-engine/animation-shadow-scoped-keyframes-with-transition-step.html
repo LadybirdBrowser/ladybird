@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes pulse {
+        from { opacity: 0.25; }
+        to { opacity: 0.25; }
+    }
+</style>
+<div id="host"></div>
+<script>
+    asyncTest(async done => {
+        const host = document.getElementById("host");
+        const root = host.attachShadow({ mode: "open" });
+        // The shadow root defines the same name as the document: only the scope the winning
+        // `animation-name` declaration was written in says which rule runs.
+        root.innerHTML = `
+            <style>
+                @keyframes pulse {
+                    from { opacity: 0.75; }
+                    to { opacity: 0.75; }
+                }
+                #target { width: 10px; transition: width 100s linear; }
+                #target.go { animation: pulse 100s linear; width: 110px; }
+                #target.go.other { animation: pulse 50s linear; transition: width 200s linear; width: 210px; }
+            </style>
+            <div id="target"><span id="child">child</span></div>`;
+        const target = root.getElementById("target");
+        const child = root.getElementById("child");
+        getComputedStyle(target).opacity;
+
+        // One row moves both the animation and the transition declarations, beside a value a
+        // transition runs on, on an element with a child.
+        target.classList.add("go");
+        println(`opacity: ${getComputedStyle(target).opacity}`);
+        println(`child opacity: ${getComputedStyle(child).opacity}`);
+        println(`animations: ${target.getAnimations().map(a => a.constructor.name).sort().join(", ")}`);
+
+        // The running animation is retimed and the running transition retargeted by the next row.
+        target.classList.add("other");
+        const animations = target.getAnimations();
+        println(`animation duration: ${animations.find(a => a instanceof CSSAnimation).effect.getTiming().duration}`);
+        println(`transitions: ${animations.filter(a => a instanceof CSSTransition).length}`);
+        println(`opacity after retime: ${getComputedStyle(target).opacity}`);
+
+        // Removing the animation name cancels the animation.
+        target.classList.remove("go", "other");
+        println(`opacity after removal: ${getComputedStyle(target).opacity}`);
+        println(`css animations left: ${target.getAnimations().filter(a => a instanceof CSSAnimation).length}`);
+        done();
+    });
+</script>

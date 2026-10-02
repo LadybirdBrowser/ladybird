@@ -1,0 +1,8 @@
+opacity: 0.75
+child opacity: 1
+animations: CSSAnimation, CSSTransition
+animation duration: 50000
+transitions: 1
+opacity after retime: 0.75
+opacity after removal: 1
+css animations left: 0
