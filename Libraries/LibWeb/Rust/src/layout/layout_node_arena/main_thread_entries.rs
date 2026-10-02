@@ -117,13 +117,7 @@ pub unsafe extern "C" fn layout_arena_adopt_derived_node_style(arena: *mut c_voi
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let derived = arena.with_style_engine(|engine| {
-        engine.pin_layout_style_record(record);
-        DerivedStyleRecord {
-            record,
-            payloads: engine.style_record_payloads(record).unwrap().as_ptr().cast(),
-        }
-    });
+    let derived = arena.with_style_engine(|engine| DerivedStyleRecord::pin(engine, record));
     arena.apply_reinherited_style_record(&main_thread, node, derived);
 }
 

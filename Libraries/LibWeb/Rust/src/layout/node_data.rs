@@ -19,6 +19,11 @@ pub const GENERATED_FOR_MARKER: u8 = 6;
 // count so the style container array and the registered group indices line up.
 pub const STYLE_GROUP_COUNT: usize = 23;
 
+/// Where a row's computed style is: the group payload array of the style record pinned for the
+/// row, or null for a row with no style. The array and the groups it names are immutable, so the
+/// row shares it as a `HostShared` rather than as a raw pointer.
+pub(crate) type StylePayloadsRef = crate::css::host_shared::HostShared<FfiStylePayloads>;
+
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiReplacedContentFacts {
@@ -65,6 +70,11 @@ impl From<crate::css::style::NaturalSize> for crate::painting::host::FfiNaturalS
 pub struct FfiStylePayloads {
     pub groups: [*const c_void; STYLE_GROUP_COUNT],
 }
+
+// SAFETY: A style record's payload array is written once, as the record is interned, and never
+// through a shared reference, and the groups it points at are immutable while the record is pinned.
+// Sharing one shares only reads.
+unsafe impl Sync for FfiStylePayloads {}
 
 impl Default for FfiStylePayloads {
     fn default() -> Self {
@@ -245,7 +255,7 @@ pub(crate) struct NodeData {
     pub table_row_span: Cell<u16>,
     pub dom_paint_facts: Cell<u8>,
     pub ancestor_facts: Cell<u8>,
-    pub style: Cell<*const c_void>,
+    pub style: Cell<StylePayloadsRef>,
     pub shell: Cell<*mut c_void>,
 }
 
@@ -268,7 +278,7 @@ impl Default for NodeData {
             dom_paint_facts: Cell::new(0),
             ancestor_facts: Cell::new(0),
             fragment_cache_epoch: Cell::new(0),
-            style: Cell::new(std::ptr::null()),
+            style: Cell::new(StylePayloadsRef::null()),
             shell: Cell::new(std::ptr::null_mut()),
         }
     }

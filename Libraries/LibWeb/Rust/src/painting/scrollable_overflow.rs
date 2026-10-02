@@ -912,8 +912,9 @@ pub(crate) fn update_scrollable_overflow(main_thread: &crate::stage::MainThread,
 }
 
 /// Retain the last published transform group so a style change can invalidate overflow
-/// even after the DOM or an animation has released its previous style record.
-pub(crate) struct OverflowStyle(std::ptr::NonNull<crate::css::computed_value_types::TransformValues>);
+/// even after the DOM or an animation has released its previous style record. The snapshot owns
+/// its reference to the group, as a style record does, and shares the immutable payload.
+pub(crate) struct OverflowStyle(crate::css::host_shared::HostShared<crate::css::computed_value_types::TransformValues>);
 
 impl OverflowStyle {
     pub(crate) fn new(style: crate::css::computed_value_views::ComputedValuesView<'_>) -> Self {
@@ -922,16 +923,16 @@ impl OverflowStyle {
             crate::css::computed_value_types::STYLE_GROUP_INDEX_TRANSFORM,
             values.cast(),
         );
-        Self(std::ptr::NonNull::from(style.transform()))
+        Self(crate::css::host_shared::HostShared::new(values))
     }
 
     fn matches(&self, style: crate::css::computed_value_views::ComputedValuesView<'_>) -> bool {
         let new = style.transform();
-        if std::ptr::eq(self.0.as_ptr(), new) {
+        if std::ptr::eq(self.0.as_ptr().cast(), new) {
             return true;
         }
         // SAFETY: This snapshot retains the immutable group until it is replaced or dropped.
-        let old = unsafe { self.0.as_ref() };
+        let old = unsafe { self.0.deref() };
         old.transformations == new.transformations
             && old.translate == new.translate
             && old.rotate == new.rotate

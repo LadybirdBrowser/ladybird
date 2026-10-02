@@ -19,7 +19,6 @@ use crate::css::css_enums::{
 use crate::css::display::FfiDisplay;
 use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::table_group_builder::group_index;
-use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AnonymousStyleKind {
@@ -46,7 +45,21 @@ pub(crate) struct AnonymousStyleOverrides {
 #[derive(Clone, Copy)]
 pub(crate) struct DerivedStyleRecord {
     pub record: u64,
-    pub payloads: *const c_void,
+    pub payloads: crate::layout::node_data::StylePayloadsRef,
+}
+
+impl DerivedStyleRecord {
+    /// Pins `record` for a layout row and names its group payloads.
+    pub(crate) fn pin(engine: &mut StyleEngine, record: u64) -> Self {
+        engine.pin_layout_style_record(record);
+        let payloads = engine
+            .style_record_payloads(record)
+            .expect("a layout style record is live");
+        Self {
+            record,
+            payloads: crate::layout::node_data::StylePayloadsRef::new(payloads.as_ptr().cast()),
+        }
+    }
 }
 
 trait LayoutStyleGroup: Clone + PartialEq {
@@ -402,15 +415,7 @@ impl LayoutStyle {
             std::ptr::null(),
         )
         .new_style_record;
-        engine.pin_layout_style_record(record);
-        DerivedStyleRecord {
-            record,
-            payloads: engine
-                .style_record_payloads(record)
-                .expect("new layout style must be live")
-                .as_ptr()
-                .cast(),
-        }
+        DerivedStyleRecord::pin(engine, record)
     }
 }
 
