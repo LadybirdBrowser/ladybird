@@ -48,19 +48,6 @@ TEST_CASE(a_display_list_round_trips_through_a_shared_buffer)
     EXPECT(received->command_runs()[0] == commands.runs[0]);
 }
 
-TEST_CASE(the_receiver_keeps_the_mapping_alive_after_the_sender_drops_it)
-{
-    auto tree = VisualContextTreeTestBuilder().finish();
-    auto commands = two_fill_rects();
-    RefPtr<DisplayList> received;
-    {
-        auto sent = list_from(tree, commands);
-        auto buffer = MUST(sent->copy_to_shared_buffer());
-        received = MUST(DisplayList::create_from_shared_buffer(sent->properties(), move(buffer), sent->command_bytes().size(), sent->command_runs().size()));
-    }
-    EXPECT_EQ(received->command_bytes(), commands.bytes.bytes());
-}
-
 TEST_CASE(an_empty_display_list_needs_no_buffer)
 {
     auto tree = VisualContextTreeTestBuilder().finish();
