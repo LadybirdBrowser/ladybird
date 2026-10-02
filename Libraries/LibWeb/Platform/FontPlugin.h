@@ -8,6 +8,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
@@ -57,6 +58,8 @@ private:
     FlyString compute_generic_font_name(GenericFont);
 
     Vector<Vector<FlyString>> m_generic_font_fallbacks;
+    // Filled from wherever a font cascade is resolved, which need not be the document thread.
+    Mutex m_generic_font_cache_mutex;
     HashMap<GenericFont, FlyString> m_generic_font_cache;
     Vector<FlyString> m_symbol_font_names;
     RefPtr<Gfx::Font> m_default_fixed_width_font;

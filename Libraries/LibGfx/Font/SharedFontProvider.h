@@ -10,6 +10,7 @@
 #include <AK/HashFunctions.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
+#include <AK/Mutex.h>
 #include <AK/OwnPtr.h>
 #include <LibCore/MappedFile.h>
 #include <LibGfx/Font/FontCatalog.h>
@@ -90,12 +91,17 @@ private:
 
     SharedFontProvider(NonnullOwnPtr<Core::MappedFile>, NonnullOwnPtr<FontCatalog>, SharedFontProviderCallbacks);
 
+    // NB: These run with m_mutex held.
     RefPtr<Typeface> load_catalog_face(FontCatalogFace const&);
     RefPtr<Typeface> load_brokered_font(BrokeredFont);
     RefPtr<Typeface> load_font_file(u64 face_id, u32 ttc_index, FontFileFormat, IPC::File);
     RefPtr<Typeface> load_font_reference(u64 face_id, SystemFontReference const&);
     void clear_typeface_cache();
 
+    // Guards everything below. A font cascade can be resolved off the document thread, and every resolution fills
+    // these caches on its way past. The lock is held across a round trip to the font service, so that one face is
+    // opened once however many threads want it.
+    Mutex m_mutex;
     NonnullOwnPtr<Core::MappedFile> m_catalog_mapping;
     NonnullOwnPtr<FontCatalog> m_catalog;
     SharedFontProviderCallbacks m_callbacks;

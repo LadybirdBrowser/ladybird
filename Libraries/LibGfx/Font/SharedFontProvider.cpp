@@ -18,6 +18,7 @@ namespace Gfx {
 
 RefPtr<Typeface> SharedFontProvider::get_typeface_by_local_name(String const& name)
 {
+    MutexLocker locker(m_mutex);
     if (!m_callbacks.match_local_font)
         return {};
     return load_brokered_font(m_callbacks.match_local_font(name));
@@ -84,11 +85,15 @@ void SharedFontProvider::clear_typeface_cache()
 ErrorOr<void> SharedFontProvider::replace_catalog(NonnullOwnPtr<Core::MappedFile> mapping, u64 generation)
 {
     auto catalog = TRY(FontCatalog::parse(mapping->bytes(), generation));
-    m_catalog = move(catalog);
-    m_catalog_mapping = move(mapping);
-    clear_typeface_cache();
-    m_failed_face_ids.clear();
-    m_code_point_cache.clear();
+    {
+        MutexLocker locker(m_mutex);
+        m_catalog = move(catalog);
+        m_catalog_mapping = move(mapping);
+        clear_typeface_cache();
+        m_failed_face_ids.clear();
+        m_code_point_cache.clear();
+    }
+    // NB: Not under m_mutex: the fallback memo asks this provider while holding its own lock.
     clear_system_fallback_font_cache();
     return {};
 }
@@ -154,6 +159,7 @@ static ShapeFeatures default_shape_features()
 
 RefPtr<Gfx::Font> SharedFontProvider::get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& variation_settings, Optional<Gfx::ShapeFeatures> const& shape_features)
 {
+    MutexLocker locker(m_mutex);
     if (auto resource_font = m_resource_fonts.get_font(family, point_size, weight, width, slope, variation_settings, shape_features))
         return resource_font;
 
@@ -170,8 +176,10 @@ RefPtr<Gfx::Font> SharedFontProvider::get_font(FlyString const& family, float po
     return typeface->font(point_size, variation_settings.value_or_lazy_evaluated([&] { return default_variations(point_size, weight, width); }), shape_features.value_or_lazy_evaluated(default_shape_features));
 }
 
+// NB: The callback runs with m_mutex held, so it must not ask this provider anything.
 void SharedFontProvider::for_each_typeface_with_family_name(FlyString const& family, Function<void(Typeface const&)> callback)
 {
+    MutexLocker locker(m_mutex);
     m_resource_fonts.for_each_typeface_with_family_name(family, [&](Typeface const& typeface) {
         callback(typeface);
     });
@@ -189,6 +197,7 @@ void SharedFontProvider::for_each_typeface_with_family_name(FlyString const& fam
 
 RefPtr<Typeface> SharedFontProvider::get_typeface_by_id(u64 generation, u64 face_id)
 {
+    MutexLocker locker(m_mutex);
     if (generation != m_catalog->generation() || face_id == 0)
         return nullptr;
     if (auto typeface = m_typeface_cache.get(face_id); typeface.has_value())
@@ -202,6 +211,7 @@ RefPtr<Typeface> SharedFontProvider::get_typeface_by_id(u64 generation, u64 face
 
 RefPtr<Gfx::Font> SharedFontProvider::get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
+    MutexLocker locker(m_mutex);
     if (!m_callbacks.match_font_for_code_point)
         return nullptr;
 
