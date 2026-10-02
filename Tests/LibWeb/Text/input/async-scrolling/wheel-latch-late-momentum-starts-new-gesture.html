@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 150, true, "ongoing");
+        await internals.wheel(50, 50, 0, 150, true, "ongoing");
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+        println(`nested.scrollTop after the gesture: ${nested.scrollTop}`);
+
+        // Momentum continues an ended gesture only if it arrives within 100 milliseconds of the end. Arriving later,
+        // it starts a new gesture, which the nested scroller at its extent leaves to the page.
+        await timeout(250);
+        await internals.wheel(50, 50, 0, 100, true, "momentum");
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+        println(`window.scrollY after late momentum: ${window.scrollY}`);
+        println(`nested.scrollTop after late momentum: ${nested.scrollTop}`);
+    });
+</script>

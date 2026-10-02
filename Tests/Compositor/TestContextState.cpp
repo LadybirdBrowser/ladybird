@@ -1296,15 +1296,6 @@ TEST_CASE(momentum_within_the_grace_after_the_gesture_ended_continues_its_latch)
     EXPECT_EQ(fixture.latched_scroller_node_id(), nested_scroller_node_id);
 }
 
-TEST_CASE(momentum_arriving_late_after_the_gesture_ended_starts_a_new_gesture)
-{
-    LatchedWheelContextFixture fixture;
-    fixture.latch_gesture_to_nested_scroller_at_its_edge();
-    fixture.wheel({ 20, 20 }, { 0, 0 }, Web::ScrollGesturePhase::Ended, 10);
-
-    fixture.expect_step_to_scroll_viewport_afresh({ 20, 20 }, Web::ScrollGesturePhase::Momentum, 150);
-}
-
 TEST_CASE(a_latched_wheel_gesture_outlives_a_display_list_that_renumbers_its_scroll_node)
 {
     LatchedWheelContextFixture fixture;
