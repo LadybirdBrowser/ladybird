@@ -1764,13 +1764,16 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         }
 
         if (new_pseudo_element_style) {
-            // The transition step of a pseudo-element the host computed reads the record it moved away from.
-            CSS::StyleRecordPin const before_change { style_computer, engine_record.has_value() ? CSS::StyleRecordID {} : old_style_record };
+            // The transition step of a pseudo-element runs where its record is installed, against the record it moved
+            // away from. A record the host computed leaves the follow-up to its computation.
+            CSS::StyleRecordPin const before_change { style_computer, old_style_record };
             set_computed_style(pseudo_element, style_record_delta.new_style_record);
             if (engine_record.has_value())
                 install_engine_pseudo_element_custom_property_data(pseudo_element, *engine_record);
-            if (!!before_change.style_record())
-                invalidation |= style_computer.run_transition_step_for_installed_record({ *this, pseudo_element }, before_change.style_record(), CSS::StyleComputer::TransitionStepFollowUp::LeftToCaller);
+            if (!!before_change.style_record()) {
+                auto follow_up = engine_record.has_value() ? CSS::StyleComputer::TransitionStepFollowUp::Request : CSS::StyleComputer::TransitionStepFollowUp::LeftToCaller;
+                invalidation |= style_computer.run_transition_step_for_installed_record({ *this, pseudo_element }, before_change.style_record(), follow_up);
+            }
         } else if (auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element); existing_pseudo_element.has_value())
             existing_pseudo_element->clear_computed_style(move(style_to_preserve_for_detachment));
 
