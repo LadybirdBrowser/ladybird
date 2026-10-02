@@ -419,11 +419,10 @@ impl RetainedState {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::Refused);
                 };
-                if !view.animated_overlay.is_null() {
-                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                    return Err(Unanswered::Refused);
-                }
-                Some(parent_snapshot_for_style_record(self, record.raw(), None))
+                // A child inherits what the parent's animations sampled over its record.
+                Some(parent_snapshot_for_style_record(self, record.raw(), unsafe {
+                    view.animated_overlay.as_ref()
+                }))
             }
         };
         let font = unsafe {
@@ -723,10 +722,6 @@ impl RetainedState {
                     counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::Refused);
                 };
-                if !parent_view.animated_overlay.is_null() {
-                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                    return Err(Unanswered::Refused);
-                }
                 Some(parent_view)
             }
             None => None,
