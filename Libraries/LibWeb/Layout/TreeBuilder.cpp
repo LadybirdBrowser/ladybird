@@ -240,21 +240,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
     return {
         .builder = this,
         .restyle_bypass_path_element = [](void* builder_pointer, u32 style_node) { update_style_if_needed_for_layout_tree_bypass_path(as<DOM::Element>(node_for_style_node(builder_pointer, style_node))); },
-        .nested_list_marker_style = [](void* builder_pointer, u32 element_style_node) -> u64 {
-            auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, element_style_node));
-            auto& style_computer = element.document().style_computer();
-            // NB: Republishing the element's own ::marker style can retire its animation record while the pseudo-element
-            //     still refers to it. Give the nested marker a record of its own, made from a copy of the existing style.
-            auto marker_style = [&] {
-                if (auto style = element.computed_style(CSS::PseudoElement::Marker))
-                    return CSS::ComputedValues::Builder { *style }.build();
-                // The style engine derives the ::marker style for this read alone. It answers one for every list item;
-                // should it not, the marker takes the list item's style.
-                if (auto style = style_computer.engine_transient_pseudo_element_style(element, CSS::StyleEngine::DemandedPseudoElement::Marker))
-                    return style.release_nonnull();
-                return CSS::ComputedValues::Builder { *element.computed_style() }.build();
-            }();
-            return style_computer.intern_anonymous_layout_style(*marker_style).value(); },
     };
 }
 
