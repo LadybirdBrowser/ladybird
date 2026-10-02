@@ -183,21 +183,18 @@ public:
     [[nodiscard]] StyleRecordID republish_record_environment(StyleNodeID, u64 environment, void const* store);
     [[nodiscard]] StyleEngineFFI::FfiEngineComputedRecord retry_engine_record_after_ancestor(StyleNodeID);
     // What a read of an element's style, or one of its pseudo-elements', made before the next style update asks of
-    // the style engine.
-    struct RecordDemand {
-        // Drive the record in full against the parent as it is now.
-        bool targeted { false };
-        // Leave the engine as it was: the record is only for reading. Any other is installed and acknowledged as a
-        // style update's would be.
-        bool read_only { false };
-        // Compute the element as though it had no inline declaration. Only a read-only demand of an element may.
-        bool exclude_inline_style { false };
-        // The pseudo-element read, as its PseudoElement value; none reads the element.
-        Optional<u8> pseudo_kind {};
-    };
-    // Answers a record demand: the record the engine derived from the document as it is now, that the pseudo-element
-    // generates no box, or zero where the read is C++'s.
+    // the style engine, and the pseudo-element a demand may read.
+    using RecordDemand = StyleEngineFFI::FfiRecordDemand;
+    using PseudoElementRecordDemand = StyleEngineFFI::FfiPseudoElementRecordDemand;
+    using DemandedPseudoElement = StyleEngineFFI::FfiDemandedPseudoElement;
+    // The pseudo-element a record demand reads for a pseudo-element, if the engine settles that kind.
+    [[nodiscard]] static Optional<DemandedPseudoElement> demanded_pseudo_element(PseudoElement);
+    // Answers a record demand of an element: the record the engine derived from the document as it is now, or zero
+    // where the read is C++'s.
     [[nodiscard]] StyleEngineFFI::FfiRecordDemandAnswer answer_record_demand(StyleNodeID, RecordDemand);
+    // Answers a record demand of one of an element's pseudo-elements: its record, that it generates no box, or zero
+    // where the read is C++'s.
+    [[nodiscard]] StyleEngineFFI::FfiRecordDemandAnswer answer_pseudo_element_record_demand(StyleNodeID, PseudoElementRecordDemand, DemandedPseudoElement);
     [[nodiscard]] StyleEngineFFI::FfiEngineComputedRecord settle_pseudo_records_after_host_record(StyleNodeID, bool old_is_list_item);
     // Whether an environment identity is one the engine minted for an environment it resolved.
     [[nodiscard]] static bool is_engine_custom_property_environment(u64 identity) { return (identity & (1ull << 62)) != 0; }

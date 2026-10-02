@@ -766,17 +766,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::AnswerRecordDemand => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
-                    let demand = bridge::FfiRecordDemand {
-                        targeted: event.payload.read_bool()?,
-                        read_only: event.payload.read_bool()?,
-                        exclude_inline_style: event.payload.read_bool()?,
-                        pseudo_kind_plus_one: event.payload.read_u8()?,
-                    };
+                    let demand = read_record_demand(&mut event.payload, format_version)?;
                     let expected = event.payload.read_u64()?;
                     let expected_absent = event.payload.read_bool()?;
                     let expected_uses_substitution = event.payload.read_bool()?;
                     let expected_present = event.payload.read_u8()?;
-                    let actual = unsafe { bridge::style_engine_answer_record_demand_for_replay(engine, node, demand) };
+                    let actual = match demand {
+                        RecordDemand::Element(demand) => unsafe {
+                            bridge::style_engine_answer_record_demand_for_replay(engine, node, demand)
+                        },
+                        RecordDemand::PseudoElement(demand, pseudo_element) => unsafe {
+                            bridge::style_engine_answer_pseudo_element_record_demand_for_replay(
+                                engine,
+                                node,
+                                demand,
+                                pseudo_element,
+                            )
+                        },
+                    };
                     if actual.record.style_record != expected
                         || actual.is_absent != expected_absent
                         || actual.record.uses_substitution != expected_uses_substitution
@@ -2047,6 +2054,54 @@ fn read_document_style_computation_inputs(
         custom_property_registration_generation: if format_version >= 13 { payload.read_u64()? } else { 0 },
         in_quirks_mode: format_version >= 15 && payload.read_bool()?,
         ..Default::default()
+    })
+}
+
+/// A record demand of an element, or of one of its pseudo-elements.
+enum RecordDemand {
+    Element(bridge::FfiRecordDemand),
+    PseudoElement(bridge::FfiPseudoElementRecordDemand, bridge::FfiDemandedPseudoElement),
+}
+
+/// A record demand: its shape, an element's numbered as its kind and a pseudo-element's after
+/// them, then the pseudo-element a pseudo-element's reads. Before version 18 a demand was its
+/// flags and the pseudo-element's kind plus one, zero reading the element.
+fn read_record_demand(
+    payload: &mut PayloadReader,
+    format_version: u64,
+) -> Result<RecordDemand, Box<dyn std::error::Error>> {
+    use bridge::{
+        FfiDemandedPseudoElement as Pseudo, FfiPseudoElementRecordDemand as PseudoDemand, FfiRecordDemand as Demand,
+    };
+    let pseudo_element = |kind: u8| {
+        Ok::<_, Box<dyn std::error::Error>>(match kind {
+            0 => Pseudo::After,
+            1 => Pseudo::Backdrop,
+            2 => Pseudo::Before,
+            3 => Pseudo::FirstLetter,
+            5 => Pseudo::Marker,
+            _ => return Err(format!("record demand of pseudo-element kind {kind}").into()),
+        })
+    };
+    if format_version >= 18 {
+        return Ok(match payload.read_u8()? {
+            0 => RecordDemand::Element(Demand::TargetedElement),
+            1 => RecordDemand::Element(Demand::ElementRead),
+            2 => RecordDemand::Element(Demand::ElementReadWithoutInlineStyle),
+            3 => RecordDemand::PseudoElement(PseudoDemand::CssomRead, pseudo_element(payload.read_u8()?)?),
+            4 => RecordDemand::PseudoElement(PseudoDemand::ReadOnly, pseudo_element(payload.read_u8()?)?),
+            shape => return Err(format!("record demand shape {shape}").into()),
+        });
+    }
+    let _targeted = payload.read_bool()?;
+    let read_only = payload.read_bool()?;
+    let exclude_inline_style = payload.read_bool()?;
+    Ok(match payload.read_u8()?.checked_sub(1) {
+        Some(kind) if read_only => RecordDemand::PseudoElement(PseudoDemand::ReadOnly, pseudo_element(kind)?),
+        Some(kind) => RecordDemand::PseudoElement(PseudoDemand::CssomRead, pseudo_element(kind)?),
+        None if exclude_inline_style => RecordDemand::Element(Demand::ElementReadWithoutInlineStyle),
+        None if read_only => RecordDemand::Element(Demand::ElementRead),
+        None => RecordDemand::Element(Demand::TargetedElement),
     })
 }
 

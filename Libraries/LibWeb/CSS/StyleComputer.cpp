@@ -3468,9 +3468,9 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
     return publication;
 }
 
-RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_style(DOM::Element const& element, PseudoElement pseudo_element)
+RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_style(DOM::Element const& element, StyleEngine::DemandedPseudoElement pseudo_element)
 {
-    auto answer = m_style_engine.answer_record_demand(element.style_node_id(), { .read_only = true, .pseudo_kind = to_underlying(pseudo_element) });
+    auto answer = m_style_engine.answer_pseudo_element_record_demand(element.style_node_id(), StyleEngine::PseudoElementRecordDemand::ReadOnly, pseudo_element);
     auto view = computed_style_record_view(StyleRecordID { answer.record.style_record });
     if (!view)
         return {};

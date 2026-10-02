@@ -3513,19 +3513,43 @@ pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
 }
 
 /// What a read of one element's style the host makes before the next style update asks of the
-/// engine; see `StyleEngineState::answer_record_demand`.
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiRecordDemand {
-    /// Drive the record in full against the parent as it is now.
-    pub targeted: bool,
-    /// Leave the engine as it was: the record is only for the host to read.
-    pub read_only: bool,
-    /// Compute the element as though it had no inline declaration. Only a read-only demand of an
-    /// element may.
-    pub exclude_inline_style: bool,
-    /// The pseudo-element read, as its kind plus one; zero reads the element.
-    pub pseudo_kind_plus_one: u8,
+/// engine; see `StyleEngineState::answer_record_demand`. A read-only demand leaves the engine as it
+/// was: its record is only for the host to read. Any other is installed and acknowledged as a
+/// style update's would be.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiRecordDemand {
+    /// A targeted style update of the element: its record, driven in full against the parent as it
+    /// is now.
+    TargetedElement,
+    /// A read-only read of the element's record.
+    ElementRead,
+    /// A read-only read of what the element computes to as though it had no inline declaration,
+    /// driven in full against the parent as it is now.
+    ElementReadWithoutInlineStyle,
+}
+
+/// What a read of one of an element's pseudo-elements the host makes before the next style update
+/// asks of the engine, as `FfiRecordDemand` does of an element.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiPseudoElementRecordDemand {
+    /// A CSSOM read of the pseudo-element, settled against its element's installed record.
+    CssomRead,
+    /// A read-only read of what the pseudo-element computes to, whether or not it generates a box.
+    ReadOnly,
+}
+
+/// A pseudo-element a record demand may read: one the engine settles beside its element in a
+/// style update. Each is numbered as its kind.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiDemandedPseudoElement {
+    After = 0,
+    Backdrop = 1,
+    Before = 2,
+    FirstLetter = 3,
+    Marker = 5,
 }
 
 /// The answer to a record demand: the record, or that the pseudo-element read generates no box
@@ -3544,9 +3568,10 @@ pub struct FfiRecordDemandAnswer {
 pub(crate) fn answer_record_demand(
     engine: &mut StyleEngine,
     style_node: StyleNodeID,
-    demand: FfiRecordDemand,
+    demand: super::publication::RecordDemand,
 ) -> FfiRecordDemandAnswer {
     let node = style_node.raw();
+    let read_only = demand.is_read_only();
     let result = match engine.answer_record_demand(style_node, demand) {
         Ok(super::publication::RecordDemandAnswer::Record {
             record,
@@ -3556,7 +3581,7 @@ pub(crate) fn answer_record_demand(
                 style_record: record.style_record,
                 uses_substitution,
                 // A read-only answer is the host's to read, never to install.
-                record_reads: if record.style_record != 0 && !demand.read_only {
+                record_reads: if record.style_record != 0 && !read_only {
                     engine.node_record_reads(style_node)
                 } else {
                     0
@@ -3582,10 +3607,15 @@ pub(crate) fn answer_record_demand(
     };
     engine.record_boundary_call(EventKind::AnswerRecordDemand, |payload| {
         payload.write_u32(node);
-        payload.write_bool(demand.targeted);
-        payload.write_bool(demand.read_only);
-        payload.write_bool(demand.exclude_inline_style);
-        payload.write_u8(demand.pseudo_kind_plus_one);
+        // The demand's shape: an element's numbered as its kind, then a pseudo-element's after
+        // them, followed by the pseudo-element read.
+        match demand {
+            super::publication::RecordDemand::Element(demand) => payload.write_u8(demand as u8),
+            super::publication::RecordDemand::PseudoElement(demand, pseudo_element) => {
+                payload.write_u8(super::publication::RecordDemand::FIRST_PSEUDO_ELEMENT_SHAPE + demand as u8);
+                payload.write_u8(pseudo_element as u8);
+            }
+        }
         payload.write_u64(result.record.style_record);
         payload.write_bool(result.is_absent);
         payload.write_bool(result.record.uses_substitution);
@@ -3594,7 +3624,7 @@ pub(crate) fn answer_record_demand(
     result
 }
 
-/// [`answer_record_demand`] for a replay, which holds its engine itself.
+/// [`answer_record_demand`] of an element's style for a replay, which holds its engine itself.
 ///
 /// # Safety
 /// `engine` must be live.
@@ -3604,7 +3634,30 @@ pub unsafe fn style_engine_answer_record_demand_for_replay(
     demand: FfiRecordDemand,
 ) -> FfiRecordDemandAnswer {
     let engine = unsafe { engine.get_mut() };
-    StyleNodeID::from_raw(node).map_or_else(Default::default, |node| answer_record_demand(engine, node, demand))
+    StyleNodeID::from_raw(node).map_or_else(Default::default, |node| {
+        answer_record_demand(engine, node, super::publication::RecordDemand::Element(demand))
+    })
+}
+
+/// [`answer_record_demand`] of one of an element's pseudo-elements for a replay, which holds its
+/// engine itself.
+///
+/// # Safety
+/// `engine` must be live.
+pub unsafe fn style_engine_answer_pseudo_element_record_demand_for_replay(
+    engine: crate::css::style::StyleEngineHandle,
+    node: u32,
+    demand: FfiPseudoElementRecordDemand,
+    pseudo_element: FfiDemandedPseudoElement,
+) -> FfiRecordDemandAnswer {
+    let engine = unsafe { engine.get_mut() };
+    StyleNodeID::from_raw(node).map_or_else(Default::default, |node| {
+        answer_record_demand(
+            engine,
+            node,
+            super::publication::RecordDemand::PseudoElement(demand, pseudo_element),
+        )
+    })
 }
 
 /// The record of an element no rule reaches, computed from its presentational hints and its

@@ -2486,11 +2486,14 @@ fn a_read_only_record_demand_leaves_the_match_state_as_it_was() {
     let published_count = engine.published_match_answers.entries.len();
 
     // An engine no document hosts computes no records: the demand matches, then declines.
-    let demand = bridge::FfiRecordDemand {
-        read_only: true,
-        ..bridge::FfiRecordDemand::default()
-    };
-    assert!(engine.answer_record_demand(nodes[1], demand).is_err());
+    assert!(
+        engine
+            .answer_record_demand(
+                nodes[1],
+                publication::RecordDemand::Element(bridge::FfiRecordDemand::ElementRead)
+            )
+            .is_err()
+    );
     assert_eq!(engine.retained_match_answers.column, retained_answers);
     assert_eq!(
         engine.retained_match_answers.cascade_input_column,
@@ -2525,11 +2528,13 @@ fn a_pseudo_record_demand_answers_absence_without_rules() {
         },
     );
     // ::before, which no rule styles.
-    let demand = bridge::FfiRecordDemand {
-        pseudo_kind_plus_one: 3,
-        ..bridge::FfiRecordDemand::default()
-    };
-    let answer = engine.answer_record_demand(nodes[1], demand);
+    let answer = engine.answer_record_demand(
+        nodes[1],
+        publication::RecordDemand::PseudoElement(
+            bridge::FfiPseudoElementRecordDemand::CssomRead,
+            bridge::FfiDemandedPseudoElement::Before,
+        ),
+    );
     assert!(
         matches!(
             answer,

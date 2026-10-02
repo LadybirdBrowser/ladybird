@@ -12,12 +12,14 @@
 
 use super::StyleAtomID;
 use super::bridge::{
-    FfiElementArrival, FfiElementDeclarationDelta, FfiElementStyleInput, FfiLocalFeatureDelta, FfiRecordDemand,
-    FfiRecordDemandAnswer, FfiStateDelta, FfiStyleInputTransaction, FfiTreeDelta, borrow,
-    write_recording_element_style_inputs, write_recording_state_deltas, write_recording_tree_deltas,
+    FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiElementStyleInput,
+    FfiLocalFeatureDelta, FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta,
+    FfiStyleInputTransaction, FfiTreeDelta, borrow, write_recording_element_style_inputs, write_recording_state_deltas,
+    write_recording_tree_deltas,
 };
 use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
+use super::publication::RecordDemand;
 use super::record_replay::EventKind;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{StyleEngine, StyleEngineHandle};
@@ -465,7 +467,7 @@ pub(crate) enum StyleQuery {
     /// The random caching keys that name an element, with their values.
     ElementRandomBaseValues(StyleNodeID),
     /// The record of an element or one of its pseudo-elements the host reads before the next style update.
-    RecordDemand { node: StyleNodeID, demand: FfiRecordDemand },
+    RecordDemand { node: StyleNodeID, demand: RecordDemand },
     /// What a style record's values depend on.
     StyleRecordDependencyFlags(u64),
     /// The identity of the custom-property environment a style record was computed in.
@@ -720,7 +722,7 @@ pub unsafe extern "C" fn style_engine_element_random_base_values(
     }
 }
 
-/// Answer a read of one element's style, or one of its pseudo-elements', the host makes before the next style update.
+/// Answer a read of one element's style the host makes before the next style update.
 ///
 /// # Safety
 ///
@@ -731,6 +733,30 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
     node: u32,
     demand: FfiRecordDemand,
 ) -> FfiRecordDemandAnswer {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { ask_record_demand(host, node, RecordDemand::Element(demand)) }
+}
+
+/// Answer a read of one of an element's pseudo-elements the host makes before the next style update.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_answer_pseudo_element_record_demand(
+    host: *const DocumentHost,
+    node: u32,
+    demand: FfiPseudoElementRecordDemand,
+    pseudo_element: FfiDemandedPseudoElement,
+) -> FfiRecordDemandAnswer {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { ask_record_demand(host, node, RecordDemand::PseudoElement(demand, pseudo_element)) }
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+unsafe fn ask_record_demand(host: *const DocumentHost, node: u32, demand: RecordDemand) -> FfiRecordDemandAnswer {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return FfiRecordDemandAnswer::default();
     };

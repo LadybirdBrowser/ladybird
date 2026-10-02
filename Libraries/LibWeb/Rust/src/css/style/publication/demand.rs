@@ -10,6 +10,29 @@
 use super::pseudo::PseudoSettlement;
 use super::*;
 
+/// A read the host makes before the next style update: of an element's style, or of one of its
+/// pseudo-elements'.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum RecordDemand {
+    Element(bridge::FfiRecordDemand),
+    PseudoElement(bridge::FfiPseudoElementRecordDemand, bridge::FfiDemandedPseudoElement),
+}
+
+impl RecordDemand {
+    /// Where a replay recording numbers the pseudo-element demands, after the element ones.
+    pub(crate) const FIRST_PSEUDO_ELEMENT_SHAPE: u8 = 3;
+
+    /// Whether the demand leaves the engine as it was, its record only for the host to read.
+    pub(crate) fn is_read_only(self) -> bool {
+        use bridge::{FfiPseudoElementRecordDemand as Pseudo, FfiRecordDemand as Element};
+        matches!(
+            self,
+            Self::Element(Element::ElementRead | Element::ElementReadWithoutInlineStyle)
+                | Self::PseudoElement(Pseudo::ReadOnly, _)
+        )
+    }
+}
+
 /// What a record demand answers.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum RecordDemandAnswer {
@@ -23,16 +46,6 @@ pub(crate) enum RecordDemandAnswer {
     /// a read sees: the environment they resolve to, or zero where no rule styles it.
     Absent { custom_property_environment: u64 },
 }
-
-/// The pseudo-elements a demand may ask for: those the engine settles beside their element in a
-/// style update. A highlight pseudo-element's read is the host's.
-const DEMANDED_PSEUDO_KINDS: [u8; 5] = [
-    pseudo_kind::BEFORE,
-    pseudo_kind::AFTER,
-    pseudo_kind::FIRST_LETTER,
-    pseudo_kind::MARKER,
-    pseudo_kind::BACKDROP,
-];
 
 /// Leave to publish a driven row's winners into the retained groups, outside any matching
 /// traversal, as a style update does. Every drive holds it but a read-only demand's: the rows that
@@ -233,23 +246,25 @@ impl StyleEngineState {
     pub(in crate::css::style) fn answer_record_demand(
         &mut self,
         node: StyleNodeID,
-        demand: bridge::FfiRecordDemand,
+        demand: RecordDemand,
         counters: &mut Counters,
     ) -> Drive<RecordDemandAnswer> {
-        let bridge::FfiRecordDemand {
-            targeted,
-            read_only,
-            exclude_inline_style,
-            pseudo_kind_plus_one,
-        } = demand;
-        let pseudo = pseudo_kind_plus_one.checked_sub(1);
-        // Only a private read of an element may leave its inline style out: the record it
-        // answers is no element's.
-        if (exclude_inline_style && (!read_only || pseudo.is_some()))
-            || pseudo.is_some_and(|kind| !DEMANDED_PSEUDO_KINDS.contains(&kind))
-            || !self
-                .retained
-                .record_demand_reads_current_inputs(node, &self.host, read_only, pseudo.is_some())
+        use bridge::FfiRecordDemand as Element;
+        let read_only = demand.is_read_only();
+        let targeted = matches!(
+            demand,
+            RecordDemand::Element(Element::TargetedElement | Element::ElementReadWithoutInlineStyle)
+        );
+        // Only a private read of an element leaves its inline style out: the record it answers is
+        // no element's.
+        let exclude_inline_style = matches!(demand, RecordDemand::Element(Element::ElementReadWithoutInlineStyle));
+        let pseudo = match demand {
+            RecordDemand::Element(_) => None,
+            RecordDemand::PseudoElement(_, pseudo_element) => Some(pseudo_element as u8),
+        };
+        if !self
+            .retained
+            .record_demand_reads_current_inputs(node, &self.host, read_only, pseudo.is_some())
         {
             if pseudo.is_some() {
                 counters.bump(Counter::PseudoRecordDemandsLeftToHost);

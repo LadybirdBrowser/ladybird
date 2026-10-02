@@ -18,8 +18,8 @@ use crate::css::computed_longhand_table::{
     ComputedLonghandTable, DEPENDS_ON_VIEWPORT_METRICS, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS,
 };
 use animations::DeclarationScope;
-pub(crate) use demand::RecordDemandAnswer;
 pub(super) use demand::WinnerRepublication;
+pub(crate) use demand::{RecordDemand, RecordDemandAnswer};
 pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
 use drive::{DrivenTable, FontDriveGoal, FullDrive, PartialDrive};
 use retry::InstalledAncestors;

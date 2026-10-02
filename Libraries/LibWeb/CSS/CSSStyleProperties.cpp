@@ -628,21 +628,17 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
     return get_direct_property(property);
 }
 
-static bool is_pseudo_element_the_style_engine_reads(PseudoElement pseudo_element)
-{
-    return first_is_one_of(pseudo_element, PseudoElement::Before, PseudoElement::After, PseudoElement::FirstLetter, PseudoElement::Marker, PseudoElement::Backdrop);
-}
-
 // Install the style engine's record for a pseudo-element a CSSOM read asks for, settled against its element's installed
 // record as a style update settles it. False where the engine leaves the read to C++.
 static bool install_engine_pseudo_element_style(DOM::AbstractElement target)
 {
     auto pseudo_element = *target.pseudo_element();
-    if (!is_pseudo_element_the_style_engine_reads(pseudo_element))
+    auto demanded_pseudo_element = StyleEngine::demanded_pseudo_element(pseudo_element);
+    if (!demanded_pseudo_element.has_value())
         return false;
     auto& element = target.element();
     auto& style_engine = element.document().style_computer().style_engine();
-    auto answer = style_engine.answer_record_demand(element.style_node_id(), { .pseudo_kind = to_underlying(pseudo_element) });
+    auto answer = style_engine.answer_pseudo_element_record_demand(element.style_node_id(), StyleEngine::PseudoElementRecordDemand::CssomRead, *demanded_pseudo_element);
     if (!answer.is_absent && answer.record.style_record == 0)
         return false;
     StyleRecordID record { answer.record.style_record };
@@ -855,8 +851,10 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                 // A synthetic pseudo-element without matching rules has no durable style. The style engine derives the
                 // one it would have for this read alone; where it leaves the read to C++, C++ computes it.
                 auto& style_computer = abstract_element.document().style_computer();
-                if (auto pseudo_element = abstract_element.pseudo_element(); pseudo_element.has_value() && is_pseudo_element_the_style_engine_reads(*pseudo_element))
-                    transient_style = style_computer.engine_transient_pseudo_element_style(abstract_element.element(), *pseudo_element);
+                if (auto pseudo_element = abstract_element.pseudo_element(); pseudo_element.has_value()) {
+                    if (auto demanded_pseudo_element = StyleEngine::demanded_pseudo_element(*pseudo_element); demanded_pseudo_element.has_value())
+                        transient_style = style_computer.engine_transient_pseudo_element_style(abstract_element.element(), *demanded_pseudo_element);
+                }
                 if (!transient_style)
                     transient_style = style_computer.materialize_style_record(abstract_element);
             }
