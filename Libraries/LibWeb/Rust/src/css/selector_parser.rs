@@ -834,6 +834,14 @@ impl<'a> SelectorParser<'a> {
                 };
                 selector.argument_selector_list =
                     self.parse_selector_list(values, selector_type, SelectorParsingMode::Standard)?;
+                if parameter_type == PseudoClassParameterType::SelectorList
+                    && selector
+                        .argument_selector_list
+                        .iter()
+                        .any(|argument| contains_pseudo_element(argument))
+                {
+                    return Err(());
+                }
             }
             PseudoClassParameterType::None => return Err(()),
         }
@@ -1015,6 +1023,15 @@ impl<'a> SelectorParser<'a> {
         }
         combinator
     }
+}
+
+fn contains_pseudo_element(selector: &CompiledSelector) -> bool {
+    selector.compound_selectors.iter().any(|compound| {
+        compound
+            .simple_selectors
+            .iter()
+            .any(|simple| matches!(simple, SimpleSelector::PseudoElement(_)))
+    })
 }
 
 fn normalize_pseudo_element_transitions(compounds: Vec<CompoundSelector>) -> Vec<CompoundSelector> {
