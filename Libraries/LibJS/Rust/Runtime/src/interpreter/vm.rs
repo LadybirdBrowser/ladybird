@@ -461,9 +461,9 @@ const _: () = assert!(core::mem::offset_of!(Vm, head) == 0);
 
 impl Vm {
     pub fn create() -> Box<Vm> {
-        // SAFETY: Initializes the region cell pointers are relative to, and the cage typed array data lives in.
-        let (heap_region_base, primitive_storage_cage_base) =
-            unsafe { (capi::gc_heap_region_base(), capi::gc_primitive_storage_cage_base()) };
+        // SAFETY: Initializes the region cell pointers are relative to.
+        let heap_region_base = unsafe { capi::gc_heap_region_base() };
+        let primitive_storage_cage_base = crate::runtime::array_buffer::primitive_storage_cage_base();
         let interpreter_stack_memory = InterpreterStackMemory::allocate();
         let native_function_table = Vec::new();
         let vm = Box::new(Vm {

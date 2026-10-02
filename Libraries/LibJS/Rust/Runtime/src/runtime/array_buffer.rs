@@ -16,7 +16,9 @@ use crate::futex::{self, AtomicWaitResult};
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::Heap;
+use crate::gc::primitive_storage::OwnedPrimitiveStorage;
 use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -31,14 +33,15 @@ use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::math_object::round_to_binary16;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::realm::Realm;
+use crate::runtime::typed_array::TypedArrayBase;
 use crate::runtime::value::same_value;
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 
-/// GC::PrimitiveStorage::default_cage_size: data blocks live in a cage of this size, so no reservation can exceed it.
-const PRIMITIVE_STORAGE_CAGE_SIZE: usize = 4 << 40;
+pub use crate::gc::primitive_storage::cage_base as primitive_storage_cage_base;
+pub use crate::gc::primitive_storage::{OutOfMemory, ZeroFillNewBytes};
 
-/// GC::PrimitiveStorage::invalid_offset, which every data block reports, since none of them lives in the cage.
-pub const INVALID_DATA_OFFSET: usize = usize::MAX;
+/// GC::PrimitiveStorage::invalid_offset, the offset of a data block without bytes in the cage.
+pub const INVALID_DATA_OFFSET: usize = crate::gc::primitive_storage::INVALID_OFFSET;
 
 /// Table 71: The element types, which the C++ runtime spells as the template parameter of get_value<T>() and
 /// set_value<T>(), with ClampedU8 for Uint8C.
@@ -107,270 +110,65 @@ pub enum Shared {
     Yes,
 }
 
-/// DataBlock::ZeroFillNewBytes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ZeroFillNewBytes {
-    No,
-    Yes,
-}
-
-/// What GC::PrimitiveStorage reports when it cannot provide the memory.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct OutOfMemory;
-
-/// The memory of data blocks, which C++ takes from GC::PrimitiveStorage, the primitive storage cage. LibGC has no C
-/// interface to that allocator, so these blocks come from the system allocator and from reserved address space
-/// outside the cage, with the same capacities, the same zero filling and the same limit on what can be reserved.
-/// This is the only part of the runtime that touches the bytes of data blocks directly.
-mod backing_store {
-    use super::{OutOfMemory, PRIMITIVE_STORAGE_CAGE_SIZE, ZeroFillNewBytes};
-    use core::ptr::NonNull;
-    use std::sync::OnceLock;
-
-    fn page_size() -> usize {
-        static PAGE_SIZE: OnceLock<usize> = OnceLock::new();
-        // SAFETY: sysconf has no preconditions.
-        *PAGE_SIZE.get_or_init(|| usize::try_from(unsafe { libc::sysconf(libc::_SC_PAGESIZE) }).unwrap_or(4096))
-    }
-
-    fn round_up_to_page(value: usize) -> Option<usize> {
-        let page = page_size();
-        Some(value.checked_add(page - 1)? & !(page - 1))
-    }
-
-    enum Storage {
-        /// From the system allocator, like the cage's slots of fixed-size storage.
-        Heap,
-        /// Address space reserved for the whole capacity, of which only the committed pages are accessible, like the
-        /// cage's large storage.
-        Reservation {
-            reservation_size: usize,
-            committed_size: usize,
-        },
-    }
-
-    /// One allocation of GC::PrimitiveStorage: a size within a capacity.
-    pub struct Allocation {
-        data: NonNull<u8>,
-        size: usize,
-        capacity: usize,
-        storage: Storage,
-    }
-
-    impl Allocation {
-        /// PrimitiveStorage::Allocator::allocate(): fixed-size storage unless `force_large` or the capacity exceeds
-        /// the size.
-        pub fn allocate(
-            size: usize,
-            capacity: usize,
-            zero_fill_new_bytes: ZeroFillNewBytes,
-            force_large: bool,
-        ) -> Result<Self, OutOfMemory> {
-            assert!(size <= capacity);
-            if !force_large && size == capacity {
-                return Self::allocate_fixed_size(size, zero_fill_new_bytes);
-            }
-            Self::allocate_reservation(size, capacity)
-        }
-
-        fn allocate_fixed_size(size: usize, zero_fill_new_bytes: ZeroFillNewBytes) -> Result<Self, OutOfMemory> {
-            if size > PRIMITIVE_STORAGE_CAGE_SIZE {
-                return Err(OutOfMemory);
-            }
-            // SAFETY: Both allocate at least one byte and return null on failure.
-            let data = unsafe {
-                match zero_fill_new_bytes {
-                    ZeroFillNewBytes::Yes => libc::calloc(size.max(1), 1),
-                    ZeroFillNewBytes::No => libc::malloc(size.max(1)),
-                }
-            };
-            let data = NonNull::new(data.cast::<u8>()).ok_or(OutOfMemory)?;
-            Ok(Self {
-                data,
-                size,
-                capacity: size,
-                storage: Storage::Heap,
-            })
-        }
-
-        fn allocate_reservation(size: usize, capacity: usize) -> Result<Self, OutOfMemory> {
-            let reservation_size = round_up_to_page(capacity).ok_or(OutOfMemory)?.max(page_size());
-            if reservation_size > PRIMITIVE_STORAGE_CAGE_SIZE {
-                return Err(OutOfMemory);
-            }
-            // SAFETY: Reserves fresh address space, which nothing else refers to.
-            let data = unsafe {
-                libc::mmap(
-                    core::ptr::null_mut(),
-                    reservation_size,
-                    libc::PROT_NONE,
-                    libc::MAP_PRIVATE | libc::MAP_ANON | libc::MAP_NORESERVE,
-                    -1,
-                    0,
-                )
-            };
-            if data == libc::MAP_FAILED {
-                return Err(OutOfMemory);
-            }
-            let mut allocation = Self {
-                data: NonNull::new(data.cast::<u8>()).ok_or(OutOfMemory)?,
-                size: 0,
-                capacity,
-                storage: Storage::Reservation {
-                    reservation_size,
-                    committed_size: 0,
-                },
-            };
-            // Freshly committed pages are zero, so the new bytes are zero either way.
-            allocation.resize(size, ZeroFillNewBytes::No)?;
-            Ok(allocation)
-        }
-
-        pub fn size(&self) -> usize {
-            self.size
-        }
-
-        pub fn capacity(&self) -> usize {
-            self.capacity
-        }
-
-        pub fn data(&self) -> *mut u8 {
-            self.data.as_ptr()
-        }
-
-        /// PrimitiveStorage::Allocator::resize(): changes the size within the capacity.
-        pub fn resize(&mut self, new_size: usize, zero_fill_new_bytes: ZeroFillNewBytes) -> Result<(), OutOfMemory> {
-            assert!(new_size <= self.capacity);
-            if let Storage::Reservation { committed_size, .. } = &mut self.storage {
-                let new_committed_size = round_up_to_page(new_size).ok_or(OutOfMemory)?;
-                if new_committed_size > *committed_size {
-                    // SAFETY: The pages are part of this allocation's reservation.
-                    let result = unsafe {
-                        libc::mprotect(
-                            self.data.as_ptr().add(*committed_size).cast(),
-                            new_committed_size - *committed_size,
-                            libc::PROT_READ | libc::PROT_WRITE,
-                        )
-                    };
-                    if result != 0 {
-                        return Err(OutOfMemory);
-                    }
-                    *committed_size = new_committed_size;
-                }
-            }
-            if zero_fill_new_bytes == ZeroFillNewBytes::Yes && new_size > self.size {
-                // SAFETY: The bytes up to the new size are accessible.
-                unsafe { self.data.as_ptr().add(self.size).write_bytes(0, new_size - self.size) };
-            }
-            self.size = new_size;
-            Ok(())
-        }
-
-        /// PrimitiveStorage::Allocator::reallocate(): moves the bytes into a new allocation.
-        pub fn reallocate(
-            &self,
-            new_size: usize,
-            new_capacity: usize,
-            zero_fill_new_bytes: ZeroFillNewBytes,
-            force_large: bool,
-        ) -> Result<Self, OutOfMemory> {
-            assert!(new_size <= new_capacity);
-            let allocation = Self::allocate(new_size, new_capacity, ZeroFillNewBytes::No, force_large)?;
-            let bytes_to_copy = self.size.min(new_size);
-            // SAFETY: Both allocations have at least that many accessible bytes, and they are distinct.
-            unsafe { core::ptr::copy_nonoverlapping(self.data.as_ptr(), allocation.data.as_ptr(), bytes_to_copy) };
-            if zero_fill_new_bytes == ZeroFillNewBytes::Yes && new_size > self.size {
-                // SAFETY: The bytes up to the new size are accessible.
-                unsafe {
-                    allocation
-                        .data
-                        .as_ptr()
-                        .add(self.size)
-                        .write_bytes(0, new_size - self.size);
-                };
-            }
-            Ok(allocation)
-        }
-    }
-
-    impl Drop for Allocation {
-        fn drop(&mut self) {
-            match self.storage {
-                // SAFETY: The memory came from the system allocator and nothing refers to it any more.
-                Storage::Heap => unsafe { libc::free(self.data.as_ptr().cast()) },
-                Storage::Reservation { reservation_size, .. } => {
-                    // SAFETY: The reservation is this allocation's, and nothing refers to it any more.
-                    unsafe { libc::munmap(self.data.as_ptr().cast(), reservation_size) };
-                }
-            }
-        }
-    }
-
-    /// Copies `count` bytes; the ranges may overlap.
-    ///
-    /// # Safety
-    ///
-    /// Both pointers must have `count` accessible bytes.
-    pub unsafe fn move_bytes(destination: *mut u8, source: *const u8, count: usize) {
-        if count == 0 {
-            return;
-        }
-        // SAFETY: The caller guarantees that both ranges are accessible.
-        unsafe { core::ptr::copy(source, destination, count) };
-    }
-}
-
-use backing_store::Allocation;
-
-/// DataBlock::OwnedBackingStore: an allocation of the primitive storage, or no allocation at all for a data block
-/// of zero bytes, like an invalid handle.
+/// DataBlock::OwnedBackingStore: storage in the primitive storage cage, or none at all for a data block of zero
+/// bytes, like an invalid handle.
 pub struct OwnedBackingStore {
-    allocation: Option<Allocation>,
+    storage: Option<OwnedPrimitiveStorage>,
 }
 
 impl OwnedBackingStore {
     fn empty() -> Self {
-        Self { allocation: None }
+        Self { storage: None }
+    }
+
+    fn allocate(size: usize, zero_fill_new_bytes: ZeroFillNewBytes) -> Result<Self, OutOfMemory> {
+        if size == 0 {
+            return Ok(Self::empty());
+        }
+        Ok(Self {
+            storage: Some(OwnedPrimitiveStorage::allocate(size, zero_fill_new_bytes)?),
+        })
     }
 
     pub fn create_zeroed(size: usize) -> Result<Self, OutOfMemory> {
-        let mut buffer = Self::empty();
-        if size > 0 {
-            buffer.allocation = Some(Allocation::allocate(size, size, ZeroFillNewBytes::Yes, false)?);
-        }
-        Ok(buffer)
+        Self::allocate(size, ZeroFillNewBytes::Yes)
     }
 
     pub fn create_uninitialized(size: usize) -> Result<Self, OutOfMemory> {
-        let mut buffer = Self::empty();
-        if size > 0 {
-            buffer.allocation = Some(Allocation::allocate(size, size, ZeroFillNewBytes::No, false)?);
-        }
-        Ok(buffer)
+        Self::allocate(size, ZeroFillNewBytes::No)
     }
 
     pub fn create_zeroed_with_capacity(size: usize, capacity: usize) -> Result<Self, OutOfMemory> {
-        let mut buffer = Self::empty();
-        if capacity > 0 {
-            // PrimitiveStorage::try_reserve()
-            if size > capacity {
-                return Err(OutOfMemory);
-            }
-            buffer.allocation = Some(Allocation::allocate(size, capacity, ZeroFillNewBytes::Yes, true)?);
+        if capacity == 0 {
+            return Ok(Self::empty());
         }
-        Ok(buffer)
+        Ok(Self {
+            storage: Some(OwnedPrimitiveStorage::reserve(size, capacity, ZeroFillNewBytes::Yes)?),
+        })
     }
 
+    #[inline]
     pub fn size(&self) -> usize {
-        self.allocation.as_ref().map_or(0, Allocation::size)
+        self.storage.as_ref().map_or(0, OwnedPrimitiveStorage::size)
     }
 
+    #[inline]
     pub fn capacity(&self) -> usize {
-        self.allocation.as_ref().map_or(0, Allocation::capacity)
+        self.storage.as_ref().map_or(0, OwnedPrimitiveStorage::capacity)
     }
 
+    #[inline]
     fn data(&self) -> *mut u8 {
-        self.allocation.as_ref().map_or(core::ptr::null_mut(), Allocation::data)
+        self.storage
+            .as_ref()
+            .map_or(core::ptr::null_mut(), OwnedPrimitiveStorage::data)
+    }
+
+    #[inline]
+    pub fn offset(&self) -> usize {
+        self.storage
+            .as_ref()
+            .map_or(INVALID_DATA_OFFSET, OwnedPrimitiveStorage::offset)
     }
 
     pub fn set_size(&mut self, new_size: usize, zero_fill_new_bytes: ZeroFillNewBytes) {
@@ -380,36 +178,40 @@ impl OwnedBackingStore {
     }
 
     pub fn try_resize(&mut self, new_size: usize, zero_fill_new_bytes: ZeroFillNewBytes) -> Result<(), OutOfMemory> {
-        let Some(allocation) = &mut self.allocation else {
-            if new_size == 0 {
-                return Ok(());
+        match &mut self.storage {
+            Some(storage) => storage.resize(new_size, zero_fill_new_bytes),
+            None => {
+                *self = Self::allocate(new_size, zero_fill_new_bytes)?;
+                Ok(())
             }
-            self.allocation = Some(Allocation::allocate(new_size, new_size, zero_fill_new_bytes, false)?);
-            return Ok(());
-        };
-
-        // PrimitiveStorage::try_resize()
-        if new_size <= allocation.capacity() {
-            return allocation.resize(new_size, zero_fill_new_bytes);
         }
-        let reallocated = allocation.reallocate(new_size, new_size, zero_fill_new_bytes, false)?;
-        self.allocation = Some(reallocated);
-        Ok(())
     }
 
     pub fn try_ensure_capacity(&mut self, new_capacity: usize) -> Result<(), OutOfMemory> {
         if new_capacity <= self.capacity() {
             return Ok(());
         }
-        let Some(allocation) = &self.allocation else {
-            self.allocation = Some(Allocation::allocate(0, new_capacity, ZeroFillNewBytes::No, true)?);
-            return Ok(());
-        };
-        // PrimitiveStorage::try_reserve()
-        let reallocated = allocation.reallocate(allocation.size(), new_capacity, ZeroFillNewBytes::No, true)?;
-        self.allocation = Some(reallocated);
-        Ok(())
+        match &mut self.storage {
+            Some(storage) => storage.reserve_capacity(new_capacity),
+            None => {
+                self.storage = Some(OwnedPrimitiveStorage::reserve(0, new_capacity, ZeroFillNewBytes::No)?);
+                Ok(())
+            }
+        }
     }
+}
+
+/// Copies `count` bytes; the ranges may overlap.
+///
+/// # Safety
+///
+/// Both pointers must have `count` accessible bytes.
+unsafe fn move_bytes(destination: *mut u8, source: *const u8, count: usize) {
+    if count == 0 {
+        return;
+    }
+    // SAFETY: The caller guarantees that both ranges are accessible.
+    unsafe { core::ptr::copy(source, destination, count) };
 }
 
 /// The storage of a data block. C++ also backs blocks with host-provided caged storage (ExternalPrimitiveStorage) and
@@ -465,7 +267,7 @@ impl DataBlock {
 
     pub fn data_at(&self, byte_offset: usize) -> *mut u8 {
         let buffer = self.owned();
-        if buffer.allocation.is_none() {
+        if buffer.storage.is_none() {
             assert!(byte_offset == 0);
             return core::ptr::null_mut();
         }
@@ -478,7 +280,7 @@ impl DataBlock {
         assert!(destination.len() <= self.size() - offset);
         // SAFETY: The block has the bytes, and the destination is a distinct Rust buffer.
         unsafe {
-            backing_store::move_bytes(
+            move_bytes(
                 destination.as_mut_ptr(),
                 self.data_at_or_null(offset),
                 destination.len(),
@@ -499,7 +301,7 @@ impl DataBlock {
         assert!(count <= destination.size() - destination_offset);
         // SAFETY: Both blocks have the bytes.
         unsafe {
-            backing_store::move_bytes(
+            move_bytes(
                 destination.data_at_or_null(destination_offset),
                 self.data_at_or_null(source_offset),
                 count,
@@ -519,7 +321,7 @@ impl DataBlock {
         assert!(offset <= self.size());
         assert!(source.len() <= self.size() - offset);
         // SAFETY: The block has the bytes, and the source is a distinct Rust buffer.
-        unsafe { backing_store::move_bytes(self.data_at_or_null(offset), source.as_ptr(), source.len()) };
+        unsafe { move_bytes(self.data_at_or_null(offset), source.as_ptr(), source.len()) };
     }
 
     pub fn move_data(&self, destination_offset: usize, source_offset: usize, count: usize) {
@@ -534,7 +336,7 @@ impl DataBlock {
 
         // SAFETY: The block has both ranges, which may overlap.
         unsafe {
-            backing_store::move_bytes(
+            move_bytes(
                 self.data_at_or_null(destination_offset),
                 self.data_at_or_null(source_offset),
                 count,
@@ -546,7 +348,7 @@ impl DataBlock {
     /// addresses when there are none to copy.
     fn data_at_or_null(&self, byte_offset: usize) -> *mut u8 {
         match &self.byte_buffer {
-            DataBlockStorage::Owned(buffer) if buffer.allocation.is_some() => self.data_at(byte_offset),
+            DataBlockStorage::Owned(buffer) if buffer.storage.is_some() => self.data_at(byte_offset),
             _ => core::ptr::null_mut(),
         }
     }
@@ -578,11 +380,18 @@ impl DataBlock {
     }
 
     pub fn offset(&self) -> usize {
-        INVALID_DATA_OFFSET
+        match &self.byte_buffer {
+            DataBlockStorage::Empty => INVALID_DATA_OFFSET,
+            DataBlockStorage::Owned(buffer) => buffer.offset(),
+        }
     }
 
+    /// Every allocation of an owned block lives in the cage.
     pub fn is_caged(&self) -> bool {
-        false
+        match &self.byte_buffer {
+            DataBlockStorage::Empty => false,
+            DataBlockStorage::Owned(_) => true,
+        }
     }
 
     pub fn external_memory_size(&self) -> usize {
@@ -719,6 +528,9 @@ pub struct ArrayBuffer {
     // The various detach related members of ArrayBuffer are not used by any ECMA262 functionality,
     // but are required to be available for the use of various harnesses like the Test262 test runner.
     detach_key: Cell<Value>,
+    /// The views that cache the offset of this buffer's data in the cage, which has to be invalidated once the data
+    /// moves or goes away. C++ links them in an intrusive list that a view leaves when it is finalized.
+    cached_views: GcRefCell<Vec<GcWeak<TypedArrayBase>>>,
 }
 
 define_cell!(
@@ -765,6 +577,7 @@ impl ArrayBuffer {
             data_block: GcRefCell::new(DataBlock::new(buffer, is_shared)),
             max_byte_length: Cell::new(None),
             detach_key: Cell::new(Value::UNDEFINED),
+            cached_views: GcRefCell::new(Vec::new()),
         }
     }
 
@@ -775,6 +588,7 @@ impl ArrayBuffer {
             data_block: GcRefCell::new(DataBlock::empty(is_shared)),
             max_byte_length: Cell::new(None),
             detach_key: Cell::new(Value::UNDEFINED),
+            cached_views: GcRefCell::new(Vec::new()),
         }
     }
 
@@ -901,6 +715,7 @@ impl ArrayBuffer {
         let old_external_memory_size = self.external_memory_size();
         let is_shared = self.data_block.borrow().is_shared;
         let block = self.data_block.replace(DataBlock::empty(is_shared));
+        self.invalidate_cached_typed_array_view_offsets();
         self.account_external_memory_change(vm, old_external_memory_size, 0);
         Ok(block)
     }
@@ -935,7 +750,11 @@ impl ArrayBuffer {
     // Used by allocate_array_buffer() to attach the data block after construction
     pub fn set_data_block(&self, vm: &Vm, block: DataBlock) {
         let old_external_memory_size = self.external_memory_size();
+        let old_data_offset = self.data_offset();
         drop(self.data_block.replace(block));
+        if self.data_offset() != old_data_offset {
+            self.invalidate_cached_typed_array_view_offsets();
+        }
         self.account_external_memory_change(vm, old_external_memory_size, self.external_memory_size());
     }
 
@@ -950,14 +769,22 @@ impl ArrayBuffer {
         zero_fill_new_bytes: ZeroFillNewBytes,
     ) -> Result<(), OutOfMemory> {
         let old_external_memory_size = self.external_memory_size();
+        let old_data_offset = self.data_offset();
         self.data_block.borrow_mut().try_resize(new_size, zero_fill_new_bytes)?;
+        if self.data_offset() != old_data_offset {
+            self.invalidate_cached_typed_array_view_offsets();
+        }
         self.did_change_data_block_capacity(vm, old_external_memory_size);
         Ok(())
     }
 
     pub fn try_ensure_capacity(&self, vm: &Vm, new_capacity: usize) -> Result<(), OutOfMemory> {
         let old_external_memory_size = self.external_memory_size();
+        let old_data_offset = self.data_offset();
         self.data_block.borrow_mut().try_ensure_capacity(new_capacity)?;
+        if self.data_offset() != old_data_offset {
+            self.invalidate_cached_typed_array_view_offsets();
+        }
         self.did_change_data_block_capacity(vm, old_external_memory_size);
         Ok(())
     }
@@ -972,6 +799,7 @@ impl ArrayBuffer {
 
     pub fn detach_buffer(&self, vm: &Vm) {
         let old_external_memory_size = self.external_memory_size();
+        self.invalidate_cached_typed_array_view_offsets();
         let is_shared = self.data_block.borrow().is_shared;
         drop(self.data_block.replace(DataBlock::empty(is_shared)));
         self.account_external_memory_change(vm, old_external_memory_size, 0);
@@ -991,12 +819,36 @@ impl ArrayBuffer {
         self.max_byte_length.get().is_none()
     }
 
+    pub fn register_cached_typed_array_view(&self, vm: &Vm, view: Gc<TypedArrayBase>) {
+        let view = GcWeak::new(vm.heap(), view);
+        let mut cached_views = self.cached_views.borrow_mut();
+        // NB: Views that died stay in the list until it is full, which keeps registering amortized constant time.
+        if cached_views.len() == cached_views.capacity() {
+            cached_views.retain(|view| view.get().is_some());
+        }
+        cached_views.push(view);
+    }
+
+    fn invalidate_cached_typed_array_view_offsets(&self) {
+        let cached_views = self.cached_views.replace(Vec::new());
+        for cached_view in &cached_views {
+            if let Some(view) = cached_view.get()
+                && core::ptr::eq(view.viewed_array_buffer().as_ptr(), self)
+            {
+                view.invalidate_cached_data_offset();
+            }
+        }
+    }
+
     pub fn can_cache_typed_array_view_data_offset(&self) -> bool {
         let data_block = self.data_block.borrow();
         !matches!(data_block.byte_buffer, DataBlockStorage::Empty)
             && self.is_fixed_length()
             && data_block.is_caged()
             && !data_block.is_cross_process_shared()
+            // NB: C++ backs every fixed-length shared block with cross-process shared memory, whose views stay on the
+            //     atomic slow path, and fixed-length shared blocks are owned here.
+            && data_block.is_shared == Shared::No
     }
 
     // 25.2.2.2 IsSharedArrayBuffer ( obj ), https://tc39.es/ecma262/#sec-issharedarraybuffer

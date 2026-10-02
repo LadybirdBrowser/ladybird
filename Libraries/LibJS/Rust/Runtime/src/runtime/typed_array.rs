@@ -195,7 +195,9 @@ impl TypedArrayBase {
             },
         };
         assert!(array_length.checked_mul(u32::from(element_size)).is_some());
-        typed_array.set_viewed_array_buffer(array_buffer);
+        // NB: C++ caches the data offset here, which the view can only do once it is a cell. Its creators do that
+        //     with update_cached_data_offset() right after allocating it.
+        typed_array.storage.viewed_array_buffer.set(Some(array_buffer));
         if array_length > 0 {
             assert!(!array_buffer.is_detached() && array_buffer.byte_length() > 0);
         }
@@ -245,14 +247,22 @@ impl TypedArrayBase {
         self.storage.byte_length.set(length);
     }
 
-    pub fn set_byte_offset(&self, offset: u32) {
+    pub fn set_byte_offset(&self, vm: &Vm, offset: u32) {
         self.byte_offset.set(offset);
-        self.update_cached_data_offset();
+        self.update_cached_data_offset(vm);
     }
 
-    pub fn set_viewed_array_buffer(&self, array_buffer: Gc<ArrayBuffer>) {
-        self.storage.viewed_array_buffer.set(Some(array_buffer));
-        self.update_cached_data_offset();
+    pub fn set_viewed_array_buffer(&self, vm: &Vm, array_buffer: Gc<ArrayBuffer>) {
+        let previous_array_buffer = self.storage.viewed_array_buffer.replace(Some(array_buffer));
+        // A cached offset means the view is registered with the buffer it was cached for, which is not this one.
+        if previous_array_buffer != Some(array_buffer) {
+            self.invalidate_cached_data_offset();
+        }
+        self.update_cached_data_offset(vm);
+    }
+
+    pub fn invalidate_cached_data_offset(&self) {
+        self.cached_data_offset.set(TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID);
     }
 
     pub fn kind(&self) -> Kind {
@@ -362,21 +372,36 @@ impl TypedArrayBase {
         create_typed_array_on_buffer(vm, realm, self.kind(), 0, buffer)
     }
 
-    fn update_cached_data_offset(&self) {
+    pub fn update_cached_data_offset(&self, vm: &Vm) {
         let Some(viewed_array_buffer) = self.storage.viewed_array_buffer.get() else {
-            self.cached_data_offset.set(TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID);
+            self.invalidate_cached_data_offset();
             return;
         };
         if !viewed_array_buffer.can_cache_typed_array_view_data_offset() {
-            self.cached_data_offset.set(TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID);
+            self.invalidate_cached_data_offset();
             return;
         }
 
         let data_offset = viewed_array_buffer.data_offset();
-        // NB: No data block lives in the primitive storage cage (see array_buffer.rs), so there is never an offset to
-        //     cache, nor a list of cached views for the buffer to invalidate.
-        assert!(data_offset == INVALID_DATA_OFFSET);
-        self.cached_data_offset.set(TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID);
+        if data_offset == INVALID_DATA_OFFSET {
+            self.invalidate_cached_data_offset();
+            return;
+        }
+
+        let cached_data_offset = data_offset
+            .checked_add(self.byte_offset() as usize)
+            .expect("the cached data offset does not overflow");
+
+        // NB: C++ appends the view to the buffer's intrusive list every time, which moves it if it is listed already.
+        //     A view with a cached offset is registered with its buffer, so only one without needs registering.
+        if self.cached_data_offset() == TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID {
+            let view = self
+                .as_gc()
+                .downcast::<TypedArrayBase>()
+                .expect("a typed array is a TypedArrayBase");
+            viewed_array_buffer.register_cached_typed_array_view(vm, view);
+        }
+        self.cached_data_offset.set(cached_data_offset);
     }
 
     // 10.4.5.1 [[PreventExtensions]] ( ), https://tc39.es/ecma262/#sec-typedarray-preventextensions
@@ -1117,13 +1142,13 @@ pub fn initialize_typed_array_from_array_buffer(
     }
 
     // 10. Set O.[[ViewedArrayBuffer]] to buffer.
-    typed_array.set_viewed_array_buffer(array_buffer);
+    typed_array.set_viewed_array_buffer(vm, array_buffer);
 
     // 11. Set O.[[ByteOffset]] to offset.
     if offset > u32::MAX as usize {
         return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"]);
     }
-    typed_array.set_byte_offset(offset as u32);
+    typed_array.set_byte_offset(vm, offset as u32);
 
     // 12. Return unused.
     Ok(())
@@ -1225,13 +1250,13 @@ fn initialize_typed_array_from_typed_array(
     };
 
     // 13. Set O.[[ViewedArrayBuffer]] to data.
-    typed_array.set_viewed_array_buffer(data);
+    typed_array.set_viewed_array_buffer(vm, data);
 
     // 14. Set O.[[ByteLength]] to byteLength.
     typed_array.set_byte_length(ByteLength::Length(byte_length as u32));
 
     // 15. Set O.[[ByteOffset]] to 0.
-    typed_array.set_byte_offset(0);
+    typed_array.set_byte_offset(vm, 0);
 
     // 16. Set O.[[ArrayLength]] to elementLength.
     typed_array.set_array_length(ByteLength::Length(element_length));
@@ -1264,13 +1289,13 @@ fn allocate_typed_array_buffer(vm: &Vm, typed_array: &TypedArrayBase, length: us
     let data = allocate_array_buffer(vm, realm.intrinsics().array_buffer_constructor(vm), byte_length, None)?;
 
     // 5. Set O.[[ViewedArrayBuffer]] to data.
-    typed_array.set_viewed_array_buffer(data);
+    typed_array.set_viewed_array_buffer(vm, data);
 
     // 6. Set O.[[ByteLength]] to byteLength.
     typed_array.set_byte_length(ByteLength::Length(byte_length as u32));
 
     // 7. Set O.[[ByteOffset]] to 0.
-    typed_array.set_byte_offset(0);
+    typed_array.set_byte_offset(vm, 0);
 
     // 8. Set O.[[ArrayLength]] to length.
     typed_array.set_array_length(ByteLength::Length(length as u32));
@@ -1542,12 +1567,14 @@ macro_rules! define_typed_arrays {
                     let element_size = Kind::$class.element_type().size();
                     let array_buffer =
                         ArrayBuffer::create(vm, realm, length as usize * element_size, crate::runtime::array_buffer::Shared::No)?;
-                    Ok(realm.create_object(
+                    let typed_array = realm.create_object(
                         vm,
                         $class {
                             base: TypedArrayBase::new(vm, Self::CLASS, prototype, length, array_buffer, Kind::$class),
                         },
-                    ))
+                    );
+                    typed_array.update_cached_data_offset(vm);
+                    Ok(typed_array)
                 }
 
                 /// ClassName::create(Realm&, u32 length)
@@ -1566,12 +1593,14 @@ macro_rules! define_typed_arrays {
                     array_buffer: Gc<ArrayBuffer>,
                 ) -> Gc<$class> {
                     let prototype = realm.intrinsics().$prototype_accessor(vm);
-                    realm.create_object(
+                    let typed_array = realm.create_object(
                         vm,
                         $class {
                             base: TypedArrayBase::new(vm, Self::CLASS, prototype, length, array_buffer, Kind::$class),
                         },
-                    )
+                    );
+                    typed_array.update_cached_data_offset(vm);
+                    typed_array
                 }
             }
 

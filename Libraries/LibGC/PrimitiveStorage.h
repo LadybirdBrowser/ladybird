@@ -53,6 +53,13 @@ public:
     size_t capacity(PrimitiveStorageHandle) const;
     size_t committed_size(PrimitiveStorageHandle) const;
 
+    struct Layout {
+        size_t offset { invalid_offset };
+        size_t size { 0 };
+        size_t capacity { 0 };
+    };
+    Layout layout(PrimitiveStorageHandle) const;
+
     u8* data(PrimitiveStorageHandle);
     u8 const* data(PrimitiveStorageHandle) const;
     u8* data(PrimitiveStorageHandle, size_t byte_offset);
@@ -117,7 +124,7 @@ private:
 
         ErrorOr<Allocation> allocate_small_storage(size_t size, ZeroFillNewBytes);
         ErrorOr<Allocation> allocate_large_storage(size_t size, size_t capacity, size_t guard_size);
-        ErrorOr<Allocation> allocate_from_new_slab(u16 size_class_index, size_t slot_size, ZeroFillNewBytes, size_t requested_size);
+        ErrorOr<Allocation> allocate_from_new_slab(u16 size_class_index, size_t slot_size);
         ErrorOr<size_t> allocate_cage_range(size_t reservation_size);
         ErrorOr<void> commit_large_storage(Allocation&, size_t new_size);
         void decommit_large_storage(Allocation const&);
@@ -132,6 +139,8 @@ private:
         size_t m_next_offset { 0 };
         Vector<FreeRange> m_free_ranges;
         Vector<Slab> m_small_slabs[13];
+        // The indices of the slabs of each size class that have a free slot, so that allocation never visits a full one.
+        Vector<u16> m_small_slabs_with_free_slots[13];
     };
 
     struct Entry {
