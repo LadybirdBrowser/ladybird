@@ -738,6 +738,8 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) boxes_needing_scrollable_overflow_recalculation: RefCell<Vec<NodeSlotId>>,
     pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     text_nodes_enrolled_for_content_sync: RefCell<HashSet<NodeSlotId>>,
+    /// Whether a row has ever been given a style with `content-visibility: auto`.
+    may_have_auto_content_visibility: Cell<bool>,
     nodes_enrolled_for_replaced_content_facts_sync: RefCell<Vec<NodeSlotId>>,
     /// The natural size of the image each image box that owns its image's provider shows
     /// (`content: url(...)`), as the provider publishes it: zero while the image is not available.
@@ -841,6 +843,7 @@ impl LayoutNodeArena {
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
+            may_have_auto_content_visibility: Cell::new(false),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
             owned_image_natural_sizes: RefCell::new(HashMap::default()),
             document_svg_root_natural_size: Cell::new(None),
@@ -1750,6 +1753,7 @@ impl LayoutNodeArena {
         self.assert_owner_thread();
         let data = self.data(id);
         data.style.set(payloads);
+        self.note_row_style(id);
         self.set_node_flag(id, NodeFlag::FollowsPrincipalStyle, false);
         self.invalidate_overflow_after_style_change(id);
         let previous = self.style_records[id.slot_index() as usize].replace(style_record);
@@ -2912,6 +2916,7 @@ impl LayoutNodeArena {
         self.style_records[slot.slot_index() as usize].set(derived.record);
         self.style_records_pinned_by_arena[slot.slot_index() as usize].set(true);
         data.style.set(derived.payloads);
+        self.note_row_style(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
 
@@ -3004,6 +3009,7 @@ impl LayoutNodeArena {
         assert!(derived.record != 0 && !derived.payloads.is_null());
         let previous_style_record = self.style_records[slot.slot_index() as usize].replace(derived.record);
         self.data(slot).style.set(derived.payloads);
+        self.note_row_style(slot);
         self.refresh_style_flags(slot);
         self.invalidate_overflow_after_style_change(slot);
         self.enroll_text_children_for_content_sync(slot);
@@ -4237,6 +4243,24 @@ impl LayoutNodeArena {
     /// retained immutable ComputedValues owns the container, and the pointer
     /// is only replaced between passes, so the array stays valid for as long
     /// as the node occupies its arena slot.
+    /// Notes that `slot` was given a style with `content-visibility: auto`, if it was, so that
+    /// every layout commit from then on collects the boxes with it.
+    fn note_row_style(&self, slot: NodeSlotId) {
+        if !self.may_have_auto_content_visibility.get()
+            && self.style_payloads(slot).is_some_and(|payloads| {
+                ComputedValuesView::new(&payloads.groups).content_visibility()
+                    == crate::css::css_enums::content_visibility::AUTO
+            })
+        {
+            self.may_have_auto_content_visibility.set(true);
+        }
+    }
+
+    /// Whether a row has ever been given a style with `content-visibility: auto`.
+    pub(crate) fn may_have_auto_content_visibility(&self) -> bool {
+        self.may_have_auto_content_visibility.get()
+    }
+
     pub(crate) fn style_payloads(&self, id: NodeSlotId) -> Option<&FfiStylePayloads> {
         let style = self.data(id).style.get();
         // SAFETY: A non-null style pointer addresses the container's group
@@ -5972,6 +5996,8 @@ mod tests {
     #[test]
     fn an_anonymous_box_stamped_by_the_arena_keeps_its_style_record_until_freed() {
         let mut arena = LayoutNodeArena::new();
+        // The rows' styles hold no group, so the arena is told up front what it would read from them.
+        arena.may_have_auto_content_visibility.set(true);
         let payloads = [std::ptr::null::<c_void>(); 1];
         let slot = arena.allocate_unbound();
         arena.stamp_anonymous_box(
