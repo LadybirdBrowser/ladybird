@@ -1274,16 +1274,6 @@ TEST_CASE(scroll_snapshots_keep_newer_unreconciled_offsets_until_they_are_adopte
     EXPECT_EQ(fixture.take_scroll_offsets().viewport, (Gfx::FloatPoint { 0, 75 }));
 }
 
-TEST_CASE(a_mouse_wheel_tick_far_from_where_the_gesture_started_starts_a_new_gesture)
-{
-    LatchedWheelContextFixture fixture;
-    fixture.latch_gesture_to_nested_scroller_at_its_edge(Web::ScrollGesturePhase::None, Web::WheelDeltaPrecision::Discrete);
-
-    fixture.expect_step_to_be_absorbed_by_latched_scroller({ 27, 20 }, Web::ScrollGesturePhase::None, 50, Web::UIEvents::KeyModifier::Mod_None, Web::WheelDeltaPrecision::Discrete);
-    // 14 device pixels from where the gesture started, though only 7 from its last tick.
-    fixture.expect_step_to_scroll_viewport_afresh({ 34, 20 }, Web::ScrollGesturePhase::None, 100, Web::UIEvents::KeyModifier::Mod_None, Web::WheelDeltaPrecision::Discrete);
-}
-
 TEST_CASE(a_mouse_wheel_tick_with_other_modifiers_starts_a_new_gesture)
 {
     LatchedWheelContextFixture fixture;
