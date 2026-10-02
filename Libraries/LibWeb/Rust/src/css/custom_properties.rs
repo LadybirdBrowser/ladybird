@@ -262,6 +262,22 @@ impl CustomPropertyRegistry {
         self.registrations.contains_key(name)
     }
 
+    /// Whether a custom property of this name inherits: only a registration can say it does not.
+    pub(crate) fn name_inherits(&self, name: &[u16]) -> bool {
+        self.registrations
+            .get(name)
+            .is_none_or(|registration| registration.inherits)
+    }
+
+    /// A custom property's initial value: what its registration's initial value computes to, and
+    /// the guaranteed-invalid value for an unregistered name or a registration without one.
+    pub(crate) fn initial_value(&self, name: &[u16]) -> RetainedStyleValueData {
+        self.registrations.get(name).map_or_else(
+            || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
+            |registration| registration.computed_initial.clone(),
+        )
+    }
+
     pub(crate) fn parse_context(&self, random_function_index: &mut usize) -> ParseContext {
         ParseContext {
             in_quirks_mode: false,

@@ -1619,6 +1619,63 @@ impl RetainedState {
         reads
     }
 
+    /// What a keyframe's written value substitutes to on the element being sampled, against the
+    /// custom-property store the element holds and the one it inherits from, which the host hands
+    /// over: what the host's `resolve_unresolved_style_value` makes of it.
+    /// `root_custom_property_name` names the custom property the value is written for, and is
+    /// empty for a longhand. Like a cascaded declaration, a value that does not substitute or parse
+    /// is guaranteed-invalid, and so is one calling a custom function whose container condition the
+    /// engine cannot decide. The custom properties a `style()` query reads are noted in
+    /// `style_query_references`.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn substitute_keyframe_value(
+        &self,
+        node: StyleNodeID,
+        pseudo_kind: Option<u8>,
+        store: *const c_void,
+        inheritance_store: *const c_void,
+        property: u16,
+        root_custom_property_name: &[u16],
+        written: &RetainedStyleValueData,
+        style_query_references: &std::cell::RefCell<Option<Box<crate::css::custom_properties::StyleQueryDependencies>>>,
+    ) -> RetainedStyleValueData {
+        let calls_functions = value_calls_custom_functions(written.data());
+        let functions = calls_functions
+            .then(|| self.prepare_custom_functions(node, pseudo_kind))
+            .flatten();
+        let reads_attributes = value_reads_attributes(written.data())
+            || functions.as_ref().is_some_and(|functions| functions.reads_attributes);
+        let attributes = reads_attributes
+            .then(|| {
+                SubstitutionAttributes::of(
+                    &self.facts,
+                    self.substitution_attribute_element(node, pseudo_kind),
+                    self.html_element_namespace,
+                )
+            })
+            .flatten();
+        let style_query = (calls_functions || value_reads_conditions(written.data()))
+            .then(|| self.style_query_inputs(computed::ComputedStyleTarget::new(node, pseudo_kind.unwrap_or(u8::MAX))))
+            .flatten();
+        let inputs = SubstitutionInputs {
+            document: &self.document_style_computation_inputs,
+            media: &self.document_media,
+            environment: SubstitutionEnvironment { own: 0, inherited: 0 },
+            attributes: attributes.as_ref(),
+            style_query: style_query.as_ref(),
+            style_query_references: Some(style_query_references),
+            functions: functions.as_ref(),
+        };
+        substitute_against_stores(
+            store,
+            inheritance_store,
+            &inputs,
+            property,
+            root_custom_property_name,
+            written,
+        )
+    }
+
     /// What a written value with `var()` references substitutes to for a property under an
     /// environment, parsed as the property's value: what the C++ cascade computes for the
     /// declaration, memoized by the written value. An `attr()` reads the element's attributes, an
@@ -1671,84 +1728,109 @@ impl RetainedState {
         } else {
             std::ptr::null()
         };
-        let registry_ref = inputs.document.custom_property_registry();
-        let mut random_function_index = 0_usize;
-        let mut parse_context = registry_ref.parse_context(&mut random_function_index);
-        parse_context.in_quirks_mode = inputs.document.in_quirks_mode;
-        let media_environment = inputs.media.environment();
-        let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
-        let resolution_environment = unsafe {
-            prepare_var_resolution_environment(
-                substitution_attributes.as_ptr(),
-                substitution_attributes.len(),
-                functions.map_or(std::ptr::null(), |functions| functions.definitions.as_ptr()),
-                functions.map_or(0, |functions| functions.definitions.len()),
-                functions.map_or(0, |functions| functions.caller_scope),
-                functions.map_or(std::ptr::null(), |functions| functions.visibilities.as_ptr()),
-                functions.map_or(0, |functions| functions.visibilities.len()),
-            )
+        // The resolution reads the attributes and the custom functions only where the value does.
+        let inputs = SubstitutionInputs {
+            attributes,
+            functions,
+            ..*inputs
         };
-        let mut style_query_references = inputs.style_query_references.map(std::cell::RefCell::borrow_mut);
-        // A function definition whose declarations do not tokenize resolves nothing.
-        let resolution = match resolution_environment {
-            // SAFETY: The store is live while a record names its environment, and the written
-            // value is retained by the declaration that carries it.
-            Some(mut resolution_environment) => unsafe {
-                crate::css::custom_properties::resolve_vars(
-                    store,
-                    inheritance_store,
-                    std::ptr::from_ref(registry_ref).cast(),
-                    Some(&parse_context),
-                    Some(&media_environment),
-                    None,
-                    property,
-                    FfiUtf16View {
-                        ascii: std::ptr::null(),
-                        utf16: std::ptr::null(),
-                        length: 0,
-                    },
-                    written.pointer().cast(),
-                    &mut resolution_environment,
-                    attributes.is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
-                    std::ptr::null_mut(),
-                    inputs.style_query,
-                    None,
-                    style_query_references.as_deref_mut(),
-                    None,
-                )
-            },
-            None => NativeVarResolution::NotHandled,
-        };
-        // The substituted source parses as the C++ cascade parses it: without callbacks first,
-        // then with the parse context's.
-        let invalid = || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
-        let value = match resolution {
-            NativeVarResolution::Resolved {
-                source,
-                contains_attr_tainted_values,
-            } => {
-                let CallbackFreeParseOutcome { outcome, source } =
-                    parse_substituted_without_callbacks(&parse_context, property, source, contains_attr_tainted_values);
-                let outcome = match outcome {
-                    ParseOutcome::NotHandled => {
-                        parse_substituted_source(&parse_context, property, &source, contains_attr_tainted_values)
-                    }
-                    outcome => outcome,
-                };
-                match outcome {
-                    ParseOutcome::Parsed(value) => unsafe {
-                        RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(value))
-                    },
-                    ParseOutcome::Invalid | ParseOutcome::NotHandled => invalid(),
-                }
-            }
-            NativeVarResolution::Invalid | NativeVarResolution::NotHandled => invalid(),
-        };
+        let value = substitute_against_stores(store, inheritance_store, &inputs, property, &[], &written);
         counters.bump(Counter::EngineComputedRecordSubstitutions);
         if memoizes {
             environments.remember_substitution(written, property, environment.own, value.clone_retained());
         }
         Ok(value)
+    }
+}
+
+/// What a written value substitutes to for a property against a custom-property store and the
+/// store its element inherits from, parsed as the property's value: what the C++ cascade computes
+/// for the declaration. `root_custom_property_name` names the custom property the value is written
+/// for, and is empty for a longhand. A substitution the resolver cannot make, or a substituted
+/// source no grammar accepts, is the guaranteed-invalid value: the declaration is invalid at
+/// computed-value time.
+fn substitute_against_stores(
+    store: *const c_void,
+    inheritance_store: *const c_void,
+    inputs: &SubstitutionInputs<'_>,
+    property: u16,
+    root_custom_property_name: &[u16],
+    written: &RetainedStyleValueData,
+) -> RetainedStyleValueData {
+    let attributes = inputs.attributes;
+    let functions = inputs.functions;
+    let registry_ref = inputs.document.custom_property_registry();
+    let mut random_function_index = 0_usize;
+    let mut parse_context = registry_ref.parse_context(&mut random_function_index);
+    parse_context.in_quirks_mode = inputs.document.in_quirks_mode;
+    let media_environment = inputs.media.environment();
+    let substitution_attributes = attributes.map_or(&[][..], |attributes| attributes.attributes.as_slice());
+    let resolution_environment = unsafe {
+        prepare_var_resolution_environment(
+            substitution_attributes.as_ptr(),
+            substitution_attributes.len(),
+            functions.map_or(std::ptr::null(), |functions| functions.definitions.as_ptr()),
+            functions.map_or(0, |functions| functions.definitions.len()),
+            functions.map_or(0, |functions| functions.caller_scope),
+            functions.map_or(std::ptr::null(), |functions| functions.visibilities.as_ptr()),
+            functions.map_or(0, |functions| functions.visibilities.len()),
+        )
+    };
+    let mut style_query_references = inputs.style_query_references.map(std::cell::RefCell::borrow_mut);
+    // A function definition whose declarations do not tokenize resolves nothing.
+    let resolution = match resolution_environment {
+        // SAFETY: The store is live while a record names its environment, and the written
+        // value is retained by the declaration that carries it.
+        Some(mut resolution_environment) => unsafe {
+            crate::css::custom_properties::resolve_vars(
+                store,
+                inheritance_store,
+                std::ptr::from_ref(registry_ref).cast(),
+                Some(&parse_context),
+                Some(&media_environment),
+                None,
+                property,
+                FfiUtf16View {
+                    ascii: std::ptr::null(),
+                    utf16: root_custom_property_name.as_ptr(),
+                    length: root_custom_property_name.len(),
+                },
+                written.pointer().cast(),
+                &mut resolution_environment,
+                attributes.is_some_and(|attributes| attributes.names_are_ascii_case_insensitive),
+                std::ptr::null_mut(),
+                inputs.style_query,
+                None,
+                style_query_references.as_deref_mut(),
+                None,
+            )
+        },
+        None => NativeVarResolution::NotHandled,
+    };
+    // The substituted source parses as the C++ cascade parses it: without callbacks first,
+    // then with the parse context's.
+    let invalid = || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
+    match resolution {
+        NativeVarResolution::Resolved {
+            source,
+            contains_attr_tainted_values,
+        } => {
+            let CallbackFreeParseOutcome { outcome, source } =
+                parse_substituted_without_callbacks(&parse_context, property, source, contains_attr_tainted_values);
+            let outcome = match outcome {
+                ParseOutcome::NotHandled => {
+                    parse_substituted_source(&parse_context, property, &source, contains_attr_tainted_values)
+                }
+                outcome => outcome,
+            };
+            match outcome {
+                ParseOutcome::Parsed(value) => unsafe {
+                    RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(value))
+                },
+                ParseOutcome::Invalid | ParseOutcome::NotHandled => invalid(),
+            }
+        }
+        NativeVarResolution::Invalid | NativeVarResolution::NotHandled => invalid(),
     }
 }
 

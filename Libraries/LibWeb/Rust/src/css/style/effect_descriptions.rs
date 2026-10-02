@@ -13,11 +13,6 @@
 //! depend on the element, a value or an easing still to be substituted against it, travels as
 //! written.
 
-#![expect(
-    dead_code,
-    reason = "the animation sample reads the descriptions once it resolves keyframes from them"
-)]
-
 use super::animations::AnimationSlot;
 use super::bridge::{
     FfiAnimationEffectVersion, FfiPublishedAnimationCustomDeclaration, FfiPublishedAnimationDeclaration,
@@ -62,6 +57,90 @@ unsafe fn retained(value: *const c_void) -> RetainedStyleValueData {
         RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
             value.cast::<StyleValueData>(),
         ))
+    }
+}
+
+/// The easing a computed `animation-timing-function` value describes, as the host's
+/// `EasingFunction::from_style_value` reads it, or `None` for a value that describes none.
+pub(crate) fn easing_from_computed_timing_function(value: &StyleValueData) -> Option<Easing> {
+    use crate::css::css_enums::keyword;
+    let cubic_bezier = |x1, y1, x2, y2| Easing::CubicBezier { x1, y1, x2, y2 };
+    let StyleValueData::Easing {
+        kind,
+        step_position,
+        x1,
+        y1,
+        x2,
+        y2,
+        number_of_intervals,
+        ..
+    } = value
+    else {
+        let StyleValueData::Keyword { keyword } = value else {
+            return None;
+        };
+        return match *keyword {
+            keyword::LINEAR => Some(Easing::default()),
+            keyword::EASE => Some(cubic_bezier(0.25, 0.1, 0.25, 1.0)),
+            keyword::EASE_IN => Some(cubic_bezier(0.42, 0.0, 1.0, 1.0)),
+            keyword::EASE_OUT => Some(cubic_bezier(0.0, 0.0, 0.58, 1.0)),
+            keyword::EASE_IN_OUT => Some(cubic_bezier(0.42, 0.0, 0.58, 1.0)),
+            _ => None,
+        };
+    };
+    // Each argument reads the way the host's `numeric()` reads it, which resolves a calculation on
+    // the spot.
+    let numeric = |value: &RetainedStyleValueData| match value.data() {
+        StyleValueData::Number { value } => Some(*value),
+        StyleValueData::Integer { value } => Some(*value as f64),
+        StyleValueData::Percentage { value } => Some(*value),
+        calculated @ StyleValueData::Calculated { .. } => {
+            crate::css::calc::resolve_calculated_number_without_context(calculated)
+                .or_else(|| crate::css::calc::resolve_calculated_percentage_without_context(calculated))
+        }
+        _ => None,
+    };
+    match kind {
+        0 => {
+            // The stops are canonicalized first, which resolves each one's calculated values and
+            // interpolates the inputs it was not given.
+            unsafe extern "C" fn retain_child(_: *const c_void, child: &StyleValueData) -> *const StyleValueData {
+                unsafe { crate::css::style_value::retain_style_value(child) }
+            }
+            // SAFETY: the canonicalization hands back one reference, which the retained value
+            //         owns.
+            let canonical = unsafe {
+                RetainedStyleValueData::from_retained_pointer(
+                    crate::css::absolutize::rust_composite_style_value_absolutize(
+                        value,
+                        std::ptr::null(),
+                        retain_child,
+                    ),
+                )
+            };
+            let StyleValueData::Easing { linear_stops, .. } = canonical.data() else {
+                return None;
+            };
+            Some(Easing::Linear(
+                linear_stops
+                    .as_slice()
+                    .iter()
+                    .map(|stop| {
+                        Some(FfiLinearEasingPoint {
+                            input: numeric(stop.input())? / 100.0,
+                            output: numeric(stop.output())?,
+                        })
+                    })
+                    .collect::<Option<_>>()?,
+            ))
+        }
+        1 => Some(cubic_bezier(numeric(x1)?, numeric(y1)?, numeric(x2)?, numeric(y2)?)),
+        2 => Some(Easing::Steps {
+            #[expect(clippy::cast_possible_truncation)]
+            interval_count: numeric(number_of_intervals)?.round_ties_even() as i32,
+            position: *step_position,
+        }),
+        _ => None,
     }
 }
 
