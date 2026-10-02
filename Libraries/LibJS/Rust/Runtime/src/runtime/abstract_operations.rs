@@ -7,12 +7,12 @@
 //! The parts of Libraries/LibJS/Runtime/AbstractOperations.cpp the runtime has so far.
 
 use core::cell::Cell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use ak::{ScopeGuard, Utf16FlyString};
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
-use crate::gc::class::GcCell;
+use crate::gc::class::{Extends, GcCell};
 use crate::gc::class_id::ClassId;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
@@ -35,7 +35,8 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::indexed_properties::ValueAndAttributes;
 use crate::runtime::intrinsics::Intrinsics;
-use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, StackFrameInfo, allocate_object};
+use crate::runtime::iterator::{IteratorHint, get_iterator, iterator_step_value, try_or_close_iterator};
+use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, StackFrameInfo};
 use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment};
 use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
@@ -45,6 +46,7 @@ use crate::runtime::realm::Realm;
 use crate::runtime::shared_function_instance_data::{ClassFieldInitializerName, ConstructorKind, ThisMode};
 use crate::runtime::string_conversions::parse_number_f64;
 use crate::runtime::value::{number_to_utf16_string, same_value};
+use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 use crate::utf16::Utf16View;
 use libjs_runtime_macros::Trace;
 
@@ -297,6 +299,175 @@ pub fn get_function_realm(vm: &Vm, function: Gc<FunctionObject>) -> ThrowComplet
     Ok(vm.current_realm().expect("there is a current realm"))
 }
 
+/// The groups GroupBy collects, in the order their keys first appeared, for the key coercion that tells their keys
+/// apart: the C++ GroupsType and KeyType template parameters of group_by().
+pub trait KeyedGroups<'vm> {
+    type Key;
+
+    fn new(vm: &'vm Vm) -> Self;
+
+    /// Steps g and h of GroupBy: the key the coercion makes of what the callback returned.
+    fn coerce_key(vm: &Vm, key: Value) -> ThrowCompletionOr<Self::Key>;
+
+    // 7.3.35 AddValueToKeyedGroup ( groups, key, value ), https://tc39.es/ecma262/#sec-add-value-to-keyed-group
+    fn add_value_to_keyed_group(&mut self, key: Self::Key, value: Value);
+}
+
+/// The groups of GroupBy with the property key coercion, the C++ OrderedHashMap<PropertyKey, GC::RootVector<Value>>.
+pub struct PropertyKeyGroups<'vm> {
+    vm: &'vm Vm,
+    keys: MarkedVec<'vm, PropertyKey>,
+    elements: Vec<MarkedVec<'vm, Value>>,
+    /// Symbol keys are only kept in the marked list of keys and looked up one by one.
+    index_of_string_or_number_key: HashMap<PropertyKey, usize>,
+}
+
+impl<'vm> PropertyKeyGroups<'vm> {
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+
+    pub fn key(&self, index: usize) -> PropertyKey {
+        self.keys.get(index).expect("the group exists")
+    }
+
+    pub fn elements(&self, index: usize) -> &MarkedVec<'vm, Value> {
+        &self.elements[index]
+    }
+
+    fn find(&self, key: &PropertyKey) -> Option<usize> {
+        if key.is_symbol() {
+            return (0..self.keys.len()).find(|&index| self.keys.get(index).as_ref() == Some(key));
+        }
+        self.index_of_string_or_number_key.get(key).copied()
+    }
+}
+
+impl<'vm> KeyedGroups<'vm> for PropertyKeyGroups<'vm> {
+    type Key = PropertyKey;
+
+    fn new(vm: &'vm Vm) -> Self {
+        Self {
+            vm,
+            keys: MarkedVec::new(vm),
+            elements: Vec::new(),
+            index_of_string_or_number_key: HashMap::new(),
+        }
+    }
+
+    fn coerce_key(vm: &Vm, key: Value) -> ThrowCompletionOr<PropertyKey> {
+        // g. If keyCoercion is property, then
+        //     i. Set key to Completion(ToPropertyKey(key)).
+        key.to_property_key(vm)
+    }
+
+    fn add_value_to_keyed_group(&mut self, key: PropertyKey, value: Value) {
+        // 1. For each Record { [[Key]], [[Elements]] } g of groups, do
+        //      a. If SameValue(g.[[Key]], key) is true, then
+        //      NOTE: This is performed in KeyedGroupTraits::equals for groupToMap and Traits<JS::PropertyKey>::equals for group.
+        if let Some(existing_group) = self.find(&key) {
+            // i. Assert: exactly one element of groups meets this criteria.
+            // NOTE: This is done on insertion into the hash map, as only `set` tells us if we overrode an entry.
+
+            // ii. Append value as the last element of g.[[Elements]].
+            self.elements[existing_group].push(value);
+
+            // iii. Return unused.
+            return;
+        }
+
+        // 2. Let group be the Record { [[Key]]: key, [[Elements]]: « value » }.
+        let new_elements = MarkedVec::new(self.vm);
+        new_elements.push(value);
+
+        // 3. Append group as the last element of groups.
+        if !key.is_symbol() {
+            self.index_of_string_or_number_key.insert(key.clone(), self.keys.len());
+        }
+        self.keys.push(key);
+        self.elements.push(new_elements);
+
+        // 4. Return unused.
+    }
+}
+
+// 7.3.36 GroupBy ( items, callbackfn, keyCoercion ), https://tc39.es/ecma262/#sec-groupby
+pub fn group_by<'vm, Groups: KeyedGroups<'vm>>(
+    vm: &'vm Vm,
+    items: Value,
+    callback_function: Value,
+) -> ThrowCompletionOr<Groups> {
+    // 1. Perform ? RequireObjectCoercible(items).
+    require_object_coercible(vm, items)?;
+
+    // 2. If IsCallable(callbackfn) is false, throw a TypeError exception.
+    if !callback_function.is_function() {
+        return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAFunction, &[&callback_function]);
+    }
+
+    // 3. Let groups be a new empty List.
+    let mut groups = Groups::new(vm);
+
+    // 4. Let iteratorRecord be ? GetIterator(items, sync).
+    let iterator_record = get_iterator(vm, items, IteratorHint::Sync)?;
+
+    // 5. Let k be 0.
+    let mut k: u64 = 0;
+
+    // 6. Repeat,
+    loop {
+        // a. If k ≥ 2^53 - 1, then
+        if k as f64 >= MAX_ARRAY_LIKE_INDEX {
+            // i. Let error be ThrowCompletion(a newly created TypeError object).
+            let error: ThrowCompletionOr<()> = vm.throw_completion(ErrorKind::TypeError, ErrorType::ArrayMaxSize, &[]);
+
+            // ii. Return ? IteratorClose(iteratorRecord, error).
+            try_or_close_iterator!(vm, &iterator_record, error);
+        }
+
+        // b. Let next be ? IteratorStepValue(iteratorRecord).
+        let next = iterator_step_value(vm, &iterator_record)?;
+
+        // c. If next is DONE, then
+        let Some(value) = next else {
+            // i. Return groups.
+            return Ok(groups);
+        };
+
+        // d. Let value be next.
+
+        // e. Let key be Completion(Call(callbackfn, undefined, « value, 𝔽(k) »)).
+        // f. IfAbruptCloseIterator(key, iteratorRecord).
+        let key = try_or_close_iterator!(
+            vm,
+            &iterator_record,
+            call(
+                vm,
+                callback_function,
+                Value::UNDEFINED,
+                &[value, Value::from_f64(k as f64)]
+            )
+        );
+
+        // g. If keyCoercion is property, then
+        //     ii. IfAbruptCloseIterator(key, iteratorRecord).
+        // h. Else,
+        //     i. Assert: keyCoercion is zero.
+        //     ii. Set key to CanonicalizeKeyedCollectionKey(key).
+        let key = try_or_close_iterator!(vm, &iterator_record, Groups::coerce_key(vm, key));
+
+        // i. Perform AddValueToKeyedGroup(groups, key, value).
+        groups.add_value_to_keyed_group(key, value);
+
+        // j. Set k to k + 1.
+        k += 1;
+    }
+}
+
 // 10.1.6.2 IsCompatiblePropertyDescriptor ( Extensible, Desc, Current ), https://tc39.es/ecma262/#sec-iscompatiblepropertydescriptor
 pub fn is_compatible_property_descriptor(
     vm: &Vm,
@@ -502,15 +673,27 @@ pub type IntrinsicDefaultPrototype = fn(&Intrinsics, &Vm) -> Gc<Object>;
 /// The form of OrdinaryCreateFromConstructor that creates an ordinary object.
 pub fn ordinary_create_from_constructor(
     vm: &Vm,
-    _realm: Gc<Realm>,
+    realm: Gc<Realm>,
     constructor: Gc<FunctionObject>,
     intrinsic_default_prototype: IntrinsicDefaultPrototype,
 ) -> ThrowCompletionOr<Gc<Object>> {
+    ordinary_create_from_constructor_of(vm, realm, constructor, intrinsic_default_prototype, |prototype| {
+        Object::new_with_prototype(vm, Object::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No)
+    })
+}
+
+// 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
+/// The C++ ordinary_create_from_constructor<T>(): `create` makes the object with the internal slots of a T from the
+/// prototype, as the C++ forwards its arguments and the prototype to realm.create<T>().
+pub fn ordinary_create_from_constructor_of<T: GcCell + Extends<Object>>(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    constructor: Gc<FunctionObject>,
+    intrinsic_default_prototype: IntrinsicDefaultPrototype,
+    create: impl FnOnce(Gc<Object>) -> T,
+) -> ThrowCompletionOr<Gc<T>> {
     let prototype = get_prototype_from_constructor(vm, constructor, intrinsic_default_prototype)?;
-    Ok(allocate_object(
-        vm,
-        Object::new_with_prototype(vm, Object::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
-    ))
+    Ok(realm.create_object(vm, create(prototype)))
 }
 
 // 10.1.14 GetPrototypeFromConstructor ( constructor, intrinsicDefaultProto ), https://tc39.es/ecma262/#sec-getprototypefromconstructor

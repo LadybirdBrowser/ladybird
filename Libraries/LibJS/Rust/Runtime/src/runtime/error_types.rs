@@ -6,6 +6,8 @@
 
 use core::fmt;
 
+use crate::runtime::value::number_to_string;
+
 macro_rules! define_error_types {
     ($($name:ident => $format:literal,)*) => {
         /// The messages of the errors the runtime throws, as in Libraries/LibJS/Runtime/ErrorTypes.h. Each `{}` in a
@@ -295,5 +297,22 @@ impl ErrorType {
             "{self:?} was given more arguments than it needs"
         );
         message
+    }
+}
+
+/// A double as AK's Formatter<double> formats it into a message: the shortest digits that round-trip, laid out like
+/// Number::toString, except that zeros are "0" and the non-finite values are "nan", "inf" and "-inf".
+pub struct AkDouble(pub f64);
+
+impl fmt::Display for AkDouble {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = self.0;
+        if value.is_nan() {
+            return formatter.write_str("nan");
+        }
+        if value.is_infinite() {
+            return formatter.write_str(if value < 0.0 { "-inf" } else { "inf" });
+        }
+        formatter.write_str(&number_to_string(value))
     }
 }

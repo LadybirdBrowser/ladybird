@@ -310,6 +310,12 @@ impl SharedFunctionInstanceData {
         source_text
     }
 
+    /// Makes `source_text` the [[SourceText]] while keeping the source code the function compiles from, as C++
+    /// RustIntegration::compile_dynamic_function assigns m_source_text_owner.
+    pub fn set_source_text_owner(&self, source_text: Utf16String) {
+        self.storage.source_text_owner.replace(source_text);
+    }
+
     pub fn set_source_text(&self, source_text: Utf16String) {
         self.storage.source_text_owner.replace(source_text);
         self.storage.source_code.replace(None);

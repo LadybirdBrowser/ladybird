@@ -168,7 +168,6 @@ pub enum IterationResult {
 }
 
 // 7.4.13 IfAbruptCloseIterator ( value, iteratorRecord ), https://tc39.es/ecma262/#sec-ifabruptcloseiterator
-#[allow(unused_macros)] // Until the first builtin that closes an iterator on an abrupt completion lands.
 macro_rules! try_or_close_iterator {
     ($vm:expr, $iterator_record:expr, $expression:expr) => {
         // 1. Assert: value is a Completion Record.
@@ -184,7 +183,6 @@ macro_rules! try_or_close_iterator {
         }
     };
 }
-#[allow(unused_imports)]
 pub(crate) use try_or_close_iterator;
 
 // 7.4.2 GetIteratorDirect ( obj ), https://tc39.es/ecma262/#sec-getiteratordirect

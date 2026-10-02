@@ -597,6 +597,10 @@ define_static_property_lookup_cache_sites! {
     IteratorValueValue,
     ArrayAppendIteratorMethod,
     ArrayAppendNextMethod,
+    ObjectPrototypeToStringToStringTag,
+    ArrayFromIteratorMethod,
+    ArraySpeciesCreateConstructor,
+    ArraySpeciesCreateSpecies,
 }
 
 /// The caches of the static call sites, one set per VM, which prunes them like the caches of executables.
