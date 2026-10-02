@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @font-feature-values FeatureFamily { @styleset { fancy: 1; } }
+    p { font-family: FeatureFamily, serif; font-variant-alternates: styleset(fancy); }
+</style>
+<div id="host">
+    <template shadowrootmode="open">
+        <style>
+            @font-feature-values FeatureFamily { @styleset { fancy: 2; } }
+            p { font-family: FeatureFamily, serif; font-variant-alternates: styleset(fancy); }
+        </style>
+        <p id="outer">outer</p>
+        <div>
+            <template shadowrootmode="open">
+                <style>p { font-family: FeatureFamily, serif; font-variant-alternates: styleset(fancy); }</style>
+                <p id="inner">inner</p>
+            </template>
+        </div>
+    </template>
+</div>
+<script>
+    // A shadow tree's @font-feature-values name the features of its elements' font-variant-alternates, over the
+    // document's, and of the shadow trees inside it that declare none. Count who computed those elements' records;
+    // which scope's features their fonts take shows in the rendering font-feature-values-nested-shadow-scope checks.
+    test(() => {
+        internals.updateStyle();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations}`);
+        const root = document.getElementById("host").shadowRoot;
+        const inner = root.querySelector("div").shadowRoot;
+        for (const paragraph of [root.getElementById("outer"), inner.getElementById("inner")])
+            println(`${paragraph.id} font-variant-alternates: ${getComputedStyle(paragraph).fontVariantAlternates}`);
+    });
+</script>

@@ -17,7 +17,6 @@
         host.style.fontFamily = "serif";
         internals.updateStyle();
         const after = internals.styleEngineCounters();
-        println(`font refusals: ${after.engineComputedRecordBailFontPhase - before.engineComputedRecordBailFontPhase}`);
         println(`engine answered: ${after.engineComputedRecordDeltas > before.engineComputedRecordDeltas}`);
         println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - recomputationsBefore}`);
         println(`discarded records: ${after.engineComputedRecordsAbandoned - before.engineComputedRecordsAbandoned}`);

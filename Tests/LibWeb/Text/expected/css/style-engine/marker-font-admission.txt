@@ -1,4 +1,3 @@
-font refusals: 0
 engine answered: true
 C++ recomputations: 0
 discarded records: 0

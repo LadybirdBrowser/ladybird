@@ -9,7 +9,7 @@
 
 use super::bridge::element_adjustment_fact;
 use super::publication::drive_font_metric;
-use super::tree::StyleNodeID;
+use super::tree::{StyleNodeID, TreeScopeID};
 use super::{RetainedState, bridge};
 use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::color_resolution::{ColorResolutionInput, FfiColorResolutionInput, Rgba, to_color};
@@ -368,11 +368,14 @@ pub(super) fn effective_data<'a>(
 
 /// What resolving an element's font asks the document's resolver, as the C++ font computer would
 /// resolve it for the element's computed values over `overlay`. The font phase computes
-/// font-size, font-weight and font-width to the shapes read here.
+/// font-size, font-weight and font-width to the shapes read here. `feature_values_scope` names the
+/// tree scope whose `@font-feature-values` the element's `font-variant-alternates` reads, asked
+/// only when it has one.
 pub(super) fn font_resolution_request(
     table: &ComputedLonghandTable,
     overlay: Option<&AnimatedOverlay>,
     inputs: &bridge::FfiDocumentStyleComputationInputs,
+    feature_values_scope: impl FnOnce() -> TreeScopeID,
 ) -> bridge::FfiFontResolutionRequest {
     let value_of = |property| effective_data(table, overlay, property);
     let handle_of =
@@ -414,6 +417,14 @@ pub(super) fn font_resolution_request(
         }
         _ => 0,
     };
+    // Only `font-variant-alternates` reads `@font-feature-values`, so every other request resolves
+    // once for all scopes.
+    let names_alternates = !font_feature_values[bridge::FontResolutionFeatureInput::FontVariantAlternates as usize]
+        .as_pointer()
+        .is_null();
+    let feature_values_scope = names_alternates
+        .then(feature_values_scope)
+        .unwrap_or(TreeScopeID::DOCUMENT);
     bridge::FfiFontResolutionRequest {
         font_family: handle_of(prop::FONT_FAMILY),
         font_feature_values,
@@ -422,6 +433,7 @@ pub(super) fn font_resolution_request(
         font_weight,
         font_width,
         font_optical_sizing,
+        font_feature_values_scope: feature_values_scope.0,
         font_environment_generation: inputs.font_environment_generation,
     }
 }

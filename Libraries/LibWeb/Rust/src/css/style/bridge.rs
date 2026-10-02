@@ -436,6 +436,9 @@ pub struct FfiFontResolutionRequest {
     pub font_weight: f64,
     pub font_width: f64,
     pub font_optical_sizing: u8,
+    /// The tree scope whose `@font-feature-values` `font-variant-alternates` names features
+    /// through, or the document's where the request names no `font-variant-alternates`.
+    pub font_feature_values_scope: u32,
     pub font_environment_generation: u64,
 }
 

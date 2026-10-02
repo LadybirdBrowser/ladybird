@@ -266,6 +266,7 @@ impl RetainedState {
                 font_weight: 400.0,
                 font_width: 100.0,
                 font_optical_sizing: 0,
+                font_feature_values_scope: TreeScopeID::DOCUMENT.0,
                 font_environment_generation: inputs.font_environment_generation,
             };
             let Some(resolved) = self
@@ -351,6 +352,24 @@ impl RetainedState {
             batch.current_size_raw,
             batch.depends_on_viewport_metrics,
         ))
+    }
+
+    /// The tree scope whose `@font-feature-values` an element's `font-variant-alternates` names
+    /// features through: the nearest around it, through the trees its hosts are in, that declares
+    /// some, or the document's. Those of the trees between add nothing.
+    fn font_feature_values_scope(&self, node: StyleNodeID) -> TreeScopeID {
+        let declaring = self
+            .font_resolution
+            .as_ref()
+            .map_or(&[][..], |resolutions| resolutions.feature_values_shadow_scopes());
+        let mut scope = self.tree.tree_scope(node);
+        while scope != TreeScopeID::DOCUMENT && !declaring.contains(&scope) {
+            let Some(host) = self.scope_root(scope).and_then(|root| self.tree.host_of(root)) else {
+                return TreeScopeID::DOCUMENT;
+            };
+            scope = self.tree.tree_scope(host);
+        }
+        scope
     }
 
     /// Run the drive's remaining phase for the selected longhands over a copy of the node's
@@ -630,7 +649,7 @@ impl RetainedState {
             FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiInputLineHeightMetrics, FfiLengthResolutionContext,
             FfiStyleComputationEnvironment, LONGHAND_DRIVE_PHASE_COLOR_SCHEME, LONGHAND_DRIVE_PHASE_FONT,
             LONGHAND_DRIVE_PHASE_LINE_HEIGHT, LONGHAND_DRIVE_PHASE_REMAINING, drive_property_computation,
-            effective_display, empty_longhand_driver_results, font_family_is_monospace, keyword,
+            effective_display, empty_longhand_driver_results, font_family_is_monospace,
         };
         use bridge::element_adjustment_fact as fact;
 
@@ -998,20 +1017,10 @@ impl RetainedState {
             }
         }
 
-        // `font-variant-alternates` names features through its tree scope's `@font-feature-values`,
-        // and the engine's resolver only has the document's. An element in a shadow tree that sets it
-        // keeps its record in C++.
-        if self.tree.tree_scope(target.node()) != TreeScopeID::DOCUMENT
-            && !matches!(
-                engine_sample::effective_data(&table, None, prop::FONT_VARIANT_ALTERNATES),
-                Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL
-            )
-        {
-            counters.bump(Counter::EngineComputedRecordBailFontPhase);
-            return Err(Unanswered::Refused);
-        }
         // The element's own font, resolved as the C++ font computer would for these values.
-        let request = engine_sample::font_resolution_request(&table, None, inputs);
+        let request = engine_sample::font_resolution_request(&table, None, inputs, || {
+            self.font_feature_values_scope(target.node())
+        });
         let font_size = request.font_size();
         let Some(resolved) = self
             .font_resolution

@@ -1032,13 +1032,16 @@ u64 StyleEngine::pseudo_elements_with_custom_property_data(StyleNodeID node) con
 }
 
 // The engine resolves fonts against the @font-face table and cascade memo it was given, at the generation of the
-// computation inputs it was given with them.
+// computation inputs it was given with them. It names the @font-feature-values of the nearest of the shadow tree scopes
+// declaring some around an element, so it is given those scopes too.
 void StyleEngine::publish_font_faces(FontComputer const& font_computer)
 {
     if (m_published_font_environment_generation == font_computer.environment_generation())
         return;
     m_published_font_environment_generation = font_computer.environment_generation();
-    StyleEngineFFI::style_engine_publish_font_faces(m_render_document->host(), &font_computer.font_face_snapshot().leak_ref(), &NonnullRefPtr { font_computer.font_cascade_memo() }.leak_ref());
+    auto snapshot = font_computer.font_face_snapshot();
+    auto shadow_scopes = snapshot->font_feature_values_shadow_scopes();
+    StyleEngineFFI::style_engine_publish_font_faces(m_render_document->host(), &snapshot.leak_ref(), &NonnullRefPtr { font_computer.font_cascade_memo() }.leak_ref(), reinterpret_cast<u32 const*>(shadow_scopes.data()), shadow_scopes.size());
 }
 
 }

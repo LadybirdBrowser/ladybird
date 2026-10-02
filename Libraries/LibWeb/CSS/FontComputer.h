@@ -96,10 +96,14 @@ struct ComputedFontCacheKey {
 
 using FontFeatureValues = HashMap<FontFeatureValueKey, Vector<u32>>;
 
-// The @font-feature-values of one tree scope, for every family they name. Immutable once built, so the font computer
-// and every snapshot built while it stands share one, and a snapshot may let go of it on another thread.
-struct FontFeatureValuesByFamily final : public AtomicRefCounted<FontFeatureValuesByFamily> {
-    HashMap<Utf16FlyString, FontFeatureValues> families;
+// The @font-feature-values an element of each tree scope that declares some sees, for every family named: the
+// document's, and each such shadow tree's over those of the trees its host is in. An element of a scope that declares
+// none sees those of the nearest one around it. Immutable once built, so the font computer and every snapshot built
+// while it stands share one, and a snapshot may let go of it on another thread.
+struct FontFeatureValuesByScope final : public AtomicRefCounted<FontFeatureValuesByScope> {
+    HashMap<TreeScopeID, HashMap<Utf16FlyString, FontFeatureValues>> scopes;
+    // The shadow tree scopes among them.
+    Vector<TreeScopeID> shadow_scopes;
 };
 
 struct FontFeatureValuesCacheKey {
@@ -204,8 +208,7 @@ private:
 
     FontFeatureValues const& font_feature_values_for_family(Utf16FlyString const& family_name, TreeScopeID) const;
     FontFeatureValues font_feature_values_in_scope(Utf16FlyString const& family_name, TreeScopeID) const;
-    // The document tree scope's @font-feature-values, for every family they name.
-    NonnullRefPtr<FontFeatureValuesByFamily const> document_font_feature_values() const;
+    NonnullRefPtr<FontFeatureValuesByScope const> font_feature_values_by_scope() const;
 
     GC::Ptr<DOM::Document> m_document;
 
@@ -216,7 +219,7 @@ private:
     // NB: Tree scopes are never numbered again, so the entries of a shadow root that is gone answer nothing. They stay
     //     until their family is next forgotten.
     mutable HashMap<FontFeatureValuesCacheKey, FontFeatureValues> m_font_feature_values_cache;
-    mutable RefPtr<FontFeatureValuesByFamily const> m_document_font_feature_values;
+    mutable RefPtr<FontFeatureValuesByScope const> m_font_feature_values_by_scope;
 
     bool m_has_completed_initial_paint { false };
     bool m_initial_paint_had_pending_fonts { false };

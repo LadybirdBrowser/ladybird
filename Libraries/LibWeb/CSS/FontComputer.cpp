@@ -258,6 +258,13 @@ void FontComputer::visit_edges(Visitor& visitor)
         visitor.visit(loader);
 }
 
+static void for_each_nested_font_rule(Parser::ValueParserFFI::NativeRuleList const* rules, Function<void(RustRuleView const&)> const& callback)
+{
+    Parser::ValueParserFFI::rust_rule_list_visit_font_rules(rules, &callback, [](void const* context, Parser::ValueParserFFI::NativeRuleView const* rule) {
+        (*static_cast<Function<void(RustRuleView const&)> const*>(context))(RustRuleView { *rule });
+    });
+}
+
 static void append_font_feature_values(StyleScope const& style_scope, Utf16FlyString const& family_name, FontFeatureValues& font_feature_values)
 {
     // https://drafts.csswg.org/css-fonts/#font-feature-values-syntax
@@ -325,27 +332,45 @@ FontFeatureValues FontComputer::font_feature_values_in_scope(Utf16FlyString cons
     return font_feature_values;
 }
 
-NonnullRefPtr<FontFeatureValuesByFamily const> FontComputer::document_font_feature_values() const
+NonnullRefPtr<FontFeatureValuesByScope const> FontComputer::font_feature_values_by_scope() const
 {
-    if (m_document_font_feature_values)
-        return *m_document_font_feature_values;
+    if (m_font_feature_values_by_scope)
+        return *m_font_feature_values_by_scope;
+    auto by_scope = adopt_ref(*new FontFeatureValuesByScope);
     HashTable<Utf16FlyString> families;
-    if (m_document) {
-        m_document->style_scope().for_each_active_css_style_sheet([&](CSS::StyleSheetState const& sheet) {
-            sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View) {
+    auto declares_any = [&](StyleScope const& style_scope) {
+        bool declares = false;
+        style_scope.for_each_active_css_style_sheet([&](CSS::StyleSheetState const& sheet) {
+            for_each_nested_font_rule(sheet.native_rules().handle(), [&](RustRuleView const& rule) {
                 if (rule.type() != RustRule::Type::FontFeatureValues)
                     return;
+                declares = true;
                 auto values = rule.font_feature_values();
                 for (size_t index = 0; index < values.family_count(); ++index)
                     families.set(Utf16FlyString::from_utf16(values.family_at(index)));
             });
         });
+        return declares;
+    };
+    if (m_document) {
+        declares_any(m_document->style_scope());
+        m_document->style_computer().for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
+            if (declares_any(shadow_root.style_scope()))
+                by_scope->shadow_scopes.append(shadow_root.style_engine_tree_scope());
+        });
     }
-    auto by_family = adopt_ref(*new FontFeatureValuesByFamily);
-    for (auto const& family : families)
-        by_family->families.set(family, font_feature_values_for_family(family, {}));
-    m_document_font_feature_values = by_family;
-    return by_family;
+    auto add_scope = [&](TreeScopeID tree_scope) {
+        auto& scope = by_scope->scopes.ensure(tree_scope);
+        for (auto const& family : families) {
+            if (auto const& values = font_feature_values_for_family(family, tree_scope); !values.is_empty())
+                scope.set(family, values);
+        }
+    };
+    add_scope({});
+    for (auto tree_scope : by_scope->shadow_scopes)
+        add_scope(tree_scope);
+    m_font_feature_values_by_scope = by_scope;
+    return by_scope;
 }
 
 Function<FontFeatureValues const&(Utf16FlyString const&)> FontComputer::font_feature_values_provider(TreeScopeID tree_scope) const
@@ -497,14 +522,14 @@ NonnullRefPtr<FontFaceSnapshot const> FontComputer::font_face_snapshot() const
         }
         table.set(key, move(snapshot_faces));
     }
-    m_font_face_snapshot = FontFaceSnapshot::create(m_environment_generation, move(table), document_font_feature_values());
+    m_font_face_snapshot = FontFaceSnapshot::create(m_environment_generation, move(table), font_feature_values_by_scope());
     return *m_font_face_snapshot;
 }
 
 void FontComputer::clear_font_feature_values_cache(Utf16FlyString const& family_name)
 {
     m_font_feature_values_cache.remove_all_matching([&](auto const& key, auto const&) { return key.family_name == family_name; });
-    m_document_font_feature_values = nullptr;
+    m_font_feature_values_by_scope = nullptr;
 }
 
 bool FontComputer::should_defer_initial_paint()
@@ -703,13 +728,6 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
     auto loader = GC::Heap::the().allocate<FontLoader>(*this, rule_or_declaration, move(sources), move(on_load));
     m_loaders_by_source.set(move(key), loader);
     return loader;
-}
-
-static void for_each_nested_font_rule(Parser::ValueParserFFI::NativeRuleList const* rules, Function<void(RustRuleView const&)> const& callback)
-{
-    Parser::ValueParserFFI::rust_rule_list_visit_font_rules(rules, &callback, [](void const* context, Parser::ValueParserFFI::NativeRuleView const* rule) {
-        (*static_cast<Function<void(RustRuleView const&)> const*>(context))(RustRuleView { *rule });
-    });
 }
 
 void FontComputer::forget_font_feature_values_declared_by(RustRuleView const& rule)

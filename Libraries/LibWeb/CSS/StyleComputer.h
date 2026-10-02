@@ -403,6 +403,15 @@ public:
     [[nodiscard]] TreeScopeID allocate_tree_scope(DOM::ShadowRoot&);
     // The shadow root a scope numbers, while it lives and still belongs to this document.
     [[nodiscard]] DOM::ShadowRoot* shadow_root_for_tree_scope(TreeScopeID) const;
+    // Each shadow root a scope numbers, while it lives and still belongs to this document.
+    template<typename Callback>
+    void for_each_shadow_root(Callback&& callback) const
+    {
+        for (u32 scope = 1; scope <= m_shadow_roots_by_tree_scope.size(); ++scope) {
+            if (auto* shadow_root = shadow_root_for_tree_scope(TreeScopeID { scope }))
+                callback(*shadow_root);
+        }
+    }
 
 private:
     [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedStyleWorkingSet const&) const;
