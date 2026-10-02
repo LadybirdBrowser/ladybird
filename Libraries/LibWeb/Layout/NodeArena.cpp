@@ -30,7 +30,7 @@ NodeArena::~NodeArena()
 
 void NodeArena::free_subtree(Compositing::RustFFI::NodeSlotId root)
 {
-    RustFFI::layout_arena_free_subtree(m_handle, root);
+    RustFFI::render_state_drop_subtree(m_host, root);
 }
 
 Node* NodeArena::node_if_live(Compositing::RustFFI::NodeSlotId slot) const
@@ -55,7 +55,7 @@ u64 NodeArena::intrinsic_inline_measurement_count() const
 
 bool destroy_layout_subtree(Node& node)
 {
-    return RustFFI::layout_arena_detach_and_free_subtree(node.arena_handle(), Node::slot_id(&node));
+    return RustFFI::render_state_drop_subtree(node.document_host(), Node::slot_id(&node));
 }
 
 void NodeArena::start_reporting_box_presence(Badge<DOM::Document>)

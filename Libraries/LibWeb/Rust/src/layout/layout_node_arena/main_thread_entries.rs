@@ -19,39 +19,6 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `root` must name a live node
-/// in this arena that has no parent. Every C++-side detach preparation that walks the subtree
-/// must already have run. Every shell in the subtree is destroyed before this returns.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_free_subtree(arena: *mut c_void, root: NodeSlotId) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on
-    // the document thread.
-    crate::layout::tree_mutation::free_subtree_and_destroy_shells(&main_thread, arena.cast::<LayoutNodeArena>(), root);
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `node` must name a live node
-/// in this arena. Every C++-side detach preparation that walks the subtree must already have
-/// run. The node and every shell in its subtree are destroyed before this returns.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_detach_and_free_subtree(arena: *mut c_void, node: NodeSlotId) -> bool {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    let arena = arena.cast::<LayoutNodeArena>();
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on
-    // the document thread; the shared borrow ends before the subtree is freed.
-    let was_attached = unsafe { &*arena }.detach_from_parent(node);
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena.cast()) };
-    crate::layout::tree_mutation::free_subtree_and_destroy_shells(&main_thread, arena, node);
-    was_attached
-}
-
-/// # Safety
-///
 /// The arena must remain valid for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_pre_order_label_violation_count(arena: *mut c_void, root: NodeSlotId) -> u64 {
@@ -320,4 +287,65 @@ pub unsafe extern "C" fn layout_arena_bound_viewport_shell(arena: *mut c_void) -
     // SAFETY: As above.
     let arena = unsafe { LayoutNodeArena::from_handle(arena) };
     arena.shell_if_live(&main_thread, arena.bound_viewport_row())
+}
+
+/// Detaches the layout subtree `root` heads from its parent, if it has one, and frees it, every C++-side detach
+/// preparation that walks the subtree having run. Answers whether the subtree was attached.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_drop_subtree(
+    host: *mut crate::render_state::DocumentHost,
+    root: NodeSlotId,
+) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let written =
+        crate::layout::layout_changes::write(host, crate::layout::layout_changes::LayoutWrite::DropSubtree { root });
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry_with_host(&MAIN_THREAD_FFI_ENTRY, host) };
+    pay_for_write(&main_thread, host, written.host_work);
+    written.was_attached
+}
+
+/// Detaches the layout placement of the top layer element `element` and clears every stale projected subtree of it.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_detach_top_layer_element(
+    host: *mut crate::render_state::DocumentHost,
+    element: u32,
+) {
+    assert!(!host.is_null(), "document host is null");
+    // A top layer member the style engine no longer tracks has left the DOM. Nothing of it is in the mirror, and
+    // nothing of it is bound to a row, so there is nothing to detach or clear.
+    let Some(element) = StyleNodeID::from_raw(element) else {
+        return;
+    };
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let written = crate::layout::layout_changes::write(
+        host,
+        crate::layout::layout_changes::LayoutWrite::DetachTopLayerElement(element),
+    );
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry_with_host(&MAIN_THREAD_FFI_ENTRY, host) };
+    pay_for_write(&main_thread, host, written.host_work);
+}
+
+/// Pays what a layout write owed the host once the write is over. Telling the host which nodes gained or lost a box,
+/// and a layout node of its row's style, still reads the arena the write left.
+fn pay_for_write(
+    main_thread: &crate::stage::MainThread,
+    host: &crate::render_state::DocumentHost,
+    host_work: crate::layout::tree_mutation::OwedHostWork,
+) {
+    let arena = crate::render_state::arena_for_unconverted_entry(host.document());
+    // SAFETY: The render state of a live host's document is on this thread, and the write is over.
+    host_work.apply(main_thread, unsafe { LayoutNodeArena::from_handle(arena) });
 }

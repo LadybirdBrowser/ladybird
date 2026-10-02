@@ -18,7 +18,7 @@ use crate::layout::node_data::{
     GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId, SELECTION_PSEUDO_KIND, pseudo_kind_of,
 };
 use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_length_for_code_point};
-use crate::layout::tree_mutation::{HostCalls, TreeBuildHostWork, UnplacedLayoutNode, free_subtree_and_destroy_shells};
+use crate::layout::tree_mutation::{HostCalls, OwedHostWork, UnplacedLayoutNode, free_subtree_and_destroy_shells};
 use crate::layout::tree_update_marks::layout_tree_update_reuse_reason;
 use crate::layout::{ComputedValuesView, FfiDisplay};
 use std::ffi::c_void;
@@ -1208,7 +1208,7 @@ pub(crate) fn principal_node_entry_decision(
 struct DomTreeBuilderHost<'a> {
     callbacks: &'a FfiDomTreeBuilderCallbacks,
     arena: *mut LayoutNodeArena,
-    work: &'a TreeBuildHostWork,
+    work: &'a OwedHostWork,
     walk: &'a TreeBuildWalk<'a>,
 }
 
@@ -1280,7 +1280,7 @@ impl DomTreeBuilderHost<'_> {
     }
 
     fn host_calls(&self) -> HostCalls<'_> {
-        HostCalls::AfterTreeBuild(self.work)
+        HostCalls::Owed(self.work)
     }
 }
 
@@ -1318,7 +1318,7 @@ fn dom_child_layout_plan(host: &DomTreeBuilderHost<'_>, node: StyleNodeID) -> (b
 unsafe fn dom_tree_builder_host<'a>(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     arena: *mut c_void,
-    work: &'a TreeBuildHostWork,
+    work: &'a OwedHostWork,
     walk: &'a TreeBuildWalk<'a>,
 ) -> DomTreeBuilderHost<'a> {
     assert!(!callbacks.is_null());
@@ -1444,6 +1444,32 @@ impl StaleSubtreeHost<'_> {
         }
         false
     }
+}
+
+/// Detaches the top layer element `element`'s layout placement and clears every stale projected
+/// subtree of it. Called at DOM mutation processing time, outside layout tree construction.
+pub(crate) fn detach_top_layer_element_layout_subtree(
+    host_calls: HostCalls<'_>,
+    arena: *mut LayoutNodeArena,
+    element: StyleNodeID,
+) {
+    let host = StaleSubtreeHost { arena, host_calls };
+    let element_layout_node = host.arena().bound_row(element);
+    if !element_layout_node.is_invalid() {
+        let topmost = topmost_layout_node_of_top_layer_placement(arena, element_layout_node);
+        let layout_node_to_detach = if topmost.is_invalid() {
+            element_layout_node
+        } else {
+            topmost
+        };
+        super::layout_node_arena::prepare_subtree_for_detach(host_calls, host.arena(), layout_node_to_detach);
+        if host.arena().detach_from_parent(layout_node_to_detach) {
+            host_calls.free_subtree(arena, layout_node_to_detach);
+        }
+    }
+
+    clear_stale_subtree(host, element, StaleSubtreeClearScope::InclusiveBoundedToRoot);
+    clear_stale_assigned_slottables(host, element);
 }
 
 /// Whether the kind names a box laid out on behalf of an element that references it, rather than
@@ -3369,7 +3395,7 @@ enum TraversalDecision {
 
 struct TreeBuilderHost<'a> {
     arena: *mut LayoutNodeArena,
-    work: &'a TreeBuildHostWork,
+    work: &'a OwedHostWork,
 }
 
 fn node_has_flag(data: &NodeData, flag: NodeFlag) -> bool {
@@ -3808,7 +3834,7 @@ impl TreeBuilderHost<'_> {
     }
 
     fn host_calls(&self) -> HostCalls<'_> {
-        HostCalls::AfterTreeBuild(self.work)
+        HostCalls::Owed(self.work)
     }
 
     fn parent(&self, node: LayoutNode) -> LayoutNode {

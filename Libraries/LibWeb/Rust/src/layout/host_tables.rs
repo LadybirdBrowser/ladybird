@@ -292,19 +292,19 @@ mod tests {
 
     #[test]
     fn a_restamped_slot_does_not_answer_with_the_layout_node_of_the_row_it_replaced() {
-        use crate::layout::tree_mutation::{HostCalls, TreeBuildHostWork};
+        use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
 
         let host = crate::render_state::DocumentHost::for_test();
         let host_tables = host.host_tables();
         let main_thread = MainThread::for_test_with_host(&host);
         let mut arena = LayoutNodeArena::new();
-        arena.queue_box_presence_for_tree_build();
-        let work = TreeBuildHostWork::default();
+        arena.queue_box_presence();
+        let work = OwedHostWork::default();
         let freed = arena.allocate_for_test().slot;
         host_tables.attach_shell(freed, object(8));
 
         // A walk frees the row and stamps another in its slot before its host work is applied.
-        HostCalls::AfterTreeBuild(&work).free_subtree(&raw mut arena, freed);
+        HostCalls::Owed(&work).free_subtree(&raw mut arena, freed);
         let reused = arena.allocate_for_test().slot;
         assert_eq!(reused.slot_index(), freed.slot_index());
         assert!(host_tables.shells.borrow().get(&reused).is_none());
@@ -355,21 +355,21 @@ mod tests {
 
     #[test]
     fn a_tree_build_lets_go_of_a_freed_rows_image_objects_once_the_walk_is_over() {
-        use crate::layout::tree_mutation::{HostCalls, TreeBuildHostWork};
+        use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
 
         let host = crate::render_state::DocumentHost::for_test();
         let host_tables = host.host_tables();
         let main_thread = MainThread::for_test_with_host(&host);
         let mut arena = LayoutNodeArena::new();
-        arena.queue_box_presence_for_tree_build();
-        let work = TreeBuildHostWork::default();
+        arena.queue_box_presence();
+        let work = OwedHostWork::default();
         let freed = arena.allocate_for_test().slot;
         arena
             .write_shape(freed)
             .set_kind(super::super::node_data::NodeKind::BlockContainer);
         host_tables.replace_image_observers(freed, object(8));
 
-        let host_calls = HostCalls::AfterTreeBuild(&work);
+        let host_calls = HostCalls::Owed(&work);
         super::super::layout_node_arena::prepare_subtree_for_detach(host_calls, &arena, freed);
         host_calls.free_subtree(&raw mut arena, freed);
         // The walk owes the host the observers it let go of, so they stay until the walk is over.

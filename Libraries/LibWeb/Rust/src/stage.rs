@@ -88,6 +88,26 @@ pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, arena_handle: *mut
     }
 }
 
+/// Mint a main thread token for an FFI entry point called with the document host `host`.
+///
+/// # Safety
+///
+/// The caller must be an FFI entry point whose C++ contract requires the document thread.
+pub(crate) unsafe fn from_ffi_entry_with_host<'host>(
+    _: &impl FfiEntry,
+    host: &'host DocumentHost,
+) -> MainThread<'host> {
+    // A tree build's walk runs without a token, so the C++ its callbacks run must not mint one.
+    assert!(
+        !host.host_tables().tree_build_walk_is_open(),
+        "a tree build walk's callback entered Rust again"
+    );
+    MainThread {
+        host: Some(host),
+        not_send_or_sync: PhantomData,
+    }
+}
+
 macro_rules! ffi_entry {
     ($entry:path) => {
         impl private::FfiEntry for $entry {}

@@ -18,16 +18,16 @@ pub(crate) use host_calls::{
 };
 
 /// Who answers the host calls a change to the layout tree makes: the host at once, which only a
-/// main thread caller can ask, or the host work of the tree build that makes the change, which the
-/// build's entry applies once the walk is over. A tree build walk holds no main thread token, so it
-/// can only queue.
+/// main thread caller can ask, or the host work the change owes, which its entry applies once the
+/// change is over. A tree build walk and a layout write the host waits for hold no main thread
+/// token, so they can only owe.
 #[derive(Clone, Copy)]
 pub(crate) enum HostCalls<'a> {
     Now(&'a MainThread<'a>),
-    AfterTreeBuild(&'a TreeBuildHostWork),
+    Owed(&'a OwedHostWork),
 }
 
-/// One host call a tree build owes for a change it made to the layout tree.
+/// One host call owed for a change made to the layout tree.
 enum OwedHostCall {
     /// A row left the layout tree: the image observers it holds are dropped, and the image
     /// provider it owns is told.
@@ -46,24 +46,24 @@ enum OwedHostCall {
     },
 }
 
-/// What a tree build owes the host, gathered on the walk's stack while the walk runs and applied
-/// by the build's entry once it is over, in the order the walk came to owe it.
-#[must_use = "a tree build's host work is applied once the walk is over"]
+/// What a tree build or a layout write owes the host, gathered while it runs and applied by its
+/// entry once it is over, in the order it came to owe it. Box presence is queued for as long.
+#[must_use = "owed host work is applied once the change is over"]
 #[derive(Default)]
-pub(crate) struct TreeBuildHostWork {
+pub(crate) struct OwedHostWork {
     owed: RefCell<Vec<OwedHostCall>>,
 }
 
-impl TreeBuildHostWork {
+impl OwedHostWork {
     fn owe(&self, call: OwedHostCall) {
         self.owed.borrow_mut().push(call);
     }
 
-    /// Makes the host calls the walk owes, in the order it came to owe them, after telling the host
-    /// which nodes gained or lost a box. A row the build freed again, such as whitespace table
-    /// fixup removed, is owed no style change.
+    /// Makes the host calls owed, in the order they came to be owed, after telling the host which
+    /// nodes gained or lost a box. A row the build freed again, such as whitespace table fixup
+    /// removed, is owed no style change.
     pub(crate) fn apply(self, main_thread: &MainThread, arena: &LayoutNodeArena) {
-        arena.pay_box_presence_queued_by_tree_build(main_thread);
+        arena.pay_queued_box_presence(main_thread);
         for call in self.owed.into_inner() {
             match call {
                 OwedHostCall::RowDetached { row, kind } => {
@@ -88,7 +88,7 @@ impl HostCalls<'_> {
         let freed = unsafe { &mut *arena }.free_subtree(root);
         match self {
             HostCalls::Now(main_thread) => freed.destroy_shells_and_invoke_callbacks(main_thread),
-            HostCalls::AfterTreeBuild(work) => work.owe(OwedHostCall::Freed(freed)),
+            HostCalls::Owed(work) => work.owe(OwedHostCall::Freed(freed)),
         }
     }
 
@@ -96,7 +96,7 @@ impl HostCalls<'_> {
     pub(crate) fn paintable_row_reset(self, reset: PaintableRowReset) {
         match self {
             HostCalls::Now(main_thread) => reset.tell(main_thread),
-            HostCalls::AfterTreeBuild(work) => work.owe(OwedHostCall::PaintableRowReset(reset)),
+            HostCalls::Owed(work) => work.owe(OwedHostCall::PaintableRowReset(reset)),
         }
     }
 
@@ -107,7 +107,7 @@ impl HostCalls<'_> {
             HostCalls::Now(main_thread) => {
                 crate::layout::layout_node_arena::tell_host_of_row_detach(main_thread, row, kind);
             }
-            HostCalls::AfterTreeBuild(work) => work.owe(OwedHostCall::RowDetached { row, kind }),
+            HostCalls::Owed(work) => work.owe(OwedHostCall::RowDetached { row, kind }),
         }
     }
 
@@ -115,7 +115,7 @@ impl HostCalls<'_> {
     pub(crate) fn shell_style_changed(self, arena: &LayoutNodeArena, row: NodeSlotId, attach_resources: bool) {
         match self {
             HostCalls::Now(main_thread) => arena.tell_shell_of_style_change(main_thread, row, attach_resources),
-            HostCalls::AfterTreeBuild(work) => work.owe(OwedHostCall::ShellStyleChanged { row, attach_resources }),
+            HostCalls::Owed(work) => work.owe(OwedHostCall::ShellStyleChanged { row, attach_resources }),
         }
     }
 }

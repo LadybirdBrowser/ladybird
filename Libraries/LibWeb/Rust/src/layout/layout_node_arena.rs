@@ -967,9 +967,9 @@ pub(crate) struct LayoutNodeArena {
     /// null when it registered none, as in a layout test.
     style_engine: Cell<crate::css::style::StyleEngineHandle>,
     box_presence_host: Cell<Option<BoxPresenceHost>>,
-    /// The nodes whose boxes a running tree build changed, which the host hears of once the walk
-    /// is over, or `None` while no build runs.
-    box_presence_queued_by_tree_build: RefCell<Option<Vec<BoundNode>>>,
+    /// The nodes whose boxes a running tree build or layout write changed, which the host hears of
+    /// once it is over, or `None` while none runs.
+    queued_box_presence: RefCell<Option<Vec<BoundNode>>>,
     /// Whether the document is an SVG file decoded as an image, which is fixed for its lifetime.
     document_is_decoded_svg: Cell<bool>,
     /// Depth of synchronous layout passes, including their commits, on the stack.
@@ -1105,7 +1105,7 @@ impl LayoutNodeArena {
             document_style_node: Cell::new(None),
             style_engine: Cell::new(crate::css::style::StyleEngineHandle::null()),
             box_presence_host: Cell::new(None),
-            box_presence_queued_by_tree_build: RefCell::new(None),
+            queued_box_presence: RefCell::new(None),
             document_is_decoded_svg: Cell::new(false),
             active_layout_pass_depth: Cell::new(0),
             fragment_cache_epoch_changed_during_layout_pass: Cell::new(false),
@@ -3303,7 +3303,7 @@ impl LayoutNodeArena {
         if self.box_presence_host.get().is_none() {
             return;
         }
-        if let Some(queued) = self.box_presence_queued_by_tree_build.borrow_mut().as_mut() {
+        if let Some(queued) = self.queued_box_presence.borrow_mut().as_mut() {
             queued.push(node);
             return;
         }
@@ -3324,20 +3324,17 @@ impl LayoutNodeArena {
         unsafe { callback(context, style_node, self.box_presence_bits(row)) };
     }
 
-    /// Holds back what the host hears of the boxes nodes gain and lose until the tree build that
-    /// starts now is over, as the walk cannot call the host.
-    pub(crate) fn queue_box_presence_for_tree_build(&self) {
-        let previous = self.box_presence_queued_by_tree_build.replace(Some(Vec::new()));
-        assert!(previous.is_none(), "tree builds do not nest");
+    /// Holds back what the host hears of the boxes nodes gain and lose until the tree build or
+    /// layout write that starts now is over, as it cannot call the host.
+    pub(crate) fn queue_box_presence(&self) {
+        let previous = self.queued_box_presence.replace(Some(Vec::new()));
+        assert!(previous.is_none(), "box presence is queued for one change at a time");
     }
 
-    /// Tells the host what boxes the nodes the finished tree build changed have now. A node the
-    /// build unbound and bound again is told once per change, each time with its final state.
-    pub(crate) fn pay_box_presence_queued_by_tree_build(&self, _: &MainThread) {
-        let queued = self
-            .box_presence_queued_by_tree_build
-            .take()
-            .expect("a tree build queued box presence");
+    /// Tells the host what boxes the nodes the finished change changed have now. A node it unbound
+    /// and bound again is told once per change, each time with its final state.
+    pub(crate) fn pay_queued_box_presence(&self, _: &MainThread) {
+        let queued = self.queued_box_presence.take().expect("a change queued box presence");
         for node in queued {
             self.tell_host_of_box_presence(node);
         }
