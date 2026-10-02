@@ -13,9 +13,12 @@ use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::value::Value;
+use crate::runtime::abstract_operations::call_function_object;
+use crate::runtime::array_prototype::array_merge_sort;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::function_object::FunctionObject;
 use crate::runtime::object::{
     CacheableSetPropertyMetadata, IndexedStorageKind, MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS,
     Object, ObjectMethods, PropertyLookupPhase, allocate_object,
@@ -25,6 +28,8 @@ use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::value::{TriState, is_less_than};
+use crate::utf16::Utf16View;
 
 /// The Array exotic object. Its "length" is not a stored property: it is the size of the indexed storage, which the
 /// interpreter reads through the object's magical length flag.
@@ -496,6 +501,160 @@ impl Array {
         );
         Ok(keys)
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Holes {
+    SkipHoles,
+    ReadThroughHoles,
+}
+
+// 23.1.3.30.1 SortIndexedProperties ( obj, len, SortCompare, holes ), https://tc39.es/ecma262/#sec-sortindexedproperties
+pub fn sort_indexed_properties<'vm>(
+    vm: &'vm Vm,
+    object: &Object,
+    length: u64,
+    sort_compare: &dyn Fn(Value, Value) -> ThrowCompletionOr<f64>,
+    holes: Holes,
+) -> ThrowCompletionOr<MarkedVec<'vm, Value>> {
+    // 1. Let items be a new empty List.
+    let items = MarkedVec::new(vm);
+
+    // 2. Let k be 0.
+    // 3. Repeat, while k < len,
+    for k in 0..length {
+        // a. Let Pk be ! ToString(𝔽(k)).
+        let property_key = PropertyKey::from_number(k);
+
+        // b. If holes is skip-holes, then
+        let k_read = if holes == Holes::SkipHoles {
+            // i. Let kRead be ? HasProperty(obj, Pk).
+            object.has_property(vm, &property_key)?
+        }
+        // c. Else,
+        else {
+            // i. Assert: holes is read-through-holes.
+            assert!(holes == Holes::ReadThroughHoles);
+
+            // ii. Let kRead be true.
+            true
+        };
+
+        // d. If kRead is true, then
+        if k_read {
+            // i. Let kValue be ? Get(obj, Pk).
+            let k_value = object.get(vm, &property_key)?;
+
+            // ii. Append kValue to items.
+            items.push(k_value);
+        }
+
+        // e. Set k to k + 1.
+    }
+
+    // 4. Sort items using an implementation-defined sequence of calls to SortCompare. If any such call returns an abrupt completion, stop before performing any further calls to SortCompare or steps in this algorithm and return that Completion Record.
+
+    // Perform sorting by merge sort. This isn't as efficient compared to quick sort, but
+    // quicksort can't be used in all cases because the spec requires Array.prototype.sort()
+    // to be stable. FIXME: when initially scanning through the array, maintain a flag
+    // for if an unstable sort would be indistinguishable from a stable sort (such as just
+    // just strings or numbers), and in that case use quick sort instead for better performance.
+    array_merge_sort(vm, sort_compare, &items)?;
+
+    // 5. Return items.
+    Ok(items)
+}
+
+/// AK::Utf16View::operator<=>: the code units in order, then the lengths.
+fn compare_code_units(lhs: Utf16View<'_>, rhs: Utf16View<'_>) -> f64 {
+    let common_length = lhs.length_in_code_units().min(rhs.length_in_code_units());
+    for index in 0..common_length {
+        let lhs_code_unit = lhs.code_unit_at(index);
+        let rhs_code_unit = rhs.code_unit_at(index);
+        if lhs_code_unit != rhs_code_unit {
+            return if lhs_code_unit < rhs_code_unit { -1.0 } else { 1.0 };
+        }
+    }
+    match lhs.length_in_code_units().cmp(&rhs.length_in_code_units()) {
+        core::cmp::Ordering::Less => -1.0,
+        core::cmp::Ordering::Equal => 0.0,
+        core::cmp::Ordering::Greater => 1.0,
+    }
+}
+
+// 23.1.3.30.2 CompareArrayElements ( x, y, comparefn ), https://tc39.es/ecma262/#sec-comparearrayelements
+pub fn compare_array_elements(
+    vm: &Vm,
+    x: Value,
+    y: Value,
+    comparefn: Option<Gc<FunctionObject>>,
+) -> ThrowCompletionOr<f64> {
+    // 1. If x and y are both undefined, return +0𝔽.
+    if x.is_undefined() && y.is_undefined() {
+        return Ok(0.0);
+    }
+
+    // 2. If x is undefined, return 1𝔽.
+    if x.is_undefined() {
+        return Ok(1.0);
+    }
+
+    // 3. If y is undefined, return -1𝔽.
+    if y.is_undefined() {
+        return Ok(-1.0);
+    }
+
+    // 4. If comparefn is not undefined, then
+    if let Some(comparefn) = comparefn {
+        // a. Let v be ? ToNumber(? Call(comparefn, undefined, « x, y »)).
+        let value = call_function_object(vm, comparefn, Value::UNDEFINED, &[x, y])?;
+        let value_number = value.to_number(vm)?;
+
+        // b. If v is NaN, return +0𝔽.
+        if value_number.is_nan() {
+            return Ok(0.0);
+        }
+
+        // c. Return v.
+        return Ok(value_number.as_f64());
+    }
+
+    // OPTIMIZATION: When both operands are already Strings, ToString is the identity, so we can compare their
+    //               UTF-16 views directly. This preserves any cached UTF-16 on the original PrimitiveStrings
+    //               across sort comparisons and skips the ToPrimitive + IsLessThan detour.
+    if x.is_string() && y.is_string() {
+        let x_primitive_string = x.as_string();
+        let y_primitive_string = y.as_string();
+        return Ok(compare_code_units(
+            x_primitive_string.utf16_string_view(),
+            y_primitive_string.utf16_string_view(),
+        ));
+    }
+
+    // 5. Let xString be ? ToString(x).
+    let x_string = PrimitiveString::create(vm, x.to_utf16_string(vm)?);
+
+    // 6. Let yString be ? ToString(y).
+    let y_string = PrimitiveString::create(vm, y.to_utf16_string(vm)?);
+
+    // 7. Let xSmaller be ! IsLessThan(xString, yString, true).
+    let x_smaller = is_less_than(vm, Value::from_string(x_string), Value::from_string(y_string), true).must();
+
+    // 8. If xSmaller is true, return -1𝔽.
+    if x_smaller == TriState::True {
+        return Ok(-1.0);
+    }
+
+    // 9. Let ySmaller be ! IsLessThan(yString, xString, true).
+    let y_smaller = is_less_than(vm, Value::from_string(y_string), Value::from_string(x_string), true).must();
+
+    // 10. If ySmaller is true, return 1𝔽.
+    if y_smaller == TriState::True {
+        return Ok(1.0);
+    }
+
+    // 11. Return +0𝔽.
+    Ok(0.0)
 }
 
 // The class tables point at code that uses the heap, so this links only against LibGC.

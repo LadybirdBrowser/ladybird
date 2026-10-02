@@ -144,7 +144,10 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     });
 
     // 19.4 Other Properties of the Global Object, https://tc39.es/ecma262/#sec-other-properties-of-the-global-object
-    // NB: Atomics, Intl, JSON, Math, Reflect and Temporal come with their builtins.
+    // NB: Atomics, Intl, JSON, Math and Temporal come with their builtins.
+    define_intrinsic_accessor(&names.Reflect, |vm, realm| {
+        Value::from_object(realm.intrinsics().reflect_object(vm))
+    });
 
     // B.2.1 Additional Properties of the Global Object, https://tc39.es/ecma262/#sec-additional-properties-of-the-global-object
     // NB: escape and unescape come with the global object's functions.

@@ -3508,11 +3508,13 @@ impl Object {
         let new_size = old_size + values_size;
         self.ensure_indexed_elements(new_size);
 
+        // NB: The storage is packed before the elements are written, since writing checks the capacity of packed or
+        //     holey storage.
+        self.indexed_storage_kind.set(IndexedStorageKind::Packed);
         for (index, value) in values.iter().enumerate() {
             self.set_indexed_element(old_size + index as u32, *value);
         }
 
-        self.indexed_storage_kind.set(IndexedStorageKind::Packed);
         self.indexed_array_like_size.set(new_size);
     }
 
@@ -3535,11 +3537,13 @@ impl Object {
         let new_size = old_size + values_size;
         self.ensure_indexed_elements(new_size);
 
+        // NB: The storage is packed before the elements are written, since writing checks the capacity of packed or
+        //     holey storage.
+        self.indexed_storage_kind.set(IndexedStorageKind::Packed);
         for index in 0..values_size {
             self.set_indexed_element(old_size + index, source.indexed_element(index));
         }
 
-        self.indexed_storage_kind.set(IndexedStorageKind::Packed);
         self.indexed_array_like_size.set(new_size);
     }
 
