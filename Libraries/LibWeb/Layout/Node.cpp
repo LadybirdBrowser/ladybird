@@ -324,6 +324,8 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
     if (dom_node()) {
         did_update_style_record();
         synchronize_table_span_data();
+    } else if (is_generated_for_pseudo_element()) {
+        did_update_style_record();
     }
 }
 

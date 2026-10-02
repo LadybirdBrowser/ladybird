@@ -728,6 +728,29 @@ impl<'a> ComputedValuesView<'a> {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_LIST)
     }
 
+    /// Whether `content` computes to the keyword `none`. The property takes exactly two keywords,
+    /// so a keyword that is not `none` is `normal`.
+    pub(crate) fn content_keyword_is_none(self) -> bool {
+        matches!(
+            self.content().content.data(),
+            Some(StyleValueData::Keyword { keyword }) if *keyword == crate::css::css_enums::keyword::NONE
+        )
+    }
+
+    /// Whether `list-style-type` computes to `none`, the marker that renders nothing.
+    pub(crate) fn list_style_type_is_none(self) -> bool {
+        matches!(
+            self.inherited_list().list_style_type.data(),
+            Some(StyleValueData::Keyword { keyword }) if *keyword == crate::css::css_enums::keyword::NONE
+        )
+    }
+
+    /// Whether `list-style-position` computes to `inside`, which puts the marker box inside the
+    /// principal block box rather than outside it.
+    pub(crate) fn list_style_position_is_inside(self) -> bool {
+        self.inherited_list().list_style_position == crate::css::css_enums::list_style_position::INSIDE
+    }
+
     /// Whether `list-style-image` names an image, which a list marker then shows instead of its
     /// marker string.
     pub(crate) fn list_style_image_is_set(self) -> bool {

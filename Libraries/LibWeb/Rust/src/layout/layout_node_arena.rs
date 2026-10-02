@@ -2647,6 +2647,84 @@ impl LayoutNodeArena {
             || document_style_node.is_some_and(|document| self.needs_layout_tree_update(document))
     }
 
+    /// Stamps a row the build allocated for a pseudo-element of `generator`, with the style record
+    /// the element published for the pseudo-element. The row stands for no DOM node, so it is
+    /// anonymous; it carries its generator and the pseudo-element it is generated for.
+    pub(crate) fn stamp_pseudo_element_row(
+        &self,
+        slot: NodeSlotId,
+        kind: NodeKind,
+        generator: StyleNodeID,
+        generated_for: u8,
+    ) {
+        self.assert_owner_thread();
+        let data = self.data(slot);
+        assert_eq!(
+            data.kind.get(),
+            NodeKind::Unset,
+            "stamped a pseudo-element row onto a bound slot"
+        );
+        data.kind.set(kind);
+        data.flags.set(super::node_facts::construction_flags(kind, true, 0));
+        self.set_node_generated_for(slot, generated_for, Some(generator));
+        let (record, payloads) = self.with_style_store(|engine| {
+            let record = engine
+                .pseudo_published_style_record(generator, generated_for - 1)
+                .expect("a pseudo-element the build stamps a box for has published its style");
+            let payloads = engine
+                .style_record_payloads(record)
+                .expect("a published style record is live")
+                .as_ptr()
+                .cast();
+            (record, payloads)
+        });
+        if self.set_node_style(slot, record, StylePayloadsRef::new(payloads)) {
+            self.refresh_style_flags(slot);
+        }
+        self.enroll_node_for_svg_paint_resources_sync(slot);
+    }
+
+    /// Stamps a row the build allocated for a piece of generated text, which names no DOM node and
+    /// carries no style of its own.
+    pub(crate) fn stamp_generated_text_row(&mut self, slot: NodeSlotId, text: ak::Utf16String) {
+        self.assert_owner_thread();
+        let data = self.data(slot);
+        assert_eq!(
+            data.kind.get(),
+            NodeKind::Unset,
+            "stamped a generated text row onto a bound slot"
+        );
+        data.kind.set(NodeKind::GeneratedTextNode);
+        data.flags.set(super::node_facts::construction_flags(
+            NodeKind::GeneratedTextNode,
+            true,
+            0,
+        ));
+        self.set_generated_text(slot, text);
+    }
+
+    /// The pseudo-element of kind `generated_for` on `generator` gives up the box it holds, which
+    /// is what a build does before it decides whether the pseudo-element gets one. The outgoing box
+    /// keeps its style readable for as long as the host holds it.
+    pub(crate) fn clear_pseudo_element_box(&self, generator: StyleNodeID, generated_for: u8) {
+        let bound = self.bound_pseudo_element_row(generator, generated_for);
+        if bound.is_invalid() {
+            return;
+        }
+        self.pin_style_record_for_detachment(bound);
+        self.set_node_flag(bound, NodeFlag::IsPseudoElementPrincipalBox, false);
+        self.unbind_row(bound);
+    }
+
+    /// Makes `slot` the box of the pseudo-element of kind `generated_for` on `generator`, which
+    /// gave up the box it held before.
+    pub(crate) fn stamp_pseudo_element_box(&self, slot: NodeSlotId, generator: StyleNodeID, generated_for: u8) {
+        self.set_node_generated_for(slot, generated_for, Some(generator));
+        debug_assert!(self.bound_pseudo_element_row(generator, generated_for).is_invalid());
+        self.set_node_flag(slot, NodeFlag::IsPseudoElementPrincipalBox, true);
+        self.bind_row(slot);
+    }
+
     pub(crate) fn stamp_anonymous_box(&self, slot: NodeSlotId, kind: NodeKind, derived: DerivedStyleRecord) {
         self.assert_owner_thread();
         let data = self.data(slot);
@@ -4546,6 +4624,21 @@ pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
         0,
         "layout node arena destroyed with live slots"
     );
+}
+
+/// The characters the generated text row `id` renders, as a raw `AK::Utf16String` representation
+/// for which the caller takes one reference.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread, and `id` a live generated text row.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_generated_text(arena: *mut c_void, id: NodeSlotId) -> usize {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }
+        .published_text_source(id, false)
+        .data
+        .into_raw()
 }
 
 /// Records the characters a generated text row renders.

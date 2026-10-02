@@ -52,7 +52,6 @@ public:
 
     Layout::NodeWithStyle* layout_node() const override { return unsafe_layout_node(); }
     Layout::NodeWithStyle* unsafe_layout_node() const override;
-    void set_layout_node(Layout::NodeWithStyle*);
 
     virtual Node& root() const override;
 

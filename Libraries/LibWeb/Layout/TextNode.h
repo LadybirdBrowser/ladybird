@@ -57,6 +57,7 @@ private:
 class GeneratedTextNode final : public TextNode {
 public:
     GeneratedTextNode(DOM::Document&, Utf16String);
+    GeneratedTextNode(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
     virtual ~GeneratedTextNode() override;
 
     virtual DOM::Text const* dom_text() const override { return nullptr; }
