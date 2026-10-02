@@ -83,6 +83,7 @@ void HTMLVideoElement::set_visual_source(GC::Ptr<HTMLVideoElement> source)
         source->video_sink_ticking_inputs_changed();
     }
     Painting::push_video_paint_facts(*this);
+    media_element_for_controls_changed();
 }
 
 void HTMLVideoElement::for_each_visual_clone(Function<void(HTMLVideoElement&)> const& callback) const
@@ -105,6 +106,14 @@ void HTMLVideoElement::clear_visual_clones()
 bool HTMLVideoElement::is_shown_elsewhere() const
 {
     return any_of(m_visual_clones, [](auto const& clone) { return clone.ptr() != nullptr; });
+}
+
+// The controls of an element that shows another element's frames play that element's media.
+HTMLMediaElement& HTMLVideoElement::media_element_for_controls()
+{
+    if (m_visual_source)
+        return *m_visual_source;
+    return *this;
 }
 
 void HTMLVideoElement::adopted_from(DOM::Document& old_document)

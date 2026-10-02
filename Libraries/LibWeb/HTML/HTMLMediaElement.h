@@ -184,6 +184,7 @@ public:
 
     void create_controls();
     void destroy_controls();
+    void media_element_for_controls_changed();
 
     CORSSettingAttribute crossorigin() const { return m_crossorigin; }
 
@@ -288,6 +289,7 @@ private:
 
     bool video_sink_should_tick() const;
     virtual bool is_shown_elsewhere() const { return false; }
+    virtual HTMLMediaElement& media_element_for_controls() { return *this; }
 
     // Mirrors what PlaybackManager and the compositor were last told; a freshly reserved sink is assumed to tick.
     mutable bool m_video_sink_is_ticking { true };

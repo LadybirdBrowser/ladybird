@@ -146,7 +146,8 @@ void PictureInPictureController::process_pending_operations()
     }
 }
 
-// The window's page is a player whose video shows the frames of the video in Picture-in-Picture.
+// The window's page is a player whose video shows the frames of the video in Picture-in-Picture, and plays it
+// through its controls.
 static void create_player(DOM::Document& document, HTML::HTMLVideoElement& source)
 {
     PictureInPicturePlayerDOM player { document, *document.body() };

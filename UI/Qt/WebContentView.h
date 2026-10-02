@@ -155,6 +155,10 @@ public:
 
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
+    // On macOS, Qt ignores mouse movement while Ladybird is inactive, so a view that should still follow it opts in.
+    bool follows_mouse_while_inactive() const { return m_follows_mouse_while_inactive; }
+    void set_follows_mouse_while_inactive(bool follows) { m_follows_mouse_while_inactive = follows; }
+
 signals:
     void ready_to_paint();
     void urls_dropped(QList<QUrl> const&);
@@ -238,6 +242,8 @@ private:
     // Set when an assistive technology turns up mid-page: The next tree to arrive reports the focus to it.
     bool m_report_accessibility_focus_with_next_tree { false };
 #endif
+
+    bool m_follows_mouse_while_inactive { false };
 
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;

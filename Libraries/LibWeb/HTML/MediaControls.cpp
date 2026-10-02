@@ -25,6 +25,8 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
@@ -62,7 +64,17 @@ void MediaControls::create_shadow_tree()
     shadow_root->set_user_agent_internal(true);
     host.set_shadow_root(shadow_root);
 
-    m_dom = MediaControlsDOM(document, *shadow_root, is_video ? MediaControlsDOM::Options::Video : MediaControlsDOM::Options::None);
+    auto options = MediaControlsDOM::Options::None;
+    if (is_video) {
+        options |= MediaControlsDOM::Options::Video;
+        // Only an element that shows its own media can show it fullscreen. One that shows another element's media is
+        // the player of a Picture-in-Picture window.
+        if (&host == m_media_element.ptr().ptr())
+            options |= MediaControlsDOM::Options::Fullscreen;
+        else
+            options |= MediaControlsDOM::Options::PictureInPictureWindow;
+    }
+    m_dom = MediaControlsDOM(document, *shadow_root, options);
 
     if (is_video)
         MUST(m_dom->container->class_list()->add("video"_utf16));
@@ -382,6 +394,20 @@ void MediaControls::set_up_event_listeners()
         });
     }
 
+    // Picture-in-Picture window buttons
+    if (m_dom->back_to_tab_button) {
+        add_event_listener(realm, *m_dom->back_to_tab_button, UIEvents::EventNames::click, [this] {
+            return_to_tab();
+            return true;
+        });
+
+        VERIFY(m_dom->close_button);
+        add_event_listener(realm, *m_dom->close_button, UIEvents::EventNames::click, [this] {
+            close_picture_in_picture_window();
+            return true;
+        });
+    }
+
     // Hover detection for video controls visibility
     if (is<HTMLVideoElement>(host)) {
         add_event_listener(realm, host, UIEvents::EventNames::mouseenter, [this] {
@@ -396,16 +422,24 @@ void MediaControls::set_up_event_listeners()
             hide_controls();
             return true;
         });
-        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseenter, [this] {
-            m_hovering_controls = true;
-            show_controls();
-            return true;
-        });
-        add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseleave, [this] {
-            m_hovering_controls = false;
-            show_controls();
-            return true;
-        });
+
+        auto keep_controls_shown_while_hovered = [&](DOM::Element& element) {
+            add_event_listener(realm, element, UIEvents::EventNames::mouseenter, [this] {
+                m_hovering_controls = true;
+                show_controls();
+                return true;
+            });
+            add_event_listener(realm, element, UIEvents::EventNames::mouseleave, [this] {
+                m_hovering_controls = false;
+                show_controls();
+                return true;
+            });
+        };
+        keep_controls_shown_while_hovered(*m_dom->control_bar);
+        if (m_dom->back_to_tab_button) {
+            keep_controls_shown_while_hovered(*m_dom->back_to_tab_button);
+            keep_controls_shown_while_hovered(*m_dom->close_button);
+        }
     }
 
     // Keyboard handling
@@ -521,6 +555,29 @@ void MediaControls::toggle_fullscreen()
 {
     VERIFY(m_host);
     m_host->toggle_fullscreen();
+}
+
+void MediaControls::return_to_tab()
+{
+    VERIFY(m_host);
+    // The window belongs to the tab of the video's page, so its page asks for its own tab to be activated.
+    m_host->document().page().client().page_did_request_activate_tab();
+    exit_picture_in_picture();
+}
+
+void MediaControls::close_picture_in_picture_window()
+{
+    VERIFY(m_media_element);
+    m_media_element->pause();
+    exit_picture_in_picture();
+}
+
+void MediaControls::exit_picture_in_picture()
+{
+    VERIFY(m_media_element);
+    auto& document = m_media_element->document();
+    if (m_media_element->is_picture_in_picture_element())
+        document.page().picture_in_picture_controller().enqueue_exit(document, nullptr);
 }
 
 void MediaControls::update_play_pause_icon()

@@ -79,7 +79,22 @@ public:
             m_view->set_display_metadata(m_screen_observer->display_id(), m_screen_observer->refresh_rate());
         };
         report_page_close_of(*m_view);
+        // The window belongs to its owner's tab, so that is the tab its page activates, along with the tab's window,
+        // even from being minimized.
+        m_view->on_activate_tab = [owner_view_id = owner_view.view_id()] {
+            auto owner = WebView::ViewImplementation::find_view_by_id(owner_view_id);
+            if (!owner.has_value())
+                return;
+            auto* browser_window = static_cast<WebContentView&>(*owner).window();
+            browser_window->setWindowState(browser_window->windowState() & ~Qt::WindowMinimized);
+            browser_window->raise();
+            browser_window->activateWindow();
+            if (owner->on_activate_tab)
+                owner->on_activate_tab();
+        };
         m_view->installEventFilter(this);
+        // The page reveals its controls on hover, which works while Ladybird is in the background too.
+        m_view->set_follows_mouse_while_inactive(true);
         m_view->on_finish_handling_mouse_event = [this](Web::MouseEvent const& event, Web::EventResult result) {
             if (event.type == Web::MouseEvent::Type::MouseDown)
                 page_did_handle_press(result);

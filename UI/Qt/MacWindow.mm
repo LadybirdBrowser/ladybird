@@ -10,6 +10,8 @@
 #include <LibGfx/Point.h>
 #include <QAbstractNativeEventFilter>
 #include <QCoreApplication>
+#include <QMouseEvent>
+#include <QPointer>
 #include <QWidget>
 #include <QWindow>
 #include <UI/Qt/WebContentView.h>
@@ -191,7 +193,7 @@ static NSPoint widget_position_to_ns_point(QWidget& widget, Gfx::IntPoint positi
     return point;
 }
 
-static Optional<Gfx::IntPoint> widget_position_for_appkit_event(QWidget& widget, NSEvent* event)
+static Optional<QPointF> widget_point_for_appkit_event(QWidget& widget, NSEvent* event)
 {
     auto* view = reinterpret_cast<NSView*>(widget.winId());
     if (!view || !event.window)
@@ -200,11 +202,19 @@ static Optional<Gfx::IntPoint> widget_position_for_appkit_event(QWidget& widget,
     auto point = [view convertPoint:event.locationInWindow fromView:nil];
     if (![view isFlipped])
         point.y = NSHeight(view.bounds) - point.y;
+    return QPointF { point.x, point.y };
+}
+
+static Optional<Gfx::IntPoint> widget_position_for_appkit_event(QWidget& widget, NSEvent* event)
+{
+    auto point = widget_point_for_appkit_event(widget, event);
+    if (!point.has_value())
+        return {};
 
     auto device_pixel_ratio = widget.devicePixelRatioF();
     return Gfx::IntPoint {
-        static_cast<int>(point.x * device_pixel_ratio),
-        static_cast<int>(point.y * device_pixel_ratio),
+        static_cast<int>(point->x() * device_pixel_ratio),
+        static_cast<int>(point->y() * device_pixel_ratio),
     };
 }
 
@@ -266,6 +276,39 @@ static bool perform_dictionary_lookup_for_event(NSEvent* event)
     return view->look_up_selected_text_at(*position);
 }
 
+static QPointer<WebContentView> s_view_following_mouse_while_inactive;
+
+// Qt ignores mouse movement while Ladybird is inactive, so it is passed on here to a view that follows it anyway.
+static void follow_mouse_while_inactive(NSEvent* event)
+{
+    if (!event || NSApp.active)
+        return;
+
+    if (event.type == NSEventTypeMouseExited) {
+        auto view = s_view_following_mouse_while_inactive;
+        if (!view || event.window != reinterpret_cast<NSView*>(view->winId()).window)
+            return;
+        s_view_following_mouse_while_inactive = nullptr;
+        QEvent leave_event { QEvent::Leave };
+        QCoreApplication::sendEvent(view, &leave_event);
+        return;
+    }
+
+    if (event.type != NSEventTypeMouseMoved)
+        return;
+
+    auto* view = web_content_view_for_appkit_event(event);
+    if (!view || !view->follows_mouse_while_inactive())
+        return;
+    auto point = widget_point_for_appkit_event(*view, event);
+    if (!point.has_value())
+        return;
+
+    s_view_following_mouse_while_inactive = view;
+    QMouseEvent move_event { QEvent::MouseMove, *point, view->mapToGlobal(*point), Qt::NoButton, Qt::NoButton, Qt::NoModifier };
+    QCoreApplication::sendEvent(view, &move_event);
+}
+
 class LadybirdAppKitEventCaptureFilter final : public QAbstractNativeEventFilter {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -276,6 +319,8 @@ public:
             return false;
 
         auto* event = static_cast<NSEvent*>(message);
+        follow_mouse_while_inactive(event);
+
         if (perform_dictionary_lookup_for_event(event))
             return true;
 

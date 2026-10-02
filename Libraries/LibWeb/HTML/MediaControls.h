@@ -55,6 +55,9 @@ private:
     void set_volume(double);
     void toggle_mute();
     void toggle_fullscreen();
+    void return_to_tab();
+    void close_picture_in_picture_window();
+    void exit_picture_in_picture();
 
     struct TimelineRange {
         double start { 0 };

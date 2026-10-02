@@ -110,6 +110,37 @@
     fill: var(--light-accent-color);
 }
 
+.window-button {
+    position: absolute;
+    top: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms ease-in-out;
+}
+
+.container.video > .controls.visible ~ .window-button {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.back-to-tab-button {
+    left: 8px;
+}
+
+.close-button {
+    right: 8px;
+}
+
+.window-button-icon {
+    width: 20px;
+    height: 20px;
+    fill-rule: evenodd;
+}
+
 .play-pause-icon path {
     display: none;
 }
