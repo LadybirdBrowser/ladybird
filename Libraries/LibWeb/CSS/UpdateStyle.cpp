@@ -178,6 +178,7 @@ static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID s
         .explicitly_inherited_groups = 0,
         .record_damage = 0,
         .owes_an_animation_plan = false,
+        .owes_a_transition_step = false,
     };
 }
 
@@ -426,6 +427,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     reaction.record_reads = retried.record_reads;
                     reaction.explicitly_inherited_groups = retried.explicitly_inherited_groups;
                     reaction.owes_an_animation_plan = retried.owes_an_animation_plan;
+                    reaction.owes_a_transition_step = retried.owes_a_transition_step;
                     reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::Full;
                     reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Computed;
                     DOM::Element::EnginePseudoElementRecords pseudo_element_records {};
@@ -527,6 +529,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             // records must equal the engine's by value.
             auto apply_engine_computed_records = [&](DOM::Element::EnginePseudoElementRecords const& pseudo_element_records, bool acknowledge) {
                 auto& style_engine = document.style_computer().style_engine();
+                // https://drafts.csswg.org/css-transitions-1/#starting
+                // The transition step the row owes compares the record the element moved away from with the one it
+                // installs, so the old record has to outlive its replacement until the step has read it.
+                StyleRecordPin const before_change { document.style_computer(), StyleRecordID { reaction.owes_a_transition_step ? reaction.old_style_record : 0 } };
                 // The record answers any style input the element owes, as the C++ computation it
                 // equals would: nothing is left for a later transaction to plan.
                 style_engine.consume_recorded_element_style_input_change(reaction.style_node);
@@ -638,6 +644,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 }
                 if (acknowledge)
                     style_engine.acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
+                if (!!before_change.style_record())
+                    invalidation |= document.style_computer().run_transition_step_for_installed_record({ *element }, before_change.style_record(), StyleComputer::TransitionStepFollowUp::Request);
             };
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::None) {
                 VERIFY(!needs_regular_style_recompute);

@@ -622,7 +622,7 @@ impl RetainedState {
         let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node) else {
             return self.engine_cold_record(node, (generation, state), scratch, goal, counters);
         };
-        if self.record_requires_cpp_animation(old_style_record) {
+        if self.record_holds_an_animation_overlay(old_style_record) {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
@@ -637,12 +637,49 @@ impl RetainedState {
             Some(_) | None => (self.winner_groups.semantic_delta(Some(state), state), true),
         };
         // No delta names the winners such a record is driven from, so they are checked as a first
-        // record's are: one starting an animation keeps the record in C++.
+        // record's are: one starting an animation keeps the record in C++. A transition
+        // declaration is the step's to act on, as for any record that replaces one.
         if holds_no_current_cascade_state
             && self
                 .winner_groups
                 .semantic_delta_properties(None, state)
-                .any(|property| self.first_record_winner_needs_cpp(property))
+                .any(|property| {
+                    self.first_record_winner_needs_cpp(property) && !property_declares_transitions(property)
+                })
+        {
+            counters.bump(Counter::EngineComputedRecordBailProperty);
+            return Err(Unanswered::Refused);
+        }
+        // A record that declares transitions, or a delta that moves the declarations, may start or
+        // end a transition: the host runs the transition step once it installs the record, against
+        // the record the row moved away from. The step's start values reach what inherits from the
+        // element only after the step, so a row that owes one is left to the host where anything
+        // inherits from it: an element child, or a pseudo-element. So is one moving display, whose
+        // transitions the host tears down beside the decision, and one no host installs. A record
+        // driven from its winners alone takes its declarations from them. The row carries what is
+        // decided here to the host, for a record that moves.
+        let owes_a_transition_step = self.record_declares_transitions(old_style_record)
+            || if holds_no_current_cascade_state {
+                self.winner_groups
+                    .semantic_delta_properties(None, state)
+                    .any(property_declares_transitions)
+            } else {
+                delta
+                    .properties()
+                    .iter()
+                    .any(|&property| property_declares_transitions(property))
+            };
+        if owes_a_transition_step
+            && (!scratch.host_applies_animation_plans
+                || parent_inputs_moved.display
+                || delta
+                    .properties()
+                    .contains(&crate::css::property_metadata::property_id::DISPLAY)
+                || self
+                    .tree
+                    .flat_tree_children(node)
+                    .any(|child| child.element_index().is_some())
+                || self.current_winner_groups().pseudo_states(node).next().is_some())
         {
             counters.bump(Counter::EngineComputedRecordBailProperty);
             return Err(Unanswered::Refused);
@@ -757,7 +794,8 @@ impl RetainedState {
                             .republish_engine_record_with_environment(node, environment)
                             .expect("an assigned record without an overlay moves to any environment");
                         counters.bump(Counter::EngineComputedRecordUnchangedWinners);
-                        self.note_engine_computed_record(node, delta, (generation, state), false, 0, 0, counters);
+                        self.note_engine_computed_record(node, delta, (generation, state), false, 0, 0, counters)
+                            .owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
                         return Ok(ElementAnswer::Delta(delta));
                     }
                     counters.bump(Counter::EngineComputedRecordUnchangedWinners);
@@ -850,7 +888,8 @@ impl RetainedState {
                 delta_property_count,
                 0,
                 counters,
-            );
+            )
+            .owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
             counters.bump(Counter::EngineComputedRecordCohortHits);
             return Ok(ElementAnswer::Delta(delta));
         }
@@ -886,9 +925,10 @@ impl RetainedState {
             }
         };
         for &property in delta.properties() {
-            // Transitions start from the C++ computation, and so does any animation the engine
-            // cannot hand the host a plan for.
+            // Any animation the engine cannot hand the host a plan for starts from the C++
+            // computation; a transition declaration is the step's to act on.
             if property_starts_animation(property)
+                && !property_declares_transitions(property)
                 && !(property_declares_css_animations(property) && self.may_plan_css_animations(node, state, scratch))
             {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
@@ -1137,7 +1177,8 @@ impl RetainedState {
             delta_property_count,
             longhand_evaluations,
             counters,
-        );
+        )
+        .owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
         // A record driven in full stands for a cohort keyed by the parent's inherited inputs only
         // when the drive was partial. One naming its tree scope's counter-style registry answers
         // for no element of another scope, and the key names no scope.
@@ -1240,7 +1281,7 @@ impl RetainedState {
         delta_property_count: u64,
         longhand_evaluations: u32,
         counters: &mut Counters,
-    ) {
+    ) -> &mut PendingEngineComputedRecord {
         counters.add(Counter::CascadeWinnerDeltaProperties, delta_property_count);
         counters.add(Counter::ComputedWinnerDeltaPropertiesConsumed, delta_property_count);
         counters.bump(Counter::EngineComputedRecordDeltas);
@@ -1250,17 +1291,18 @@ impl RetainedState {
         self.set_element_container_query_inputs(node, delta.1.raw());
         self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
         self.note_container_unit_effects_for_host(node, false, cascade_state.1, delta.0);
-        self.engine_computed_records_pending
-            .entry(node)
-            .or_default()
-            .push(PendingEngineComputedRecord {
-                node,
-                pseudo_kind: u8::MAX,
-                old_style_record: delta.0,
-                new_style_record: delta.1,
-                cascade_state: Some(cascade_state),
-                longhand_evaluations,
-            });
+        let records = self.engine_computed_records_pending.entry(node).or_default();
+        records.push(PendingEngineComputedRecord {
+            node,
+            pseudo_kind: u8::MAX,
+            old_style_record: delta.0,
+            new_style_record: delta.1,
+            cascade_state: Some(cascade_state),
+            longhand_evaluations,
+            owes_a_transition_step: false,
+        });
+        let last = records.len() - 1;
+        &mut records[last]
     }
 
     /// C++ installed the record the engine derived for `node`: the winner state it was computed
@@ -1776,13 +1818,6 @@ impl RetainedState {
                     derived_under_parent(self, record).then_some((record, true))
                 })
         })?;
-        // A record with transitions will need C++ on its next change. Keep its initial
-        // computation in C++ too, so that fallback retains the input record and can select
-        // only the changed groups instead of rebuilding the entire style.
-        if self.record_requires_cpp_animation(record) {
-            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-            return None;
-        }
         self.computed_group_sets
             .set_pending_cascade_state(target, cascade_state);
         let publication = self.assign_shared_style_record(
@@ -1989,14 +2024,30 @@ impl RetainedState {
         old != new && animation_group(old) != animation_group(new)
     }
 
-    fn record_requires_cpp_animation(&self, record: computed::FinalStyleRecordID) -> bool {
+    /// Whether the host composes animations over a record, which the engine cannot drive from: a
+    /// record it cannot read counts as one.
+    pub(super) fn record_holds_an_animation_overlay(&self, record: computed::FinalStyleRecordID) -> bool {
         self.computed_group_sets
             .style_record_view(record.raw())
-            .is_none_or(|view| {
-                !view.animated_overlay.is_null()
-                    || (unsafe { view.longhand_table.as_ref() })
-                        .is_none_or(crate::css::style_compute::has_active_transition_properties)
-            })
+            .is_none_or(|view| !view.animated_overlay.is_null())
+    }
+
+    /// Whether a record's transition declarations name a longhand a change of which starts a
+    /// transition.
+    pub(super) fn record_declares_transitions(&self, record: computed::FinalStyleRecordID) -> bool {
+        self.computed_group_sets
+            .style_record_view(record.raw())
+            .and_then(|view| unsafe { view.longhand_table.as_ref() })
+            .is_some_and(crate::css::style_compute::has_active_transition_properties)
+    }
+
+    /// Whether the host owes the element the transition step once it installs the record the engine
+    /// settled for it, as deciding the row found.
+    pub(super) fn row_owes_a_transition_step(&self, node: StyleNodeID) -> bool {
+        self.engine_computed_records_pending
+            .get(&node)
+            .and_then(|records| records.iter().rev().find(|pending| pending.pseudo_kind == u8::MAX))
+            .is_some_and(|pending| pending.owes_a_transition_step)
     }
 
     /// Select the remaining-phase properties and output groups needed to derive a record from a
@@ -4877,6 +4928,10 @@ pub(super) struct PendingEngineComputedRecord {
     cascade_state: Option<(u64, CascadeStateID)>,
     /// Longhands the drive evaluated for the record; counted once C++ installs it.
     longhand_evaluations: u32,
+    /// Whether the host owes the element the transition step once it installs the record: the
+    /// record moves, and either the one it replaces declares transitions or the move changes the
+    /// declarations.
+    owes_a_transition_step: bool,
 }
 
 /// What one flush accumulates while deriving engine-computed records: the record each cohort
@@ -5183,6 +5238,7 @@ pub(crate) struct RetriedEngineRecord {
     pub(crate) style_record: u64,
     pub(crate) explicitly_inherited_groups: u32,
     pub(crate) owes_an_animation_plan: bool,
+    pub(crate) owes_a_transition_step: bool,
     pub(crate) pseudo_records_present: u8,
     pub(crate) pseudo_records: [u64; bridge::RETRY_PSEUDO_RECORD_SLOTS],
 }
@@ -5751,6 +5807,7 @@ mod tests {
                     new_style_record: record,
                     cascade_state: None,
                     longhand_evaluations: 1,
+                    owes_a_transition_step: false,
                 });
             record
         };

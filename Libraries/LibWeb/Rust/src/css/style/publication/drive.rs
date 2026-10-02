@@ -400,11 +400,8 @@ impl RetainedState {
         let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
             return Ok(PartialDrive::DriverInputMoved);
         };
-        // A record under display:none may no longer be the style C++ holds, and a property change
-        // on an element with active transitions starts one in the C++ computation.
-        if view.dependency_flags & (1 << 2) != 0
-            || crate::css::style_compute::has_active_transition_properties(old_table)
-        {
+        // A record under display:none may no longer be the style C++ holds.
+        if view.dependency_flags & (1 << 2) != 0 {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
@@ -700,10 +697,9 @@ impl RetainedState {
                 // A record kept under display:none is still what the element's own style is driven
                 // from, but the animations it names start only when C++ computes the element out of
                 // that subtree.
-                if old_table.is_some_and(|old_table| {
-                    (view.dependency_flags & (1 << 2) != 0 && table_names_animations(old_table))
-                        || crate::css::style_compute::has_active_transition_properties(old_table)
-                }) {
+                if old_table
+                    .is_some_and(|old_table| view.dependency_flags & (1 << 2) != 0 && table_names_animations(old_table))
+                {
                     counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return Err(Unanswered::Refused);
                 }

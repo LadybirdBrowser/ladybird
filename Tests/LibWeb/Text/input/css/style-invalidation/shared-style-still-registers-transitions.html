@@ -12,13 +12,16 @@
         internals.updateStyle();
 
         // A declared transition registers the properties it names on the element, which is decided by
-        // the computed values rather than by the element, so these ten still compute one style
-        // between them on the pass that gives them one to transition from.
+        // the computed values rather than by the element, so these ten still answer with one style
+        // between them on the pass that gives them one to transition from - whether that style is
+        // the one C++ computed once and shared nine times, or the one the engine settled for all
+        // ten. What must not happen is ten separate computations.
         resetStyleCounters();
         const second = addStyle(document.head, `.leaf { letter-spacing: 1px; }`);
         internals.updateStyle();
-        const shared = styleCounters().elementStyleSharedComputations;
-        println(`PASS: elements declaring a transition share a style: ${shared >= 9}`);
+        const counters = styleCounters();
+        const computed = counters.elementStyleRecomputations - counters.elementStyleSharedComputations;
+        println(`PASS: elements declaring a transition share a style: ${computed <= 1}`);
 
         // What they registered has to survive taking someone else's answer: changing the transitioned
         // property now starts a transition on every one of them.

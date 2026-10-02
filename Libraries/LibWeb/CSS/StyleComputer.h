@@ -232,10 +232,16 @@ public:
     void record_transition_stabilization_baseline(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
     // Keeps `before_change_style_record` that way where the element's style scope can run a later pass at all.
     void record_transition_baseline_for_later_passes(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    // Whether the transition step asks for the base recomputation its published values need, or leaves that to a
+    // caller that computed the base itself and would only undo what the step published by recomputing it.
+    enum class TransitionStepFollowUp {
+        Request,
+        LeftToCaller,
+    };
     // Runs the whole transition step for an installed record, against the record the element moved away from, which
     // the caller keeps alive. Returns what publishing a started transition's values invalidates, which the caller
     // reacts to like to the rest of the style change.
-    [[nodiscard]] RequiredInvalidationAfterStyleChange run_transition_step_for_installed_record(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    [[nodiscard]] RequiredInvalidationAfterStyleChange run_transition_step_for_installed_record(DOM::AbstractElement, StyleRecordID before_change_style_record, TransitionStepFollowUp) const;
     void commit_transition_stabilization_epoch();
     void for_each_provisional_transition_effect(DOM::AbstractElement const&, Function<void(Animations::KeyframeEffect&)> const&) const;
 
