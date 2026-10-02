@@ -106,6 +106,19 @@ ErrorOr<void> SharedFontProvider::replace_catalog(IPC::File file, u64 size, u64 
     return replace_catalog(move(mapping), generation);
 }
 
+void SharedFontProvider::set_callbacks_for_other_threads(SharedFontProviderCallbacks&& callbacks)
+{
+    MutexLocker locker(m_mutex);
+    m_other_thread_callbacks = move(callbacks);
+}
+
+SharedFontProviderCallbacks const& SharedFontProvider::callbacks_for_this_thread() const
+{
+    if (m_other_thread_callbacks.has_value() && !pthread_equal(pthread_self(), m_creating_thread))
+        return *m_other_thread_callbacks;
+    return m_callbacks;
+}
+
 static FontVariationSettings default_variations(float point_size, unsigned weight, unsigned width)
 {
     FontVariationSettings settings;
@@ -212,7 +225,8 @@ RefPtr<Typeface> SharedFontProvider::get_typeface_by_id(u64 generation, u64 face
 RefPtr<Gfx::Font> SharedFontProvider::get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
     MutexLocker locker(m_mutex);
-    if (!m_callbacks.match_font_for_code_point)
+    auto const& callbacks = callbacks_for_this_thread();
+    if (!callbacks.match_font_for_code_point)
         return nullptr;
 
     CodePointCacheKey key { code_point, weight, width, slope, prefer_color_emoji };
@@ -222,7 +236,7 @@ RefPtr<Gfx::Font> SharedFontProvider::get_font_for_code_point(u32 code_point, fl
         return cached_typeface.value()->font(point_size, {});
     }
 
-    auto typeface = load_brokered_font(m_callbacks.match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji));
+    auto typeface = load_brokered_font(callbacks.match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji));
     m_code_point_cache.set(key, typeface);
     if (!typeface)
         return nullptr;

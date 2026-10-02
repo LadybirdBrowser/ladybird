@@ -202,6 +202,14 @@ void ConnectionFromClient::set_render_side_font_service_transport(IPC::Transport
         return;
     }
     m_render_side_font_service = service.release_value();
+    if (!m_font_provider)
+        return;
+
+    Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.match_font_for_code_point = [this](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
+        return m_render_side_font_service->match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
+    };
+    m_font_provider->set_callbacks_for_other_threads(move(callbacks));
 }
 
 void ConnectionFromClient::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
