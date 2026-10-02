@@ -22,6 +22,7 @@ pub(crate) mod fragment_tree;
 pub(crate) mod generated_content;
 pub mod geometry;
 pub mod grid_formatting_context;
+mod host_tables;
 pub mod inline_content;
 pub(crate) mod inline_formatting_context;
 pub mod inline_level_iterator;
@@ -84,6 +85,7 @@ pub(crate) use geometry::{
     AvailableSize, AvailableSpace, ContainingBlockConstraints, LayoutInput, ParticipationInParentFormattingContext,
     RootSizingDirectives,
 };
+pub(crate) use host_tables::{ArenaHandle, HostTables};
 pub(crate) use layout_pass::LayoutPass;
 pub(crate) use node_facts::NodeFacts;
 pub(crate) use rendered_text::RenderedTextBoundary;

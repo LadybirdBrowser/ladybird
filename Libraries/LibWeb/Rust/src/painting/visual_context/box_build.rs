@@ -17,7 +17,7 @@ use libgfx_rust::FloatPoint;
 pub(crate) struct BoxBuildEnvironment<'a, Arena> {
     pub layout_arena: &'a Arena,
     pub callbacks: &'a FfiVisualContextHostCallbacks,
-    pub main_thread: &'a crate::stage::MainThread,
+    pub main_thread: &'a crate::stage::MainThread<'a>,
     pub pixel_ratio: f64,
 }
 

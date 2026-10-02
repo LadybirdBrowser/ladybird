@@ -336,8 +336,9 @@ pub unsafe extern "C" fn layout_arena_set_chrome_state_callback(
     context: *mut c_void,
     callback: unsafe extern "C" fn(*mut c_void, NodeSlotId, PaintableRowResetKind),
 ) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.set_chrome_state_callback(context, callback);
+    unsafe { crate::layout::HostTables::from_handle(arena) }
+        .chrome_state_callback
+        .set(Some((context, callback)));
 }
 
 /// # Safety
@@ -345,8 +346,9 @@ pub unsafe extern "C" fn layout_arena_set_chrome_state_callback(
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_clear_chrome_state_callback(arena: *mut c_void) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.clear_chrome_state_callback();
+    unsafe { crate::layout::HostTables::from_handle(arena) }
+        .chrome_state_callback
+        .set(None);
 }
 
 /// # Safety
@@ -440,7 +442,7 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_
     };
     if let Some(reset) = reset {
         // SAFETY: Guaranteed by the entry point's contract.
-        let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+        let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
         reset.tell(&main_thread);
         let arena = unsafe { arena_from_handle_mut(arena) };
         arena.paintable_row_cleared(reset);
@@ -577,7 +579,7 @@ pub unsafe extern "C" fn layout_arena_prepare_for_rendering(
     visual_context_update_pending: bool,
 ) -> FfiRenderingPreparationOutcome {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { arena_from_handle(arena) };
     prepare_for_rendering(
         &main_thread,
@@ -1070,7 +1072,7 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
         return crate::painting::host::FfiVisualContextUpdateOutcome::default();
     }
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let inputs = callbacks.tree_inputs(&main_thread);
     let mut state = std::mem::take(&mut arena_ref.paint_state().borrow_mut().visual_context);
     state.release_quarantined_slots_while_no_handle_is_retained();
@@ -1216,13 +1218,13 @@ pub unsafe extern "C" fn layout_arena_update_visual_viewport_transform(
     arena: *mut c_void,
     callbacks: FfiVisualContextHostCallbacks,
 ) -> bool {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { arena_from_handle(arena) };
     let mut paint_state = arena.paint_state().borrow_mut();
     let Some(tree) = &mut paint_state.visual_context.tree else {
         return false;
     };
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     let inputs = callbacks.tree_inputs(&main_thread);
     std::sync::Arc::make_mut(tree).set_visual_viewport_transform(
         crate::painting::visual_context::node_values::visual_viewport_transform_data(&inputs),
@@ -1282,7 +1284,7 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
     publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
 ) -> bool {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { arena_from_handle(arena) };
     let snapshot = {
         let paintable_rows = arena.paintable_rows();
@@ -1643,7 +1645,7 @@ pub unsafe extern "C" fn layout_arena_publish_recording(
     publish: crate::painting::host::FfiRecordingPublishCallbacks,
 ) -> u64 {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { arena_from_handle(arena) };
     let Some(pending) = arena.paint_state().borrow_mut().pending_recording.take() else {
         return 0;
@@ -3556,7 +3558,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_closest_line(
     respect_clip: bool,
 ) -> crate::painting::host::FfiClosestLine {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     with_hit_test_list_spatial_indexes_and_visual_context_tree(arena, true, Default::default(), |list, tree, arena| {
         let closest = list.find_closest_line(
             &main_thread,
@@ -3599,7 +3601,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_adjacent_line(
         crate::painting::hit_test::caret::CaretLineDirection::Previous
     };
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     with_hit_test_list_and_caret_lines(arena, Default::default(), |list, arena| {
         match list.adjacent_line(
             &main_thread,

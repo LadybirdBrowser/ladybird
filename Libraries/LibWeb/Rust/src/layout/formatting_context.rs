@@ -937,6 +937,14 @@ pub struct FfiLayoutHostCallbacks {
 }
 
 impl FfiLayoutHostCallbacks {
+    /// The layout host the document the entry was called for registered.
+    pub(crate) fn of(main_thread: &crate::stage::MainThread) -> Self {
+        main_thread
+            .host_tables()
+            .and_then(|host_tables| host_tables.layout_host.get())
+            .expect("layout node arena has no layout host")
+    }
+
     /// # Safety
     ///
     /// The document may re-enter the arena, so no arena borrow may be held across this call.
@@ -967,9 +975,10 @@ impl FfiLayoutHostCallbacks {
 /// they are cleared or the arena is destroyed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_layout_host_callbacks(arena: *mut c_void, callbacks: FfiLayoutHostCallbacks) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_layout_host(Some(callbacks));
+    unsafe { HostTables::from_handle(arena) }
+        .layout_host
+        .set(Some(callbacks));
 }
 
 /// Records whether the document is an SVG file decoded as an image. It is fixed for the
@@ -990,9 +999,8 @@ pub unsafe extern "C" fn layout_arena_set_document_is_decoded_svg(arena: *mut c_
 /// `arena` must be a live handle on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_clear_layout_host_callbacks(arena: *mut c_void) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_layout_host(None);
+    unsafe { HostTables::from_handle(arena) }.layout_host.set(None);
 }
 
 pub(crate) struct FormattingContextRun<'pass> {
@@ -1592,17 +1600,16 @@ pub(super) fn run_formatting_context(
         Ok(attempt) => attempt,
         Err(entry) => {
             let reuses_committed_subtree = entry.can_reuse_committed_subtree();
-            let _trace =
-                callbacks
-                    .arena()
-                    .layout_trace
-                    .run(callbacks.arena(), box_, fc_type, purpose, layout_mode, || {
-                        if reuses_committed_subtree {
-                            "REUSE SUBTREE"
-                        } else {
-                            "REPLAY FRAGMENTS"
-                        }
-                    });
+            let _trace = callbacks
+                .arena()
+                .layout_trace
+                .run(box_, fc_type, purpose, layout_mode, || {
+                    if reuses_committed_subtree {
+                        "REUSE SUBTREE"
+                    } else {
+                        "REPLAY FRAGMENTS"
+                    }
+                });
             let outputs = entry.outputs_to_replay(&cache_key);
             if entry.is_uncommitted() {
                 fc_run_cache::store_replayed_uncommitted_entry(&callbacks, box_, cache_key, &entry, &outputs);
@@ -1617,9 +1624,7 @@ pub(super) fn run_formatting_context(
     let _trace = callbacks
         .arena()
         .layout_trace
-        .run(callbacks.arena(), box_, fc_type, purpose, layout_mode, || {
-            cache_attempt.trace_action()
-        });
+        .run(box_, fc_type, purpose, layout_mode, || cache_attempt.trace_action());
     let previous_line_data = cache_attempt.previous_line_data();
     let outputs = execute_formatting_context_run(
         purpose,
@@ -2192,7 +2197,6 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         Ok(attempt) => attempt,
         Err(entry) => {
             let _trace = run.callbacks.arena().layout_trace.run(
-                run.callbacks.arena(),
                 cell,
                 FormattingContextType::Block,
                 LayoutPurpose::Commit,
@@ -2203,7 +2207,6 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
         }
     };
     let _trace = run.callbacks.arena().layout_trace.run(
-        run.callbacks.arena(),
         cell,
         FormattingContextType::Block,
         LayoutPurpose::Commit,
@@ -2326,7 +2329,7 @@ pub unsafe extern "C" fn layout_arena_run_root_layout(
     should_collect_devtools_layout_data: bool,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: Guaranteed by the entry point's contract.
     unsafe {
         run_root_layout(
@@ -2359,14 +2362,13 @@ pub(crate) unsafe fn run_root_layout(
 ) {
     assert!(!arena_handle.is_null(), "layout node arena handle is null");
     assert!(!root.is_invalid());
-    // SAFETY: The caller keeps the arena alive for this synchronous call, and the pass has not
-    // begun. The host table is copied out so no arena borrow spans a host callback.
-    let host = unsafe { LayoutNodeArena::from_handle(arena_handle).layout_host() };
+    let host = FfiLayoutHostCallbacks::of(main_thread);
     // The style rewrites enroll the affected boxes' text children for content sync, so the sync
     // follows them, and both precede the pass, which caches decoded style.
     // SAFETY: As above; the propagation borrows the arena only for its own call.
     let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
     viewport_propagation::propagate_root_styles_to_viewport(
+        main_thread,
         arena,
         root,
         &viewport_propagation::viewport_propagation_facts(arena),
@@ -2403,7 +2405,7 @@ pub(crate) unsafe fn run_root_layout(
         ..ContainingBlockConstraints::default()
     };
     let pass_fragments = RunRecords::with_unrooted(arena, root, NodeSlotId::INVALID, |entry_records| {
-        let _trace = arena.layout_trace.pass(arena, None);
+        let _trace = arena.layout_trace.pass(None);
         let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
         let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
         let entry_run = FormattingContextRun {
@@ -2464,7 +2466,7 @@ pub(crate) unsafe fn run_root_layout(
     // SAFETY: Computation has finished and its input borrows are no longer used.
     let arena = unsafe { commit_entry_pass(main_thread, arena_handle, &host, root, &pass_fragments) };
     arena.did_commit_full_layout(root);
-    arena.end_active_layout_pass();
+    arena.end_active_layout_pass(main_thread);
 }
 
 fn finish_entry_pass(
@@ -2533,7 +2535,7 @@ pub unsafe extern "C" fn layout_arena_compute_subtree_layout(
     document_in_quirks_mode: bool,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: Guaranteed by the entry point's contract.
     unsafe {
         compute_subtree_layout(
@@ -2564,9 +2566,7 @@ pub(crate) unsafe fn compute_subtree_layout(
 ) {
     assert!(!arena_handle.is_null(), "layout node arena handle is null");
     assert!(!root.is_invalid());
-    // SAFETY: The caller keeps the arena alive for this synchronous call, and the pass has not
-    // begun. The host table is copied out so no arena borrow spans a host callback.
-    let host = unsafe { LayoutNodeArena::from_handle(arena_handle).layout_host() };
+    let host = FfiLayoutHostCallbacks::of(main_thread);
     // SAFETY: The host keeps the document's layout inputs alive and unchanged
     // while computing fragments. Nested measurements only mutate side caches.
     let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
@@ -2601,7 +2601,7 @@ pub(crate) unsafe fn compute_subtree_layout(
         (root, containing_block)
     };
     let pass_fragments = RunRecords::with_unrooted(arena, entry_root, entry_root_containing_block, |entry_records| {
-        let _trace = arena.layout_trace.pass(arena, Some(root));
+        let _trace = arena.layout_trace.pass(Some(root));
         let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root));
         let entry_run = FormattingContextRun {
             purpose: LayoutPurpose::Commit,
@@ -2629,7 +2629,7 @@ pub(crate) unsafe fn compute_subtree_layout(
     // would require a new layout instead of an overflow update.
     debug_assert!(!node_facts::kind_is_svg_box(arena.data(root).kind.get()));
     arena.schedule_scrollable_overflow_recalculation(root);
-    arena.end_active_layout_pass();
+    arena.end_active_layout_pass(main_thread);
 }
 
 fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {

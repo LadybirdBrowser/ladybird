@@ -6,18 +6,28 @@
 
 use super::LayoutNodeArena;
 use super::formatting_context::{FormattingContextType, LayoutMode, LayoutPurpose};
-use super::node_data::{NodeKind, NodeSlotId};
+use super::node_data::{NodeFlag, NodeKind, NodeSlotId};
+use crate::stage::MainThread;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::fmt::Write;
 
 type AppendText = unsafe extern "C" fn(*mut c_void, *const u8, usize);
-type DescribeNode = unsafe extern "C" fn(*mut c_void, *mut c_void, AppendText);
+pub(crate) type DescribeNode = unsafe extern "C" fn(*mut c_void, *mut c_void, AppendText);
 
 struct Trace {
-    describe_node: DescribeNode,
-    text: String,
+    lines: Vec<Line>,
     depth: usize,
+}
+
+/// One traced event: what it says, and the box it names, if any. The box is named once the pass is
+/// over, since naming it asks the document, which a pass cannot do.
+struct Line {
+    depth: usize,
+    prefix: &'static str,
+    owner: Option<NodeSlotId>,
+    owner_name: Option<String>,
+    text: String,
 }
 
 /// Observation belongs to the document, not to a single pass: geometry reads and
@@ -34,11 +44,10 @@ impl Drop for Scope<'_> {
 }
 
 impl LayoutTrace {
-    fn begin(&self, describe_node: DescribeNode) {
+    fn begin(&self) {
         assert!(self.0.borrow().as_ref().is_none_or(|trace| trace.depth == 0));
         *self.0.borrow_mut() = Some(Trace {
-            describe_node,
-            text: String::new(),
+            lines: Vec::new(),
             depth: 0,
         });
     }
@@ -48,37 +57,80 @@ impl LayoutTrace {
             return String::new();
         };
         assert_eq!(trace.depth, 0, "incomplete layout trace");
-        trace.text
+        let mut text = String::new();
+        for line in trace.lines {
+            writeln!(
+                text,
+                "{}{}{}{}",
+                "  ".repeat(line.depth),
+                line.prefix,
+                line.owner_name.unwrap_or_default(),
+                line.text
+            )
+            .unwrap();
+        }
+        text
     }
 
-    fn scope(&self, label: impl FnOnce(DescribeNode) -> String) -> Option<Scope<'_>> {
+    /// Names the boxes the traced events name. This runs once the outermost pass is over, while
+    /// the boxes the pass ran for are still live: a later mutation may remove them or reuse their
+    /// arena slots before JavaScript takes the trace. The host describes them through the callback
+    /// it registered when tracing began.
+    pub(super) fn name_owners(&self, main_thread: &MainThread, arena: &LayoutNodeArena) {
+        let mut state = self.0.borrow_mut();
+        let Some(trace) = state.as_mut() else {
+            return;
+        };
+        let mut describe = None;
+        for line in &mut trace.lines {
+            let Some(owner) = line.owner.filter(|_| line.owner_name.is_none()) else {
+                continue;
+            };
+            let describe = *describe.get_or_insert_with(|| {
+                main_thread
+                    .host_tables()
+                    .and_then(|host_tables| host_tables.layout_trace_describe_node.get())
+                    .expect("a layout trace names its boxes through the callback it began with")
+            });
+            line.owner_name = Some(owner_name(arena, owner, describe));
+        }
+    }
+
+    fn scope(
+        &self,
+        prefix: &'static str,
+        owner: Option<NodeSlotId>,
+        text: impl FnOnce() -> String,
+    ) -> Option<Scope<'_>> {
         let mut state = self.0.borrow_mut();
         let trace = state.as_mut()?;
-        // Resolve names while the run's nodes are live. A subsequent mutation may
-        // remove them or reuse their arena slots before JavaScript takes the trace.
-        writeln!(trace.text, "{}{}", "  ".repeat(trace.depth), label(trace.describe_node)).unwrap();
+        trace.lines.push(Line {
+            depth: trace.depth,
+            prefix,
+            owner,
+            owner_name: None,
+            text: text(),
+        });
         trace.depth += 1;
         Some(Scope(self))
     }
 
-    pub(super) fn pass(&self, arena: &LayoutNodeArena, partial_root: Option<NodeSlotId>) -> Option<Scope<'_>> {
-        self.scope(|describe| match partial_root {
-            Some(root) => format!("layout PARTIAL {}", owner_name(arena, root, describe)),
-            None => "layout FULL".into(),
-        })
+    pub(super) fn pass(&self, partial_root: Option<NodeSlotId>) -> Option<Scope<'_>> {
+        match partial_root {
+            Some(root) => self.scope("layout PARTIAL ", Some(root), String::new),
+            None => self.scope("layout FULL", None, String::new),
+        }
     }
 
     pub(super) fn run(
         &self,
-        arena: &LayoutNodeArena,
         root: NodeSlotId,
         fc_type: FormattingContextType,
         purpose: LayoutPurpose,
         mode: LayoutMode,
         action: impl FnOnce() -> &'static str,
     ) -> Option<Scope<'_>> {
-        self.scope(|describe| {
-            let owner = owner_name(arena, root, describe);
+        self.scope("", Some(root), || {
             let context = match fc_type {
                 FormattingContextType::Block => "block",
                 FormattingContextType::Inline => "inline",
@@ -96,7 +148,7 @@ impl LayoutTrace {
                 (true, LayoutMode::Normal) => " (measurement)",
                 (true, LayoutMode::IntrinsicSizing) => " (measurement, intrinsic)",
             };
-            format!("{owner}/{context}{measurement} {}", action())
+            format!("/{context}{measurement} {}", action())
         })
     }
 }
@@ -109,9 +161,21 @@ fn owner_name(arena: &LayoutNodeArena, root: NodeSlotId, describe: DescribeNode)
         // SAFETY: describe receives this live vector and supplies bytes valid for this call.
         unsafe { &mut *sink.cast::<Vec<u8>>() }.extend_from_slice(unsafe { std::slice::from_raw_parts(bytes, length) });
     }
+    // A row nothing has made a shell for is named from the row, the way its shell would describe
+    // itself.
+    let data = arena.data(root);
+    if data.shell.get().is_null() {
+        let kind = data.kind.get();
+        if data.flags.get() & NodeFlag::Anonymous as u32 != 0 {
+            return format!("{kind:?}(anonymous)");
+        }
+        if kind == NodeKind::TextNode {
+            return format!("{kind:?}<#text>");
+        }
+    }
     let mut bytes = Vec::<u8>::new();
-    // SAFETY: the traced run holds the arena and its shells alive; describe copies
-    // the node's description synchronously without changing layout.
+    // SAFETY: The pass is over, and the rows it ran for are live; describe copies the node's
+    // description synchronously without changing layout.
     unsafe { describe(arena.shell_if_live(root), (&raw mut bytes).cast(), append) };
     String::from_utf8(bytes).expect("layout trace label must be UTF-8")
 }
@@ -121,9 +185,10 @@ fn owner_name(arena: &LayoutNodeArena, root: NodeSlotId, describe: DescribeNode)
 /// must synchronously describe its live node shell without mutating layout.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_begin_layout_trace(arena: *mut c_void, describe_node: DescribeNode) {
-    unsafe { LayoutNodeArena::from_handle(arena) }
-        .layout_trace
-        .begin(describe_node);
+    unsafe { super::HostTables::from_handle(arena) }
+        .layout_trace_describe_node
+        .set(Some(describe_node));
+    unsafe { LayoutNodeArena::from_handle(arena) }.layout_trace.begin();
 }
 
 /// # Safety
@@ -142,46 +207,72 @@ pub unsafe extern "C" fn layout_arena_take_layout_trace(
 mod tests {
     use super::*;
 
-    unsafe extern "C" fn unused_description(_: *mut c_void, _: *mut c_void, _: AppendText) {
-        panic!("no nodes to describe in this test");
-    }
-
     #[test]
     fn disabled_trace_does_not_construct_labels() {
         let trace = LayoutTrace::default();
-        assert!(trace.scope(|_| panic!("disabled observation")).is_none());
+        assert!(trace.scope("", None, || panic!("disabled observation")).is_none());
         assert_eq!(trace.take(), "");
     }
 
     #[test]
     fn preserves_nesting_repeated_runs_and_multiple_passes() {
         let trace = LayoutTrace::default();
-        trace.begin(unused_description);
+        trace.begin();
         {
-            let _pass = trace.scope(|_| "layout FULL".into());
-            let _run = trace.scope(|_| "@viewport/block RUN (cache=bypass)".into());
+            let _pass = trace.scope("layout FULL", None, String::new);
+            let _run = trace.scope("@viewport/block RUN (cache=bypass)", None, String::new);
             {
-                let _child = trace.scope(|_| "#child/block REUSE SUBTREE".into());
+                let _child = trace.scope("#child/block REUSE SUBTREE", None, String::new);
             }
-            let _child = trace.scope(|_| "#child/block RUN (cache=miss)".into());
+            let _child = trace.scope("#child/block RUN (cache=miss)", None, String::new);
         }
         {
-            let _pass = trace.scope(|_| "layout PARTIAL #boundary".into());
+            let _pass = trace.scope("layout PARTIAL #boundary", None, String::new);
         }
         assert_eq!(
             trace.take(),
             "layout FULL\n  @viewport/block RUN (cache=bypass)\n    #child/block REUSE SUBTREE\n    #child/block RUN (cache=miss)\nlayout PARTIAL #boundary\n"
         );
-        assert!(trace.scope(|_| panic!("take must disable tracing")).is_none());
+        assert!(trace.scope("", None, || panic!("take must disable tracing")).is_none());
         assert_eq!(trace.take(), "");
     }
 
     #[test]
     fn begin_discards_previous_events() {
         let trace = LayoutTrace::default();
-        trace.begin(unused_description);
-        drop(trace.scope(|_| "old pass".into()));
-        trace.begin(unused_description);
+        trace.begin();
+        drop(trace.scope("old pass", None, String::new));
+        trace.begin();
         assert_eq!(trace.take(), "");
+    }
+
+    #[test]
+    fn owners_are_named_through_the_registered_callback_once_the_pass_is_over() {
+        unsafe extern "C" fn describe(_: *mut c_void, sink: *mut c_void, append: AppendText) {
+            let name = b"Box<div>#owner";
+            // SAFETY: The trace hands a live sink and its append function.
+            unsafe { append(sink, name.as_ptr(), name.len()) };
+        }
+        let mut arena = LayoutNodeArena::new();
+        let owner = arena.allocate_for_test();
+        arena.data(owner.slot).kind.set(NodeKind::BlockContainer);
+        let host_tables = crate::layout::HostTables::default();
+        host_tables.layout_trace_describe_node.set(Some(describe));
+        let main_thread = MainThread::for_test_with_host(&host_tables);
+
+        arena.layout_trace.begin();
+        arena.begin_active_layout_pass();
+        drop(arena.layout_trace.run(
+            owner.slot,
+            FormattingContextType::Block,
+            LayoutPurpose::Commit,
+            LayoutMode::Normal,
+            || "RUN",
+        ));
+        arena.end_active_layout_pass(&main_thread);
+        assert_eq!(arena.layout_trace.take(), "Box<div>#owner/block RUN\n");
+        arena
+            .free_subtree(owner.slot)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
     }
 }

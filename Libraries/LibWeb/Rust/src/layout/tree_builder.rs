@@ -151,6 +151,7 @@ pub enum FfiElementLayoutKind {
 }
 
 fn apply_replaced_display_adjustment(
+    main_thread: &MainThread,
     arena: &LayoutNodeArena,
     node: NodeSlotId,
     adjustment: FfiReplacedElementDisplayAdjustment,
@@ -161,7 +162,7 @@ fn apply_replaced_display_adjustment(
         FfiReplacedElementDisplayAdjustment::Inline => display_outside::INLINE,
         FfiReplacedElementDisplayAdjustment::None => return,
     };
-    arena.update_layout_style(node, |style| {
+    arena.update_layout_style(main_thread, node, |style| {
         style.set_display(FfiDisplay::outside_and_inside(outside, display_inside::FLOW, false));
     });
 }
@@ -382,7 +383,7 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
     assert!(!callbacks.is_null());
     assert!(!arena.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: Guaranteed by the entry point's contract.
     let callbacks = unsafe { &*callbacks };
     let arena = arena.cast::<LayoutNodeArena>();
@@ -1184,7 +1185,7 @@ pub(crate) fn principal_node_entry_decision(
 struct DomTreeBuilderHost<'a> {
     callbacks: &'a FfiDomTreeBuilderCallbacks,
     arena: *mut LayoutNodeArena,
-    main_thread: &'a MainThread,
+    main_thread: &'a MainThread<'a>,
 }
 
 impl DomTreeBuilderHost<'_> {
@@ -1291,7 +1292,7 @@ fn dom_child_layout_plan(host: &DomTreeBuilderHost<'_>, node: StyleNodeID) -> (b
 unsafe fn dom_tree_builder_host<'a>(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     arena: *mut c_void,
-    main_thread: &'a MainThread,
+    main_thread: &'a MainThread<'a>,
 ) -> DomTreeBuilderHost<'a> {
     assert!(!callbacks.is_null());
     assert!(!arena.is_null());
@@ -2304,7 +2305,7 @@ fn update_principal_node_after_entry(
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
             // SAFETY: The box the host just built is a live NodeWithStyle.
-            apply_replaced_display_adjustment(host.layout().arena(), layout_node, adjustment);
+            apply_replaced_display_adjustment(host.main_thread, host.layout().arena(), layout_node, adjustment);
         }
 
         let old_layout_node = update.old_layout_node;
@@ -2596,7 +2597,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
 ) -> FfiLayoutTreeBuildOutcome {
     assert!(!document.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: Guaranteed by the entry point's contract.
     let host = unsafe { dom_tree_builder_host(callbacks, arena, &main_thread) };
     let document_identity =
@@ -2657,7 +2658,9 @@ pub unsafe extern "C" fn rust_build_layout_tree(
                 .scrollbar_width;
             layout_host
                 .arena()
-                .update_layout_style(document_layout_node, |style| style.set_scrollbar_width(scrollbar_width));
+                .update_layout_style(layout_host.main_thread, document_layout_node, |style| {
+                    style.set_scrollbar_width(scrollbar_width);
+                });
         }
     }
 
@@ -2679,10 +2682,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         // SAFETY: The tree build runs outside any layout pass, the document outlives the build,
         // and no arena borrow is held here.
         unsafe {
-            host.layout()
-                .arena()
-                .layout_host()
-                .deliver_commit_messages(host.main_thread, &state.reports);
+            FfiLayoutHostCallbacks::of(host.main_thread).deliver_commit_messages(host.main_thread, &state.reports);
         }
     }
 
@@ -3016,7 +3016,7 @@ fn create_pseudo_element(
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
             // SAFETY: The box the host just built is a live NodeWithStyle.
-            apply_replaced_display_adjustment(layout_host.arena(), layout_node, adjustment);
+            apply_replaced_display_adjustment(layout_host.main_thread, layout_host.arena(), layout_node, adjustment);
         }
     }
 
@@ -3261,7 +3261,7 @@ enum TraversalDecision {
 struct TreeBuilderHost<'a> {
     callbacks: &'a FfiTreeBuilderCallbacks,
     arena: *mut LayoutNodeArena,
-    main_thread: &'a MainThread,
+    main_thread: &'a MainThread<'a>,
 }
 
 fn node_has_flag(data: &NodeData, flag: NodeFlag) -> bool {
@@ -4373,12 +4373,13 @@ fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Lay
             overflow_x: style.box_values().overflow_x,
             overflow_y: style.box_values().overflow_y,
         };
-        host.arena().update_layout_style(layout_node, |style| {
-            style.set_overflow(
-                crate::css::css_enums::overflow::VISIBLE,
-                crate::css::css_enums::overflow::VISIBLE,
-            );
-        });
+        host.arena()
+            .update_layout_style(host.main_thread, layout_node, |style| {
+                style.set_overflow(
+                    crate::css::css_enums::overflow::VISIBLE,
+                    crate::css::css_enums::overflow::VISIBLE,
+                );
+            });
         let wrapper = host.create_anonymous_box(
             layout_node,
             AnonymousStyleKind::FieldsetContentWrapper,
@@ -4776,7 +4777,8 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
                 AnonymousStyleOverrides::default(),
                 NodeKind::TableWrapper,
             );
-            host.arena().reset_table_box_style_used_by_wrapper(table_root);
+            host.arena()
+                .reset_table_box_style_used_by_wrapper(host.main_thread, table_root);
             let wrapper_slot = wrapper.slot();
             host.move_child(table_root, wrapper_slot, NodeSlotId::INVALID);
             host.attach_child(parent, wrapper, nearest_sibling);
