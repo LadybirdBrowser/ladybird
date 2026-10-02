@@ -1956,6 +1956,7 @@ impl StyleEngineState {
                 );
             }
             self.host.batch_moves_for_retries = engine_computed_record_scratch.batch_moves();
+            self.host.retry_full_drive_reasons.clear();
             // What the chain above a node proves, read by its children in the same pass. A
             // published ancestor's change is exact for a descendant only when none of the
             // ancestors can move anything the descendant inherits, so the fold below is the
@@ -2317,6 +2318,17 @@ impl StyleEngineState {
                     if let Some(Err(publication::Unanswered::AwaitsParent)) = engine_record_answer {
                         retry_after_ancestor =
                             self.row_may_retry_after_ancestor(node, answer.cascade_winners_are_complete);
+                    }
+                    // The retry drives the record in full where this flush would have.
+                    if retry_after_ancestor
+                        && let Some(reason) = self.full_drive_reason(
+                            node,
+                            reaction,
+                            named_rules_moved,
+                            container_input_nodes.contains(&node),
+                        )
+                    {
+                        self.host.retry_full_drive_reasons.insert(node, reason);
                     }
                     let engine_computed_delta = engine_record_answer.and_then(Result::ok);
                     next_published_index = published_index + 1;
