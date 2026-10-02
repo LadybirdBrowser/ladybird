@@ -33,7 +33,8 @@
             getComputedStyle(container).transform;
             const counters = internals.getStyleInvalidationCounters();
             animation.cancel();
-            return counters.elementStyleRecomputations > 0;
+            // C++ recomputes a descendant, or the style engine computes its record.
+            return counters.elementStyleRecomputations + counters.engineComputedStyleRecords > 0;
         }
 
         println(`plain descendants recomputed: ${await descendantsRecomputedDuringAnimationUpdate(plainContainer)}`);
