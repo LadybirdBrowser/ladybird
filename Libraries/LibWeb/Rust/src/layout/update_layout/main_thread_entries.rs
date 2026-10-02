@@ -35,5 +35,11 @@ pub unsafe extern "C" fn layout_arena_update_layout(arena: *mut c_void, inputs: 
     abort_on_panic(|| {
         // SAFETY: Guaranteed by the entry point's contract.
         unsafe { update_layout(&main_thread, arena, &*inputs) };
+        // The image resources the update's tree builds owe are attached once its layout is done.
+        main_thread
+            .host_tables()
+            .and_then(|host_tables| host_tables.layout_update_host.get())
+            .expect("layout node arena has no layout update host")
+            .attach_owed_image_resources(&main_thread, arena);
     });
 }

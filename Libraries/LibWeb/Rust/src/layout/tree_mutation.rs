@@ -46,12 +46,6 @@ enum OwedHostCall {
         shell: *mut c_void,
         attach_resources: bool,
     },
-    /// The images a row's style names, and the paint facts that follow, with whether the row owns
-    /// the image its content is replaced with.
-    StyleResources {
-        row: NodeSlotId,
-        owns_content_replacement_image: bool,
-    },
 }
 
 /// What a tree build owes the host, gathered on the walk's stack while the walk runs and applied
@@ -67,23 +61,10 @@ impl TreeBuildHostWork {
         self.owed.borrow_mut().push(call);
     }
 
-    /// Owes the host the attachment of `row`'s style resources.
-    pub(crate) fn owe_style_resources(&self, row: NodeSlotId, owns_content_replacement_image: bool) {
-        self.owe(OwedHostCall::StyleResources {
-            row,
-            owns_content_replacement_image,
-        });
-    }
-
     /// Makes the host calls the walk owes, in the order it came to owe them, after telling the host
     /// which nodes gained or lost a box. A row the build freed again, such as whitespace table
-    /// fixup removed, is owed no style resources and no style change.
-    pub(crate) fn apply(
-        self,
-        main_thread: &MainThread,
-        arena: &LayoutNodeArena,
-        mut attach_style_resources: impl FnMut(NodeSlotId, bool),
-    ) {
+    /// fixup removed, is owed no style change.
+    pub(crate) fn apply(self, main_thread: &MainThread, arena: &LayoutNodeArena) {
         arena.pay_box_presence_queued_by_tree_build(main_thread);
         for call in self.owed.into_inner() {
             match call {
@@ -99,14 +80,6 @@ impl TreeBuildHostWork {
                 } => {
                     if arena.slot_is_live(row) && arena.data(row).shell.get() == shell {
                         arena.tell_shell_of_style_change(main_thread, row, shell, attach_resources);
-                    }
-                }
-                OwedHostCall::StyleResources {
-                    row,
-                    owns_content_replacement_image,
-                } => {
-                    if arena.slot_is_live(row) {
-                        attach_style_resources(row, owns_content_replacement_image);
                     }
                 }
             }

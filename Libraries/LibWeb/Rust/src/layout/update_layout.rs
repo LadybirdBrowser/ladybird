@@ -9,11 +9,11 @@
 //! answer through a callback table registered once per arena.
 
 use super::formatting_context::{compute_subtree_layout, run_root_layout};
-use super::layout_node_arena::sync_enrolled_content_for_layout;
+use super::layout_node_arena::{OwedImageResources, sync_enrolled_content_for_layout};
 use super::node_data::NodeSlotId;
 use super::node_facts;
 use super::partial_relayout::FfiPartialRelayoutHostFacts;
-use super::tree_builder::FfiLayoutTreeBuildOutcome;
+use super::tree_builder::{FfiGeneratedImage, FfiLayoutTreeBuildOutcome, FfiPseudoElement};
 use super::{HostTables, LayoutNodeArena};
 use crate::abort_on_panic;
 use crate::css::ffi_support::FfiUtf16View;
@@ -49,6 +49,13 @@ pub struct FfiLayoutUpdateHostCallbacks {
     note_full_layout_performed: unsafe extern "C" fn(*mut c_void),
     evaluate_pending_container_queries: unsafe extern "C" fn(*mut c_void),
     record_stabilization_bound_failure: unsafe extern "C" fn(*mut c_void),
+    /// Attaches the image resources a box's style asks for. The flag says the box replaces its
+    /// element's contents with a single image, whose provider it owns.
+    attach_style_resources: unsafe extern "C" fn(*mut c_void, NodeSlotId, bool),
+    /// Gives a generated image box the provider of the image it shows, which the box owns, and
+    /// attaches the box's style resources. The image is the `<image>` at the given index of the
+    /// pseudo-element's `content`, or the given marker's `list-style-image`.
+    attach_generated_image: unsafe extern "C" fn(*mut c_void, NodeSlotId, u32, FfiPseudoElement, FfiGeneratedImage),
 }
 
 /// What the loop needs to know about the document at one point in time. Every host call can
@@ -142,6 +149,33 @@ impl FfiLayoutUpdateHostCallbacks {
 
     fn record_stabilization_bound_failure(&self, _: &MainThread) {
         unsafe { (self.record_stabilization_bound_failure)(self.context) }
+    }
+
+    /// Hands the boxes the tree builds of the update stamped the image resources they are owed,
+    /// in the order the builds came to owe them. Until now a box that owns its image's provider
+    /// had no image; one handed a provider whose image is already there lays out again.
+    fn attach_owed_image_resources(&self, _: &MainThread, arena_handle: *mut c_void) {
+        let owed = unsafe { arena(arena_handle) }.take_image_resources_owed_to_host();
+        for (row, owed) in owed {
+            // A later build of the update may have freed the row.
+            let arena = unsafe { arena(arena_handle) };
+            if !arena.slot_is_live(row) {
+                continue;
+            }
+            arena.note_owned_provider_handed_over(row);
+            match owed {
+                OwedImageResources::StyleResources {
+                    owns_content_replacement_image,
+                } => unsafe { (self.attach_style_resources)(self.context, row, owns_content_replacement_image) },
+                OwedImageResources::GeneratedImage {
+                    generator,
+                    pseudo_element,
+                    image,
+                } => unsafe {
+                    (self.attach_generated_image)(self.context, row, generator.raw(), pseudo_element, image);
+                },
+            }
+        }
     }
 }
 

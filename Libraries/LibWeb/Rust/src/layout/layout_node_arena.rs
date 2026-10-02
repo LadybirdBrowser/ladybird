@@ -442,6 +442,22 @@ fn style_payloads_equal_in_layout_affecting_groups(a: StylePayloadsRef, b: Style
     })
 }
 
+/// The image resources a tree build owes the host for a row it stamped, which the host attaches
+/// once the layout update the build ran in is over.
+#[derive(Clone, Copy)]
+pub(crate) enum OwedImageResources {
+    /// The row's style resources: the images its style names, and the paint facts that follow,
+    /// with whether the row owns the provider of the image its content is replaced with.
+    StyleResources { owns_content_replacement_image: bool },
+    /// The provider of the image a pseudo-element's generated content names, which the image box
+    /// owns, and the box's style resources.
+    GeneratedImage {
+        generator: StyleNodeID,
+        pseudo_element: super::tree_builder::FfiPseudoElement,
+        image: super::tree_builder::FfiGeneratedImage,
+    },
+}
+
 #[must_use]
 pub(crate) struct FreedSubtree {
     /// Each freed row, as it was named before it was freed, with its shell.
@@ -756,6 +772,12 @@ pub(crate) struct LayoutNodeArena {
     /// The scroll containers a running tree build gave a style, which may be where scroll
     /// snapping happens once the build is over.
     built_scroll_containers: RefCell<Vec<NodeSlotId>>,
+    /// The image resources the tree builds owe the host for the rows they stamped, in the order
+    /// the builds came to owe them, until the layout update the builds ran in is over.
+    image_resources_owed_to_host: RefCell<Vec<(NodeSlotId, OwedImageResources)>>,
+    /// The image boxes among those rows that own the provider of the image they show. Until the
+    /// host hands a box its provider, the box has no image.
+    image_boxes_awaiting_owned_provider: RefCell<HashSet<NodeSlotId>>,
     /// Whether a row has ever been given a style with `content-visibility: auto`.
     may_have_auto_content_visibility: Cell<bool>,
     /// Whether a row has ever been given a style with a scroll snap type.
@@ -865,6 +887,8 @@ impl LayoutNodeArena {
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
             built_scroll_containers: RefCell::default(),
+            image_resources_owed_to_host: RefCell::default(),
+            image_boxes_awaiting_owned_provider: RefCell::default(),
             may_have_auto_content_visibility: Cell::new(false),
             may_have_scroll_snap_areas: Cell::new(false),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
@@ -995,9 +1019,18 @@ impl LayoutNodeArena {
         let mut enrolled_nodes = std::mem::take(self.nodes_enrolled_for_replaced_content_facts_sync.get_mut());
         enrolled_nodes.retain(|&node| self.slot_is_live(node));
         for &node in &enrolled_nodes {
-            let input = match self.owned_image_natural_sizes.get_mut().get(&node) {
-                Some(&natural_size) => crate::css::style::ReplacedContentInput::NaturalSize(natural_size),
-                None => self.replaced_content_input(node),
+            // A box waiting for the provider it owns shows no image yet, as the provider says while
+            // its image is not available.
+            let input = if self.image_boxes_awaiting_owned_provider.get_mut().contains(&node) {
+                crate::css::style::ReplacedContentInput::NaturalSize(crate::css::style::NaturalSize {
+                    width: Some(0),
+                    height: Some(0),
+                    aspect_ratio: None,
+                })
+            } else if let Some(&natural_size) = self.owned_image_natural_sizes.get_mut().get(&node) {
+                crate::css::style::ReplacedContentInput::NaturalSize(natural_size)
+            } else {
+                self.replaced_content_input(node)
             };
             let facts = super::node_facts::derived_replaced_content_facts(self.data(node), input);
             // Changed facts invalidate cached formatting-context runs regardless of which channel
@@ -1194,6 +1227,7 @@ impl LayoutNodeArena {
             *slot = ReplacedContentFactsSlot::default();
         }
         self.owned_image_natural_sizes.get_mut().remove(&id);
+        self.image_boxes_awaiting_owned_provider.get_mut().remove(&id);
         // free() never interleaves with a layout pass (C++ is blocked on the
         // synchronous FFI entry), so a live record here means a run leaked.
         if let Some(slot) = self.run_used_records.get_mut().get_mut(index as usize) {
@@ -4799,6 +4833,37 @@ impl LayoutNodeArena {
     /// The row's shell, which the host's shell factory makes for an anonymous row the first time
     /// it is asked for. Making one calls into the document, so only a main thread token holder
     /// may ask.
+    /// Owes the host `id`'s image resources once the layout update the running build is part of
+    /// is over. An image box that owns its image's provider has no image until then.
+    pub(crate) fn owe_image_resources(&self, id: NodeSlotId, owed: OwedImageResources) {
+        let owns_provider = match owed {
+            OwedImageResources::StyleResources {
+                owns_content_replacement_image,
+            } => owns_content_replacement_image,
+            OwedImageResources::GeneratedImage { .. } => true,
+        };
+        if owns_provider {
+            self.image_boxes_awaiting_owned_provider.borrow_mut().insert(id);
+        }
+        self.image_resources_owed_to_host.borrow_mut().push((id, owed));
+    }
+
+    /// The image resources the finished builds owe the host, in the order they came to owe them.
+    /// A later build can free a row, so whoever pays them asks whether it is live first.
+    pub(crate) fn take_image_resources_owed_to_host(&self) -> Vec<(NodeSlotId, OwedImageResources)> {
+        self.image_resources_owed_to_host.take()
+    }
+
+    /// Whether `id` is an image box that owns its image's provider and has not been handed it yet.
+    pub(crate) fn image_box_awaits_owned_provider(&self, id: NodeSlotId) -> bool {
+        self.image_boxes_awaiting_owned_provider.borrow().contains(&id)
+    }
+
+    /// Notes that the host is about to hand `id` the provider it owns, if it was waiting for one.
+    pub(crate) fn note_owned_provider_handed_over(&self, id: NodeSlotId) {
+        self.image_boxes_awaiting_owned_provider.borrow_mut().remove(&id);
+    }
+
     /// Notes that the running build gave the scroll container `id` a style, which decides whether
     /// scroll snapping happens in it once the build is over.
     pub(crate) fn note_built_scroll_container(&self, id: NodeSlotId) {
@@ -5393,6 +5458,19 @@ pub(crate) fn prepare_subtree_for_detach(host_calls: HostCalls<'_>, arena: &Layo
     for row in rows {
         prepare_row_for_detach(host_calls, arena, row);
     }
+}
+
+/// Whether the row is an image box that owns its image's provider and has not been handed it yet,
+/// which it is from the tree build that stamps it until the layout update the build runs in is
+/// over.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_image_box_awaits_owned_provider(arena: *mut c_void, slot: NodeSlotId) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }.image_box_awaits_owned_provider(slot)
 }
 
 /// Whether the layout tree build about to run may build the viewport, and so needs the document's

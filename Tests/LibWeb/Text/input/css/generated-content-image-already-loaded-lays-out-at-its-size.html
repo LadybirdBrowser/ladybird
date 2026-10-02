@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    .generated::before {
+        content: url(../../../Assets/120.png);
+    }
+    .replaced {
+        content: url(../../../Assets/120.png);
+    }
+    .marker {
+        display: list-item;
+        list-style-image: url(../../../Assets/120.png);
+        list-style-position: inside;
+    }
+    span {
+        display: inline-block;
+    }
+</style>
+<script src="../include.js"></script>
+<span id="first" class="generated"></span>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        function add(className) {
+            const element = document.createElement("span");
+            element.className = className;
+            document.body.appendChild(element);
+            return element;
+        }
+        // The image has loaded, so boxes built for it from now on lay out at its size right away.
+        const generated = add("generated");
+        println(`generated: ${generated.offsetWidth}x${generated.offsetHeight}`);
+        const replaced = add("replaced");
+        println(`replaced: ${replaced.offsetWidth}x${replaced.offsetHeight}`);
+        const marker = add("marker");
+        println(`marker: ${marker.offsetWidth >= 120}, ${marker.offsetHeight >= 120}`);
+        done();
+    });
+</script>

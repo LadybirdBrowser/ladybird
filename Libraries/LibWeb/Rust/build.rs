@@ -3161,7 +3161,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     tree_builder_config.export.include = vec![
         "DomPaintFact".to_string(),
         "FfiCodePointCategoryFacts".to_string(),
+        "FfiGeneratedImage".to_string(),
         "FfiNodeKindFacts".to_string(),
+        "FfiPseudoElement".to_string(),
         "FfiReplacedContentFacts".to_string(),
         "FfiStylePayloads".to_string(),
         "NodeFlag".to_string(),
