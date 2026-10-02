@@ -97,7 +97,7 @@ void StyleEngine::set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> 
 
 void StyleEngine::finish_sheet_rules_replacement(SheetID sheet)
 {
-    StyleEngineFFI::style_engine_finish_sheet_rules_replacement(m_impl, sheet.value(), next_declaration_block_version());
+    StyleEngineFFI::style_engine_finish_sheet_rules_replacement(m_render_document->host(), sheet.value(), next_declaration_block_version());
 }
 
 void StyleEngine::set_element_inline_style_properties(StyleNodeID node, RustDeclarationBlock const* declarations)
@@ -423,7 +423,7 @@ void StyleEngine::publish_attribute_value_text(StyleAtomID atom, Utf16View value
     code_units.ensure_capacity(value.length_in_code_units());
     for (size_t i = 0; i < value.length_in_code_units(); ++i)
         code_units.unchecked_append(value.code_unit_at(i));
-    StyleEngineFFI::style_engine_set_attribute_value_text(m_impl, atom.value(), code_units.data(), code_units.size());
+    StyleEngineFFI::style_engine_set_attribute_value_text(m_render_document->host(), atom.value(), code_units.data(), code_units.size());
 }
 
 bool StyleEngine::refresh_attribute_value_text_requirements()
@@ -644,7 +644,7 @@ void StyleEngine::apply_transaction(InputTransaction const& transaction)
 void StyleEngine::flush()
 {
     submit_recorded_input();
-    StyleEngineFFI::style_engine_flush(m_impl);
+    StyleEngineFFI::style_engine_flush(m_render_document->host());
 }
 
 bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&& consume)
@@ -935,7 +935,7 @@ bool StyleEngine::begin_deferred_geometry_transaction_flush()
 
 void StyleEngine::end_deferred_geometry_transaction_flush()
 {
-    StyleEngineFFI::style_engine_end_deferred_geometry_transaction_flush(m_impl);
+    StyleEngineFFI::style_engine_end_deferred_geometry_transaction_flush(m_render_document->host());
 }
 
 bool StyleEngine::read_matches(StyleNodeID node, Vector<RuleMatch>& matches, Optional<MatchPurpose> purpose)
