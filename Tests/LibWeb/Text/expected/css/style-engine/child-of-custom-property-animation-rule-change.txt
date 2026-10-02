@@ -1,4 +1,5 @@
 before the flip: 10px 10px
+after the flip: 40px 40px
 after the flip and a rule change: 40px 40px
 after another rule change: 40px 40px
 new child after the flip: 40px 40px
