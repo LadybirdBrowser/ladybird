@@ -1106,9 +1106,6 @@ pub struct HostState {
     /// The capture-local document identity, absent when record-replay is disabled.
     #[cfg(feature = "style-recording")]
     recording_id: Option<u64>,
-    /// The instrumentation state to restore after C++ materializes a record for verification.
-    computed_record_verification_counters: Option<Box<Counters>>,
-    computed_record_verification_pins: Vec<u64>,
     journal: NormalizationJournal,
     /// Local selector facts through the latest geometry read which reused committed layout. A
     /// normal style observation merges this into `journal`; a newly introduced transition can

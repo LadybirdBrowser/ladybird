@@ -195,23 +195,6 @@ static bool parent_style_has_animated_values(DOM::Element& element)
     return parent_style && parent_style->has_animated_values();
 }
 
-// Under verification, the record the engine settled for an element, composed with its animations where it has any,
-// must equal by value the one the reference C++ computation produced.
-static void verify_engine_record_against_reference(StyleEngine const& style_engine, StyleNodeID style_node, StyleRecordID engine_style_record, StyleRecordID reference_style_record)
-{
-    // An animated `display` is applied where the host decides the element's animations survive it, which its reference
-    // computation and a sample over an installed record reach at different points of the update.
-    auto animates_display = [&](StyleRecordID style_record) {
-        auto const* overlay = static_cast<ComputedValuesFFI::AnimatedOverlay const*>(style_engine.style_record_view(style_record).animated_overlay);
-        return overlay && ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Display));
-    };
-    if (animates_display(engine_style_record) || animates_display(reference_style_record))
-        return;
-    auto packed = style_engine.compare_style_records(engine_style_record, reference_style_record);
-    VERIFY(!(packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged))
-        || style_engine.style_records_match_for_verification(style_node, NumericLimits<u8>::max(), engine_style_record, reference_style_record));
-}
-
 // A C++ computation collects an element's animations into the style it computes. For a record the engine derived
 // beneath them, the host samples them over the record once it is installed, as an animation update samples them over
 // the record an element holds, and publishes what they compose.
@@ -235,36 +218,6 @@ static bool engine_computed_record_environment_is_installable(DOM::Element& elem
     bool installable = false;
     (void)element.custom_property_environment_of_engine_record(style_record, installable);
     return installable;
-}
-
-// Under verification, the environment the engine resolved for a record must hold, name for name,
-// what the C++ computation installed on the element.
-static void verify_engine_computed_record_environment(DOM::Element& element, StyleRecordID style_record)
-{
-    auto& style_computer = element.document().style_computer();
-    auto identity = style_computer.style_engine().style_record_custom_property_environment(style_record);
-    if (!StyleEngine::is_engine_custom_property_environment(identity))
-        return;
-    auto actual = element.custom_property_data({});
-    if (actual && actual->is_animation_overlay_for({ element }))
-        actual = actual->parent();
-    bool installable = false;
-    auto expected = element.custom_property_environment_of_engine_record(style_record, installable);
-    VERIFY(installable && expected);
-    auto value_text = [](StyleProperty const* property) -> Optional<Utf16String> {
-        if (!property)
-            return {};
-        return property->value->to_utf16_string(SerializationMode::Normal);
-    };
-    auto check = [&](Utf16FlyString const& name) {
-        auto const* expected_property = expected->get(name);
-        auto const* actual_property = actual ? actual->get(name) : nullptr;
-        VERIFY(value_text(expected_property) == value_text(actual_property));
-        VERIFY(!expected_property || !actual_property || expected_property->important == actual_property->important);
-    };
-    expected->for_each_property([&](Utf16FlyString const& name, StyleProperty const&) { check(name); });
-    if (actual)
-        actual->for_each_property([&](Utf16FlyString const& name, StyleProperty const&) { check(name); });
 }
 
 static RefPtr<CustomPropertyData const> custom_property_environment_base(DOM::Element const& element, RefPtr<CustomPropertyData const> data)
@@ -529,9 +482,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 VERIFY(reaction.damage == StyleEngineFFI::FfiStyleDeltaDamage::Full);
             }
 
-            auto previous_style_record = element->style_record_identity();
             auto old_custom_property_data = element->custom_property_data({});
-            bool const was_unstyled = !previous_style_record;
+            bool const was_unstyled = !element->style_record_identity();
             auto const* previous_box_values = element->style_group<ComputedValues::BoxValues>();
             auto const previous_display = previous_box_values
                 ? Optional<Display> { display_from_ffi_display(previous_box_values->display) }
@@ -551,14 +503,12 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             // inherits, which its cascade decides.
             bool const cascade_declares_custom_properties = document.style_computer().style_engine().node_declares_custom_properties(reaction.style_node);
             bool const needs_full_custom_property_recompute = needs_custom_property_recompute && (element->style_uses_var_css_function() || element->style_uses_inherit_css_function() || cascade_declares_custom_properties);
-            static bool const verify_engine_computed_records = getenv("LIBWEB_VERIFY_STYLE_RECORD_PATCH") != nullptr;
             // The engine answered its records with what the moves from the records they name damage.
             DOM::Element::EngineRecordDamages engine_record_damages;
             if (reaction.record_damage & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::EngineComputed))
                 engine_record_damages.element = DOM::Element::EngineRecordDamage { StyleRecordID { reaction.old_style_record }, StyleRecordID { reaction.new_style_record }, reaction.record_damage };
             // The engine settled the element's record, and the pseudo-element records beside it:
-            // C++ installs them. Under verification the ordinary computation runs instead and its
-            // records must equal the engine's by value.
+            // C++ installs them.
             auto apply_engine_computed_records = [&](DOM::Element::EnginePseudoElementRecords const& pseudo_element_records, bool acknowledge) {
                 auto& style_engine = document.style_computer().style_engine();
                 // A C++ computation applies a change of the element's display once the record holds the element's
@@ -569,117 +519,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 // The transition step the row owes compares the record the element moved away from with the one it
                 // installs, so the old record has to outlive its replacement until the step has read it.
                 StyleRecordPin const before_change { document.style_computer(), StyleRecordID { reaction.owes_a_transition_step ? reaction.old_style_record : 0 } };
-                StyleRecordID verification_reference_style_record;
                 // The record answers any style input the element owes, as the C++ computation it
                 // equals would: nothing is left for a later transaction to plan.
                 style_engine.consume_recorded_element_style_input_change(reaction.style_node);
-                // A pseudo-only input kept the element's record. Its highlight records are C++'s,
-                // so running their reference computation before the installation would consume
-                // the observable pseudo-element publication the installation must report.
-                bool const pseudo_only_record_stands = reaction.reaction == (StyleEngine::PublishedStyle | StyleEngine::PseudoInputsMayHaveChanged)
-                    && reaction.new_style_record == reaction.old_style_record;
-                if (verify_engine_computed_records && !pseudo_only_record_stands) {
-                    auto authoritative_custom_property_data = element->custom_property_data({});
-                    if (authoritative_custom_property_data && authoritative_custom_property_data->is_animation_overlay_for({ *element }))
-                        authoritative_custom_property_data = authoritative_custom_property_data->parent();
-                    auto const authoritative_custom_property_environment = authoritative_custom_property_data
-                        ? authoritative_custom_property_data->identity()
-                        : 0;
-                    auto const production_packed = !!previous_style_record
-                        ? style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, previous_style_record)
-                        : to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged);
-                    auto& counters = document.style_invalidation_counters();
-                    auto const counters_before_verification = counters;
-                    style_engine.begin_computed_record_verification();
-                    ScopeGuard end_computed_record_verification = [&] { style_engine.end_computed_record_verification(); };
-                    DOM::Element::EnginePseudoElementRecords previous_pseudo_element_records;
-                    for (size_t kind = 0; kind < previous_pseudo_element_records.size(); ++kind)
-                        previous_pseudo_element_records[kind] = element->style_record_identity(static_cast<PseudoElement>(kind));
-                    bool const production_computed_value_changed = production_packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged)
-                        && !style_engine.style_records_match_for_verification(reaction.style_node, NumericLimits<u8>::max(), StyleRecordID { reaction.new_style_record }, previous_style_record);
-                    bool verification_did_change_custom_properties = false;
-                    invalidation = element->apply_style_engine_reaction(verification_did_change_custom_properties, DOM::Element::StyleRecomputeMode::Verification);
-                    bool verification_pseudo_record_changed = false;
-                    for (size_t kind = 0; kind < previous_pseudo_element_records.size(); ++kind) {
-                        if (element->style_record_identity(static_cast<PseudoElement>(kind)) != previous_pseudo_element_records[kind]) {
-                            verification_pseudo_record_changed = true;
-                            break;
-                        }
-                    }
-                    // The reference record is compared with the engine's once the engine's is installed: for an element
-                    // with animations, with what they compose over it.
-                    verification_reference_style_record = element->style_record_identity();
-                    document.style_computer().pin_style_record(verification_reference_style_record);
-                    // A custom-property environment reaction can jump over ancestors whose computed
-                    // values did not change. Their engine environments are authoritative, but the
-                    // legacy verification pass never materialized them, so it has no independent
-                    // environment to compare here. The computed record, including every var()
-                    // substitution, is still verified above.
-                    bool const legacy_environment_is_complete = !needs_custom_property_recompute;
-                    if (legacy_environment_is_complete)
-                        verify_engine_computed_record_environment(*element, StyleRecordID { reaction.new_style_record });
-                    for (size_t kind = 0; kind < pseudo_element_records.size(); ++kind) {
-                        auto const& engine_record = pseudo_element_records[kind];
-                        if (!engine_record.has_value())
-                            continue;
-                        auto installed = element->style_record_identity(static_cast<PseudoElement>(kind));
-                        if (!*engine_record) {
-                            VERIFY(!installed);
-                            continue;
-                        }
-                        VERIFY(!!installed);
-                        auto pseudo_packed = style_engine.compare_style_records(*engine_record, installed);
-                        VERIFY(!(pseudo_packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged))
-                            || style_engine.style_records_match_for_verification(reaction.style_node, kind, *engine_record, installed));
-                    }
-                    // A skipped ancestor can make the engine record temporarily unattachable only
-                    // because the verification pass installed a legacy environment on that
-                    // ancestor. Keep the old authoritative record in that case; a production pass
-                    // never creates this mixed environment chain.
-                    bool const engine_record_is_installable = engine_computed_record_environment_is_installable(*element, StyleRecordID { reaction.new_style_record });
-                    auto const verification_invalidation = invalidation;
-                    counters = counters_before_verification;
-                    auto const computed_style_changes_before_application = counters.element_computed_style_changes;
-                    if (engine_record_is_installable) {
-                        invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, DOM::Element::DisplayNoneChange::LeftToCaller, &engine_record_damages);
-                        // The reference pass already installed equal values, so applying the engine
-                        // record may be a no-op. Preserve the invalidation it proved the originating
-                        // record or pseudo-element transitions need.
-                        if (verification_pseudo_record_changed)
-                            invalidation |= verification_invalidation;
-                        else if (invalidation.is_none() && !!previous_style_record && production_computed_value_changed)
-                            invalidation = verification_invalidation;
-                        // So may the root font metrics the reference pass already moved, which
-                        // every descendant reads.
-                        invalidation.recompute_descendant_styles |= verification_invalidation.recompute_descendant_styles;
-                        if (production_computed_value_changed
-                            && counters.element_computed_style_changes == computed_style_changes_before_application)
-                            ++counters.element_computed_style_changes;
-                    }
-                    // The legacy pass may already have installed the target environment, masking
-                    // the change that the production application would report to child planning.
-                    did_change_custom_properties |= authoritative_custom_property_environment
-                        != style_engine.style_record_custom_property_environment(StyleRecordID { reaction.new_style_record });
-                    // The reference computation recorded the current C++ inputs against its
-                    // temporary interned record. The authoritative record is equal by value, so
-                    // bind those inputs to it before the temporary verification pin is released.
-                    if (auto* style_input_record = element->style_input_record()) {
-                        style_input_record->computed_style_record = engine_record_is_installable
-                            ? StyleRecordID { reaction.new_style_record }
-                            : element->style_record_identity();
-                        style_input_record->bind_next_published_style = false;
-                    }
-                    for (size_t kind = 0; kind < previous_pseudo_element_records.size(); ++kind) {
-                        auto pseudo_element = static_cast<PseudoElement>(kind);
-                        if (is_synthetic_pseudo_element(pseudo_element)
-                            && pseudo_element != PseudoElement::Backdrop
-                            && !is_highlight_pseudo_element(pseudo_element)
-                            && !pseudo_element_records[kind].has_value())
-                            element->set_computed_style(pseudo_element, *previous_pseudo_element_records[kind]);
-                    }
-                } else {
-                    invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, DOM::Element::DisplayNoneChange::LeftToCaller, &engine_record_damages);
-                }
+                invalidation = element->apply_engine_computed_style_record(StyleRecordID { reaction.new_style_record }, pseudo_element_records, reaction.uses_substitution, reaction.record_reads, reaction.explicitly_inherited_groups, did_change_custom_properties, DOM::Element::DisplayNoneChange::LeftToCaller, &engine_record_damages);
                 if (acknowledge)
                     style_engine.acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
                 // A C++ computation applies the animation plan it decides beside the record it computes and collects the
@@ -701,10 +544,6 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                         document.style_computer().record_transition_stabilization_baseline(abstract_element, before_change.style_record());
                     if (element->has_relevant_animations() || element->has_associated_animations())
                         sample_animations_for_installed_record(abstract_element);
-                }
-                if (!!verification_reference_style_record) {
-                    verify_engine_record_against_reference(style_engine, StyleNodeID { reaction.style_node }, composed_by_the_host ? element->style_record_identity() : StyleRecordID { reaction.new_style_record }, verification_reference_style_record);
-                    document.style_computer().unpin_style_record(verification_reference_style_record);
                 }
                 if (!!before_change.style_record())
                     invalidation |= document.style_computer().run_transition_step_for_installed_record({ *element }, before_change.style_record(), StyleComputer::TransitionStepFollowUp::Request);
@@ -770,7 +609,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 ScopeGuard reset_derived_reaction = [&] {
                     document.style_computer().set_materializing_for_derived_reaction(false);
                 };
-                invalidation = element->apply_style_engine_reaction(did_change_custom_properties, DOM::Element::StyleRecomputeMode::Normal, pseudo_element_inputs);
+                invalidation = element->apply_style_engine_reaction(did_change_custom_properties, pseudo_element_inputs);
             } else if (needs_custom_property_recompute && element->refresh_inherited_custom_property_data()) {
                 did_change_custom_properties = true;
                 element->republish_style_record_environment();

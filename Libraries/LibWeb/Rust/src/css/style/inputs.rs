@@ -1638,8 +1638,6 @@ impl StyleEngineState {
                 font_resolver: None,
                 #[cfg(feature = "style-recording")]
                 recording_id: None,
-                computed_record_verification_counters: None,
-                computed_record_verification_pins: Vec::new(),
                 journal: NormalizationJournal::new(),
                 deferred_geometry_journal: NormalizationJournal::new(),
                 flushing_deferred_geometry_journal: false,

@@ -375,10 +375,9 @@ pub(super) struct IdentityMints {
 struct ComputedGroup {
     index: usize,
     payload: SharedPayload,
-    /// The payload's content hash, the key it is interned under, and `None` for a group the
-    /// interner deliberately left out of the content index. Kept with the group so a retirement
-    /// can find its index entry again without hashing the payload a second time.
-    content_hash: Option<u64>,
+    /// The payload's content hash, the key it is interned under. Kept with the group so a
+    /// retirement can find its index entry again without hashing the payload a second time.
+    content_hash: u64,
 }
 
 struct ComputedGroupSet {
@@ -746,11 +745,6 @@ pub struct ComputedGroupSets {
     /// the fast path: a payload that is already interned keeps its identity without hashing its
     /// content again.
     groups_by_content: InternTable<ComputedGroupID, ()>,
-    /// Whether interning is to ignore the content index, for the span of a C++ verification
-    /// pass. Such a pass interns a second copy of the very record it is checking; letting the
-    /// copy take or hand out a content identity would let a verification decide identities -
-    /// and through them the work of later transactions - that production never asked for.
-    content_identities_suspended: bool,
     sets: InternTable<ComputedGroupSetID, ComputedGroupSet>,
     inherited_sets: InternTable<InheritedGroupSetID, Box<[ComputedGroupID]>>,
     custom_property_environments: InternTable<CustomPropertyEnvironmentID, u64>,
@@ -813,7 +807,6 @@ impl Default for ComputedGroupSets {
             identity_mints: IdentityMints::default(),
             groups: InternTable::default(),
             groups_by_content: InternTable::default(),
-            content_identities_suspended: false,
             sets: InternTable::default(),
             inherited_sets: InternTable::default(),
             custom_property_environments: InternTable::default(),
@@ -1022,13 +1015,6 @@ impl ComputedGroupSets {
         nodes
     }
 
-    /// Suspends and resumes deciding group identity by payload content, for the span of a C++
-    /// verification pass. While suspended, interning is the address-keyed interning it was
-    /// before content decided identity, so a verification leaves production's identities alone.
-    pub(super) fn set_content_identities_suspended(&mut self, suspended: bool) {
-        self.content_identities_suspended = suspended;
-    }
-
     /// Interns one group payload. `owned` says the caller holds a reference it is handing over: a
     /// payload published here takes that reference instead of retaining a second one, and a
     /// payload that deduplicates leaves it with the caller, who releases it as before. The second
@@ -1043,16 +1029,13 @@ impl ComputedGroupSets {
         // A payload nobody has interned yet is asked for its content, which is what decides its
         // identity: an equal payload built by another record is the same group, however the two
         // builds were ordered.
-        let payload_content_hash =
-            (!self.content_identities_suspended).then(|| style_group_payloads_hash(index, payload.as_ptr()));
-        if let Some(hash) = payload_content_hash {
-            let groups = &self.groups;
-            if let Some(identity) = self.groups_by_content.find(hash, |identity, ()| {
-                let group = &groups[identity];
-                group.index == index && style_group_payloads_equal(index, group.payload.as_ptr(), payload.as_ptr())
-            }) {
-                return (identity, false);
-            }
+        let payload_content_hash = style_group_payloads_hash(index, payload.as_ptr());
+        let groups = &self.groups;
+        if let Some(identity) = self.groups_by_content.find(payload_content_hash, |identity, ()| {
+            let group = &groups[identity];
+            group.index == index && style_group_payloads_equal(index, group.payload.as_ptr(), payload.as_ptr())
+        }) {
+            return (identity, false);
         }
         if !owned {
             retain_group_payload(index, payload.as_ptr());
@@ -1069,9 +1052,7 @@ impl ComputedGroupSets {
                 content_hash: payload_content_hash,
             },
         );
-        if let Some(hash) = payload_content_hash {
-            self.groups_by_content.insert_identity(hash, identity);
-        }
+        self.groups_by_content.insert_identity(payload_content_hash, identity);
         self.identity_mints.groups += 1;
         self.group_set_nested_memory
             .grow_committed(retained_group_payload_bytes(index, payload.as_ptr()) as u64);
@@ -2187,7 +2168,7 @@ impl ComputedGroupSets {
                             ComputedGroup {
                                 index,
                                 payload,
-                                content_hash: Some(payload_content_hash),
+                                content_hash: payload_content_hash,
                             },
                         );
                         self.groups_by_content.insert_identity(payload_content_hash, identity);
@@ -3432,12 +3413,10 @@ impl ComputedGroupSets {
                 ComputedGroup {
                     index: usize::MAX,
                     payload: SharedPayload::null(),
-                    content_hash: None,
+                    content_hash: 0,
                 },
             );
-            if let Some(hash) = group.content_hash {
-                self.groups_by_content.remove_identity(hash, identity);
-            }
+            self.groups_by_content.remove_identity(group.content_hash, identity);
             self.groups
                 .retire_identity(content_hash((group.index, group.payload.addr())), identity);
             self.group_set_nested_memory
@@ -3621,164 +3600,6 @@ impl ComputedGroupSets {
             animation_overlay_identity,
             dependency_flags: overlay_dependency_flags.unwrap_or(fixed_metadata.dependency_flags),
         })
-    }
-
-    pub(crate) fn style_records_match_for_verification(
-        &self,
-        target: ComputedStyleTarget,
-        first: u64,
-        second: u64,
-    ) -> bool {
-        let Some(first) = self.style_record_view(first) else {
-            return false;
-        };
-        let Some(second) = self.style_record_view(second) else {
-            return false;
-        };
-        let svg_reset = 1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_SVG_RESET;
-        let svg_reset_reads_current_color = self
-            .current_color_dependency_mask(target)
-            .filter(|dependencies| dependencies & svg_reset != 0)
-            .is_some();
-        fn repeatable_list_values_equal(
-            first: &crate::css::computed_value_types::ComputedStyleValueHandle,
-            second: &crate::css::computed_value_types::ComputedStyleValueHandle,
-        ) -> bool {
-            fn list(
-                value: &crate::css::computed_value_types::ComputedStyleValueHandle,
-            ) -> Option<&[crate::css::style_value::RetainedStyleValueData]> {
-                match value.data()? {
-                    crate::css::style_value::StyleValueData::ValueList {
-                        values, separator: 1, ..
-                    } => Some(values.as_slice()),
-                    _ => None,
-                }
-            }
-            let first_list = list(first);
-            let second_list = list(second);
-            let first_length = first_list.map_or(1, <[_]>::len);
-            let second_length = second_list.map_or(1, <[_]>::len);
-            let length = first_length.max(second_length);
-            (0..length).all(|index| {
-                let first = first_list.map_or_else(|| first.data(), |values| Some(values[index % first_length].data()));
-                let second =
-                    second_list.map_or_else(|| second.data(), |values| Some(values[index % second_length].data()));
-                first == second
-            })
-        }
-        let Some(first_table) = (unsafe { first.longhand_table.as_ref() }) else {
-            return false;
-        };
-        let Some(second_table) = (unsafe { second.longhand_table.as_ref() }) else {
-            return false;
-        };
-        // Equal resolved groups do not imply equal inheritance sources. In particular, a child
-        // resolves inherited currentcolor against its own color rather than the parent's.
-        let inheritance_sources_equal = first_table.retained_inheritance_dependent_values().count()
-            == second_table.retained_inheritance_dependent_values().count()
-            && first_table
-                .retained_inheritance_dependent_values()
-                .all(|(property, value)| {
-                    second_table
-                        .retained_inheritance_dependent_values()
-                        .find(|(candidate, _)| *candidate == property)
-                        .is_some_and(|(_, other)| value.data() == other.data())
-                });
-        inheritance_sources_equal
-            && first.payloads.len() == second.payloads.len()
-            && first
-                .payloads
-                .iter()
-                .zip(second.payloads)
-                .enumerate()
-                .all(|(index, (&first, &second))| {
-                    if first == second || style_group_payloads_equal(index, first.as_ptr(), second.as_ptr()) {
-                        return true;
-                    }
-                    if index == crate::css::computed_value_types::STYLE_GROUP_INDEX_BACKGROUND {
-                        let first_background = unsafe {
-                            first
-                                .cast::<crate::css::computed_value_types::BackgroundValues>()
-                                .deref()
-                        };
-                        let second_background = unsafe {
-                            second
-                                .cast::<crate::css::computed_value_types::BackgroundValues>()
-                                .deref()
-                        };
-                        // Engine records retain the canonical background longhands. Legacy records
-                        // expand their repeatable lists to the background-image layer count while
-                        // building the payload, so compare those lists modulo repetition and the
-                        // scalar fields directly.
-                        if first_background.background_color == second_background.background_color
-                            && first_background.background_color_style_value
-                                == second_background.background_color_style_value
-                            && first_background.background_color_clip == second_background.background_color_clip
-                            && repeatable_list_values_equal(
-                                &first_background.background_image,
-                                &second_background.background_image,
-                            )
-                            && repeatable_list_values_equal(
-                                &first_background.background_attachment,
-                                &second_background.background_attachment,
-                            )
-                            && repeatable_list_values_equal(
-                                &first_background.background_blend_mode,
-                                &second_background.background_blend_mode,
-                            )
-                            && repeatable_list_values_equal(
-                                &first_background.background_clip,
-                                &second_background.background_clip,
-                            )
-                            && repeatable_list_values_equal(
-                                &first_background.background_origin,
-                                &second_background.background_origin,
-                            )
-                            && repeatable_list_values_equal(
-                                &first_background.background_position_x,
-                                &second_background.background_position_x,
-                            )
-                            && repeatable_list_values_equal(
-                                &first_background.background_position_y,
-                                &second_background.background_position_y,
-                            )
-                            && repeatable_list_values_equal(
-                                &first_background.background_repeat,
-                                &second_background.background_repeat,
-                            )
-                            && repeatable_list_values_equal(
-                                &first_background.background_size,
-                                &second_background.background_size,
-                            )
-                        {
-                            return true;
-                        }
-                    }
-                    if index != crate::css::computed_value_types::STYLE_GROUP_INDEX_SVG_RESET
-                        || !svg_reset_reads_current_color
-                    {
-                        return false;
-                    }
-                    // The engine and legacy builders may encode currentcolor differently in the
-                    // two color fields. Every other field in the group must still agree.
-                    let first = unsafe { first.cast::<crate::css::computed_value_types::SVGResetValues>().deref() };
-                    let second = unsafe {
-                        second
-                            .cast::<crate::css::computed_value_types::SVGResetValues>()
-                            .deref()
-                    };
-                    first.cx == second.cx
-                        && first.cy == second.cy
-                        && first.d == second.d
-                        && first.r == second.r
-                        && first.rx == second.rx
-                        && first.ry == second.ry
-                        && first.x == second.x
-                        && first.y == second.y
-                        && first.stop_opacity == second.stop_opacity
-                        && first.flood_opacity == second.flood_opacity
-                        && first.vector_effect == second.vector_effect
-                })
     }
 
     pub fn pin_style_record(&mut self, raw_style_record: u64) {

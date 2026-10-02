@@ -34,7 +34,7 @@ A focused loop for style work:
 ./bin/test-web --verify-style -f Text/input/css/style-engine/ -f Text/input/css/style-invalidation/
 ```
 
-The gates are per-mechanism checks that run at their mechanism's site. Some re-derive incremental results through the exact cold evaluator and compare (`LIBWEB_VERIFY_STYLE_ANSWER_PATCH`, `LIBWEB_VERIFY_SELECTOR_TRUTH_DERIVATION`, `LIBWEB_VERIFY_CASCADE_WINNERS`); others assert structural properties (`LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE`, `LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION`), and three C++-side gates cover input reuse, the computed closure, and the style-diff fast path (`LIBWEB_VERIFY_STYLE_INPUT_REUSE`, `LIBWEB_VERIFY_COMPUTED_CLOSURE`, `LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH`).
+The gates are per-mechanism checks that run at their mechanism's site. Some re-derive incremental results through the exact cold evaluator and compare (`LIBWEB_VERIFY_STYLE_ANSWER_PATCH`, `LIBWEB_VERIFY_SELECTOR_TRUTH_DERIVATION`, `LIBWEB_VERIFY_CASCADE_WINNERS`); others assert structural properties (`LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE`, `LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION`), and two C++-side gates cover the computed closure and the style-diff fast path (`LIBWEB_VERIFY_COMPUTED_CLOSURE`, `LIBWEB_VERIFY_STYLE_DIFF_FAST_PATH`).
 
 `LIBWEB_VERIFY_PREFIX_RELATION` compares every live element's maintained prefix memberships with scalar prefix matching after construction and updates. It also verifies retained membership storage accounting, and runs unconditionally in Rust unit tests.
 
@@ -63,7 +63,7 @@ style-replay --assert-digests capture.sg
 
 **A page styles wrong.**
 
-1. Reduce to a test under `Tests/LibWeb/Text/input/css/style-engine/` if you can; run it under `--verify-style`. If verify mode flags it, the divergence report names the node and the stage (match answer, winner, computed record), which usually identifies the responsible mechanism.
+1. Reduce to a test under `Tests/LibWeb/Text/input/css/style-engine/` if you can; run it under `--verify-style`. If verify mode flags it, the divergence report names the node and the stage (match answer, winner), which usually identifies the responsible mechanism.
 2. If verify passes but the page is still wrong, the bug is upstream of the engine (input collection, C++ integration) or downstream (consumers): check that the mutation reached the engine as a typed delta, and that consumers read the published record.
 3. The per-mechanism `LIBWEB_VERIFY_*` gates bisect between retained-state mechanisms when the full verify pass is too coarse.
 

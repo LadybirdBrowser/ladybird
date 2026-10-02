@@ -2736,33 +2736,16 @@ pub(crate) fn publish_computed_groups_from_inputs(
     if animation_overlay_identity != 0 && animated_overlay.is_null() {
         return FfiStyleRecordDelta::default();
     }
-    let verifying_computed_record = engine.host.computed_record_verification_counters.is_some();
     let metadata_input = super::computed::ComputedMetadataInput {
         pseudo_element_styles,
         dependency_flags,
         counter_style_environment_identity,
-        animation_overlay_identity: if verifying_computed_record {
-            0
-        } else {
-            animation_overlay_identity
-        },
-        animated_overlay: if verifying_computed_record {
-            HostShared::null()
-        } else {
-            HostShared::new(animated_overlay).cast()
-        },
-        animation_overlay_payloads: if verifying_computed_record {
-            &[]
-        } else {
-            animation_overlay_payloads
-        },
+        animation_overlay_identity,
+        animated_overlay: HostShared::new(animated_overlay).cast(),
+        animation_overlay_payloads,
         longhand_table: HostShared::new(longhand_table.map_or(std::ptr::null(), std::ptr::from_ref)),
     };
-    // A C++ verification computation interns a comparable record without replacing the engine's
-    // authoritative assignment for the node it is checking.
-    let publication = if engine.host.computed_record_verification_counters.is_none()
-        && let Some(node) = StyleNodeID::from_raw(node)
-    {
+    let publication = if let Some(node) = StyleNodeID::from_raw(node) {
         let target = super::computed::ComputedStyleTarget::new(node, pseudo_kind);
         engine.forget_engine_computed_record(target);
         engine.publish_computed_groups(
@@ -2791,8 +2774,7 @@ pub(crate) fn publish_computed_groups_from_inputs(
             .custom_property_environments
             .retain(custom_property_environment, custom_property_store);
     }
-    if engine.host.computed_record_verification_counters.is_none()
-        && pseudo_kind == u8::MAX
+    if pseudo_kind == u8::MAX
         && let Some(node) = StyleNodeID::from_raw(node)
     {
         engine.remember_cpp_custom_property_environment(node, custom_property_environment);
@@ -2803,15 +2785,6 @@ pub(crate) fn publish_computed_groups_from_inputs(
             .map_or(0, super::computed::FinalStyleRecordID::raw),
         new_style_record: publication.style_record_identity.raw(),
     };
-    if engine.host.computed_record_verification_counters.is_some() {
-        // C++ can retain a verification record on a pseudo-element the authoritative reaction
-        // leaves unchanged. With no target assignment to own it, keep it live with the engine.
-        engine.pin_style_record(result.new_style_record);
-        engine
-            .host
-            .computed_record_verification_pins
-            .push(result.new_style_record);
-    }
     engine.record_boundary_call(EventKind::PublishComputedGroups, |payload| {
         let pointer_token = |pointer: *const c_void| match pointer.is_null() {
             true => 0,
@@ -2888,37 +2861,6 @@ pub(crate) fn publish_computed_groups_from_inputs(
         payload.write_u64(result.new_style_record);
     });
     result
-}
-
-/// Enter a C++ computed-record verification scope.
-///
-/// # Safety
-/// `engine` must be live, and verification scopes must not nest.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_begin_computed_record_verification(engine: *mut c_void) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    assert!(engine.host.computed_record_verification_counters.is_none());
-    assert!(engine.host.computed_record_verification_pins.is_empty());
-    engine.host.computed_record_verification_counters = Some(Box::new(engine.counters.clone()));
-    engine.suspend_computed_group_content_identities(true);
-}
-
-/// Leave a C++ computed-record verification scope without exposing its instrumentation work.
-///
-/// # Safety
-/// `engine` must be live and inside a verification scope.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_end_computed_record_verification(engine: *mut c_void) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    for style_record in std::mem::take(&mut engine.host.computed_record_verification_pins) {
-        engine.unpin_style_record(style_record);
-    }
-    engine.suspend_computed_group_content_identities(false);
-    engine.counters = *engine
-        .host
-        .computed_record_verification_counters
-        .take()
-        .expect("computed-record verification scope must be active");
 }
 
 /// Replaces only the animation overlay on an already-published target. Recording falls back to
@@ -3021,19 +2963,6 @@ pub unsafe extern "C" fn style_engine_assign_shared_style_record(
         StyleNodeID::from_raw(node).expect("a nonzero node must be a style node"),
         pseudo_kind,
     );
-    if engine.host.computed_record_verification_counters.is_some() {
-        let style_record = engine
-            .computed_group_sets
-            .style_record_for_shared_assignment(target, style_record)
-            .expect("a shared style record must name a live base record")
-            .raw();
-        engine.pin_style_record(style_record);
-        engine.host.computed_record_verification_pins.push(style_record);
-        return FfiStyleRecordDelta {
-            old_style_record: 0,
-            new_style_record: style_record,
-        };
-    }
     engine.forget_engine_computed_record(target);
     let publication = engine.assign_shared_style_record(
         target,
@@ -3207,30 +3136,6 @@ pub unsafe extern "C" fn style_engine_pseudo_element_record_damage(
         new_style_record,
         originating_style_record,
         counter_styles_changed,
-    )
-}
-
-/// Returns whether two final style records agree where the legacy verification drive is authoritative.
-///
-/// # Safety
-/// `engine` must be live, `node` and `pseudo_kind` must name the target, and both style records must
-/// remain pinned or assigned.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_records_match_for_verification(
-    engine: *const c_void,
-    node: u32,
-    pseudo_kind: u8,
-    first_style_record: u64,
-    second_style_record: u64,
-) -> bool {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return false;
-    };
-    engine.computed_group_sets.style_records_match_for_verification(
-        super::computed::ComputedStyleTarget::new(node, pseudo_kind),
-        first_style_record,
-        second_style_record,
     )
 }
 
@@ -3911,10 +3816,7 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
 ) -> FfiEngineComputedRecord {
     abort_on_panic(|| {
         let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-        // A verification pass computes the reference records itself.
-        let Some(style_node) =
-            StyleNodeID::from_raw(node).filter(|_| engine.host.computed_record_verification_counters.is_none())
-        else {
+        let Some(style_node) = StyleNodeID::from_raw(node) else {
             return FfiEngineComputedRecord::default();
         };
         let (settled, uses_substitution) = engine.settle_pseudo_records_after_host_record(style_node, old_is_list_item);
