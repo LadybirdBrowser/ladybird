@@ -1,0 +1,5 @@
+started: [fade ::before] opacity 0.25, width 9.703125px, color rgb(0, 0, 0)
+restyled beneath it: [fade ::before] opacity 0.25, width 9.703125px, color rgb(0, 0, 255)
+another added: [fade ::before, grow ::before] opacity 0.25, width 10px, color rgb(0, 0, 0)
+removed: [] opacity 1, width 9.703125px, color rgb(0, 0, 0)
+C++ style builds: 0

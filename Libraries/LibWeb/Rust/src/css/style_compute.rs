@@ -5208,19 +5208,19 @@ fn in_display_none_subtree_for_animations(
     start.is_some_and(|start| style_engine.has_inclusive_ancestor_with_display_none_ignoring_animations(start))
 }
 
-/// The animation plan the record an element holds decides, where applying it would change
-/// anything, and whether the element is in a `display: none` subtree: what a C++ computation
+/// The animation plan the record an element or pseudo-element holds decides, where applying it
+/// would change anything, and whether it is in a `display: none` subtree: what a C++ computation
 /// decides beside the record it computes, decided for a record the style engine settled once the
 /// host has installed it. The definitions borrow the record's values.
 fn settled_animation_plan(
     style_engine: &crate::css::style::StyleEngine,
     node: crate::css::style::tree::StyleNodeID,
+    pseudo_kind: u8,
     record: u64,
 ) -> Option<(smallvec::SmallVec<[FfiComputedAnimation; 1]>, bool)> {
     let view = style_engine.style_record_view(record)?;
     let table = unsafe { view.longhand_table.as_ref() }?;
-    let pseudo_kind = crate::css::cascaded_properties::NO_PSEUDO_ELEMENT;
-    let declaration_scope = style_engine.element_animation_name_declaration_scope(node)?;
+    let declaration_scope = style_engine.animation_name_declaration_scope_of(node, pseudo_kind)?;
     let existing_animations = style_engine.element_css_defined_animations(node, animation_slot(pseudo_kind));
     let element_tree_scope = style_engine.tree().tree_scope(node);
     let mut definitions = smallvec::SmallVec::new();
@@ -5242,17 +5242,19 @@ fn settled_animation_plan(
     Some((definitions, in_display_none_subtree))
 }
 
-/// Hands `apply` the animation plan of an element whose record the style engine settled, decided
-/// from the record the element holds now that the host has installed it, where applying the plan
-/// would change anything, with whether the element is in a `display: none` subtree.
+/// Hands `apply` the animation plan of an element, or of its pseudo-element `pseudo_kind`, whose
+/// record the style engine settled, decided from the record it holds now that the host has
+/// installed it, where applying the plan would change anything, with whether it is in a
+/// `display: none` subtree.
 ///
 /// # Safety
-/// `engine` must be live, `record` must be the record the element holds, and `apply` must not
-/// retain the definitions it is handed.
+/// `engine` must be live, `record` must be the record the element or pseudo-element holds, and
+/// `apply` must not retain the definitions it is handed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_settled_animation_plan(
     engine: crate::css::style::StyleEngineHandle,
     node: u32,
+    pseudo_kind: u8,
     record: u64,
     context: *mut c_void,
     apply: unsafe extern "C" fn(*mut c_void, *const FfiComputedAnimation, usize, bool),
@@ -5262,7 +5264,8 @@ pub unsafe extern "C" fn rust_settled_animation_plan(
     };
     // Applying the plan publishes the element's animations to the engine, so nothing of the
     // engine is borrowed while the host applies it: the definitions only point into the record.
-    let Some((definitions, in_display_none_subtree)) = settled_animation_plan(unsafe { engine.get() }, node, record)
+    let Some((definitions, in_display_none_subtree)) =
+        settled_animation_plan(unsafe { engine.get() }, node, pseudo_kind, record)
     else {
         return;
     };

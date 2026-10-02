@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }
+    @keyframes grow { from { width: 10px; } to { width: 10px; } }
+    #target::before { content: "x"; display: inline-block; color: rgb(0, 0, 0); }
+    #target.fade::before { animation: fade 1000s linear paused; }
+    #target.fade.tinted::before { color: rgb(0, 0, 255); }
+    #target.both::before { animation: fade 1000s linear paused, grow 1000s linear paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        // A pseudo-element's CSS animations start where the host installs the record the style
+        // engine settled, and a record settled beneath a running animation keeps it composing.
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        const builds = () => internals.getStyleInvalidationCounters().baseStyleFullBuilds;
+        const start = builds();
+        const report = label => {
+            internals.updateStyle();
+            const style = getComputedStyle(target, "::before");
+            const names = target.getAnimations({ subtree: true }).map(animation => `${animation.animationName} ${animation.effect.pseudoElement}`);
+            println(`${label}: [${names.join(", ")}] opacity ${style.opacity}, width ${style.width}, color ${style.color}`);
+        };
+        target.className = "fade";
+        report("started");
+        target.className = "fade tinted";
+        report("restyled beneath it");
+        target.className = "both";
+        report("another added");
+        target.className = "";
+        report("removed");
+        println(`C++ style builds: ${builds() - start}`);
+    });
+</script>

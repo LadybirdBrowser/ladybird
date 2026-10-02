@@ -295,8 +295,9 @@ impl FinalStyleRecordID {
     }
 }
 
-/// An element's composition, which `ComputedGroupSets::detach_composition` took off the record its
-/// winners decided so that a record derived beneath it can take that record's place. It stays
+/// The composition of an element or pseudo-element, which `ComputedGroupSets::detach_composition`
+/// took off the record its winners decided so that a record derived beneath it can take that
+/// record's place. It stays
 /// pinned until it is reattached or released, each of which consumes it, so it cannot be copied.
 /// Dropping it any other way would leave the pin behind, which debug builds catch.
 #[derive(Debug)]
@@ -1190,14 +1191,45 @@ impl ComputedGroupSets {
         Some(self.final_base_style_record(overlay.base_style_record))
     }
 
-    /// Stop composing an element's animations over the record its winners decided, so that a record
+    /// The record a target holds beneath its composition, and the composition's slot.
+    fn assigned_record_and_overlay_slot(&self, target: ComputedStyleTarget) -> Option<(StyleRecordID, Option<u32>)> {
+        if target.is_pseudo() {
+            let assignment = self.pseudo_row(target.node, target.pseudo_kind)?.assignment?;
+            return Some((assignment.style_record, assignment.animation_overlay_slot));
+        }
+        let index = target.node.element_index()? as usize;
+        Some((
+            (*self.style_record_column.get(index)?)?,
+            self.columns.animation_overlay_slot(index),
+        ))
+    }
+
+    fn set_animation_overlay_slot_of(&mut self, target: ComputedStyleTarget, slot: Option<u32>) {
+        if target.is_pseudo() {
+            if let Some(assignment) = self
+                .pseudo_row_mut(target.node, target.pseudo_kind)
+                .and_then(|row| row.assignment.as_mut())
+            {
+                assignment.animation_overlay_slot = slot;
+            }
+        } else if let Some(index) = target.node.element_index() {
+            self.columns.set_animation_overlay_slot(index as usize, slot);
+        }
+    }
+
+    /// Stop composing a target's animations over the record its winners decided, so that a record
     /// derived beneath the composition can take that record's place. The composition stays live,
     /// pinned, for whoever still holds it, until the caller puts it back with
     /// `reattach_composition` or lets it go with `release_detached_composition`. `None` where the
-    /// element composes nothing.
+    /// target composes nothing.
     pub(super) fn detach_composition(&mut self, node: StyleNodeID) -> Option<DetachedComposition> {
-        let index = node.element_index()? as usize;
-        let slot = self.columns.animation_overlay_slot(index)?;
+        self.detach_composition_of(ComputedStyleTarget::new(node, u8::MAX))
+    }
+
+    /// What `detach_composition` does for an element, for any target.
+    pub(super) fn detach_composition_of(&mut self, target: ComputedStyleTarget) -> Option<DetachedComposition> {
+        let (_, slot) = self.assigned_record_and_overlay_slot(target)?;
+        let slot = slot?;
         let overlay = self.animation_overlay_slots[slot as usize].as_ref()?;
         let detached = DetachedComposition {
             record: overlay.final_style_record,
@@ -1205,26 +1237,32 @@ impl ComputedGroupSets {
         };
         self.pin_style_record(detached.record.raw());
         self.release_animation_overlay_assignment(slot);
-        self.columns.set_animation_overlay_slot(index, None);
+        self.set_animation_overlay_slot_of(target, None);
         Some(detached)
     }
 
-    /// Compose an element's animations over its record again as they were before
+    /// Compose a target's animations over its record again as they were before
     /// `detach_composition`, whose pin this takes over: the record derived beneath the composition
-    /// was not installed. A composition laid over a record the element no longer holds stays
+    /// was not installed. A composition laid over a record the target no longer holds stays
     /// detached.
     pub(super) fn reattach_composition(&mut self, node: StyleNodeID, detached: DetachedComposition) {
+        self.reattach_composition_of(ComputedStyleTarget::new(node, u8::MAX), detached);
+    }
+
+    /// What `reattach_composition` does for an element, for any target.
+    pub(super) fn reattach_composition_of(&mut self, target: ComputedStyleTarget, detached: DetachedComposition) {
         let base = detached.base;
         let record = detached.into_pinned_record();
         let slot = self.animation_overlay_slots_by_record.get(&record).copied();
-        if let Some((index, slot)) = node.element_index().zip(slot)
-            && self.columns.animation_overlay_slot(index as usize).is_none()
-            && self.style_record_column.get(index as usize).copied().flatten() == base.base_record()
+        if let Some(slot) = slot
+            && self
+                .assigned_record_and_overlay_slot(target)
+                .is_some_and(|(assigned, current)| current.is_none() && Some(assigned) == base.base_record())
             && let Some(overlay) = self.animation_overlay_slots[slot as usize].as_mut()
         {
             overlay.is_assigned = true;
             self.live_animation_overlay_assignments += 1;
-            self.columns.set_animation_overlay_slot(index as usize, Some(slot));
+            self.set_animation_overlay_slot_of(target, Some(slot));
         }
         self.unpin_style_record(record.raw());
     }
@@ -2635,6 +2673,21 @@ impl ComputedGroupSets {
             .node
             .element_index()
             .and_then(|index| self.columns.cascade_state(index as usize))
+    }
+
+    /// The cascade state of the record a target is being installed with: the pending one until
+    /// the host acknowledges the record, the current one after.
+    pub fn installing_cascade_state(&self, target: ComputedStyleTarget) -> Option<(u64, CascadeStateID)> {
+        if target.is_pseudo() {
+            let row = self.pseudo_row(target.node, target.pseudo_kind)?;
+            return row
+                .cascade_state(PseudoComputedRow::PENDING_CASCADE)
+                .or_else(|| row.cascade_state(PseudoComputedRow::CURRENT_CASCADE));
+        }
+        self.pending_cascade_states
+            .get(&target.node)
+            .copied()
+            .or_else(|| self.cascade_state(target))
     }
 
     pub fn pseudo_retained_cascade_states(

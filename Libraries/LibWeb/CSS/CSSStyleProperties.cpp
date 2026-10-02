@@ -653,6 +653,8 @@ static bool install_engine_pseudo_element_style(DOM::AbstractElement target)
         element.install_engine_pseudo_element_custom_property_data(pseudo_element, environment);
     else
         element.set_custom_property_data(pseudo_element, nullptr);
+    if (!!record)
+        element.document().style_computer().compose_installed_engine_record(target, {});
     style_engine.acknowledge_engine_computed_record(element.style_node_id());
     return true;
 }
