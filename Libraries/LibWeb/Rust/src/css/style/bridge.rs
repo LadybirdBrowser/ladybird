@@ -92,8 +92,8 @@ pub enum FfiStyleInvalidationField {
     AffectsHitTesting = 1 << 22,
     /// The word holds the damage the engine computed with its answer.
     EngineComputed = 1 << 23,
-    /// Selection highlights, which text descendants paint, repaint.
-    RepaintSelection = 1 << 24,
+    /// Highlight pseudo-elements, which text descendants paint, repaint.
+    RepaintHighlights = 1 << 24,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -186,12 +186,12 @@ pub struct FfiEngineComputedRecord {
     pub composed_by_the_host: bool,
     /// The synthetic pseudo-element kinds whose records the engine settled beside the
     /// element's, as a bit per kind; a present slot holding zero is a removal.
-    pub pseudo_records_present: u8,
+    pub pseudo_records_present: u16,
     pub pseudo_records: [u64; RETRY_PSEUDO_RECORD_SLOTS],
 }
 
 /// One record slot per synthetic pseudo-element kind in a retried record.
-pub const RETRY_PSEUDO_RECORD_SLOTS: usize = 8;
+pub const RETRY_PSEUDO_RECORD_SLOTS: usize = 9;
 
 #[derive(Default)]
 pub(super) struct FfiStyleTransactionOutput {
@@ -687,9 +687,9 @@ pub struct FfiElementArrival {
 /// The last pseudo-element kind C++ materializes as a synthetic pseudo-element; the kinds up to
 /// it are the bits a style record's pseudo-element mask carries. Mirrors the C++
 /// `last_synthetic_pseudo_element`.
-pub const LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND: u16 = 7;
-pub const FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 8;
-pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 13;
+pub const LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND: u16 = 8;
+pub const FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 9;
+pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 14;
 
 /// What C++ reports about a style reaction it applied, for the engine to derive the reactions of
 /// the element's children. Mirrors C++ `StyleReactionAppliedFact`.
@@ -3745,7 +3745,7 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
             payload.write_u64(result.record.style_record);
             payload.write_bool(result.is_absent);
             payload.write_bool(result.record.uses_substitution);
-            payload.write_u8(result.record.pseudo_records_present);
+            payload.write_u16(result.record.pseudo_records_present);
         });
         result
     })
@@ -3839,7 +3839,7 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
             payload.write_u32(node);
             payload.write_bool(old_is_list_item);
             payload.write_u64(result.style_record);
-            payload.write_u8(result.pseudo_records_present);
+            payload.write_u16(result.pseudo_records_present);
         });
         result
     })

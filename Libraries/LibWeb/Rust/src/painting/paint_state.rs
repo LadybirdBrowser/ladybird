@@ -5,6 +5,9 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::host::FfiHighlightPseudoElement;
+use crate::painting::record::paint::text::SelectionStyleAnswer;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub(crate) struct PendingRecording {
@@ -33,13 +36,33 @@ pub struct PaintState {
     // publication or discarding decides what stays.
     pub(crate) paint_order_tree: std::cell::RefCell<crate::painting::record::order_tree::PaintOrderTree>,
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
-    pub(crate) selection_pseudo_styles: std::collections::HashMap<
-        NodeSlotId,
-        std::sync::Arc<crate::painting::record::paint::text::SelectionStyleAnswer>,
-    >,
+    pub(crate) selection_pseudo_styles:
+        std::collections::HashMap<NodeSlotId, Arc<crate::painting::record::paint::text::SelectionStyleAnswer>>,
+    pub(crate) search_text: Option<crate::painting::selection::SelectionRange>,
+    pub(crate) search_text_pseudo_styles: HashMap<NodeSlotId, Arc<SelectionStyleAnswer>>,
 }
 
 impl PaintState {
+    pub(crate) fn highlight_pseudo_styles(
+        &self,
+        highlight: FfiHighlightPseudoElement,
+    ) -> &HashMap<NodeSlotId, Arc<SelectionStyleAnswer>> {
+        match highlight {
+            FfiHighlightPseudoElement::Selection => &self.selection_pseudo_styles,
+            FfiHighlightPseudoElement::SearchText => &self.search_text_pseudo_styles,
+        }
+    }
+
+    pub(crate) fn highlight_pseudo_styles_mut(
+        &mut self,
+        highlight: FfiHighlightPseudoElement,
+    ) -> &mut HashMap<NodeSlotId, Arc<SelectionStyleAnswer>> {
+        match highlight {
+            FfiHighlightPseudoElement::Selection => &mut self.selection_pseudo_styles,
+            FfiHighlightPseudoElement::SearchText => &mut self.search_text_pseudo_styles,
+        }
+    }
+
     pub(crate) fn update_root_background_source(
         &mut self,
         arena: &crate::layout::LayoutNodeArena,

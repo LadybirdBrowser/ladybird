@@ -1590,14 +1590,18 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                 || (old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
                 || originating_style->has_pseudo_element_style(pseudo_element);
         };
+        auto highlight_may_have_style = [&](CSS::PseudoElement pseudo_element) {
+            return document().highlight_styles_are_observable(pseudo_element)
+                && (may_have_style(pseudo_element)
+                    || AbstractElement { *this, pseudo_element }.highlight_inheritance_parent().has_value());
+        };
         if (!had_list_marker && !originating_style->display().is_list_item()
             && !may_have_style(CSS::PseudoElement::Before)
             && !may_have_style(CSS::PseudoElement::After)
             && !may_have_style(CSS::PseudoElement::FirstLetter)
             && !(m_rendered_in_top_layer && may_have_style(CSS::PseudoElement::Backdrop))
-            && !(document().selection_styles_are_observable()
-                && (may_have_style(CSS::PseudoElement::Selection)
-                    || AbstractElement { *this, CSS::PseudoElement::Selection }.highlight_inheritance_parent().has_value())))
+            && !highlight_may_have_style(CSS::PseudoElement::Selection)
+            && !highlight_may_have_style(CSS::PseudoElement::SearchText))
             return false;
         auto settled = style_computer.style_engine().settle_pseudo_records_after_host_record(style_node_id(), had_list_marker);
         // What the settled pseudo-elements' container-relative lengths read of the element's containers.
@@ -1637,12 +1641,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
         // A synthetic pseudo-element the style engine settled beside the element's record takes the engine's
-        // answer; one the engine left alone is unchanged. Whether ::selection styles are observable at all
+        // answer; one the engine left alone is unchanged. Whether highlight styles are observable at all
         // stays the host's decision.
-        // An unobservable ::selection holds no record, whatever the engine left standing, and neither does the
-        // ::backdrop of an element outside the top layer.
+        // An unobservable highlight pseudo-element holds no record, whatever the engine left standing, and neither
+        // does the ::backdrop of an element outside the top layer.
         auto old_style_record = style_record_identity(pseudo_element);
-        if ((pseudo_element == CSS::PseudoElement::Selection && !document().selection_styles_are_observable())
+        if ((CSS::is_highlight_pseudo_element(pseudo_element) && !document().highlight_styles_are_observable(pseudo_element))
             || (pseudo_element == CSS::PseudoElement::Backdrop && !m_rendered_in_top_layer)) {
             if (!!old_style_record) {
                 auto delta = style_computer.style_engine().remove_computed_pseudo(style_node_id(), to_underlying(pseudo_element));
@@ -1719,7 +1723,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         // box that appears or goes away. What the pseudo-element's box was built with is the host's to compare: the
         // counter styles it resolved.
         bool counter_styles_changed = false;
-        if (pseudo_element != CSS::PseudoElement::Selection && pseudo_element_values && new_pseudo_element_style) {
+        if (!CSS::is_highlight_pseudo_element(pseudo_element) && pseudo_element_values && new_pseudo_element_style) {
             if (style_record_is_unchanged(style_record_delta)) {
                 ++document().style_invalidation_counters().style_record_property_diffs_skipped;
             } else {
@@ -1788,6 +1792,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     recompute_pseudo_element_style(CSS::PseudoElement::After);
     recompute_pseudo_element_style(CSS::PseudoElement::FirstLetter);
     recompute_pseudo_element_style(CSS::PseudoElement::Selection);
+    recompute_pseudo_element_style(CSS::PseudoElement::SearchText);
     // An element that left the top layer drops the ::backdrop it held.
     if (m_rendered_in_top_layer || !!style_record_identity(CSS::PseudoElement::Backdrop))
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
@@ -2075,8 +2080,8 @@ void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS
     if (invalidation.needs_layout_tree_rebuild())
         return;
 
-    if (invalidation.repaint_selection) {
-        Painting::push_selection_pseudo_style(*this);
+    if (invalidation.repaint_highlights) {
+        Painting::push_highlight_pseudo_styles(*this);
         // NB: A display:contents element has no box of its own. Invalidate the nearest
         //     painted ancestor's subtree so cached text commands take the new highlight.
         for (Node const* node = this; node; node = node->parent_or_shadow_host()) {

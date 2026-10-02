@@ -38,7 +38,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     let RetainedState {
         memory,
         admission,
-        deferred_pseudo_element,
+        deferred_pseudo_elements,
         tree,
         program,
         native_rules,
@@ -152,7 +152,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     } = state;
     assert_member_is_sync(memory);
     assert_member_is_sync(admission);
-    assert_member_is_sync(deferred_pseudo_element);
+    assert_member_is_sync(deferred_pseudo_elements);
     assert_member_is_sync(tree);
     assert_member_is_sync(program);
     assert_member_is_sync(native_rules);

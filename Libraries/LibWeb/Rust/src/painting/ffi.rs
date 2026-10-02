@@ -500,6 +500,42 @@ pub unsafe extern "C" fn layout_arena_selection_apply(
 
 /// # Safety
 ///
+/// `arena` must be a live handle from `layout_arena_create`, used on the
+/// document thread. `entries` must point at `entry_count` valid entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_search_text_apply(
+    arena: *mut c_void,
+    viewport: NodeSlotId,
+    entries: *const FfiSelectionEntry,
+    entry_count: usize,
+    range_start_offset: usize,
+    range_end_offset: usize,
+) {
+    let arena = unsafe { arena_from_handle_mut(arena) };
+    if !arena.paintable_row_is_populated(viewport) {
+        return;
+    }
+    // SAFETY: The caller guarantees the entry span is valid for this synchronous call.
+    let entries = unsafe { ffi_slice(entries, entry_count) };
+    crate::painting::selection::apply_search_text(
+        &mut arena.paintable_rows_mut(),
+        entries,
+        range_start_offset,
+        range_end_offset,
+    );
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_search_text_clear(arena: *mut c_void) {
+    let arena = unsafe { arena_from_handle_mut(arena) };
+    crate::painting::selection::clear_search_text(&mut arena.paintable_rows_mut());
+}
+
+/// # Safety
+///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewport: NodeSlotId) {
@@ -1657,20 +1693,25 @@ pub unsafe extern "C" fn layout_arena_take_recording_trace(
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
 /// `shadows` points at `shadow_count` layers, or is null when the count is zero.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_node_selection_pseudo_style(
+pub unsafe extern "C" fn layout_arena_set_node_highlight_pseudo_style(
     arena: *mut c_void,
     slot: NodeSlotId,
+    highlight: crate::painting::host::FfiHighlightPseudoElement,
     has_styling: bool,
     facts: crate::painting::host::FfiSelectionStyleFacts,
     shadows: *const crate::painting::host::FfiSelectionShadowLayer,
     shadow_count: usize,
 ) {
     let arena = unsafe { arena_from_handle(arena) };
-    let rows = arena.rows_sharing_dom_node_with(slot);
     let mut paint_state = arena.paint_state().borrow_mut();
+    let styles = paint_state.highlight_pseudo_styles_mut(highlight);
+    if !has_styling && styles.is_empty() {
+        return;
+    }
+    let rows = arena.rows_sharing_dom_node_with(slot);
     if !has_styling {
         for row in rows {
-            paint_state.selection_pseudo_styles.remove(&row);
+            styles.remove(&row);
         }
         return;
     }
@@ -1680,18 +1721,12 @@ pub unsafe extern "C" fn layout_arena_set_node_selection_pseudo_style(
         // SAFETY: The host passes `shadow_count` layers that stay alive for this call.
         unsafe { std::slice::from_raw_parts(shadows, shadow_count) }
     };
-    let shadows = shadows
-        .iter()
-        .map(|layer| crate::painting::record::paint::text::ShadowLayer {
-            color: layer.color.0,
-            offset_x: layer.offset_x,
-            offset_y: layer.offset_y,
-            blur_radius: layer.blur_radius,
-        })
-        .collect();
-    let answer = std::sync::Arc::new(crate::painting::record::paint::text::SelectionStyleAnswer { facts, shadows });
+    let answer = std::sync::Arc::new(crate::painting::record::paint::text::SelectionStyleAnswer {
+        facts,
+        shadows: shadows.to_vec(),
+    });
     for row in rows {
-        paint_state.selection_pseudo_styles.insert(row, answer.clone());
+        styles.insert(row, answer.clone());
     }
 }
 

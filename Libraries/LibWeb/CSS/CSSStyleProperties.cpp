@@ -664,7 +664,7 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
     if (!is_synthetic_pseudo_element(*pseudo_element))
         return;
     if (*pseudo_element != PseudoElement::Backdrop
-        && *pseudo_element != PseudoElement::Selection
+        && !is_highlight_pseudo_element(*pseudo_element)
         && abstract_element.computed_style())
         return;
 
@@ -684,9 +684,9 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
         target.element().set_computed_style(*pseudo_element, style ? style_record_delta.new_style_record : StyleRecordID {});
     };
 
-    // A highlight pseudo-element inherits from its parent element's, which nothing keeps current while selection
-    // styles are unobservable, so the chain is computed outermost first.
-    if (is_highlight_pseudo_element(*pseudo_element) && !document.selection_styles_are_observable()) {
+    // A highlight pseudo-element inherits from its parent element's, which is only kept current near an active
+    // highlight, so the chain is computed outermost first.
+    if (is_highlight_pseudo_element(*pseudo_element)) {
         Vector<DOM::AbstractElement> ancestors;
         for (auto ancestor = abstract_element.element().element_to_inherit_style_from({}); ancestor; ancestor = ancestor->element_to_inherit_style_from({}))
             ancestors.append({ *ancestor, pseudo_element });

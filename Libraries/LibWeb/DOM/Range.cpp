@@ -19,12 +19,15 @@
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
+#include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
+#include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -203,6 +206,85 @@ RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_bound
 
     // 5. Return before.
     return RelativeBoundaryPointPosition::Before;
+}
+
+static bool children_are_outside_flat_tree(Node const& node)
+{
+    if (auto const* element = as_if<Element>(node); element && element->is_shadow_host())
+        return true;
+    auto const* slot = as_if<HTML::HTMLSlotElement>(node);
+    return slot && !slot->assigned_nodes_internal().is_empty();
+}
+
+static size_t flat_tree_child_count_of_host_or_slot(Node const& node)
+{
+    if (auto const* slot = as_if<HTML::HTMLSlotElement>(node))
+        return slot->assigned_nodes_internal().size();
+    return as<Element>(node).shadow_root()->child_count();
+}
+
+static Optional<size_t> index_in_flat_tree(Node& node)
+{
+    if (auto slot = assigned_slot_for_node(node)) {
+        auto assigned_nodes = slot->assigned_nodes_internal();
+        auto index = find_index(assigned_nodes.begin(), assigned_nodes.end(), node.as_slottable());
+        if (index == assigned_nodes.size())
+            return {};
+        return index;
+    }
+    if (auto const* parent = node.parent(); parent && children_are_outside_flat_tree(*parent))
+        return {};
+    return node.index();
+}
+
+struct FlatTreePosition {
+    GC::Ref<Node> root;
+    Vector<size_t, 32> indices;
+};
+
+static Optional<FlatTreePosition> flat_tree_position(BoundaryPoint point)
+{
+    Vector<size_t, 32> indices;
+    auto node = point.node;
+    if (!children_are_outside_flat_tree(*node)) {
+        indices.append(point.offset);
+    } else if (point.offset == 0) {
+        indices.append(0);
+    } else if (auto* child = node->child_at_index(point.offset); child && index_in_flat_tree(*child).has_value()) {
+        node = *child;
+    } else {
+        indices.append(flat_tree_child_count_of_host_or_slot(*node));
+    }
+
+    while (auto* parent = node->flat_tree_parent()) {
+        if (!is<ShadowRoot>(*node)) {
+            auto index = index_in_flat_tree(*node);
+            if (!index.has_value())
+                return {};
+            indices.append(*index);
+        }
+        node = *parent;
+    }
+    indices.reverse();
+    return FlatTreePosition { node, move(indices) };
+}
+
+Optional<RelativeBoundaryPointPosition> position_of_boundary_point_relative_to_other_boundary_point_in_flat_tree(BoundaryPoint a, BoundaryPoint b)
+{
+    auto a_position = flat_tree_position(a);
+    auto b_position = flat_tree_position(b);
+    if (!a_position.has_value() || !b_position.has_value() || a_position->root != b_position->root)
+        return {};
+
+    auto const& a_indices = a_position->indices;
+    auto const& b_indices = b_position->indices;
+    for (size_t i = 0; i < min(a_indices.size(), b_indices.size()); ++i) {
+        if (a_indices[i] != b_indices[i])
+            return a_indices[i] < b_indices[i] ? RelativeBoundaryPointPosition::Before : RelativeBoundaryPointPosition::After;
+    }
+    if (a_indices.size() == b_indices.size())
+        return RelativeBoundaryPointPosition::Equal;
+    return a_indices.size() < b_indices.size() ? RelativeBoundaryPointPosition::Before : RelativeBoundaryPointPosition::After;
 }
 
 // https://dom.spec.whatwg.org/#concept-range-bp-set

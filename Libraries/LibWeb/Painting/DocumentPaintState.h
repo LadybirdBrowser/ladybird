@@ -58,6 +58,8 @@ public:
 
     void recompute_selection_states(DOM::Document&, DOM::Range&);
     void reset_selection_states(DOM::Document&);
+    void recompute_search_text_states(DOM::Document&, DOM::Range&);
+    void reset_search_text_states();
 
     void invalidate_all_cached_paint(DOM::Document&);
 

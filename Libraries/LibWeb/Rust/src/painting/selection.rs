@@ -46,6 +46,36 @@ pub(crate) fn clear(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotI
     }
 }
 
+pub(crate) fn clear_search_text(layout_arena: &mut PaintableRowsMut<'_>) {
+    let previous = layout_arena.paint_state().borrow_mut().search_text.take();
+    if let Some(previous) = previous {
+        for node in previous.text_states.keys() {
+            invalidate_text_node(layout_arena, *node);
+        }
+    }
+}
+
+pub(crate) fn apply_search_text(
+    layout_arena: &mut PaintableRowsMut<'_>,
+    entries: &[FfiSelectionEntry],
+    start_offset: usize,
+    end_offset: usize,
+) {
+    clear_search_text(layout_arena);
+    let mut text_states = std::collections::HashMap::new();
+    for entry in entries.iter().filter(|entry| entry.is_text_node_entry) {
+        for &node in layout_arena.text_fragments(entry.layout_node).as_slice() {
+            text_states.insert(node, entry.state);
+            invalidate_text_node(layout_arena, node);
+        }
+    }
+    layout_arena.paint_state().borrow_mut().search_text = Some(SelectionRange {
+        start_offset,
+        end_offset,
+        text_states,
+    });
+}
+
 pub(crate) fn apply(
     layout_arena: &mut PaintableRowsMut<'_>,
     viewport: NodeSlotId,

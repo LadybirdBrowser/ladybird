@@ -1331,6 +1331,11 @@ void ViewImplementation::find_in_page_previous_match()
     client().async_find_in_page_previous_match(page_id());
 }
 
+void ViewImplementation::find_in_page_end()
+{
+    client().async_find_in_page_end(page_id());
+}
+
 void ViewImplementation::get_source()
 {
     client().async_get_source(page_id());

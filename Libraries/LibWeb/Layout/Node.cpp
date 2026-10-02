@@ -694,8 +694,8 @@ void NodeWithStyle::publish_style_record_to_node_data()
 
 void NodeWithStyle::did_update_style_record()
 {
-    if (auto const* element = as_if<DOM::Element>(dom_node()); element && element->has_style(CSS::PseudoElement::Selection))
-        Painting::push_selection_pseudo_style(*element);
+    if (auto const* element = as_if<DOM::Element>(dom_node()); element && (element->has_style(CSS::PseudoElement::Selection) || element->has_style(CSS::PseudoElement::SearchText)))
+        Painting::push_highlight_pseudo_styles(*element);
     if (content_visibility() == CSS::ContentVisibility::Auto)
         document().note_content_visibility_auto_style();
 

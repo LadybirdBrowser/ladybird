@@ -40,6 +40,9 @@ pub struct FfiRecordingInputs {
     pub selection_background_from_palette: Color,
     pub selection_background_light: Color,
     pub selection_background_dark: Color,
+    pub inactive_selection_background_from_palette: Color,
+    pub inactive_selection_background_light: Color,
+    pub inactive_selection_background_dark: Color,
     pub palette_is_dark: bool,
     pub document_has_supported_color_schemes: bool,
     pub has_inspector_highlight: bool,
@@ -139,6 +142,9 @@ impl FfiRecordingInputs {
             selection_background_from_palette: self.selection_background_from_palette,
             selection_background_light: self.selection_background_light,
             selection_background_dark: self.selection_background_dark,
+            inactive_selection_background_from_palette: self.inactive_selection_background_from_palette,
+            inactive_selection_background_light: self.inactive_selection_background_light,
+            inactive_selection_background_dark: self.inactive_selection_background_dark,
             palette_is_dark: self.palette_is_dark,
             document_has_supported_color_schemes: self.document_has_supported_color_schemes,
             inspector_highlight: self.has_inspector_highlight.then(|| {
@@ -423,9 +429,17 @@ pub struct FfiSvgPatternDescription {
 #[repr(C)]
 pub struct FfiSelectionShadowLayer {
     pub color: Color,
+    pub color_is_current_color: bool,
     pub offset_x: CssPixels,
     pub offset_y: CssPixels,
     pub blur_radius: CssPixels,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiHighlightPseudoElement {
+    Selection,
+    SearchText,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -433,6 +447,7 @@ pub struct FfiSelectionShadowLayer {
 pub struct FfiSelectionStyleFacts {
     pub colors_authored: bool,
     pub background_color: Color,
+    pub background_color_is_current_color: bool,
     pub text_color: OptionalColor,
     pub wash_color: Color,
     pub has_text_shadow: bool,
@@ -441,6 +456,7 @@ pub struct FfiSelectionStyleFacts {
     pub text_decoration_line_count: u32,
     pub text_decoration_style: u8,
     pub text_decoration_color: Color,
+    pub text_decoration_color_is_current_color: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

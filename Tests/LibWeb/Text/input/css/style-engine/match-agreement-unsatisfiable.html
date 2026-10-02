@@ -2,7 +2,7 @@
 <script src="../../include.js"></script>
 <style>
     /* An `:is()` whose every argument is invalid parses to an empty list, and an empty list matches
-       nothing. `:not()` of the same list matches everything, because nothing is what it excludes. */
+       nothing. A `:not()` naming a pseudo-element is invalid, so its rule names nothing either. */
     :is(::before) { color: rgb(1, 2, 3) }
     :not(::before) { border-top-color: rgb(4, 5, 6) }
 

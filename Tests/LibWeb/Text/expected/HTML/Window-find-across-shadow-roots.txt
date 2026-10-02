@@ -1,0 +1,7 @@
+window.find("needle"): true, selection "needle" in before
+window.find("needle"): true, selection "needle" in shadow tree
+window.find("needle"): true, selection "needle" in after
+window.find("needle"): false, selection "needle" in after
+window.find("needle") from the shadow tree: true, selection "needle" in after
+window.find("needle") from a child left out of the shadow tree: true, selection "needle" in before
+window.find("needle") from a child assigned to no slot: true, selection "needle" in before

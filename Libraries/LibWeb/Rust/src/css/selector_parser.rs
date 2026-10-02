@@ -448,6 +448,14 @@ impl<'a> SelectorParser<'a> {
         {
             return Err(());
         }
+        // FIXME: Allow :current after ::search-text.
+        if compounds.iter().any(|compound| {
+            compound.simple_selectors.len() > 1
+                && matches!(compound.simple_selectors.first(), Some(SimpleSelector::PseudoElement(pseudo_element))
+                    if pseudo_element.pseudo_element == PseudoElementType::SearchText)
+        }) {
+            return Err(());
+        }
         Ok(CompiledSelector::new(compounds.into_boxed_slice()))
     }
 
@@ -834,6 +842,13 @@ impl<'a> SelectorParser<'a> {
                 };
                 selector.argument_selector_list =
                     self.parse_selector_list(values, selector_type, SelectorParsingMode::Standard)?;
+                if selector
+                    .argument_selector_list
+                    .iter()
+                    .any(|argument| contains_pseudo_element(argument))
+                {
+                    return Err(());
+                }
             }
             PseudoClassParameterType::None => return Err(()),
         }
@@ -1015,6 +1030,15 @@ impl<'a> SelectorParser<'a> {
         }
         combinator
     }
+}
+
+fn contains_pseudo_element(selector: &CompiledSelector) -> bool {
+    selector.compound_selectors.iter().any(|compound| {
+        compound
+            .simple_selectors
+            .iter()
+            .any(|simple| matches!(simple, SimpleSelector::PseudoElement(_)))
+    })
 }
 
 fn normalize_pseudo_element_transitions(compounds: Vec<CompoundSelector>) -> Vec<CompoundSelector> {

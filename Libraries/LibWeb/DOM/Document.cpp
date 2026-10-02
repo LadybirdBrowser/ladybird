@@ -846,6 +846,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_all);
     visitor.visit(m_fonts);
     visitor.visit(m_selection);
+    visitor.visit(m_find_in_page_active_match);
     visitor.visit(m_first_base_element_with_href_in_tree_order);
     visitor.visit(m_first_base_element_with_target_in_tree_order);
     visitor.visit(m_parser);
@@ -1008,6 +1009,48 @@ GC::Ptr<Selection::Selection> Document::get_selection() const
     if (!browsing_context())
         return {};
     return m_selection;
+}
+
+void Document::set_find_in_page_active_match(GC::Ptr<Range> active_match)
+{
+    if (m_find_in_page_active_match == active_match)
+        return;
+    m_find_in_page_active_match = active_match;
+    m_find_in_page_active_match_text = active_match ? active_match->to_string() : Utf16String {};
+    set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
+    if (!has_committed_viewport_box())
+        return;
+    if (active_match) {
+        paint_state().recompute_search_text_states(*this, *active_match);
+    } else {
+        paint_state().reset_search_text_states();
+    }
+    Painting::set_needs_repaint(*unsafe_layout_node(), InvalidateDisplayList::PaintCommands);
+}
+
+static bool realign_find_in_page_match_to_its_text(Range& match, Utf16String const& text)
+{
+    if (match.collapsed())
+        return false;
+    auto current_text = match.to_string();
+    if (current_text == text)
+        return true;
+    auto* start_text = as_if<Text>(*match.start_container());
+    if (!start_text || !current_text.utf16_view().ends_with(text.utf16_view()))
+        return false;
+    auto new_start_offset = match.start_offset() + (current_text.length_in_code_units() - text.length_in_code_units());
+    if (new_start_offset > start_text->length_in_utf16_code_units())
+        return false;
+    MUST(match.set_start(*start_text, new_start_offset));
+    return true;
+}
+
+void Document::collapse_find_in_page_active_match_if_its_text_changed()
+{
+    auto match = m_find_in_page_active_match;
+    if (!match || match->collapsed() || realign_find_in_page_match_to_its_text(*match, m_find_in_page_active_match_text))
+        return;
+    set_find_in_page_active_match(Range::create(match->start_container(), match->start_offset(), match->start_container(), match->start_offset()));
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-write
@@ -1968,6 +2011,12 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
     // A tree update can replace layout nodes referenced by selection state.
     if (auto range = get_selection()->range())
         paint_state().recompute_selection_states(*this, *range);
+    collapse_find_in_page_active_match_if_its_text_changed();
+    if (m_find_in_page_active_match) {
+        paint_state().recompute_search_text_states(*this, *m_find_in_page_active_match);
+    } else {
+        paint_state().reset_search_text_states();
+    }
 
     if (layout_tree_changed == LayoutTreeChanged::Yes) {
         // Broadcast the current viewport rect to any new committed boxes, so they know whether
@@ -3742,7 +3791,7 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
     }
 
     m_focused_area = node;
-    set_needs_selection_style_update();
+    set_needs_highlight_style_update(CSS::PseudoElement::Selection);
 
     auto* new_focused_element = as_if<Element>(node.ptr());
     if (new_focused_element)
@@ -9363,6 +9412,8 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
             if (!start || !end || &start->root() != &end->root()
                 || !start->is_connected() || !end->is_connected()
                 || match.start_offset > start->length() || match.end_offset > end->length())
+                return;
+            if (start != end && !end->is_following(*start))
                 return;
             static_cast<Vector<GC::Root<Range>>*>(context)->append(
                 Range::create(*start, match.start_offset, *end, match.end_offset)); });

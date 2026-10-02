@@ -34,6 +34,7 @@ enum class RelativeBoundaryPointPosition {
 
 // https://dom.spec.whatwg.org/#concept-range-bp-position
 RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(BoundaryPoint a, BoundaryPoint b);
+Optional<RelativeBoundaryPointPosition> position_of_boundary_point_relative_to_other_boundary_point_in_flat_tree(BoundaryPoint a, BoundaryPoint b);
 
 class WEB_API Range final : public AbstractRange {
     WEB_WRAPPABLE(Range, AbstractRange);

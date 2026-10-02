@@ -36,6 +36,7 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestItem;
 use crate::painting::hit_test::HitTestList;
+use crate::painting::host::FfiHighlightPseudoElement;
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::frame_inputs::FrameInputs;
@@ -260,10 +261,10 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return answer.clone();
         }
         let style_source = self.layout_arena.data(node).parent.get();
-        let committed = self
-            .first_non_anonymous_ancestor_row(node)
-            .and_then(|element_row| self.committed_selection_pseudo_style(node, element_row));
-        let answer = self.selection_style_answer(committed, node, style_source);
+        let committed = self.first_non_anonymous_ancestor_row(node).and_then(|element_row| {
+            self.committed_highlight_pseudo_style(FfiHighlightPseudoElement::Selection, node, element_row)
+        });
+        let answer = Self::highlight_style_answer(committed, || self.default_selection_style(node, style_source));
         self.scratch.selection_style_cache.insert(key, answer.clone());
         answer
     }
@@ -276,27 +277,45 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if let Some(answer) = self.scratch.selection_style_cache.get(&key) {
             return answer.clone();
         }
-        let committed = self.committed_selection_pseudo_style(element_row, element_row);
-        let answer = self.selection_style_answer(committed, element_row, element_row);
+        let committed =
+            self.committed_highlight_pseudo_style(FfiHighlightPseudoElement::Selection, element_row, element_row);
+        let answer = Self::highlight_style_answer(committed, || self.default_selection_style(element_row, element_row));
         self.scratch.selection_style_cache.insert(key, answer.clone());
         answer
     }
 
-    /// A committed style that authored neither color takes the paired default background and
-    /// keeps its shadows and decorations.
-    fn selection_style_answer(
-        &self,
-        committed: Option<Arc<paint::text::SelectionStyleAnswer>>,
+    pub(crate) fn search_text_style(
+        &mut self,
         node: crate::layout::node_data::NodeSlotId,
-        style_source: crate::layout::node_data::NodeSlotId,
+    ) -> Arc<paint::text::SelectionStyleAnswer> {
+        let key = node.index;
+        if let Some(answer) = self.scratch.search_text_style_cache.get(&key) {
+            return answer.clone();
+        }
+        let style_source = self.layout_arena.data(node).parent.get();
+        let committed = self.first_non_anonymous_ancestor_row(node).and_then(|element_row| {
+            self.committed_highlight_pseudo_style(FfiHighlightPseudoElement::SearchText, node, element_row)
+        });
+        let answer = Self::highlight_style_answer(committed, || self.default_search_text_style(node, style_source));
+        self.scratch.search_text_style_cache.insert(key, answer.clone());
+        answer
+    }
+
+    /// A committed style that authored neither color takes the paired default colors and keeps
+    /// its shadows and decorations.
+    fn highlight_style_answer(
+        committed: Option<Arc<paint::text::SelectionStyleAnswer>>,
+        defaults: impl FnOnce() -> paint::text::SelectionStyleAnswer,
     ) -> Arc<paint::text::SelectionStyleAnswer> {
         match committed {
             Some(answer) if answer.facts.colors_authored => answer,
-            None => Arc::new(self.default_selection_style(node, style_source)),
+            None => Arc::new(defaults()),
             Some(answer) => {
-                let mut defaults = self.default_selection_style(node, style_source);
+                let mut defaults = defaults();
                 defaults.facts = crate::painting::host::FfiSelectionStyleFacts {
                     background_color: defaults.facts.background_color,
+                    background_color_is_current_color: defaults.facts.background_color_is_current_color,
+                    text_color: defaults.facts.text_color,
                     wash_color: defaults.facts.wash_color,
                     ..answer.facts
                 };
@@ -306,12 +325,13 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
     }
 
-    fn committed_selection_pseudo_style(
+    fn committed_highlight_pseudo_style(
         &self,
+        highlight: FfiHighlightPseudoElement,
         node: crate::layout::node_data::NodeSlotId,
         element_row: crate::layout::node_data::NodeSlotId,
     ) -> Option<Arc<paint::text::SelectionStyleAnswer>> {
-        let styles = &self.paint_state.selection_pseudo_styles;
+        let styles = self.paint_state.highlight_pseudo_styles(highlight);
         if let Some(answer) = styles.get(&node) {
             return Some(answer.clone());
         }
@@ -352,6 +372,41 @@ impl<O: Observer> PaintRecorder<'_, O> {
         node: crate::layout::node_data::NodeSlotId,
         style_source: crate::layout::node_data::NodeSlotId,
     ) -> paint::text::SelectionStyleAnswer {
+        let background_color = self.default_selection_background(node, style_source, self.inputs.window_is_focused);
+        paint::text::SelectionStyleAnswer {
+            facts: crate::painting::host::FfiSelectionStyleFacts {
+                background_color,
+                wash_color: background_color,
+                ..Default::default()
+            },
+            shadows: Vec::new(),
+        }
+    }
+
+    /// The active match of find-in-page takes the color a focused selection has, so the match
+    /// looks the same once the find bar closes and selects it.
+    fn default_search_text_style(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        style_source: crate::layout::node_data::NodeSlotId,
+    ) -> paint::text::SelectionStyleAnswer {
+        let background_color = self.default_selection_background(node, style_source, true);
+        paint::text::SelectionStyleAnswer {
+            facts: crate::painting::host::FfiSelectionStyleFacts {
+                background_color,
+                wash_color: background_color,
+                ..Default::default()
+            },
+            shadows: Vec::new(),
+        }
+    }
+
+    fn default_selection_background(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+        style_source: crate::layout::node_data::NodeSlotId,
+        window_is_focused: bool,
+    ) -> libgfx_rust::Color {
         use crate::css::color_resolution::{PREFERRED_COLOR_SCHEME_DARK, PREFERRED_COLOR_SCHEME_LIGHT};
         let inputs = self.inputs;
         let (color_scheme, color_scheme_is_normal) =
@@ -368,20 +423,25 @@ impl<O: Observer> PaintRecorder<'_, O> {
         } else {
             PREFERRED_COLOR_SCHEME_LIGHT
         };
-        let background_color = if color_scheme == palette_color_scheme || use_palette_for_normal_color_scheme {
-            inputs.selection_background_from_palette
-        } else if color_scheme == PREFERRED_COLOR_SCHEME_DARK {
-            inputs.selection_background_dark
+        let (from_palette, light, dark) = if window_is_focused {
+            (
+                inputs.selection_background_from_palette,
+                inputs.selection_background_light,
+                inputs.selection_background_dark,
+            )
         } else {
-            inputs.selection_background_light
+            (
+                inputs.inactive_selection_background_from_palette,
+                inputs.inactive_selection_background_light,
+                inputs.inactive_selection_background_dark,
+            )
         };
-        paint::text::SelectionStyleAnswer {
-            facts: crate::painting::host::FfiSelectionStyleFacts {
-                background_color,
-                wash_color: background_color,
-                ..Default::default()
-            },
-            shadows: Vec::new(),
+        if color_scheme == palette_color_scheme || use_palette_for_normal_color_scheme {
+            from_palette
+        } else if color_scheme == PREFERRED_COLOR_SCHEME_DARK {
+            dark
+        } else {
+            light
         }
     }
 

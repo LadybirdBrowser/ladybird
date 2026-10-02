@@ -16,6 +16,7 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/Selection/SelectionModifier.h>
 
@@ -567,6 +568,7 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
     m_range = range;
     m_focus_affinity = TextAffinity::Downstream;
     m_preferred_inline_coordinate.clear();
+    m_document->page().clear_find_in_page_active_match();
 
     if (range)
         range->set_associated_selection({}, this);
