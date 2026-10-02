@@ -62,8 +62,8 @@ pub(crate) struct PublishedSvgFilter {
     pub primitives: Vec<SvgFilterPrimitive>,
 }
 
-#[derive(Default)]
-struct SvgPaintResourceRow {
+#[derive(Clone, Default)]
+pub(crate) struct SvgPaintResourceRow {
     enrolled_kinds: u8,
     filter: Option<Arc<PublishedSvgFilter>>,
     backdrop_filter: Option<Arc<PublishedSvgFilter>>,
@@ -117,35 +117,91 @@ impl SvgPaintResourceRow {
     }
 }
 
-fn publish<T: PartialEq>(entry: &mut Option<Arc<T>>, value: T) -> bool {
-    if entry.as_ref().is_some_and(|previous| **previous == value) {
-        return false;
-    }
-    *entry = Some(Arc::new(value));
-    true
-}
+/// Each enrolled row's published SVG paint resources. A publication shares the table, so a write
+/// copies it only while a publication still holds it.
+pub(crate) type SvgPaintResourceRows = HashMap<NodeSlotId, SvgPaintResourceRow>;
 
 #[derive(Default)]
 pub(crate) struct SvgPaintResources {
-    rows: RefCell<HashMap<NodeSlotId, SvgPaintResourceRow>>,
+    rows: RefCell<Arc<SvgPaintResourceRows>>,
     needs_sync: Cell<bool>,
 }
 
+/// The published filter of a kind in a slot's row of `rows`.
+pub(crate) fn published_filter_in(
+    rows: &SvgPaintResourceRows,
+    slot: NodeSlotId,
+    kind: SvgPaintResourceKind,
+) -> Option<Arc<PublishedSvgFilter>> {
+    rows.get(&slot)?.published_filter(kind)
+}
+
+/// The image frames of the published SVG filters in `rows`, once each.
+pub(crate) fn published_filter_image_frames_in(
+    rows: &SvgPaintResourceRows,
+) -> Vec<libgfx_rust::image_frame::ImageFrameHandle> {
+    let mut frames: Vec<libgfx_rust::image_frame::ImageFrameHandle> = Vec::new();
+    let mut known_ids = std::collections::HashSet::new();
+    for row in rows.values() {
+        for filter in [&row.filter, &row.backdrop_filter].into_iter().flatten() {
+            for frame in filter
+                .primitives
+                .iter()
+                .filter_map(|primitive| primitive.image_frame.as_ref())
+            {
+                if known_ids.insert(frame.id()) {
+                    frames.push(frame.clone());
+                }
+            }
+        }
+    }
+    frames
+}
+
+/// The published paint server of a kind in a slot's row of `rows`.
+pub(crate) fn published_paint_server_in(
+    rows: &SvgPaintResourceRows,
+    slot: NodeSlotId,
+    kind: SvgPaintResourceKind,
+) -> Option<Arc<PublishedSvgPaintServer>> {
+    rows.get(&slot)?.published_paint_server(kind)
+}
+
 impl SvgPaintResources {
+    fn rows_mut(&self) -> std::cell::RefMut<'_, SvgPaintResourceRows> {
+        std::cell::RefMut::map(self.rows.borrow_mut(), Arc::make_mut)
+    }
+
+    /// The table as it is now, for a recording to read.
+    pub(crate) fn publish(&self) -> Arc<SvgPaintResourceRows> {
+        self.rows.borrow().clone()
+    }
+
     pub(crate) fn set_enrolled_kinds(&self, slot: NodeSlotId, kinds: u8) {
-        let mut rows = self.rows.borrow_mut();
         if kinds == 0 {
-            rows.remove(&slot);
+            self.forget_slot(slot);
             return;
         }
         self.needs_sync.set(true);
+        if self
+            .rows
+            .borrow()
+            .get(&slot)
+            .is_some_and(|row| row.enrolled_kinds == kinds)
+        {
+            return;
+        }
+        let mut rows = self.rows_mut();
         let row = rows.entry(slot).or_default();
         let previous_kinds = std::mem::replace(&mut row.enrolled_kinds, kinds);
         row.forget_published(previous_kinds & !kinds);
     }
 
     pub(crate) fn withdraw(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) {
-        let mut rows = self.rows.borrow_mut();
+        if !self.rows.borrow().contains_key(&slot) {
+            return;
+        }
+        let mut rows = self.rows_mut();
         let Some(row) = rows.get_mut(&slot) else {
             return;
         };
@@ -157,7 +213,9 @@ impl SvgPaintResources {
     }
 
     pub(crate) fn forget_slot(&self, slot: NodeSlotId) {
-        self.rows.borrow_mut().remove(&slot);
+        if self.rows.borrow().contains_key(&slot) {
+            self.rows_mut().remove(&slot);
+        }
     }
 
     pub(crate) fn has_enrolled_entries(&self) -> bool {
@@ -194,26 +252,7 @@ impl SvgPaintResources {
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
     ) -> Option<Arc<PublishedSvgFilter>> {
-        self.rows.borrow().get(&slot)?.published_filter(kind)
-    }
-
-    pub(crate) fn published_filter_image_frames(&self) -> Vec<libgfx_rust::image_frame::ImageFrameHandle> {
-        let mut frames: Vec<libgfx_rust::image_frame::ImageFrameHandle> = Vec::new();
-        let mut known_ids = std::collections::HashSet::new();
-        for row in self.rows.borrow().values() {
-            for filter in [&row.filter, &row.backdrop_filter].into_iter().flatten() {
-                for frame in filter
-                    .primitives
-                    .iter()
-                    .filter_map(|primitive| primitive.image_frame.as_ref())
-                {
-                    if known_ids.insert(frame.id()) {
-                        frames.push(frame.clone());
-                    }
-                }
-            }
-        }
-        frames
+        published_filter_in(&self.rows.borrow(), slot, kind)
     }
 
     pub(crate) fn published_paint_server(
@@ -221,7 +260,7 @@ impl SvgPaintResources {
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
     ) -> Option<Arc<PublishedSvgPaintServer>> {
-        self.rows.borrow().get(&slot)?.published_paint_server(kind)
+        published_paint_server_in(&self.rows.borrow(), slot, kind)
     }
 
     pub(crate) fn publish_paint_server(
@@ -230,11 +269,24 @@ impl SvgPaintResources {
         kind: SvgPaintResourceKind,
         paint_server: PublishedSvgPaintServer,
     ) -> bool {
-        let mut rows = self.rows.borrow_mut();
-        let Some(row) = rows.get_mut(&slot) else {
-            return false;
-        };
-        publish(row.paint_server_entry(kind), paint_server)
+        match self.rows.borrow().get(&slot) {
+            None => return false,
+            Some(row)
+                if row
+                    .published_paint_server(kind)
+                    .is_some_and(|previous| *previous == paint_server) =>
+            {
+                return false;
+            }
+            Some(_) => {}
+        }
+        // Only a change reaches the table, so a write that changes nothing never copies it.
+        *self
+            .rows_mut()
+            .get_mut(&slot)
+            .expect("the row was checked above")
+            .paint_server_entry(kind) = Some(Arc::new(paint_server));
+        true
     }
 
     pub(crate) fn publish_filter(
@@ -243,10 +295,53 @@ impl SvgPaintResources {
         kind: SvgPaintResourceKind,
         filter: PublishedSvgFilter,
     ) -> bool {
-        let mut rows = self.rows.borrow_mut();
-        let Some(row) = rows.get_mut(&slot) else {
-            return false;
+        match self.rows.borrow().get(&slot) {
+            None => return false,
+            Some(row) if row.published_filter(kind).is_some_and(|previous| *previous == filter) => return false,
+            Some(_) => {}
+        }
+        *self
+            .rows_mut()
+            .get_mut(&slot)
+            .expect("the row was checked above")
+            .filter_entry(kind) = Some(Arc::new(filter));
+        true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_published_table_keeps_what_it_held_when_a_row_changes() {
+        let resources = SvgPaintResources::default();
+        let slot = NodeSlotId::new(1, 1);
+        let filter = |failed| PublishedSvgFilter {
+            failed,
+            primitives: Vec::new(),
         };
-        publish(row.filter_entry(kind), filter)
+        resources.set_enrolled_kinds(slot, SvgPaintResourceKind::Filter.bit());
+        assert!(resources.publish_filter(slot, SvgPaintResourceKind::Filter, filter(false)));
+        let published = resources.publish();
+        // Publishing what the row already holds leaves the shared table alone.
+        assert!(!resources.publish_filter(slot, SvgPaintResourceKind::Filter, filter(false)));
+        assert!(Arc::ptr_eq(&published, &resources.publish()));
+
+        assert!(resources.publish_filter(slot, SvgPaintResourceKind::Filter, filter(true)));
+        assert!(
+            !published_filter_in(&published, slot, SvgPaintResourceKind::Filter)
+                .unwrap()
+                .failed
+        );
+        assert!(
+            resources
+                .published_filter(slot, SvgPaintResourceKind::Filter)
+                .unwrap()
+                .failed
+        );
+        resources.forget_slot(slot);
+        assert!(published_filter_in(&published, slot, SvgPaintResourceKind::Filter).is_some());
+        assert!(!resources.has_enrolled_entries());
     }
 }

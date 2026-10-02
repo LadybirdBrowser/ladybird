@@ -530,7 +530,7 @@ mod tests {
         assert!(original_weak.upgrade().is_none());
 
         let replacement_weak = Rc::downgrade(&replacement);
-        let published = arena.publish_text();
+        let published = arena.publish_paint_facts().text;
         let published_text = |published: &crate::cow_column::ColumnSnapshot<PublishedTextSlot, SLOTS_PER_CHUNK>| {
             published
                 .get(node.slot_index() as usize)
@@ -545,7 +545,7 @@ mod tests {
         // The same content keeps the rendered text the publication shares.
         assert!(std::sync::Arc::ptr_eq(
             &published_hello,
-            &published_text(&arena.publish_text())
+            &published_text(&arena.publish_paint_facts().text)
         ));
         arena.set_text_content(node, content("goodbye", 0, 7, Vec::new()));
         assert_eq!(Rc::strong_count(&replacement), 1);
@@ -555,7 +555,7 @@ mod tests {
             "hello".encode_utf16().collect::<Vec<_>>()
         );
         assert_eq!(
-            published_text(&arena.publish_text()).text,
+            published_text(&arena.publish_paint_facts().text).text,
             "goodbye".encode_utf16().collect::<Vec<_>>()
         );
         let new_chunks = arena

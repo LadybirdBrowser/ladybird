@@ -729,16 +729,17 @@ impl LayoutNodeArena {
         )
     }
 
-    /// The layout tree's shape and text, the paintable rows and the columns read beside them as
-    /// they are now. The live columns go on being written, copying only the
+    /// The layout tree's shape and paint facts, the paintable rows and the columns read beside them
+    /// as they are now. The live columns go on being written, copying only the
     /// chunks the publication shares.
     pub(crate) fn publish_rows(&mut self) -> PublishedRows {
         let nodes = self.publish_paint_tree();
-        let text = self.publish_text();
+        let paint_facts = self.publish_paint_facts();
         let store = &mut self.paintable_rows;
         PublishedRows {
+            geometry_epoch: store.absolute_rect_memo_epoch.get(),
             nodes,
-            text,
+            paint_facts,
             rows: store.rows.publish(),
             fragment_links: store.committed_fragment_links.get_mut().publish(),
             side_data: store.committed_side_data.get_mut().publish(),
@@ -793,11 +794,6 @@ impl LayoutNodeArena {
         let store = &self.paintable_rows;
         store.absolute_rect_memo.borrow_mut()[id.slot_index() as usize] =
             Some((id, store.absolute_rect_memo_epoch.get(), rect));
-    }
-
-    /// The epoch every memoized absolute rect is stamped with; any geometry change starts a new one.
-    pub(crate) fn absolute_rect_memo_epoch(&self) -> u64 {
-        self.paintable_rows.absolute_rect_memo_epoch.get()
     }
 
     pub(crate) fn clear_absolute_rect_memo(&self) {

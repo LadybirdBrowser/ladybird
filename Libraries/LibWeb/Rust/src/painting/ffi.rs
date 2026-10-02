@@ -1190,7 +1190,7 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
         scratch,
         absolute_rects,
     } = recorder_state;
-    let source = crate::painting::paint_read::PaintSource::new(arena, rows, damage, absolute_rects);
+    let source = crate::painting::paint_read::PaintSource::new(rows, damage, absolute_rects);
     // The retained tree describes the published tape and is written in place while a frame
     // is assembled, so only a recording that publishes may copy from that frame or touch
     // the tree; any other recording records from scratch into a tree of its own.
