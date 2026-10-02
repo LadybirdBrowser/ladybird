@@ -152,48 +152,6 @@ pub struct FfiPhysicalOverflowDirections {
     pub vertical_axis_is_positive: bool,
 }
 
-/// Re-reads the scroll containers' offsets when something invalidated them since the last
-/// refresh, resolves the sticky nodes' offsets on top of them, and hands the dense device-pixel
-/// snapshot to `publish`. Returns whether that happened, so the caller keeps its copy otherwise;
-/// `force` re-derives the snapshot even when nothing invalidated it, for verification.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
-/// `publish` is called synchronously with `sink` and a view of the snapshot that is valid only
-/// for the duration of that call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
-    arena: *mut c_void,
-    force: bool,
-    sink: *mut c_void,
-    publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.measure_scrollable_overflow();
-    let snapshot = {
-        let paintable_rows = arena.paintable_rows();
-        let mut paint_state = arena.paint_state().borrow_mut();
-        let state = &mut paint_state.visual_context;
-        if !force && !state.needs_to_refresh_scroll_state {
-            return false;
-        }
-        state.needs_to_refresh_scroll_state = false;
-        crate::painting::visual_context::refresh::refresh_scroll_state(&paintable_rows, &mut state.scroll_state);
-        let mut snapshot = state
-            .scroll_state
-            .snapshot(arena.visual_context_tree_inputs().device_pixels_per_css_pixel);
-        // https://drafts.csswg.org/css-position/#sticky-pos
-        if let Some(tree) = state.tree.as_deref() {
-            tree.resolve_sticky_offsets_in_place(&mut snapshot);
-        }
-        snapshot
-    };
-    // SAFETY: The C++ sink copies the offsets synchronously.
-    unsafe { publish(sink, snapshot.as_ptr(), snapshot.len()) };
-    true
-}
-
 /// Publishes what the render side needs to know about the viewport it draws into: the device
 /// scale, where the visual viewport sits and how far it is zoomed, and the overflow the viewport
 /// applies to a wheel. The document publishes it before each pass that reads it, so no pass asks.
@@ -207,117 +165,6 @@ pub unsafe extern "C" fn layout_arena_publish_visual_context_tree_inputs(
     inputs: crate::painting::host::FfiVisualContextTreeInputs,
 ) {
     unsafe { arena_from_handle(arena) }.publish_visual_context_tree_inputs(inputs);
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
-    arena: *mut c_void,
-    viewport: NodeSlotId,
-) -> crate::painting::host::FfiVisualContextUpdateOutcome {
-    use crate::painting::visual_context::dirty::{VisualContextGlobalRebuildReason, VisualContextUpdateScope};
-    use crate::painting::visual_context::incremental::{
-        IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
-    };
-    let arena_ref = unsafe { arena_from_handle(arena) };
-    arena_ref.measure_scrollable_overflow();
-    if !arena_ref.paintable_row_is_populated(viewport) {
-        return crate::painting::host::FfiVisualContextUpdateOutcome::default();
-    }
-    let inputs = arena_ref.visual_context_tree_inputs();
-    let mut state = std::mem::take(&mut arena_ref.paint_state().borrow_mut().visual_context);
-    state.release_quarantined_slots_while_no_handle_is_retained();
-
-    let mut reason = state.dirty_boxes.global_reason;
-    if state.tree.is_none() {
-        reason = reason.max(VisualContextGlobalRebuildReason::FirstBuild);
-    }
-    if state.last_tree_inputs.is_some_and(|last| {
-        last.device_pixels_per_css_pixel != inputs.device_pixels_per_css_pixel
-            || last.viewport_wheel_overflow_x != inputs.viewport_wheel_overflow_x
-            || last.viewport_wheel_overflow_y != inputs.viewport_wheel_overflow_y
-    }) {
-        reason = reason.max(VisualContextGlobalRebuildReason::TreeInputsChanged);
-    }
-    if state.tree.as_deref().is_some_and(|tree| tree.should_compact()) {
-        reason = reason.max(VisualContextGlobalRebuildReason::Compaction);
-    }
-
-    loop {
-        let scope = VisualContextUpdateScope::for_reason(reason);
-        if scope == VisualContextUpdateScope::FreshTree {
-            break;
-        }
-        let result = {
-            let paintable_rows = arena_ref.paintable_rows();
-            update_visual_context_tree(&paintable_rows, viewport, inputs, scope, &mut state)
-        };
-        match result {
-            IncrementalUpdateResult::Applied(mut outcome) => {
-                let arena_mut = unsafe { arena_from_handle_mut(arena) };
-                apply_walk_assignments(arena_mut, viewport, &mut outcome, &mut state);
-                arena_mut.resort_stacking_context_entries_flagged_for_resort();
-                crate::painting::fragment_ownership::assign_fragment_ownership_for_pending_line_roots(arena_mut);
-                let performed_full_build = scope == VisualContextUpdateScope::EveryBox;
-                if performed_full_build {
-                    state.build_count += 1;
-                    state.last_full_build_reason = reason;
-                    debug_assert_every_live_node_is_owned(
-                        &arena_mut.paintable_rows(),
-                        state.tree.as_deref().expect("an applied walk keeps the tree"),
-                        viewport,
-                    );
-                } else {
-                    state.incremental_update_count += 1;
-                }
-                let structural_epoch_changed = outcome.delta.structural_epoch_changed;
-                let requires_display_list_recording = outcome.delta.requires_display_list_recording;
-                state.dirty_boxes.clear();
-                state.last_tree_inputs = Some(inputs);
-                let structural_epoch = state.structural_epoch();
-                arena_mut.paint_state().borrow_mut().visual_context = state;
-                return crate::painting::host::FfiVisualContextUpdateOutcome {
-                    performed_full_build,
-                    structural_epoch_changed,
-                    requires_display_list_recording,
-                    structural_epoch,
-                };
-            }
-            IncrementalUpdateResult::NeedsFullBuild(fallback_reason) => {
-                assert!(
-                    VisualContextUpdateScope::for_reason(fallback_reason) > scope,
-                    "a fallback widens the update scope"
-                );
-                reason = fallback_reason;
-            }
-        }
-    }
-
-    state.last_full_build_reason = reason;
-    let outcome = fresh_visual_context_tree_build(arena, viewport, inputs, &mut state);
-    state.last_tree_inputs = Some(inputs);
-    let arena_ref = unsafe { arena_from_handle(arena) };
-    arena_ref.paint_state().borrow_mut().visual_context = state;
-    outcome
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_update_visual_viewport_transform(arena: *mut c_void) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    let mut paint_state = arena.paint_state().borrow_mut();
-    let Some(tree) = &mut paint_state.visual_context.tree else {
-        return false;
-    };
-    let inputs = arena.visual_context_tree_inputs();
-    std::sync::Arc::make_mut(tree).set_visual_viewport_transform(
-        crate::painting::visual_context::node_values::visual_viewport_transform_data(&inputs),
-    );
-    true
 }
 
 /// # Safety
@@ -352,52 +199,6 @@ pub unsafe extern "C" fn layout_arena_paintable_scrollable_overflow(
     let mut value = arena.committed_side_data(slot).overflow_relative_to_padding_box;
     value.rect = rect.into();
     FfiOptionalOverflowData { has_value: true, value }
-}
-
-#[derive(Default)]
-#[repr(C)]
-pub struct FfiRenderingPreparationOutcome {
-    pub requires_display_list_recording: bool,
-    pub requires_visual_context_update: bool,
-    pub visual_context_values_changed: bool,
-}
-
-fn prepare_for_rendering(
-    main_thread: &crate::stage::MainThread,
-    arena: &LayoutNodeArena,
-    root_background_source: crate::painting::host::RootBackgroundSource,
-    visual_context_update_pending: bool,
-) -> FfiRenderingPreparationOutcome {
-    let background_source_changed = arena
-        .paint_state()
-        .borrow_mut()
-        .update_root_background_source(arena, root_background_source);
-    // This measures all overflow left unmeasured, including the root's: the root background covers
-    // the viewport united with it, so a flip in its scrollability is seen here rather than while
-    // recording holds the paint state.
-    crate::painting::scrollable_overflow::update_scrollable_overflow(main_thread, arena);
-    let changed = arena.scrollable_overflow.geometry_changed.replace(false);
-    let flipped = arena.scrollable_overflow.scrollability_changed.replace(false);
-    let mut visual_context_values_changed = false;
-    if changed && !flipped && !visual_context_update_pending {
-        let rows = arena.paintable_rows();
-        let mut state = arena.paint_state().borrow_mut();
-        let state = &mut state.visual_context;
-        if let Some(tree) = state.tree.as_mut() {
-            visual_context_values_changed = crate::painting::visual_context::refresh::refresh_sticky_constraints(
-                &rows,
-                &state.scroll_state,
-                tree,
-                &arena.visual_context_tree_inputs(),
-            );
-        }
-        state.needs_to_refresh_scroll_state = true;
-    }
-    FfiRenderingPreparationOutcome {
-        requires_display_list_recording: changed || background_source_changed,
-        requires_visual_context_update: flipped,
-        visual_context_values_changed,
-    }
 }
 
 #[derive(Default)]
@@ -584,7 +385,7 @@ pub unsafe extern "C" fn layout_arena_paintable_visual_context_copy_node_indices
     });
 }
 
-fn apply_walk_assignments(
+pub(super) fn apply_walk_assignments(
     arena: &mut crate::layout::LayoutNodeArena,
     viewport: NodeSlotId,
     outcome: &mut crate::painting::visual_context::incremental::IncrementalUpdateOutcome,
@@ -598,74 +399,6 @@ fn apply_walk_assignments(
     }
     if outcome.mask_node_owners_changed {
         state.paintables_with_mask_nodes = paintables_with_mask_nodes_in_paint_order(arena, viewport);
-    }
-}
-
-fn fresh_visual_context_tree_build(
-    arena: *mut c_void,
-    viewport: NodeSlotId,
-    inputs: crate::painting::host::FfiVisualContextTreeInputs,
-    state: &mut crate::painting::visual_context::VisualContextState,
-) -> crate::painting::host::FfiVisualContextUpdateOutcome {
-    use crate::painting::visual_context::dirty::VisualContextUpdateScope;
-    use crate::painting::visual_context::incremental::{
-        IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
-    };
-    let fresh_tree = {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paintable_rows = arena.paintable_rows();
-        let mut fresh_tree = crate::painting::visual_context::build::create_fresh_tree_with_viewport_nodes(
-            &paintable_rows,
-            viewport,
-            &inputs,
-        );
-        fresh_tree.viewport_assignment.node_identity = arena.unique_node_ids().id(viewport);
-        fresh_tree
-    };
-    {
-        let arena = unsafe { arena_from_handle_mut(arena) };
-        let mut paintable_rows = arena.paintable_rows_mut();
-        paintable_rows.drop_all_visual_context_records();
-        fresh_tree.viewport_assignment.apply(&mut paintable_rows);
-    }
-    state.tree = Some(std::sync::Arc::new(fresh_tree.tree));
-    state.dirty_boxes.clear();
-    state.build_count += 1;
-    let mut outcome = {
-        let arena = unsafe { arena_from_handle(arena) };
-        let paintable_rows = arena.paintable_rows();
-        match update_visual_context_tree(
-            &paintable_rows,
-            viewport,
-            inputs,
-            VisualContextUpdateScope::FreshTree,
-            state,
-        ) {
-            IncrementalUpdateResult::Applied(outcome) => *outcome,
-            IncrementalUpdateResult::NeedsFullBuild(_) => {
-                unreachable!("a fresh tree walk has a tree and a viewport record")
-            }
-        }
-    };
-    let arena = unsafe { arena_from_handle_mut(arena) };
-    outcome.mask_node_owners_changed = true;
-    // Everything records again; pushing that first keeps the per-row pushes below free.
-    arena.push_all_paint_damage();
-    apply_walk_assignments(arena, viewport, &mut outcome, state);
-    arena.rebuild_all_stacking_context_entries_from_records(viewport);
-    arena.take_line_roots_needing_fragment_ownership();
-    crate::painting::fragment_ownership::assign_fragment_ownership(&arena.paintable_rows(), viewport);
-    state.quarantined_slots_are_releasable = false;
-    debug_assert_every_live_node_is_owned(
-        &arena.paintable_rows(),
-        state.tree.as_deref().expect("a fresh tree walk keeps the tree"),
-        viewport,
-    );
-    crate::painting::host::FfiVisualContextUpdateOutcome {
-        performed_full_build: true,
-        structural_epoch_changed: true,
-        requires_display_list_recording: true,
-        structural_epoch: state.structural_epoch(),
     }
 }
 
@@ -1950,15 +1683,15 @@ mod tests {
         arena.paintable_side_data(root).overflow_measured_this_commit.set(true);
         arena.paint_state().borrow_mut().visual_context.dirty_boxes.clear();
 
-        let outcome = prepare_for_rendering(
-            &crate::stage::MainThread::for_test(),
+        let outcome = crate::painting::paint_passes::prepare_for_rendering(
             &arena,
             RootBackgroundSource {
                 root_layout_node: root,
                 ..Default::default()
             },
             false,
-        );
+        )
+        .outcome;
         assert!(outcome.requires_visual_context_update);
         assert!(
             arena.paint_state().borrow().visual_context.dirty_boxes.boxes[&root]

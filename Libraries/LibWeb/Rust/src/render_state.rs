@@ -153,6 +153,12 @@ pub(crate) enum RenderMessage {
         job: crate::layout::LayoutStageJob,
         reply: ReplyTo<crate::layout::LayoutStageOutput>,
     },
+    /// A step of paint preparation the host waits for.
+    Paint {
+        document: DocumentId,
+        pass: crate::painting::paint_passes::PaintPass,
+        reply: ReplyTo<crate::painting::paint_passes::PaintPassAnswer>,
+    },
     /// A question about a document's render state the host waits for the answer to.
     Ask {
         document: DocumentId,
@@ -213,6 +219,11 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
             let (arena, _) = state_parts(document).expect("a document the host lays out has a render state");
             // SAFETY: As for a change. The host keeps what the job's inputs name until it has the answer.
             job.run(unsafe { &*arena })
+        }),
+        RenderMessage::Paint { document, pass, reply } => reply.answer(|| {
+            let (arena, _) = state_parts(document).expect("a document the host paints has a render state");
+            // SAFETY: As for a change.
+            pass.run(unsafe { &mut *arena }.arena_mut())
         }),
         RenderMessage::Ask { document, query, reply } => reply.answer(|| {
             let (arena, engine) = state_parts(document).expect("a document the host asks about has a render state");

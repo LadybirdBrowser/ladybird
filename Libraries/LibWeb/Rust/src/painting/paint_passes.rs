@@ -1,0 +1,299 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! The steps of paint preparation, as passes the host sends its document's render state and waits for. A pass reads
+//! and writes the arena alone: what it owes the host, such as the scroll offsets it clamped, comes back in its answer.
+
+use crate::css::css_pixels::CssPixelPoint;
+use crate::layout::LayoutNodeArena;
+use crate::layout::node_data::NodeSlotId;
+use crate::painting::host::{FfiVisualContextUpdateOutcome, RootBackgroundSource};
+use crate::painting::visual_context::VisualContextState;
+use crate::painting::visual_context::dirty::{VisualContextGlobalRebuildReason, VisualContextUpdateScope};
+use crate::painting::visual_context::incremental::{
+    IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
+};
+use crate::render_state::{DocumentHost, LockstepProof, RenderMessage, wait_for_render_state};
+use libgfx_rust::FloatPoint;
+
+/// One step of paint preparation over a document's render state.
+pub(crate) enum PaintPass {
+    /// Settles the scrollable overflow left unmeasured, and with it the root background and the sticky constraints.
+    PrepareForRendering { visual_context_update_pending: bool },
+    /// Brings the visual context tree up to date with the rows, rebuilding what the dirty boxes name.
+    UpdateAccumulatedVisualContexts { viewport: NodeSlotId },
+    /// Gives the visual context tree the transform of the visual viewport.
+    UpdateVisualViewportTransform,
+    /// Re-reads the scroll containers' offsets, when something invalidated them or `force` asks.
+    RefreshScrollState { force: bool },
+}
+
+/// What a paint pass answers.
+pub(crate) enum PaintPassAnswer {
+    Prepared(RenderingPreparation),
+    VisualContexts(FfiVisualContextUpdateOutcome),
+    VisualViewportTransform,
+    /// The dense device-pixel offsets of every scroll container, or none where nothing was refreshed.
+    ScrollState(Option<Vec<FloatPoint>>),
+}
+
+#[derive(Default)]
+#[repr(C)]
+pub struct FfiRenderingPreparationOutcome {
+    pub requires_display_list_recording: bool,
+    pub requires_visual_context_update: bool,
+    pub visual_context_values_changed: bool,
+}
+
+/// What preparing for rendering answers: its outcome, and the scroll offsets the new overflow moved out of range,
+/// each clamped into it, for the host to store.
+pub(crate) struct RenderingPreparation {
+    pub(crate) outcome: FfiRenderingPreparationOutcome,
+    pub(crate) clamped_scroll_offsets: Vec<(NodeSlotId, CssPixelPoint)>,
+}
+
+impl PaintPass {
+    /// Runs the pass over `arena`.
+    pub(crate) fn run(self, arena: &mut LayoutNodeArena) -> PaintPassAnswer {
+        match self {
+            Self::PrepareForRendering {
+                visual_context_update_pending,
+            } => {
+                let root_background_source = crate::layout::viewport_propagation::root_background_source(arena);
+                PaintPassAnswer::Prepared(prepare_for_rendering(
+                    arena,
+                    root_background_source,
+                    visual_context_update_pending,
+                ))
+            }
+            Self::UpdateAccumulatedVisualContexts { viewport } => {
+                PaintPassAnswer::VisualContexts(update_accumulated_visual_contexts(arena, viewport))
+            }
+            Self::UpdateVisualViewportTransform => {
+                update_visual_viewport_transform(arena);
+                PaintPassAnswer::VisualViewportTransform
+            }
+            Self::RefreshScrollState { force } => PaintPassAnswer::ScrollState(refresh_scroll_state(arena, force)),
+        }
+    }
+}
+
+/// The reason the host waits for its document's render state as it prepares to paint.
+pub(crate) struct HostPaintStep {
+    _private: (),
+}
+
+const HOST_PAINT_STEP: HostPaintStep = HostPaintStep { _private: () };
+
+/// Runs `pass` on the render state of `host`'s document, and answers what it answered.
+pub(crate) fn run(host: &DocumentHost, pass: PaintPass) -> PaintPassAnswer {
+    let document = host.document();
+    wait_for_render_state(LockstepProof::for_reason(&HOST_PAINT_STEP), host, |reply| {
+        RenderMessage::Paint { document, pass, reply }
+    })
+}
+
+pub(crate) fn prepare_for_rendering(
+    arena: &LayoutNodeArena,
+    root_background_source: RootBackgroundSource,
+    visual_context_update_pending: bool,
+) -> RenderingPreparation {
+    let background_source_changed = arena
+        .paint_state()
+        .borrow_mut()
+        .update_root_background_source(arena, root_background_source);
+    // This measures all overflow left unmeasured, including the root's: the root background covers
+    // the viewport united with it, so a flip in its scrollability is seen here rather than while
+    // recording holds the paint state.
+    let clamped_scroll_offsets = crate::painting::scrollable_overflow::update_scrollable_overflow(arena);
+    let changed = arena.scrollable_overflow.geometry_changed.replace(false);
+    let flipped = arena.scrollable_overflow.scrollability_changed.replace(false);
+    let mut visual_context_values_changed = false;
+    if changed && !flipped && !visual_context_update_pending {
+        let rows = arena.paintable_rows();
+        let mut state = arena.paint_state().borrow_mut();
+        let state = &mut state.visual_context;
+        if let Some(tree) = state.tree.as_mut() {
+            visual_context_values_changed = crate::painting::visual_context::refresh::refresh_sticky_constraints(
+                &rows,
+                &state.scroll_state,
+                tree,
+                &arena.visual_context_tree_inputs(),
+            );
+        }
+        state.needs_to_refresh_scroll_state = true;
+    }
+    RenderingPreparation {
+        outcome: FfiRenderingPreparationOutcome {
+            requires_display_list_recording: changed || background_source_changed,
+            requires_visual_context_update: flipped,
+            visual_context_values_changed,
+        },
+        clamped_scroll_offsets,
+    }
+}
+
+fn refresh_scroll_state(arena: &LayoutNodeArena, force: bool) -> Option<Vec<FloatPoint>> {
+    arena.measure_scrollable_overflow();
+    let paintable_rows = arena.paintable_rows();
+    let mut paint_state = arena.paint_state().borrow_mut();
+    let state = &mut paint_state.visual_context;
+    if !force && !state.needs_to_refresh_scroll_state {
+        return None;
+    }
+    state.needs_to_refresh_scroll_state = false;
+    crate::painting::visual_context::refresh::refresh_scroll_state(&paintable_rows, &mut state.scroll_state);
+    let mut snapshot = state
+        .scroll_state
+        .snapshot(arena.visual_context_tree_inputs().device_pixels_per_css_pixel);
+    // https://drafts.csswg.org/css-position/#sticky-pos
+    if let Some(tree) = state.tree.as_deref() {
+        tree.resolve_sticky_offsets_in_place(&mut snapshot);
+    }
+    Some(snapshot)
+}
+
+fn update_visual_viewport_transform(arena: &LayoutNodeArena) {
+    let mut paint_state = arena.paint_state().borrow_mut();
+    if let Some(tree) = &mut paint_state.visual_context.tree {
+        std::sync::Arc::make_mut(tree).set_visual_viewport_transform(
+            crate::painting::visual_context::node_values::visual_viewport_transform_data(
+                &arena.visual_context_tree_inputs(),
+            ),
+        );
+    }
+}
+
+fn update_accumulated_visual_contexts(
+    arena: &mut LayoutNodeArena,
+    viewport: NodeSlotId,
+) -> FfiVisualContextUpdateOutcome {
+    arena.measure_scrollable_overflow();
+    if !arena.paintable_row_is_populated(viewport) {
+        return FfiVisualContextUpdateOutcome::default();
+    }
+    let inputs = arena.visual_context_tree_inputs();
+    let mut state = std::mem::take(&mut arena.paint_state().borrow_mut().visual_context);
+    state.release_quarantined_slots_while_no_handle_is_retained();
+
+    let mut reason = state.dirty_boxes.global_reason;
+    if state.tree.is_none() {
+        reason = reason.max(VisualContextGlobalRebuildReason::FirstBuild);
+    }
+    if state.last_tree_inputs.is_some_and(|last| {
+        last.device_pixels_per_css_pixel != inputs.device_pixels_per_css_pixel
+            || last.viewport_wheel_overflow_x != inputs.viewport_wheel_overflow_x
+            || last.viewport_wheel_overflow_y != inputs.viewport_wheel_overflow_y
+    }) {
+        reason = reason.max(VisualContextGlobalRebuildReason::TreeInputsChanged);
+    }
+    if state.tree.as_deref().is_some_and(|tree| tree.should_compact()) {
+        reason = reason.max(VisualContextGlobalRebuildReason::Compaction);
+    }
+
+    loop {
+        let scope = VisualContextUpdateScope::for_reason(reason);
+        if scope == VisualContextUpdateScope::FreshTree {
+            break;
+        }
+        let result = update_visual_context_tree(&arena.paintable_rows(), viewport, inputs, scope, &mut state);
+        match result {
+            IncrementalUpdateResult::Applied(mut outcome) => {
+                super::ffi::apply_walk_assignments(arena, viewport, &mut outcome, &mut state);
+                arena.resort_stacking_context_entries_flagged_for_resort();
+                crate::painting::fragment_ownership::assign_fragment_ownership_for_pending_line_roots(arena);
+                let performed_full_build = scope == VisualContextUpdateScope::EveryBox;
+                if performed_full_build {
+                    state.build_count += 1;
+                    state.last_full_build_reason = reason;
+                    debug_assert_every_live_node_is_owned(
+                        &arena.paintable_rows(),
+                        state.tree.as_deref().expect("an applied walk keeps the tree"),
+                        viewport,
+                    );
+                } else {
+                    state.incremental_update_count += 1;
+                }
+                state.dirty_boxes.clear();
+                state.last_tree_inputs = Some(inputs);
+                let outcome = FfiVisualContextUpdateOutcome {
+                    performed_full_build,
+                    structural_epoch_changed: outcome.delta.structural_epoch_changed,
+                    requires_display_list_recording: outcome.delta.requires_display_list_recording,
+                    structural_epoch: state.structural_epoch(),
+                };
+                arena.paint_state().borrow_mut().visual_context = state;
+                return outcome;
+            }
+            IncrementalUpdateResult::NeedsFullBuild(fallback_reason) => {
+                assert!(
+                    VisualContextUpdateScope::for_reason(fallback_reason) > scope,
+                    "a fallback widens the update scope"
+                );
+                reason = fallback_reason;
+            }
+        }
+    }
+
+    state.last_full_build_reason = reason;
+    let outcome = fresh_visual_context_tree_build(arena, viewport, inputs, &mut state);
+    state.last_tree_inputs = Some(inputs);
+    arena.paint_state().borrow_mut().visual_context = state;
+    outcome
+}
+
+fn fresh_visual_context_tree_build(
+    arena: &mut LayoutNodeArena,
+    viewport: NodeSlotId,
+    inputs: crate::painting::host::FfiVisualContextTreeInputs,
+    state: &mut VisualContextState,
+) -> FfiVisualContextUpdateOutcome {
+    let mut fresh_tree = crate::painting::visual_context::build::create_fresh_tree_with_viewport_nodes(
+        &arena.paintable_rows(),
+        viewport,
+        &inputs,
+    );
+    fresh_tree.viewport_assignment.node_identity = arena.unique_node_ids().id(viewport);
+    {
+        let mut paintable_rows = arena.paintable_rows_mut();
+        paintable_rows.drop_all_visual_context_records();
+        fresh_tree.viewport_assignment.apply(&mut paintable_rows);
+    }
+    state.tree = Some(std::sync::Arc::new(fresh_tree.tree));
+    state.dirty_boxes.clear();
+    state.build_count += 1;
+    let mut outcome = match update_visual_context_tree(
+        &arena.paintable_rows(),
+        viewport,
+        inputs,
+        VisualContextUpdateScope::FreshTree,
+        state,
+    ) {
+        IncrementalUpdateResult::Applied(outcome) => *outcome,
+        IncrementalUpdateResult::NeedsFullBuild(_) => {
+            unreachable!("a fresh tree walk has a tree and a viewport record")
+        }
+    };
+    outcome.mask_node_owners_changed = true;
+    // Everything records again; pushing that first keeps the per-row pushes below free.
+    arena.push_all_paint_damage();
+    super::ffi::apply_walk_assignments(arena, viewport, &mut outcome, state);
+    arena.rebuild_all_stacking_context_entries_from_records(viewport);
+    arena.take_line_roots_needing_fragment_ownership();
+    crate::painting::fragment_ownership::assign_fragment_ownership(&arena.paintable_rows(), viewport);
+    state.quarantined_slots_are_releasable = false;
+    debug_assert_every_live_node_is_owned(
+        &arena.paintable_rows(),
+        state.tree.as_deref().expect("a fresh tree walk keeps the tree"),
+        viewport,
+    );
+    FfiVisualContextUpdateOutcome {
+        performed_full_build: true,
+        structural_epoch_changed: true,
+        requires_display_list_recording: true,
+        structural_epoch: state.structural_epoch(),
+    }
+}

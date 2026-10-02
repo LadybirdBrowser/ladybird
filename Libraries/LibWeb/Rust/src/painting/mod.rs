@@ -26,6 +26,7 @@ pub(crate) mod node_painting;
 pub(crate) mod paint_changes;
 pub(crate) mod paint_order;
 pub(crate) mod paint_order_plan;
+pub(crate) mod paint_passes;
 pub(crate) mod paint_read;
 pub mod paint_state;
 pub mod paintable_build;
