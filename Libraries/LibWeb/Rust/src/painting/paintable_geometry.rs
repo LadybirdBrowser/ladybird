@@ -13,7 +13,6 @@ use crate::layout::{
 use crate::painting::node_painting;
 use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_data::*;
-use crate::painting::paintable_rows::PaintableRowsRead;
 
 pub(crate) fn committed_offset(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelPoint {
     let data = arena.paintable_data(slot);
@@ -318,8 +317,8 @@ pub(crate) fn absolute_border_box_rect(arena: &impl GeometryRead, slot: NodeSlot
     )
 }
 
-pub(crate) fn scrollable_overflow_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<CssPixelRect> {
-    arena.ensure_scrollable_overflow(slot);
+/// The overflow the pass measured. Reading it never measures it.
+pub(crate) fn scrollable_overflow_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> Option<CssPixelRect> {
     if !arena.paintable_row_is_populated(slot) {
         return None;
     }
@@ -333,13 +332,10 @@ pub(crate) fn scrollable_overflow_rect(arena: &impl PaintableRowsRead, slot: Nod
     )
 }
 
-pub(crate) fn has_scrollable_overflow(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
-    arena.ensure_scrollable_overflow(slot);
-    arena.paintable_row_is_populated(slot)
-        && arena.paintable_side_data(slot).overflow_valid_across_recommits.get()
-        && arena
-            .paintable_side_data(slot)
-            .overflow_relative_to_padding_box
-            .get()
-            .has_scrollable_overflow
+pub(crate) fn has_scrollable_overflow(arena: &impl GeometryRead, slot: NodeSlotId) -> bool {
+    if !arena.paintable_row_is_populated(slot) {
+        return false;
+    }
+    let cache = arena.paintable_side_data(slot);
+    cache.overflow_valid_across_recommits.get() && cache.overflow_relative_to_padding_box.get().has_scrollable_overflow
 }

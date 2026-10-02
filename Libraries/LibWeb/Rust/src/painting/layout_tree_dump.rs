@@ -147,6 +147,8 @@ pub unsafe extern "C" fn layout_arena_dump_layout_tree(
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    // SAFETY: As above.
+    unsafe { arena_from_handle(arena) }.measure_scrollable_overflow();
     let context = LayoutTreeDumpContext {
         arena_handle: arena,
         interactive,

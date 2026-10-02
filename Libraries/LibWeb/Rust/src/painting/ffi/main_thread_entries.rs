@@ -30,6 +30,7 @@ pub unsafe extern "C" fn layout_arena_scrolling_box_for_scroll_step(
     viewport_wheel_overflow_y: u8,
 ) -> NodeSlotId {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     crate::painting::scroll_chain::scrolling_box_for_scroll_step(
         &arena.paintable_rows(),
         target,
@@ -58,6 +59,7 @@ pub unsafe extern "C" fn layout_arena_for_each_wheel_scrollable_box_in_containin
     push_scrollable_box: unsafe extern "C" fn(*mut c_void, NodeSlotId, f64, f64),
 ) {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     crate::painting::scroll_chain::for_each_wheel_scrollable_box_in_containing_block_chain(
         &arena.paintable_rows(),
         start,
@@ -85,6 +87,7 @@ pub unsafe extern "C" fn layout_arena_first_wheel_scrollable_box_in_containing_b
     viewport_wheel_overflow_y: u8,
 ) -> NodeSlotId {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     crate::painting::scroll_chain::first_wheel_scrollable_box_in_containing_block_chain(
         &arena.paintable_rows(),
         start,

@@ -3461,6 +3461,16 @@ impl LayoutNodeArena {
         if flag == NodeFlag::HasAnimatedOpacityOrTransform && updated != previous {
             self.push_paint_damage(id, crate::painting::record::damage::PaintDamage::ELIGIBILITY);
         }
+        // A commit leaves an ordinary inline's overflow unmeasured, since nothing reads it. Once the
+        // inline stores a scroll offset, its overflow clamps that offset, so the pass measures it.
+        if flag == NodeFlag::HasScrollOffset
+            && value
+            && updated != previous
+            && self.paintable_row_is_populated(id)
+            && !self.paintable_side_data(id).overflow_measured_this_commit.get()
+        {
+            self.note_row_overflow_unmeasured(id);
+        }
     }
 
     pub(crate) fn node_has_compositor_animation_frame(

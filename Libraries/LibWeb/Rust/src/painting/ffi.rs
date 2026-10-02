@@ -178,6 +178,7 @@ pub unsafe extern "C" fn layout_arena_paintable_compute_scrollbar_data(
     device_pixels_per_css_pixel: f64,
 ) -> FfiOptionalScrollbarData {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     let paintable_rows = arena.paintable_rows();
     let data = crate::painting::chrome_geometry::ChromeGeometry {
         arena: &paintable_rows,
@@ -217,6 +218,7 @@ pub unsafe extern "C" fn layout_arena_paintable_minimum_scroll_offset(
     slot: NodeSlotId,
 ) -> FfiCssPixelPoint {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     crate::painting::chrome_geometry::minimum_scroll_offset(&arena.paintable_rows(), slot).into()
 }
 
@@ -229,6 +231,7 @@ pub unsafe extern "C" fn layout_arena_paintable_maximum_scroll_offset(
     slot: NodeSlotId,
 ) -> FfiCssPixelPoint {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     crate::painting::chrome_geometry::maximum_scroll_offset(&arena.paintable_rows(), slot).into()
 }
 
@@ -243,6 +246,7 @@ pub unsafe extern "C" fn layout_arena_paintable_wheel_scrollable_axes(
     viewport_overflow_y: u8,
 ) -> FfiPhysicalResizeAxes {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     let axes = crate::painting::chrome_geometry::wheel_scrollable_axes(
         &arena.paintable_rows(),
         slot,
@@ -430,6 +434,7 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
     publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
 ) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     let snapshot = {
         let paintable_rows = arena.paintable_rows();
         let mut paint_state = arena.paint_state().borrow_mut();
@@ -481,6 +486,7 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
         IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
     };
     let arena_ref = unsafe { arena_from_handle(arena) };
+    arena_ref.measure_scrollable_overflow();
     if !arena_ref.paintable_row_is_populated(viewport) {
         return crate::painting::host::FfiVisualContextUpdateOutcome::default();
     }
@@ -602,6 +608,7 @@ pub unsafe extern "C" fn layout_arena_paintable_scrollable_overflow(
     slot: NodeSlotId,
 ) -> FfiOptionalOverflowData {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     let Some(rect) = crate::painting::paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), slot)
     else {
         return FfiOptionalOverflowData::default();
@@ -629,11 +636,10 @@ fn prepare_for_rendering(
         .paint_state()
         .borrow_mut()
         .update_root_background_source(arena, root_background_source);
+    // This measures all overflow left unmeasured, including the root's: the root background covers
+    // the viewport united with it, so a flip in its scrollability is seen here rather than while
+    // recording holds the paint state.
     crate::painting::scrollable_overflow::update_scrollable_overflow(main_thread, arena);
-    // The root background covers the viewport united with the root's scrollable overflow, which
-    // recording reads. Measure it here: measuring it lazily during recording could flip its
-    // scrollability while the paint state is borrowed, and the flip would miss this frame.
-    arena.ensure_scrollable_overflow(root_background_source.root_layout_node);
     let changed = arena.scrollable_overflow.geometry_changed.replace(false);
     let flipped = arena.scrollable_overflow.scrollability_changed.replace(false);
     let mut visual_context_values_changed = false;
@@ -1086,6 +1092,7 @@ pub unsafe extern "C" fn layout_arena_snap_container_geometry(
     out_geometry: *mut crate::painting::host::FfiSnapContainerGeometry,
 ) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
+    arena.measure_scrollable_overflow();
     let Some(geometry) = crate::painting::scroll_snap::snap_container_geometry(&arena.paintable_rows(), snap_container)
     else {
         return false;
@@ -1260,6 +1267,8 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     inputs: crate::painting::host::FfiRecordingInputs,
 ) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
+    // Recording reads overflow, and reading overflow never measures it.
+    arena.measure_scrollable_overflow();
     {
         let mut paint_state = arena.paint_state().borrow_mut();
         debug_assert!(
@@ -3120,6 +3129,8 @@ fn with_hit_test_list_items_only<R>(
 ) -> R {
     // SAFETY: The caller passes a live arena handle (documented on every entry point below).
     let arena = unsafe { arena_from_handle(arena) };
+    // Hit testing reads overflow, and reading overflow never measures it.
+    arena.measure_scrollable_overflow();
     let hit_test_list = arena.hit_test_list.borrow();
     let Some(list) = hit_test_list.as_ref() else {
         return default;
@@ -3134,6 +3145,8 @@ fn with_hit_test_list_and_caret_lines<R>(
 ) -> R {
     // SAFETY: The caller passes a live arena handle (documented on every entry point below).
     let arena = unsafe { arena_from_handle(arena) };
+    // Hit testing reads overflow, and reading overflow never measures it.
+    arena.measure_scrollable_overflow();
     let mut hit_test_list = arena.hit_test_list.borrow_mut();
     let Some(list) = hit_test_list.as_mut() else {
         return default;
@@ -3154,6 +3167,8 @@ fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
 ) -> R {
     // SAFETY: The caller passes a live arena handle (documented on every entry point below).
     let arena = unsafe { arena_from_handle(arena) };
+    // Hit testing reads overflow, and reading overflow never measures it.
+    arena.measure_scrollable_overflow();
     let mut hit_test_list = arena.hit_test_list.borrow_mut();
     let Some(list) = hit_test_list.as_mut() else {
         return default;

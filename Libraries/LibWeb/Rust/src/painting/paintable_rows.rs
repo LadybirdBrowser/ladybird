@@ -56,6 +56,7 @@ mod tests {
             .paintable_data_mut(node)
             .local_padding_box_union = rect.into();
 
+        arena.measure_scrollable_overflow();
         let rows = arena.paintable_rows();
         assert_eq!(paintable_geometry::scrollable_overflow_rect(&rows, node), None);
         assert!(!paintable_geometry::has_scrollable_overflow(&rows, node));
@@ -63,7 +64,42 @@ mod tests {
     }
 
     #[test]
-    fn overflow_queries_refresh_invalidated_data_while_geometry_is_borrowed() {
+    fn inline_that_starts_storing_a_scroll_offset_is_measured_before_recording() {
+        use crate::css::css_pixels::{CssPixelRect, CssPixels};
+        use crate::layout::node_data::NodeKind;
+        use crate::painting::paintable_geometry;
+
+        let mut arena = LayoutNodeArena::new();
+        let node = arena.allocate_for_test().slot;
+        arena.data(node).kind.set(NodeKind::InlineNode);
+        arena.populate_paintable_row(node);
+        arena.scrollable_overflow.viewport.set(Some(node));
+        let rect = CssPixelRect::new(
+            CssPixels::from_integer(0),
+            CssPixels::from_integer(0),
+            CssPixels::from_integer(100),
+            CssPixels::from_integer(80),
+        );
+        arena
+            .paintable_rows_mut()
+            .paintable_data_mut(node)
+            .local_padding_box_union = rect.into();
+        arena.measure_scrollable_overflow();
+        assert_eq!(
+            paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), node),
+            None
+        );
+
+        arena.set_node_flag(node, NodeFlag::HasScrollOffset, true);
+        arena.measure_scrollable_overflow();
+        assert_eq!(
+            paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), node),
+            Some(rect)
+        );
+    }
+
+    #[test]
+    fn overflow_is_measured_before_recording_while_geometry_is_borrowed() {
         use crate::css::css_pixels::{CssPixelRect, CssPixels};
         use crate::layout::node_data::NodeKind;
         use crate::painting::paintable_geometry;
@@ -97,6 +133,10 @@ mod tests {
         let geometry = rows.paintable_data(node);
         let previous_geometry = *geometry;
         rows.clear_cached_overflow_data(node);
+        // Reading overflow never measures it.
+        assert_eq!(paintable_geometry::scrollable_overflow_rect(&rows, node), None);
+        assert!(!arena.scrollable_overflow.geometry_changed.get());
+        arena.measure_scrollable_overflow();
         assert_eq!(paintable_geometry::scrollable_overflow_rect(&rows, node), Some(rect));
         assert!(!paintable_geometry::has_scrollable_overflow(&rows, node));
         assert_eq!(*geometry, previous_geometry);
@@ -292,10 +332,14 @@ where
         if !self.paintable_row_is_populated(id) {
             return;
         }
-        self.arena
+        if self
+            .arena
             .paintable_side_data(id)
             .overflow_valid_across_recommits
-            .set(false);
+            .replace(false)
+        {
+            self.arena.note_row_overflow_unmeasured(id);
+        }
     }
 
     /// A style repaint of a row also repaints the anonymous boxes it generated and, for an
@@ -702,6 +746,7 @@ impl LayoutNodeArena {
         absolute_rect_memo[index] = None;
         visual_context_records[index] = None;
         stacking_context_entries[index] = None;
+        self.scrollable_overflow.rows_to_measure.get_mut().push(layout_node);
         drop((
             side_data,
             row_paint_states,

@@ -345,7 +345,7 @@ fn store_overflow_data(
 }
 
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-calculation
-pub(crate) fn measure_scrollable_overflow(
+pub(crate) fn measure_box_scrollable_overflow(
     layout_arena: &impl PaintableRowsRead,
     non_child_boxes_by_containing_block: &HashMap<NodeSlotId, Vec<NodeSlotId>>,
     box_paintable: NodeSlotId,
@@ -721,6 +721,9 @@ pub(crate) struct ScrollableOverflowState {
     pub(crate) geometry_changed: Cell<bool>,
     pub(crate) scrollability_changed: Cell<bool>,
     pub(crate) recalculations: Cell<u64>,
+    /// Rows whose overflow a read could find unmeasured: new rows, and rows whose measurement was
+    /// invalidated. Reading overflow never measures it, so the pass measures these first.
+    pub(crate) rows_to_measure: RefCell<Vec<NodeSlotId>>,
 }
 
 impl LayoutNodeArena {
@@ -762,7 +765,32 @@ impl LayoutNodeArena {
         self.clear_pending_rebuilt_subtree_roots();
     }
 
-    pub(crate) fn ensure_scrollable_overflow(&self, slot: NodeSlotId) {
+    /// Measures every row whose overflow a read could find unmeasured, so that reading overflow
+    /// never measures it. Rendering preparation, hit testing, the recording and every query that
+    /// reads overflow run this first; it never clamps a stored scroll offset.
+    pub(crate) fn measure_scrollable_overflow(&self) {
+        if self.scrollable_overflow.rows_to_measure.borrow().is_empty()
+            || !self
+                .scrollable_overflow
+                .viewport
+                .get()
+                .is_some_and(|viewport| self.paintable_row_is_populated(viewport))
+        {
+            return;
+        }
+        let rows = std::mem::take(&mut *self.scrollable_overflow.rows_to_measure.borrow_mut());
+        for slot in rows {
+            if self.slot_is_live(slot) {
+                self.ensure_scrollable_overflow(slot);
+            }
+        }
+    }
+
+    pub(crate) fn note_row_overflow_unmeasured(&self, slot: NodeSlotId) {
+        self.scrollable_overflow.rows_to_measure.borrow_mut().push(slot);
+    }
+
+    fn ensure_scrollable_overflow(&self, slot: NodeSlotId) {
         if !self.paintable_row_is_populated(slot)
             || !self
                 .scrollable_overflow
@@ -786,7 +814,8 @@ impl LayoutNodeArena {
         }
         self.ensure_overflow_contained_boxes();
         let rows = self.paintable_rows();
-        let assignments = measure_scrollable_overflow(&rows, &self.scrollable_overflow.non_child_boxes.borrow(), slot);
+        let assignments =
+            measure_box_scrollable_overflow(&rows, &self.scrollable_overflow.non_child_boxes.borrow(), slot);
         for assignment in assignments {
             assignment.apply(&rows);
         }
@@ -803,7 +832,14 @@ fn box_holds_scroll_state(arena: &LayoutNodeArena, slot: NodeSlotId) -> bool {
         || arena.node_flags_if_live(slot) & crate::layout::node_data::NodeFlag::HasScrollOffset as u32 != 0
 }
 
+/// Settles the scheduled recalculation, clamping the scroll offsets it moved out of range, then
+/// measures every other row left unmeasured.
 pub(crate) fn update_scrollable_overflow(main_thread: &crate::stage::MainThread, arena: &LayoutNodeArena) {
+    settle_scheduled_scrollable_overflow(main_thread, arena);
+    arena.measure_scrollable_overflow();
+}
+
+fn settle_scheduled_scrollable_overflow(main_thread: &crate::stage::MainThread, arena: &LayoutNodeArena) {
     let Some(viewport) = arena.scrollable_overflow.viewport.get() else {
         return;
     };
@@ -818,10 +854,9 @@ pub(crate) fn update_scrollable_overflow(main_thread: &crate::stage::MainThread,
         .set(arena.scrollable_overflow.recalculations.get() + 1);
     arena.ensure_overflow_contained_boxes();
 
-    // Ordinary boxes are measured when their contribution or geometry is queried. Settle
-    // scroll containers and stored offsets before DOM reads or painting observe them.
-    // Keep already measured ancestors in the set so changes invalidate their paint caches
-    // even when a cached recording would otherwise skip the subtree.
+    // Settle scroll containers and stored offsets first. Keep already measured ancestors in the
+    // set so changes invalidate their paint caches even when a cached recording would otherwise
+    // skip the subtree.
     let mut roots = Vec::new();
     let mut seen = crate::fast_hash::FastSet::default();
     let mut add = |slot: NodeSlotId| {
