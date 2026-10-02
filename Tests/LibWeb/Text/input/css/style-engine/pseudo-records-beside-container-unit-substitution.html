@@ -9,9 +9,8 @@
 <ul><li id="target" style="--width: 10cqw; width: var(--width)"></li></ul>
 <script>
     test(() => {
-        // The element's pseudo-elements settle beside a record C++ computed: a container unit
-        // substituted into the element's own style keeps its record with C++, which the count of
-        // C++ recomputations shows.
+        // The element's pseudo-elements settle beside its own record, which substitutes a
+        // container unit and so stays out of every record cache.
         const target = document.getElementById("target");
         internals.updateStyle();
         const start = internals.styleEngineCounters();

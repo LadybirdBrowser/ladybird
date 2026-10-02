@@ -8,10 +8,10 @@
 <div id="ex"></div>
 <script>
     test(() => {
-        // The element's pseudo-elements settle beside a record C++ computed: a container unit
-        // substituted into the element's own style keeps its record with C++, which the count of C++
-        // recomputations shows. ::before settles first; ::after's monospace recascade then waits for the monospace
-        // font under the ex-sized ancestor. The retry resumes the settlement instead of refusing it.
+        // The element's pseudo-elements settle beside its own record, which substitutes a
+        // container unit and so stays out of every record cache. ::before settles first;
+        // ::after's monospace recascade then waits for the monospace font under the ex-sized
+        // ancestor. The retry resumes the settlement instead of refusing it.
         internals.updateStyle();
         const target = document.createElement("span");
         target.id = "target";

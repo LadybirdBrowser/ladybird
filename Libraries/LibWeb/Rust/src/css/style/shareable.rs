@@ -70,6 +70,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         custom_declaration_reads,
         nodes_with_tree_counting_records,
         nodes_with_rolled_back_records,
+        nodes_with_element_relative_substitutions,
         element_custom_property_data,
         pseudo_element_custom_property_data,
         environment_move_recompute_nodes,
@@ -184,6 +185,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(custom_declaration_reads);
     assert_member_is_sync(nodes_with_tree_counting_records);
     assert_member_is_sync(nodes_with_rolled_back_records);
+    assert_member_is_sync(nodes_with_element_relative_substitutions);
     assert_member_is_sync(element_custom_property_data);
     assert_member_is_sync(pseudo_element_custom_property_data);
     assert_member_is_sync(environment_move_recompute_nodes);

@@ -1055,7 +1055,7 @@ impl RetainedState {
                     counters,
                 )?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
-                if !element_alone && !self.record_rolls_back_substitution(node) {
+                if !element_alone && !self.records_are_the_elements_alone(node) {
                     scratch.stores.insert((state, current_environment), store.clone());
                 }
                 if substituted {
@@ -1209,7 +1209,7 @@ impl RetainedState {
         // A record driven in full stands for a cohort keyed by the parent's inherited inputs only
         // when the drive was partial.
         if !driver_input_moved
-            && !self.record_rolls_back_substitution(node)
+            && !self.records_are_the_elements_alone(node)
             && let Some(cohort) = cohort
         {
             scratch
@@ -1549,7 +1549,7 @@ impl RetainedState {
                 );
                 let store = std::sync::Arc::new(store?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
-                if !element_alone && !self.record_rolls_back_substitution(node) {
+                if !element_alone && !self.records_are_the_elements_alone(node) {
                     scratch.stores.insert((state, environment), store.clone());
                 }
                 if substituted {
@@ -1680,10 +1680,10 @@ impl RetainedState {
                     counters,
                 );
                 // The key names the parent's environment: a record whose own declarations
-                // resolved another is no answer for an element declaring none. Nor is one that
-                // rolled a property back to a declaration no winner names.
+                // resolved another is no answer for an element declaring none. Nor is one that is
+                // the element's alone.
                 if let Some(cache_key) =
-                    cache_key.filter(|key| key.environment == environment && !self.record_rolls_back_substitution(node))
+                    cache_key.filter(|key| key.environment == environment && !self.records_are_the_elements_alone(node))
                 {
                     let record = ColdRecord {
                         record: assembly.delta.1,
@@ -1779,10 +1779,10 @@ impl RetainedState {
         let delta = (computed::FinalStyleRecordID::NONE, new_style_record);
         // The publication itself kept the record for later transactions; alike elements in this
         // one take it from the cohort. The key names the parent's environment, so a record whose
-        // own declarations resolved another is kept for no one. Nor does it name the declarations
-        // below the winners, which a record rolled back below a substituted revert keyword read.
+        // own declarations resolved another is kept for no one, nor is one that is the element's
+        // alone.
         if let Some(cache_key) =
-            cache_key.filter(|key| key.environment == environment && !self.record_rolls_back_substitution(node))
+            cache_key.filter(|key| key.environment == environment && !self.records_are_the_elements_alone(node))
         {
             let record = ColdRecord {
                 record: delta.1,
@@ -2908,8 +2908,8 @@ impl RetainedState {
         // among its siblings has to drive one reading its place again in full.
         self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
         // A record whose winners read beyond its environment is the element's alone, as is one
-        // that rolled a property back below a substituted revert keyword.
-        if self.state_reads_beyond_environment(node, cascade_state.1) || self.record_rolls_back_substitution(node) {
+        // `records_are_the_elements_alone` says is.
+        if self.state_reads_beyond_environment(node, cascade_state.1) || self.records_are_the_elements_alone(node) {
             return;
         }
         let Some(parent) = self.cold_record_parent(node, parent, parent_record, cascade_state.1) else {
@@ -3182,6 +3182,13 @@ impl RetainedState {
         self.nodes_with_rolled_back_records.contains_key(&node)
     }
 
+    /// Whether the node's records are its alone whatever its winners and environment say, so no
+    /// record cache keeps them: one rolled a property back below a substituted revert keyword, or
+    /// substituted a value that resolves against the element.
+    pub(super) fn records_are_the_elements_alone(&self, node: StyleNodeID) -> bool {
+        self.record_rolls_back_substitution(node) || self.nodes_with_element_relative_substitutions.contains_key(&node)
+    }
+
     /// The element whose attributes `attr()` reads for a node's record or one of its
     /// pseudo-elements': an element standing for its shadow host's pseudo-element is computed as
     /// that pseudo-element, so it reads the host's, as C++ does for all but its ::first-letter.
@@ -3363,6 +3370,10 @@ impl RetainedState {
         // Whether a property rolled back below a substituted revert keyword: what it rolled back to
         // is decided by declarations the winners do not name.
         let mut rolled_back = false;
+        // Whether a substitution produced a value that resolves against the element, and the
+        // container-relative units it did.
+        let mut element_relative = false;
+        let mut substituted_container_units = 0;
         'winners: for winner in self.winner_groups.winners_in_state(state) {
             // A revert whose continuation resumes at nothing leaves the property undeclared.
             let Some(mut winner) = self.winner_groups.resolved_winner(winner) else {
@@ -3590,17 +3601,20 @@ impl RetainedState {
             };
             // A value of a shape the computation does not know never reaches a winner, and the
             // drive holds everything else a value may read beyond the record, the parent and the
-            // document's computation inputs, in any mix, but for a random function or a
-            // container-relative length that appears through a substitution: the record caches
-            // do not key those on the element.
+            // document's computation inputs, in any mix. A random function or a container-relative
+            // length that appears through a substitution resolves against the element, which the
+            // record caches key a state's written winners on but not what the environment
+            // substitutes: the record is the element's alone.
             let computable = checks.longhand_context_free == Some(true)
                 || crate::css::style_compute::value_is_computationally_independent(data).is_some_and(|_| {
-                    drive_holds_value_inputs(
-                        &crate::css::style_compute::external_value_dependencies(data),
-                        resources_are_known,
-                        || self.sibling_position(node).is_some(),
-                        matches!(value, WinnerValue::Written { .. }),
-                    )
+                    let dependencies = crate::css::style_compute::external_value_dependencies(data);
+                    if matches!(value, WinnerValue::Substituted { .. }) {
+                        element_relative |= value_resolves_against_the_element(&dependencies);
+                        substituted_container_units |= dependencies.container_relative_length_unit_mask;
+                    }
+                    drive_holds_value_inputs(&dependencies, resources_are_known, || {
+                        self.sibling_position(node).is_some()
+                    })
                 });
             debug_assert!(
                 computable || crate::css::style_compute::value_is_computationally_independent(data).is_some(),
@@ -3642,6 +3656,19 @@ impl RetainedState {
             *bits &= !bit;
             if *bits == 0 {
                 self.nodes_with_rolled_back_records.remove(&node);
+            }
+        }
+        // So does one whose substitutions resolve against the element.
+        if element_relative {
+            let substitutions = self.nodes_with_element_relative_substitutions.entry(node).or_default();
+            substitutions.records |= bit;
+            substitutions.container_units |= substituted_container_units;
+        } else if store_use == StoreUse::Drive
+            && let Some(substitutions) = self.nodes_with_element_relative_substitutions.get_mut(&node)
+        {
+            substitutions.records &= !bit;
+            if substitutions.records == 0 {
+                self.nodes_with_element_relative_substitutions.remove(&node);
             }
         }
         // The custom properties its `style()` queries read are the element's style query
@@ -4944,6 +4971,16 @@ impl StyleEngineState {
     }
 }
 
+/// What the records of a node substitute that resolves against the element itself, which makes
+/// them the element's alone.
+#[derive(Clone, Copy, Default)]
+pub(super) struct ElementRelativeSubstitutions {
+    /// The records that do, a bit each as `rolled_back_bit` numbers them.
+    records: u64,
+    /// The container-relative units they substituted, as a `container_relative_length_unit_mask`.
+    pub(super) container_units: u8,
+}
+
 /// The bit of `nodes_with_rolled_back_records` that stands for a node's element record, or for one
 /// of its pseudo-element records.
 fn rolled_back_bit(pseudo_kind: Option<u8>) -> u64 {
@@ -5725,15 +5762,18 @@ fn drive_holds_value_inputs(
     dependencies: &crate::css::style_compute::ExternalValueDependencies,
     resources_are_known: bool,
     sibling_position_is_known: impl FnOnce() -> bool,
-    element_keyed: bool,
 ) -> bool {
     (resources_are_known
         || (!dependencies.needs_document_base_url && !dependencies.may_need_style_sheet_resource_context))
-        && (element_keyed
-            || (!dependencies.uses_random_function
-                && !dependencies.has_unfixed_random_sharing
-                && dependencies.container_relative_length_unit_mask == 0))
         && (!dependencies.uses_tree_counting_function || sibling_position_is_known())
+}
+
+/// Whether a value resolves against the element itself: a `random()` it draws, or a
+/// container-relative length its query containers measure.
+fn value_resolves_against_the_element(dependencies: &crate::css::style_compute::ExternalValueDependencies) -> bool {
+    dependencies.uses_random_function
+        || dependencies.has_unfixed_random_sharing
+        || dependencies.container_relative_length_unit_mask != 0
 }
 
 /// Whether a value holds a random function whose random caching key names the element.
@@ -5756,12 +5796,8 @@ fn value_computes_without_document_context(value: &StyleValueData) -> bool {
         value,
         StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
     ) && crate::css::style_compute::value_is_computationally_independent(value).is_some_and(|_| {
-        drive_holds_value_inputs(
-            &crate::css::style_compute::external_value_dependencies(value),
-            false,
-            || false,
-            false,
-        )
+        let dependencies = crate::css::style_compute::external_value_dependencies(value);
+        !value_resolves_against_the_element(&dependencies) && drive_holds_value_inputs(&dependencies, false, || false)
     })
 }
 

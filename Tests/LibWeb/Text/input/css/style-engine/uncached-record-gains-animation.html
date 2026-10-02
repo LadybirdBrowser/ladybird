@@ -7,9 +7,8 @@
 <div id="target" style="--width: 10cqw; width: var(--width)"></div>
 <script>
     test(() => {
-        // The element's record is one C++ computed, which binds no cascade state: a container unit
-        // substituted into the element's own style keeps its record with C++, which the count of C++
-        // recomputations shows. A rule that gives it an animation-name still starts the animation.
+        // The element's record substitutes a container unit and so stays out of every record
+        // cache. A rule that gives it an animation-name still starts the animation.
         const target = document.getElementById("target");
         internals.updateStyle();
         const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;

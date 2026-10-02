@@ -78,6 +78,7 @@ struct PrivateDemandSaves {
     container_gate_unheld: bool,
     tree_counting: Option<u16>,
     rolled_back: Option<u64>,
+    element_relative_substitutions: Option<ElementRelativeSubstitutions>,
     pseudo_style_mask: Option<u64>,
 }
 
@@ -86,6 +87,17 @@ fn set_contains(set: &mut HashSet<StyleNodeID>, node: StyleNodeID, contains: boo
         set.insert(node);
     } else {
         set.remove(&node);
+    }
+}
+
+fn set_entry<V>(map: &mut HashMap<StyleNodeID, V>, node: StyleNodeID, value: Option<V>) {
+    match value {
+        Some(value) => {
+            map.insert(node, value);
+        }
+        None => {
+            map.remove(&node);
+        }
     }
 }
 
@@ -99,6 +111,7 @@ impl RetainedState {
             container_gate_unheld: self.container_gates_unheld.contains(&node),
             tree_counting: self.nodes_with_tree_counting_records.get(&node).copied(),
             rolled_back: self.nodes_with_rolled_back_records.get(&node).copied(),
+            element_relative_substitutions: self.nodes_with_element_relative_substitutions.get(&node).copied(),
             pseudo_style_mask: self.computed_group_sets.node_pseudo_style_mask(node),
         }
     }
@@ -114,47 +127,17 @@ impl RetainedState {
     ) {
         self.put_back_engine_computed_records(node, scratch, counters);
         set_contains(&mut self.nodes_with_substituted_records, node, saves.uses_substitution);
-        match saves.custom_declaration_reads {
-            Some(reads) => {
-                self.custom_declaration_reads.insert(node, reads);
-            }
-            None => {
-                self.custom_declaration_reads.remove(&node);
-            }
-        }
-        match saves.container_effects {
-            Some(effects) => {
-                self.container_effects_for_host.insert(node, effects);
-            }
-            None => {
-                self.container_effects_for_host.remove(&node);
-            }
-        }
-        match saves.container_verdicts {
-            Some(verdicts) => {
-                self.published_container_verdicts.insert(node, verdicts);
-            }
-            None => {
-                self.published_container_verdicts.remove(&node);
-            }
-        }
+        set_entry(&mut self.custom_declaration_reads, node, saves.custom_declaration_reads);
+        set_entry(&mut self.container_effects_for_host, node, saves.container_effects);
+        set_entry(&mut self.published_container_verdicts, node, saves.container_verdicts);
         set_contains(&mut self.container_gates_unheld, node, saves.container_gate_unheld);
-        match saves.tree_counting {
-            Some(reads) => {
-                self.nodes_with_tree_counting_records.insert(node, reads);
-            }
-            None => {
-                self.nodes_with_tree_counting_records.remove(&node);
-            }
-        }
-        match saves.rolled_back {
-            Some(bits) => {
-                self.nodes_with_rolled_back_records.insert(node, bits);
-            }
-            None => {
-                self.nodes_with_rolled_back_records.remove(&node);
-            }
-        }
+        set_entry(&mut self.nodes_with_tree_counting_records, node, saves.tree_counting);
+        set_entry(&mut self.nodes_with_rolled_back_records, node, saves.rolled_back);
+        set_entry(
+            &mut self.nodes_with_element_relative_substitutions,
+            node,
+            saves.element_relative_substitutions,
+        );
         self.computed_group_sets
             .set_node_pseudo_style_mask(node, saves.pseudo_style_mask);
         self.discard_private_record_demand_matching_batch();

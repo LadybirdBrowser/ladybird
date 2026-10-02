@@ -254,7 +254,12 @@ impl RetainedState {
         state: CascadeStateID,
         old_record: computed::FinalStyleRecordID,
     ) {
-        if self.state_reads(node, state) & cascade::STATE_READS_CONTAINER_UNITS == 0 {
+        // The units a substitution produced are no winner's: they are noted with the node.
+        let substituted_units = self
+            .nodes_with_element_relative_substitutions
+            .get(&node)
+            .map_or(0, |substitutions| substitutions.container_units);
+        if self.state_reads(node, state) & cascade::STATE_READS_CONTAINER_UNITS == 0 && substituted_units == 0 {
             return;
         }
         // The writing mode the drive computed against decides which physical axes its logical
@@ -281,7 +286,7 @@ impl RetainedState {
             });
         self.note_container_unit_reads_for_host(
             node,
-            self.state_container_unit_mask(node, state),
+            self.state_container_unit_mask(node, state) | substituted_units,
             inline_axis_is_horizontal,
         );
     }
