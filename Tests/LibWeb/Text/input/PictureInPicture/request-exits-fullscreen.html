@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        internals.grantTransientActivation();
+        await video.requestFullscreen();
+        println(`Fullscreen element before: ${document.fullscreenElement === video ? "video" : document.fullscreenElement}`);
+
+        // The fullscreenchange for entering fullscreen can still be pending, so wait for the one that leaves it.
+        const exitedFullscreen = new Promise(resolve => {
+            document.addEventListener("fullscreenchange", function listener() {
+                if (document.fullscreenElement)
+                    return;
+                document.removeEventListener("fullscreenchange", listener);
+                resolve();
+            });
+        });
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+        await exitedFullscreen;
+
+        println(`Fullscreen element after: ${document.fullscreenElement}`);
+        println(`Picture-in-Picture element after: ${document.pictureInPictureElement === video ? "video" : document.pictureInPictureElement}`);
+        done();
+    });
+</script>

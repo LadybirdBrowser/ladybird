@@ -255,7 +255,10 @@ void PictureInPictureController::did_open_window(Gfx::IntSize window_size)
         // NB: Nothing reads this list, and https://github.com/w3c/picture-in-picture/issues/263 proposes its removal.
 
         // 3. If this is fullscreenElement, then exit fullscreen.
-        // FIXME: Exit fullscreen.
+        // NB: The spec links "exit fullscreen" to the fully exit fullscreen algorithm. The fullscreen element is
+        //     compared before it is retargeted, so that a video in a shadow tree leaves fullscreen as well.
+        if (document.fullscreen_element().ptr() == video.ptr())
+            document.fully_exit_fullscreen();
 
         // 4. Fire an event named enterpictureinpicture using PictureInPictureEvent at this with its bubbles attribute
         //    initialized to true and its pictureInPictureWindow attribute initialized to Picture-in-Picture window.

@@ -1,0 +1,3 @@
+Fullscreen element before: video
+Fullscreen element after: null
+Picture-in-Picture element after: video
