@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #snapper {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="snapper">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // The first step takes the snap container to its last snap position, which is also its scroll extent.
+        await internals.wheel(50, 50, 0, 500);
+        println(`snap container scroll offset after the first step: ${snapper.scrollTop}`);
+
+        // The next step of the same gesture stays with the snap container at its extent, which consumes it without
+        // scrolling anything, and the step's promise still resolves.
+        await internals.wheel(50, 50, 0, 100);
+        await animationFrame();
+        await animationFrame();
+        println(`snap container scroll offset after the second step: ${snapper.scrollTop}`);
+        println(`page scroll offset after the second step: ${window.scrollY}`);
+    });
+</script>

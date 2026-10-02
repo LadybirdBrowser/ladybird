@@ -1,0 +1,3 @@
+snap container scroll offset after the first step: 400
+snap container scroll offset after the second step: 400
+page scroll offset after the second step: 0
