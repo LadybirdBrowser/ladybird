@@ -1347,11 +1347,8 @@ mod tests {
                 prepare,
             )
         });
-        let next = crate::css::rule::mutation::successor(&source, import_identity, |identity| unsafe {
-            crate::css::style::bridge::style_engine_native_rule_id(
-                crate::css::style::StyleEngineHandle::from_raw((&raw const engine).cast_mut()),
-                identity,
-            )
+        let next = crate::css::rule::mutation::successor(&source, import_identity, |identity| {
+            engine.native_rule_id(identity).map_or(0, |id| id.0 + 1)
         });
         assert_eq!(next, 2);
         let mut imported_engine = StyleEngine::new(DeviceClass::ForegroundDesktop);

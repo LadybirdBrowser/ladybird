@@ -1488,70 +1488,6 @@ pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> StyleEngi
     abort_on_panic(|| StyleEngineHandle::create(Box::new(StyleEngine::new_for_replay(device_class.decode()))))
 }
 
-/// The custom-property environment an element holds, or null.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_element_custom_property_data(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-) -> *const c_void {
-    let engine = unsafe { engine.get() };
-    StyleNodeID::from_raw(node).map_or(std::ptr::null(), |node| engine.element_custom_property_data(node))
-}
-
-/// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    pseudo: u8,
-) -> *const c_void {
-    let engine = unsafe { engine.get() };
-    StyleNodeID::from_raw(node).map_or(std::ptr::null(), |node| {
-        engine.pseudo_element_custom_property_data(node, pseudo)
-    })
-}
-
-/// The kinds of an element's synthetic pseudo-elements that hold a custom-property environment, one
-/// bit per kind, so the host asks for only those.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-) -> u64 {
-    let engine = unsafe { engine.get() };
-    StyleNodeID::from_raw(node).map_or(0, |node| engine.pseudo_elements_with_custom_property_data(node))
-}
-
-/// Visits the random caching keys that name an element, with their values, for the element to keep
-/// while it has no style node.
-///
-/// # Safety
-/// `engine` must be live, and `visit` must not retain the name it is given.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_element_random_base_values(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, *const u16, usize, u64),
-) {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return;
-    };
-    let engine = unsafe { engine.get() };
-    for (name, value) in engine.random_base_values.element_values(node) {
-        unsafe { visit(context, name.as_ptr(), name.len(), value.to_bits()) };
-    }
-}
-
 /// How one animation effect's description travels across the boundary: the ranges of the flat
 /// buffers that belong to it.
 #[repr(C)]
@@ -1775,31 +1711,6 @@ pub unsafe extern "C" fn style_engine_flat_tree_descendants(
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_discard_flat_tree_descendants(engine: crate::css::style::StyleEngineHandle) {
-    let engine = unsafe { engine.get_mut() };
-    engine.clear_ffi_style_node_query();
-}
-
-/// Returns the owner nodes whose element or pseudo style depends on viewport metrics.
-///
-/// # Safety
-/// `engine` must be live. The returned slice remains valid until the next mutable engine call or an
-/// explicit discard.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
-    engine: crate::css::style::StyleEngineHandle,
-) -> FfiStyleNodeSlice {
-    let engine = unsafe { engine.get_mut() };
-    engine.clear_ffi_style_node_query();
-    let nodes = engine.computed_group_sets.viewport_dependent_nodes();
-    engine.install_ffi_style_node_query(nodes)
-}
-
-/// Discards the borrowed viewport-dependent node slice.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_discard_viewport_dependent_nodes(engine: crate::css::style::StyleEngineHandle) {
     let engine = unsafe { engine.get_mut() };
     engine.clear_ffi_style_node_query();
 }
@@ -2982,19 +2893,6 @@ pub unsafe extern "C" fn style_engine_style_record_payloads(
     result
 }
 
-/// Returns the dependency flags of one final style record without accessing its group payloads.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
-    engine: crate::css::style::StyleEngineHandle,
-    style_record: u64,
-) -> u8 {
-    let engine = unsafe { engine.get() };
-    engine.style_record_dependency_flags(style_record).unwrap_or(0)
-}
-
 /// What the winners a node's records were computed from read beyond their cascade, one bit per
 /// kind, as a row's `record_reads` carries them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -3017,22 +2915,6 @@ pub enum FfiNodeRecordReads {
     /// properties either declares: a change of the media features, of the element's environment
     /// or of the `@function` definitions reaches the records.
     CustomFunction = 1 << 4,
-}
-
-/// The raw custom-property environment identity a style record was published with.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
-    engine: crate::css::style::StyleEngineHandle,
-    style_record: u64,
-) -> u64 {
-    let engine = unsafe { engine.get() };
-    engine
-        .computed_group_sets
-        .style_record_custom_property_environment(style_record)
-        .unwrap_or(0)
 }
 
 /// Computes the property-dependent damage between two final style records of no element in
@@ -3114,23 +2996,6 @@ pub unsafe extern "C" fn style_engine_animation_overlay_changed(
 ) -> bool {
     let engine = unsafe { engine.get() };
     engine.animation_overlay_changed(old_style_record, animated_overlay.cast())
-}
-
-/// The style groups that bake a color resolved from a style target's `currentColor`, or
-/// `u32::MAX` when the target holds no retained style to answer from.
-///
-/// # Safety
-/// `engine` must be live for this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_current_color_dependent_group_mask(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    pseudo_kind: u8,
-) -> u32 {
-    let engine = unsafe { engine.get() };
-    StyleNodeID::from_raw(node)
-        .and_then(|node| engine.current_color_dependent_group_mask(node, pseudo_kind))
-        .unwrap_or(u32::MAX)
 }
 
 /// What the host hands over to have an element's sampled animation overlay composed into the
@@ -3659,62 +3524,66 @@ pub struct FfiRecordDemandAnswer {
 
 /// Answer a read of one element's style, or one of its pseudo-elements', the host makes before
 /// the next style update.
+pub(crate) fn answer_record_demand(
+    engine: &mut StyleEngine,
+    style_node: StyleNodeID,
+    demand: FfiRecordDemand,
+) -> FfiRecordDemandAnswer {
+    let node = style_node.raw();
+    let result = match engine.answer_record_demand(style_node, demand) {
+        Ok(super::publication::RecordDemandAnswer::Record {
+            record,
+            uses_substitution,
+        }) => FfiRecordDemandAnswer {
+            record: FfiEngineComputedRecord {
+                style_record: record.style_record,
+                uses_substitution,
+                // A read-only answer is the host's to read, never to install.
+                record_reads: if record.style_record != 0 && !demand.read_only {
+                    engine.node_record_reads(style_node)
+                } else {
+                    0
+                },
+                explicitly_inherited_groups: record.explicitly_inherited_groups,
+                owes_an_animation_plan: false,
+                owes_a_transition_step: false,
+                composed_by_the_host: false,
+                pseudo_records_present: record.pseudo_records_present,
+                pseudo_records: record.pseudo_records,
+            },
+            is_absent: false,
+        },
+        Ok(super::publication::RecordDemandAnswer::Absent) => FfiRecordDemandAnswer {
+            record: FfiEngineComputedRecord::default(),
+            is_absent: true,
+        },
+        Err(_) => FfiRecordDemandAnswer::default(),
+    };
+    engine.record_boundary_call(EventKind::AnswerRecordDemand, |payload| {
+        payload.write_u32(node);
+        payload.write_bool(demand.targeted);
+        payload.write_bool(demand.read_only);
+        payload.write_bool(demand.exclude_inline_style);
+        payload.write_u8(demand.pseudo_kind_plus_one);
+        payload.write_u64(result.record.style_record);
+        payload.write_bool(result.is_absent);
+        payload.write_bool(result.record.uses_substitution);
+        payload.write_u8(result.record.pseudo_records_present);
+    });
+    result
+}
+
+/// [`answer_record_demand`] for a replay, which holds its engine itself.
 ///
 /// # Safety
 /// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_answer_record_demand(
+pub unsafe fn style_engine_answer_record_demand_for_replay(
     engine: crate::css::style::StyleEngineHandle,
     node: u32,
     demand: FfiRecordDemand,
 ) -> FfiRecordDemandAnswer {
-    abort_on_panic(|| {
-        let engine = unsafe { engine.get_mut() };
-        let Some(style_node) = StyleNodeID::from_raw(node) else {
-            return FfiRecordDemandAnswer::default();
-        };
-        let result = match engine.answer_record_demand(style_node, demand) {
-            Ok(super::publication::RecordDemandAnswer::Record {
-                record,
-                uses_substitution,
-            }) => FfiRecordDemandAnswer {
-                record: FfiEngineComputedRecord {
-                    style_record: record.style_record,
-                    uses_substitution,
-                    // A read-only answer is the host's to read, never to install.
-                    record_reads: if record.style_record != 0 && !demand.read_only {
-                        engine.node_record_reads(style_node)
-                    } else {
-                        0
-                    },
-                    explicitly_inherited_groups: record.explicitly_inherited_groups,
-                    owes_an_animation_plan: false,
-                    owes_a_transition_step: false,
-                    composed_by_the_host: false,
-                    pseudo_records_present: record.pseudo_records_present,
-                    pseudo_records: record.pseudo_records,
-                },
-                is_absent: false,
-            },
-            Ok(super::publication::RecordDemandAnswer::Absent) => FfiRecordDemandAnswer {
-                record: FfiEngineComputedRecord::default(),
-                is_absent: true,
-            },
-            Err(_) => FfiRecordDemandAnswer::default(),
-        };
-        engine.record_boundary_call(EventKind::AnswerRecordDemand, |payload| {
-            payload.write_u32(node);
-            payload.write_bool(demand.targeted);
-            payload.write_bool(demand.read_only);
-            payload.write_bool(demand.exclude_inline_style);
-            payload.write_u8(demand.pseudo_kind_plus_one);
-            payload.write_u64(result.record.style_record);
-            payload.write_bool(result.is_absent);
-            payload.write_bool(result.record.uses_substitution);
-            payload.write_u8(result.record.pseudo_records_present);
-        });
-        result
-    })
+    let engine = unsafe { engine.get_mut() };
+    StyleNodeID::from_raw(node).map_or_else(Default::default, |node| answer_record_demand(engine, node, demand))
 }
 
 /// The record of an element no rule reaches, computed from its presentational hints and its
@@ -3886,19 +3755,6 @@ pub struct FfiNativeRuleTarget {
     pub layer_name_length: usize,
     pub has_container_conditions: bool,
     pub origin: FfiCascadeOrigin,
-}
-
-/// Resolve a native rule identity in this document's engine, including shared sheets.
-///
-/// # Safety
-/// Engine must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_native_rule_id(
-    engine: crate::css::style::StyleEngineHandle,
-    identity: u64,
-) -> u32 {
-    let engine = unsafe { engine.get() };
-    engine.native_rule_id(identity).map_or(0, |id| id.0 + 1)
 }
 
 /// Issue a new identity for changed declaration contents, independently of CSSOM wrappers.
@@ -4372,14 +4228,14 @@ pub unsafe extern "C" fn style_engine_set_replay_reclaimed_style_atoms(
     };
     engine.host.replay_reclaimed_style_atoms = Some(atoms.iter().copied().map(StyleAtomID).collect());
 }
+
 /// Reads one counter by index, returning its stable name and writing its value and name length, or
 /// null once the index is past the end. C++ enumerates the counters this way rather than
 /// duplicating the list. The name is borrowed static UTF-8 and is not nul-terminated.
 ///
 /// # Safety
 /// `engine` must be live, and the out pointers must be writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_counter(
+pub unsafe fn style_engine_counter_for_replay(
     engine: crate::css::style::StyleEngineHandle,
     index: usize,
     out_value: *mut u64,

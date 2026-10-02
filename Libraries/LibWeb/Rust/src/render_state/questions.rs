@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The questions the host asks a document's render state, and the answers it waits for: reads of the layout arena,
-//! writes the host pays for, and the rows as of every change the host queued.
+//! The questions the host asks a document's render state, and the answers it waits for: reads of the layout arena and
+//! of the style engine, writes the host pays for, and the rows as of every change the host queued.
 
 use super::{DocumentHost, RenderMessage, RenderWait, wait_for_render_state};
+use crate::css::style::StyleEngineHandle;
+use crate::css::style::engine_calls::{StyleAnswer, StyleQuery};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::counters::CounterOwner;
@@ -21,6 +23,8 @@ use crate::layout::text_queries::FfiDomTextRange;
 pub(crate) enum Query {
     /// A read of the document's layout arena.
     Arena(ArenaQuery),
+    /// A read of the document's style engine the host's style code makes.
+    Engine(StyleQuery),
     /// A write to the document's layout tree the host waits for, answered with what it owes the host.
     Write(LayoutWrite),
     /// The document's rows, which the render state publishes: with every row's scrollable overflow measured first
@@ -82,6 +86,7 @@ impl<T> LentSlice<T> {
 /// The answer to a [`Query`].
 pub(crate) enum Answer {
     Arena(ArenaAnswer),
+    Style(StyleAnswer),
     Written(LayoutWritten),
     Rows(RowSnapshot),
 }
@@ -96,10 +101,16 @@ pub(crate) enum ArenaAnswer {
 }
 
 impl Query {
-    /// Answers the question from `arena`, the arena of the document it was asked about.
-    pub(super) fn answer(self, arena: &mut LayoutNodeArena) -> Answer {
+    /// Answers the question from `arena` and `engine`, the arena and style engine of the document it was asked about.
+    ///
+    /// # Safety
+    ///
+    /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
+    pub(super) unsafe fn answer(self, arena: &mut LayoutNodeArena, engine: StyleEngineHandle) -> Answer {
         match self {
             Self::Arena(query) => Answer::Arena(query.answer(arena)),
+            // SAFETY: Guaranteed by the caller. An engine question reaches the engine only through this borrow.
+            Self::Engine(query) => Answer::Style(query.answer(unsafe { engine.get_mut() })),
             Self::Write(write) => Answer::Written(write.apply(arena)),
             Self::CommittedRows { measure_overflow } => Answer::Rows(arena.publish_row_snapshot(measure_overflow)),
         }

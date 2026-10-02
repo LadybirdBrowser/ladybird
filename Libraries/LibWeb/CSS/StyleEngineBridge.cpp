@@ -174,12 +174,12 @@ void const* StyleEngine::style_record_payloads(StyleRecordID style_record) const
 
 StyleRecordDependencyFlag StyleEngine::style_record_dependency_flags(StyleRecordID style_record) const
 {
-    return static_cast<StyleRecordDependencyFlag>(StyleEngineFFI::style_engine_style_record_dependency_flags(m_impl, style_record.value()));
+    return static_cast<StyleRecordDependencyFlag>(StyleEngineFFI::style_engine_style_record_dependency_flags(m_render_document->host(), style_record.value()));
 }
 
 u64 StyleEngine::style_record_custom_property_environment(StyleRecordID style_record) const
 {
-    return StyleEngineFFI::style_engine_style_record_custom_property_environment(m_impl, style_record.value());
+    return StyleEngineFFI::style_engine_style_record_custom_property_environment(m_render_document->host(), style_record.value());
 }
 
 u32 StyleEngine::compare_style_records(StyleRecordID old_style_record, StyleRecordID new_style_record) const
@@ -204,7 +204,7 @@ bool StyleEngine::animation_overlay_changed(StyleRecordID old_style_record, void
 
 Optional<u32> StyleEngine::current_color_dependent_style_groups(StyleNodeID node, u8 pseudo_kind) const
 {
-    auto groups = StyleEngineFFI::style_engine_current_color_dependent_group_mask(m_impl, node.value(), pseudo_kind);
+    auto groups = StyleEngineFFI::style_engine_current_color_dependent_group_mask(m_render_document->host(), node.value(), pseudo_kind);
     if (groups == NumericLimits<u32>::max())
         return {};
     return groups;
@@ -236,7 +236,7 @@ void StyleEngine::element_random_base_values(StyleNodeID node, Vector<u32>& name
         Vector<u16>& name_units;
         Vector<u64>& value_bits;
     } values { name_lengths, name_units, value_bits };
-    StyleEngineFFI::style_engine_element_random_base_values(m_impl, node.value(), &values, [](void* context, u16 const* name, size_t length, u64 bits) {
+    StyleEngineFFI::style_engine_element_random_base_values(m_render_document->host(), node.value(), &values, [](void* context, u16 const* name, size_t length, u64 bits) {
         auto& values = *static_cast<Values*>(context);
         values.name_lengths.append(static_cast<u32>(length));
         values.name_units.append(name, length);
@@ -307,7 +307,7 @@ StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_record_demand(StyleNod
         .exclude_inline_style = demand.exclude_inline_style,
         .pseudo_kind_plus_one = static_cast<u8>(demand.pseudo_kind.has_value() ? *demand.pseudo_kind + 1 : 0),
     };
-    return StyleEngineFFI::style_engine_answer_record_demand(m_impl, node.value(), ffi_demand);
+    return StyleEngineFFI::style_engine_answer_record_demand(m_render_document->host(), node.value(), ffi_demand);
 }
 
 StyleEngineFFI::FfiEngineComputedRecord StyleEngine::settle_pseudo_records_after_host_record(StyleNodeID node, bool old_is_list_item)
@@ -569,12 +569,10 @@ void StyleEngine::evaluate_size_containers_needing_evaluation_after_layout()
 
 Vector<StyleNodeID> StyleEngine::viewport_dependent_style_nodes()
 {
-    auto view = StyleEngineFFI::style_engine_viewport_dependent_nodes(m_impl);
     Vector<StyleNodeID> nodes;
-    nodes.ensure_capacity(view.count);
-    for (auto node : ReadonlySpan<u32> { view.nodes, view.count })
-        nodes.unchecked_append(StyleNodeID { node });
-    StyleEngineFFI::style_engine_discard_viewport_dependent_nodes(m_impl);
+    StyleEngineFFI::style_engine_viewport_dependent_nodes(m_render_document->host(), &nodes, [](void* context, u32 node) {
+        static_cast<Vector<StyleNodeID>*>(context)->append(StyleNodeID { node });
+    });
     return nodes;
 }
 
@@ -979,7 +977,7 @@ bool StyleEngine::consume_published_match_answer(StyleNodeID node, Vector<RuleMa
 bool StyleEngine::counter(size_t index, StringView& out_name, u64& out_value) const
 {
     size_t name_length = 0;
-    auto const* name = StyleEngineFFI::style_engine_counter(m_impl, index, &out_value, &name_length);
+    auto const* name = StyleEngineFFI::style_engine_counter(m_render_document->host(), index, &out_value, &name_length);
     if (!name)
         return false;
     out_name = StringView { name, name_length };
@@ -997,7 +995,7 @@ void StyleEngine::set_element_custom_property_data(DOM::Element const& element, 
 
 CustomPropertyData const* StyleEngine::element_custom_property_data(StyleNodeID node) const
 {
-    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_element_custom_property_data(m_impl, node.value()));
+    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_element_custom_property_data(m_render_document->host(), node.value()));
 }
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= 64);
@@ -1009,12 +1007,12 @@ void StyleEngine::set_pseudo_element_custom_property_data(StyleNodeID node, Pseu
 
 CustomPropertyData const* StyleEngine::pseudo_element_custom_property_data(StyleNodeID node, PseudoElement pseudo_element) const
 {
-    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_pseudo_element_custom_property_data(m_impl, node.value(), to_underlying(pseudo_element)));
+    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_pseudo_element_custom_property_data(m_render_document->host(), node.value(), to_underlying(pseudo_element)));
 }
 
 u64 StyleEngine::pseudo_elements_with_custom_property_data(StyleNodeID node) const
 {
-    return StyleEngineFFI::style_engine_pseudo_elements_with_custom_property_data(m_impl, node.value());
+    return StyleEngineFFI::style_engine_pseudo_elements_with_custom_property_data(m_render_document->host(), node.value());
 }
 
 // The engine resolves fonts against the @font-face table and cascade memo it was given, at the generation of the

@@ -11,6 +11,8 @@ use super::RetainedState;
 use super::fast_hash::FastMap as HashMap;
 use super::tree::StyleNodeID;
 use std::hash::BuildHasher;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The random base values a document's random functions have drawn, by random caching key. The
 /// key's document is the engine's own; its element is the node, or none for an `element-shared`
@@ -22,6 +24,9 @@ pub(crate) struct RandomBaseValues {
     /// The keys that name an element. Few elements draw, and those draw few names, so only they
     /// have a row and a row is searched in order.
     elements: HashMap<StyleNodeID, Vec<NamedBaseValue>>,
+    /// Raised once any element has a row, and never lowered. The host watches it so that an element losing its
+    /// identity asks for keys only once some element can have any.
+    element_rows_exist: Arc<AtomicBool>,
     source: RandomSource,
 }
 
@@ -59,12 +64,11 @@ impl RandomBaseValues {
         let Some(node) = node else {
             return self.source.draw();
         };
-        let row = self.elements.entry(node).or_default();
-        if let Some((_, value)) = row.iter().find(|(row_name, _)| **row_name == *name) {
-            return *value;
+        if let Some(value) = self.get(node, name, false) {
+            return value;
         }
         let value = self.source.draw();
-        row.push((name.into(), value));
+        self.row_mut(node).push((name.into(), value));
         value
     }
 
@@ -90,11 +94,17 @@ impl RandomBaseValues {
         let Some(node) = node else {
             return;
         };
-        let row = self.elements.entry(node).or_default();
+        let row = self.row_mut(node);
         match row.iter_mut().find(|(row_name, _)| **row_name == *name) {
             Some((_, row_value)) => *row_value = value,
             None => row.push((name.into(), value)),
         }
+    }
+
+    /// An element's row, which may be new.
+    fn row_mut(&mut self, node: StyleNodeID) -> &mut Vec<NamedBaseValue> {
+        self.element_rows_exist.store(true, Ordering::Relaxed);
+        self.elements.entry(node).or_default()
     }
 
     /// The keys that name an element, with their values.
@@ -138,8 +148,13 @@ impl RetainedState {
             })
             .collect::<Vec<_>>();
         if !row.is_empty() {
-            self.random_base_values.elements.insert(node, row);
+            *self.random_base_values.row_mut(node) = row;
         }
+    }
+
+    /// Whether any element has had random base values, as a flag that stays raised once it is.
+    pub(crate) fn element_random_base_values_exist(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.random_base_values.element_rows_exist)
     }
 
     /// The random base value of the random caching key for a node's style and a sharing name.

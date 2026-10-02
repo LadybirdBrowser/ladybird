@@ -1652,7 +1652,7 @@ Optional<StyleEngineRuleTarget> StyleComputer::style_engine_rule_target(StyleEng
 
 StyleEngineRuleID StyleComputer::style_engine_rule_id_for(RustRule const& rule) const
 {
-    return StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_id(m_style_engine.rust_handle(), rule.identity()) };
+    return StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_id(m_style_engine.render_document().host(), rule.identity()) };
 }
 
 SheetID StyleComputer::style_engine_sheet_id_for(StyleSheetState const& sheet) const
