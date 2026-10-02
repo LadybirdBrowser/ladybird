@@ -8,6 +8,7 @@
 #include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
 #include <LibGC/RootVector.h>
+#include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
@@ -191,6 +192,38 @@ static bool parent_style_has_animated_values(DOM::Element& element)
         return false;
     auto parent_style = parent->computed_style();
     return parent_style && parent_style->has_animated_values();
+}
+
+// Under verification, the record the engine settled for an element, composed with its animations where it has any,
+// must equal by value the one the reference C++ computation produced.
+static void verify_engine_record_against_reference(StyleEngine const& style_engine, StyleNodeID style_node, StyleRecordID engine_style_record, StyleRecordID reference_style_record)
+{
+    // An animated `display` is applied where the host decides the element's animations survive it, which its reference
+    // computation and a sample over an installed record reach at different points of the update.
+    auto animates_display = [&](StyleRecordID style_record) {
+        auto const* overlay = static_cast<ComputedValuesFFI::AnimatedOverlay const*>(style_engine.style_record_view(style_record).animated_overlay);
+        return overlay && ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Display));
+    };
+    if (animates_display(engine_style_record) || animates_display(reference_style_record))
+        return;
+    auto packed = style_engine.compare_style_records(engine_style_record, reference_style_record);
+    VERIFY(!(packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged))
+        || style_engine.style_records_match_for_verification(style_node, NumericLimits<u8>::max(), engine_style_record, reference_style_record));
+}
+
+// A C++ computation collects an element's animations into the style it computes. For a record the engine derived
+// beneath them, the host samples them over the record once it is installed, as an animation update samples them over
+// the record an element holds, and publishes what they compose.
+static void sample_animations_for_installed_record(DOM::AbstractElement abstract_element)
+{
+    auto style_record = abstract_element.style_record_identity();
+    if (!style_record)
+        return;
+    Animations::AnimationUpdateContext::ElementData element_data { style_record, abstract_element.document().style_computer().reconstruct_computed_properties_for_animation(style_record) };
+    element_data.base_is_current = true;
+    Animations::AnimationUpdateContext context;
+    context.elements.set(abstract_element, move(element_data));
+    context.publish();
 }
 
 // Whether the custom-property environment an engine-computed record was published with can be
@@ -533,6 +566,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 // The transition step the row owes compares the record the element moved away from with the one it
                 // installs, so the old record has to outlive its replacement until the step has read it.
                 StyleRecordPin const before_change { document.style_computer(), StyleRecordID { reaction.owes_a_transition_step ? reaction.old_style_record : 0 } };
+                StyleRecordID verification_reference_style_record;
                 // The record answers any style input the element owes, as the C++ computation it
                 // equals would: nothing is left for a later transaction to plan.
                 style_engine.consume_recorded_element_style_input_change(reaction.style_node);
@@ -569,9 +603,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                             break;
                         }
                     }
-                    auto packed = style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, element->style_record_identity());
-                    VERIFY(!(packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged))
-                        || style_engine.style_records_match_for_verification(reaction.style_node, NumericLimits<u8>::max(), StyleRecordID { reaction.new_style_record }, element->style_record_identity()));
+                    // The reference record is compared with the engine's once the engine's is installed: for an element
+                    // with animations, with what they compose over it.
+                    verification_reference_style_record = element->style_record_identity();
+                    document.style_computer().pin_style_record(verification_reference_style_record);
                     // A custom-property environment reaction can jump over ancestors whose computed
                     // values did not change. Their engine environments are authoritative, but the
                     // legacy verification pass never materialized them, so it has no independent
@@ -644,6 +679,24 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 }
                 if (acknowledge)
                     style_engine.acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
+                // A C++ computation collects the element's animations into the record it computes. The host composes
+                // them over the record the engine settled once it is installed; a record whose plan the host still
+                // owes it is composed with the plan, after the batch.
+                bool const composed_by_the_host = !reaction.owes_an_animation_plan && (element->has_relevant_animations() || element->has_associated_animations());
+                if (composed_by_the_host) {
+                    DOM::AbstractElement abstract_element { *element };
+                    // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
+                    // Sampling the installed record can keep the epoch's before-change style, and the record the element
+                    // holds by then is the after-change one. A row that owes the step keeps the record it moved away from
+                    // first.
+                    if (!!before_change.style_record() && document.is_in_style_stabilization_epoch())
+                        document.style_computer().record_transition_stabilization_baseline(abstract_element, before_change.style_record());
+                    sample_animations_for_installed_record(abstract_element);
+                }
+                if (!!verification_reference_style_record) {
+                    verify_engine_record_against_reference(style_engine, StyleNodeID { reaction.style_node }, composed_by_the_host ? element->style_record_identity() : StyleRecordID { reaction.new_style_record }, verification_reference_style_record);
+                    document.style_computer().unpin_style_record(verification_reference_style_record);
+                }
                 if (!!before_change.style_record())
                     invalidation |= document.style_computer().run_transition_step_for_installed_record({ *element }, before_change.style_record(), StyleComputer::TransitionStepFollowUp::Request);
             };
