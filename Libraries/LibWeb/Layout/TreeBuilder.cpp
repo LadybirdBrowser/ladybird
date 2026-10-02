@@ -241,24 +241,6 @@ bool attach_owed_generated_image(DOM::Document& document, Compositing::RustFFI::
     return image_was_available;
 }
 
-RustFFI::FfiLayoutTreeBuildOutcome build_layout_tree(DOM::Node& dom_node)
-{
-    auto& document = dom_node.document();
-    auto* arena = document.layout_node_arena().handle();
-    // The viewport's style is the document's, which the style computer makes rather than publishes, so a build that may
-    // build the viewport is handed it before it starts.
-    CSS::StyleRecordID document_style_record;
-    if (RustFFI::layout_arena_tree_build_may_create_viewport(arena, document.style_node_id().value())) {
-        auto& style_computer = document.style_computer();
-        document_style_record = style_computer.intern_anonymous_layout_style(*style_computer.create_document_style());
-    }
-    // The viewport's row holds what the navigable has scrolled the viewport to, which the navigable publishes as it
-    // scrolls. A new document has not heard from it yet.
-    if (auto navigable = document.navigable())
-        RustFFI::render_state_set_viewport_scroll_offset(document.layout_node_arena().host(), navigable->viewport_scroll_offset());
-    return RustFFI::rust_build_layout_tree(arena, document.style_node_id().value(), document_style_record.value());
-}
-
 void detach_top_layer_element_layout_subtree(DOM::Element& element)
 {
     RustFFI::render_state_detach_top_layer_element(element.document().layout_node_arena().host(), element.style_node_id().value());

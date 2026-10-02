@@ -18,6 +18,7 @@
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 
 namespace Web::DOM {
 
@@ -53,10 +54,39 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
                 .document_in_quirks_mode = document.in_quirks_mode(),
                 .viewport_inline_size_raw = viewport_rect.width().raw_value(),
                 .viewport_block_size_raw = viewport_rect.height().raw_value(),
+                .document_style_node = document.style_node_id().value(),
+                .has_stale_list_item_counters = !document.m_list_owners_with_stale_item_counters.is_empty(),
             }; },
         .needs_style_update_after_layout = [](void* context) -> bool { return static_cast<Document*>(context)->needs_style_update_after_layout(); },
         .prepare_for_rendering = [](void* context) { static_cast<Document*>(context)->prepare_for_rendering(); },
-        .build_layout_tree = [](void* context) -> Layout::RustFFI::FfiLayoutTreeBuildOutcome { return static_cast<Document*>(context)->build_layout_tree(); },
+        .prepare_layout_tree_build = [](void* context, bool may_create_viewport) -> u64 {
+            auto& document = *static_cast<Document*>(context);
+            document.m_needs_throttled_animation_style_update_check = true;
+            // The viewport's style is the document's, which the style computer makes rather than publishes, so a build
+            // that may build the viewport is handed it before it starts.
+            CSS::StyleRecordID document_style_record;
+            if (may_create_viewport) {
+                auto& style_computer = document.style_computer();
+                document_style_record = style_computer.intern_anonymous_layout_style(*style_computer.create_document_style());
+            }
+            // The viewport's row holds what the navigable has scrolled the viewport to, which the navigable publishes as
+            // it scrolls. A new document has not heard from it yet.
+            if (auto navigable = document.navigable())
+                Layout::RustFFI::render_state_set_viewport_scroll_offset(document.layout_node_arena().host(), navigable->viewport_scroll_offset());
+            return document_style_record.value(); },
+        // The build records the root it placed in the arena itself, so what is left for the document is to retire the
+        // tree that was replaced and give the new one a paint state.
+        .finish_layout_tree_build = [](void* context, Compositing::RustFFI::NodeSlotId replaced_root, Compositing::RustFFI::NodeSlotId viewport) {
+            auto& document = *static_cast<Document*>(context);
+            auto& arena = document.layout_node_arena();
+            VERIFY(is<Layout::Viewport>(arena.node_if_live(viewport)));
+            if (replaced_root.index == viewport.index)
+                return;
+            if (auto* replaced_layout_root = arena.node_if_live(replaced_root)) {
+                replaced_layout_root->prepare_subtree_for_detach_from_layout_tree();
+                arena.free_subtree(replaced_root);
+            }
+            document.m_paint_state = make<Painting::DocumentPaintState>(arena); },
         .reconcile_stale_list_item_counters_after_tree_build = [](void* context) -> bool { return static_cast<Document*>(context)->reconcile_stale_list_item_counters_after_tree_build(); },
         .after_layout_commit = [](void* context, bool layout_tree_changed) { static_cast<Document*>(context)->after_layout_commit(layout_tree_changed ? LayoutTreeChanged::Yes : LayoutTreeChanged::No); },
         .note_full_layout_performed = [](void* context) { static_cast<Document*>(context)->style_invalidation_counters().relayouts_performed++; },

@@ -1316,11 +1316,10 @@ pub(crate) struct TreeBuildJob {
     document_style_record: Option<u64>,
 }
 
-/// What a tree build owes the host once it is over, in the order the host pays it.
+/// What a tree build owes the host once it is over, besides the host calls its walk queued, in the
+/// order the host pays it.
 pub(crate) struct TreeBuildAnswer {
     pub(crate) outcome: FfiLayoutTreeBuildOutcome,
-    /// The host calls the walk could only queue.
-    pub(crate) work: OwedHostWork,
     /// What the build found out that the document has to be told, in the order it found it out.
     pub(crate) reports: Vec<crate::layout::commit::FfiCommitMessage>,
     /// The scroll containers the build gave a style.
@@ -1328,12 +1327,18 @@ pub(crate) struct TreeBuildAnswer {
 }
 
 impl TreeBuildJob {
-    /// Runs the build over the arena of `state`.
-    pub(crate) fn run(self, state: &mut ArenaHandle) -> TreeBuildAnswer {
-        // What the walk owes the host, which the walk, holding no main thread token, can only queue.
-        let work = OwedHostWork::default();
-        let host = dom_tree_builder_host(state, &work);
-        host.arena().queue_box_presence();
+    pub(crate) fn new(document_style_node: StyleNodeID, document_style_record: Option<u64>) -> Self {
+        Self {
+            document_style_node,
+            document_style_record,
+        }
+    }
+
+    /// Runs the build over the arena of `state`. The host calls the walk owes go into `work`, as the
+    /// walk, holding no main thread token, can only queue them; what the host hears of the boxes
+    /// nodes gain and lose must be queued already.
+    pub(crate) fn run(self, state: &mut ArenaHandle, work: &OwedHostWork) -> TreeBuildAnswer {
+        let host = dom_tree_builder_host(state, work);
         let document_identity = self.document_style_node;
         host.layout().arena().set_document_style_node(document_identity);
         let mut state = TreeBuilderState::default();
@@ -1453,7 +1458,6 @@ impl TreeBuildJob {
         };
         TreeBuildAnswer {
             outcome,
-            work,
             reports: state.reports,
             built_scroll_containers,
         }

@@ -6,10 +6,6 @@
 
 use super::*;
 
-mod main_thread_entries;
-
-pub(crate) use main_thread_entries::MainThreadFfiEntry;
-
 pub(super) const CALC_NUMERIC_KIND_LENGTH: u8 = 4;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2334,53 +2330,66 @@ pub(crate) fn treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_
     )
 }
 
-/// Lays the document out from its viewport: propagates the root and body styles the viewport
-/// takes over, syncs enrolled content, computes and commits fragments, and notifies the host.
-///
-/// # Safety
-///
-/// `arena_handle` must be a live handle with a registered layout host, used on the document
-/// thread, and `root` must be its live viewport box.
-pub(crate) unsafe fn run_root_layout(
-    main_thread: &crate::stage::MainThread,
-    arena_handle: *mut c_void,
+/// Lays the document out from its viewport over the arena and layout scratch of `state`:
+/// propagates the root and body styles the viewport takes over, syncs enrolled content, then
+/// computes and commits fragments. Answers what committing them owes the host; what the
+/// propagated styles owe the shells goes into `work`.
+pub(crate) fn lay_out_root(
+    state: &mut super::ArenaHandle,
+    work: &super::tree_mutation::OwedHostWork,
     root: NodeSlotId,
-    viewport_inline_size_raw: i32,
-    viewport_block_size_raw: i32,
-    document_in_quirks_mode: bool,
+    stage: LayoutStageFacts,
     should_collect_devtools_layout_data: bool,
-) {
-    assert!(!arena_handle.is_null(), "layout node arena handle is null");
+) -> commit::CommitNotifications {
     assert!(!root.is_invalid());
-    let host = FfiLayoutHostCallbacks::of(main_thread);
     // The style rewrites enroll the affected boxes' text children for content sync, so the sync
     // follows them, and both precede the pass, which caches decoded style.
-    // SAFETY: As above; the propagation borrows the arena only for its own call.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
+    let arena = state.arena();
     viewport_propagation::propagate_root_styles_to_viewport(
-        main_thread,
+        super::tree_mutation::HostCalls::Owed(work),
         arena,
         root,
         &viewport_propagation::viewport_propagation_facts(arena),
     );
-    // SAFETY: As above.
-    unsafe { super::layout_node_arena::sync_enrolled_content_for_layout(arena_handle) };
-    let job = LayoutStageJob {
+    // SAFETY: The state is live, and the sync borrows its arena only for its own call.
+    unsafe { super::layout_node_arena::sync_enrolled_content_for_layout(std::ptr::from_mut(state).cast()) };
+    LayoutStageJob {
         kind: LayoutStageKind::Root {
             should_collect_devtools_layout_data,
         },
         root,
-        container_length_bases: host.container_length_bases_query(main_thread),
-        viewport_inline_size_raw,
-        viewport_block_size_raw,
-        document_in_quirks_mode,
-    };
-    // SAFETY: The host keeps the document's layout inputs alive and unchanged while the job runs.
-    let notifications = unsafe { super::update_layout::run_layout_stage_job(main_thread, arena_handle, job) };
-    // SAFETY: The host and shells remain live, and the job's borrows of the arena have ended.
-    unsafe { notifications.notify_host(main_thread, &host) };
-    // SAFETY: As above.
-    unsafe { LayoutNodeArena::from_handle(arena_handle) }.end_active_layout_pass(main_thread);
+        stage,
+    }
+    .run(state)
+}
+
+/// Lays out one partial relayout boundary over the arena and layout scratch of `state`, in the
+/// containing block the planner found it still has, and commits its fragments. Answers what
+/// committing them owes the host. Enrolled content is not synced here: the caller syncs once
+/// ahead of a batch of boundaries.
+pub(crate) fn lay_out_boundary(
+    state: &mut super::ArenaHandle,
+    boundary: super::partial_relayout::PlannedBoundary,
+    stage: LayoutStageFacts,
+) -> commit::CommitNotifications {
+    LayoutStageJob {
+        kind: LayoutStageKind::Boundary {
+            containing_block: boundary.containing_block(),
+        },
+        root: boundary.root(),
+        stage,
+    }
+    .run(state)
+}
+
+/// What every layout stage of a round reads besides the arena: the one question a pass may ask
+/// the document, and the document's viewport and quirks mode as the round began.
+#[derive(Clone, Copy)]
+pub(crate) struct LayoutStageFacts {
+    pub(crate) container_length_bases: layout_pass::ContainerLengthBasesQuery,
+    pub(crate) viewport_inline_size_raw: i32,
+    pub(crate) viewport_block_size_raw: i32,
+    pub(crate) document_in_quirks_mode: bool,
 }
 
 /// What a layout stage computes from: the arena and the layout stage's scratch, borrowed for the
@@ -2399,16 +2408,12 @@ struct LayoutStageInput<'a> {
 /// The fragments a layout stage computed, which its commit consumes.
 struct LayoutStageOutput(fragment_tree::CompletedPassFragments);
 
-/// One layout stage, which the host sends its document's render state: computes the fragments of
-/// the whole document from its viewport, or of one partial relayout boundary in the containing
-/// block the planner found it still has.
-pub(crate) struct LayoutStageJob {
+/// One layout stage: computes the fragments of the whole document from its viewport, or of one
+/// partial relayout boundary in the containing block the planner found it still has.
+struct LayoutStageJob {
     kind: LayoutStageKind,
     root: NodeSlotId,
-    container_length_bases: layout_pass::ContainerLengthBasesQuery,
-    viewport_inline_size_raw: i32,
-    viewport_block_size_raw: i32,
-    document_in_quirks_mode: bool,
+    stage: LayoutStageFacts,
 }
 
 #[derive(Clone, Copy)]
@@ -2422,16 +2427,16 @@ impl LayoutStageJob {
     /// computed, and settles the arena-local bookkeeping every stage owes its caller: cache
     /// maintenance, and the reset of the update flags the committed subtree satisfied. Answers what
     /// committing them owes the host.
-    pub(crate) fn run(self, state: &mut super::ArenaHandle) -> commit::CommitNotifications {
-        let (root, kind) = (self.root, self.kind);
+    fn run(self, state: &mut super::ArenaHandle) -> commit::CommitNotifications {
+        let Self { kind, root, stage } = self;
         let input = LayoutStageInput {
             arena: state.arena(),
             scratch: state.layout_scratch(),
-            container_length_bases: self.container_length_bases,
-            root: self.root,
-            viewport_inline_size_raw: self.viewport_inline_size_raw,
-            viewport_block_size_raw: self.viewport_block_size_raw,
-            document_in_quirks_mode: self.document_in_quirks_mode,
+            container_length_bases: stage.container_length_bases,
+            root,
+            viewport_inline_size_raw: stage.viewport_inline_size_raw,
+            viewport_block_size_raw: stage.viewport_block_size_raw,
+            document_in_quirks_mode: stage.document_in_quirks_mode,
         };
         let output = match kind {
             LayoutStageKind::Root {
@@ -2444,6 +2449,7 @@ impl LayoutStageJob {
         arena.end_layout_pass();
         state.layout_scratch().end_layout_pass();
         arena.reset_layout_update_flags_in_subtree(root);
+        arena.leave_active_layout_pass();
         match kind {
             LayoutStageKind::Root { .. } => arena.did_commit_full_layout(root),
             LayoutStageKind::Boundary { .. } => {
@@ -2577,42 +2583,6 @@ fn finish_entry_pass(
         "an entry pass always produces the entry root's fragment"
     );
     pass_fragments
-}
-
-/// Lays out one partial relayout boundary in place and commits its fragments. Enrolled content
-/// is not synced here: the caller syncs once ahead of a batch of boundaries.
-///
-/// # Safety
-///
-/// `arena_handle` must be a live handle with a registered layout host, used on the document
-/// thread, and the tree it holds the one the planner found `boundary` in.
-pub(crate) unsafe fn compute_subtree_layout(
-    main_thread: &crate::stage::MainThread,
-    arena_handle: *mut c_void,
-    boundary: super::partial_relayout::PlannedBoundary,
-    viewport_inline_size_raw: i32,
-    viewport_block_size_raw: i32,
-    document_in_quirks_mode: bool,
-) {
-    assert!(!arena_handle.is_null(), "layout node arena handle is null");
-    let root = boundary.root();
-    let host = FfiLayoutHostCallbacks::of(main_thread);
-    let job = LayoutStageJob {
-        kind: LayoutStageKind::Boundary {
-            containing_block: boundary.containing_block(),
-        },
-        root,
-        container_length_bases: host.container_length_bases_query(main_thread),
-        viewport_inline_size_raw,
-        viewport_block_size_raw,
-        document_in_quirks_mode,
-    };
-    // SAFETY: The host keeps the document's layout inputs alive and unchanged while the job runs.
-    let notifications = unsafe { super::update_layout::run_layout_stage_job(main_thread, arena_handle, job) };
-    // SAFETY: The host and shells remain live, and the job's borrows of the arena have ended.
-    unsafe { notifications.notify_host(main_thread, &host) };
-    // SAFETY: As above.
-    unsafe { LayoutNodeArena::from_handle(arena_handle) }.end_active_layout_pass(main_thread);
 }
 
 /// The partial layout stage: computes the fragments of one partial relayout boundary in place,

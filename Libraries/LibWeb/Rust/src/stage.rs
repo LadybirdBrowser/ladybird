@@ -77,11 +77,6 @@ impl<'host> MainThread<'host> {
 pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, arena_handle: *mut c_void) -> MainThread<'host> {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { ArenaHandle::host(arena_handle) };
-    // A tree build's walk runs without a token, so the C++ its callbacks run must not mint one.
-    assert!(
-        !host.host_tables().tree_build_walk_is_open(),
-        "a tree build walk's callback entered Rust again"
-    );
     MainThread {
         host: Some(host),
         not_send_or_sync: PhantomData,
@@ -97,11 +92,6 @@ pub(crate) unsafe fn from_ffi_entry_with_host<'host>(
     _: &impl FfiEntry,
     host: &'host DocumentHost,
 ) -> MainThread<'host> {
-    // A tree build's walk runs without a token, so the C++ its callbacks run must not mint one.
-    assert!(
-        !host.host_tables().tree_build_walk_is_open(),
-        "a tree build walk's callback entered Rust again"
-    );
     MainThread {
         host: Some(host),
         not_send_or_sync: PhantomData,
@@ -116,7 +106,6 @@ macro_rules! ffi_entry {
 }
 
 ffi_entry!(crate::layout::ArenaMainThreadFfiEntry);
-ffi_entry!(crate::layout::LayoutMainThreadFfiEntry);
 ffi_entry!(crate::layout::UpdateMainThreadFfiEntry);
 ffi_entry!(crate::layout::TreeBuildMainThreadFfiEntry);
 ffi_entry!(crate::painting::ffi::MainThreadFfiEntry);

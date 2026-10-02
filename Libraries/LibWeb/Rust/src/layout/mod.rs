@@ -80,9 +80,6 @@ use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 pub use crate::layout::node_data::STYLE_GROUP_COUNT;
 pub(crate) use abspos_inputs::{AbsposAlignment, StaticPositionAlignment};
-pub(crate) use commit::CommitNotifications;
-pub(crate) use formatting_context::LayoutStageJob;
-pub(crate) use formatting_context::MainThreadFfiEntry as LayoutMainThreadFfiEntry;
 pub(crate) use formatting_context::{
     ChildLayoutOutcome, DerivedBaselines, FfiLayoutHostCallbacks, FormattingContextRun, LayoutMode, Node, SizingAxis,
     SizingProperty,
@@ -105,7 +102,6 @@ use std::cell::RefMut;
 use std::ffi::c_void;
 pub(crate) use style_values::StyleValues;
 pub(crate) use tree_builder::MainThreadFfiEntry as TreeBuildMainThreadFfiEntry;
-pub(crate) use tree_builder::{TreeBuildAnswer, TreeBuildJob};
 pub(crate) use update_layout::MainThreadFfiEntry as UpdateMainThreadFfiEntry;
-pub(crate) use update_layout::{LayoutUpdate, run_style_job, run_tree_build_job};
+pub(crate) use update_layout::{LayoutRoundAnswer, LayoutRoundJob, LayoutUpdate, run_style_job};
 pub(crate) use used_values::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, SizeConstraint, UsedValues};
