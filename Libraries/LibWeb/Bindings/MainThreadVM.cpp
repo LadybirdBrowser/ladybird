@@ -624,7 +624,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
         auto destination = Fetch::Infrastructure::Request::Destination::Script;
 
         // 12. Let fetchClient be settingsObject.
-        GC::Ref fetch_client { settings_object };
+        HTML::FetchClient fetch_client { settings_object };
 
         // 15. If loadState is not undefined, then:
         HTML::PerformTheFetchHook perform_fetch;
@@ -700,7 +700,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
         // 16. Fetch a single imported module script given url, fetchClient, destination, fetchOptions, settingsObject, fetchReferrer,
         //     moduleRequest, and onSingleFetchComplete as defined below.
         //     If loadState is not undefined and loadState.[[PerformFetch]] is not null, pass loadState.[[PerformFetch]] along as well.
-        HTML::fetch_single_imported_module_script(settings_object->realm(), url.release_value(), *fetch_client, destination, fetch_options, settings_object, fetch_referrer, module_request, perform_fetch, on_single_fetch_complete);
+        HTML::fetch_single_imported_module_script(settings_object->realm(), url.release_value(), fetch_client, destination, fetch_options, settings_object, fetch_referrer, module_request, perform_fetch, on_single_fetch_complete);
     };
 
     main_thread_vm_ptr()->host_unrecognized_date_string = [](Utf16View date) {

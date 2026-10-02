@@ -12,15 +12,12 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
-#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/SecurityPolicyViolationEvent.h>
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
-#include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -112,22 +109,6 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(N
     //            targets to which the page MUST NOT be given access.
     violation->m_resource = request->url();
 
-    // AD-HOC: A request whose client is a snapshot of an environment in another process, such as a worker's outside
-    //         settings when the worker fetches its script, violates that environment's policies. Its global object is
-    //         in that process, so the violation is reported there.
-    if (auto const* snapshot = as_if<HTML::EnvironmentSettingsSnapshot>(*client); snapshot && snapshot->report_violation()) {
-        // NB: Request's policy container is a clone of the snapshot's, which lists the policies in the same order.
-        auto const& policies = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list.policies();
-        for (size_t policy_index = 0; policy_index < policies.size(); ++policy_index) {
-            if (policies[policy_index].ptr() != policy.ptr())
-                continue;
-            violation->m_report_in_other_process = GC::create_function(GC::Heap::the(), [report_violation = GC::Ref { *snapshot->report_violation() }, policy_index, effective_directive = String { violation->m_effective_directive.to_utf8() }, resource = request->url()] {
-                report_violation->function()(policy_index, effective_directive, resource);
-            });
-            break;
-        }
-    }
-
     // 4. Return violation.
     return violation;
 }
@@ -137,7 +118,6 @@ void Violation::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_global_scope);
     visitor.visit(m_element);
-    visitor.visit(m_report_in_other_process);
 }
 
 // https://w3c.github.io/webappsec-csp/#violation-url
@@ -308,12 +288,6 @@ void Violation::report_a_violation(JS::Realm& realm)
         disposition() == Policy::Disposition::Report ? " (report only)"sv : ""sv,
         obtain_the_blocked_uri_of_resource(),
         m_effective_directive);
-
-    // AD-HOC: See create_a_violation_object_for_request_and_policy().
-    if (m_report_in_other_process) {
-        m_report_in_other_process->function()();
-        return;
-    }
 
     // 1. Let global be violation’s global object.
     auto global_scope = m_global_scope;

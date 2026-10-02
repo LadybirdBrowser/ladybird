@@ -22,9 +22,9 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
-#include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
@@ -34,6 +34,7 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/Infra/SerializedURL.h>
+#include <LibWeb/MixedContent/AbstractOperations.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorker.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerRegistration.h>
@@ -722,18 +723,18 @@ bool is_non_secure_context(Environment const& environment)
 SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 {
     auto serialized_global = [this]() -> SerializedGlobal {
-        if (auto const* snapshot = as_if<EnvironmentSettingsSnapshot>(*this))
-            return snapshot->serialized_global();
         bool relevant_settings_object_is_secure_context = is_secure_context(*this);
         auto relevant_settings_object_policy_container = policy_container()->serialize();
         auto& global = global_object();
         if (auto const* window = window_from_global_object(global)) {
+            auto navigable = window->navigable();
             return SerializedWindow {
                 .associated_document {
                     .url = window->associated_document().url(),
                     .relevant_settings_object_is_secure_context = relevant_settings_object_is_secure_context,
                     .relevant_settings_object_policy_container = move(relevant_settings_object_policy_container),
-                }
+                },
+                .navigable_is_top_level = navigable && navigable->is_top_level_traversable(),
             };
         }
         VERIFY(Bindings::worker_global_scope_from_global_object(global));
@@ -757,6 +758,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
         .has_cross_site_ancestor = has_cross_site_ancestor(),
         .policy_container = policy_container()->serialize(),
         .cross_origin_isolated_capability = cross_origin_isolated_capability(),
+        .prohibits_mixed_security_contexts = MixedContent::does_settings_prohibit_mixed_security_contexts(*this),
         .agent_cluster_id = agent_cluster_id(),
         .agent_cluster_cross_origin_isolation_mode = agent_cluster_cross_origin_isolation_mode(),
         .time_origin = this->time_origin(),

@@ -1,0 +1,6 @@
+this page is a secure context: false
+sibling navigated
+WebContent#0
+  iframe#0: remote WebContent#1
+  iframe#1: remote WebContent#2
+    iframe#0: local

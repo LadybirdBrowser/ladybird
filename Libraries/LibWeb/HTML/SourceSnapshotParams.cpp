@@ -33,7 +33,7 @@ GC::Ref<SourceSnapshotParams> snapshot_source_snapshot_params(GC::Ptr<DOM::Docum
             true,
             // fetch client
             //     null
-            nullptr,
+            OptionalNone {},
             // source policy container
             //     a new policy container
             PolicyContainer::create());
@@ -56,7 +56,7 @@ GC::Ref<SourceSnapshotParams> snapshot_source_snapshot_params(GC::Ptr<DOM::Docum
 
         // fetch client
         //     sourceDocument's relevant settings object
-        relevant_settings_object(*source_document),
+        GC::Ref { relevant_settings_object(*source_document) },
 
         // source policy container
         //     a clone of sourceDocument's policy container

@@ -225,8 +225,8 @@ void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructur
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#check-a-global-object's-embedder-policy
-// NB: response is only used for violation reports, which are not queued.
-bool WorkerGlobalScope::check_embedder_policy(EnvironmentSettingsObject const& owner) const
+// NB: response is only used for violation reports, which are not queued. owner is given as its embedder policy.
+bool WorkerGlobalScope::check_embedder_policy(EmbedderPolicy const& owner_policy) const
 {
     // 1. If workerGlobalScope is not a DedicatedWorkerGlobalScope object, then return true.
     if (!is<DedicatedWorkerGlobalScope>(*this))
@@ -238,7 +238,6 @@ bool WorkerGlobalScope::check_embedder_policy(EnvironmentSettingsObject const& o
     auto const& policy = policy_container()->embedder_policy;
 
     // 3. Let ownerPolicy be owner's policy container's embedder policy.
-    auto const& owner_policy = owner.policy_container()->embedder_policy;
 
     // FIXME: 4. If ownerPolicy's report-only value is compatible with cross-origin isolation and policy's value is
     //           not, then queue a cross-origin embedder policy inheritance violation with response, "worker

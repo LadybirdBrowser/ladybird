@@ -5,11 +5,10 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/FetchClient.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 
 namespace Web::HTML {
@@ -20,7 +19,11 @@ NavigationSourceSnapshot create_navigation_source_snapshot(SourceSnapshotParams 
         .has_transient_activation = snapshot.has_transient_activation,
         .sandboxing_flags = snapshot.sandboxing_flags,
         .allows_downloading = snapshot.allows_downloading,
-        .fetch_client = snapshot.fetch_client ? Optional<SerializedEnvironmentSettingsObject> { snapshot.fetch_client->serialize() } : Optional<SerializedEnvironmentSettingsObject> {},
+        .fetch_client = snapshot.fetch_client.map([](FetchClient const& fetch_client) {
+            return fetch_client.visit(
+                [](GC::Ref<EnvironmentSettingsObject> const& settings_object) { return settings_object->serialize(); },
+                [](NonnullRefPtr<RemoteEnvironmentSettings const> const& settings) { return settings->settings; });
+        }),
         .source_policy_container = snapshot.source_policy_container->serialize(),
         .text_directive_user_activation = snapshot.text_directive_user_activation,
         .browsing_context_group_has_multiple_contexts = snapshot.browsing_context_group_has_multiple_contexts,
@@ -31,13 +34,11 @@ NavigationSourceSnapshot create_navigation_source_snapshot(SourceSnapshotParams 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-source-snapshot-params
 GC::Ref<SourceSnapshotParams> create_source_snapshot_params_from_navigation_source_snapshot(JS::Realm& realm, NavigationSourceSnapshot const& snapshot)
 {
-    auto& heap = realm.heap();
-
-    GC::Ptr<EnvironmentSettingsObject> fetch_client;
+    Optional<FetchClient> fetch_client;
     if (snapshot.fetch_client.has_value())
-        fetch_client = heap.allocate<EnvironmentSettingsSnapshot>(Bindings::principal_host_defined_environment_settings_object(realm).realm_execution_context().copy(), *snapshot.fetch_client);
+        fetch_client = RemoteEnvironmentSettings::create(*snapshot.fetch_client);
 
-    return heap.allocate<SourceSnapshotParams>(
+    return realm.heap().allocate<SourceSnapshotParams>(
         snapshot.has_transient_activation,
         snapshot.sandboxing_flags,
         snapshot.allows_downloading,

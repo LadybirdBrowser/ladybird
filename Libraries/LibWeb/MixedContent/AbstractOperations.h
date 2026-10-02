@@ -10,7 +10,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/RequestOrResponseBlocking.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/MixedContent/ProhibitsMixedSecurityContexts.h>
+#include <LibWebCommon/MixedContent/ProhibitsMixedSecurityContexts.h>
 
 namespace Web::MixedContent {
 

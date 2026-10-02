@@ -30,6 +30,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/KeepaliveQuotaAccountant.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsObjectAddress.h>
+#include <LibWeb/HTML/Scripting/RemoteEnvironmentSettings.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
@@ -168,6 +169,7 @@ public:
     using PolicyContainerType = Variant<PolicyContainer, NonnullRefPtr<HTML::PolicyContainer const>>;
     using ReferrerType = RequestReferrerType;
     using TraversableForUserPromptsType = Variant<TraversableForUserPrompts, HTML::CrossProcessId>;
+    using ClientType = Variant<HTML::EnvironmentSettingsObjectAddress, NonnullRefPtr<HTML::RemoteEnvironmentSettings const>>;
 
     [[nodiscard]] static NonnullRefPtr<Request> create();
     ~Request();
@@ -193,8 +195,8 @@ public:
         m_body = move(body);
     }
 
-    [[nodiscard]] Optional<HTML::EnvironmentSettingsObjectAddress> client() const { return m_client; }
-    void set_client(Optional<HTML::EnvironmentSettingsObjectAddress> client) { m_client = client; }
+    [[nodiscard]] Optional<ClientType> const& client() const { return m_client; }
+    void set_client(Optional<ClientType> client) { m_client = move(client); }
 
     [[nodiscard]] RefPtr<ClientContextSnapshot const> const& client_snapshot() const { return m_client_snapshot; }
     void set_client_snapshot(RefPtr<ClientContextSnapshot const> client_snapshot) { m_client_snapshot = move(client_snapshot); }
@@ -374,7 +376,8 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-request-client
     // A request has an associated client (null or an environment settings object).
-    Optional<HTML::EnvironmentSettingsObjectAddress> m_client;
+    // NB: A settings object of this process is held by its address.
+    Optional<ClientType> m_client;
 
     // What fetching reads from the client, null when the client is.
     RefPtr<ClientContextSnapshot const> m_client_snapshot;

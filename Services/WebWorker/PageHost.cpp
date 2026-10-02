@@ -104,7 +104,8 @@ void PageHost::page_did_report_worker_exception(Utf16String const& message, Utf1
     m_client.async_did_report_worker_exception(message, filename, lineno, colno);
 }
 
-void PageHost::did_report_outside_settings_content_security_policy_violation(u64 policy_index, String effective_directive, URL::URL resource)
+// NB: The worker's only client another process hosts is outside settings, whose violations its owner reports.
+void PageHost::page_did_report_violation_of_remote_client(u64 policy_index, String effective_directive, URL::URL resource)
 {
     m_client.async_did_report_outside_settings_content_security_policy_violation(policy_index, effective_directive, resource);
 }

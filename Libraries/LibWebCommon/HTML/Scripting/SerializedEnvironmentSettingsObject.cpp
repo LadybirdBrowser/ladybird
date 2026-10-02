@@ -17,6 +17,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedWindow const& window
     TRY(encoder.encode(window.associated_document.url));
     TRY(encoder.encode(window.associated_document.relevant_settings_object_is_secure_context));
     TRY(encoder.encode(window.associated_document.relevant_settings_object_policy_container));
+    TRY(encoder.encode(window.navigable_is_top_level));
 
     return {};
 }
@@ -30,6 +31,7 @@ ErrorOr<Web::HTML::SerializedWindow> decode(Decoder& decoder)
             .relevant_settings_object_is_secure_context = TRY(decoder.decode<bool>()),
             .relevant_settings_object_policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
         },
+        .navigable_is_top_level = TRY(decoder.decode<bool>()),
     };
 }
 
@@ -64,6 +66,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedEnvironmentSettingsO
     TRY(encoder.encode(object.has_cross_site_ancestor));
     TRY(encoder.encode(object.policy_container));
     TRY(encoder.encode(object.cross_origin_isolated_capability));
+    TRY(encoder.encode(object.prohibits_mixed_security_contexts));
     TRY(encoder.encode(object.agent_cluster_id));
     TRY(encoder.encode(object.agent_cluster_cross_origin_isolation_mode));
     TRY(encoder.encode(object.time_origin));
@@ -85,6 +88,7 @@ ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder& decoder)
         .has_cross_site_ancestor = TRY(decoder.decode<bool>()),
         .policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
         .cross_origin_isolated_capability = TRY(decoder.decode<Web::HTML::CanUseCrossOriginIsolatedAPIs>()),
+        .prohibits_mixed_security_contexts = TRY(decoder.decode<Web::MixedContent::ProhibitsMixedSecurityContexts>()),
         .agent_cluster_id = TRY(decoder.decode<Optional<u64>>()),
         .agent_cluster_cross_origin_isolation_mode = TRY(decoder.decode<Web::HTML::CrossOriginIsolationMode>()),
         .time_origin = TRY(decoder.decode<double>()),

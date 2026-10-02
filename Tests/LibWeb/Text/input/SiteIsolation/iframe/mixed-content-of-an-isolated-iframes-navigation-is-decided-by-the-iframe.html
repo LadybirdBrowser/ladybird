@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // This page is not a secure context. A data: frame, whose opaque origin is not potentially trustworthy, sits in an
+    // iframe on a localhost name, which is, so the data: frame prohibits mixed security contexts. Its navigation of a
+    // sibling of that iframe, which another process hosts, to a URL that is not potentially trustworthy is blocked as
+    // mixed content, as it would be in the data: frame's own process.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = uniqueID();
+        const targetHostname = uniqueTestHostname("mixed-content-target");
+
+        const echo = async (path, body, hostname) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", path, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body,
+                })
+            );
+            url.hostname = hostname;
+            return url;
+        };
+
+        const targetFirstUrl = await echo(`/mixed-content-target-first-${runId}`, "<!DOCTYPE html>first", targetHostname);
+        const blockedUrl = await echo(
+            `/mixed-content-blocked-${runId}`,
+            `<!DOCTYPE html><script>top.postMessage("navigation to an insecure URL went through", "*");<\/script>`,
+            targetHostname
+        );
+        const allowedUrl = await echo(
+            `/mixed-content-allowed-${runId}`,
+            `<!DOCTYPE html><script>top.postMessage("sibling navigated", "*");<\/script>`,
+            uniqueLocalhostHostname("mixed-content-allowed")
+        );
+        const sourceUrl = `data:text/html,${encodeURIComponent(`<!DOCTYPE html>
+            <a id="blocked" target="target" href="${blockedUrl.href}">blocked</a>
+            <a id="allowed" target="target" href="${allowedUrl.href}">allowed</a>
+            <script>
+                addEventListener("message", () => document.getElementById("allowed").click());
+                document.getElementById("blocked").click();
+            <\/script>`)}`;
+        const secureFrameUrl = await echo(
+            `/mixed-content-secure-frame-${runId}`,
+            `<!DOCTYPE html><iframe src="${sourceUrl}"></iframe>`,
+            uniqueLocalhostHostname("mixed-content-secure-frame")
+        );
+
+        const target = document.createElement("iframe");
+        target.name = "target";
+        target.src = targetFirstUrl;
+        document.body.appendChild(target);
+        await new Promise(resolve => (target.onload = resolve));
+
+        const messages = [];
+        let resolveNavigated;
+        const navigated = new Promise(resolve => (resolveNavigated = resolve));
+        addEventListener("message", event => {
+            messages.push(event.data);
+            if (event.data === "sibling navigated")
+                resolveNavigated();
+        });
+
+        // The first navigation the source starts loads either its document or an error page.
+        const firstNavigationLoaded = new Promise(resolve => target.addEventListener("load", resolve, { once: true }));
+        const secureFrame = document.createElement("iframe");
+        secureFrame.src = secureFrameUrl;
+        document.body.appendChild(secureFrame);
+        await firstNavigationLoaded;
+        await timeout(0);
+
+        frames[1].frames[0].postMessage("navigate to the allowed URL", "*");
+        await navigated;
+
+        println(`this page is a secure context: ${isSecureContext}`);
+        for (const message of messages)
+            println(message);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
