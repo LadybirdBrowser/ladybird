@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    function paintsVideoFrame() {
+        return internals.dumpDisplayList().includes("DrawVideoFrame");
+    }
+
+    async function enterAndExitPictureInPicture(video) {
+        internals.grantTransientActivation();
+        const entered = video.requestPictureInPicture();
+
+        // A new box for the video takes its paint facts afresh, before the window has opened.
+        video.style.display = video.style.display === "block" ? "" : "block";
+        println(`paints video frames while the window opens: ${paintsVideoFrame()}`);
+
+        await entered;
+        println(`paints video frames in Picture-in-Picture: ${paintsVideoFrame()}`);
+
+        await document.exitPictureInPicture();
+        println(`paints video frames after exiting: ${paintsVideoFrame()}`);
+    }
+
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
+            await new Promise(resolve => video.addEventListener("loadeddata", resolve, { once: true }));
+        println(`paints video frames before Picture-in-Picture: ${paintsVideoFrame()}`);
+
+        println("Without controls:");
+        await enterAndExitPictureInPicture(video);
+
+        println("With controls:");
+        video.controls = true;
+        await enterAndExitPictureInPicture(video);
+
+        done();
+    });
+</script>

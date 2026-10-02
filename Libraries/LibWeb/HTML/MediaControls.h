@@ -26,6 +26,7 @@ public:
 
     void visit_edges(GC::Cell::Visitor&);
 
+    void update_visibility();
     void set_picture_in_picture_window_controls_in_use(bool);
 
 private:

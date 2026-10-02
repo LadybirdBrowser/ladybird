@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    const video = document.querySelector("video");
+    video.addEventListener("loadedmetadata", async () => {
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+        await document.exitPictureInPicture();
+        document.documentElement.classList.remove("test-wait");
+    }, { once: true });
+</script>
+</html>
