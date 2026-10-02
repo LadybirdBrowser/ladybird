@@ -109,6 +109,7 @@ pub mod property_descriptor;
 pub mod property_key;
 pub mod prototype_object;
 pub mod proxy_constructor;
+pub mod proxy_object;
 pub mod raw_json_object;
 pub mod realm;
 pub mod reference;

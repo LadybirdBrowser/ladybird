@@ -13,7 +13,6 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{GcCell, define_cell};
-use crate::gc::class_id::ClassId;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -1288,7 +1287,7 @@ impl JSONObject {
             }
 
             // a. Let isArray be ? IsArray(value).
-            let is_array = value_object.class().id == ClassId::ProxyObject && value.is_array(vm)?;
+            let is_array = value_object.is_proxy_object() && value.is_array(vm)?;
 
             // b. If isArray is true, return ? SerializeJSONArray(state, value).
             if is_array {
