@@ -10,6 +10,7 @@
 //! output reaches a pipe that also gets the standard error the same as with the C++ tools.
 
 use core::cell::RefCell;
+use core::ffi::c_int;
 use std::io::{self, IsTerminal, Write};
 
 /// What C stdio buffers for a pipe or a file before it writes it.
@@ -80,20 +81,31 @@ pub fn write_unbuffered(bytes: &[u8]) {
     write_to_file_descriptor(bytes);
 }
 
-/// A writer past the buffer, like Core::File::standard_output(). Each write goes straight to the file descriptor, so
-/// the caller flushes the buffer before writing with it.
-pub struct UnbufferedStandardOutputWriter;
+/// A writer past the buffer, like Core::File::standard_output() and Core::File::standard_error(). Each write goes
+/// straight to the file descriptor and fails like write(), also on a closed descriptor, which the standard streams of
+/// std report as written. The caller flushes the buffer before writing to the standard output with it.
+pub struct UnbufferedWriter {
+    file_descriptor: c_int,
+}
 
-impl Write for UnbufferedStandardOutputWriter {
+impl UnbufferedWriter {
+    pub const STANDARD_OUTPUT: Self = Self {
+        file_descriptor: libc::STDOUT_FILENO,
+    };
+    pub const STANDARD_ERROR: Self = Self {
+        file_descriptor: libc::STDERR_FILENO,
+    };
+}
+
+impl Write for UnbufferedWriter {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        let mut stdout = io::stdout().lock();
-        stdout.write_all(bytes)?;
-        stdout.flush()?;
-        Ok(bytes.len())
+        // SAFETY: The bytes are valid for their length.
+        let written = unsafe { libc::write(self.file_descriptor, bytes.as_ptr().cast(), bytes.len()) };
+        usize::try_from(written).map_err(|_| io::Error::last_os_error())
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        io::stdout().flush()
+        Ok(())
     }
 }
 
