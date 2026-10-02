@@ -1115,6 +1115,8 @@ pub struct RetainedState {
 pub struct HostState {
     /// What the flush whose rows the host is installing moved under every row.
     batch_moves_for_retries: publication::BatchMoves,
+    /// Why the flush would have driven a row it left to a retry in full, its winners standing.
+    retry_full_drive_reasons: HashMap<StyleNodeID, publication::FullDriveReason>,
     /// The host's synchronous font resolver. A step that misses the cache returns `NeedsInput`;
     /// the round outside the step calls this and the node is retried.
     font_resolver: Option<font_resolution::FontResolverHost>,

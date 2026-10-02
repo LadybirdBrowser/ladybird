@@ -32,6 +32,7 @@ impl RetainedState {
     fn retry_engine_record_after_ancestor_step(
         &mut self,
         node: StyleNodeID,
+        full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<u64> {
@@ -58,7 +59,7 @@ impl RetainedState {
                     backing_answer_is_complete,
                     None,
                     parent_inputs_moved,
-                    None,
+                    full_drive_reason,
                     scratch,
                     counters,
                 )
@@ -82,7 +83,9 @@ impl RetainedState {
         else {
             return Err(Unanswered::Refused);
         };
-        if !scratch.font_drive.is_pending_for(node)
+        // A record driven in full for inputs no winner shows is no cohort's.
+        if full_drive_reason.is_none()
+            && !scratch.font_drive.is_pending_for(node)
             && !self.node_declares_custom_properties(node)
             && let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node)
             && let Some(parent) = self.tree.inheritance_parent(node)
@@ -166,7 +169,7 @@ impl RetainedState {
                 inherited_style: true,
                 display: true,
             },
-            None,
+            full_drive_reason,
             scratch,
             counters,
         )?;
@@ -193,9 +196,15 @@ impl StyleEngineState {
         counters.bump(Counter::RetryAfterAncestorCalls);
         let started_at = std::time::Instant::now();
         let mut scratch = EngineComputedRecordScratch::for_retry(self.host.batch_moves_for_retries);
+        let full_drive_reason = self.host.retry_full_drive_reasons.get(&node).copied();
         let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
-        let style_record =
-            self.retry_engine_record_after_ancestor_loop(node, &mut scratch, &mut suspended_memory, counters);
+        let style_record = self.retry_engine_record_after_ancestor_loop(
+            node,
+            full_drive_reason,
+            &mut scratch,
+            &mut suspended_memory,
+            counters,
+        );
         counters.add(
             Counter::RetryAfterAncestorMicroseconds,
             u64::try_from(started_at.elapsed().as_micros()).unwrap_or(u64::MAX),
@@ -226,12 +235,13 @@ impl StyleEngineState {
     fn retry_engine_record_after_ancestor_loop(
         &mut self,
         node: StyleNodeID,
+        full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         suspended_memory: &mut MemoryLease,
         counters: &mut Counters,
     ) -> u64 {
         loop {
-            match self.retry_engine_record_after_ancestor_step(node, scratch, counters) {
+            match self.retry_engine_record_after_ancestor_step(node, full_drive_reason, scratch, counters) {
                 Ok(record) => {
                     if record != 0 {
                         counters.bump(Counter::RetryAfterAncestorSettled);
