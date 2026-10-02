@@ -78,12 +78,10 @@ TEST_CASE(a_crash_screen_offers_the_website_without_including_it)
 
     auto name = write_report("2026-10-01T12-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
-    CrashReportReviewWidget widget { CrashReportReviewWidget::Mode::Tab, nullptr, store };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
     MUST(widget.open_report(name, "https://example.com/page"_string));
     widget.show();
 
-    // The crash screen around the review already names what crashed.
-    EXPECT(!child<QLabel>(widget, "CrashReportTitle").isVisible());
     auto& website = child<QLineEdit>(widget, "CrashReportWebsite");
     auto& include_website = child<QCheckBox>(widget, "CrashReportIncludeWebsite");
     EXPECT_EQ(website.text(), "https://example.com/page");
@@ -95,41 +93,40 @@ TEST_CASE(a_crash_screen_offers_the_website_without_including_it)
     child<QPushButton>(widget, "CrashReportDeclineButton").click();
     EXPECT_EQ(status_title(widget), "Report not sent");
     EXPECT(!child<QPushButton>(widget, "CrashReportNextButton").isVisible());
-    EXPECT(!child<QPushButton>(widget, "CrashReportCloseButton").isVisible());
 }
 
-TEST_CASE(a_crash_screen_offers_to_reload_the_page_before_and_after_answering)
+TEST_CASE(the_review_offers_to_exit_before_and_after_answering)
 {
     cleanup();
     ScopeGuard guard = cleanup;
 
     auto name = write_report("2026-10-01T12-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
-    CrashReportReviewWidget widget { CrashReportReviewWidget::Mode::Tab, nullptr, store };
-    auto reloads = 0;
-    widget.on_reload = [&] { ++reloads; };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
+    auto exits = 0;
+    widget.on_exit = [&] { ++exits; };
     MUST(widget.open_report(name));
     widget.show();
 
-    auto& review_reload = child<QPushButton>(widget, "CrashReportReviewReloadButton");
-    EXPECT(review_reload.isVisible());
+    auto& review_exit = child<QPushButton>(widget, "CrashReportReviewExitButton");
+    EXPECT(review_exit.isVisible());
     EXPECT(child<QPushButton>(widget, "CrashReportSendButton").isDefault());
-    review_reload.click();
-    EXPECT_EQ(reloads, 1);
+    review_exit.click();
+    EXPECT_EQ(exits, 1);
 
-    // Once the report is answered, reloading is what is left to do.
+    // Once the report is answered, leaving is what is left to do.
     widget.show_sent();
-    auto& reload = child<QPushButton>(widget, "CrashReportReloadButton");
-    EXPECT(reload.isVisible());
-    EXPECT(reload.isDefault());
-    reload.click();
-    EXPECT_EQ(reloads, 2);
+    auto& exit_button = child<QPushButton>(widget, "CrashReportExitButton");
+    EXPECT(exit_button.isVisible());
+    EXPECT(exit_button.isDefault());
+    exit_button.click();
+    EXPECT_EQ(exits, 2);
 
     // A report that may still be sent offers both.
     widget.show_failure(CrashReportSubmission::Failure::Sending, "Network error while contacting the report server."_string);
     EXPECT(child<QPushButton>(widget, "CrashReportRetryButton").isVisible());
-    EXPECT(reload.isVisible());
-    EXPECT(!reload.isDefault());
+    EXPECT(exit_button.isVisible());
+    EXPECT(!exit_button.isDefault());
 }
 
 TEST_CASE(a_choice_that_cannot_be_sent_is_explained_in_place)
@@ -139,7 +136,7 @@ TEST_CASE(a_choice_that_cannot_be_sent_is_explained_in_place)
 
     auto name = write_report("2026-10-01T12-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
-    CrashReportReviewWidget widget { CrashReportReviewWidget::Mode::Tab, nullptr, store };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
     MUST(widget.open_report(name, "https://example.com/"_string));
     widget.show();
 
@@ -153,7 +150,7 @@ TEST_CASE(a_choice_that_cannot_be_sent_is_explained_in_place)
     EXPECT(child<QPushButton>(widget, "CrashReportSendButton").isVisible());
 }
 
-TEST_CASE(the_dialog_walks_through_every_waiting_report)
+TEST_CASE(the_review_walks_through_every_waiting_report)
 {
     cleanup();
     ScopeGuard guard = cleanup;
@@ -161,17 +158,11 @@ TEST_CASE(the_dialog_walks_through_every_waiting_report)
     write_report("2026-10-01T12-00-00Z"sv);
     write_report("2026-10-01T13-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
-    CrashReportReviewWidget widget { CrashReportReviewWidget::Mode::Dialog, nullptr, store };
-    auto closed = false;
-    widget.on_close = [&] { closed = true; };
+    CrashReportReviewWidget widget { QStringLiteral("Continue"), nullptr, store };
+    auto exited = false;
+    widget.on_exit = [&] { exited = true; };
     MUST(widget.open_report());
     widget.show();
-
-    auto& title = child<QLabel>(widget, "CrashReportTitle");
-    EXPECT(title.isVisible());
-    EXPECT(!widget.findChild<QPushButton*>("CrashReportReviewReloadButton"));
-    EXPECT(!widget.findChild<QPushButton*>("CrashReportReloadButton"));
-    EXPECT_EQ(title.text(), "A web page crashed");
 
     // Without a website to offer, there is nothing to include.
     EXPECT(!child<QCheckBox>(widget, "CrashReportIncludeWebsite").isVisible());
@@ -186,11 +177,11 @@ TEST_CASE(the_dialog_walks_through_every_waiting_report)
 
     child<QPushButton>(widget, "CrashReportDeclineButton").click();
     EXPECT(!next.isVisible());
-    auto& close = child<QPushButton>(widget, "CrashReportCloseButton");
-    EXPECT(close.isVisible());
+    auto& exit_button = child<QPushButton>(widget, "CrashReportExitButton");
+    EXPECT(exit_button.isVisible());
 
-    close.click();
-    EXPECT(closed);
+    exit_button.click();
+    EXPECT(exited);
 }
 
 TEST_CASE(sending_shows_its_progress_and_outcome)
@@ -200,7 +191,7 @@ TEST_CASE(sending_shows_its_progress_and_outcome)
 
     auto name = write_report("2026-10-01T12-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
-    CrashReportReviewWidget widget { CrashReportReviewWidget::Mode::Dialog, nullptr, store };
+    CrashReportReviewWidget widget { QStringLiteral("Continue"), nullptr, store };
     MUST(widget.open_report(name));
     widget.show();
 
@@ -218,11 +209,10 @@ TEST_CASE(sending_shows_its_progress_and_outcome)
     widget.show_failure(CrashReportSubmission::Failure::Sending, "Network error while contacting the report server."_string);
     EXPECT_EQ(status_title(widget), "Couldn’t send report");
     EXPECT(retry.isVisible());
-    EXPECT(!child<QPushButton>(widget, "CrashReportCloseButton").isVisible());
 
     widget.show_failure(CrashReportSubmission::Failure::Preparation, "Could not prepare this report."_string);
     EXPECT(!retry.isVisible());
-    EXPECT(child<QPushButton>(widget, "CrashReportCloseButton").isVisible());
+    EXPECT(child<QPushButton>(widget, "CrashReportExitButton").isVisible());
 
     widget.show_sent();
     EXPECT_EQ(status_title(widget), "Report sent");
@@ -243,7 +233,7 @@ TEST_CASE(the_details_toggle_is_written_like_the_text_around_it)
 
     auto name = write_report("2026-10-01T12-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
-    CrashReportReviewWidget widget { CrashReportReviewWidget::Mode::Tab, nullptr, store };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
     MUST(widget.open_report(name));
 
     QPushButton* toggle = nullptr;
@@ -268,7 +258,7 @@ TEST_CASE(tab_moves_through_every_control_and_wraps_around)
 
     auto name = write_report("2026-10-01T12-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
-    CrashReportReviewWidget widget { CrashReportReviewWidget::Mode::Tab, nullptr, store };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
     MUST(widget.open_report(name, "https://example.com/"_string));
     for (auto* button : widget.findChildren<QAbstractButton*>())
         button->setFocusPolicy(Qt::TabFocus);
@@ -285,7 +275,7 @@ TEST_CASE(tab_moves_through_every_control_and_wraps_around)
     auto& description = child<QPlainTextEdit>(widget, "CrashReportDescription");
     auto& include_website = child<QCheckBox>(widget, "CrashReportIncludeWebsite");
     auto& send = child<QPushButton>(widget, "CrashReportSendButton");
-    auto& reload = child<QPushButton>(widget, "CrashReportReviewReloadButton");
+    auto& exit_button = child<QPushButton>(widget, "CrashReportReviewExitButton");
     description.setFocus();
 
     // The URL field is skipped while its option is off, and the details' controls while they are collapsed.
@@ -294,9 +284,9 @@ TEST_CASE(tab_moves_through_every_control_and_wraps_around)
     EXPECT(static_cast<QPushButton*>(toggle)->text().endsWith("Report details"));
     EXPECT_EQ(press(Qt::Key_Tab), &send);
     EXPECT_EQ(press(Qt::Key_Tab), &child<QPushButton>(widget, "CrashReportDeclineButton"));
-    EXPECT_EQ(press(Qt::Key_Tab), &reload);
+    EXPECT_EQ(press(Qt::Key_Tab), &exit_button);
     EXPECT_EQ(press(Qt::Key_Tab), &description);
-    EXPECT_EQ(press(Qt::Key_Backtab), &reload);
+    EXPECT_EQ(press(Qt::Key_Backtab), &exit_button);
 
     // The details' controls follow the toggle that shows them.
     static_cast<QPushButton*>(toggle)->click();
@@ -316,7 +306,7 @@ TEST_CASE(answering_the_report_is_announced_once_the_choice_is_made)
 
     auto name = write_report("2026-10-01T12-00-00Z"sv);
     WebView::CrashReportStore store { test_directory() };
-    CrashReportReviewWidget widget { CrashReportReviewWidget::Mode::Tab, nullptr, store };
+    CrashReportReviewWidget widget { QStringLiteral("Reload page"), nullptr, store };
     auto answers = 0;
     widget.on_answered = [&] { ++answers; };
     MUST(widget.open_report(name, "https://example.com/"_string));
