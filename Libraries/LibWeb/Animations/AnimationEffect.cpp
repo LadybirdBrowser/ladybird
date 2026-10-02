@@ -823,6 +823,11 @@ static ReadonlySpan<CSS::ComputedValuesFFI::FfiAnimatedOverlayEntry> animated_ov
 
 AnimationUpdateContext::~AnimationUpdateContext()
 {
+    publish();
+}
+
+void AnimationUpdateContext::publish()
+{
     for (auto& it : elements) {
         auto style = it.value.target_style;
         if (!style)
@@ -880,7 +885,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
         // which an animation-only overlay update deliberately does not reconstruct. Publish an
         // exact feedback action so the ordinary reaction path re-cascades that base before the
         // frame becomes observable.
-        if (animated_property_invalidation.requires_base_style_recomputation)
+        if (animated_property_invalidation.requires_base_style_recomputation && !it.value.base_is_current)
             target->document().style_computer().style_engine().record_derived_element_style_input_change(
                 target->style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
 
@@ -963,6 +968,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
         if (repaint_layout_node && Painting::has_committed_box(*repaint_layout_node))
             Painting::repaint_after_style_change(*repaint_layout_node, invalidation);
     }
+    elements.clear();
 }
 
 }

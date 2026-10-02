@@ -48,10 +48,18 @@ struct AnimationUpdateContext {
         CSS::StyleRecordID style_record_before_update;
         RefPtr<CSS::ComputedStyleWorkingSet> target_style;
         GC::ConservativeVector<GC::Ref<KeyframeEffect>> effects;
+        // Whether the record the update samples over was computed by this style update, so that the base
+        // adjustments the sampled values feed into were made over the values the element holds now.
+        bool base_is_current { false };
     };
 
     AnimationUpdateContext();
+    // Publishes what is left unpublished.
     ~AnimationUpdateContext();
+
+    // Samples each element's effects over the style it holds and publishes what they compose, which the destructor
+    // otherwise does.
+    void publish();
 
     // NOTE: This is lazily populated by KeyframeEffects as their respective animations are applied to an element.
     HashMap<DOM::AbstractElement, ElementData> elements;
