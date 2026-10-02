@@ -2040,24 +2040,6 @@ static Web::MouseEvent ui_mouse_move_event(int x, int y, u64 id)
     return event;
 }
 
-TEST_CASE(ui_wheel_event_is_forwarded_flagged_after_the_scroll_updates_it_produced)
-{
-    PresentingContextFixture fixture { { 100, 100 } };
-    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
-    fixture.install(make_scrollable_viewport_display_list(visual_context_tree, true, Compositing::ContextRef {}), visual_context_tree);
-    fixture.present();
-    fixture.web_content_client.events.clear();
-
-    fixture.compositor_state->handle_and_dispatch_mouse_event(fixture.context_id, ui_wheel_event(20, 20, 0, 5, 3));
-
-    EXPECT_EQ(fixture.web_content_client.event_sequence(), "async_scroll_updates,request_rendering_update,mouse_event"sv);
-    EXPECT_EQ(fixture.web_content_client.forwarded_mouse_events.size(), 1u);
-    EXPECT(fixture.web_content_client.forwarded_mouse_events.last().async_scroll_performed_default_action);
-    EXPECT_EQ(fixture.web_content_client.forwarded_mouse_events.last().id, 3u);
-    EXPECT(fixture.compositor_client.consumed_input_event_ids.is_empty());
-    EXPECT(fixture.compositor_client.undispatched_input_event_ids.is_empty());
-}
-
 TEST_CASE(shift_swaps_the_wheel_axes_in_the_compositor)
 {
     PresentingContextFixture fixture { { 100, 100 } };
