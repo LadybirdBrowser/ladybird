@@ -11,6 +11,7 @@ use crate::layout::node_data::{NodeSlotId, SELECTION_PSEUDO_KIND};
 use crate::painting::display_list::commands::OptionalColor;
 use crate::painting::fragment_ownership;
 use crate::painting::host::FfiSelectionStyleFacts;
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_data::{FfiSelectionEntry, SELECTION_STATE_NONE};
 use crate::painting::paintable_rows::PaintableRowsMut;
 use crate::painting::record::damage::PaintDamage;

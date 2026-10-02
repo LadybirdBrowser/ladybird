@@ -9,6 +9,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::node_painting;
 use crate::painting::paint_order;
+use crate::painting::paint_read::GeometryRead;
 use std::collections::HashMap;
 use std::fmt::Write;
 

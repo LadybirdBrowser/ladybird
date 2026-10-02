@@ -4595,6 +4595,11 @@ impl LayoutNodeArena {
             .is_some_and(|data| super::node_facts::node_is_out_of_flow(data, self.node_style_if_live(id)))
     }
 
+    pub(crate) fn node_is_fragmented_inline(&self, id: NodeSlotId) -> bool {
+        self.node_data_if_live(id)
+            .is_some_and(|data| super::node_facts::node_is_fragmented_inline(data, self.node_style_if_live(id)))
+    }
+
     pub(crate) fn note_inline_box_lifted_out_of(&self, node: NodeSlotId, inline_box: Option<NodeSlotId>) {
         let mut lifted = self.inline_boxes_lifted_out_of.borrow_mut();
         match inline_box {

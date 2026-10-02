@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::layout::node_facts;
+use crate::painting::paint_read::GeometryRead;
 
 pub(crate) const fn has_paintable(kind: NodeKind) -> bool {
     !matches!(
@@ -20,17 +19,15 @@ pub(crate) const fn has_paintable(kind: NodeKind) -> bool {
     )
 }
 
-pub(crate) fn is_fragmented_inline(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    arena
-        .node_data_if_live(node)
-        .is_some_and(|data| node_facts::node_is_fragmented_inline(data, arena.node_style_if_live(node)))
+pub(crate) fn is_fragmented_inline(arena: &impl GeometryRead, node: NodeSlotId) -> bool {
+    arena.node_is_fragmented_inline(node)
 }
 
-pub(crate) fn is_inline(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_inline(arena: &impl GeometryRead, node: NodeSlotId) -> bool {
     is_fragmented_inline(arena, node)
 }
 
-pub(crate) fn has_lines(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn has_lines(arena: &impl GeometryRead, node: NodeSlotId) -> bool {
     let Some(kind) = arena.node_kind_if_live(node) else {
         return false;
     };

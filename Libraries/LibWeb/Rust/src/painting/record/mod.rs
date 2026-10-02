@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::record::trace::{Observer, Operation};
 
 pub(crate) mod assemble;

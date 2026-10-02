@@ -6,16 +6,16 @@
 
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::{
     formatting_context, grid_formatting_context, svg_formatting_context, table_formatting_context, used_values,
 };
 use crate::painting::node_painting;
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::PaintableRowsRead;
 
-pub(crate) fn committed_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> used_values::FfiCssPixelPoint {
+pub(crate) fn committed_offset(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelPoint {
     let data = arena.paintable_data(slot);
     if node_painting::is_inline(arena, slot) {
         return data.offset;
@@ -25,7 +25,7 @@ pub(crate) fn committed_offset(arena: &impl PaintableRowsRead, slot: NodeSlotId)
     })
 }
 
-pub(crate) fn committed_content_size(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
+pub(crate) fn committed_content_size(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
     let data = arena.paintable_data(slot);
     if node_painting::is_inline(arena, slot) {
         return data.content_size;
@@ -40,7 +40,7 @@ pub(crate) fn committed_content_size(arena: &impl PaintableRowsRead, slot: NodeS
     })
 }
 
-pub(crate) fn committed_margin(arena: &LayoutNodeArena, slot: NodeSlotId) -> FfiPixelBox {
+pub(crate) fn committed_margin(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
             top: link.fragment.margin_top,
@@ -51,7 +51,7 @@ pub(crate) fn committed_margin(arena: &LayoutNodeArena, slot: NodeSlotId) -> Ffi
     })
 }
 
-pub(crate) fn committed_border(arena: &LayoutNodeArena, slot: NodeSlotId) -> FfiPixelBox {
+pub(crate) fn committed_border(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
             top: link.fragment.border_top,
@@ -62,7 +62,7 @@ pub(crate) fn committed_border(arena: &LayoutNodeArena, slot: NodeSlotId) -> Ffi
     })
 }
 
-pub(crate) fn committed_padding(arena: &LayoutNodeArena, slot: NodeSlotId) -> FfiPixelBox {
+pub(crate) fn committed_padding(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
             top: link.fragment.padding_top,
@@ -73,7 +73,7 @@ pub(crate) fn committed_padding(arena: &LayoutNodeArena, slot: NodeSlotId) -> Ff
     })
 }
 
-pub(crate) fn committed_inset(arena: &LayoutNodeArena, slot: NodeSlotId) -> FfiPixelBox {
+pub(crate) fn committed_inset(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(FfiPixelBox::default, |link| FfiPixelBox {
             top: link.inset_top,
@@ -84,7 +84,7 @@ pub(crate) fn committed_inset(arena: &LayoutNodeArena, slot: NodeSlotId) -> FfiP
     })
 }
 
-pub(crate) fn committed_uses_collapsing_borders_model(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
+pub(crate) fn committed_uses_collapsing_borders_model(arena: &impl GeometryRead, slot: NodeSlotId) -> bool {
     arena.with_committed_fragment_link(slot, |link| {
         link.is_some_and(|link| link.fragment.uses_collapsing_borders_model)
     })
@@ -92,7 +92,7 @@ pub(crate) fn committed_uses_collapsing_borders_model(arena: &impl PaintableRows
 
 /// For a table cell: whether every column it spans has 'visibility: collapse', which removes the cell from the display
 /// along with the columns (CSS 2.2 §17.5.5).
-pub(crate) fn committed_hidden_by_collapsed_columns(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
+pub(crate) fn committed_hidden_by_collapsed_columns(arena: &impl GeometryRead, slot: NodeSlotId) -> bool {
     arena.with_committed_fragment_link(slot, |link| {
         link.is_some_and(|link| link.fragment.hidden_by_collapsed_columns)
     })
@@ -100,7 +100,7 @@ pub(crate) fn committed_hidden_by_collapsed_columns(arena: &impl PaintableRowsRe
 
 /// For a table cell or a table-column(-group) box: the first grid column it occupies and the number of grid columns
 /// it spans.
-pub(crate) fn committed_table_column_range(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> (u32, u32) {
+pub(crate) fn committed_table_column_range(arena: &impl GeometryRead, slot: NodeSlotId) -> (u32, u32) {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or((0, 0), |link| {
             (link.fragment.table_column_index, link.fragment.table_column_span)
@@ -109,7 +109,7 @@ pub(crate) fn committed_table_column_range(arena: &impl PaintableRowsRead, slot:
 }
 
 pub(crate) fn committed_grid_layout_data(
-    arena: &LayoutNodeArena,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<std::sync::Arc<grid_formatting_context::GridLayoutData>> {
     arena.with_committed_fragment_link(slot, |link| {
@@ -118,7 +118,7 @@ pub(crate) fn committed_grid_layout_data(
 }
 
 pub(crate) fn committed_flex_layout_data(
-    arena: &LayoutNodeArena,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<std::sync::Arc<formatting_context::FlexLayoutData>> {
     arena.with_committed_fragment_link(slot, |link| {
@@ -127,7 +127,7 @@ pub(crate) fn committed_flex_layout_data(
 }
 
 pub(crate) fn committed_used_grid_tracks(
-    arena: &LayoutNodeArena,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<std::sync::Arc<grid_formatting_context::OwnedUsedGridTracks>> {
     arena.with_committed_fragment_link(slot, |link| {
@@ -136,7 +136,7 @@ pub(crate) fn committed_used_grid_tracks(
 }
 
 pub(crate) fn committed_collapsed_table_borders(
-    arena: &LayoutNodeArena,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>> {
     arena.with_committed_fragment_link(slot, |link| {
@@ -145,7 +145,7 @@ pub(crate) fn committed_collapsed_table_borders(
 }
 
 pub(crate) fn committed_svg_path(
-    arena: &impl PaintableRowsRead,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<std::sync::Arc<libgfx_rust::path::OwnedPath>> {
     if !arena.node_kind_if_live(slot).is_some_and(node_painting::is_svg_path) {
@@ -156,21 +156,18 @@ pub(crate) fn committed_svg_path(
     })
 }
 
-pub(crate) fn committed_containing_line_box_index(arena: &LayoutNodeArena, slot: NodeSlotId) -> Option<usize> {
+pub(crate) fn committed_containing_line_box_index(arena: &impl GeometryRead, slot: NodeSlotId) -> Option<usize> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.containing_line_box_index))
 }
 
 pub(crate) fn committed_svg_viewport_transform(
-    arena: &LayoutNodeArena,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::FfiAffineTransform> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg.viewport_transform))
 }
 
-pub(crate) fn committed_svg_viewport_size(
-    arena: &impl PaintableRowsRead,
-    slot: NodeSlotId,
-) -> used_values::FfiCssPixelSize {
+pub(crate) fn committed_svg_viewport_size(arena: &impl GeometryRead, slot: NodeSlotId) -> used_values::FfiCssPixelSize {
     if arena.node_kind_if_live(slot) != Some(crate::layout::node_data::NodeKind::SVGSVGBox) {
         return used_values::FfiCssPixelSize::default();
     }
@@ -181,14 +178,14 @@ pub(crate) fn committed_svg_viewport_size(
 }
 
 pub(crate) fn committed_svg_element_transform(
-    arena: &impl PaintableRowsRead,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::FfiAffineTransform> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg.element_transform))
 }
 
 pub(crate) fn committed_svg_additional_element_transform(
-    arena: &impl PaintableRowsRead,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::FfiAffineTransform> {
     arena.with_committed_fragment_link(slot, |link| {
@@ -197,21 +194,21 @@ pub(crate) fn committed_svg_additional_element_transform(
 }
 
 pub(crate) fn committed_svg_mask_area_facts(
-    arena: &impl PaintableRowsRead,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::SvgMaskAreaFacts> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg.mask_area_facts))
 }
 
 pub(crate) fn committed_svg_view_box(
-    arena: &impl PaintableRowsRead,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> Option<svg_formatting_context::FfiSvgViewBox> {
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg.view_box))
 }
 
 pub(crate) fn committed_svg_resource_content_units_are_object_bounding_box(
-    arena: &impl PaintableRowsRead,
+    arena: &impl GeometryRead,
     slot: NodeSlotId,
 ) -> bool {
     arena.with_committed_fragment_link(slot, |link| {
@@ -219,20 +216,20 @@ pub(crate) fn committed_svg_resource_content_units_are_object_bounding_box(
     })
 }
 
-pub(crate) fn committed_svg_viewport_percentage_basis(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixels {
+pub(crate) fn committed_svg_viewport_percentage_basis(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixels {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(CssPixels::default, |link| link.fragment.svg.viewport_percentage_basis)
     })
 }
 
-pub(crate) fn absolute_rect_or_default(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
+pub(crate) fn absolute_rect_or_default(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelRect {
     if !arena.paintable_row_is_populated(slot) {
         return CssPixelRect::default();
     }
     absolute_rect(arena, slot)
 }
 
-pub(crate) fn absolute_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
+pub(crate) fn absolute_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelRect {
     if let Some(rect) = arena.memoized_absolute_rect(slot) {
         return rect;
     }
@@ -264,11 +261,11 @@ pub(crate) fn absolute_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) ->
     rect
 }
 
-pub(crate) fn absolute_position(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelPoint {
+pub(crate) fn absolute_position(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelPoint {
     absolute_rect(arena, slot).location()
 }
 
-pub(crate) fn absolute_padding_box_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
+pub(crate) fn absolute_padding_box_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelRect {
     let data = arena.paintable_data(slot);
     let absolute = absolute_rect(arena, slot);
     if node_painting::is_inline(arena, slot) {
@@ -290,7 +287,7 @@ pub(crate) fn absolute_padding_box_rect(arena: &impl PaintableRowsRead, slot: No
 /// https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
 /// The border is split the same way layout splits it when placing the boxes (`UsedValues::border_left_collapsed`):
 /// the part before the grid line goes to the box before the line, the part after it to the box after the line.
-pub(crate) fn committed_border_box_edges(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> FfiPixelBox {
+pub(crate) fn committed_border_box_edges(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     let border = committed_border(arena, slot);
     let Some(is_table_box) = arena.with_committed_fragment_link(slot, |link| {
         link.filter(|link| link.fragment.uses_collapsing_borders_model)
@@ -306,7 +303,7 @@ pub(crate) fn committed_border_box_edges(arena: &impl PaintableRowsRead, slot: N
     }
 }
 
-pub(crate) fn absolute_border_box_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixelRect {
+pub(crate) fn absolute_border_box_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssPixelRect {
     let data = arena.paintable_data(slot);
     if node_painting::is_inline(arena, slot) {
         return CssPixelRect::from(data.local_border_box_union).translated_by(absolute_rect(arena, slot).location());

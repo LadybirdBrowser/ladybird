@@ -8,6 +8,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::layout::{fragment_tree, used_values};
 use crate::painting::node_painting;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::*;
 use crate::painting::record::damage::{DamageSet, PaintDamage, RowPaintState};
 use crate::painting::visual_context::dirty::{
@@ -243,10 +244,8 @@ impl Clone for PaintableRowsRef<'_> {
     }
 }
 
-pub(crate) trait PaintableRowsRead: Deref<Target = LayoutNodeArena> {
-    fn paintable_data(&self, id: NodeSlotId) -> &PaintableData;
-    fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool;
-}
+/// A view of the live rows that also reads the rest of the arena.
+pub(crate) trait PaintableRowsRead: PaintRead + Deref<Target = LayoutNodeArena> {}
 
 pub(crate) trait PaintableRowsWrite: PaintableRowsRead {
     fn paintable_data_mut(&mut self, id: NodeSlotId) -> &mut PaintableData;
@@ -263,6 +262,15 @@ where
     }
 }
 
+impl<Arena> AsRef<LayoutNodeArena> for PaintableRows<Arena>
+where
+    Arena: Deref<Target = LayoutNodeArena>,
+{
+    fn as_ref(&self) -> &LayoutNodeArena {
+        self
+    }
+}
+
 impl<Arena> DerefMut for PaintableRows<Arena>
 where
     Arena: DerefMut<Target = LayoutNodeArena>,
@@ -276,38 +284,8 @@ impl<Arena> PaintableRows<Arena>
 where
     Arena: Deref<Target = LayoutNodeArena>,
 {
-    pub(crate) fn paintable_data(&self, id: NodeSlotId) -> &PaintableData {
-        assert!(!id.is_invalid(), "invalid paintable arena slot ID");
-        let index = id.slot_index() as usize;
-        let chunk = self
-            .arena
-            .paintable_rows
-            .chunks
-            .get(index / PAINTABLE_SLOTS_PER_CHUNK)
-            .expect("invalid paintable arena slot ID");
-        let data = &chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK];
-        assert_eq!(
-            data.slot_generation,
-            id.generation(),
-            "paintable arena read a stale or unused slot"
-        );
-        data
-    }
-
     pub(crate) fn paintable_data_ptr(&self, id: NodeSlotId) -> *const PaintableData {
-        self.paintable_data(id)
-    }
-
-    pub(crate) fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool {
-        if id.is_invalid() {
-            return false;
-        }
-        let index = id.slot_index() as usize;
-        let Some(chunk) = self.arena.paintable_rows.chunks.get(index / PAINTABLE_SLOTS_PER_CHUNK) else {
-            return false;
-        };
-        let generation = chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK].slot_generation;
-        generation != 0 && generation == id.generation()
+        self.arena.live_paintable_data(id)
     }
 
     pub(crate) fn clear_cached_overflow_data(&self, id: NodeSlotId) {
@@ -318,14 +296,6 @@ where
             .paintable_side_data(id)
             .overflow_valid_across_recommits
             .set(false);
-    }
-
-    pub(crate) fn inline_pieces_root(&self, inline_paintable: NodeSlotId) -> Option<NodeSlotId> {
-        if !self.paintable_row_is_populated(inline_paintable) {
-            return None;
-        }
-        let root = self.paintable_data(inline_paintable).containing_block;
-        (self.paintable_row_is_populated(root) && node_painting::has_lines(self, root)).then_some(root)
     }
 
     /// A style repaint of a row also repaints the anonymous boxes it generated and, for an
@@ -433,18 +403,7 @@ where
     }
 }
 
-impl<Arena> PaintableRowsRead for PaintableRows<Arena>
-where
-    Arena: Deref<Target = LayoutNodeArena>,
-{
-    fn paintable_data(&self, id: NodeSlotId) -> &PaintableData {
-        PaintableRows::paintable_data(self, id)
-    }
-
-    fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool {
-        PaintableRows::paintable_row_is_populated(self, id)
-    }
-}
+impl<Arena> PaintableRowsRead for PaintableRows<Arena> where Arena: Deref<Target = LayoutNodeArena> {}
 
 impl<Arena> PaintableRowsWrite for PaintableRows<Arena>
 where
@@ -705,10 +664,6 @@ impl LayoutNodeArena {
             !self.paintable_rows.paint_recording_in_progress.get(),
             "paint damage pushed during display list recording would be missed by it"
         );
-    }
-
-    pub(crate) fn inline_pieces_root(&self, inline_paintable: NodeSlotId) -> Option<NodeSlotId> {
-        self.paintable_rows().inline_pieces_root(inline_paintable)
     }
 
     pub(crate) fn populate_paintable_row(&mut self, layout_node: NodeSlotId) {
@@ -991,7 +946,32 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool {
-        self.paintable_rows().paintable_row_is_populated(id)
+        if id.is_invalid() {
+            return false;
+        }
+        let index = id.slot_index() as usize;
+        let Some(chunk) = self.paintable_rows.chunks.get(index / PAINTABLE_SLOTS_PER_CHUNK) else {
+            return false;
+        };
+        let generation = chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK].slot_generation;
+        generation != 0 && generation == id.generation()
+    }
+
+    pub(crate) fn live_paintable_data(&self, id: NodeSlotId) -> &PaintableData {
+        assert!(!id.is_invalid(), "invalid paintable arena slot ID");
+        let index = id.slot_index() as usize;
+        let chunk = self
+            .paintable_rows
+            .chunks
+            .get(index / PAINTABLE_SLOTS_PER_CHUNK)
+            .expect("invalid paintable arena slot ID");
+        let data = &chunk.slots[index % PAINTABLE_SLOTS_PER_CHUNK];
+        assert_eq!(
+            data.slot_generation,
+            id.generation(),
+            "paintable arena read a stale or unused slot"
+        );
+        data
     }
 
     fn paintable_data_by_index(&self, index: u32) -> &PaintableData {
@@ -1052,7 +1032,7 @@ impl LayoutNodeArena {
 }
 
 pub(crate) fn with_inline_pieces(
-    arena: &impl PaintableRowsRead,
+    arena: &impl GeometryRead,
     inline_paintable: NodeSlotId,
     mut callback: impl FnMut(&InlineBoxPieceRecord, &PaintableData) -> bool,
 ) {
