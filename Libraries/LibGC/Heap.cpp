@@ -29,6 +29,7 @@
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapAccess.h>
 #include <LibGC/HeapBlock.h>
 #include <LibGC/NanBoxedValue.h>
 #include <LibGC/Root.h>
@@ -320,6 +321,7 @@ Heap::~Heap()
 
 void Heap::will_allocate(size_t size)
 {
+    ASSERT(!heap_access_is_forbidden_on_this_thread());
     if (should_collect_on_every_allocation()) {
         m_allocated_bytes_since_last_gc = 0;
         collect_garbage();
@@ -629,8 +631,21 @@ void Heap::run_post_mark_phases(bool report)
     }
 }
 
+static thread_local bool s_heap_access_is_forbidden_on_this_thread = false;
+
+void forbid_heap_access_on_this_thread()
+{
+    s_heap_access_is_forbidden_on_this_thread = true;
+}
+
+bool heap_access_is_forbidden_on_this_thread()
+{
+    return s_heap_access_is_forbidden_on_this_thread;
+}
+
 NO_SANITIZE_ADDRESS void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 {
+    VERIFY(!heap_access_is_forbidden_on_this_thread());
     jmp_buf registers;
     setjmp(registers);
     ReadonlySpan<FlatPtr> captured_registers { reinterpret_cast<FlatPtr const*>(registers), sizeof(jmp_buf) / (sizeof(FlatPtr)) };
