@@ -1046,6 +1046,13 @@ GC::Ref<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::Realm& re
                     }
                 }));
             });
+        // OPTIMIZATION: For tiny modules, worker dispatch costs more than parsing and validation.
+        if (input.size() <= 1 * KiB) {
+            (*callback)(Detail::parse_and_validate_webassembly_module(input));
+            delete callback;
+            return;
+        }
+
         auto& origin_event_loop = Core::EventLoop::current();
         Threading::ThreadPool::the().submit([input, callback, &origin_event_loop] {
             // 1. Compile the WebAssembly module bytes and store the result as module.
