@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-inherited-through-slot-ref.html">
+<div id="host"><span slot="target">needle</span></div>
+<script>
+    host.attachShadow({ mode: "open" }).innerHTML = `
+        <style>
+            p {
+                font-size: 20px;
+                line-height: 1.5;
+            }
+            p::selection {
+                background-color: lime;
+                color: blue;
+            }
+        </style>
+        <p>Find the <slot name="target"></slot> in this haystack</p>`;
+    const slotted = host.firstElementChild;
+    slotted.getBoundingClientRect();
+    getSelection().selectAllChildren(slotted);
+</script>
