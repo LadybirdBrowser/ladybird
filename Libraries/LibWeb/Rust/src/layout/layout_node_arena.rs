@@ -9,11 +9,12 @@ use super::formatting_context::DerivedBaselines;
 use super::formatting_context::LayoutMode;
 use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
-use super::rendered_text::{FfiTextSourceRange, RenderedTextBoundary, TextContent, TextFragments};
+use super::rendered_text::{FfiTextSourceRange, PublishedTextSlot, RenderedTextBoundary, TextContent, TextFragments};
 use super::tree_builder::FfiLayoutTreeBuildOutcome;
 use super::tree_shape::{Chunk, PUBLISHED_ROWS_PER_CHUNK, ShapeWriter, TreeShape};
 use super::update_layout::FfiLayoutTreeBuildStats;
 use super::used_values::SizeConstraint;
+use crate::cow_column::{ColumnSnapshot, CowColumn};
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
@@ -36,6 +37,7 @@ use std::cell::Cell;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
+use std::ops::{Deref, DerefMut};
 use std::thread;
 
 mod main_thread_entries;
@@ -540,6 +542,104 @@ struct TextNodeSlot {
     state: Option<Box<TextNodeState>>,
 }
 
+/// Each text row's state, and what it publishes for the paint side. A slot is written only through
+/// a [`TextStateMut`], which republishes the slot when it drops, or by [`TextSlots::reset`], so
+/// the published column cannot fall behind the slots.
+#[derive(Default)]
+struct TextSlots {
+    slots: Vec<TextNodeSlot>,
+    published: CowColumn<PublishedTextSlot, SLOTS_PER_CHUNK>,
+}
+
+impl TextSlots {
+    fn state(&self, id: NodeSlotId) -> Option<&TextNodeState> {
+        self.slots
+            .get(id.slot_index() as usize)
+            .filter(|slot| slot.generation == id.generation())
+            .and_then(|slot| slot.state.as_deref())
+    }
+
+    /// The state of `id`'s slot, for writing. A slot last used by another generation starts over.
+    fn state_mut(&mut self, id: NodeSlotId) -> TextStateMut<'_> {
+        let index = id.slot_index() as usize;
+        if self.slots.len() <= index {
+            self.slots.resize_with(index + 1, TextNodeSlot::default);
+        }
+        let slot = &mut self.slots[index];
+        if slot.generation != id.generation() {
+            *slot = TextNodeSlot {
+                generation: id.generation(),
+                ..TextNodeSlot::default()
+            };
+        }
+        slot.state.get_or_insert_with(Default::default);
+        TextStateMut { slots: self, index }
+    }
+
+    /// Empties the slot at `index`, if there is one.
+    fn reset(&mut self, index: usize) {
+        if let Some(slot) = self.slots.get_mut(index) {
+            *slot = TextNodeSlot::default();
+            self.republish(index);
+        }
+    }
+
+    /// Brings what the slot at `index` publishes in step with it.
+    fn republish(&mut self, index: usize) {
+        let published = self
+            .slots
+            .get(index)
+            .and_then(|slot| {
+                let state = slot.state.as_deref()?;
+                Some(PublishedTextSlot {
+                    generation: slot.generation,
+                    first_letter: state.first_letter,
+                    rendered: state.content.as_ref().map(|content| content.rendered().clone()),
+                })
+            })
+            .unwrap_or_default();
+        if self.published.get(index).is_none() {
+            if published.rendered.is_none() && published.first_letter.is_invalid() {
+                return;
+            }
+            self.published.grow_to(index + 1);
+        }
+        self.published.set(index, published).expect("the column was grown");
+    }
+}
+
+/// A text slot's state, for writing. Dropping it republishes the slot.
+struct TextStateMut<'a> {
+    slots: &'a mut TextSlots,
+    index: usize,
+}
+
+impl Deref for TextStateMut<'_> {
+    type Target = TextNodeState;
+
+    fn deref(&self) -> &TextNodeState {
+        self.slots.slots[self.index]
+            .state
+            .as_deref()
+            .expect("a written slot has state")
+    }
+}
+
+impl DerefMut for TextStateMut<'_> {
+    fn deref_mut(&mut self) -> &mut TextNodeState {
+        self.slots.slots[self.index]
+            .state
+            .as_deref_mut()
+            .expect("a written slot has state")
+    }
+}
+
+impl Drop for TextStateMut<'_> {
+    fn drop(&mut self) {
+        self.slots.republish(self.index);
+    }
+}
+
 #[derive(Default)]
 struct TextNodeState {
     source_range: Option<FfiTextSourceRange>,
@@ -902,7 +1002,7 @@ pub(crate) struct LayoutNodeArena {
     intrinsic_inline_measurements: Cell<u64>,
     default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
     any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
-    text_nodes: Vec<TextNodeSlot>,
+    text_slots: TextSlots,
     pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: RefCell<HashMap<NodeSlotId, u32>>,
@@ -1029,7 +1129,7 @@ impl LayoutNodeArena {
             intrinsic_inline_measurements: Cell::new(0),
             default_scroll_shift_anchors: RefCell::new(Vec::new()),
             any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
-            text_nodes: Vec::new(),
+            text_slots: TextSlots::default(),
             searchable_text: None,
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: RefCell::default(),
@@ -1379,9 +1479,7 @@ impl LayoutNodeArena {
             *slot = DefaultScrollShiftAnchorSlot::default();
         }
         self.paintable_rows.reset_committed_fragment_link_slot(index);
-        if let Some(slot) = self.text_nodes.get_mut(index as usize) {
-            *slot = TextNodeSlot::default();
-        }
+        self.text_slots.reset(index as usize);
         self.text_nodes_enrolled_for_content_sync.get_mut().remove(&id);
         if let Some(slot) = self.replaced_content_facts.get_mut(index as usize) {
             *slot = ReplacedContentFactsSlot::default();
@@ -4041,31 +4139,22 @@ impl LayoutNodeArena {
         drop(self.take_committed_fragment_link(self.data(id)));
     }
 
-    fn text_node_state_mut(&mut self, id: NodeSlotId) -> &mut TextNodeState {
+    fn text_node_state_mut(&mut self, id: NodeSlotId) -> TextStateMut<'_> {
         self.assert_owner_thread();
         self.data(id);
-        let index = id.slot_index() as usize;
-        if self.text_nodes.len() <= index {
-            self.text_nodes.resize_with(index + 1, TextNodeSlot::default);
-        }
-        let slot = &mut self.text_nodes[index];
-        if slot.generation != id.generation() {
-            *slot = TextNodeSlot {
-                generation: id.generation(),
-                ..TextNodeSlot::default()
-            };
-        }
-        slot.state.get_or_insert_with(Default::default)
+        self.text_slots.state_mut(id)
+    }
+
+    /// The text rows as they are now, for a recording to read.
+    pub(crate) fn publish_text(&mut self) -> ColumnSnapshot<PublishedTextSlot, SLOTS_PER_CHUNK> {
+        self.text_slots.published.publish()
     }
 
     fn text_node_state(&self, id: NodeSlotId) -> Option<&TextNodeState> {
         if !self.slot_is_live(id) {
             return None;
         }
-        self.text_nodes
-            .get(id.slot_index() as usize)
-            .filter(|slot| slot.generation == id.generation())
-            .and_then(|slot| slot.state.as_deref())
+        self.text_slots.state(id)
     }
 
     /// Record what a generated text row spells.
@@ -4114,7 +4203,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn set_text_content(&mut self, id: NodeSlotId, content: TextContent) {
-        let state = self.text_node_state_mut(id);
+        let mut state = self.text_node_state_mut(id);
         if let Some(previous) = state.content.as_mut()
             && previous.has_same_content_as(&content)
         {
@@ -4122,6 +4211,7 @@ impl LayoutNodeArena {
             return;
         }
         state.content = Some(content);
+        drop(state);
         self.searchable_text = None;
         // Publication can happen through a C++ text read before the enrolled
         // sync runs. Invalidate here so every publication invalidates layout,
@@ -4131,10 +4221,8 @@ impl LayoutNodeArena {
 
     pub(super) fn invalidate_text_content(&mut self, id: NodeSlotId) {
         self.data(id);
-        if let Some(slot) = self.text_nodes.get_mut(id.slot_index() as usize)
-            && slot.generation == id.generation()
-            && let Some(state) = slot.state.as_mut()
-            && let Some(content) = state.content.as_mut()
+        if self.text_slots.state(id).is_some_and(|state| state.content.is_some())
+            && let Some(content) = self.text_node_state_mut(id).content.as_mut()
         {
             content.rendering_key = None;
         }
@@ -4228,12 +4316,13 @@ impl LayoutNodeArena {
             start: 0,
             length: letter_end,
         });
-        let remainder_state = self.text_node_state_mut(remainder);
+        let mut remainder_state = self.text_node_state_mut(remainder);
         remainder_state.source_range = Some(FfiTextSourceRange {
             start: letter_end,
             length: source_length - letter_end,
         });
         remainder_state.first_letter = first_letter;
+        drop(remainder_state);
         self.invalidate_text_content(first_letter);
         self.invalidate_text_content(remainder);
     }

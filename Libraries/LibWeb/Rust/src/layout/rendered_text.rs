@@ -11,6 +11,7 @@ use crate::css::css_enums::text_transform;
 use std::cell::{OnceCell, RefCell};
 use std::ffi::c_void;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// Selects the beginning or end of a transformed span for offsets inside it.
 #[derive(Clone, Copy)]
@@ -33,21 +34,65 @@ pub struct RenderedTextEdit {
 
 /// Rendered text and its DOM offset mapping are published and invalidated together.
 /// Rust builds this snapshot from source text and rendering options; layout and painting read it.
+/// It is immutable once built, so a publication shares it.
 #[derive(Default)]
-pub(crate) struct TextContent {
+pub(crate) struct RenderedText {
     pub(crate) text: Vec<u16>,
     pub(crate) untransformed_text_is_ascii_whitespace: bool,
     pub(crate) may_require_bidi_processing: bool,
     dom_start_offset: usize,
     dom_length_in_code_units: usize,
     edits: Vec<RenderedTextEdit>,
-    grapheme_segmenter: OnceCell<super::text_chunker::GraphemeSegmenter>,
-    chunks: RefCell<Option<Rc<CachedTextChunks>>>,
-    pub(super) rendering_key: Option<TextRenderingKey>,
     /// The DOM text as it was written, kept only under an SVG box: SVG text shapes the element's
     /// raw character data, not the white-space-collapsed rendering every other box uses. Text on a
     /// path also reads text whose parent is not a text box, such as an <a> inside a <textPath>.
     pub(crate) svg_source_text: Option<Box<[u16]>>,
+}
+
+/// What a text row publishes for the paint side: its rendered text, and the first-letter row that
+/// renders the start of its source.
+#[derive(Clone)]
+pub(crate) struct PublishedTextSlot {
+    pub(crate) generation: u8,
+    pub(crate) first_letter: NodeSlotId,
+    pub(crate) rendered: Option<Arc<RenderedText>>,
+}
+
+impl Default for PublishedTextSlot {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            first_letter: NodeSlotId::INVALID,
+            rendered: None,
+        }
+    }
+}
+
+/// A slot is the same as another when it publishes the same rendered text: rendered text is
+/// never written once it is shared.
+impl PartialEq for PublishedTextSlot {
+    fn eq(&self, other: &Self) -> bool {
+        self.generation == other.generation
+            && self.first_letter == other.first_letter
+            && crate::cow_column::same_payload(self.rendered.as_ref(), other.rendered.as_ref(), |_, _| false)
+    }
+}
+
+/// A text row's rendered text, with what layout caches beside it.
+#[derive(Default)]
+pub(crate) struct TextContent {
+    rendered: Arc<RenderedText>,
+    grapheme_segmenter: OnceCell<super::text_chunker::GraphemeSegmenter>,
+    chunks: RefCell<Option<Rc<CachedTextChunks>>>,
+    pub(super) rendering_key: Option<TextRenderingKey>,
+}
+
+impl std::ops::Deref for TextContent {
+    type Target = RenderedText;
+
+    fn deref(&self) -> &RenderedText {
+        &self.rendered
+    }
 }
 
 // DOM mutations explicitly invalidate this key. Style changes enroll the node
@@ -140,16 +185,20 @@ impl TextContent {
     #[cfg(test)]
     pub(super) fn for_test(text: &str, dom_start: usize, dom_length: usize, edits: Vec<RenderedTextEdit>) -> Self {
         Self {
-            text: text.encode_utf16().collect(),
-            dom_start_offset: dom_start,
-            dom_length_in_code_units: dom_length,
-            edits,
+            rendered: Arc::new(RenderedText {
+                text: text.encode_utf16().collect(),
+                dom_start_offset: dom_start,
+                dom_length_in_code_units: dom_length,
+                edits,
+                ..RenderedText::default()
+            }),
             ..Self::default()
         }
     }
 
-    pub(super) fn dom_range(&self) -> std::ops::Range<usize> {
-        self.dom_start_offset..self.dom_start_offset + self.dom_length_in_code_units
+    /// The rendered text, as a text row publishes it.
+    pub(crate) fn rendered(&self) -> &Arc<RenderedText> {
+        &self.rendered
     }
 
     pub(super) fn is_password_input(&self) -> bool {
@@ -180,6 +229,17 @@ impl TextContent {
         entry
     }
 
+    pub(crate) fn grapheme_segmenter(&self) -> &super::text_chunker::GraphemeSegmenter {
+        self.grapheme_segmenter
+            .get_or_init(|| super::text_chunker::GraphemeSegmenter::new(&self.text))
+    }
+}
+
+impl RenderedText {
+    pub(super) fn dom_range(&self) -> std::ops::Range<usize> {
+        self.dom_start_offset..self.dom_start_offset + self.dom_length_in_code_units
+    }
+
     pub(crate) fn has_same_content_as(&self, other: &Self) -> bool {
         self.text == other.text
             && self.untransformed_text_is_ascii_whitespace == other.untransformed_text_is_ascii_whitespace
@@ -188,11 +248,6 @@ impl TextContent {
             && self.dom_length_in_code_units == other.dom_length_in_code_units
             && self.edits == other.edits
             && self.svg_source_text == other.svg_source_text
-    }
-
-    pub(crate) fn grapheme_segmenter(&self) -> &super::text_chunker::GraphemeSegmenter {
-        self.grapheme_segmenter
-            .get_or_init(|| super::text_chunker::GraphemeSegmenter::new(&self.text))
     }
 
     pub(crate) fn dom_offset_for_rendered_text_offset(&self, offset: usize, boundary: RenderedTextBoundary) -> usize {
@@ -355,13 +410,15 @@ fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId) {
             super::node_facts::kind_is_svg_box(arena.data(parent).kind.get()).then(|| Box::from(&source[..]));
         let rendered = render_text(source, key.locale.as_deref(), key.options);
         let content = TextContent {
-            svg_source_text,
-            may_require_bidi_processing: may_require_bidi_processing(&rendered.text),
-            text: rendered.text,
-            untransformed_text_is_ascii_whitespace,
-            dom_start_offset: source_range.start,
-            dom_length_in_code_units: source_range.length,
-            edits: rendered.edits,
+            rendered: Arc::new(RenderedText {
+                svg_source_text,
+                may_require_bidi_processing: may_require_bidi_processing(&rendered.text),
+                text: rendered.text,
+                untransformed_text_is_ascii_whitespace,
+                dom_start_offset: source_range.start,
+                dom_length_in_code_units: source_range.length,
+                edits: rendered.edits,
+            }),
             grapheme_segmenter: OnceCell::new(),
             chunks: RefCell::default(),
             rendering_key: Some(key),
@@ -402,6 +459,7 @@ pub unsafe extern "C" fn layout_arena_text_for_rendering(arena: *mut c_void, id:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layout::SLOTS_PER_CHUNK;
     use crate::layout::node_data::NodeKind;
     use crate::painting::paint_read::PaintRead;
     use RenderedTextBoundary::{End, Start};
@@ -472,10 +530,34 @@ mod tests {
         assert!(original_weak.upgrade().is_none());
 
         let replacement_weak = Rc::downgrade(&replacement);
+        let published = arena.publish_text();
+        let published_text = |published: &crate::cow_column::ColumnSnapshot<PublishedTextSlot, SLOTS_PER_CHUNK>| {
+            published
+                .get(node.slot_index() as usize)
+                .unwrap()
+                .rendered
+                .clone()
+                .unwrap()
+        };
+        let published_hello = published_text(&published);
         arena.set_text_content(node, content("hello", 0, 5, Vec::new()));
         assert_eq!(Rc::strong_count(&replacement), 2);
+        // The same content keeps the rendered text the publication shares.
+        assert!(std::sync::Arc::ptr_eq(
+            &published_hello,
+            &published_text(&arena.publish_text())
+        ));
         arena.set_text_content(node, content("goodbye", 0, 7, Vec::new()));
         assert_eq!(Rc::strong_count(&replacement), 1);
+        // A publication keeps the rendered text it was made with.
+        assert_eq!(
+            published_text(&published).text,
+            "hello".encode_utf16().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            published_text(&arena.publish_text()).text,
+            "goodbye".encode_utf16().collect::<Vec<_>>()
+        );
         let new_chunks = arena
             .text_content(node)
             .unwrap()

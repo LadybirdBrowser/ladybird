@@ -18,7 +18,8 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::fragment_tree::FragmentLink;
 use crate::layout::node_data::{CompositorAnimationFrameKind, DomPaintFact, NodeFlag, NodeKind, NodeSlotId, PaintNode};
 use crate::layout::node_facts;
-use crate::layout::{RenderedTextBoundary, TextContent, TextFragments};
+use crate::layout::text_chunker::GraphemeSegmenter;
+use crate::layout::{RenderedText, RenderedTextBoundary, TextFragments};
 use crate::painting::host::FfiLayerImageList;
 use crate::painting::layer_image_paint_facts::LayerImagePaintFacts;
 use crate::painting::paint_order_plan::PaintOrderInputs;
@@ -76,7 +77,9 @@ pub(crate) trait PaintRead: GeometryRead {
     fn node_has_compositor_animation_frame(&self, id: NodeSlotId, kind: CompositorAnimationFrameKind) -> bool;
     fn node_style_if_live(&self, id: NodeSlotId) -> Option<ComputedValuesView<'_>>;
     /// The rendered text of a text row.
-    fn text_content(&self, id: NodeSlotId) -> Option<&TextContent>;
+    fn rendered_text(&self, id: NodeSlotId) -> Option<&RenderedText>;
+    /// Reads a text row's grapheme boundaries, for a text row with rendered text.
+    fn with_grapheme_segmenter<R>(&self, id: NodeSlotId, read: impl FnOnce(&GraphemeSegmenter) -> R) -> Option<R>;
     fn published_svg_filter(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgFilter>>;
     fn published_svg_paint_server(
         &self,
@@ -171,7 +174,7 @@ pub(crate) trait PaintRead: GeometryRead {
         if !self.node_kind_if_live(id).is_some_and(node_facts::kind_is_text) {
             return offset;
         }
-        self.text_content(id)
+        self.rendered_text(id)
             .expect("text must be published before mapping rendered offsets")
             .dom_offset_for_rendered_text_offset(offset, boundary)
     }
@@ -185,7 +188,7 @@ pub(crate) trait PaintRead: GeometryRead {
         if !self.node_kind_if_live(id).is_some_and(node_facts::kind_is_text) {
             return offset;
         }
-        self.text_content(id)
+        self.rendered_text(id)
             .expect("text must be published before mapping DOM offsets")
             .rendered_text_offset_for_dom_offset(offset, boundary)
     }
@@ -333,8 +336,14 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
         self.as_ref().node_has_dom_paint_fact(id, fact)
     }
 
-    fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
-        self.as_ref().text_content(id)
+    fn rendered_text(&self, id: NodeSlotId) -> Option<&RenderedText> {
+        self.as_ref().text_content(id).map(|content| &**content)
+    }
+
+    fn with_grapheme_segmenter<R>(&self, id: NodeSlotId, read: impl FnOnce(&GraphemeSegmenter) -> R) -> Option<R> {
+        self.as_ref()
+            .text_content(id)
+            .map(|content| read(content.grapheme_segmenter()))
     }
 
     fn text_fragments(&self, primary: NodeSlotId) -> TextFragments {
@@ -551,12 +560,32 @@ impl PaintRead for PaintSource<'_> {
         self.rows.stacking_context_entries(root)
     }
 
-    fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
-        self.arena.text_content(id)
+    fn rendered_text(&self, id: NodeSlotId) -> Option<&RenderedText> {
+        self.rows.text(id)?.rendered.as_deref()
+    }
+
+    fn with_grapheme_segmenter<R>(&self, id: NodeSlotId, read: impl FnOnce(&GraphemeSegmenter) -> R) -> Option<R> {
+        self.rendered_text(id)
+            .map(|rendered| read(&GraphemeSegmenter::new(&rendered.text)))
     }
 
     fn text_fragments(&self, primary: NodeSlotId) -> TextFragments {
-        self.arena.text_fragments(primary)
+        let mut fragments = TextFragments {
+            nodes: [NodeSlotId::INVALID; 2],
+            length: 0,
+        };
+        if !self.node_kind_if_live(primary).is_some_and(node_facts::kind_is_text) {
+            return fragments;
+        }
+        if let Some(text) = self.rows.text(primary)
+            && self.slot_is_live(text.first_letter)
+        {
+            fragments.nodes[0] = text.first_letter;
+            fragments.length = 1;
+        }
+        fragments.nodes[fragments.length] = primary;
+        fragments.length += 1;
+        fragments
     }
 
     fn published_svg_filter(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgFilter>> {
