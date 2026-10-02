@@ -347,6 +347,7 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
 
     auto font_catalog = TRY(WebView::Application::font_service().clone_catalog());
     client->async_set_font_catalog(move(font_catalog.file), font_catalog.size, font_catalog.generation);
+    TRY(client->connect_render_side_font_service());
     if (auto system_font_family = WebView::Application::the().system_font_family(); system_font_family.has_value())
         client->async_set_system_font_family(system_font_family.release_value());
     return client;

@@ -21,21 +21,26 @@
 
 namespace WebView {
 
-class WEBVIEW_API CompositorFontServiceConnection final : public AtomicRefCounted<CompositorFontServiceConnection> {
-    AK_MAKE_NONCOPYABLE(CompositorFontServiceConnection);
-    AK_MAKE_NONMOVABLE(CompositorFontServiceConnection);
+// One dedicated connection to the font service, answered on a thread of its own.
+//
+// The UI process makes synchronous calls into the Compositor and into each renderer, so a font
+// question one of them asks while the UI is waiting on it would deadlock if the UI's main thread
+// had to answer it. The Compositor gets one of these, and so does each renderer's render side.
+class WEBVIEW_API FontServiceConnection final : public AtomicRefCounted<FontServiceConnection> {
+    AK_MAKE_NONCOPYABLE(FontServiceConnection);
+    AK_MAKE_NONMOVABLE(FontServiceConnection);
 
 public:
-    static ErrorOr<NonnullRefPtr<CompositorFontServiceConnection>> create(FontService&);
-    ~CompositorFontServiceConnection();
+    static ErrorOr<NonnullRefPtr<FontServiceConnection>> create(FontService&);
+    ~FontServiceConnection();
 
     IPC::TransportHandle take_transport_handle();
 
 private:
-    explicit CompositorFontServiceConnection(FontService&);
+    explicit FontServiceConnection(FontService&);
     intptr_t thread_main();
 
-    FontService& m_font_service;
+    NonnullRefPtr<FontService> m_font_service;
     NonnullRefPtr<Threading::Thread> m_thread;
     Mutex m_mutex;
     ConditionVariable m_initialization_condition { m_mutex };

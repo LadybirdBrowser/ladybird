@@ -533,7 +533,7 @@ private:
     Vector<int> m_cpu_profiler_signal_handlers;
     RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
-    OwnPtr<FontService> m_font_service;
+    RefPtr<FontService> m_font_service;
     JsonValue m_site_compatibility_data;
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;
     RefPtr<Core::Timer> m_content_blocker_list_update_timer;
@@ -567,8 +567,7 @@ private:
     RefPtr<WasmCompilerClient::Client> m_wasm_compiler_client;
 #endif
     RefPtr<CompositorClient> m_compositor_client;
-    // This must be destroyed before m_font_service, which its IPC thread accesses.
-    RefPtr<CompositorFontServiceConnection> m_compositor_font_service_connection;
+    RefPtr<FontServiceConnection> m_compositor_font_service_connection;
     bool m_reported_compositor_gpu_presentation_unavailable { false };
     size_t m_compositor_restart_count { 0 };
     enum class CompositorRecoveryState {

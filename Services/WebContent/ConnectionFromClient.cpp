@@ -194,6 +194,16 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(m_enable_test_mode, m_font_provider));
 }
 
+void ConnectionFromClient::set_render_side_font_service_transport(IPC::TransportHandle handle)
+{
+    auto service = Compositing::FontServiceClient::create(move(handle));
+    if (service.is_error()) {
+        dbgln("WebContent: Unable to connect the render side's font service: {}", service.error());
+        return;
+    }
+    m_render_side_font_service = service.release_value();
+}
+
 void ConnectionFromClient::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     m_page_host->initialize(initial_page_id, move(remote_navigables), root_navigable_id, cross_process_id_allocator, move(initial_history_entry), system_visibility_state);

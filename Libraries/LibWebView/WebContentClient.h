@@ -95,6 +95,7 @@ public:
     void remove_blob_url_entries();
 
     void connect_test_endpoint(NonnullOwnPtr<IPC::Transport>);
+    ErrorOr<void> connect_render_side_font_service();
     // Null outside test mode: the test endpoint is only connected when the UI process runs tests.
     WebContentTestClient* test_connection() { return m_test_connection; }
 
@@ -185,6 +186,10 @@ private:
     void fail_renderer_owned_downloads();
 
     RefPtr<WebContentTestClient> m_test_connection;
+
+    // The UI process's end of the font connection this renderer's render side uses. It lives as long as the
+    // renderer does.
+    RefPtr<FontServiceConnection> m_render_side_font_service_connection;
 
     IsPrivate m_is_private { IsPrivate::No };
     RefPtr<BrowsingSession> m_session;

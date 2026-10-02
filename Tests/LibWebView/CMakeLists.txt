@@ -28,7 +28,7 @@ set(TEST_SOURCES
 )
 
 if (APPLE OR LINUX)
-    list(APPEND TEST_SOURCES TestCrashReport.cpp TestCrashReportReview.cpp TestCrashReportStore.cpp TestFontService.cpp)
+    list(APPEND TEST_SOURCES TestCrashReport.cpp TestCrashReportReview.cpp TestCrashReportStore.cpp TestFontService.cpp TestRendererFontService.cpp)
 endif()
 
 if (APPLE)
@@ -42,6 +42,9 @@ foreach(source IN LISTS TEST_SOURCES)
     endif()
     if (source STREQUAL "TestFontService.cpp")
         list(APPEND test_libraries LibIPC LibGfx)
+    endif()
+    if (source STREQUAL "TestRendererFontService.cpp")
+        list(APPEND test_libraries LibCompositing LibGfx LibIPC LibThreading)
     endif()
     ladybird_test("${source}" LibWebView LIBS ${test_libraries})
 endforeach()

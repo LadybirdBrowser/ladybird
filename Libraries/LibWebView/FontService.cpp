@@ -23,9 +23,9 @@
 
 namespace WebView {
 
-NonnullOwnPtr<FontService> FontService::create(Vector<String> additional_font_directories)
+NonnullRefPtr<FontService> FontService::create(Vector<String> additional_font_directories)
 {
-    return adopt_own(*new FontService(move(additional_font_directories)));
+    return adopt_ref(*new FontService(move(additional_font_directories)));
 }
 
 FontService::FontService(Vector<String> additional_font_directories)
