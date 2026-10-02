@@ -1116,6 +1116,22 @@ impl RetainedState {
         &self.animation_keyframes
     }
 
+    /// The registry of the custom properties the document registers.
+    #[must_use]
+    pub(crate) fn custom_property_registry(&self) -> &crate::css::custom_properties::CustomPropertyRegistry {
+        self.document_style_computation_inputs.custom_property_registry()
+    }
+
+    /// The effects one of an element's animation lists holds, as the host described them.
+    #[must_use]
+    pub(crate) fn element_animation_effects(
+        &self,
+        node: StyleNodeID,
+        slot: animations::AnimationSlot,
+    ) -> &[super::effect_descriptions::PublishedEffect] {
+        self.animation_effect_descriptions.effects(node, slot)
+    }
+
     /// Record the custom properties an element declares or references. Also an index rather than an
     /// input, and for the same reason: it answers which elements an `@property` registration reaches.
     pub fn set_element_custom_property_names(

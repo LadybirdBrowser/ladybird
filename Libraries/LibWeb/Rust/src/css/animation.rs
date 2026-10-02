@@ -242,14 +242,36 @@ pub struct FfiAnimationValueInput {
     pub keyframe_count: usize,
 }
 
+/// One effect the host is about to sample: which of the element's described effects it is, and how
+/// far along it is, on the scale the host keys keyframes by.
 #[repr(C)]
-pub struct FfiAnimationBatch {
-    pub declarations: *const FfiAnimationDeclaration,
-    pub declaration_count: usize,
-    pub effects: *const FfiAnimationEffect,
+pub struct FfiSampledAnimationEffect {
+    pub identity: u64,
+    pub current_key: f64,
+}
+
+/// What resolving the declarations of the effects an element is about to sample reads besides the
+/// effects' descriptions.
+#[repr(C)]
+pub struct FfiPublishedAnimationResolution {
+    pub style_engine: *const std::ffi::c_void,
+    pub style_node: u32,
+    /// The pseudo-element sampled, or `u8::MAX` for the element itself.
+    pub pseudo_kind: u8,
+    pub effects: *const FfiSampledAnimationEffect,
     pub effect_count: usize,
-    pub keyframes: *const FfiAnimationKeyframe,
-    pub keyframe_count: usize,
+    /// The longhands the animations compose over, which a keyframe holding the element's own value
+    /// takes it from.
+    pub underlying_longhand_table: *const std::ffi::c_void,
+    /// The custom-property store the element holds beneath the animations, which a keyframe holding
+    /// the element's own value takes it from.
+    pub custom_property_store: *const std::ffi::c_void,
+    /// The store the element holds now, which a keyframe's substitution reads, and the one it
+    /// inherits from.
+    pub substitution_custom_property_store: *const std::ffi::c_void,
+    pub inheritance_custom_property_store: *const std::ffi::c_void,
+    /// Whether the element declares custom properties of its own, which may be important.
+    pub element_declares_custom_properties: bool,
     pub writing_mode: u8,
     pub direction: u8,
     pub important_property_bitmap: *const u8,
@@ -497,7 +519,46 @@ pub struct FfiResolvedAnimationProperties {
     pub needs_document_base_url: bool,
     pub unfixed_random_sharings: *const FfiAnimationUnfixedRandomSharing,
     pub unfixed_random_sharing_count: usize,
+    /// The custom properties the declarations animate, the one each `custom_name_id` names first.
+    pub custom_names: *const crate::css::retained_fly_string::RetainedUtf16FlyString,
+    pub custom_name_count: usize,
+    /// The arbitrary-substitution functions the values and easings substituted against the element
+    /// held, which read what the element's style then depends on.
+    pub substitution_marks: FfiSubstitutionMarks,
+    /// The custom properties a substituted `style()` query read, transferred to the caller, or null.
+    pub style_query_dependencies: *mut std::ffi::c_void,
     pub storage: *mut std::ffi::c_void,
+}
+
+/// Which arbitrary-substitution functions a set of substituted values held.
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct FfiSubstitutionMarks {
+    pub var: bool,
+    pub attr: bool,
+    pub if_function: bool,
+    pub inherit: bool,
+    pub custom_function: bool,
+}
+
+impl FfiSubstitutionMarks {
+    fn note(&mut self, written: &StyleValueData) {
+        if let StyleValueData::Unresolved {
+            presence_var,
+            presence_attr,
+            presence_if,
+            presence_inherit,
+            presence_dashed_function,
+            ..
+        } = written
+        {
+            self.var |= *presence_var;
+            self.attr |= *presence_attr;
+            self.if_function |= *presence_if;
+            self.inherit |= *presence_inherit;
+            self.custom_function |= *presence_dashed_function;
+        }
+    }
 }
 
 #[repr(C)]
@@ -681,12 +742,18 @@ fn resolve_animation_declarations(
         container_relative_length_unit_mask,
         needs_document_base_url,
         unfixed_random_sharings,
+        ..ResolvedAnimationDeclarations::default()
     }
 }
 
+#[derive(Default)]
 struct ResolvedAnimationDeclarations {
     properties: Vec<FfiResolvedAnimationProperty>,
     _retained_values: Vec<RetainedStyleValueData>,
+    /// The base URLs the properties' resource contexts point into.
+    _base_urls: Vec<std::sync::Arc<[u8]>>,
+    /// The custom properties the declarations animate, by the number each was minted under.
+    custom_names: Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
     keyframes: Vec<AnimationKeyframePlan>,
     value_plans: Vec<AnimationValuePlan>,
     uses_tree_counting_function: bool,
@@ -6863,55 +6930,359 @@ fn evaluate_animation_value(
     }
 }
 
-/// Resolve an element's keyframe declarations into one owned batch for C++ computation.
+/// The custom properties the effects an element samples declare, each minted into the number the
+/// animation core keys it by, with what the element's own environment says of it.
+struct AnimatedCustomNames<'a> {
+    registry: &'a crate::css::custom_properties::CustomPropertyRegistry,
+    store: Option<&'a crate::css::custom_properties::CustomPropertyStore>,
+    element_declares_custom_properties: bool,
+    names: Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
+    units: Vec<Vec<u16>>,
+}
+
+impl AnimatedCustomNames<'_> {
+    /// The number a name animates under, minting one where it is new.
+    fn mint(&mut self, name: &crate::css::retained_fly_string::RetainedUtf16FlyString) -> u32 {
+        if let Some(index) = self.names.iter().position(|minted| minted == name) {
+            return index as u32 + 1;
+        }
+        // SAFETY: the name owns one reference to a live fly string.
+        self.units
+            .push(match unsafe { ak::utf16_string_units(name.raw_word()) } {
+                ak::Utf16StringUnits::Ascii(bytes) => bytes.iter().map(|&unit| u16::from(unit)).collect(),
+                ak::Utf16StringUnits::Utf16(units) => units.to_vec(),
+            });
+        self.names.push(name.clone());
+        self.names.len() as u32
+    }
+
+    fn units(&self, name_id: u32) -> &[u16] {
+        &self.units[name_id as usize - 1]
+    }
+
+    /// Whether the element declares the name `!important` itself, which keeps an animation from
+    /// animating it.
+    fn is_important(&self, name: &crate::css::retained_fly_string::RetainedUtf16FlyString) -> bool {
+        self.element_declares_custom_properties
+            && self.store.is_some_and(|store| {
+                store.declared_names.contains(&name.raw())
+                    && store.own_values.get(&name.raw()).is_some_and(|entry| entry.important)
+            })
+    }
+
+    /// The value an animation of a name composes over: the element's own, beneath this sample's
+    /// animations, and otherwise the name's initial value.
+    fn underlying_value(&self, name_id: u32) -> RetainedStyleValueData {
+        let name = &self.names[name_id as usize - 1];
+        self.store.and_then(|store| store.get(name.raw())).map_or_else(
+            || self.registry.initial_value(self.units(name_id)),
+            |entry| entry.value.clone(),
+        )
+    }
+}
+
+fn empty_resolution() -> FfiResolvedAnimationProperties {
+    FfiResolvedAnimationProperties {
+        properties: std::ptr::null(),
+        count: 0,
+        animation_value_count: 0,
+        uses_tree_counting_function: false,
+        container_relative_length_unit_mask: 0,
+        needs_document_base_url: false,
+        unfixed_random_sharings: std::ptr::null(),
+        unfixed_random_sharing_count: 0,
+        custom_names: std::ptr::null(),
+        custom_name_count: 0,
+        substitution_marks: FfiSubstitutionMarks::default(),
+        style_query_dependencies: std::ptr::null_mut(),
+        storage: std::ptr::null_mut(),
+    }
+}
+
+/// Resolve the declarations of the effects an element is about to sample from the descriptions the
+/// style engine holds of them, into one owned batch for C++ computation: each keyframe's easing and
+/// each value substituted against the element where it was written as a token stream, a keyframe
+/// holding the element's own value given it, and every custom property minted into a number.
 ///
 /// # Safety
-/// `batch` must point to a live value whose declaration and bitmap ranges remain live for the call.
+/// `input` must point to a live value whose effect range, bitmap, longhand table and stores remain
+/// live for the call, and whose engine describes the effects sampled.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_resolve_animation_declarations(
-    batch: *const FfiAnimationBatch,
+pub unsafe extern "C" fn rust_resolve_published_animation_declarations(
+    input: *const FfiPublishedAnimationResolution,
 ) -> FfiResolvedAnimationProperties {
-    let batch = unsafe { &*batch };
-    let declarations = unsafe { std::slice::from_raw_parts(batch.declarations, batch.declaration_count) };
-    let effects = unsafe { std::slice::from_raw_parts(batch.effects, batch.effect_count) };
-    let keyframes = unsafe { std::slice::from_raw_parts(batch.keyframes, batch.keyframe_count) };
-    let important_property_bitmap =
-        unsafe { std::slice::from_raw_parts(batch.important_property_bitmap, batch.important_property_bitmap_length) };
-    let resolved = resolve_animation_declarations(
-        declarations,
-        effects,
-        keyframes,
-        batch.writing_mode,
-        batch.direction,
+    use crate::css::style::effect_descriptions::{PublishedValue, easing_from_computed_timing_function};
+    let input = unsafe { &*input };
+    let engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
+    let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(input.style_node) else {
+        return empty_resolution();
+    };
+    let pseudo = (input.pseudo_kind != u8::MAX).then_some(input.pseudo_kind);
+    let slot = pseudo.map_or(0, |pseudo| pseudo + 1);
+    let sampled = unsafe { crate::css::custom_properties::ffi_slice(input.effects, input.effect_count) };
+    let table = unsafe {
+        &*input
+            .underlying_longhand_table
+            .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
+    };
+    let important_property_bitmap = unsafe {
+        crate::css::custom_properties::ffi_slice(
+            input.important_property_bitmap,
+            input.important_property_bitmap_length,
+        )
+    };
+    let registry = engine.custom_property_registry();
+    let mut custom_names = AnimatedCustomNames {
+        registry,
+        store: unsafe {
+            input
+                .custom_property_store
+                .cast::<crate::css::custom_properties::CustomPropertyStore>()
+                .as_ref()
+        },
+        element_declares_custom_properties: input.element_declares_custom_properties,
+        names: Vec::new(),
+        units: Vec::new(),
+    };
+    let substitution_marks = std::cell::Cell::new(FfiSubstitutionMarks::default());
+    let style_query_references = std::cell::RefCell::new(None);
+    let substitute = |property, root_name: &[u16], written: &RetainedStyleValueData| {
+        let mut marks = substitution_marks.get();
+        marks.note(written.data());
+        substitution_marks.set(marks);
+        engine.substitute_keyframe_value(
+            node,
+            pseudo,
+            input.substitution_custom_property_store,
+            input.inheritance_custom_property_store,
+            property,
+            root_name,
+            written,
+            &style_query_references,
+        )
+    };
+    let described = engine.element_animation_effects(node, slot);
+    let mut easings = Vec::new();
+    let mut keyframe_composites = Vec::new();
+    let mut keys = Vec::new();
+    let mut effects = Vec::new();
+    let mut declarations = Vec::new();
+    let mut values = Vec::new();
+    let mut base_urls = Vec::new();
+    for sample in sampled {
+        let Some(effect) = described.iter().find(|effect| effect.identity == sample.identity) else {
+            debug_assert!(false, "the host describes every effect it samples");
+            continue;
+        };
+        let is_transition = effect.is_transition;
+        let style_sheet_resource_context = match &effect.resource_context {
+            None => FfiAnimationStyleSheetResourceContext {
+                base_url: std::ptr::null(),
+                base_url_length: 0,
+                has_value: false,
+                origin_clean: false,
+            },
+            Some(resource_context) => {
+                base_urls.push(std::sync::Arc::clone(&resource_context.base_url));
+                FfiAnimationStyleSheetResourceContext {
+                    base_url: resource_context.base_url.as_ptr(),
+                    base_url_length: resource_context.base_url.len(),
+                    has_value: true,
+                    origin_clean: resource_context.origin_clean,
+                }
+            }
+        };
+        let first_keyframe_index = keys.len();
+        for keyframe in &effect.keyframes {
+            let keyframe_index = keys.len();
+            keys.push(keyframe.key);
+            keyframe_composites.push(keyframe.composite);
+            // A keyframe's own easing written as a value substitutes against the element; one that
+            // resolves to no easing runs its animation's.
+            let substituted_easing = keyframe.easing_value.as_ref().and_then(|written| {
+                let substituted;
+                let mut value = written.data();
+                if matches!(value, StyleValueData::Unresolved { .. }) {
+                    substituted = substitute(
+                        crate::css::property_metadata::property_id::ANIMATION_TIMING_FUNCTION,
+                        &[],
+                        written,
+                    );
+                    value = substituted.data();
+                }
+                if let StyleValueData::ValueList { values, .. } = value {
+                    value = values.as_slice().first()?.data();
+                }
+                easing_from_computed_timing_function(value)
+            });
+            easings.push(substituted_easing.unwrap_or_else(|| keyframe.easing.clone()));
+            for declaration in effect.declarations_of(keyframe) {
+                let (value, use_initial) = match &declaration.value {
+                    PublishedValue::ElementValue => {
+                        let Some(value) = table.get(declaration.property_id) else {
+                            continue;
+                        };
+                        (value.clone_retained(), true)
+                    }
+                    PublishedValue::Declared(value) => match value.data() {
+                        StyleValueData::Unresolved { .. } => {
+                            let value = substitute(declaration.property_id, &[], value);
+                            // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+                            if matches!(value.data(), StyleValueData::GuaranteedInvalid) {
+                                continue;
+                            }
+                            (value, false)
+                        }
+                        _ => (value.clone_retained(), false),
+                    },
+                };
+                declarations.push(FfiAnimationDeclaration {
+                    keyframe_index,
+                    property_id: declaration.property_id,
+                    custom_name_id: 0,
+                    custom_is_inherited: false,
+                    custom_is_important: false,
+                    value: value.pointer(),
+                    style_sheet_resource_context,
+                    use_initial,
+                    is_transition,
+                });
+                values.push(value);
+            }
+            for declaration in effect.custom_declarations_of(keyframe) {
+                let name_id = custom_names.mint(&declaration.name);
+                let (value, use_initial) = match &declaration.value {
+                    PublishedValue::ElementValue => (custom_names.underlying_value(name_id), true),
+                    // A custom property's value is a token stream; only the substitution functions
+                    // in it are resolved against the element.
+                    PublishedValue::Declared(value) => match value.data() {
+                        StyleValueData::Unresolved { .. } if holds_arbitrary_substitution(value.data()) => (
+                            substitute(
+                                crate::css::property_metadata::property_id::CUSTOM,
+                                custom_names.units(name_id),
+                                value,
+                            ),
+                            false,
+                        ),
+                        _ => (value.clone_retained(), false),
+                    },
+                };
+                declarations.push(FfiAnimationDeclaration {
+                    keyframe_index,
+                    property_id: crate::css::property_metadata::property_id::CUSTOM,
+                    custom_name_id: name_id,
+                    custom_is_inherited: registry.name_inherits(custom_names.units(name_id)),
+                    custom_is_important: custom_names.is_important(&declaration.name),
+                    value: value.pointer(),
+                    style_sheet_resource_context,
+                    use_initial,
+                    is_transition,
+                });
+                values.push(value);
+            }
+        }
+        effects.push(FfiAnimationEffect {
+            first_keyframe_index,
+            keyframe_count: keys.len() - first_keyframe_index,
+            current_key: sample.current_key,
+            result_of_transition: is_transition,
+        });
+    }
+    let keyframes = keys
+        .iter()
+        .zip(&easings)
+        .zip(&keyframe_composites)
+        .map(|((&key, easing), &composite)| FfiAnimationKeyframe {
+            key,
+            easing: easing_descriptor(easing),
+            composite,
+        })
+        .collect::<Vec<_>>();
+    let mut resolved = resolve_animation_declarations(
+        &declarations,
+        &effects,
+        &keyframes,
+        input.writing_mode,
+        input.direction,
         important_property_bitmap,
     );
+    // What the substitutions read is the element's to record whether or not anything animates.
+    let substitution_marks = substitution_marks.get();
+    let style_query_dependencies = style_query_references
+        .into_inner()
+        .map_or(std::ptr::null_mut(), |dependencies| Box::into_raw(dependencies).cast());
     if resolved.properties.is_empty() {
         return FfiResolvedAnimationProperties {
-            properties: std::ptr::null(),
-            count: 0,
-            animation_value_count: 0,
-            uses_tree_counting_function: false,
-            container_relative_length_unit_mask: 0,
-            needs_document_base_url: false,
-            unfixed_random_sharings: std::ptr::null(),
-            unfixed_random_sharing_count: 0,
-            storage: std::ptr::null_mut(),
+            substitution_marks,
+            style_query_dependencies,
+            ..empty_resolution()
         };
     }
+    resolved._base_urls = base_urls;
+    resolved.custom_names = custom_names.names;
     let resolved = Box::new(resolved);
-    let properties = resolved.properties.as_ptr();
-    let count = resolved.properties.len();
-    let animation_value_count = resolved.value_plans.len();
     FfiResolvedAnimationProperties {
-        properties,
-        count,
-        animation_value_count,
+        properties: resolved.properties.as_ptr(),
+        count: resolved.properties.len(),
+        animation_value_count: resolved.value_plans.len(),
         uses_tree_counting_function: resolved.uses_tree_counting_function,
         container_relative_length_unit_mask: resolved.container_relative_length_unit_mask,
         needs_document_base_url: resolved.needs_document_base_url,
         unfixed_random_sharings: resolved.unfixed_random_sharings.as_ptr(),
         unfixed_random_sharing_count: resolved.unfixed_random_sharings.len(),
+        custom_names: resolved.custom_names.as_ptr(),
+        custom_name_count: resolved.custom_names.len(),
+        substitution_marks,
+        style_query_dependencies,
         storage: Box::into_raw(resolved).cast(),
+    }
+}
+
+/// Whether a token stream holds an arbitrary-substitution function, which resolves against the
+/// element: the host's `UnresolvedStyleValue::contains_arbitrary_substitution_function`.
+fn holds_arbitrary_substitution(value: &StyleValueData) -> bool {
+    matches!(
+        value,
+        StyleValueData::Unresolved {
+            presence_attr,
+            presence_dashed_function,
+            presence_env,
+            presence_if,
+            presence_inherit,
+            presence_var,
+            ..
+        } if *presence_attr || *presence_dashed_function || *presence_env || *presence_if || *presence_inherit || *presence_var
+    )
+}
+
+/// A descriptor borrowing an easing's control points.
+fn easing_descriptor(easing: &crate::css::easing::Easing) -> FfiEasingDescriptor {
+    use crate::css::easing::Easing;
+    let (linear_points, linear_point_count) = match easing {
+        Easing::Linear(points) => (points.as_ptr(), points.len()),
+        _ => (std::ptr::null(), 0),
+    };
+    let (x1, y1, x2, y2) = match *easing {
+        Easing::CubicBezier { x1, y1, x2, y2 } => (x1, y1, x2, y2),
+        _ => (0.0, 0.0, 0.0, 0.0),
+    };
+    let (interval_count, step_position) = match *easing {
+        Easing::Steps {
+            interval_count,
+            position,
+        } => (interval_count, position),
+        _ => (0, 0),
+    };
+    FfiEasingDescriptor {
+        kind: easing.kind(),
+        linear_points,
+        linear_point_count,
+        x1,
+        y1,
+        x2,
+        y2,
+        interval_count,
+        step_position,
     }
 }
 

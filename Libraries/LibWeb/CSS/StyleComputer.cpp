@@ -747,25 +747,6 @@ static RefPtr<CustomPropertyData const> inheritable_custom_property_data(DOM::Ab
     return data->inheritable(abstract_element.document());
 }
 
-static Optional<CSS::EasingFunction> resolve_keyframe_easing(CSS::StyleValue const& style_value, DOM::AbstractElement abstract_element)
-{
-    RefPtr<CSS::StyleValue const> resolved = style_value;
-    if (resolved->is_unresolved())
-        resolved = abstract_element.document().style_computer().resolve_unresolved_style_value(abstract_element, CSS::PropertyNameAndID::from_id(CSS::PropertyID::AnimationTimingFunction), resolved->as_unresolved());
-    if (!resolved || resolved->is_guaranteed_invalid())
-        return {};
-    if (resolved->is_value_list()) {
-        auto const& list = resolved->as_value_list();
-        if (list.size() > 0)
-            resolved = list.value_at(0, false);
-        else
-            return {};
-    }
-    if (resolved->is_easing() || resolved->is_keyword())
-        return CSS::EasingFunction::from_style_value(*resolved);
-    return {};
-}
-
 void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, AnimationRefresh refresh) const
 {
     if (refresh == AnimationRefresh::No) {
@@ -797,30 +778,6 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     auto const animation_slot = abstract_element.pseudo_element().map([](auto pseudo_element) { return static_cast<u8>(to_underlying(pseudo_element) + 1); }).value_or(0);
     record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
 
-    struct KeyframeDeclaration {
-        size_t keyframe_index { 0 };
-        PropertyNameAndID property;
-        RustStyleValueHandle value;
-        StyleValueFFI::FfiAnimationStyleSheetResourceContext style_sheet_resource_context {};
-        bool use_initial { false };
-        bool is_transition { false };
-    };
-    Vector<KeyframeDeclaration> keyframe_declarations;
-    Vector<StyleValueFFI::FfiAnimationEffect> ffi_effects;
-    Vector<StyleValueFFI::FfiAnimationKeyframe> ffi_keyframes;
-    Vector<Vector<Compositing::RustFFI::FfiLinearEasingPoint>> linear_easing_points;
-
-    auto to_ffi_composite_operation = [](Bindings::CompositeOperation operation) {
-        switch (operation) {
-        case Bindings::CompositeOperation::Replace:
-            return StyleValueFFI::FfiCompositeOperation::Replace;
-        case Bindings::CompositeOperation::Add:
-            return StyleValueFFI::FfiCompositeOperation::Add;
-        case Bindings::CompositeOperation::Accumulate:
-            return StyleValueFFI::FfiCompositeOperation::Accumulate;
-        }
-        VERIFY_NOT_REACHED();
-    };
     auto base_custom_property_data = [&]() -> RefPtr<CustomPropertyData const> {
         auto data = abstract_element.custom_property_data();
         if (data && data->is_animation_overlay())
@@ -903,166 +860,8 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         return;
     }
 
-    for (auto const& active_effect : active_effects) {
-        auto effect = active_effect.effect;
-        auto animation = active_effect.animation;
-        auto const& key_frame_set = *effect->key_frame_set();
-        auto& keyframes = key_frame_set.keyframes_by_key;
-        StyleValueFFI::FfiAnimationStyleSheetResourceContext style_sheet_resource_context {};
-        if (key_frame_set.style_sheet_resource_context.has_value()) {
-            auto bytes = key_frame_set.style_sheet_resource_context->base_url.bytes();
-            style_sheet_resource_context = {
-                .base_url = bytes.data(),
-                .base_url_length = bytes.size(),
-                .has_value = true,
-                .origin_clean = key_frame_set.style_sheet_resource_context->origin_clean,
-            };
-        }
-        auto first_keyframe_index = ffi_keyframes.size();
-        for (auto it = keyframes.begin(); it != keyframes.end(); ++it) {
-            auto keyframe_index = ffi_keyframes.size();
-            auto easing = it->easing.visit(
-                [](Empty) -> Optional<CSS::EasingFunction> { return {}; },
-                [](CSS::EasingFunction const& easing) -> Optional<CSS::EasingFunction> { return easing; },
-                [&](RustStyleValueHandle const& value) -> Optional<CSS::EasingFunction> {
-                    auto style_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value.data()));
-                    return resolve_keyframe_easing(*style_value, abstract_element);
-                });
-            if (!easing.has_value()) {
-                easing = animation->is_css_animation()
-                    ? static_cast<CSSAnimation const&>(*animation).default_easing()
-                    : CSS::EasingFunction::linear();
-            }
-            auto composite_operation = [&] {
-                switch (it->composite) {
-                case Bindings::CompositeOperationOrAuto::Accumulate:
-                    return Bindings::CompositeOperation::Accumulate;
-                case Bindings::CompositeOperationOrAuto::Add:
-                    return Bindings::CompositeOperation::Add;
-                case Bindings::CompositeOperationOrAuto::Replace:
-                    return Bindings::CompositeOperation::Replace;
-                case Bindings::CompositeOperationOrAuto::Auto:
-                    return effect->composite();
-                }
-                VERIFY_NOT_REACHED();
-            }();
-            linear_easing_points.empend();
-            auto& points = linear_easing_points.last();
-            ffi_keyframes.append({
-                .key = static_cast<i64>(it.key()),
-                .easing = to_ffi_easing_descriptor<Compositing::RustFFI::FfiEasingDescriptor>(*easing, points),
-                .composite = to_ffi_composite_operation(composite_operation),
-            });
-            for (auto const& [property, value] : it->properties) {
-                bool is_use_initial = false;
-                auto style_value = value.visit(
-                    [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RustStyleValueHandle {
-                        if (property.is_custom_property()) {
-                            is_use_initial = true;
-                            return RustStyleValueHandle::retained(underlying_custom_property_value(property.name())->rust_style_value_data());
-                        }
-                        if (property_is_shorthand(property.id()))
-                            return {};
-                        is_use_initial = true;
-                        return RustStyleValueHandle::retained(computed_properties.property(property.id(), ComputedStyleWorkingSet::WithAnimationsApplied::No).rust_style_value_data());
-                    },
-                    [](RustStyleValueHandle const& value) -> RustStyleValueHandle { return value; });
-                if (!style_value || style_value->tag == StyleValueFFI::StyleValueData::Tag::PendingSubstitution)
-                    continue;
-                if (style_value->tag == StyleValueFFI::StyleValueData::Tag::Unresolved) {
-                    // Substitution needs the typed facade, but only var()-bearing keyframes take this path,
-                    // and those re-parse the value every frame anyway.
-                    auto unresolved = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(style_value.data()));
-                    if (!property.is_custom_property() || unresolved->as_unresolved().contains_arbitrary_substitution_function()) {
-                        auto resolved = abstract_element.document().style_computer().resolve_unresolved_style_value(abstract_element, property, unresolved->as_unresolved());
-                        style_value = RustStyleValueHandle::retained(resolved->rust_style_value_data());
-                    }
-                }
-                // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
-                // When substitution results in a guaranteed-invalid value, treat it as unset
-                // (i.e. inherit for inherited properties, initial for non-inherited properties).
-                if (style_value->tag == StyleValueFFI::StyleValueData::Tag::GuaranteedInvalid && !property.is_custom_property())
-                    continue;
-                keyframe_declarations.append({
-                    .keyframe_index = keyframe_index,
-                    .property = property,
-                    .value = move(style_value),
-                    .style_sheet_resource_context = style_sheet_resource_context,
-                    .use_initial = is_use_initial,
-                    .is_transition = animation->is_css_transition(),
-                });
-            }
-        }
-        ffi_effects.append({
-            .first_keyframe_index = first_keyframe_index,
-            .keyframe_count = ffi_keyframes.size() - first_keyframe_index,
-            .current_key = active_effect.current_key,
-            .result_of_transition = animation->is_css_transition(),
-        });
-    }
-
-    if (keyframe_declarations.is_empty()) {
-        return;
-    }
-
+    // The custom properties the declarations animate, by the number the style engine minted each under.
     Vector<PropertyNameAndID> custom_properties_by_name_id;
-    struct CustomPropertyAnimationInfo {
-        bool is_inherited { true };
-        bool is_important { false };
-    };
-    Vector<CustomPropertyAnimationInfo> custom_property_infos;
-    HashMap<Utf16FlyString, u32> custom_property_name_ids;
-    auto element_declares_own_custom_properties = [&] {
-        if (!base_custom_property_data)
-            return false;
-        auto inherit_from = abstract_element.element_to_inherit_style_from();
-        return !(inherit_from.has_value() && inheritable_custom_property_data(*inherit_from).ptr() == base_custom_property_data.ptr());
-    }();
-    auto custom_name_id_for = [&](PropertyNameAndID const& property) -> u32 {
-        return custom_property_name_ids.ensure(property.name(), [&] {
-            auto registration = m_document->get_registered_custom_property(property.name());
-            bool is_important = false;
-            if (element_declares_own_custom_properties) {
-                size_t declared_index = 0;
-                for (auto const& [name, style_property] : base_custom_property_data->own_values()) {
-                    if (declared_index++ >= base_custom_property_data->declared_count())
-                        break;
-                    if (name == property.name()) {
-                        is_important = style_property.important == Important::Yes;
-                        break;
-                    }
-                }
-            }
-            custom_properties_by_name_id.append(property);
-            custom_property_infos.append({
-                .is_inherited = !registration.has_value() || registration->inherit,
-                .is_important = is_important,
-            });
-            return static_cast<u32>(custom_properties_by_name_id.size());
-        });
-    };
-
-    Vector<StyleValueFFI::FfiAnimationDeclaration> ffi_declarations;
-    ffi_declarations.ensure_capacity(keyframe_declarations.size());
-    for (auto const& declaration : keyframe_declarations) {
-        u32 custom_name_id = 0;
-        CustomPropertyAnimationInfo custom_property_info;
-        if (declaration.property.is_custom_property()) {
-            custom_name_id = custom_name_id_for(declaration.property);
-            custom_property_info = custom_property_infos[custom_name_id - 1];
-        }
-        ffi_declarations.unchecked_append({
-            .keyframe_index = declaration.keyframe_index,
-            .property_id = to_underlying(declaration.property.id()),
-            .custom_name_id = custom_name_id,
-            .custom_is_inherited = custom_property_info.is_inherited,
-            .custom_is_important = custom_property_info.is_important,
-            .value = declaration.value.data(),
-            .style_sheet_resource_context = declaration.style_sheet_resource_context,
-            .use_initial = declaration.use_initial,
-            .is_transition = declaration.is_transition,
-        });
-    }
     // The table's importance bitmap already uses the byte layout the animation core expects.
     Vector<u8> important_property_bitmap;
     important_property_bitmap.append(computed_properties.property_importance_bitmap().data(), computed_properties.property_importance_bitmap().size());
@@ -1253,19 +1052,50 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         };
     };
 
-    StyleValueFFI::FfiAnimationBatch batch {
-        .declarations = ffi_declarations.data(),
-        .declaration_count = ffi_declarations.size(),
-        .effects = ffi_effects.data(),
-        .effect_count = ffi_effects.size(),
-        .keyframes = ffi_keyframes.data(),
-        .keyframe_count = ffi_keyframes.size(),
+    // The style engine resolves the declarations from the descriptions it holds of the effects, and substitutes what
+    // was written as a token stream against the element's custom properties and the ones it inherits.
+    Vector<StyleValueFFI::FfiSampledAnimationEffect, 1> sampled_effects;
+    sampled_effects.ensure_capacity(active_effects.size());
+    for (auto const& active_effect : active_effects)
+        sampled_effects.unchecked_append({ .identity = active_effect.effect->animation_preparation_identity(), .current_key = active_effect.current_key });
+    auto inheritance_parent = abstract_element.element_to_inherit_style_from();
+    auto inherited_custom_property_data = inheritance_parent.has_value() ? inheritance_parent->custom_property_data() : nullptr;
+    StyleValueFFI::FfiPublishedAnimationResolution resolution {
+        .style_engine = m_style_engine.rust_handle(),
+        .style_node = abstract_element.element().style_node_id().value(),
+        .pseudo_kind = abstract_element.pseudo_element().map([](auto pseudo_element) { return static_cast<u8>(to_underlying(pseudo_element)); }).value_or(NumericLimits<u8>::max()),
+        .effects = sampled_effects.data(),
+        .effect_count = sampled_effects.size(),
+        .underlying_longhand_table = computed_properties.computed_longhand_table(),
+        .custom_property_store = base_custom_property_data ? base_custom_property_data->rust_store() : nullptr,
+        .substitution_custom_property_store = abstract_element.custom_property_data() ? abstract_element.custom_property_data()->rust_store() : nullptr,
+        .inheritance_custom_property_store = inherited_custom_property_data ? inherited_custom_property_data->rust_store() : nullptr,
+        .element_declares_custom_properties = base_custom_property_data && !(inheritance_parent.has_value() && inheritable_custom_property_data(*inheritance_parent).ptr() == base_custom_property_data.ptr()),
         .writing_mode = to_underlying(computed_properties.writing_mode()),
         .direction = to_underlying(computed_properties.direction()),
         .important_property_bitmap = important_property_bitmap.data(),
         .important_property_bitmap_length = important_property_bitmap.size(),
     };
-    auto resolved_properties = StyleValueFFI::rust_resolve_animation_declarations(&batch);
+    auto resolved_properties = StyleValueFFI::rust_resolve_published_animation_declarations(&resolution);
+    // What the substituted values read is what the element's style now depends on, as for a value its cascade
+    // substituted.
+    auto& element = abstract_element.element();
+    auto const& marks = resolved_properties.substitution_marks;
+    if (marks.var)
+        element.set_style_uses_var_css_function();
+    if (marks.attr)
+        element.set_style_uses_attr_css_function();
+    if (marks.if_function)
+        element.set_style_uses_if_css_function();
+    if (marks.inherit)
+        element.set_style_uses_inherit_css_function();
+    if (marks.custom_function)
+        element.set_style_uses_custom_function();
+    if (resolved_properties.style_query_dependencies)
+        record_style_query_dependencies(abstract_element, resolved_properties.style_query_dependencies);
+    custom_properties_by_name_id.ensure_capacity(resolved_properties.custom_name_count);
+    for (auto const& name : ReadonlySpan<StyleValueFFI::RetainedUtf16FlyString> { resolved_properties.custom_names, resolved_properties.custom_name_count })
+        custom_properties_by_name_id.unchecked_append(PropertyNameAndID::from_name(Utf16FlyString::from_raw(name.raw)).release_value());
     if (resolved_properties.count == 0)
         return;
     auto computed_batch = compute_animation_values(ReadonlySpan<StyleValueFFI::FfiResolvedAnimationProperty> {

@@ -67,7 +67,7 @@ mod custom_property_cascade;
 mod custom_property_environments;
 #[cfg(test)]
 mod differential_tests;
-mod effect_descriptions;
+pub(crate) mod effect_descriptions;
 mod environment_move;
 pub mod exact_matcher;
 pub use crate::fast_hash;
