@@ -637,12 +637,6 @@ impl RetainedState {
         let DriveSubject { target, parent, facts } = subject;
         let has = |bit: u32| facts & bit != 0;
         let is_document_element = has(fact::IS_DOCUMENT_ELEMENT);
-        // The host samples an element's animations over the record the drive derives beneath them;
-        // a pseudo-element of an element with animations is still composed in C++.
-        if facts & fact::HAS_ANIMATIONS != 0 && target.is_pseudo() {
-            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-            return Err(Unanswered::Refused);
-        }
         if !self.computes_records() {
             counters.bump(Counter::EngineComputedRecordBailUnhosted);
             return Err(Unanswered::Refused);

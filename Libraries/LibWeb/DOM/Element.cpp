@@ -1800,6 +1800,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     return invalidation;
 }
 
+CSS::RequiredInvalidationAfterStyleChange Element::refresh_pseudo_element_styles_over_composition(CSS::ComputedValues const* old_computed_values, bool& did_change_custom_properties)
+{
+    auto invalidation = recompute_pseudo_element_styles(did_change_custom_properties, old_computed_values && old_computed_values->display().is_list_item(), old_computed_values);
+    publish_custom_property_names();
+    apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
+    return invalidation;
+}
+
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles()
 {
     auto computed_values = this->computed_style();
@@ -2549,7 +2557,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
             }
         }
         if (display_none_change == DisplayNoneChange::Apply)
-            apply_display_none_change({ old_computed_values->display().is_none(), old_computed_values->base_values().display().is_none() });
+            apply_display_none_change(DisplayNoneState::of(*old_computed_values));
     }
     // The pseudo-element records the engine settled beside this one install with it.
     result.invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, old_computed_values->display().is_list_item(), &*old_computed_values, nullptr, nullptr, &pseudo_element_records, engine_record_damages);
@@ -2747,9 +2755,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     update_anchor_name_registry(old_computed_values ? &*old_computed_values : nullptr, *new_style);
 
     update_animation_name_index(*this, old_computed_values ? &*old_computed_values : nullptr, *new_style);
-    auto const display_none_before = old_computed_values
-        ? DisplayNoneState { old_computed_values->display().is_none(), old_computed_values->base_values().display().is_none() }
-        : DisplayNoneState {};
+    auto const display_none_before = old_computed_values ? DisplayNoneState::of(*old_computed_values) : DisplayNoneState {};
 
     PreservedPseudoElementStyles preserved_pseudo_element_styles;
     ScopeGuard release_preserved_pseudo_element_styles = [&] {
@@ -2816,12 +2822,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
     return invalidation;
 }
 
+Element::DisplayNoneState Element::DisplayNoneState::of(CSS::ComputedValues const& computed_values)
+{
+    return { computed_values.display().is_none(), computed_values.base_values().display().is_none() };
+}
+
 Optional<Element::DisplayNoneState> Element::display_none_state() const
 {
     auto computed_values = computed_style();
     if (!computed_values)
         return {};
-    return DisplayNoneState { computed_values->display().is_none(), computed_values->base_values().display().is_none() };
+    return DisplayNoneState::of(*computed_values);
 }
 
 void Element::apply_display_none_change(DisplayNoneState before)

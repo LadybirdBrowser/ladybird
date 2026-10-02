@@ -1097,12 +1097,6 @@ impl RetainedState {
             {
                 return Err(Unanswered::Refused);
             }
-            // The pseudo-elements of an element whose animations C++ composes inherit the
-            // composed values, which the record does not hold.
-            if self.host_composes_style(node) {
-                counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                return Err(Unanswered::Refused);
-            }
             // Every declaration the pseudo-elements' rules make has to be a winner the engine
             // holds, as it has for any record it derives. What the element's own declarations
             // make is in the record C++ computed. An answer released between the element's

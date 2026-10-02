@@ -399,15 +399,22 @@ public:
         LeftToCaller,
     };
     CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, DisplayNoneChange, EngineRecordDamages const* = nullptr);
-    // Whether the element's display is none, with its animations and ignoring them; none for an element without style.
+    // Whether an element's display is none, with its animations and ignoring them.
     struct DisplayNoneState {
         bool display_is_none { true };
         bool display_ignoring_animations_is_none { true };
+
+        static DisplayNoneState of(CSS::ComputedValues const&);
     };
+    // None for an element without style.
     [[nodiscard]] Optional<DisplayNoneState> display_none_state() const;
     // Terminates or resumes the animations of a subtree whose display, ignoring animations, left or entered none since
     // `before`, and clears the styles of a subtree that became display:none.
     void apply_display_none_change(DisplayNoneState before);
+    // Refreshes the pseudo-element styles of an element whose record the engine settled without them, once the host has
+    // composed the element's animations over the record, which the pseudo-elements inherit. `old_computed_values` is
+    // the style the element held before the record.
+    CSS::RequiredInvalidationAfterStyleChange refresh_pseudo_element_styles_over_composition(CSS::ComputedValues const* old_computed_values, bool& did_change_custom_properties);
     // The custom-property environment an engine-computed record was published with: the one the
     // element inherits, or one the engine resolved over it. Nothing when it cannot be installed.
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_environment_of_engine_record(CSS::StyleRecordID, bool& installable) const;
