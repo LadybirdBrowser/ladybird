@@ -1296,22 +1296,6 @@ TEST_CASE(momentum_within_the_grace_after_the_gesture_ended_continues_its_latch)
     EXPECT_EQ(fixture.latched_scroller_node_id(), nested_scroller_node_id);
 }
 
-TEST_CASE(a_latched_wheel_gesture_outlives_a_display_list_that_renumbers_its_scroll_node)
-{
-    LatchedWheelContextFixture fixture;
-
-    EXPECT(fixture.wheel({ 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 0).accepted);
-    fixture.take_scroll_offsets();
-
-    fixture.scene.install({ .gives_nested_scroller_a_later_scroll_node_index = true });
-    fixture.take_scroll_offsets();
-
-    EXPECT(fixture.wheel({ 80, 80 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 20).accepted);
-    auto offsets = fixture.take_scroll_offsets();
-    EXPECT_EQ(offsets.nested, (Gfx::FloatPoint { 0, 100 }));
-    EXPECT(!offsets.viewport.has_value());
-}
-
 TEST_CASE(a_latch_is_dropped_when_its_scroller_leaves_the_display_list)
 {
     LatchedWheelContextFixture fixture;

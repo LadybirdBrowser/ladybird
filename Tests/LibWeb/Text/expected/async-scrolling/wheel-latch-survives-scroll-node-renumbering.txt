@@ -1,0 +1,5 @@
+nested scroll node renumbered: true
+inserted scroller took the old index: true
+nested.scrollTop: 80
+inserted.scrollTop: 0
+window.scrollY: 0
