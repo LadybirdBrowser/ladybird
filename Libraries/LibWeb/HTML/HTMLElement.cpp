@@ -465,7 +465,7 @@ Utf16String HTMLElement::get_the_text_steps()
 {
     // 1. If element is not being rendered or if the user agent is a non-CSS user agent, then return element's descendant text content.
     document().update_layout(DOM::UpdateLayoutReason::HTMLElementGetTheTextSteps);
-    if (!layout_node())
+    if (!has_layout_box())
         return descendant_text_content();
 
     // 2. Let results be a new empty list.

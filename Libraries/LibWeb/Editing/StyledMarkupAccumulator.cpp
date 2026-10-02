@@ -24,7 +24,7 @@ namespace Web::Editing {
 
 static bool should_serialize_node(DOM::Node const& node)
 {
-    if (node.layout_node())
+    if (node.has_layout_box())
         return true;
 
     auto const* element = as_if<DOM::Element>(node);
