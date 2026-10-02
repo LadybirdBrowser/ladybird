@@ -154,14 +154,6 @@ public:
     // engine settled for it, once the host has installed it.
     void compose_installed_engine_record(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
 
-    enum class DeclaredValueSource : u8 {
-        PublishedEnvironment,
-        BeneathAnimationOverlay,
-    };
-    NonnullRefPtr<StyleValue const> compute_value_of_custom_property(ComputedStyleWorkingSet const*, AbstractOrHypotheticalElement const&, Utf16FlyString const& name, DeclaredValueSource = DeclaredValueSource::PublishedEnvironment) const;
-    NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(AbstractOrHypotheticalElement, PropertyNameAndID const&, UnresolvedStyleValue const&) const;
-    ComputationContext fallback_computation_context_for_custom_property(AbstractOrHypotheticalElement const&) const;
-
     static NonnullRefPtr<StyleValue const> compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent, CSSPixels initial_font_size = InitialValues::font_size());
     static NonnullRefPtr<StyleValue const> compute_font_style(NonnullRefPtr<StyleValue const> const& absolutized_value);
     static NonnullRefPtr<StyleValue const> compute_font_weight(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent);
@@ -192,7 +184,6 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     [[nodiscard]] StyleEngine::StyleRecordDelta record_computed_style_inputs(Optional<DOM::AbstractElement>, ComputedValues const&, StyleNodeID style_node_id) const;
-    [[nodiscard]] Parser::ValueParserFFI::FfiMediaEnvironment const* cached_media_environment_for_style_update() const;
 
 private:
     // `sampled_style_record` names the record the working set was reconstructed from, where it was.
@@ -252,8 +243,6 @@ public:
     }
 
 private:
-    NonnullRefPtr<StyleValue const> finalize_custom_property_value(ComputedStyleWorkingSet const*, AbstractOrHypotheticalElement const&, Utf16FlyString const&, NonnullRefPtr<StyleValue const>) const;
-
     GC::Ref<DOM::Document> m_document;
 
     Length::FontMetrics m_default_font_metrics;

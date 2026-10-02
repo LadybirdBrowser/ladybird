@@ -28,19 +28,6 @@ CSSContainerRule::CSSContainerRule(RustRule rule, CSSRuleList& rules)
 
 CSSContainerRule::~CSSContainerRule() = default;
 
-void CSSContainerRule::visit_edges(GC::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_cached_parent_container_rule);
-}
-
-void CSSContainerRule::clear_caches()
-{
-    Base::clear_caches();
-    m_cached_parent_container_rule = nullptr;
-    m_parent_container_rule_cache_valid = false;
-}
-
 static Utf16String serialized_condition_name(ContainerConditions::Condition const& condition)
 {
     if (!condition.container_name.has_value())
@@ -105,65 +92,6 @@ Utf16String CSSContainerRule::serialized_condition_text() const
 
     // 5. Return result.
     return result.to_string();
-}
-
-CSSContainerRule const* CSSContainerRule::find_parent_container_rule() const
-{
-    if (m_parent_container_rule_cache_valid)
-        return m_cached_parent_container_rule.ptr();
-
-    m_cached_parent_container_rule = nullptr;
-    for (auto const* rule = parent_rule(); rule; rule = rule->parent_rule()) {
-        if (auto const* container_rule = as_if<CSSContainerRule>(*rule)) {
-            m_cached_parent_container_rule = container_rule;
-            break;
-        }
-    }
-    m_parent_container_rule_cache_valid = true;
-
-    return m_cached_parent_container_rule.ptr();
-}
-
-bool CSSContainerRule::matches(DOM::AbstractElement const& element) const
-{
-    if (!m_conditions->matches(element))
-        return false;
-
-    if (auto const* parent_container_rule = find_parent_container_rule())
-        return parent_container_rule->matches(element);
-
-    return true;
-}
-
-bool CSSContainerRule::contains_size_feature() const
-{
-    if (m_conditions->contains_size_feature())
-        return true;
-
-    if (auto const* parent_container_rule = find_parent_container_rule())
-        return parent_container_rule->contains_size_feature();
-
-    return false;
-}
-
-bool CSSContainerRule::contains_style_feature() const
-{
-    if (m_conditions->contains_style_feature())
-        return true;
-
-    if (auto const* parent_container_rule = find_parent_container_rule())
-        return parent_container_rule->contains_style_feature();
-
-    return false;
-}
-
-void CSSContainerRule::mark_element_style_dependencies(DOM::AbstractElement& abstract_element) const
-{
-    if (contains_size_feature())
-        abstract_element.element().set_style_depends_on_size_container_query();
-
-    if (contains_style_feature())
-        abstract_element.element().set_style_depends_on_style_container_query();
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
