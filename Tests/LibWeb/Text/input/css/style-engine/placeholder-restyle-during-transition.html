@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target {
+        font-size: 10px;
+    }
+    #target::placeholder {
+        transition: opacity 100s linear;
+        opacity: 1;
+    }
+    #target.fade::placeholder {
+        opacity: 0;
+    }
+</style>
+<input id="target" placeholder="Placeholder Text">
+<script>
+    // The placeholder's backing element is restyled through what it inherits from its host while its
+    // transition runs: the C++ style computation recomputes its record, which cancels the transition.
+    test(() => {
+        const target = document.getElementById("target");
+        const placeholderStyle = () => getComputedStyle(target, "::placeholder");
+        const recomputations = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
+
+        println(`initial: opacity ${placeholderStyle().opacity}, font-size ${placeholderStyle().fontSize}`);
+        target.classList.add("fade");
+        println(`fading: opacity is above 0.9? ${parseFloat(placeholderStyle().opacity) > 0.9}`);
+
+        const before = recomputations();
+        target.style.fontSize = "20px";
+        println(`restyled: font-size ${placeholderStyle().fontSize}`);
+        println(`restyled: C++ recomputations ${recomputations() - before}`);
+        println(`restyled: opacity is above 0.9? ${parseFloat(placeholderStyle().opacity) > 0.9}`);
+    });
+</script>
