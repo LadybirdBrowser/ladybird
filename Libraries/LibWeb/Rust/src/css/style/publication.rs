@@ -152,6 +152,16 @@ impl RetainedState {
     /// holds a record. Every record is assigned with its environment, so it holds one; should it
     /// not, the row waits for the parent as for one without a record.
     fn held_custom_property_environment(&self, node: StyleNodeID, counters: &mut Counters) -> Drive<u64> {
+        // What the node's animations sampled into its custom properties is an environment the host
+        // made over the record's, which the engine holds no store for.
+        if self
+            .element_custom_property_data
+            .get(&node)
+            .is_some_and(|held| held.is_animation_overlay)
+        {
+            counters.bump(Counter::EngineComputedRecordBailCustomProperties);
+            return Err(Unanswered::Refused);
+        }
         let environment = self.computed_group_sets.custom_property_environment_identity(node);
         debug_assert!(environment.is_some(), "an inheritance parent without an environment");
         environment.ok_or_else(|| {
@@ -607,11 +617,6 @@ impl RetainedState {
         };
         if facts & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0 {
             counters.bump(Counter::EngineComputedRecordBailWinnerElement);
-            return Err(Unanswered::Refused);
-        }
-        // Both first records and updates need the inherited values composed by the parent's animations.
-        if self.parent_composes_animations(node) {
-            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
         let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node) else {
@@ -2340,24 +2345,11 @@ impl RetainedState {
         let parent = self
             .record_inheritance_parent(node, installed_ancestors)
             .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
-        if self.parent_composes_animations(node) {
-            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-            return Err(Unanswered::Refused);
-        }
         Ok(DriveSubject {
             target: computed::ComputedStyleTarget::new(node, u8::MAX),
             parent,
             facts,
         })
-    }
-
-    /// Whether a node inherits values its parent's animations sample, which C++ composes over the
-    /// parent's record. An animation that settles a custom property installs an environment of its
-    /// own on the parent, and sampling moves it without a publication the engine sees.
-    fn parent_composes_animations(&self, node: StyleNodeID) -> bool {
-        self.tree
-            .inheritance_parent(node)
-            .is_some_and(|parent| self.host_composes_style(parent))
     }
 
     /// Whether the host composes a node's style over the record the engine holds: an element with

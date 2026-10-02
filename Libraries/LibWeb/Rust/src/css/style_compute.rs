@@ -3164,7 +3164,8 @@ pub(crate) struct ParentSnapshot<'a> {
 }
 
 impl<'a> ParentSnapshot<'a> {
-    /// A snapshot over a record's parts, for a caller holding the record view itself.
+    /// A snapshot over a record's parts, for a caller holding the record view itself. What the
+    /// record's animations sampled is what a child inherits.
     pub(crate) fn new(
         table: &'a ComputedLonghandTable,
         stored_animated_overlay: Option<&'a AnimatedOverlay>,
@@ -3173,7 +3174,7 @@ impl<'a> ParentSnapshot<'a> {
     ) -> Self {
         Self {
             table,
-            inherited_value_overlay: None,
+            inherited_value_overlay: stored_animated_overlay,
             stored_animated_overlay,
             font_metrics_depend_on_viewport_metrics,
             in_display_none_subtree,
