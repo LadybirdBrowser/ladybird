@@ -21,7 +21,7 @@ class HTMLMediaElement;
 
 class MediaControls {
 public:
-    explicit MediaControls(HTMLMediaElement&);
+    MediaControls(HTMLMediaElement& host, HTMLMediaElement& media_element);
     ~MediaControls();
 
     void visit_edges(GC::Cell::Visitor&);
@@ -81,6 +81,9 @@ private:
     void show_controls();
     void hide_controls();
 
+    // The controls live in the shadow tree of their host, and play the media of their media element. The two are one
+    // element unless the host shows another element's media.
+    GC::Weak<HTMLMediaElement> m_host;
     GC::Weak<HTMLMediaElement> m_media_element;
 
     Optional<MediaControlsDOM> m_dom;

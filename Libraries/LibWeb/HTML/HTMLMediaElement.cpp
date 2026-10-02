@@ -3472,7 +3472,7 @@ void HTMLMediaElement::reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL:
 void HTMLMediaElement::create_controls()
 {
     if (!m_controls.has_value())
-        m_controls.emplace(*this);
+        m_controls.emplace(*this, *this);
 }
 
 void HTMLMediaElement::destroy_controls()
