@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>setTimeout() and setInterval() with string handlers under a report-only policy</title>
+<link rel="help" href="https://html.spec.whatwg.org/#timer-initialisation-steps">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  function violationWithSample(sample) {
+    return new Promise(resolve => {
+      document.addEventListener("securitypolicyviolation", function listener(e) {
+        if (e.sample === sample) {
+          document.removeEventListener("securitypolicyviolation", listener);
+          resolve(e);
+        }
+      });
+    });
+  }
+
+  for (const [set, clear] of [["setTimeout", "clearTimeout"], ["setInterval", "clearInterval"]]) {
+    promise_test(async t => {
+      const handler = `${set}Cleared()`;
+      const violation = violationWithSample(handler);
+      const id = window[set](handler, 0);
+      assert_not_equals(id, 0);
+      window[clear](id);
+      const e = await violation;
+      assert_equals(e.disposition, "report");
+    }, `${set}() reports a violation for a string handler even if the timer is cleared right away`);
+
+    promise_test(async t => {
+      const handler = `${set}Allowed()`;
+      const violation = violationWithSample(handler);
+      let id;
+      const ran = new Promise(resolve => {
+        window[`${set}Allowed`] = () => {
+          window[clear](id);
+          resolve();
+        };
+      });
+      id = window[set](handler, 0);
+      assert_not_equals(id, 0);
+      await Promise.all([violation, ran]);
+    }, `${set}() reports a violation for a string handler and runs it`);
+  }
+</script>

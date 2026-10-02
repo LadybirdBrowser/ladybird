@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	setTimeout() reports a violation for a string handler even if the timer is cleared right away
+Pass	setTimeout() reports a violation for a string handler and runs it
+Pass	setInterval() reports a violation for a string handler even if the timer is cleared right away
+Pass	setInterval() reports a violation for a string handler and runs it

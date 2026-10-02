@@ -1,0 +1,1 @@
+Content-Security-Policy: script-src 'self' 'unsafe-inline' 'report-sample'; require-trusted-types-for 'script'

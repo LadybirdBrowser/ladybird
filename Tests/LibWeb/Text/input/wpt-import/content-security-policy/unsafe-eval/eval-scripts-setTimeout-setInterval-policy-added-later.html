@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>A policy added after setTimeout() or setInterval() doesn't block its string handler</title>
+<link rel="help" href="https://html.spec.whatwg.org/#timer-initialisation-steps">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+  function loadIframe(t) {
+    return new Promise(resolve => {
+      const iframe = document.createElement("iframe");
+      t.add_cleanup(() => iframe.remove());
+      iframe.onload = () => resolve(iframe.contentWindow);
+      iframe.src = "../../common/blank.html";
+      document.body.append(iframe);
+    });
+  }
+
+  function addPolicy(win) {
+    const meta = win.document.createElement("meta");
+    meta.httpEquiv = "Content-Security-Policy";
+    meta.content = "script-src 'self' 'unsafe-inline'";
+    win.document.head.append(meta);
+    assert_throws_js(win.EvalError, () => win.eval("1"), "precondition: the policy blocks eval");
+  }
+
+  promise_test(async t => {
+    const win = await loadIframe(t);
+    const ran = new Promise(resolve => { win.timeoutRan = resolve; });
+    assert_not_equals(win.setTimeout("timeoutRan()", 0), 0);
+    addPolicy(win);
+    await ran;
+  }, "setTimeout() string handler runs after a policy blocking eval is added");
+
+  promise_test(async t => {
+    const win = await loadIframe(t);
+    let runs = 0;
+    let id;
+    const ran = new Promise(resolve => {
+      win.intervalRan = () => {
+        if (++runs === 2) {
+          win.clearInterval(id);
+          resolve();
+        }
+      };
+    });
+    id = win.setInterval("intervalRan()", 0);
+    assert_not_equals(id, 0);
+    addPolicy(win);
+    await ran;
+  }, "setInterval() string handler keeps running after a policy blocking eval is added");
+</script>

@@ -722,6 +722,13 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
             move(handler).downcast<Utf16String, GC::Ref<TrustedTypes::TrustedScript>>(),
             sink,
             TrustedTypes::Script.view()));
+
+        // 5. Perform EnsureCSPDoesNotBlockStringCompilation(global's relevant realm, « », handler, handler, timer, « »,
+        //    handler). If this throws an exception, catch it and return 0.
+        auto const& source = handler.get<Utf16String>();
+        auto handler_primitive_string = JS::PrimitiveString::create(this_impl().vm(), source);
+        if (ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(relevant_realm(*this), {}, source, source, JS::CompilationType::Timer, {}, handler_primitive_string).is_throw_completion())
+            return 0;
     }
     auto function_or_string = move(handler).downcast<GC::Ref<WebIDL::CallbackType>, Utf16String>();
 
@@ -756,18 +763,13 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
     else if (timeout == 0)
         throttling_class = TimerThrottlingClass::Immediate;
 
-    // 7. Let realm be global's relevant realm.
-    auto& realm = relevant_realm(*this);
-
-    // 8. Let initiating script be the active script.
+    // 7. Let initiating script be the active script.
     auto const* initiating_script = Web::Bindings::active_script();
 
-    auto& vm = this_impl().vm();
+    // FIXME: 8. Let uniqueHandle be null.
 
-    // FIXME: 9. Let uniqueHandle be null.
-
-    // 10. Let task be a task that runs the following substeps:
-    auto task = GC::create_function(GC::Heap::the(), Function<void()>([this, handler = move(function_or_string), timeout, arguments = move(arguments), repeat, id, initiating_script, &vm, &realm]() {
+    // 9. Let task be a task that runs the following substeps:
+    auto task = GC::create_function(GC::Heap::the(), Function<void()>([this, handler = move(function_or_string), timeout, arguments = move(arguments), repeat, id, initiating_script]() {
         // FIXME: 1. Assert: uniqueHandle is a unique internal value, not null.
 
         // 2. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
@@ -777,38 +779,31 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
         // FIXME: 3. If global's map of setTimeout and setInterval IDs[id] does not equal uniqueHandle, then abort these steps.
         // FIXME: 4. Record timing info for timer handler given handler, global's relevant settings object, and repeat.
 
-        bool continue_ = handler.visit(
+        handler.visit(
             // 5. If handler is a Function, then invoke handler given arguments and "report", and with callback this value set to thisArg.
             [&](GC::Root<WebIDL::CallbackType> const& callback) {
                 auto this_value = [&]() -> JS::Value {
                     if (auto* window = as_if<Window>(this_impl()))
                         return &window->window()->object();
+                    auto& realm = relevant_realm(*this);
                     return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { this_impl() });
                 }();
                 (void)WebIDL::invoke_callback(*callback, this_value, WebIDL::ExceptionBehavior::Report, arguments);
-                return true;
             },
             // 6. Otherwise:
             [&](Utf16String const& source) {
                 // 1. Assert: handler is a string.
-                // 2. Perform EnsureCSPDoesNotBlockStringCompilation(realm, « », handler, handler, timer, « », handler).
-                //    If this throws an exception, catch it, report it for global, and abort these steps.
-                auto handler_primitive_string = JS::PrimitiveString::create(vm, source);
-                if (auto result = ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, {}, source, source, JS::CompilationType::Timer, {}, handler_primitive_string); result.is_throw_completion()) {
-                    report_exception(result, realm);
-                    return false;
-                }
 
-                // 3. Let settings object be global's relevant settings object.
+                // 2. Let settings object be global's relevant settings object.
                 auto& settings_object = relevant_settings_object(*this);
 
-                // 4. Let fetch options be the default classic script fetch options.
+                // 3. Let fetch options be the default classic script fetch options.
                 ScriptFetchOptions options {};
 
-                // 5. Let base URL be settings object's API base URL.
+                // 4. Let base URL be settings object's API base URL.
                 auto base_url = settings_object.api_base_url();
 
-                // 6. If initiating script is not null, then:
+                // 5. If initiating script is not null, then:
                 if (initiating_script) {
                     // FIXME: 1. Set fetch options to a script fetch options whose cryptographic nonce is initiating script's fetch options's cryptographic nonce,
                     //           integrity metadata is the empty string, parser metadata is "not-parser-inserted", credentials mode is initiating script's fetch
@@ -821,18 +816,14 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
                     //            done by eval(). That is, module script fetches via import() will behave the same in both contexts.
                 }
 
-                // 7. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
+                // 6. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
                 // FIXME: Pass fetch options.
                 auto basename = base_url.basename();
                 auto script = ClassicScript::create(basename, source, settings_object, move(base_url));
 
-                // 8. Run the classic script script.
+                // 7. Run the classic script script.
                 (void)script->run();
-                return true;
             });
-
-        if (!continue_)
-            return;
 
         // 7. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
         if (!m_timers.contains(id))

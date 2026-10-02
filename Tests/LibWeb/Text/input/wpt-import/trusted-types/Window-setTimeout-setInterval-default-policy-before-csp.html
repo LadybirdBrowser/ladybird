@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Timers run the default policy before the CSP check for string handlers</title>
+<link rel="help" href="https://html.spec.whatwg.org/#timer-initialisation-steps">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+  const log = [];
+  trustedTypes.createPolicy("default", {
+    createScript: s => { log.push(`createScript ${s}`); return `rewritten ${s}`; }
+  });
+
+  function violationWithSample(sample) {
+    return new Promise(resolve => {
+      document.addEventListener("securitypolicyviolation", function listener(e) {
+        if (e.sample === sample) {
+          document.removeEventListener("securitypolicyviolation", listener);
+          resolve(e);
+        }
+      });
+    });
+  }
+
+  for (const method of ["setTimeout", "setInterval"]) {
+    promise_test(async t => {
+      log.length = 0;
+      const violation = violationWithSample(`rewritten ${method}`);
+      assert_equals(window[method](method, 0), 0);
+      assert_array_equals(log, [`createScript ${method}`]);
+      const e = await violation;
+      assert_equals(e.blockedURI, "eval");
+    }, `${method}() runs the default policy and then blocks the rewritten string handler`);
+  }
+</script>

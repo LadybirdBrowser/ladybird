@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'report-sample'">
+<title>Blocked string handlers for setTimeout() and setInterval() don't report an exception</title>
+<link rel="help" href="https://html.spec.whatwg.org/#timer-initialisation-steps">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  const errors = [];
+  addEventListener("error", e => errors.push(e.message));
+
+  function violationWithSample(sample) {
+    return new Promise(resolve => {
+      document.addEventListener("securitypolicyviolation", function listener(e) {
+        if (e.sample === sample) {
+          document.removeEventListener("securitypolicyviolation", listener);
+          resolve(e);
+        }
+      });
+    });
+  }
+
+  for (const method of ["setTimeout", "setInterval"]) {
+    promise_test(async t => {
+      const handler = `${method}Blocked()`;
+      const violation = violationWithSample(handler);
+      assert_equals(window[method](handler, 0), 0);
+      await violation;
+      assert_array_equals(errors, []);
+    }, `${method}() with a blocked string handler returns 0 and doesn't report an exception`);
+  }
+</script>

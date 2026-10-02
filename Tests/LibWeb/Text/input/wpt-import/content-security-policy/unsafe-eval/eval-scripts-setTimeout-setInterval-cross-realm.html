@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>setTimeout() and setInterval() use the policy of this's global for string handlers</title>
+<link rel="help" href="https://html.spec.whatwg.org/#timer-initialisation-steps">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+  const iframeLoaded = new Promise(resolve => {
+    const iframe = document.createElement("iframe");
+    iframe.srcdoc = `<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'">`;
+    iframe.onload = () => resolve(iframe.contentWindow);
+    document.body.append(iframe);
+  });
+
+  for (const [set, clear] of [["setTimeout", "clearTimeout"], ["setInterval", "clearInterval"]]) {
+    promise_test(async t => {
+      const win = await iframeLoaded;
+      assert_equals(win[set]("void 0", 0), 0);
+    }, `${set}() on a global whose policy blocks eval returns 0`);
+
+    promise_test(async t => {
+      const win = await iframeLoaded;
+      assert_equals(window[set].call(win, "void 0", 0), 0);
+    }, `${set}() from another realm on a global whose policy blocks eval returns 0`);
+
+    promise_test(async t => {
+      const win = await iframeLoaded;
+      let id;
+      const ran = new Promise(resolve => {
+        window[`${set}Ran`] = () => {
+          window[clear](id);
+          resolve();
+        };
+      });
+      id = win[set].call(window, `${set}Ran()`, 0);
+      assert_not_equals(id, 0);
+      await ran;
+    }, `${set}() from a realm whose policy blocks eval on a global whose policy doesn't returns an ID and runs`);
+  }
+</script>

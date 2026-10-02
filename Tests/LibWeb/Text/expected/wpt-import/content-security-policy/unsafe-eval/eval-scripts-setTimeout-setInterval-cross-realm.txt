@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	setTimeout() on a global whose policy blocks eval returns 0
+Pass	setTimeout() from another realm on a global whose policy blocks eval returns 0
+Pass	setTimeout() from a realm whose policy blocks eval on a global whose policy doesn't returns an ID and runs
+Pass	setInterval() on a global whose policy blocks eval returns 0
+Pass	setInterval() from another realm on a global whose policy blocks eval returns 0
+Pass	setInterval() from a realm whose policy blocks eval on a global whose policy doesn't returns an ID and runs
