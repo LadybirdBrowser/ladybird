@@ -370,7 +370,7 @@ PASS: descendant attribute stress warm: slotted-shadow-host-default: :has([data-
 PASS: descendant attribute stress cold: slotted-shadow-host-default: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached: slotted-shadow-host-default: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached-cold: slotted-shadow-host-default: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress warm: slotted-shadow-host-default: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: descendant attribute stress warm: slotted-shadow-host-default: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: slotted-shadow-host-default: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached: slotted-shadow-host-default: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached-cold: slotted-shadow-host-default: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -514,7 +514,7 @@ PASS: descendant attribute stress warm: slotted-shadow-host-named: :has([data-hi
 PASS: descendant attribute stress cold: slotted-shadow-host-named: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached: slotted-shadow-host-named: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached-cold: slotted-shadow-host-named: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress warm: slotted-shadow-host-named: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: descendant attribute stress warm: slotted-shadow-host-named: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: slotted-shadow-host-named: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached: slotted-shadow-host-named: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress detached-cold: slotted-shadow-host-named: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0

@@ -6,4 +6,4 @@ stop has style after hiding: true
 ordinary hidden style is cleared: true
 hidden inherited style was updated: true
 hidden inherited color: rgb(0, 128, 0)
-hiding: engine records 6, C++ recomputations 1
+hiding: engine records 7, C++ recomputations 0

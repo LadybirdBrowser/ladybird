@@ -432,11 +432,11 @@ PASS: descendant attribute stress pseudo-warm: shadow-internal: :has(#hit-id.ext
 PASS: descendant attribute stress pseudo-cold: shadow-internal: :has(#hit-id.extra) after descendant id and class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit) after descendant class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.HIT) after matching uppercase descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.HIT) after matching uppercase descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.HIT) after matching uppercase descendant class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.HIT) after matching uppercase descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.HIT) after matching uppercase descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.HIT) ignores lowercase descendant class change in standards mode | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.HIT) ignores lowercase descendant class change in standards mode | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -448,15 +448,15 @@ PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit) ignores u
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit) ignores uppercase descendant class change in standards mode | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit]) after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit]) after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit]) after descendant attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit]) after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit]) after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(#hit-id) after descendant id change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(#hit-id) after descendant id change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(#hit-id) after descendant id change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(#hit-id) after descendant id change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(#hit-id) after descendant id change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(span.hit:not(.miss)) after descendant compound change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(span.hit:not(.miss)) after descendant compound change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(span.hit:not(.miss)) after descendant compound change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(span.hit:not(.miss)) after descendant compound change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(span.hit:not(.miss)) after descendant compound change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :not(:has(.hit)) becomes false after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :not(:has(.hit)) becomes false after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -464,7 +464,7 @@ PASS: descendant attribute stress pseudo-warm: shadow-host: :not(:has(.hit)) bec
 PASS: descendant attribute stress pseudo-cold: shadow-host: :not(:has(.hit)) becomes false after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(:is(.hit)) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(:is(.hit)) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(:is(.hit)) after descendant class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(:is(.hit)) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(:is(.hit)) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit) becomes false after descendant class removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit) becomes false after descendant class removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -476,11 +476,11 @@ PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit]) bec
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit]) becomes false after descendant attribute removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :not(:has(.hit)) becomes true after descendant class removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :not(:has(.hit)) becomes true after descendant class removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :not(:has(.hit)) becomes true after descendant class removal | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :not(:has(.hit)) becomes true after descendant class removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :not(:has(.hit)) becomes true after descendant class removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit.extra) after descendant second class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit.extra) after descendant second class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit.extra) after descendant second class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit.extra) after descendant second class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit.extra) after descendant second class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit) becomes false after descendant className clear | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit) becomes false after descendant className clear | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -488,47 +488,47 @@ PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit) becomes f
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit) becomes false after descendant className clear | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit='yes']) after descendant attribute value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit='yes']) after descendant attribute value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit='yes']) after descendant attribute value change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit='yes']) after descendant attribute value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit='yes']) after descendant attribute value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit^='ye']) after descendant prefix attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit^='ye']) after descendant prefix attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit^='ye']) after descendant prefix attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit^='ye']) after descendant prefix attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit^='ye']) after descendant prefix attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit$='es']) after descendant suffix attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit$='es']) after descendant suffix attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit$='es']) after descendant suffix attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit$='es']) after descendant suffix attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit$='es']) after descendant suffix attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit*='e']) after descendant substring attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit*='e']) after descendant substring attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit*='e']) after descendant substring attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit*='e']) after descendant substring attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit*='e']) after descendant substring attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit~='yes']) after descendant word attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit~='yes']) after descendant word attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit~='yes']) after descendant word attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit~='yes']) after descendant word attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit~='yes']) after descendant word attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit|='yes']) after descendant dash attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit|='yes']) after descendant dash attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit|='yes']) after descendant dash attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit|='yes']) after descendant dash attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit|='yes']) after descendant dash attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit='yes']) becomes false after descendant value change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress warm: shadow-host: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
+PASS: descendant attribute stress warm: shadow-host: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([hidden]) after descendant hidden property change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(:is(.hit, [data-hit])) after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(:is(.hit, [data-hit])) after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(:is(.hit, [data-hit])) after descendant attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(:is(.hit, [data-hit])) after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(:is(.hit, [data-hit])) after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(:where(.hit, [data-hit])) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(:where(.hit, [data-hit])) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(:where(.hit, [data-hit])) after descendant class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(:where(.hit, [data-hit])) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(:where(.hit, [data-hit])) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit:not([data-miss])) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit:not([data-miss])) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:not([data-miss])) after descendant class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:not([data-miss])) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit:not([data-miss])) after descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit:not([data-miss])) becomes false after descendant miss attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit:not([data-miss])) becomes false after descendant miss attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -536,27 +536,27 @@ PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:not([data-
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit:not([data-miss])) becomes false after descendant miss attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit + .after) after descendant sibling class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit + .after) after descendant sibling class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit + .after) after descendant sibling class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit + .after) after descendant sibling class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit + .after) after descendant sibling class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit ~ .after) after indirect sibling class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit ~ .after) after indirect sibling class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit ~ .after) after indirect sibling class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit ~ .after) after indirect sibling class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit ~ .after) after indirect sibling class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit:first-child) after first descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit:first-child) after first descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:first-child) after first descendant class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:first-child) after first descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit:first-child) after first descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit:last-child) after last descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit:last-child) after last descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:last-child) after last descendant class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:last-child) after last descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit:last-child) after last descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit:only-child) after only descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit:only-child) after only descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:only-child) after only descendant class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:only-child) after only descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit:only-child) after only descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(.hit:nth-child(2)) after second descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(.hit:nth-child(2)) after second descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:nth-child(2)) after second descendant class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(.hit:nth-child(2)) after second descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(.hit:nth-child(2)) after second descendant class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :not(:has([data-hit])) becomes false after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :not(:has([data-hit])) becomes false after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -564,7 +564,7 @@ PASS: descendant attribute stress pseudo-warm: shadow-host: :not(:has([data-hit]
 PASS: descendant attribute stress pseudo-cold: shadow-host: :not(:has([data-hit])) becomes false after descendant attribute change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit]) becomes true after descendant toggleAttribute | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit]) becomes true after descendant toggleAttribute | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit]) becomes true after descendant toggleAttribute | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit]) becomes true after descendant toggleAttribute | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit]) becomes true after descendant toggleAttribute | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has([data-hit]) becomes false after descendant toggleAttribute | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has([data-hit]) becomes false after descendant toggleAttribute | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -572,5 +572,5 @@ PASS: descendant attribute stress pseudo-warm: shadow-host: :has([data-hit]) bec
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has([data-hit]) becomes false after descendant toggleAttribute | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress warm: shadow-host: :has(#hit-id.extra) after descendant id and class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress cold: shadow-host: :has(#hit-id.extra) after descendant id and class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: descendant attribute stress pseudo-warm: shadow-host: :has(#hit-id.extra) after descendant id and class change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: descendant attribute stress pseudo-warm: shadow-host: :has(#hit-id.extra) after descendant id and class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: descendant attribute stress pseudo-cold: shadow-host: :has(#hit-id.extra) after descendant id and class change | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
