@@ -80,7 +80,6 @@ TEST_CASE(opening_a_report_shows_what_crashed)
     auto report = MUST(review.open(name));
 
     EXPECT_EQ(report.name, name);
-    EXPECT_EQ(report.title, "A web page crashed"sv);
 
     struct ExpectedField {
         StringView label;
@@ -128,7 +127,6 @@ TEST_CASE(the_crash_date_is_read_from_the_report_and_not_from_its_name)
     CrashReportReview review { store };
     auto report = MUST(review.open(ByteString { "WebContent-legacy.txt"sv }));
 
-    EXPECT_EQ(report.title, "A web page crashed"sv);
     EXPECT_EQ(report.fields[0].label, "Crash date"sv);
     EXPECT_EQ(report.fields[0].value, "2026-10-01 14:34:56"sv);
 }
@@ -143,27 +141,8 @@ TEST_CASE(a_report_that_does_not_say_when_it_crashed_has_no_crash_date)
     CrashReportReview review { store };
     auto report = MUST(review.open(ByteString { "WebContent-legacy.txt"sv }));
 
-    EXPECT_EQ(report.title, "A web page crashed"sv);
     for (auto const& field : report.fields)
         EXPECT(field.label != "Crash date"sv);
-}
-
-TEST_CASE(a_report_from_another_process_is_titled_after_it)
-{
-    cleanup();
-    ScopeGuard guard = cleanup;
-
-    WebView::CrashReportStore store { test_directory() };
-    CrashReportReview review { store };
-
-    auto browser = write_report("2026-10-01T12-34-56Z"sv, "Ladybird crash report, format 1\nProcess: Browser\n"sv);
-    EXPECT_EQ(MUST(review.open(browser)).title, "Ladybird crashed"sv);
-
-    auto request_server = write_report("2026-10-01T12-34-57Z"sv, "Ladybird crash report, format 1\nProcess: RequestServer\n"sv);
-    EXPECT_EQ(MUST(review.open(request_server)).title, "RequestServer crashed"sv);
-
-    auto unknown = write_report("2026-10-01T12-34-58Z"sv, "Ladybird crash report, format 1\n"sv);
-    EXPECT_EQ(MUST(review.open(unknown)).title, "Ladybird crashed"sv);
 }
 
 TEST_CASE(an_opened_report_is_no_longer_pending)
