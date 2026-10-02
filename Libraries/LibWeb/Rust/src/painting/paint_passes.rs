@@ -11,6 +11,7 @@ use crate::css::css_pixels::CssPixelPoint;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::{FfiVisualContextUpdateOutcome, RootBackgroundSource};
+use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
 use crate::painting::visual_context::VisualContextState;
 use crate::painting::visual_context::dirty::{VisualContextGlobalRebuildReason, VisualContextUpdateScope};
 use crate::painting::visual_context::incremental::{
@@ -29,6 +30,11 @@ pub(crate) enum PaintPass {
     UpdateVisualViewportTransform,
     /// Re-reads the scroll containers' offsets, when something invalidated them or `force` asks.
     RefreshScrollState { force: bool },
+    /// Answers the SVG paint resources of the enrolled rows the host resolves from the DOM, if they changed since they
+    /// were resolved last.
+    SvgPaintResourceRequests,
+    /// Publishes the SVG paint resources the host resolved.
+    PublishSvgPaintResources(Vec<ResolvedSvgPaintResource>),
 }
 
 /// What a paint pass answers.
@@ -38,6 +44,9 @@ pub(crate) enum PaintPassAnswer {
     VisualViewportTransform,
     /// The dense device-pixel offsets of every scroll container, or none where nothing was refreshed.
     ScrollState(Option<Vec<FloatPoint>>),
+    SvgPaintResourceRequests(Option<Vec<SvgPaintResourceRequest>>),
+    /// Whether a published SVG paint resource changed.
+    SvgPaintResourcesPublished(bool),
 }
 
 #[derive(Default)]
@@ -77,6 +86,12 @@ impl PaintPass {
                 PaintPassAnswer::VisualViewportTransform
             }
             Self::RefreshScrollState { force } => PaintPassAnswer::ScrollState(refresh_scroll_state(arena, force)),
+            Self::SvgPaintResourceRequests => {
+                PaintPassAnswer::SvgPaintResourceRequests(svg_paint_resource_requests(arena))
+            }
+            Self::PublishSvgPaintResources(resolved) => {
+                PaintPassAnswer::SvgPaintResourcesPublished(publish_resolved_svg_paint_resources(arena, resolved))
+            }
         }
     }
 }
@@ -296,4 +311,114 @@ fn fresh_visual_context_tree_build(
         requires_display_list_recording: true,
         structural_epoch: state.structural_epoch(),
     }
+}
+
+/// An SVG paint resource of an enrolled row the host resolves from the DOM.
+pub(crate) enum SvgPaintResourceRequest {
+    PaintServer {
+        slot: NodeSlotId,
+        kind: SvgPaintResourceKind,
+    },
+    /// A filter list, with the `url()` of each filter that names an SVG filter.
+    Filter {
+        slot: NodeSlotId,
+        kind: SvgPaintResourceKind,
+        urls: Vec<crate::css::style_value::RetainedStyleValueData>,
+    },
+}
+
+/// What the host resolved of an [`SvgPaintResourceRequest`].
+pub(crate) enum ResolvedSvgPaintResource {
+    PaintServer {
+        slot: NodeSlotId,
+        kind: SvgPaintResourceKind,
+        published: PublishedSvgPaintServer,
+    },
+    Filter {
+        slot: NodeSlotId,
+        kind: SvgPaintResourceKind,
+        published: PublishedSvgFilter,
+    },
+}
+
+/// What the host resolves of the enrolled SVG paint resources, if they changed since they were
+/// resolved last. A row that went away, or whose filters name no SVG filter any more, leaves them.
+pub(crate) fn svg_paint_resource_requests(arena: &LayoutNodeArena) -> Option<Vec<SvgPaintResourceRequest>> {
+    let resources = arena.svg_paint_resources();
+    if !resources.take_needs_sync() {
+        return None;
+    }
+    let mut requests = Vec::new();
+    for (slot, kind) in resources.enrolled_entries() {
+        let Some(style) = arena.node_style_if_live(slot) else {
+            resources.forget_slot(slot);
+            continue;
+        };
+        if matches!(kind, SvgPaintResourceKind::Fill | SvgPaintResourceKind::Stroke) {
+            requests.push(SvgPaintResourceRequest::PaintServer { slot, kind });
+            continue;
+        }
+        let effects = style.effects();
+        let filter_list = match kind {
+            SvgPaintResourceKind::Filter => &effects.filter,
+            SvgPaintResourceKind::BackdropFilter => &effects.backdrop_filter,
+            SvgPaintResourceKind::Fill | SvgPaintResourceKind::Stroke => unreachable!(),
+        };
+        if !crate::painting::css_filter::contains_url(filter_list) {
+            resources.withdraw(slot, kind);
+            continue;
+        }
+        let urls = filter_list
+            .operations
+            .as_slice()
+            .iter()
+            .filter(|operation| operation.kind == crate::painting::css_filter::FILTER_KIND_URL)
+            .map(|operation| {
+                // SAFETY: The row's style holds the value live; the request holds a reference of its
+                // own, as the host may restyle the row while it resolves.
+                unsafe {
+                    crate::css::style_value::RetainedStyleValueData::from_retained_optional_pointer(
+                        crate::css::style_value::retain_style_value(operation.url_value.pointer.cast()),
+                    )
+                }
+            })
+            .collect();
+        requests.push(SvgPaintResourceRequest::Filter { slot, kind, urls });
+    }
+    Some(requests)
+}
+
+/// Publishes what the host resolved of the enrolled SVG paint resources, and answers whether any
+/// changed.
+pub(crate) fn publish_resolved_svg_paint_resources(
+    arena: &LayoutNodeArena,
+    resolved: Vec<ResolvedSvgPaintResource>,
+) -> bool {
+    use crate::painting::record::damage::PaintDamage;
+    let resources = arena.svg_paint_resources();
+    let mut any_changed = false;
+    for resolved in resolved {
+        match resolved {
+            ResolvedSvgPaintResource::PaintServer { slot, kind, published } => {
+                if arena.slot_is_live(slot) && resources.publish_paint_server(slot, kind, published) {
+                    any_changed = true;
+                    arena.push_paint_damage(slot, PaintDamage::SVG | PaintDamage::SCOPE_PREAMBLE);
+                }
+            }
+            ResolvedSvgPaintResource::Filter { slot, kind, published } => {
+                if !arena.slot_is_live(slot) || !resources.publish_filter(slot, kind, published) {
+                    continue;
+                }
+                any_changed = true;
+                if arena.paintable_row_is_populated(slot) {
+                    arena.note_visual_context_box_dirty(
+                        slot,
+                        crate::painting::visual_context::dirty::VisualContextBoxDirtyKind::StyleValueChange,
+                    );
+                    arena.push_paint_damage(slot, PaintDamage::SVG | PaintDamage::SCOPE_PREAMBLE);
+                }
+            }
+        }
+    }
+    any_changed
 }

@@ -39,14 +39,16 @@ static void push_svg_paint_server_description(Layout::NodeWithStyle const& layou
 
 bool sync_svg_paint_resources(DOM::Document& document)
 {
-    return Layout::RustFFI::layout_arena_sync_svg_paint_resources(
-        document.layout_node_arena().handle(),
+    auto& arena = document.layout_node_arena();
+    return Layout::RustFFI::render_state_sync_svg_paint_resources(
+        arena.host(),
+        &arena,
         [](void* arena, Compositing::RustFFI::NodeSlotId slot, void const* url_value, void* sink) -> bool {
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena, slot));
+            auto const& layout_node = as<Layout::NodeWithStyle>(*static_cast<Layout::NodeArena*>(arena)->node_if_live(slot));
             return push_svg_filter_reference(url_value, layout_node, sink);
         },
         [](void* arena, Compositing::RustFFI::NodeSlotId slot, bool is_stroke, void* sink) {
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena, slot));
+            auto const& layout_node = as<Layout::NodeWithStyle>(*static_cast<Layout::NodeArena*>(arena)->node_if_live(slot));
             push_svg_paint_server_description(layout_node, is_stroke, sink);
         });
 }
