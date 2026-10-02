@@ -25,7 +25,7 @@ template<>
 ErrorOr<Web::MediaContextMenu> IPC::decode(Decoder& decoder)
 {
     return Web::MediaContextMenu {
-        .media_url = TRY(decoder.decode<URL::URL>()),
+        .media_url = TRY(decoder.decode<Optional<URL::URL>>()),
         .is_video = TRY(decoder.decode<bool>()),
         .is_playing = TRY(decoder.decode<bool>()),
         .is_muted = TRY(decoder.decode<bool>()),
