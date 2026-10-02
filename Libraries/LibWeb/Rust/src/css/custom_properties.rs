@@ -1678,7 +1678,20 @@ fn evaluate_style_feature(
         };
     }
     let Some(colon) = colon else {
-        return ConditionEvaluation::Match(computed.is_some());
+        // A <style-feature-boolean> is true if the computed value differs from the property's initial value.
+        // NB: A function parameter's initial value is its argument, but a parameter holding one still matches.
+        let (Some(registry), Some(registration), Some(computed)) = (registry, registration, &computed) else {
+            return ConditionEvaluation::Match(computed.is_some());
+        };
+        let Some(initial) = &registration.initial_source else {
+            return ConditionEvaluation::Match(true);
+        };
+        return ConditionEvaluation::Match(!registered_style_query_values_are_equal(
+            registry,
+            &registration.syntax,
+            computed,
+            &tokenize_owned(initial),
+        ));
     };
     let query = trim_whitespace(&tokens[colon + 1..]);
 
