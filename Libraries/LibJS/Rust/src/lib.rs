@@ -99,6 +99,9 @@ pub mod runtime;
 pub mod scope_collector;
 pub mod token;
 
+#[cfg(test)]
+mod test_host;
+
 /// Convert a `usize` to `u32`, panicking if the value exceeds `u32::MAX`.
 /// Prefer this over `as u32` which silently truncates on 64-bit platforms.
 pub(crate) fn u32_from_usize(value: usize) -> u32 {

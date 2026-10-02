@@ -24,11 +24,12 @@ use crate::ast;
 use crate::bytecode::basic_block::SourceMapEntry;
 use crate::bytecode::constant::AbstractOperationKind;
 use crate::bytecode::constant::WellKnownSymbolKind;
-use crate::bytecode::generator::AssembledBytecode;
+use crate::bytecode::executable::ExecutableCacheCounts;
+use crate::bytecode::executable::ExecutableData;
 use crate::bytecode::generator::ConstantValue;
 use crate::bytecode::generator::ExceptionHandler;
 use crate::bytecode::generator::FunctionSfdMetadata;
-use crate::bytecode::generator::Generator;
+use crate::bytecode::generator::LocalVariable;
 use crate::bytecode::generator::PendingClassBlueprint;
 use crate::bytecode::generator::PendingClassElement;
 use crate::bytecode::generator::PendingLiteralValueKind;
@@ -2679,19 +2680,13 @@ struct ProgramRecord<'a> {
 impl<'a> From<&'a CompiledProgram> for ProgramRecord<'a> {
     fn from(compiled: &'a CompiledProgram) -> Self {
         match &compiled.bytecode {
-            CompiledProgramBytecode::Program(bytecode) => Self {
+            CompiledProgramBytecode::Program(executable) => Self {
                 kind: ProgramKind::ScriptOrModule,
-                executable: ExecutableRecord {
-                    generator: &bytecode.generator,
-                    assembled: &bytecode.assembled,
-                },
+                executable: ExecutableRecord(executable),
             },
-            CompiledProgramBytecode::AsyncModule(bytecode) => Self {
+            CompiledProgramBytecode::AsyncModule(executable) => Self {
                 kind: ProgramKind::AsyncModule,
-                executable: ExecutableRecord {
-                    generator: &bytecode.generator,
-                    assembled: &bytecode.assembled,
-                },
+                executable: ExecutableRecord(executable),
             },
         }
     }
@@ -2752,40 +2747,37 @@ impl Decode for ProgramKind {
     }
 }
 
-struct ExecutableRecord<'a> {
-    generator: &'a Generator,
-    assembled: &'a AssembledBytecode,
-}
+struct ExecutableRecord<'a>(&'a ExecutableData);
 
 impl Encode for ExecutableRecord<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        self.generator.strict.encode(encoder);
-        self.assembled.number_of_registers.encode(encoder);
-        self.assembled.number_of_arguments.encode(encoder);
-        CacheCounters(self.generator).encode(encoder);
-        self.generator.this_value_needs_environment_resolution.encode(encoder);
-        self.generator.length_identifier.map(|index| index.0).encode(encoder);
+        self.0.is_strict.encode(encoder);
+        self.0.number_of_registers.encode(encoder);
+        self.0.number_of_arguments.encode(encoder);
+        CacheCounters(&self.0.cache_counts).encode(encoder);
+        self.0.this_value_needs_environment_resolution.encode(encoder);
+        self.0.length_identifier.map(|index| index.0).encode(encoder);
 
         encoder.align_bytes_payload_to(BYTECODE_ALIGNMENT);
-        Bytes(&self.assembled.bytecode).encode(encoder);
+        Bytes(&self.0.bytecode).encode(encoder);
         for table in [
-            &self.generator.identifier_table,
-            &self.generator.property_key_table,
-            &self.generator.string_table,
+            &self.0.identifier_table,
+            &self.0.property_key_table,
+            &self.0.string_table,
         ] {
             DecodedRecordSequence::encode(encoder, table, |value, encoder| {
                 Utf16(&value.to_utf16()).encode(encoder);
             });
         }
-        ConstantTable(&self.generator.constants).encode(encoder);
-        ExceptionHandlerTable(self.assembled).encode(encoder);
-        SourceMapTable(self.assembled).encode(encoder);
-        LocalVariableTable(self.generator).encode(encoder);
-        DecodedRecordSequence::encode(encoder, &self.generator.argument_variable_names, |value, encoder| {
+        ConstantTable(&self.0.constants).encode(encoder);
+        ExceptionHandlerTable(&self.0.exception_handlers).encode(encoder);
+        SourceMapTable(&self.0.source_map).encode(encoder);
+        LocalVariableTable(&self.0.local_variables).encode(encoder);
+        DecodedRecordSequence::encode(encoder, &self.0.argument_variable_names, |value, encoder| {
             Utf16(&value.to_utf16()).encode(encoder);
         });
-        SharedFunctionTable(self.generator).encode(encoder);
-        ClassBlueprintTable(self.generator).encode(encoder);
+        SharedFunctionTable(&self.0.shared_function_data).encode(encoder);
+        ClassBlueprintTable(&self.0.class_blueprints).encode(encoder);
     }
 }
 
@@ -2969,17 +2961,17 @@ impl DecodedCachedExecutableRecord {
     }
 }
 
-struct CacheCounters<'a>(&'a Generator);
+struct CacheCounters<'a>(&'a ExecutableCacheCounts);
 
 impl Encode for CacheCounters<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        self.0.next_property_lookup_cache.encode(encoder);
-        self.0.next_global_variable_cache.encode(encoder);
-        self.0.next_environment_coordinate_cache.encode(encoder);
-        self.0.next_template_object_cache.encode(encoder);
-        self.0.next_object_shape_cache.encode(encoder);
-        self.0.next_object_property_iterator_cache.encode(encoder);
-        self.0.next_environment_shape_cache.encode(encoder);
+        self.0.property_lookup.encode(encoder);
+        self.0.global_variable.encode(encoder);
+        self.0.environment_coordinate.encode(encoder);
+        self.0.template_object.encode(encoder);
+        self.0.object_shape.encode(encoder);
+        self.0.object_property_iterator.encode(encoder);
+        self.0.environment_shape.encode(encoder);
     }
 }
 
@@ -3205,11 +3197,11 @@ impl Decode for ConstantValue {
     }
 }
 
-struct ExceptionHandlerTable<'a>(&'a AssembledBytecode);
+struct ExceptionHandlerTable<'a>(&'a [ExceptionHandler]);
 
 impl Encode for ExceptionHandlerTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        DecodedRecordSequence::encode(encoder, &self.0.exception_handlers, |handler, encoder| {
+        DecodedRecordSequence::encode(encoder, self.0, |handler, encoder| {
             handler.start_offset.encode(encoder);
             handler.end_offset.encode(encoder);
             handler.handler_offset.encode(encoder);
@@ -3250,11 +3242,11 @@ impl DecodedExceptionHandlerTable {
     }
 }
 
-struct SourceMapTable<'a>(&'a AssembledBytecode);
+struct SourceMapTable<'a>(&'a [SourceMapEntry]);
 
 impl Encode for SourceMapTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        DecodedRecordSequence::encode(encoder, &self.0.source_map, |entry, encoder| {
+        DecodedRecordSequence::encode(encoder, self.0, |entry, encoder| {
             entry.bytecode_offset.encode(encoder);
             entry.line.encode(encoder);
             entry.column.encode(encoder);
@@ -3293,11 +3285,11 @@ impl DecodedSourceMapTable {
     }
 }
 
-struct LocalVariableTable<'a>(&'a Generator);
+struct LocalVariableTable<'a>(&'a [LocalVariable]);
 
 impl Encode for LocalVariableTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        DecodedRecordSequence::encode(encoder, &self.0.local_variables, |local_variable, encoder| {
+        DecodedRecordSequence::encode(encoder, self.0, |local_variable, encoder| {
             Utf16(&local_variable.name.to_utf16()).encode(encoder);
             local_variable.is_lexically_declared.encode(encoder);
             local_variable
@@ -3371,22 +3363,13 @@ struct DecodedLocalVariable {
     scope_range: Option<crate::ast::SourceRange>,
 }
 
-struct SharedFunctionTable<'a>(&'a Generator);
+struct SharedFunctionTable<'a>(&'a [PendingSharedFunctionData]);
 
 impl Encode for SharedFunctionTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        DecodedRecordSequence::encode_with_alignment(
-            encoder,
-            &self.0.shared_function_data,
-            BYTECODE_ALIGNMENT,
-            |shared_data, encoder| {
-                FunctionRecord {
-                    shared_data,
-                    arena: &self.0.arena,
-                }
-                .encode(encoder);
-            },
-        );
+        DecodedRecordSequence::encode_with_alignment(encoder, self.0, BYTECODE_ALIGNMENT, |shared_data, encoder| {
+            FunctionRecord(shared_data).encode(encoder);
+        });
     }
 }
 
@@ -3440,11 +3423,7 @@ impl Encode for DeclarationFunctionTable<'_> {
         u32_from_usize(self.0.len()).encode(encoder);
         let mut payload_encoder = Encoder::new();
         for shared_data in self.0 {
-            let arena = shared_data
-                .arena
-                .as_deref()
-                .expect("bytecode cache declaration function is missing its AST arena");
-            FunctionRecord { shared_data, arena }.encode(&mut payload_encoder);
+            FunctionRecord(shared_data).encode(&mut payload_encoder);
         }
         encoder.align_bytes_payload_to(BYTECODE_ALIGNMENT);
         Bytes(&payload_encoder.finish()).encode(encoder);
@@ -3469,20 +3448,17 @@ impl DeclarationFunctionTable<'_> {
     }
 }
 
-struct FunctionRecord<'a> {
-    shared_data: &'a PendingSharedFunctionData,
-    arena: &'a ast::AstArena,
-}
+struct FunctionRecord<'a>(&'a PendingSharedFunctionData);
 
 impl Encode for FunctionRecord<'_> {
     fn encode(&self, encoder: &mut Encoder) {
         let function_data = self
-            .shared_data
+            .0
             .function_data
             .as_ref()
             .expect("bytecode cache requires function data to be retained until serialization");
         let precompiled = self
-            .shared_data
+            .0
             .precompiled_function
             .as_ref()
             .expect("fully compiled bytecode cache entry is missing nested function bytecode");
@@ -3505,7 +3481,7 @@ impl Encode for FunctionRecord<'_> {
             .parsing_insights
             .uses_this_from_environment
             .encode(encoder);
-        ClassFieldInitializerName(self.shared_data).encode(encoder);
+        ClassFieldInitializerName(self.0).encode(encoder);
         precompiled.metadata.encode(encoder);
         PrecompiledFunctionRecord(precompiled).encode(encoder);
     }
@@ -3574,7 +3550,7 @@ impl DecodedFunctionRecord {
 
 impl<'a> FunctionRecord<'a> {
     fn function_name(&self, function_data: &'a ast::FunctionData) -> Option<Utf16<'a>> {
-        self.shared_data
+        self.0
             .name_override
             .as_deref()
             .or_else(|| function_data.name.map(|name| self.function_arena().name_slice(name)))
@@ -3582,7 +3558,10 @@ impl<'a> FunctionRecord<'a> {
     }
 
     fn function_arena(&self) -> &'a ast::AstArena {
-        self.shared_data.arena.as_deref().unwrap_or(self.arena)
+        self.0
+            .arena
+            .as_deref()
+            .expect("bytecode cache function is missing its AST arena")
     }
 }
 
@@ -3699,11 +3678,7 @@ struct PrecompiledFunctionRecord<'a>(&'a PrecompiledFunction);
 impl Encode for PrecompiledFunctionRecord<'_> {
     fn encode(&self, encoder: &mut Encoder) {
         let mut payload_encoder = Encoder::new();
-        ExecutableRecord {
-            generator: &self.0.generator,
-            assembled: &self.0.assembled,
-        }
-        .encode(&mut payload_encoder);
+        ExecutableRecord(&self.0.executable).encode(&mut payload_encoder);
         encoder.align_bytes_payload_to(BYTECODE_ALIGNMENT);
         Bytes(&payload_encoder.finish()).encode(encoder);
     }
@@ -3719,11 +3694,11 @@ impl PrecompiledFunctionRecord<'_> {
     }
 }
 
-struct ClassBlueprintTable<'a>(&'a Generator);
+struct ClassBlueprintTable<'a>(&'a [PendingClassBlueprint]);
 
 impl Encode for ClassBlueprintTable<'_> {
     fn encode(&self, encoder: &mut Encoder) {
-        DecodedRecordSequence::encode(encoder, &self.0.class_blueprints, |blueprint, encoder| {
+        DecodedRecordSequence::encode(encoder, self.0, |blueprint, encoder| {
             ClassBlueprintRecord(blueprint).encode(encoder);
         });
     }
