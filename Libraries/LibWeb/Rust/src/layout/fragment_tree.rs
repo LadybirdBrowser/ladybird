@@ -130,7 +130,55 @@ impl Fragment {
 }
 
 impl FragmentLink {
-    fn places_same_fragment_identically_to(&self, previous: &FragmentLink) -> bool {
+    /// A link placing a fresh, empty fragment of `node` at the origin.
+    #[cfg(test)]
+    pub(crate) fn for_test(node: crate::layout::node_data::NodeSlotId) -> Self {
+        Self {
+            fragment: std::sync::Arc::new(Fragment {
+                identity: 1,
+                node,
+                content_inline_size: CssPixels::default(),
+                content_block_size: CssPixels::default(),
+                margin_left: CssPixels::default(),
+                margin_right: CssPixels::default(),
+                margin_top: CssPixels::default(),
+                margin_bottom: CssPixels::default(),
+                border_left: CssPixels::default(),
+                border_right: CssPixels::default(),
+                border_top: CssPixels::default(),
+                border_bottom: CssPixels::default(),
+                padding_left: CssPixels::default(),
+                padding_right: CssPixels::default(),
+                padding_top: CssPixels::default(),
+                padding_bottom: CssPixels::default(),
+                uses_collapsing_borders_model: false,
+                is_collapsed_borders_table_box: false,
+                table_column_index: 0,
+                table_column_span: 0,
+                hidden_by_collapsed_columns: false,
+                collapsed_table_borders: None,
+                line_data: None,
+                grid_layout_data: None,
+                flex_layout_data: None,
+                used_grid_tracks: None,
+                svg: Default::default(),
+                computed_svg_path: None,
+                has_line_clamp_point: false,
+                is_invisible_for_line_clamp: false,
+                children: Vec::new(),
+            }),
+            committed_offset: Default::default(),
+            inset_left: CssPixels::default(),
+            inset_right: CssPixels::default(),
+            inset_top: CssPixels::default(),
+            inset_bottom: CssPixels::default(),
+            containing_line_box_index: None,
+            abspos_layout_inputs: None,
+            containing_block: crate::layout::node_data::NodeSlotId::INVALID,
+        }
+    }
+
+    pub(crate) fn places_same_fragment_identically_to(&self, previous: &FragmentLink) -> bool {
         std::sync::Arc::ptr_eq(&self.fragment, &previous.fragment) && self.has_same_placement(previous)
     }
 

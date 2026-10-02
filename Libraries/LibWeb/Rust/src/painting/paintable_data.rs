@@ -188,6 +188,27 @@ pub(crate) struct CommittedSideData {
     pub(crate) order_inputs: crate::painting::paint_order_plan::PaintOrderInputs,
 }
 
+/// Rows are the same when they hold equal records; a shared record is compared only when the rows
+/// hold different allocations of it.
+impl PartialEq for CommittedSideData {
+    fn eq(&self, other: &Self) -> bool {
+        use crate::cow_column::same_payload;
+        self.overflow_valid_across_recommits == other.overflow_valid_across_recommits
+            && self.overflow_relative_to_padding_box == other.overflow_relative_to_padding_box
+            && self.svg_filter_bounds == other.svg_filter_bounds
+            && self.order_inputs == other.order_inputs
+            && same_payload(self.piece_indices.as_ref(), other.piece_indices.as_ref(), |a, b| a == b)
+            && same_payload(
+                self.fragment_ownership.as_ref(),
+                other.fragment_ownership.as_ref(),
+                |a, b| a == b,
+            )
+            && same_payload(self.inline_content.as_ref(), other.inline_content.as_ref(), |a, b| {
+                a == b
+            })
+    }
+}
+
 impl CommittedSideData {
     pub(crate) fn prepared_order_inputs(&self) -> Option<crate::painting::paint_order_plan::PaintOrderInputs> {
         self.order_inputs.is_initialized().then_some(self.order_inputs)

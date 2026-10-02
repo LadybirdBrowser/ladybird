@@ -20,7 +20,7 @@
 //! they write with the row a snapshot shares before copying the chunk. So a write that leaves a row
 //! as it was never copies a chunk, whichever caller makes it.
 
-#![expect(dead_code, reason = "no column stores rows yet")]
+#![cfg_attr(not(test), expect(dead_code, reason = "no column stores rows yet"))]
 
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;

@@ -35,6 +35,68 @@ mod tests {
     }
 
     #[test]
+    fn committed_fragment_link_slots_are_equal_when_they_place_the_same_fragment_the_same_way() {
+        let node = NodeSlotId::new(1, 1);
+        let link = fragment_tree::FragmentLink::for_test(node);
+        let slot_with = |link: fragment_tree::FragmentLink| CommittedFragmentLinkSlot {
+            layout_slot_generation: 1,
+            link: Some(Box::new(link)),
+            ..Default::default()
+        };
+        assert!(slot_with(link.clone()) == slot_with(link.clone()));
+
+        let mut moved = link.clone();
+        moved.committed_offset.x = crate::css::css_pixels::CssPixels::from_integer(10);
+        assert!(slot_with(link.clone()) != slot_with(moved));
+
+        // An equal fragment laid out again is a different fragment.
+        assert!(slot_with(link.clone()) != slot_with(fragment_tree::FragmentLink::for_test(node)));
+
+        let mut stale = slot_with(link.clone());
+        stale.geometry_is_current = true;
+        assert!(slot_with(link) != stale);
+        assert!(CommittedFragmentLinkSlot::default() == CommittedFragmentLinkSlot::default());
+    }
+
+    #[test]
+    fn committed_side_data_compares_shared_records_by_allocation_or_value() {
+        use crate::layout::inline_content::InlineContent;
+        use std::sync::Arc;
+
+        let side_data = CommittedSideData {
+            inline_content: Some(Arc::new(InlineContent::default())),
+            piece_indices: Some(Arc::from([1, 2])),
+            ..Default::default()
+        };
+        assert!(side_data == side_data.clone());
+
+        let equal_records = CommittedSideData {
+            inline_content: Some(Arc::new(InlineContent::default())),
+            piece_indices: Some(Arc::from([1, 2])),
+            ..Default::default()
+        };
+        assert!(side_data == equal_records);
+
+        let other_pieces = CommittedSideData {
+            piece_indices: Some(Arc::from([1])),
+            ..side_data.clone()
+        };
+        assert!(side_data != other_pieces);
+
+        let without_content = CommittedSideData {
+            inline_content: None,
+            ..side_data.clone()
+        };
+        assert!(side_data != without_content);
+
+        let measured = CommittedSideData {
+            overflow_valid_across_recommits: true,
+            ..side_data.clone()
+        };
+        assert!(side_data != measured);
+    }
+
+    #[test]
     fn overflow_queries_do_not_measure_ordinary_inline_fragments() {
         use crate::css::css_pixels::{CssPixelRect, CssPixels};
         use crate::layout::node_data::NodeKind;
@@ -214,6 +276,20 @@ struct CommittedFragmentLinkSlot {
     geometry_epoch: u32,
     geometry_is_current: bool,
     link: Option<Box<fragment_tree::FragmentLink>>,
+}
+
+/// Slots are the same when their links place the same fragment the same way.
+impl PartialEq for CommittedFragmentLinkSlot {
+    fn eq(&self, other: &Self) -> bool {
+        self.layout_slot_generation == other.layout_slot_generation
+            && self.geometry_epoch == other.geometry_epoch
+            && self.geometry_is_current == other.geometry_is_current
+            && match (&self.link, &other.link) {
+                (Some(link), Some(other_link)) => link.places_same_fragment_identically_to(other_link),
+                (None, None) => true,
+                _ => false,
+            }
+    }
 }
 
 // The unique node id of what each box is the box of, as the document names it: an element, the
