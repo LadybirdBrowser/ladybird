@@ -167,12 +167,14 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLTitleElement.h>
+#include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/HashChangeEvent.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/ListOfAvailableImages.h>
@@ -227,6 +229,7 @@
 #include <LibWeb/Painting/CompositorAnimationEffectState.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
@@ -10562,6 +10565,17 @@ void Document::set_picture_in_picture_element(GC::Ptr<Element> element)
         CSS::record_element_state_changed(*old_element, CSS::PseudoClass::PictureInPicture, false);
     if (element)
         CSS::record_element_state_changed(*element, CSS::PseudoClass::PictureInPicture, true);
+
+    if (auto* media_element = as_if<HTML::HTMLMediaElement>(old_element.ptr()))
+        media_element->update_controls();
+    if (auto* media_element = as_if<HTML::HTMLMediaElement>(element.ptr()))
+        media_element->update_controls();
+
+    // Being the Picture-in-Picture element is part of a video's paint facts, apart from anything its controls change.
+    if (auto* video_element = as_if<HTML::HTMLVideoElement>(old_element.ptr()))
+        Painting::push_video_paint_facts(*video_element);
+    if (auto* video_element = as_if<HTML::HTMLVideoElement>(element.ptr()))
+        Painting::push_video_paint_facts(*video_element);
 }
 
 // https://w3c.github.io/picture-in-picture/#dom-documentorshadowroot-pictureinpictureelement

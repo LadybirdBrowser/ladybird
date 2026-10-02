@@ -1,0 +1,9 @@
+paints video frames before Picture-in-Picture: true
+Without controls:
+paints video frames while the window opens: true
+paints video frames in Picture-in-Picture: false
+paints video frames after exiting: true
+With controls:
+paints video frames while the window opens: true
+paints video frames in Picture-in-Picture: false
+paints video frames after exiting: true
