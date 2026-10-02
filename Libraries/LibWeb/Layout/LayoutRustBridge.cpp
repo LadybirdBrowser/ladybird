@@ -328,12 +328,6 @@ void publish_svg_style_references(DOM::Element& element)
         references[3].value());
 }
 
-void clear_svg_attribute_facts(DOM::Document& document, CSS::StyleNodeID style_node)
-{
-    if (auto* arena = document.layout_node_arena_if_created())
-        RustFFI::layout_arena_clear_style_node_svg_attribute_facts(arena->handle(), style_node.value());
-}
-
 static bool style_has_any_containment(CSS::ComputedValues::BoxValues const& values)
 {
     return values.size_containment || values.inline_size_containment || values.layout_containment || values.style_containment || values.paint_containment;
