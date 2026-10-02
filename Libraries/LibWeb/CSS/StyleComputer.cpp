@@ -202,11 +202,6 @@ Parser::ValueParserFFI::FfiMediaEnvironment const* StyleComputer::ensure_media_e
     return &*m_style_update_ffi_media_environment;
 }
 
-void StyleComputer::drop_style_sharing_cache() const
-{
-    sweep_custom_property_environments();
-}
-
 ComputedStyleRecordView StyleComputer::computed_style_record_view(StyleRecordID style_record_identity) const
 {
     if (!style_record_identity)
