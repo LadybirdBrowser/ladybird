@@ -2392,10 +2392,22 @@ void ViewImplementation::set_device_pixel_ratio_for_testing(WebContentPage& page
     page.async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
 }
 
+Gfx::IntRect ViewImplementation::rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size)
+{
+    auto scale = min(static_cast<float>(target_size.width()) / frame_size.width(), static_cast<float>(target_size.height()) / frame_size.height());
+    auto fitted_size = frame_size.to_type<float>().scaled(scale).to_rounded<int>();
+    return Gfx::IntRect { {}, fitted_size }.centered_within({ {}, target_size });
+}
+
 void ViewImplementation::handle_resize()
 {
     page().async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
-    Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
+
+    // The page forwards its new size to the compositor once it has laid it out. Until then, scaling frames to fit needs
+    // the compositor to keep presenting them whole at the size they were laid out for.
+    if (!m_scales_frames_to_fit)
+        Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
+
     if (m_debugger_paused) {
         m_debugger_overlay_pointer_state.cancel();
         if (m_debugger_overlay_hovered_action.has_value())
