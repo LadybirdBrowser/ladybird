@@ -1986,10 +1986,9 @@ impl RetainedState {
     }
 
     /// The tree scope the winning `animation-name` declaration of `state` was written in, where its
-    /// `@keyframes` are looked for first, refused where C++'s exact cascade decided the winner or
-    /// the winner's place among the element's encapsulation contexts names none. An author rule's is
-    /// the scope its sheet is attached to, and for a sheet several scopes adopt, the one among them
-    /// the winner's priority places among the element's encapsulation contexts.
+    /// `@keyframes` are looked for first, refused where C++'s exact cascade decided the winner. An
+    /// author rule's is the scope its sheet is attached to, and for a sheet several scopes adopt,
+    /// the one among them the winner's priority places among the element's encapsulation contexts.
     fn animation_name_declaration_scope(
         &self,
         node: StyleNodeID,
@@ -2017,12 +2016,14 @@ impl RetainedState {
         }
         let scope = match self.program.sheet_scopes(sheet).as_slice() {
             &[scope] => scope,
+            // The cascade weighs a match at the context of the scope it decided in, and each of the
+            // element's contexts stands at its own depth.
             scopes => {
-                let depth = winner.priority.author_context_depth().ok_or(Unanswered::Refused)?;
+                let depth = winner.priority.author_context_depth();
                 *scopes
                     .iter()
-                    .find(|&&scope| self.author_context_index(node, scope) == Some(depth))
-                    .ok_or(Unanswered::Refused)?
+                    .find(|&&scope| self.author_context_index(node, scope) == depth)
+                    .expect("an author rule wins at one of the element's contexts its sheet is attached to")
             }
         };
         Ok(match scope {
