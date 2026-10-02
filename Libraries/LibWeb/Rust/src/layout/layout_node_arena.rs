@@ -5102,54 +5102,6 @@ pub unsafe extern "C" fn layout_arena_innermost_list_item_counter_is_own_forward
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_live_slot_count(arena: *mut c_void) -> u32 {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.live_slot_count()
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_table_cell_measurement_cache_miss_count(arena: *mut c_void) -> u64 {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.table_cell_measurement_cache_miss_count()
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_intrinsic_measurement_count(arena: *mut c_void) -> u64 {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.intrinsic_measurement_count()
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_intrinsic_inline_measurement_count(arena: *mut c_void) -> u64 {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive and serializes access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.intrinsic_inline_measurement_count()
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_pre_order_relabel_count(arena: *mut c_void) -> u64 {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.pre_order_relabel_count()
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_note_rows_share_dom_node(
     arena: *mut c_void,
     bound_row: NodeSlotId,
@@ -5353,13 +5305,6 @@ pub unsafe extern "C" fn layout_arena_node_style_record_pinned_by_host(arena: *m
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_has_derived_style(arena: *mut c_void, node: NodeSlotId) -> bool {
     unsafe { LayoutNodeArena::from_handle(arena) }.node_style_record_is_derived(node)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_shell_count(arena: *mut c_void) -> u32 {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { super::HostTables::from_handle(arena) }.shells.borrow().len() as u32
 }
 
 #[unsafe(no_mangle)]

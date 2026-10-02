@@ -715,7 +715,7 @@ void Document::reset_style_invalidation_counters() const
     m_style_invalidation_counters = {};
     (void)const_cast<CSS::StyleEngine&>(style_computer().style_engine()).size_query_container_scan_visits(true);
     if (m_layout_node_arena)
-        Layout::RustFFI::layout_arena_scrollable_overflow_recalculation_count(m_layout_node_arena->handle(), true);
+        Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(m_layout_node_arena->host(), true);
     CSS::reset_longhand_wrappers_minted();
 }
 
@@ -738,17 +738,17 @@ bool Document::is_running_update_layout() const
 
 u64 Document::partial_layout_count() const
 {
-    return m_layout_node_arena ? Layout::RustFFI::layout_arena_partial_layout_count(m_layout_node_arena->handle()) : 0;
+    return m_layout_node_arena ? Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()).partial_layouts : 0;
 }
 
 u64 Document::full_layout_count() const
 {
-    return m_layout_node_arena ? Layout::RustFFI::layout_arena_full_layout_count(m_layout_node_arena->handle()) : 0;
+    return m_layout_node_arena ? Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()).full_layouts : 0;
 }
 
-Layout::RustFFI::FfiLayoutTreeBuildStats Document::layout_tree_build_stats() const
+Layout::RustFFI::FfiLayoutCounts Document::layout_counts() const
 {
-    return m_layout_node_arena ? Layout::RustFFI::layout_arena_layout_tree_build_stats(m_layout_node_arena->handle()) : Layout::RustFFI::FfiLayoutTreeBuildStats {};
+    return m_layout_node_arena ? Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()) : Layout::RustFFI::FfiLayoutCounts {};
 }
 
 void Document::finalize()
@@ -763,7 +763,7 @@ void Document::finalize()
         Layout::RustFFI::layout_arena_clear_layout_host_callbacks(m_layout_node_arena->handle());
         Layout::RustFFI::layout_arena_clear_layout_update_host_callbacks(m_layout_node_arena->handle());
         Layout::RustFFI::layout_arena_clear_shell_factory(m_layout_node_arena->handle());
-        VERIFY(Layout::RustFFI::layout_arena_live_slot_count(m_layout_node_arena->handle()) == 0);
+        VERIFY(Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()).live_slots == 0);
         m_layout_node_arena->set_document({}, nullptr);
     }
     CSS::ComputedValuesFFI::rust_custom_property_registry_destroy(m_rust_custom_property_registry);

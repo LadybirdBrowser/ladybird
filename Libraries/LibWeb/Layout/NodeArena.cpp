@@ -37,17 +37,17 @@ Node* NodeArena::node_if_live(Compositing::RustFFI::NodeSlotId slot) const
 
 u64 NodeArena::table_cell_measurement_cache_miss_count() const
 {
-    return RustFFI::layout_arena_table_cell_measurement_cache_miss_count(m_handle);
+    return RustFFI::render_state_layout_counts(host()).table_cell_measurement_cache_misses;
 }
 
 u64 NodeArena::intrinsic_measurement_count() const
 {
-    return RustFFI::layout_arena_intrinsic_measurement_count(m_handle);
+    return RustFFI::render_state_layout_counts(host()).intrinsic_measurements;
 }
 
 u64 NodeArena::intrinsic_inline_measurement_count() const
 {
-    return RustFFI::layout_arena_intrinsic_inline_measurement_count(m_handle);
+    return RustFFI::render_state_layout_counts(host()).intrinsic_inline_measurements;
 }
 
 bool destroy_layout_subtree(Node& node)
