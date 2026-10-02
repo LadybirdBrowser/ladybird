@@ -21,8 +21,6 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/HTML/HTMLTableCellElement.h>
-#include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/Node.h>
@@ -262,12 +260,8 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
     VERIFY(m_style_record_identity);
     m_style_payloads = RustFFI::layout_arena_node_style_payloads(arena_handle(), slot);
     VERIFY(m_style_payloads);
-    if (dom_node()) {
+    if (dom_node() || is_generated_for_pseudo_element())
         did_update_style_record();
-        synchronize_table_span_data();
-    } else if (is_generated_for_pseudo_element()) {
-        did_update_style_record();
-    }
 }
 
 bool NodeWithStyle::has_layout_derived_style() const
@@ -667,22 +661,7 @@ void NodeWithStyle::did_update_style_record()
 
 bool NodeWithStyle::synchronize_table_span_data()
 {
-    u16 column_span = 1;
-    u16 row_span = 1;
-    u32 raw_column_span = 1;
-    if (auto const* node = dom_node()) {
-        if (auto const* cell = as_if<HTML::HTMLTableCellElement>(*node)) {
-            column_span = static_cast<u16>(cell->col_span());
-            row_span = static_cast<u16>(cell->row_span());
-        } else if (auto const* column = as_if<HTML::HTMLTableColElement>(*node)) {
-            column_span = static_cast<u16>(column->span());
-            // The raw span keeps the unclamped attribute value; its only consumer is the
-            // table formatting context's column handling, so other elements' span
-            // attributes stay out of the arena map.
-            raw_column_span = column->get_attribute_value(HTML::AttributeNames::span).to_number<u32>().value_or(1);
-        }
-    }
-    return RustFFI::layout_arena_set_table_spans(arena_handle(), slot_id(this), column_span, row_span, raw_column_span);
+    return RustFFI::layout_arena_restamp_table_spans(arena_handle(), slot_id(this));
 }
 
 void NodeWithStyle::set_display(CSS::Display display)

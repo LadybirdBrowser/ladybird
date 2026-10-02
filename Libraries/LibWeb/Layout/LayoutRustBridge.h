@@ -49,6 +49,10 @@ void publish_is_in_focused_text_control(DOM::Node const&);
 // there.
 void publish_element_scroll_offset(DOM::Element const&);
 
+// Publishes the spans a table cell's or table column's attributes give it, under its identity, which table fixup reads
+// before the build that stamps the element's row is over. Every other element spans one of each and publishes nothing.
+void publish_table_spans(DOM::Element const&);
+
 inline RustFFI::FfiSvgNumberPercentage to_ffi_number_percentage(SVG::NumberPercentage value)
 {
     return { .value = value.value(), .is_percentage = value.is_percentage() };

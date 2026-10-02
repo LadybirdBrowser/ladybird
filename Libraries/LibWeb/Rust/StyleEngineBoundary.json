@@ -152,7 +152,8 @@
     [156, "SetElementBoxKind"],
     [157, "SetElementReplacedContentInput"],
     [158, "SetNodeDomPaintFacts"],
-    [159, "SetElementUniqueNodeId"]
+    [159, "SetElementUniqueNodeId"],
+    [160, "SetElementTableSpans"]
   ],
   "operations": [
     {"event": "TakeSharedComputationContext", "ffi": "style_engine_take_shared_computation_context", "cpp": "take_shared_computation_context", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["pseudo_elements", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.take_shared_computation_context(node, parent_record, environment, shape, pseudo_elements).unwrap_or(0);"},
@@ -172,6 +173,7 @@
     { "event": "SetTextIsPasswordInput", "ffi": "style_engine_set_text_is_password_input", "cpp": "set_text_is_password_input", "return": "void", "args": [["node", "style_node"], ["value", "bool"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_text_is_password_input(node, value);" },
     { "event": "SetNodeDomPaintFacts", "ffi": "style_engine_set_node_dom_paint_facts", "cpp": "set_node_dom_paint_facts", "return": "void", "args": [["node", "style_node"], ["facts", "u8"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_node_dom_paint_facts(node, facts);" },
     { "event": "SetElementUniqueNodeId", "ffi": "style_engine_set_element_unique_node_id", "cpp": "set_element_unique_node_id", "return": "void", "args": [["node", "style_node"], ["unique_node_id", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_unique_node_id(node, unique_node_id as i64);" },
+    { "event": "SetElementTableSpans", "ffi": "style_engine_set_element_table_spans", "cpp": "set_element_table_spans", "return": "void", "args": [["node", "style_node"], ["column_span", "u32"], ["row_span", "u32"], ["raw_column_span", "u32"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; let column_span = u16::try_from(column_span).expect(\"a column span is clamped to 1000\"); let row_span = u16::try_from(row_span).expect(\"a row span is clamped to 65534\"); engine.set_element_table_spans(node, crate::css::style::tree::TableSpans { column_span, row_span, raw_column_span });" },
     { "event": "SetElementIdName", "ffi": "style_engine_set_element_id_name", "cpp": "set_element_id_name", "return": "void", "args": [["node", "style_node"], ["name", "style_atom"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_id_name(node, StyleAtomID(name));" },
     { "event": "SetShadowRoot", "ffi": "style_engine_set_shadow_root", "cpp": "set_shadow_root", "return": "void", "args": [["host", "style_node"], ["shadow_root", "style_node"]], "body": "if let (Some(host), Some(shadow_root)) = (StyleNodeID::from_raw(host), StyleNodeID::from_raw(shadow_root)) { engine.set_shadow_root(host, shadow_root); }" },
     { "event": "NoteAttributeSubstitutionName", "ffi": "style_engine_note_attribute_substitution_name", "cpp": "note_attribute_substitution_name", "return": "void", "args": [["name", "style_atom"], ["local_name", "u16_slice"]], "body": "engine.note_attribute_substitution_name(StyleAtomID(name), local_name);" },

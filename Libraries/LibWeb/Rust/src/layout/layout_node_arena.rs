@@ -17,7 +17,7 @@ use super::used_values::UsedValues;
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
-use crate::css::style::tree::StyleNodeID;
+use crate::css::style::tree::{StyleNodeID, TableSpans};
 use crate::css::style::{
     PublishedBoxFacts, PublishedTextSource, StyleEngine, TextStyleParentFacts,
     layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle},
@@ -690,7 +690,7 @@ pub(crate) struct LayoutNodeArena {
     text_nodes: Vec<TextNodeSlot>,
     pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
-    raw_table_column_spans: HashMap<NodeSlotId, u32>,
+    raw_table_column_spans: RefCell<HashMap<NodeSlotId, u32>>,
     replaced_paint_facts: RefCell<HashMap<NodeSlotId, crate::painting::replaced_paint_facts::ReplacedPaintFacts>>,
     layer_image_paint_facts:
         RefCell<HashMap<NodeSlotId, Vec<crate::painting::layer_image_paint_facts::LayerImagePaintFactsEntry>>>,
@@ -807,7 +807,7 @@ impl LayoutNodeArena {
             text_nodes: Vec::new(),
             searchable_text: None,
             replaced_content_facts: Vec::new(),
-            raw_table_column_spans: HashMap::default(),
+            raw_table_column_spans: RefCell::default(),
             replaced_paint_facts: RefCell::new(HashMap::default()),
             layer_image_paint_facts: RefCell::new(HashMap::default()),
             svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
@@ -1179,7 +1179,7 @@ impl LayoutNodeArena {
         }
         self.fc_run_cache_store.remove_entry(index);
         self.remove_layout_update_flag_node(id);
-        self.raw_table_column_spans.remove(&id);
+        self.raw_table_column_spans.get_mut().remove(&id);
         self.replaced_paint_facts.get_mut().remove(&id);
         self.layer_image_paint_facts.get_mut().remove(&id);
         self.svg_paint_resources.forget_slot(id);
@@ -2770,6 +2770,10 @@ impl LayoutNodeArena {
             // element; a text node's row answers for nothing, as its identity reads zero.
             let unique_node_id = self.with_style_store(|engine| engine.element_unique_node_id(style_node));
             self.unique_node_ids().publish(slot, unique_node_id);
+            // The spans a table cell or column takes from its attributes, which table fixup reads
+            // before the build is over.
+            let spans = self.with_style_store(|engine| engine.element_table_spans(style_node));
+            self.set_table_spans(slot, spans);
         }
         self.set_node_style_node(slot, style_node);
         self.refresh_has_scroll_offset_flag(slot);
@@ -4141,20 +4145,28 @@ impl LayoutNodeArena {
             .and_then(|slot| slot.facts)
     }
 
-    pub(crate) fn set_raw_table_column_span(&mut self, id: NodeSlotId, value: u32) -> u32 {
+    /// Gives the row the spans its table cell or table column element has, and answers whether
+    /// they changed.
+    pub(crate) fn set_table_spans(&self, id: NodeSlotId, spans: TableSpans) -> bool {
         self.assert_owner_thread();
-        self.data(id);
-        if value == 1 {
-            self.raw_table_column_spans.remove(&id).unwrap_or(1)
+        let data = self.data(id);
+        let effective_spans_changed =
+            data.table_column_span.get() != spans.column_span || data.table_row_span.get() != spans.row_span;
+        data.table_column_span.set(spans.column_span);
+        data.table_row_span.set(spans.row_span);
+        let mut raw_spans = self.raw_table_column_spans.borrow_mut();
+        let previous_raw_column_span = if spans.raw_column_span == 1 {
+            raw_spans.remove(&id)
         } else {
-            self.raw_table_column_spans.insert(id, value).unwrap_or(1)
-        }
+            raw_spans.insert(id, spans.raw_column_span)
+        };
+        effective_spans_changed || previous_raw_column_span.unwrap_or(1) != spans.raw_column_span
     }
 
     pub(crate) fn raw_table_column_span(&self, id: NodeSlotId) -> u32 {
         // data() validates that id names a live slot with a matching generation.
         self.data(id);
-        self.raw_table_column_spans.get(&id).copied().unwrap_or(1)
+        self.raw_table_column_spans.borrow().get(&id).copied().unwrap_or(1)
     }
 
     pub(crate) fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
@@ -5567,28 +5579,22 @@ pub(crate) unsafe fn sync_enrolled_content_for_layout(arena: *mut c_void) {
     unsafe { &mut *arena.cast::<LayoutNodeArena>() }.sync_enrolled_replaced_content_facts();
 }
 
+/// Gives the row the spans its element published again, after one of the element's span
+/// attributes changed, and answers whether they moved.
+///
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `id` must name a live node
-/// in this arena.
+/// `arena` must be a live handle on the document thread, and `id` a live row built for an
+/// element.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_table_spans(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    column_span: u16,
-    row_span: u16,
-    raw_column_span: u32,
-) -> bool {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    let arena = unsafe { &mut *arena.cast::<LayoutNodeArena>() };
-    let data = arena.data(id);
-    let effective_spans_changed = data.table_column_span.get() != column_span || data.table_row_span.get() != row_span;
-    data.table_column_span.set(column_span);
-    data.table_row_span.set(row_span);
-    let previous_raw_column_span = arena.set_raw_table_column_span(id, raw_column_span);
-    effective_spans_changed || previous_raw_column_span != raw_column_span
+pub unsafe extern "C" fn layout_arena_restamp_table_spans(arena: *mut c_void, id: NodeSlotId) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    let element = arena
+        .node_style_node(id)
+        .expect("a row whose spans are restamped is built for an element");
+    let spans = arena.with_style_store(|engine| engine.element_table_spans(element));
+    arena.set_table_spans(id, spans)
 }
 
 #[cfg(test)]
@@ -6028,6 +6034,42 @@ mod tests {
         assert_eq!(arena.data(row).dom_paint_facts.get(), 0);
         arena
             .free_subtree(row)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+        arena.set_style_engine(std::ptr::null_mut());
+    }
+
+    #[test]
+    fn a_stamped_row_takes_the_table_spans_its_element_published() {
+        use crate::css::style::StyleEngine;
+        use crate::css::style::memory::DeviceClass;
+        use crate::css::style::tree::{StyleNodeID, TableSpans};
+
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut element = [0_u32];
+        engine.allocate_style_nodes(&mut element);
+        let element = StyleNodeID::from_raw(element[0]).unwrap();
+        let spans = TableSpans {
+            column_span: 2,
+            row_span: 3,
+            raw_column_span: 1,
+        };
+        engine.set_element_table_spans(element, spans);
+        let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine((&raw mut engine).cast());
+        let main_thread = crate::stage::MainThread::for_test();
+
+        let cell = arena.allocate_unbound();
+        arena.stamp_dom_row(cell, NodeKind::BlockContainer, Some(element));
+        assert_eq!(arena.data(cell).table_column_span.get(), 2);
+        assert_eq!(arena.data(cell).table_row_span.get(), 3);
+
+        engine.set_element_table_spans(element, TableSpans::default());
+        // SAFETY: The arena is live and `cell` a row built for `element`.
+        assert!(unsafe { super::layout_arena_restamp_table_spans((&raw mut arena).cast(), cell) });
+        assert_eq!(arena.data(cell).table_column_span.get(), 1);
+        assert_eq!(arena.data(cell).table_row_span.get(), 1);
+        arena
+            .free_subtree(cell)
             .destroy_shells_and_invoke_callbacks(&main_thread);
         arena.set_style_engine(std::ptr::null_mut());
     }

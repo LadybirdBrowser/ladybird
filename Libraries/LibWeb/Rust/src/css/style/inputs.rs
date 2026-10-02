@@ -816,6 +816,17 @@ impl RetainedState {
         self.tree.set_dom_paint_facts(node, facts, &mut self.memory);
     }
 
+    /// The spans a row built for the element takes from its attributes.
+    #[must_use]
+    pub fn element_table_spans(&self, node: StyleNodeID) -> super::tree::TableSpans {
+        self.tree.table_spans(node)
+    }
+
+    /// Record the spans a row built for the element takes from its attributes.
+    pub fn set_element_table_spans(&mut self, node: StyleNodeID, spans: super::tree::TableSpans) {
+        self.tree.set_table_spans(node, spans, &mut self.memory);
+    }
+
     /// Record whether the text node holds the value of a password input.
     pub fn set_text_is_password_input(&mut self, node: StyleNodeID, value: bool) {
         self.tree.set_text_is_password_input(node, value, &mut self.memory);
