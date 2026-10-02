@@ -535,6 +535,39 @@ pub(crate) struct StaleWalkFacts {
 /// How many interned names one SVG element's attribute publication can name.
 const PUBLISHED_REFERENCE_ATOM_COUNT: usize = 5;
 
+/// What the arena keeps under a style node identity, besides the rows carrying it. Identities are
+/// reissued, so every table here must let go of a retired one: `LayoutNodeArena::forget_style_node`
+/// names each field, and a table added here does not compile until it says how it forgets.
+#[derive(Default)]
+struct StyleNodeTables {
+    /// The CSS counters set of every element and pseudo-element the tree build resolved one for.
+    counters_sets: RefCell<super::counters::CountersSets>,
+    /// What the tree build recorded about the generated content of each pseudo-element it built.
+    generated_content: RefCell<super::generated_content::GeneratedContent>,
+    /// The parsed SVG attributes each SVG element published, keyed by its style node: an
+    /// element that draws nothing itself has no row, and a mask, clip or pattern has one row per
+    /// element that references it.
+    ///
+    /// The maps are borrowed for writing only by the publication entry points, which can run while a
+    /// tree build is under way: an element styled on the build's behalf replaces its style record,
+    /// which republishes the resources its style names. No reader holds a borrow across a host call.
+    svg_attribute_facts: RefCell<HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>>,
+    /// The `points` list each <polyline> and <polygon> published beside its facts.
+    svg_points: RefCell<HashMap<StyleNodeID, std::rc::Rc<[super::svg_formatting_context::FfiFloatPoint]>>>,
+    /// The elements carrying each anchor name, in tree order. The DOM's registry republishes a
+    /// name's list whenever it changes.
+    anchor_name_elements: RefCell<HashMap<ScopedAnchorName, Vec<StyleNodeID>>>,
+}
+
+/// An anchor name as a tree scope registers it.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct ScopedAnchorName {
+    /// The shadow host of the scope's root, or none for the document tree.
+    scope_host: Option<StyleNodeID>,
+    /// The name's interned string.
+    name: usize,
+}
+
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     chunks_by_address: Vec<ChunkAddress>,
@@ -657,20 +690,7 @@ pub(crate) struct LayoutNodeArena {
     /// and the document owns the result because a fallback chain is followed from the scope the
     /// counter is used in, not from the scope the style was written in.
     counter_styles: RefCell<crate::css::counter_representation::CounterStyleRegistry>,
-    /// The CSS counters set of every element and pseudo-element the tree build resolved one for.
-    counters_sets: RefCell<super::counters::CountersSets>,
-    /// What the tree build recorded about the generated content of each pseudo-element it built.
-    generated_content: RefCell<super::generated_content::GeneratedContent>,
-    /// The parsed SVG attributes each SVG element published, keyed by its style node: an
-    /// element that draws nothing itself has no row, and a mask, clip or pattern has one row per
-    /// element that references it.
-    ///
-    /// The maps are borrowed for writing only by the publication entry points, which can run while a
-    /// tree build is under way: an element styled on the build's behalf replaces its style record,
-    /// which republishes the resources its style names. No reader holds a borrow across a host call.
-    svg_attribute_facts: RefCell<HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>>,
-    /// The `points` list each <polyline> and <polygon> published beside its facts.
-    svg_points: RefCell<HashMap<StyleNodeID, std::rc::Rc<[super::svg_formatting_context::FfiFloatPoint]>>>,
+    style_node_tables: StyleNodeTables,
     owner_thread: thread::ThreadId,
 }
 
@@ -758,10 +778,7 @@ impl LayoutNodeArena {
             layout_style_snapshot_commit: RefCell::new(Vec::new()),
             layout_tree_update_marks: RefCell::default(),
             counter_styles: RefCell::default(),
-            counters_sets: RefCell::default(),
-            generated_content: RefCell::default(),
-            svg_attribute_facts: RefCell::default(),
-            svg_points: RefCell::default(),
+            style_node_tables: StyleNodeTables::default(),
             owner_thread: thread::current().id(),
         }
     }
@@ -1356,12 +1373,55 @@ impl LayoutNodeArena {
         }
     }
 
-    /// Clears a retired identity from every row still carrying it, including rows of a removed
-    /// subtree that outlive the element's disconnection.
+    /// Replaces the elements registered under `anchor_name` in the tree scope hosted by
+    /// `scope_host`, in tree order. An empty list forgets the name.
+    pub(crate) fn set_anchor_name_elements(
+        &self,
+        scope_host: Option<StyleNodeID>,
+        anchor_name: usize,
+        elements: impl Iterator<Item = StyleNodeID>,
+    ) {
+        self.assert_owner_thread();
+        let mut names = self.style_node_tables.anchor_name_elements.borrow_mut();
+        let key = ScopedAnchorName {
+            scope_host,
+            name: anchor_name,
+        };
+        let entry = names.entry(key).or_default();
+        entry.clear();
+        entry.extend(elements);
+        if entry.is_empty() {
+            names.remove(&key);
+        }
+    }
+
+    /// Clears a retired identity from every row still carrying it, and from every table keyed by
+    /// it, including rows of a removed subtree that outlive the element's disconnection.
     pub(crate) fn forget_style_node(&self, style_node: StyleNodeID) {
         self.assert_owner_thread();
-        self.counters_sets.borrow_mut().forget(style_node);
-        self.generated_content.borrow_mut().forget(style_node);
+        let StyleNodeTables {
+            counters_sets,
+            generated_content,
+            svg_attribute_facts,
+            svg_points,
+            anchor_name_elements,
+        } = &self.style_node_tables;
+        counters_sets.borrow_mut().forget(style_node);
+        generated_content.borrow_mut().forget(style_node);
+        // The SVG facts let go of the reference atoms they hold as they leave.
+        let removed = svg_attribute_facts.borrow_mut().remove(&style_node);
+        if let Some(removed) = removed {
+            self.retain_published_reference_atoms(
+                [0; PUBLISHED_REFERENCE_ATOM_COUNT],
+                Self::published_reference_atoms(&removed),
+            );
+        }
+        svg_points.borrow_mut().remove(&style_node);
+        // A retired shadow host takes its tree scope with it. The registry withdraws no names from a
+        // scope it can no longer name.
+        anchor_name_elements
+            .borrow_mut()
+            .retain(|name, _| name.scope_host != Some(style_node));
         loop {
             let row = self.first_rows_by_style_node.borrow().head(style_node);
             if row.is_invalid() {
@@ -1600,11 +1660,11 @@ impl LayoutNodeArena {
 
     pub(crate) fn counters_sets(&self) -> &RefCell<super::counters::CountersSets> {
         self.assert_owner_thread();
-        &self.counters_sets
+        &self.style_node_tables.counters_sets
     }
 
     pub(crate) fn generated_content(&self) -> &RefCell<super::generated_content::GeneratedContent> {
-        &self.generated_content
+        &self.style_node_tables.generated_content
     }
 
     pub(crate) fn svg_attribute_facts(&self, id: NodeSlotId) -> super::svg_formatting_context::FfiSvgAttributeFacts {
@@ -1621,7 +1681,8 @@ impl LayoutNodeArena {
         &self,
         style_node: StyleNodeID,
     ) -> super::svg_formatting_context::FfiSvgAttributeFacts {
-        self.svg_attribute_facts
+        self.style_node_tables
+            .svg_attribute_facts
             .borrow()
             .get(&style_node)
             .copied()
@@ -1641,7 +1702,7 @@ impl LayoutNodeArena {
         &self,
         style_node: StyleNodeID,
     ) -> Option<std::rc::Rc<[super::svg_formatting_context::FfiFloatPoint]>> {
-        self.svg_points.borrow().get(&style_node).cloned()
+        self.style_node_tables.svg_points.borrow().get(&style_node).cloned()
     }
 
     /// The element an SVG reference resolves to, named by the atom its URL fragment interned to.
@@ -1687,6 +1748,7 @@ impl LayoutNodeArena {
         self.assert_owner_thread();
         let retained = Self::published_reference_atoms(&facts);
         let replaced = self
+            .style_node_tables
             .svg_attribute_facts
             .borrow_mut()
             .insert(style_node, facts)
@@ -1694,7 +1756,7 @@ impl LayoutNodeArena {
                 Self::published_reference_atoms(&published)
             });
         self.retain_published_reference_atoms(retained, replaced);
-        let mut published_points = self.svg_points.borrow_mut();
+        let mut published_points = self.style_node_tables.svg_points.borrow_mut();
         if points.is_empty() {
             published_points.remove(&style_node);
         } else {
@@ -1702,24 +1764,12 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn clear_style_node_svg_attribute_facts(&self, style_node: StyleNodeID) {
-        self.assert_owner_thread();
-        let removed = self.svg_attribute_facts.borrow_mut().remove(&style_node);
-        if let Some(removed) = removed {
-            self.retain_published_reference_atoms(
-                [0; PUBLISHED_REFERENCE_ATOM_COUNT],
-                Self::published_reference_atoms(&removed),
-            );
-        }
-        self.svg_points.borrow_mut().remove(&style_node);
-    }
-
     /// Replace only the four names a graphics element's style carries. An element that has not
     /// published its attributes yet has no place to put them, and will carry them itself when it
     /// does: the publication is made when the style tree names the element.
     pub(crate) fn set_style_node_svg_style_references(&self, style_node: StyleNodeID, references: [u32; 4]) {
         self.assert_owner_thread();
-        let mut published = self.svg_attribute_facts.borrow_mut();
+        let mut published = self.style_node_tables.svg_attribute_facts.borrow_mut();
         let Some(facts) = published.get_mut(&style_node) else {
             return;
         };
@@ -4566,6 +4616,35 @@ pub unsafe extern "C" fn layout_arena_move_bound_pseudo_element_rows_to_style_no
     );
 }
 
+/// Publishes the elements registered under one anchor name in one tree scope, in tree order. The
+/// scope is named by the identity of its shadow host, or by 0 for the document tree.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, and `elements` must name `count`
+/// element identities for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_anchor_name_elements(
+    arena: *mut c_void,
+    scope_host: u32,
+    anchor_name: usize,
+    elements: *const u32,
+    count: usize,
+) {
+    let elements: &[u32] = if count == 0 {
+        &[]
+    } else {
+        // SAFETY: The caller keeps the element array alive for this call.
+        unsafe { std::slice::from_raw_parts(elements, count) }
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_anchor_name_elements(
+        StyleNodeID::from_raw(scope_host),
+        anchor_name,
+        elements.iter().copied().filter_map(StyleNodeID::from_raw),
+    );
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_forget_style_node(arena: *mut c_void, style_node: u32) {
     assert!(!arena.is_null(), "layout node arena handle is null");
@@ -4943,6 +5022,34 @@ mod tests {
             arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
         }
         arena.forget_style_node(reconnected);
+    }
+
+    #[test]
+    fn a_retired_shadow_host_takes_its_tree_scopes_anchor_names_with_it() {
+        use crate::css::style::tree::StyleNodeID;
+        let arena = LayoutNodeArena::new();
+        let host = StyleNodeID::element(4);
+        let anchor_in_shadow_tree = StyleNodeID::element(5);
+        let anchor_in_document = StyleNodeID::element(6);
+        let name = 0x1000;
+        arena.set_anchor_name_elements(Some(host), name, [anchor_in_shadow_tree].into_iter());
+        arena.set_anchor_name_elements(None, name, [anchor_in_document].into_iter());
+
+        arena.forget_style_node(host);
+        // Whatever element is issued the identity next hosts no names it did not register.
+        let names = arena.style_node_tables.anchor_name_elements.borrow();
+        assert!(!names.contains_key(&super::ScopedAnchorName {
+            scope_host: Some(host),
+            name
+        }));
+        assert_eq!(
+            names.get(&super::ScopedAnchorName { scope_host: None, name }),
+            Some(&vec![anchor_in_document])
+        );
+        drop(names);
+
+        arena.set_anchor_name_elements(None, name, std::iter::empty());
+        assert!(arena.style_node_tables.anchor_name_elements.borrow().is_empty());
     }
 
     #[test]

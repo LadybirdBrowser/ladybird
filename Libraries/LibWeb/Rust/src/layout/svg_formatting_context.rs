@@ -224,21 +224,6 @@ pub unsafe extern "C" fn layout_arena_set_style_node_svg_style_references(
     arena.set_style_node_svg_style_references(style_node, [mask, clip_path, fill, stroke]);
 }
 
-/// Retires what the SVG element `style_node` named published, once that identity is retired.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_clear_style_node_svg_attribute_facts(arena: *mut c_void, style_node: u32) {
-    // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let Some(style_node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
-        return;
-    };
-    arena.clear_style_node_svg_attribute_facts(style_node);
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct SvgMaskAreaFacts {
     pub units_are_object_bounding_box: bool,

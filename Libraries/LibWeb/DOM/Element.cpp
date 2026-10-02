@@ -2295,17 +2295,31 @@ void Element::publish_custom_property_names()
     }
 }
 
+// The anchor names of one tree scope, and the identity the layout arena names that scope by: the
+// shadow host of the scope's root, or nothing for the document tree.
+struct AnchorNameScope {
+    AnchorNameMap& names;
+    Optional<CSS::StyleNodeID> host;
+};
+
+static AnchorNameScope anchor_name_scope_of(Element& element, Node& tree_root)
+{
+    if (auto* shadow_root = as_if<ShadowRoot>(tree_root)) {
+        auto* host = shadow_root->host();
+        return { shadow_root->anchor_name_map(), host ? host->style_node_id() : CSS::StyleNodeID {} };
+    }
+    return { element.document().anchor_name_map(), {} };
+}
+
 static bool unregister_current_anchor_names(Element& element, Node& tree_root)
 {
     auto const* anchor_values = element.style_group<CSS::ComputedValues::AnchorValues>();
     if (!anchor_values || anchor_values->anchor_names_span().is_empty())
         return false;
 
-    auto& anchor_names = is<ShadowRoot>(tree_root)
-        ? as<ShadowRoot>(tree_root).anchor_name_map()
-        : element.document().anchor_name_map();
+    auto scope = anchor_name_scope_of(element, tree_root);
     for (auto const& name : anchor_values->anchor_names_span())
-        anchor_names.unregister_name(name, element);
+        scope.names.unregister_name(name, element, scope.host);
     return true;
 }
 
@@ -2316,20 +2330,18 @@ void Element::update_anchor_name_registry(CSS::ComputedValues const* old_compute
 {
     if (!is_connected())
         return;
-    auto& anchor_names = as_if<ShadowRoot>(root())
-        ? as<ShadowRoot>(root()).anchor_name_map()
-        : document().anchor_name_map();
+    auto scope = anchor_name_scope_of(*this, root());
     bool element_had_registered_anchor_names = false;
     if (old_computed_values) {
         for (auto const& name : old_computed_values->anchor_names()) {
             element_had_registered_anchor_names = true;
-            anchor_names.unregister_name(name, *this);
+            scope.names.unregister_name(name, *this, scope.host);
         }
     }
     bool element_has_anchor_names = false;
     for (auto const& name : new_computed_values.anchor_names()) {
         element_has_anchor_names = true;
-        anchor_names.register_name(name, *this);
+        scope.names.register_name(name, *this, scope.host);
     }
 
     // Anchor names that vanish here become invisible to the partial relayout planner's
@@ -3624,7 +3636,10 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
             document().element_with_id_was_removed({}, *this);
         if (m_has_name)
             document().element_with_name_was_removed({}, *this);
-        if (unregister_current_anchor_names(*this, old_root)) {
+        // A shadow root leaves with its host, so an element in a shadow tree registered its names
+        // with the shadow root it still has, not with the root its host left.
+        auto& anchor_name_root = is<ShadowRoot>(root()) ? root() : old_root;
+        if (unregister_current_anchor_names(*this, anchor_name_root)) {
             // Positioned boxes anywhere may hold geometry resolved against these names, which
             // the partial relayout planner's subtree check can no longer see.
             document().record_partial_relayout_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByElementRemoval);
