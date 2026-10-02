@@ -765,9 +765,6 @@ impl RetainedState {
         if let Some(&complete) = self.batch_answers_complete_but_for_custom_properties.get(&node) {
             return complete;
         }
-        if !self.element_declarations_are_complete_but_for_custom_properties(node) {
-            return false;
-        }
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
             self.batch_matching_traversal.as_deref(),
@@ -793,9 +790,6 @@ impl RetainedState {
         published: &PublishedMatchAnswers,
         answer: &PublishedMatchAnswer,
     ) -> Option<bool> {
-        if !self.element_declarations_are_complete_but_for_custom_properties(node) {
-            return Some(false);
-        }
         if let Some(matches) = published.matches_for(answer) {
             return Some(
                 matches
@@ -805,13 +799,6 @@ impl RetainedState {
         }
         let matches = self.match_answers.answer(answer.cascade_input?)?;
         Some(self.retained_matches_are_complete_but_for_custom_properties(node, matches))
-    }
-
-    pub(super) fn element_declarations_are_complete_but_for_custom_properties(&self, node: StyleNodeID) -> bool {
-        ElementDeclarationKind::ALL.iter().all(|&kind| {
-            self.facts
-                .element_declarations_are_complete_but_for_custom_properties(node, kind)
-        })
     }
 
     fn retained_matches_are_complete_but_for_custom_properties(
@@ -825,11 +812,9 @@ impl RetainedState {
     }
 
     /// Whether the winners the cascade publishes hold a match: they hold its container conditions
-    /// (`container_gate_is_held`), and its rule declares nothing past its longhand winners but
-    /// custom properties.
+    /// (`container_gate_is_held`). Its custom properties are the environment's.
     pub(super) fn match_is_complete_but_for_custom_properties(&self, node: StyleNodeID, rule: RuleID) -> bool {
         self.container_gate_is_held(Some(node), rule)
-            && self.program.declarations_are_complete_but_for_custom_properties(rule)
     }
 
     /// The custom properties the node's cascade decides, each with its winning declaration and

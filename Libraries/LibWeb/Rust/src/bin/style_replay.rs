@@ -344,7 +344,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
                     let kind = read_declaration_kind(&mut event.payload)?;
-                    let declarations_are_complete = event.payload.read_bool()?;
+                    // Recordings before version 17 said whether the declarations were complete, which they always were.
+                    if format_version < 17 {
+                        event.payload.read_bool()?;
+                    }
                     let declared = read_declared_properties(&mut event.payload)?;
                     let custom_declarations = read_custom_declarations(&mut event.payload)?;
                     unsafe {
@@ -354,7 +357,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             kind,
                             &declared,
                             &custom_declarations,
-                            declarations_are_complete,
                         );
                     };
                 }
@@ -392,17 +394,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::SetRuleDeclaredProperties => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let rule = event.payload.read_u32()?;
-                    let declarations_are_complete = event.payload.read_bool()?;
+                    if format_version < 17 {
+                        event.payload.read_bool()?;
+                    }
                     let declared = read_declared_properties(&mut event.payload)?;
                     let custom_declarations = read_custom_declarations(&mut event.payload)?;
                     unsafe {
-                        bridge::replay_set_rule_declared_properties(
-                            engine,
-                            rule,
-                            &declared,
-                            &custom_declarations,
-                            declarations_are_complete,
-                        );
+                        bridge::replay_set_rule_declared_properties(engine, rule, &declared, &custom_declarations);
                     };
                 }
                 EventKind::TakeStyleTransaction => {

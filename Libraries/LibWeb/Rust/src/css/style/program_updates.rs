@@ -488,7 +488,6 @@ impl StyleEngineState {
         written_values: Vec<RetainedStyleValueData>,
         custom_declarations: Vec<CustomDeclaration>,
         custom_written_values: Vec<RetainedStyleValueData>,
-        complete: bool,
     ) {
         if !self.staged_rule_is_arriving(rule) {
             let program_version = self.retained.program.version();
@@ -503,14 +502,12 @@ impl StyleEngineState {
                 written_values: self.retained.program.written_values_of(rule).to_vec(),
                 custom_declarations: self.retained.program.custom_declarations_of(rule).to_vec(),
                 custom_written_values: self.retained.program.custom_written_values_of(rule).to_vec(),
-                complete: self.retained.program.declarations_are_complete_for(rule),
             },
             PendingRuleDeclarations {
                 declared,
                 written_values,
                 custom_declarations,
                 custom_written_values,
-                complete,
             },
         );
     }
@@ -538,7 +535,7 @@ impl StyleEngineState {
             .program_staging
             .rule_declarations
             .after(rule)
-            .map(|pending| pending.complete && pending.custom_declarations.is_empty())
+            .map(|pending| pending.custom_declarations.is_empty())
             .unwrap_or_else(|| self.retained.program.declarations_are_complete_for(rule))
     }
 
@@ -783,7 +780,7 @@ impl StyleEngineState {
         replacement.reused += 1;
 
         self.set_rule_conditions_hold(rule, true, counters);
-        self.stage_rule_declared_properties(rule, Vec::new(), Vec::new(), Vec::new(), Vec::new(), false);
+        self.stage_rule_declared_properties(rule, Vec::new(), Vec::new(), Vec::new(), Vec::new());
         self.stage_rule_in_a_layer(rule, false);
         self.stage_rule_gated_by_container_query(rule, false);
         let mut version = RuleVersion::new(rule, RuleKind::Style);
@@ -899,7 +896,6 @@ impl StyleEngineState {
                 pending.written_values,
                 pending.custom_declarations,
                 pending.custom_written_values,
-                pending.complete,
             );
         }
 
@@ -1142,7 +1138,6 @@ impl StyleEngineState {
         written_values: Vec<RetainedStyleValueData>,
         custom_declarations: Vec<CustomDeclaration>,
         custom_written_values: Vec<RetainedStyleValueData>,
-        declarations_are_complete: bool,
     ) {
         self.record_rule_declaration_change(rule, declared, &custom_declarations);
         self.stage_rule_declared_properties(
@@ -1151,7 +1146,6 @@ impl StyleEngineState {
             written_values,
             custom_declarations,
             custom_written_values,
-            declarations_are_complete,
         );
     }
 
@@ -1322,20 +1316,8 @@ impl StyleEngineState {
 
 impl StyleEngineState {
     /// Record already decoded cascade operators beside canonical specified values.
-    pub fn set_rule_declared_properties_with_operators(
-        &mut self,
-        rule: RuleID,
-        declared: &[DeclaredProperty],
-        declarations_are_complete: bool,
-    ) {
-        self.set_rule_declared_properties_with_written_values(
-            rule,
-            declared,
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            declarations_are_complete,
-        );
+    pub fn set_rule_declared_properties_with_operators(&mut self, rule: RuleID, declared: &[DeclaredProperty]) {
+        self.set_rule_declared_properties_with_written_values(rule, declared, Vec::new(), Vec::new(), Vec::new());
     }
 
     /// Drop every rule of a sheet.
@@ -1373,12 +1355,7 @@ impl StyleEngineState {
 impl StyleEngineState {
     /// Record which longhand properties a rule declares, and which of them it marks important.
     #[cfg(test)]
-    pub(super) fn set_rule_declared_properties(
-        &mut self,
-        rule: RuleID,
-        declared: &[(u16, bool)],
-        declarations_are_complete: bool,
-    ) {
+    pub(super) fn set_rule_declared_properties(&mut self, rule: RuleID, declared: &[(u16, bool)]) {
         let block = self
             .program
             .rule_version(rule)
@@ -1394,14 +1371,7 @@ impl StyleEngineState {
             })
             .collect();
         self.record_rule_declaration_change(rule, &declared, &[]);
-        self.stage_rule_declared_properties(
-            rule,
-            declared,
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            declarations_are_complete,
-        );
+        self.stage_rule_declared_properties(rule, declared, Vec::new(), Vec::new(), Vec::new());
     }
 
     /// Record the canonical specified value beside every declared longhand.
@@ -1410,7 +1380,6 @@ impl StyleEngineState {
         &mut self,
         rule: RuleID,
         declared: &[(u16, bool, SpecifiedValueID)],
-        declarations_are_complete: bool,
     ) {
         let declared: Vec<DeclaredProperty> = declared
             .iter()
@@ -1422,14 +1391,7 @@ impl StyleEngineState {
             })
             .collect();
         self.record_rule_declaration_change(rule, &declared, &[]);
-        self.stage_rule_declared_properties(
-            rule,
-            declared,
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            declarations_are_complete,
-        );
+        self.stage_rule_declared_properties(rule, declared, Vec::new(), Vec::new(), Vec::new());
     }
 
     /// Take the pending transaction for the style consumer that immediately follows this call.

@@ -1869,12 +1869,7 @@ impl StyleEngineState {
                     display: parent_inputs_moved_nodes.contains(&root),
                 };
                 // The probe settles what the root's own row settles, under the same unseen inputs.
-                let can_prepare = !self.retained.computed_group_sets.node_answer_is_incomplete(root)
-                    && !selector_truth_changes.deltas_for(root).iter().any(|delta| {
-                        !self
-                            .program
-                            .declarations_are_complete_but_for_custom_properties(delta.rule)
-                    });
+                let can_prepare = !self.retained.computed_group_sets.node_answer_is_incomplete(root);
                 if can_prepare {
                     let flipped_rules = selector_truth_changes.deltas_for(root);
                     let answer_is_unchanged =
@@ -2152,12 +2147,7 @@ impl StyleEngineState {
                         // still goes to the host so that what it derives for the children carries
                         // the reaction on to the descendants whose style reads the environment.
                         false
-                    } else if (previous_answer_was_incomplete
-                        || selector_truth_changes.deltas_for(node).iter().any(|delta| {
-                            !self
-                                .program
-                                .declarations_are_complete_but_for_custom_properties(delta.rule)
-                        }))
+                    } else if previous_answer_was_incomplete
                         // An element standing for its host's pseudo-element takes the host's rules.
                         && !self.retained.backs_host_pseudo_element(node)
                     {

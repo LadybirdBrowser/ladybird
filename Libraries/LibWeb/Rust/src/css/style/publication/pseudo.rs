@@ -888,7 +888,7 @@ impl RetainedState {
         // own declarations are not held to that. An own declaration a dropped rule winner hid
         // wins among the element's own declarations alone, since no rule declares it for this
         // pseudo-element.
-        let (declared_properties, _) = self
+        let declared_properties = self
             .facts
             .element_declared_properties(node, ElementDeclarationKind::InlineStyle);
         let own_declared: Vec<u16> = declared_properties.iter().map(|declared| declared.property).collect();

@@ -566,13 +566,7 @@ impl RetainedState {
         for kind in ElementDeclarationKind::ALL {
             // Custom properties an inline style declares beside its longhands leave those
             // longhands as complete as any; the environment they decide is computed apart.
-            let (declared_properties, _) = self.facts.element_declared_properties(node, kind);
-            if !self
-                .facts
-                .element_declarations_are_complete_but_for_custom_properties(node, kind)
-            {
-                continue;
-            }
+            let declared_properties = self.facts.element_declared_properties(node, kind);
             let mut priority_and_stratum_by_importance = [None; 2];
             for &declared in declared_properties {
                 if !wants(declared.property) || !property_is_longhand(declared.property) {
@@ -706,7 +700,6 @@ impl RetainedState {
             ElementDeclarationKind::ALL.iter().any(|&kind| {
                 self.facts
                     .element_declared_properties(node, kind)
-                    .0
                     .iter()
                     .any(|declared| {
                         matches!(
@@ -763,12 +756,7 @@ impl RetainedState {
         // cannot decide is kept as undecided, not as failed: it leaves the node to the host.
         let mut container_verdicts = Vec::new();
         for (match_index, entry) in all.iter().enumerate() {
-            if compaction_blocked
-                && (!self.container_gate_is_held(publish_winners_for, entry.rule)
-                    || !self
-                        .program
-                        .declarations_are_complete_but_for_custom_properties(entry.rule))
-            {
+            if compaction_blocked && !self.container_gate_is_held(publish_winners_for, entry.rule) {
                 continue;
             }
             if self.program.rule_is_gated_by_container_query(entry.rule)
@@ -820,13 +808,7 @@ impl RetainedState {
         if let Some(node) = publish_winners_for {
             self.publish_container_verdicts(node, container_verdicts);
             for kind in ElementDeclarationKind::ALL {
-                let (declared_properties, _) = self.facts.element_declared_properties(node, kind);
-                if !self
-                    .facts
-                    .element_declarations_are_complete_but_for_custom_properties(node, kind)
-                {
-                    continue;
-                }
+                let declared_properties = self.facts.element_declared_properties(node, kind);
                 let mut priorities = [None; 2];
                 for &declared in declared_properties {
                     if !property_is_longhand(declared.property) {
@@ -1631,12 +1613,7 @@ impl RetainedState {
                 !self.container_gate_is_held(node, entry.rule)
                     || !self.program.declarations_are_complete_for(entry.rule)
             })
-            || (pseudo.is_none()
-                && node.is_some_and(|node| {
-                    ElementDeclarationKind::ALL
-                        .iter()
-                        .any(|&kind| !self.facts.element_declared_properties(node, kind).1)
-                })))
+            || (pseudo.is_none() && node.is_some_and(|node| !self.facts.element_custom_declarations(node).is_empty())))
     }
 
     /// Whether a pseudo-element's rules declare nothing past its longhand winners but custom
@@ -1650,12 +1627,7 @@ impl RetainedState {
         !matches
             .iter()
             .filter(|entry| entry.pseudo_element == Some(pseudo))
-            .any(|entry| {
-                !self.container_gate_is_held(Some(node), entry.rule)
-                    || !self
-                        .program
-                        .declarations_are_complete_but_for_custom_properties(entry.rule)
-            })
+            .any(|entry| !self.container_gate_is_held(Some(node), entry.rule))
     }
 
     /// Where a tree scope stands among the encapsulation contexts that decide for an element,
@@ -1704,11 +1676,7 @@ impl RetainedState {
         // of scanning the answer again for every rule matching the same pseudo target.
         !matches.iter().any(|entry| {
             !self.container_gate_is_held(node, entry.rule) || !self.program.declarations_are_complete_for(entry.rule)
-        }) && !node.is_some_and(|node| {
-            ElementDeclarationKind::ALL
-                .iter()
-                .any(|&kind| !self.facts.element_declared_properties(node, kind).1)
-        })
+        }) && !node.is_some_and(|node| !self.facts.element_custom_declarations(node).is_empty())
     }
 
     /// As `cascade_winner_inventory_is_complete`, for winners published in the transaction `effects`
@@ -2008,10 +1976,10 @@ impl RetainedState {
     }
 
     pub(super) fn node_has_element_declaration_input(&self, node: StyleNodeID) -> bool {
-        ElementDeclarationKind::ALL.iter().any(|&kind| {
-            let (declared, complete) = self.facts.element_declared_properties(node, kind);
-            !declared.is_empty() || !complete
-        })
+        !self.facts.element_custom_declarations(node).is_empty()
+            || ElementDeclarationKind::ALL
+                .iter()
+                .any(|&kind| !self.facts.element_declared_properties(node, kind).is_empty())
     }
 
     /// Advance staged local facts to the transaction's final snapshot.
