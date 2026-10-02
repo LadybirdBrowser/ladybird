@@ -84,6 +84,8 @@ static constexpr auto pending_prefix = "Browser-"sv;
 static constexpr auto pending_suffix = ".pending"sv;
 static constexpr off_t maximum_report_size = 1048576;
 static constexpr size_t retained_report_count = 20;
+static constexpr auto hard_cutoff_date = UnixDateTime::from_unix_time_parts(2026, 10, 2, 20, 0, 0, 0);
+static constexpr auto maximum_pending_report_age = AK::Duration::from_seconds(14ll * 24 * 60 * 60);
 
 static NeverDestroyed<ByteString> s_browser_pending_path;
 static NeverDestroyed<OwnPtr<CrashReport>> s_browser_crash_report;
@@ -240,16 +242,24 @@ ErrorOr<CrashReportStore::SavedReport> CrashReportStore::saved_report(ByteString
     return SavedReport { name, TRY(move(text)) };
 }
 
-ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names() const
+ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime now) const
 {
     // Runs on every launch, so this only lists names instead of reading every report.
     auto directory = TRY(open_report_directory(m_directory));
+    auto earliest_time = max(hard_cutoff_date, now - maximum_pending_report_age);
 
     Vector<ByteString> names;
     Core::DirIterator iterator(directory.path().string(), Core::DirIterator::SkipDots);
     while (iterator.has_next()) {
         auto name = iterator.next_path();
-        if (is_saved_report_name(name))
+        if (!is_saved_report_name(name))
+            continue;
+
+        // A report is written when its process crashes, and stamped with the crash time when it is recovered later.
+        struct stat status {};
+        if (!is_owned_regular_file_at(directory, name, status))
+            continue;
+        if (UnixDateTime::from_unix_timespec(modified_time(status)) >= earliest_time)
             names.append(move(name));
     }
     // Names begin with the crash time, so this orders the most recent crash first.
@@ -257,9 +267,9 @@ ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names() const
     return names;
 }
 
-bool CrashReportStore::has_pending_reports() const
+bool CrashReportStore::has_pending_reports(UnixDateTime now) const
 {
-    auto names = pending_report_names();
+    auto names = pending_report_names(now);
     return !names.is_error() && !names.value().is_empty();
 }
 
@@ -316,6 +326,12 @@ ErrorOr<ByteString> CrashReportStore::store_report(ProcessType process_type, Str
 
     ArmedScopeGuard remove_incomplete_report = [&] { (void)unlinkat(directory.fd(), name.characters(), 0); };
     TRY(report->write_until_depleted(text.bytes()));
+
+    // A report recovered at a later launch still gets the time of its crash, which is what a report's age is based on.
+    auto modified = crashed_at.to_timespec();
+    timespec times[2] { modified, modified };
+    if (futimens(report->fd(), times) < 0)
+        return Error::from_errno(errno);
     TRY(Core::System::fchmod(report->fd(), 0400));
     if (fsync(report->fd()) < 0)
         return Error::from_errno(errno);
@@ -453,8 +469,8 @@ ErrorOr<CrashReportStore::SavedReport> CrashReportStore::saved_report(ByteString
     return Error::from_string_literal("Crash reports are not supported on this platform yet");
 }
 
-ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names() const { return Vector<ByteString> {}; }
-bool CrashReportStore::has_pending_reports() const { return false; }
+ErrorOr<Vector<ByteString>> CrashReportStore::pending_report_names(UnixDateTime) const { return Vector<ByteString> {}; }
+bool CrashReportStore::has_pending_reports(UnixDateTime) const { return false; }
 ErrorOr<void> CrashReportStore::mark_seen(ByteString const&) const { return {}; }
 ErrorOr<void> CrashReportStore::remove_sent_report(ByteString const&) const { return {}; }
 

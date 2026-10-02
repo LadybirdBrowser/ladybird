@@ -38,11 +38,17 @@ static void cleanup()
         MUST(FileSystem::remove(test_directory(), FileSystem::RecursionMode::Allowed));
 }
 
-static void write_file(StringView name, StringView contents)
+// The time the pending report tests pretend to be at, and the time their reports were last written.
+static UnixDateTime const now = UnixDateTime::from_unix_time_parts(2026, 10, 10, 0, 0, 0, 0);
+
+static void write_file(StringView name, StringView contents, UnixDateTime modified = now)
 {
     auto directory = MUST(Core::Directory::create(test_directory(), Core::Directory::CreateDirectories::Yes));
     auto file = MUST(directory.open(name, Core::File::OpenMode::Write));
     MUST(file->write_until_depleted(contents.bytes()));
+    auto time = modified.to_timespec();
+    timespec times[2] { time, time };
+    VERIFY(futimens(file->fd(), times) == 0);
 }
 
 // A name the store accepts: a UTC timestamp, a known process, and a six character suffix.
@@ -104,7 +110,7 @@ TEST_CASE(pending_reports_are_listed_newest_first)
     write_file(report_name("2026-01-01T00-00-00Z"sv), "Older report\n"sv);
     write_file(report_name("2026-03-04T05-06-07Z"sv), "Newer report\n"sv);
 
-    auto names = MUST(test_store().pending_report_names());
+    auto names = MUST(test_store().pending_report_names(now));
     EXPECT_EQ(names.size(), 2u);
     EXPECT_EQ(names[0], report_name("2026-03-04T05-06-07Z"sv));
     EXPECT_EQ(names[1], report_name("2026-01-01T00-00-00Z"sv));
@@ -119,7 +125,7 @@ TEST_CASE(a_name_the_store_rejects_is_never_read_or_marked)
     ScopeGuard guard = cleanup;
 
     write_file("notes.txt"sv, "Not a report\n"sv);
-    EXPECT(MUST(test_store().pending_report_names()).is_empty());
+    EXPECT(MUST(test_store().pending_report_names(now)).is_empty());
     EXPECT(test_store().saved_report("notes.txt"sv).is_error());
     EXPECT(test_store().mark_seen("../escape.txt"sv).is_error());
     EXPECT(test_store().remove_sent_report("notes.txt"sv).is_error());
@@ -134,10 +140,10 @@ TEST_CASE(a_seen_report_is_no_longer_pending)
     write_file(name, "A report\n"sv);
     auto store = test_store();
 
-    EXPECT(store.has_pending_reports());
+    EXPECT(store.has_pending_reports(now));
     MUST(store.mark_seen(name));
     MUST(store.mark_seen(name));
-    EXPECT(!store.has_pending_reports());
+    EXPECT(!store.has_pending_reports(now));
     EXPECT(directory_entries().is_empty());
     EXPECT_EQ(directory_entries("Seen"sv), Vector<ByteString> { name });
 
@@ -145,7 +151,60 @@ TEST_CASE(a_seen_report_is_no_longer_pending)
     EXPECT_EQ(MUST(store.saved_report(name)).text, "A report\n"sv);
 
     write_file(report_name("2026-03-05T05-06-07Z"sv), "Another report\n"sv);
-    EXPECT(store.has_pending_reports());
+    EXPECT(store.has_pending_reports(now));
+}
+
+TEST_CASE(a_report_from_before_the_hard_cutoff_date_is_not_pending)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto before = report_name("2026-10-02T19-59-59Z"sv);
+    auto at = report_name("2026-10-02T20-00-00Z"sv, "Browser"sv);
+    write_file(before, "Too old\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 2, 19, 59, 59, 0));
+    write_file(at, "Recent enough\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 2, 20, 0, 0, 0));
+    auto store = test_store();
+
+    auto soon_after = UnixDateTime::from_unix_time_parts(2026, 10, 3, 0, 0, 0, 0);
+    EXPECT_EQ(MUST(store.pending_report_names(soon_after)), Vector<ByteString> { at });
+
+    // The report is only ignored, so it can still be read.
+    EXPECT_EQ(MUST(store.saved_report(before)).text, "Too old\n"sv);
+    EXPECT_EQ(directory_entries().size(), 2u);
+}
+
+TEST_CASE(a_report_older_than_14_days_is_not_pending)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    auto stale = report_name("2026-10-05T11-59-59Z"sv);
+    auto fresh = report_name("2026-10-05T12-00-00Z"sv, "Browser"sv);
+    write_file(stale, "Too old\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 5, 11, 59, 59, 0));
+    write_file(fresh, "Recent enough\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 5, 12, 0, 0, 0));
+    auto store = test_store();
+
+    auto in_two_weeks = UnixDateTime::from_unix_time_parts(2026, 10, 19, 12, 0, 0, 0);
+    EXPECT_EQ(MUST(store.pending_report_names(in_two_weeks)), Vector<ByteString> { fresh });
+    EXPECT(store.has_pending_reports(in_two_weeks));
+
+    auto later = in_two_weeks + AK::Duration::from_seconds(1);
+    EXPECT(MUST(store.pending_report_names(later)).is_empty());
+    EXPECT(!store.has_pending_reports(later));
+}
+
+TEST_CASE(a_stored_report_is_as_old_as_its_crash)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+
+    // A crash recovered at a later launch is still as old as when it happened.
+    auto store = test_store();
+    auto crashed_at = UnixDateTime::from_unix_time_parts(2026, 10, 3, 0, 0, 0, 0);
+    auto name = MUST(store.store_report(WebView::ProcessType::Browser, "A report\n"sv, crashed_at));
+
+    EXPECT_EQ(MUST(store.pending_report_names(crashed_at + AK::Duration::from_seconds(14 * 24 * 60 * 60))), Vector<ByteString> { name });
+    EXPECT(MUST(store.pending_report_names(crashed_at + AK::Duration::from_seconds(14 * 24 * 60 * 60 + 1))).is_empty());
 }
 
 TEST_CASE(a_missing_report_cannot_be_moved)
