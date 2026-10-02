@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // Mouse wheel ticks in quick succession take the nested scroller to its extent as one gesture.
+        await internals.wheel(50, 50, 0, 150);
+        await internals.wheel(50, 50, 0, 150);
+
+        // A tick 7 CSS pixels from where the gesture started still belongs to it, so the nested scroller absorbs it.
+        await internals.wheel(57, 50, 0, 100);
+        println(`window.scrollY after a tick 7 pixels away: ${window.scrollY}`);
+
+        // The next tick is only 7 pixels from the last one, but 14 from where the gesture started, so it starts a new
+        // gesture, which the nested scroller at its extent leaves to the page.
+        await internals.wheel(64, 50, 0, 100);
+        println(`window.scrollY after a tick 14 pixels away: ${window.scrollY}`);
+        println(`nested.scrollTop: ${nested.scrollTop}`);
+    });
+</script>

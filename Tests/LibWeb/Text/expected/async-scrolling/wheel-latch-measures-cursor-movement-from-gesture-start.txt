@@ -1,0 +1,3 @@
+window.scrollY after a tick 7 pixels away: 0
+window.scrollY after a tick 14 pixels away: 100
+nested.scrollTop: 200
