@@ -427,7 +427,7 @@ void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString>
     bump_environment_generation();
 
     // Only clear cache entries that reference the loaded font family.
-    m_font_cascade_memo->forget_matching([&](auto const& key, auto const&) {
+    m_font_cascade_memo->forget_matching(m_environment_generation, [&](auto const& key, auto const&) {
         return computed_font_families_reference_any_family(key.font_families, family_names);
     });
 
@@ -552,7 +552,7 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
     Vector<NonnullRefPtr<Gfx::FontCascadeList const>> invalidated_font_lists_kept_alive_for_the_walk;
     // NB: The table is built for the first remembered cascade that names the family, if any does.
     RefPtr<FontFaceSnapshot const> snapshot;
-    m_font_cascade_memo->forget_matching([&](auto const& key, auto const& font_list) {
+    m_font_cascade_memo->forget_matching(m_environment_generation, [&](auto const& key, auto const& font_list) {
         if (!any_of(key.font_families, [&](ComputedFontFamily const& family) {
                 return family.has<ComputedFontFamilyName>()
                     && family.get<ComputedFontFamilyName>().name.equals_ignoring_ascii_case(changed_face.family_name);

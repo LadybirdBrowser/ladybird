@@ -76,7 +76,9 @@ public:
 
     // NB: A memo of a pure function, so filling it does not change what it answers.
     [[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve(FontFaceSnapshot const&, ComputedFontCacheKey const&, FontFeatureValuesProvider const&) const;
-    void forget_matching(Function<bool(ComputedFontCacheKey const&, NonnullRefPtr<Gfx::FontCascadeList const> const&)> const&);
+    // NB: Only under a font environment generation newer than any resolved against: the style engine names the memo's
+    //     cascades without holding a reference to them for as long as a generation stands.
+    void forget_matching(u64 environment_generation, Function<bool(ComputedFontCacheKey const&, NonnullRefPtr<Gfx::FontCascadeList const> const&)> const&);
 
 private:
     FontCascadeMemo() = default;

@@ -18,6 +18,14 @@ pub struct StyleEngine {
     pub(super) state: StyleEngineState,
 }
 
+// The engine may move to whichever thread runs a style stage. Every host object it keeps a
+// reference to says by its type whether it may be shared between threads, so one that cannot be
+// fails this rather than passing as an opaque pointer.
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<StyleEngine>();
+};
+
 impl std::ops::Deref for StyleEngine {
     type Target = StyleEngineState;
 
