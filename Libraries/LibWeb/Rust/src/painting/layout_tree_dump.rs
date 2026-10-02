@@ -144,7 +144,7 @@ pub unsafe extern "C" fn layout_arena_dump_layout_tree(
     callbacks: FfiLayoutTreeDumpCallbacks,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let context = LayoutTreeDumpContext {
         arena_handle: arena,
         interactive,
@@ -165,7 +165,7 @@ struct LayoutTreeDumpContext<'a> {
     interactive: bool,
     palette: DumpPalette,
     callbacks: &'a FfiLayoutTreeDumpCallbacks,
-    main_thread: &'a MainThread,
+    main_thread: &'a MainThread<'a>,
 }
 
 struct DumpPalette {

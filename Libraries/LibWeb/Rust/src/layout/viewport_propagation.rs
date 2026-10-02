@@ -288,16 +288,17 @@ pub(crate) fn decide_viewport_propagation(facts: &ViewportPropagationFacts) -> O
 /// `viewport` and the boxes named by the facts must be live, and the call must precede the
 /// layout pass's style borrows.
 pub(crate) fn propagate_root_styles_to_viewport(
+    main_thread: &crate::stage::MainThread,
     arena: &LayoutNodeArena,
     viewport: NodeSlotId,
     facts: &ViewportPropagationFacts,
 ) {
     assert!(!viewport.is_invalid());
     let apply_overflow = |node: NodeSlotId, (x, y): (u8, u8)| {
-        arena.update_layout_style(node, |style| style.set_overflow(x, y));
+        arena.update_layout_style(main_thread, node, |style| style.set_overflow(x, y));
     };
     let apply_writing_mode_and_direction = |node: NodeSlotId, writing_mode: u8, direction: u8| {
-        arena.update_layout_style(node, |style| {
+        arena.update_layout_style(main_thread, node, |style| {
             style.set_writing_mode_and_direction(writing_mode, direction);
         });
     };

@@ -59,7 +59,7 @@ pub unsafe extern "C" fn layout_arena_dump_stacking_context_tree(
     callbacks: FfiStackingContextDumpCallbacks,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: The caller guarantees a live arena handle borrowed for this call.
     let arena = unsafe { LayoutNodeArena::from_handle(arena) };
     if arena.stacking_context_entries(viewport).is_none() {

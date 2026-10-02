@@ -144,7 +144,8 @@ fn new_chunk() -> Box<PaintableRowChunk> {
     }
 }
 
-type ChromeStateCallback = (
+/// How the document's chrome state hears that a row was reset.
+pub(crate) type ChromeStateCallback = (
     *mut c_void,
     unsafe extern "C" fn(*mut c_void, NodeSlotId, PaintableRowResetKind),
 );
@@ -153,13 +154,15 @@ type ChromeStateCallback = (
 pub(crate) struct PaintableRowReset {
     slot: NodeSlotId,
     kind: PaintableRowResetKind,
-    callback: Option<ChromeStateCallback>,
 }
 
 impl PaintableRowReset {
-    /// Tells the document's chrome state that the row was reset.
-    pub(crate) fn tell(self, _: &crate::stage::MainThread) {
-        if let Some((context, callback)) = self.callback {
+    /// Tells the document's chrome state, if it listens, that the row was reset.
+    pub(crate) fn tell(self, main_thread: &crate::stage::MainThread) {
+        let callback = main_thread
+            .host_tables()
+            .and_then(|host_tables| host_tables.chrome_state_callback.get());
+        if let Some((context, callback)) = callback {
             // SAFETY: Registration and unregistration keep the callback context live.
             unsafe { callback(context, self.slot, self.kind) };
         }
@@ -188,7 +191,6 @@ pub(crate) struct PaintableRowStore {
     absolute_rect_memo: RefCell<Vec<Option<(NodeSlotId, u64, crate::css::css_pixels::CssPixelRect)>>>,
     absolute_rect_memo_epoch: Cell<u64>,
     committed_fragment_links: RefCell<Vec<CommittedFragmentLinkSlot>>,
-    chrome_state_callback: Cell<Option<ChromeStateCallback>>,
     paint_recording_in_progress: Cell<bool>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
 }
@@ -606,18 +608,6 @@ impl LayoutNodeArena {
         PaintableRows { arena: self }
     }
 
-    pub(crate) fn set_chrome_state_callback(
-        &self,
-        context: *mut c_void,
-        callback: unsafe extern "C" fn(*mut c_void, NodeSlotId, PaintableRowResetKind),
-    ) {
-        self.paintable_rows.chrome_state_callback.set(Some((context, callback)));
-    }
-
-    pub(crate) fn clear_chrome_state_callback(&self) {
-        self.paintable_rows.chrome_state_callback.set(None);
-    }
-
     pub(crate) fn with_committed_fragment_link<R>(
         &self,
         node: NodeSlotId,
@@ -642,11 +632,7 @@ impl LayoutNodeArena {
     }
 
     fn prepare_paintable_row_reset(&self, slot: NodeSlotId, kind: PaintableRowResetKind) -> PaintableRowReset {
-        PaintableRowReset {
-            slot,
-            kind,
-            callback: self.paintable_rows.chrome_state_callback.get(),
-        }
+        PaintableRowReset { slot, kind }
     }
 
     pub(crate) fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<crate::css::css_pixels::CssPixelRect> {

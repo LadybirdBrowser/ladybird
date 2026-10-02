@@ -8,13 +8,13 @@
 //! answer geometry queries or paint. The steps that touch the DOM stay on the C++ host and
 //! answer through a callback table registered once per arena.
 
-use super::LayoutNodeArena;
 use super::formatting_context::{compute_subtree_layout, run_root_layout};
 use super::layout_node_arena::sync_enrolled_content_for_layout;
 use super::node_data::NodeSlotId;
 use super::node_facts;
 use super::partial_relayout::FfiPartialRelayoutHostFacts;
 use super::tree_builder::FfiLayoutTreeBuildOutcome;
+use super::{HostTables, LayoutNodeArena};
 use crate::abort_on_panic;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::stage::MainThread;
@@ -308,7 +308,10 @@ unsafe fn try_partial_relayout(
 /// As for [`arena`], and `inputs` must satisfy [`UpdateLayoutTrace::new`]'s requirements.
 unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inputs: &FfiLayoutUpdateInputs) {
     // SAFETY (for every derive below): Guaranteed by the caller; no borrow spans a host call.
-    let host = unsafe { arena(arena_handle) }.layout_update_host();
+    let host = main_thread
+        .host_tables()
+        .and_then(|host_tables| host_tables.layout_update_host.get())
+        .expect("layout node arena has no layout update host");
     assert!(
         unsafe { arena(arena_handle) }.update_layout_is_running(),
         "the layout update runs between layout_arena_begin_update_layout and its end"
@@ -445,9 +448,10 @@ pub unsafe extern "C" fn layout_arena_set_layout_update_host_callbacks(
     arena: *mut c_void,
     callbacks: FfiLayoutUpdateHostCallbacks,
 ) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_layout_update_host(Some(callbacks));
+    unsafe { HostTables::from_handle(arena) }
+        .layout_update_host
+        .set(Some(callbacks));
 }
 
 /// # Safety
@@ -455,9 +459,8 @@ pub unsafe extern "C" fn layout_arena_set_layout_update_host_callbacks(
 /// `arena` must be a live handle on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_clear_layout_update_host_callbacks(arena: *mut c_void) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_layout_update_host(None);
+    unsafe { HostTables::from_handle(arena) }.layout_update_host.set(None);
 }
 
 /// # Safety
@@ -504,7 +507,7 @@ pub unsafe extern "C" fn layout_arena_update_layout(arena: *mut c_void, inputs: 
     assert!(!arena.is_null(), "layout node arena handle is null");
     assert!(!inputs.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     abort_on_panic(|| {
         // SAFETY: Guaranteed by the entry point's contract.
         unsafe { update_layout(&main_thread, arena, &*inputs) };

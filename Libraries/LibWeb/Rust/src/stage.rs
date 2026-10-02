@@ -7,18 +7,21 @@
 //! The capability separating code that may call into C++ from code that computes layout or
 //! records paint.
 
+use crate::layout::HostTables;
+use std::ffi::c_void;
 use std::marker::PhantomData;
 
-/// Proof that a call entered Rust from the document's main thread.
+/// Proof that a call entered Rust from the document's main thread, and the way to the host
+/// callbacks that document registered with its arena.
 ///
 /// Only FFI entry points mint one, and every wrapper around a C++ host callback requires it, so
-/// code that is not handed a token cannot call into C++. The raw pointer marker makes the token
-/// neither [`Send`] nor [`Sync`], so the proof cannot cross onto another thread.
-pub(crate) struct MainThread {
+/// code that is not handed a token cannot call into C++. The host tables are reached only
+/// through it. The raw pointer marker makes the token neither [`Send`] nor [`Sync`], so the proof
+/// cannot cross onto another thread.
+pub(crate) struct MainThread<'host> {
+    host_tables: Option<&'host HostTables>,
     not_send_or_sync: PhantomData<*const ()>,
 }
-
-const _: () = assert!(size_of::<MainThread>() == 0);
 
 mod private {
     pub trait FfiEntry {}
@@ -27,26 +30,45 @@ mod private {
 /// A marker that only a designated FFI entry module can construct. See [`from_ffi_entry`].
 pub(crate) trait FfiEntry: private::FfiEntry {}
 
-impl MainThread {
-    /// Mint a token for a unit test, which runs on the thread that owns its arena.
+impl<'host> MainThread<'host> {
+    /// Mint a token for a unit test, which runs on the thread that owns its arena. An arena a
+    /// test makes has no host.
     #[cfg(test)]
     pub(crate) fn for_test() -> Self {
         Self {
+            host_tables: None,
             not_send_or_sync: PhantomData,
         }
     }
+
+    /// Mint a token for a unit test whose arena answers to `host_tables`.
+    #[cfg(test)]
+    pub(crate) fn for_test_with_host(host_tables: &'host HostTables) -> Self {
+        Self {
+            host_tables: Some(host_tables),
+            not_send_or_sync: PhantomData,
+        }
+    }
+
+    /// The host tables of the arena the entry was called for, or none in a unit test.
+    pub(crate) fn host_tables(&self) -> Option<&'host HostTables> {
+        self.host_tables
+    }
 }
 
-/// Mint a main thread token for an FFI entry point.
+/// Mint a main thread token for an FFI entry point called on the arena `arena_handle` names.
 ///
 /// The marker's type can only be constructed by the module that owns it, and this module lists
 /// those types below, so code elsewhere cannot mint a token with a marker of its own.
 ///
 /// # Safety
 ///
-/// The caller must be an FFI entry point whose C++ contract requires the document thread.
-pub(crate) unsafe fn from_ffi_entry(_: &impl FfiEntry) -> MainThread {
+/// The caller must be an FFI entry point whose C++ contract requires the document thread, and
+/// `arena_handle` must come from `layout_arena_create` and outlive the token.
+pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, arena_handle: *mut c_void) -> MainThread<'host> {
     MainThread {
+        // SAFETY: Guaranteed by the caller.
+        host_tables: Some(unsafe { HostTables::from_handle(arena_handle) }),
         not_send_or_sync: PhantomData,
     }
 }
