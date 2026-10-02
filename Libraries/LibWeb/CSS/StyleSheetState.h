@@ -128,6 +128,7 @@ public:
     void disconnect_font_faces_in_rules(Parser::ValueParserFFI::NativeRuleList const*);
 
     Vector<NonnullRefPtr<StyleSheetImport>> const& import_rules() const { return m_import_rules; }
+    bool has_counter_style_rules() const;
     StyleSheetImport* import_for_rule(u64 identity) const;
 
     Optional<::URL::URL> base_url() const { return m_base_url; }

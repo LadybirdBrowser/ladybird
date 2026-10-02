@@ -1,0 +1,2 @@
+shadow sheet defining the counter style changes the marker: true
+sheet reordering layers changes the winning definition: true

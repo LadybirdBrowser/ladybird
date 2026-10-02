@@ -130,6 +130,7 @@ public:
     void for_each_active_css_style_sheet(Function<void(CSS::StyleSheetState&)> const& callback) const;
 
     void invalidate_counter_style_cache();
+    [[nodiscard]] bool sheets_define_counter_styles() const { return m_sheets_define_counter_styles; }
     void build_counter_style_cache(Layout::BegunRead const& read);
     u64 counter_style_environment_identity(Layout::BegunRead const& read) const;
     void publish_counter_style_lookup_chain(Layout::BegunRead const& read) const;
@@ -150,6 +151,7 @@ public:
 
     bool m_needs_counter_style_cache_update : 1 { true };
     bool m_is_doing_counter_style_cache_update : 1 { false };
+    bool m_sheets_define_counter_styles : 1 { false };
     bool m_has_published_named_layer_order : 1 { false };
     // Whether the style engine holds this scope's layer order and keyframes as the rule cache resolved them.
     bool m_has_published_rule_cache : 1 { false };

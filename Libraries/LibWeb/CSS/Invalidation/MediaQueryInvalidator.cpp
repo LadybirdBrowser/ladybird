@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -35,7 +36,7 @@ void evaluate_media_rules_and_publish_conditions(DOM::Document& document)
         style_sheet.record_conditions_for_owners();
         style_sheet.for_each_owning_style_scope([&](StyleScope& style_scope) {
             if (result.style_cache_inputs_changed)
-                style_scope.invalidate_style_cache();
+                invalidate_rule_cache_after_style_sheet_change(style_scope, style_sheet);
             if (result.layer_order_inputs_changed)
                 scopes_with_changed_layer_order.set(&style_scope);
         });
@@ -58,6 +59,7 @@ void evaluate_media_rules_and_publish_conditions(DOM::Document& document)
             if (!changed)
                 return;
             document.style_scope().invalidate_style_cache();
+            document.style_scope().invalidate_counter_style_cache();
             style_sheet.reload_fonts_after_media_query_change();
         });
     }

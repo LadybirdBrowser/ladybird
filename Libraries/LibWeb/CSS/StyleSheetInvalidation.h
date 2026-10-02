@@ -15,6 +15,10 @@ namespace Web::CSS {
 // list-membership before invoking this.
 void invalidate_rule_cache_after_style_sheet_change(DOM::Node& document_or_shadow_root, StyleSheetState const& sheet);
 
+// Drop the rule cache of a scope one of its sheets changed in, and the scope's counter styles when the sheet can
+// change them.
+void invalidate_rule_cache_after_style_sheet_change(StyleScope&, StyleSheetState const& sheet);
+
 // Drop the rule cache of every scope that owns `style_sheet`, because the rules it contributes to them moved.
 void invalidate_rule_cache_for_style_sheet_owners(StyleSheetState const& style_sheet);
 
