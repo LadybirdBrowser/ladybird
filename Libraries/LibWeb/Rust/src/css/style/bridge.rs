@@ -425,6 +425,15 @@ pub struct FfiFontResolutionRequest {
     pub font_environment_generation: u64,
 }
 
+impl FfiFontResolutionRequest {
+    /// The font size the element's own lengths resolve against: the C++ working set's
+    /// `CSSPixels` value, not the computed value's double.
+    #[must_use]
+    pub fn font_size(&self) -> f64 {
+        crate::css::css_pixels::CssPixels::from_raw(self.font_size_raw).to_double()
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct FfiResolvedFont {

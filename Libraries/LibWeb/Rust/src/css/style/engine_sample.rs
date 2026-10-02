@@ -11,10 +11,17 @@ use super::bridge::element_adjustment_fact;
 use super::publication::drive_font_metric;
 use super::tree::StyleNodeID;
 use super::{RetainedState, bridge};
-use crate::css::computed_longhand_table::FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS;
+use crate::css::animated_overlay::AnimatedOverlay;
+use crate::css::computed_longhand_table::{ComputedLonghandTable, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS};
 use crate::css::computed_value_types::{FontValues, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX};
 use crate::css::computed_values::InheritedBoxValues;
-use crate::css::style_compute::{FfiAnimationLengthContexts, FfiFontMetrics, FfiLengthResolutionContext};
+use crate::css::css_pixels::CssPixels;
+use crate::css::property_metadata::property_id as prop;
+use crate::css::style_compute::{
+    FfiAnimationLengthContexts, FfiFontMetrics, FfiLengthResolutionContext, keyword, px_length_unit,
+};
+use crate::css::style_value::StyleValueData;
+use crate::css::table_group_builder::FfiFontGroupBuildInputs;
 
 /// One record's font, as a length resolves against it.
 struct RecordFont {
@@ -167,5 +174,172 @@ fn length_resolution_context(
         container_height_basis_depends_on_viewport_metrics: false,
         subject_inline_axis_is_horizontal,
         resolved_viewport_relative_length: std::ptr::null_mut(),
+    }
+}
+
+/// A longhand's computed value, over the overlay a sample composed where there is one.
+pub(super) fn effective_data<'a>(
+    table: &'a ComputedLonghandTable,
+    overlay: Option<&'a AnimatedOverlay>,
+    property: u16,
+) -> Option<&'a StyleValueData> {
+    unsafe {
+        table
+            .effective_value(overlay, property, true)
+            .value
+            .cast::<StyleValueData>()
+            .as_ref()
+    }
+}
+
+/// What resolving an element's font asks the document's resolver, as the C++ font computer would
+/// resolve it for the element's computed values over `overlay`. The font phase computes
+/// font-size, font-weight and font-width to the shapes read here.
+pub(super) fn font_resolution_request(
+    table: &ComputedLonghandTable,
+    overlay: Option<&AnimatedOverlay>,
+    inputs: &bridge::FfiDocumentStyleComputationInputs,
+) -> bridge::FfiFontResolutionRequest {
+    let value_of = |property| effective_data(table, overlay, property);
+    let handle_of =
+        |property| bridge::FfiHostHandle::from_pointer(table.effective_value(overlay, property, true).value.cast());
+    // The resolver reads these beside the family, so the request names each one whose computed
+    // value is not the initial one and nothing for the rest. A non-initial value can also come
+    // from inheritance.
+    let mut font_feature_values = [bridge::FfiHostHandle::default(); bridge::FONT_RESOLUTION_FEATURE_INPUT_COUNT];
+    for (input, property, initial_keyword) in FONT_RESOLUTION_FEATURE_PROPERTIES {
+        if !matches!(value_of(property),
+            Some(StyleValueData::Keyword { keyword }) if *keyword == initial_keyword)
+        {
+            font_feature_values[input as usize] = handle_of(property);
+        }
+    }
+    let font_size_raw = match value_of(prop::FONT_SIZE) {
+        Some(StyleValueData::Length { value, unit }) if *unit == px_length_unit() => {
+            CssPixels::nearest_value_for(*value).raw_value()
+        }
+        _ => unreachable!("the font phase left font-size uncomputed"),
+    };
+    let font_slope = match value_of(prop::FONT_STYLE) {
+        Some(StyleValueData::FontStyle { font_style, .. }) => match *font_style {
+            crate::css::css_enums::font_style_keyword::ITALIC => 1,
+            crate::css::css_enums::font_style_keyword::OBLIQUE => 2,
+            _ => 0,
+        },
+        _ => 0,
+    };
+    let (font_weight, font_width) = match (value_of(prop::FONT_WEIGHT), value_of(prop::FONT_WIDTH)) {
+        (Some(StyleValueData::Number { value: weight }), Some(StyleValueData::Percentage { value: width })) => {
+            (*weight, *width)
+        }
+        _ => unreachable!("the font phase left font-weight or font-width uncomputed"),
+    };
+    let font_optical_sizing = match value_of(prop::FONT_OPTICAL_SIZING) {
+        Some(StyleValueData::Keyword { keyword }) => {
+            crate::css::css_enums::keyword_to_font_optical_sizing(*keyword).unwrap_or(0)
+        }
+        _ => 0,
+    };
+    bridge::FfiFontResolutionRequest {
+        font_family: handle_of(prop::FONT_FAMILY),
+        font_feature_values,
+        font_size_raw,
+        font_slope,
+        font_weight,
+        font_width,
+        font_optical_sizing,
+        font_environment_generation: inputs.font_environment_generation,
+    }
+}
+
+/// The property behind each value a font resolution request names, with the initial keyword for
+/// which the request names nothing.
+const FONT_RESOLUTION_FEATURE_PROPERTIES: [(bridge::FontResolutionFeatureInput, u16, u16);
+    bridge::FONT_RESOLUTION_FEATURE_INPUT_COUNT] = {
+    use crate::css::style_compute::keyword::{AUTO, NORMAL};
+    use bridge::FontResolutionFeatureInput as Input;
+    [
+        (Input::FontFeatureSettings, prop::FONT_FEATURE_SETTINGS, NORMAL),
+        (Input::FontVariationSettings, prop::FONT_VARIATION_SETTINGS, NORMAL),
+        (Input::FontVariantCaps, prop::FONT_VARIANT_CAPS, NORMAL),
+        (Input::FontVariantEastAsian, prop::FONT_VARIANT_EAST_ASIAN, NORMAL),
+        (Input::FontVariantEmoji, prop::FONT_VARIANT_EMOJI, NORMAL),
+        (Input::FontVariantLigatures, prop::FONT_VARIANT_LIGATURES, NORMAL),
+        (Input::FontVariantNumeric, prop::FONT_VARIANT_NUMERIC, NORMAL),
+        (Input::FontVariantPosition, prop::FONT_VARIANT_POSITION, NORMAL),
+        (Input::FontVariantAlternates, prop::FONT_VARIANT_ALTERNATES, NORMAL),
+        (Input::FontKerning, prop::FONT_KERNING, AUTO),
+        (Input::TextRendering, prop::TEXT_RENDERING, AUTO),
+    ]
+};
+
+// Every input appears once, at its own index, so no slot of a request goes unwritten.
+const _: () = {
+    let mut index = 0;
+    while index < FONT_RESOLUTION_FEATURE_PROPERTIES.len() {
+        assert!(FONT_RESOLUTION_FEATURE_PROPERTIES[index].0 as usize == index);
+        index += 1;
+    }
+};
+
+/// The line height `normal` uses for a resolved font.
+pub(super) fn normal_line_height(resolved: &bridge::FfiResolvedFont) -> f64 {
+    f64::from(resolved.ascent.round() as i32 + resolved.descent.round() as i32)
+}
+
+/// The used line height, as the C++ working set reads it from the computed value over `overlay`
+/// against the font it resolved. The line-height phase computes line-height to one of these
+/// shapes.
+pub(super) fn used_line_height(
+    table: &ComputedLonghandTable,
+    overlay: Option<&AnimatedOverlay>,
+    request: &bridge::FfiFontResolutionRequest,
+    resolved: &bridge::FfiResolvedFont,
+) -> f64 {
+    match effective_data(table, overlay, prop::LINE_HEIGHT) {
+        Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL => normal_line_height(resolved),
+        Some(StyleValueData::Length { value, unit }) if *unit == px_length_unit() => {
+            CssPixels::nearest_value_for(*value).to_double()
+        }
+        Some(StyleValueData::Number { value }) => CssPixels::nearest_value_for(value * request.font_size()).to_double(),
+        _ => unreachable!("the line-height phase left line-height uncomputed"),
+    }
+}
+
+/// What the font group of a record is built from, for an element whose font `request` resolved to
+/// `resolved`, with the computed values over `overlay`.
+pub(super) fn font_group_build_inputs(
+    table: &ComputedLonghandTable,
+    overlay: Option<&AnimatedOverlay>,
+    request: &bridge::FfiFontResolutionRequest,
+    line_height_used: f64,
+    resolved: &bridge::FfiResolvedFont,
+) -> FfiFontGroupBuildInputs {
+    let keyword_code = |property, map: fn(u16) -> Option<u8>| match effective_data(table, overlay, property) {
+        Some(StyleValueData::Keyword { keyword }) => map(*keyword).unwrap_or(0),
+        _ => 0,
+    };
+    let math_depth = match effective_data(table, overlay, prop::MATH_DEPTH) {
+        Some(StyleValueData::Integer { value }) => *value,
+        _ => 0,
+    };
+    FfiFontGroupBuildInputs {
+        font_size_raw: request.font_size_raw,
+        line_height_used_raw: CssPixels::nearest_value_for(line_height_used).raw_value(),
+        font_variant_emoji: keyword_code(
+            prop::FONT_VARIANT_EMOJI,
+            crate::css::css_enums::keyword_to_font_variant_emoji,
+        ),
+        font_ascent: resolved.ascent,
+        font_descent: resolved.descent,
+        font_x_height: resolved.x_height,
+        font_zero_advance: resolved.zero_advance,
+        first_available_font: resolved.first_available_font.as_pointer(),
+        font_cascade_list: resolved.font_cascade_list.as_pointer(),
+        font_weight: request.font_weight,
+        font_width: request.font_width,
+        math_shift: keyword_code(prop::MATH_SHIFT, crate::css::css_enums::keyword_to_math_shift),
+        math_style: keyword_code(prop::MATH_STYLE, crate::css::css_enums::keyword_to_math_style),
+        math_depth,
     }
 }

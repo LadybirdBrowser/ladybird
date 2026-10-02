@@ -637,7 +637,6 @@ impl RetainedState {
             LONGHAND_DRIVE_PHASE_LINE_HEIGHT, LONGHAND_DRIVE_PHASE_REMAINING, drive_property_computation,
             effective_display, empty_longhand_driver_results, font_family_is_monospace, keyword,
         };
-        use crate::css::table_group_builder::FfiFontGroupBuildInputs;
         use bridge::element_adjustment_fact as fact;
 
         let DriveSubject { target, parent, facts } = subject;
@@ -1014,82 +1013,21 @@ impl RetainedState {
             }
         }
 
-        // The element's own font, resolved as the C++ font computer would for these values.
-        let value_of = |table: &ComputedLonghandTable, property: u16| -> Option<&StyleValueData> {
-            unsafe {
-                table
-                    .effective_value(None, property, true)
-                    .value
-                    .cast::<StyleValueData>()
-                    .as_ref()
-            }
-        };
         // `font-variant-alternates` names features through its tree scope's `@font-feature-values`,
         // and the engine's resolver only has the document's. An element in a shadow tree that sets it
         // keeps its record in C++.
         if self.tree.tree_scope(target.node()) != TreeScopeID::DOCUMENT
             && !matches!(
-                value_of(&table, prop::FONT_VARIANT_ALTERNATES),
+                engine_sample::effective_data(&table, None, prop::FONT_VARIANT_ALTERNATES),
                 Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL
             )
         {
             counters.bump(Counter::EngineComputedRecordBailFontPhase);
             return Err(Unanswered::Refused);
         }
-        // The resolver reads these beside the family, so the request names each one whose computed
-        // value is not the initial one and nothing for the rest. A non-initial value can also come
-        // from inheritance.
-        let mut font_feature_values = [bridge::FfiHostHandle::default(); bridge::FONT_RESOLUTION_FEATURE_INPUT_COUNT];
-        for (input, property, initial_keyword) in FONT_RESOLUTION_FEATURE_PROPERTIES {
-            if !matches!(value_of(&table, property),
-                Some(StyleValueData::Keyword { keyword }) if *keyword == initial_keyword)
-            {
-                font_feature_values[input as usize] =
-                    bridge::FfiHostHandle::from_pointer(table.effective_value(None, property, true).value.cast());
-            }
-        }
-        // The font size the element's own lengths resolve against is the C++ working set's, a
-        // CSSPixels value, not the computed value's double. The font phase computes font-size,
-        // font-weight and font-width to these shapes.
-        let font_size = match value_of(&table, prop::FONT_SIZE) {
-            Some(StyleValueData::Length { value, unit }) if *unit == crate::css::style_compute::px_length_unit() => {
-                CssPixels::nearest_value_for(*value).to_double()
-            }
-            _ => unreachable!("the font phase left font-size uncomputed"),
-        };
-        let font_size_raw = CssPixels::nearest_value_for(font_size).raw_value();
-        let font_family = table.effective_value(None, prop::FONT_FAMILY, true).value;
-        let font_slope = match value_of(&table, prop::FONT_STYLE) {
-            Some(StyleValueData::FontStyle { font_style, .. }) => match *font_style {
-                crate::css::css_enums::font_style_keyword::ITALIC => 1,
-                crate::css::css_enums::font_style_keyword::OBLIQUE => 2,
-                _ => 0,
-            },
-            _ => 0,
-        };
-        let (font_weight, font_width) = match (value_of(&table, prop::FONT_WEIGHT), value_of(&table, prop::FONT_WIDTH))
-        {
-            (Some(StyleValueData::Number { value: weight }), Some(StyleValueData::Percentage { value: width })) => {
-                (*weight, *width)
-            }
-            _ => unreachable!("the font phase left font-weight or font-width uncomputed"),
-        };
-        let font_optical_sizing = match value_of(&table, prop::FONT_OPTICAL_SIZING) {
-            Some(StyleValueData::Keyword { keyword }) => {
-                crate::css::css_enums::keyword_to_font_optical_sizing(*keyword).unwrap_or(0)
-            }
-            _ => 0,
-        };
-        let request = bridge::FfiFontResolutionRequest {
-            font_family: bridge::FfiHostHandle::from_pointer(font_family.cast()),
-            font_feature_values,
-            font_size_raw,
-            font_slope,
-            font_weight,
-            font_width,
-            font_optical_sizing,
-            font_environment_generation: inputs.font_environment_generation,
-        };
+        // The element's own font, resolved as the C++ font computer would for these values.
+        let request = engine_sample::font_resolution_request(&table, None, inputs);
+        let font_size = request.font_size();
         let Some(resolved) = self
             .font_resolution
             .as_ref()
@@ -1142,22 +1080,7 @@ impl RetainedState {
             );
         }
 
-        // The used line height, as the C++ working set reads it from the computed value, which the
-        // line-height phase computes to one of these shapes.
-        let normal_line_height = f64::from(resolved.ascent.round() as i32 + resolved.descent.round() as i32);
-        let line_height_used = |table: &ComputedLonghandTable| -> f64 {
-            match value_of(table, prop::LINE_HEIGHT) {
-                Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL => normal_line_height,
-                Some(StyleValueData::Length { value, unit })
-                    if *unit == crate::css::style_compute::px_length_unit() =>
-                {
-                    CssPixels::nearest_value_for(*value).to_double()
-                }
-                Some(StyleValueData::Number { value }) => CssPixels::nearest_value_for(value * font_size).to_double(),
-                _ => unreachable!("the line-height phase left line-height uncomputed"),
-            }
-        };
-        let line_height_before_adjustments = line_height_used(&table);
+        let line_height_before_adjustments = engine_sample::used_line_height(&table, None, &request, &resolved);
         if goal == FontDriveGoal::RootInputs {
             let root_inputs = RootFontInputs {
                 metrics: [
@@ -1239,7 +1162,7 @@ impl RetainedState {
         let input_line_height_metrics = if has(fact::CHECK_INPUT_LINE_HEIGHT) {
             FfiInputLineHeightMetrics {
                 current_line_height: line_height_before_adjustments,
-                minimum_line_height: normal_line_height,
+                minimum_line_height: engine_sample::normal_line_height(&resolved),
             }
         } else {
             FfiInputLineHeightMetrics {
@@ -1272,34 +1195,8 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }
-        let line_height_used_after = line_height_used(&table);
-        let keyword_code = |property: u16, map: fn(u16) -> Option<u8>| match value_of(&table, property) {
-            Some(StyleValueData::Keyword { keyword }) => map(*keyword).unwrap_or(0),
-            _ => 0,
-        };
-        let math_depth = match value_of(&table, prop::MATH_DEPTH) {
-            Some(StyleValueData::Integer { value }) => *value,
-            _ => 0,
-        };
-        let font = FfiFontGroupBuildInputs {
-            font_size_raw,
-            line_height_used_raw: CssPixels::nearest_value_for(line_height_used_after).raw_value(),
-            font_variant_emoji: keyword_code(
-                prop::FONT_VARIANT_EMOJI,
-                crate::css::css_enums::keyword_to_font_variant_emoji,
-            ),
-            font_ascent: resolved.ascent,
-            font_descent: resolved.descent,
-            font_x_height: resolved.x_height,
-            font_zero_advance: resolved.zero_advance,
-            first_available_font: resolved.first_available_font.as_pointer(),
-            font_cascade_list: resolved.font_cascade_list.as_pointer(),
-            font_weight,
-            font_width,
-            math_shift: keyword_code(prop::MATH_SHIFT, crate::css::css_enums::keyword_to_math_shift),
-            math_style: keyword_code(prop::MATH_STYLE, crate::css::css_enums::keyword_to_math_style),
-            math_depth,
-        };
+        let line_height_used_after = engine_sample::used_line_height(&table, None, &request, &resolved);
+        let font = engine_sample::font_group_build_inputs(&table, None, &request, line_height_used_after, &resolved);
         let length = FfiLengthResolutionContext {
             resolved_viewport_relative_length: std::ptr::null_mut(),
             ..remaining_length
@@ -1313,37 +1210,6 @@ impl RetainedState {
         }))
     }
 }
-
-/// The property behind each value a font resolution request names, with the initial keyword for
-/// which the request names nothing.
-const FONT_RESOLUTION_FEATURE_PROPERTIES: [(bridge::FontResolutionFeatureInput, u16, u16);
-    bridge::FONT_RESOLUTION_FEATURE_INPUT_COUNT] = {
-    use crate::css::property_metadata::property_id as prop;
-    use crate::css::style_compute::keyword::{AUTO, NORMAL};
-    use bridge::FontResolutionFeatureInput as Input;
-    [
-        (Input::FontFeatureSettings, prop::FONT_FEATURE_SETTINGS, NORMAL),
-        (Input::FontVariationSettings, prop::FONT_VARIATION_SETTINGS, NORMAL),
-        (Input::FontVariantCaps, prop::FONT_VARIANT_CAPS, NORMAL),
-        (Input::FontVariantEastAsian, prop::FONT_VARIANT_EAST_ASIAN, NORMAL),
-        (Input::FontVariantEmoji, prop::FONT_VARIANT_EMOJI, NORMAL),
-        (Input::FontVariantLigatures, prop::FONT_VARIANT_LIGATURES, NORMAL),
-        (Input::FontVariantNumeric, prop::FONT_VARIANT_NUMERIC, NORMAL),
-        (Input::FontVariantPosition, prop::FONT_VARIANT_POSITION, NORMAL),
-        (Input::FontVariantAlternates, prop::FONT_VARIANT_ALTERNATES, NORMAL),
-        (Input::FontKerning, prop::FONT_KERNING, AUTO),
-        (Input::TextRendering, prop::TEXT_RENDERING, AUTO),
-    ]
-};
-
-// Every input appears once, at its own index, so no slot of a request goes unwritten.
-const _: () = {
-    let mut index = 0;
-    while index < FONT_RESOLUTION_FEATURE_PROPERTIES.len() {
-        assert!(FONT_RESOLUTION_FEATURE_PROPERTIES[index].0 as usize == index);
-        index += 1;
-    }
-};
 
 /// Whether a computed table's `animation-name` names any animation.
 fn table_names_animations(table: &ComputedLonghandTable) -> bool {
