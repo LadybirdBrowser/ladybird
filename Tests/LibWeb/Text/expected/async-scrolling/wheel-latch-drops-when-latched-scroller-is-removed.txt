@@ -1,0 +1,2 @@
+nested.scrollTop after the first step: 50
+window.scrollY after the next step: 50
