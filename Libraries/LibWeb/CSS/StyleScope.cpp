@@ -108,7 +108,8 @@ void StyleScope::add_sheet(StyleSheetState& sheet, StyleEngineUpdate style_engin
     sheet.load_pending_image_resources(document());
 
     insert_sheet_in_tree_order(sheet);
-    document().fonts()->synchronize_css_connected_font_order();
+    if (m_node->is_document())
+        document().fonts()->synchronize_css_connected_font_order();
 
     if (style_engine_update == StyleEngineUpdate::Record)
         record_stylesheet_attached(sheet, node(), following_sheet(sheet));
@@ -196,7 +197,8 @@ void StyleScope::move_sheet(StyleSheetState& sheet, StyleScope& destination)
     VERIFY(position.has_value());
     m_style_sheets.remove(*position);
     insert_sheet_in_tree_order(sheet);
-    document().fonts()->synchronize_css_connected_font_order();
+    if (m_node->is_document())
+        document().fonts()->synchronize_css_connected_font_order();
     record_stylesheet_attached(sheet, node(), following_sheet(sheet));
     invalidate_rule_cache_after_style_sheet_change(node(), sheet);
 }

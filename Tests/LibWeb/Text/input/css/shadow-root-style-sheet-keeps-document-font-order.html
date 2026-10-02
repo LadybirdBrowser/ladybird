@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: FirstFace;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+</style>
+<style id="second">
+    @font-face {
+        font-family: SecondFace;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+</style>
+<div id="host"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        document.fonts.add(new FontFace("ManualFace", 'url("../../../Ref/data/fonts/Ahem.ttf")'));
+        const families = () => [...document.fonts].map(face => face.family).join(", ");
+        println(`before shadow sheet: ${families()}`);
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                @font-face {
+                    font-family: ShadowFace;
+                    src: url("../../../Ref/data/fonts/Ahem.ttf");
+                }
+                span { color: green; }
+            </style>
+            <span>x</span>
+        `;
+        document.body.offsetWidth;
+        println(`after shadow sheet: ${families()}`);
+
+        shadowRoot.querySelector("style").remove();
+        document.body.offsetWidth;
+        println(`after removing shadow sheet: ${families()}`);
+
+        document.head.prepend(document.getElementById("second"));
+        document.body.offsetWidth;
+        println(`after moving a document sheet first: ${families()}`);
+    });
+</script>

@@ -1,0 +1,4 @@
+before shadow sheet: FirstFace, SecondFace, ManualFace
+after shadow sheet: FirstFace, SecondFace, ManualFace
+after removing shadow sheet: FirstFace, SecondFace, ManualFace
+after moving a document sheet first: SecondFace, FirstFace, ManualFace
