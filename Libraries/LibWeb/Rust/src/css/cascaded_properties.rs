@@ -1471,7 +1471,7 @@ pub(crate) unsafe fn resolve_declared_custom_properties(
         left_a_value_uncomputed: Cell::new(false),
     };
     let mut stats = unsafe {
-        rust_resolve_unresolved_style_values(
+        resolve_unresolved_style_values(
             input.resolution_context,
             inputs.as_ptr(),
             inputs.len(),
@@ -1965,8 +1965,7 @@ fn custom_property_components(inputs: &[FfiUnresolvedStyleValue]) -> (Vec<Vec<u3
 /// Every pointer must remain valid for this call. `outputs` must have room for
 /// `input_count` entries, and a finalizer must replace each component output
 /// with a live style value pointer before returning.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_resolve_unresolved_style_values(
+unsafe fn resolve_unresolved_style_values(
     resolution_context: *const FfiCascadeResolutionContext,
     inputs: *const FfiUnresolvedStyleValue,
     input_count: usize,

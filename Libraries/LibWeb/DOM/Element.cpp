@@ -2398,7 +2398,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
             style_computer.update_root_element_font_metrics(*new_computed_values);
             if (root_font_metrics_before != style_computer.root_element_font_metrics()
                 || root_font_metrics_depended_on_viewport_before != style_computer.root_element_font_metrics_depend_on_viewport_metrics()) {
-                style_computer.drop_style_sharing_cache();
                 document().bump_style_environment_version();
                 result.invalidation.recompute_descendant_styles = true;
             }
