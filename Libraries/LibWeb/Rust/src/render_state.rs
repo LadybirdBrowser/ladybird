@@ -123,7 +123,7 @@ impl ArenaChange {
     /// # Safety
     ///
     /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
-    unsafe fn apply(self, arena: &mut crate::layout::LayoutNodeArena, engine: StyleEngineHandle) {
+    pub(crate) unsafe fn apply(self, arena: &mut crate::layout::LayoutNodeArena, engine: StyleEngineHandle) {
         match self {
             Self::Layout(change) => change.apply(arena),
             Self::Paint(change) => change.apply(arena),
@@ -146,8 +146,6 @@ pub(crate) enum RenderMessage<'a> {
     },
     /// Drops the render state of a document the host has let go of.
     Destroy { document: DocumentId },
-    /// A write to a document's render state.
-    Change { document: DocumentId, change: ArenaChange },
     /// A style transaction of the document the host waits for.
     Style {
         document: DocumentId,
@@ -206,27 +204,21 @@ fn handle_message(_: &RenderingSide, message: RenderMessage<'_>) {
                 state.retire();
             }
         }
-        RenderMessage::Change { document, change } => {
-            // A document with no state is a bug of the sender's, whose change has nothing to change.
-            if let Some((arena, engine)) = state_parts(document) {
-                // SAFETY: The state keeps the arena and the engine where they are while the message is handled, and
-                // nothing else reaches them meanwhile.
-                unsafe { change.apply((*arena).arena_mut(), engine) };
-            }
-        }
         RenderMessage::Style { document, job, reply } => reply.answer(|| {
             let (_, engine) = state_parts(document).expect("a document the host styles has a render state");
-            // SAFETY: As for a change. The host lends the job its inputs, and what they name, until it has the answer.
+            // SAFETY: The state keeps the arena and the engine where they are while the message is handled, and nothing
+            // else reaches them meanwhile. The host lends the job its inputs, and what they name, until it has the
+            // answer.
             unsafe { job.run(engine.get_mut()) }
         }),
         RenderMessage::LayoutRound { document, job, reply } => reply.answer(|| {
             let (arena, _) = state_parts(document).expect("a document the host lays out has a render state");
-            // SAFETY: As for a change. The host keeps what the job's inputs name until it has the answer.
+            // SAFETY: As for a style job. The host keeps what the job's inputs name until it has the answer.
             job.run(unsafe { &mut *arena })
         }),
         RenderMessage::Paint { document, pass, reply } => reply.answer(|| {
             let (arena, _) = state_parts(document).expect("a document the host paints has a render state");
-            // SAFETY: As for a change.
+            // SAFETY: As for a style job.
             pass.run(unsafe { &mut *arena }.arena_mut())
         }),
         RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
