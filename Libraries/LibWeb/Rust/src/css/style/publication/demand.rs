@@ -273,11 +273,12 @@ impl StyleEngineState {
             self.retained.forget_node_match_answer_for_demand(node);
         }
         // The batch's answers for its other rows stay theirs: a row the host still applies, or
-        // retries once its ancestors installed, reads its answer after this demand.
+        // retries once its ancestors installed, reads its answer after this demand. The node is
+        // matched in a traversal that materializes the facts its selectors read as they ask, so a
+        // scan past the node's subtree (`:has()`, a sibling or an ancestor) widens the facts to the
+        // range it reads and matches again.
         let batch_answers = std::mem::take(&mut self.retained.published_match_answers);
-        if read_only || !self.retained.begin_cold_matching_batch(node, counters) {
-            self.retained.begin_adaptive_cold_matching_batch(node, counters);
-        }
+        self.retained.begin_adaptive_cold_matching_batch(node, counters);
         let retained_dispatch = if read_only {
             self.retained.retained_answer_dispatch_for_traversal(true)
         } else {
