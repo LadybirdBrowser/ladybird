@@ -13,11 +13,15 @@ use super::FfiCssPixelRect;
 use super::node_data::NodeSlotId;
 use super::used_values::FfiCssPixelSize;
 use crate::css::css_pixels::CssPixelRect;
+use crate::css::ffi_support::FfiUtf16View;
+use crate::css::style::tree::StyleNodeID;
+use crate::layout::rendered_text::FfiRenderedTextView;
+use crate::layout::text_queries::FfiDomTextRange;
 use crate::painting::ffi::{
     FfiBoxModelMetrics, FfiCaretRectResult, FfiEmptyLineCaretRect, FfiOptionalCssPixelRect, FfiRectToViewportTransform,
 };
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
-use crate::render_state::{DocumentHost, ScriptForcedRead};
+use crate::render_state::{Answer, ArenaAnswer, ArenaQuery, DocumentHost, LentSlice, Query, ScriptForcedRead, ask};
 use std::ffi::c_void;
 
 /// Mints the forced read of a script call that reaches the host through one of this module's entries.
@@ -441,4 +445,129 @@ pub unsafe extern "C" fn layout_script_paintable_content_size(
         }
         crate::painting::paintable_geometry::committed_content_size(paintable_rows, slot)
     })
+}
+
+/// Asks the render state of `host`'s document the arena question `query`, spending the script call's forced read.
+fn ask_arena(host: *mut DocumentHost, query: ArenaQuery) -> ArenaAnswer {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Every entry here is called with a live document host, on its document's thread.
+    let host = unsafe { &*host };
+    let Answer::Arena(answer) = ask(
+        ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY),
+        host,
+        Query::Arena(query),
+    ) else {
+        unreachable!("an arena question is answered from the arena");
+    };
+    answer
+}
+
+fn text_of(answer: ArenaAnswer) -> Vec<u16> {
+    let ArenaAnswer::Text(text) = answer else {
+        unreachable!("a text question is answered with text");
+    };
+    text
+}
+
+/// The text the rows of the text node whose primary row is `primary` render, with whitespace collapsed where their
+/// style collapses it if `collapse_whitespace`, handed to `append`.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, the primary and its fragments live text rows with
+/// styled parents, and `append` must copy the view synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_script_rendered_text(
+    host: *mut DocumentHost,
+    primary: NodeSlotId,
+    collapse_whitespace: bool,
+    context: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, FfiRenderedTextView),
+) {
+    let text = text_of(ask_arena(
+        host,
+        ArenaQuery::RenderedText {
+            primary,
+            collapse_whitespace,
+        },
+    ));
+    let view = FfiRenderedTextView {
+        text: text.as_ptr(),
+        length_in_code_units: text.len(),
+    };
+    // SAFETY: The text outlives the call, which copies it.
+    unsafe { append(context, view) };
+}
+
+/// The text the pseudo-element of kind `generated_for` on the element `style_node` resolved its generated content to
+/// when its box was built, as a raw `AK::Utf16String` representation for which the caller takes one reference.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_script_generated_content_accessible_text(
+    host: *mut DocumentHost,
+    style_node: u32,
+    generated_for: u8,
+) -> usize {
+    let text = match StyleNodeID::from_raw(style_node) {
+        Some(element) => text_of(ask_arena(
+            host,
+            ArenaQuery::GeneratedContentAccessibleText(crate::layout::counters::CounterOwner {
+                element,
+                generated_for,
+            }),
+        )),
+        None => Vec::new(),
+    };
+    ak::Utf16String::from_utf16(&text).into_raw()
+}
+
+/// Where `query` occurs in the searchable text below `viewport`, each match handed to `append`. The text of a DOM
+/// text node `is_searchable` turns down is not searched.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, the query must stay readable during the call, and
+/// the callbacks may read the DOM but must not change it or the layout tree.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_script_find_matching_text(
+    host: *mut DocumentHost,
+    viewport: NodeSlotId,
+    query: FfiUtf16View,
+    case_sensitive: bool,
+    is_searchable: unsafe extern "C" fn(*mut c_void, u32) -> bool,
+    context: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, FfiDomTextRange),
+) {
+    // SAFETY: The host lends the query for this synchronous call.
+    let query = unsafe { query.to_utf16() }.expect("query carries no storage");
+    if query.is_empty() {
+        return;
+    }
+    let ArenaAnswer::TextNodes(candidates) = ask_arena(host, ArenaQuery::SearchCandidates { viewport }) else {
+        unreachable!("search candidates are answered with text nodes");
+    };
+    let mut excluded: Vec<StyleNodeID> = candidates
+        .into_iter()
+        // SAFETY: The callback only reads whether the DOM text node is searchable.
+        .filter(|text| !unsafe { is_searchable(context, text.raw()) })
+        .collect();
+    excluded.sort_unstable();
+    let ArenaAnswer::TextRanges(matches) = ask_arena(
+        host,
+        ArenaQuery::FindText {
+            viewport,
+            query: LentSlice::new(&query),
+            case_sensitive,
+            excluded: LentSlice::new(&excluded),
+        },
+    ) else {
+        unreachable!("a search is answered with text ranges");
+    };
+    for range in matches {
+        // SAFETY: The host resolves each identity's DOM node itself, synchronously.
+        unsafe { append(context, range) };
+    }
 }

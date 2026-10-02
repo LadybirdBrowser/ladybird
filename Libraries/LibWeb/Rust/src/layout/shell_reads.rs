@@ -354,3 +354,23 @@ pub unsafe extern "C" fn layout_row_has_css_transform(host: *mut DocumentHost, i
         })
     }
 }
+
+/// The characters the generated text row `id` renders, as a raw `AK::Utf16String` representation for which the caller
+/// takes one reference.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and `id` a live generated text row.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_generated_text(host: *mut DocumentHost, id: NodeSlotId) -> usize {
+    use crate::render_state::{Answer, ArenaAnswer, ArenaQuery, Query, ask};
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let query = Query::Arena(ArenaQuery::GeneratedText(id));
+    let Answer::Arena(ArenaAnswer::Text(text)) = ask(LockstepProof::for_reason(&HOST_READS_ITS_OWN_WRITE), host, query)
+    else {
+        unreachable!("generated text is answered with text");
+    };
+    ak::Utf16String::from_utf16(&text).into_raw()
+}

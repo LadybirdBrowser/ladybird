@@ -96,6 +96,7 @@ lockstep_reason!(crate::layout::layout_changes::HostPaysTheWrite);
 lockstep_reason!(crate::layout::shell_reads::HostReadsItsOwnWrite);
 lockstep_reason!(crate::painting::ffi::InputReadsBoxes);
 lockstep_reason!(crate::painting::ffi::ScrollSnaps);
+lockstep_reason!(crate::layout::text_queries::InputSelectsByWord);
 
 /// Where the render side answers a host that waits for it. Only an answer goes through it: a reply dropped unanswered
 /// is a render state that died.
