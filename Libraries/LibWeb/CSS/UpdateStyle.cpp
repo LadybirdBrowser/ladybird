@@ -14,7 +14,6 @@
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
-#include <LibWeb/CSS/StyleInputRecord.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>

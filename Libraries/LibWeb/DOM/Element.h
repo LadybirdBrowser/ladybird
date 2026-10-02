@@ -20,7 +20,6 @@
 #include <LibWeb/Bindings/Element.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Selector.h>
-#include <LibWeb/CSS/StyleInputRecord.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/NonDocumentTypeChildNode.h>
@@ -595,12 +594,7 @@ public:
         CSS::PseudoElement pseudo_element;
         Vector<Utf16FlyString> references;
     };
-    [[nodiscard]] CSS::StyleInputRecord const* style_input_record() const { return m_style_input_record.ptr(); }
-    [[nodiscard]] CSS::StyleInputRecord* style_input_record() { return m_style_input_record.ptr(); }
-    void set_style_input_record(OwnPtr<CSS::StyleInputRecord>);
-    [[nodiscard]] OwnPtr<CSS::StyleInputRecord> take_style_input_record();
     void record_style_query_custom_property_reference(Optional<CSS::PseudoElement>, Utf16FlyString const&);
-    void finish_recording_style_dependencies();
 
     bool style_uses_attr_css_function() const { return m_style_uses_attr_css_function; }
     void set_style_uses_attr_css_function() { m_style_uses_attr_css_function = true; }
@@ -961,7 +955,6 @@ private:
     void append_to_attribute_list(QualifiedName, Utf16String value);
 
     void install_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
-    void publish_var_reads();
     void synchronize_attribute(Utf16FlyString const& qualified_name) const;
     void synchronize_attribute_ns(Optional<Utf16FlyString> const&, Utf16FlyString const& local_name) const;
     void synchronize_style_attribute() const;
@@ -1022,7 +1015,6 @@ private:
     CSS::StyleRecordID m_style_record_identity;
     u64 m_animation_style_generation { 0 };
     u64 m_animation_subtree_style_generation { 0 };
-    OwnPtr<CSS::StyleInputRecord> m_style_input_record;
     PublishedCustomPropertyNames m_published_custom_property_names;
     Vector<CSS::StyleProperty> m_published_presentational_hint_properties;
 
