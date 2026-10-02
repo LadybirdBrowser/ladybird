@@ -12,7 +12,7 @@ use crate::css::style::StyleEngine;
 use crate::css::style::bridge::{ElementBoxKind, element_adjustment_fact};
 use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord};
 use crate::css::style::tree::StyleNodeID;
-use crate::layout::layout_node_arena::{LayoutNodeArena, StaleWalkFacts};
+use crate::layout::layout_node_arena::{LayoutNodeArena, OwedImageResources, StaleWalkFacts};
 use crate::layout::node_data::{
     GENERATED_FOR_AFTER, GENERATED_FOR_BACKDROP, GENERATED_FOR_BEFORE, GENERATED_FOR_FIRST_LETTER,
     GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId, SELECTION_PSEUDO_KIND, pseudo_kind_of,
@@ -131,17 +131,9 @@ pub struct FfiDomTreeBuilderCallbacks {
     /// style update before the build settles every element it walks; a top layer, slot projection
     /// or SVG reference path can reach one it did not.
     pub restyle_bypass_path_element: unsafe extern "C" fn(*mut c_void, u32),
-    /// Attaches the image resources a box's style asks for. Principal and pseudo-element boxes both
-    /// go through this; nothing about it depends on which the box is. The flag says the box
-    /// replaces its element's contents with a single image, whose provider it owns.
-    pub attach_style_resources: unsafe extern "C" fn(*mut c_void, NodeSlotId, bool),
     /// The style the list marker a list-item pseudo-element nests is built from: the generator's
     /// `::marker` style, interned as a record of its own, which the build pins.
     pub nested_list_marker_style: unsafe extern "C" fn(*mut c_void, u32) -> u64,
-    /// Gives a generated image box the provider of the image it shows, which the box owns, and
-    /// attaches the box's style resources. The image is the `<image>` at the given index of the
-    /// pseudo-element's `content`, or the given marker's `list-style-image`.
-    pub attach_generated_image: unsafe extern "C" fn(*mut c_void, NodeSlotId, u32, FfiPseudoElement, FfiGeneratedImage),
 }
 
 /// What the build knows about a node when it enters it: what its marks ask for, and what layout
@@ -2418,8 +2410,12 @@ fn update_principal_node_after_entry(
     if !construction.layout_node.is_invalid() {
         let layout_node = construction.layout_node;
         if update.kind.is_element() || update.kind.is_document() {
-            host.work
-                .owe_style_resources(layout_node, construction.owns_content_replacement_image);
+            host.arena().owe_image_resources(
+                layout_node,
+                OwedImageResources::StyleResources {
+                    owns_content_replacement_image: construction.owns_content_replacement_image,
+                },
+            );
         }
 
         let starts_new_subtree = entry_decision.should_create_layout_node && update.state.new_subtree_root.is_invalid();
@@ -3055,7 +3051,12 @@ fn stamp_nested_list_marker_row(
         .arena()
         .set_node_flag(slot, NodeFlag::ListMarkerIsInside, marker_position_is_inside);
     layout_host.note_style_of_built_row(slot, None);
-    layout_host.work.owe_style_resources(slot, false);
+    layout_host.arena().owe_image_resources(
+        slot,
+        OwedImageResources::StyleResources {
+            owns_content_replacement_image: false,
+        },
+    );
     slot
 }
 
@@ -3109,11 +3110,14 @@ fn create_generated_content_item(
     layout_host
         .arena()
         .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
-    // SAFETY: The builder remains live, the identity names a live element, and the row the build
-    // stamped is a live image box, whose shell the host makes as it attaches the image.
-    unsafe {
-        (host.callbacks.attach_generated_image)(host.callbacks.builder, slot, generator.raw(), pseudo_element, image);
-    }
+    layout_host.arena().owe_image_resources(
+        slot,
+        OwedImageResources::GeneratedImage {
+            generator,
+            pseudo_element,
+            image,
+        },
+    );
     slot
 }
 
@@ -3159,8 +3163,12 @@ fn create_pseudo_element(
 
     host.arena()
         .stamp_pseudo_element_box(layout_node, element_identity, generated_for_of(pseudo_element));
-    host.work
-        .owe_style_resources(layout_node, decision == FfiPseudoElementDecision::ContentReplacement);
+    host.arena().owe_image_resources(
+        layout_node,
+        OwedImageResources::StyleResources {
+            owns_content_replacement_image: decision == FfiPseudoElementDecision::ContentReplacement,
+        },
+    );
     if decision == FfiPseudoElementDecision::ContentReplacement {
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
@@ -3757,7 +3765,12 @@ impl TreeBuilderHost<'_> {
         self.arena().refresh_insets_use_anchor_functions_flag(slot);
         // An anonymous inline box takes its style from its parent, so it may name images too.
         if node_kind == NodeKind::InlineNode {
-            self.work.owe_style_resources(slot, false);
+            self.arena().owe_image_resources(
+                slot,
+                OwedImageResources::StyleResources {
+                    owns_content_replacement_image: false,
+                },
+            );
         }
         UnplacedLayoutNode::new(slot)
     }
@@ -4506,7 +4519,12 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID
         .arena()
         .stamp_pseudo_element_row(wrapper_slot, wrapper_kind, element, GENERATED_FOR_FIRST_LETTER);
     layout_host.note_style_of_built_row(wrapper_slot, None);
-    layout_host.work.owe_style_resources(wrapper_slot, false);
+    layout_host.arena().owe_image_resources(
+        wrapper_slot,
+        OwedImageResources::StyleResources {
+            owns_content_replacement_image: false,
+        },
+    );
     host.arena()
         .clear_pseudo_element_box(element, GENERATED_FOR_FIRST_LETTER);
     host.arena()

@@ -173,20 +173,12 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     }
 
     // The walk is over. What it owes the host is paid first, as it would have been while the walk
-    // ran: the boxes nodes gained or lost, the host-owned objects of the rows it freed, the style
-    // changes of the shells of the boxes it kept, and the style resources of the rows it stamped.
+    // ran: the boxes nodes gained or lost, the host-owned objects of the rows it freed, and the
+    // style changes of the shells of the boxes it kept. The image resources of the rows it stamped
+    // wait for the layout update to be over.
     drop(walk);
-    // SAFETY: Guaranteed by the entry point's contract.
-    let callbacks = unsafe { &*callbacks };
     // SAFETY: The arena outlives the build, and no arena borrow is held across the host calls.
-    work.apply(
-        &main_thread,
-        unsafe { LayoutNodeArena::from_handle(arena) },
-        |row, owns_content_replacement_image| {
-            // SAFETY: The builder remains live, and the row is a live NodeWithStyle.
-            unsafe { (callbacks.attach_style_resources)(callbacks.builder, row, owns_content_replacement_image) };
-        },
-    );
+    work.apply(&main_thread, unsafe { LayoutNodeArena::from_handle(arena) });
 
     // What the build found out goes to the document now that the walk that could clear DOM update
     // flags is complete, in the order the build found it out.

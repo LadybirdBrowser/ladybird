@@ -1,0 +1,3 @@
+generated: 120x120
+replaced: 120x120
+marker: true, true

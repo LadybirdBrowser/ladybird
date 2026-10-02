@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(reused.slot_index(), freed.slot_index());
         host_tables.replace_image_observers(reused, object(16));
 
-        work.apply(&main_thread, &arena, |_, _| {});
+        work.apply(&main_thread, &arena);
         assert!(host_tables.image_observers(freed).is_null());
         assert_eq!(host_tables.image_observers(reused), object(16));
         host_tables.replace_image_observers(reused, std::ptr::null_mut());

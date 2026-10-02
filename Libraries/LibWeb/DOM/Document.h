@@ -1990,6 +1990,9 @@ private:
     HashMap<Web::AsyncScrollNodeStableID, Compositing::SnappedAreas> m_scroll_container_snapped_areas;
     Vector<Compositing::RustFFI::NodeSlotId> m_scroll_snap_containers;
     bool m_needs_scroll_container_resnap { false };
+    // Whether an image box handed the provider it owns after a layout update found its image already there, so it lays
+    // out again with it.
+    bool m_owed_image_provider_arrived_with_image { false };
     bool m_may_have_scroll_snap_areas { false };
     bool m_may_have_blocking_wheel_event_listener { false };
     bool m_may_have_dom_paint_facts { false };

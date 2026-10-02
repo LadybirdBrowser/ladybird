@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    .container {
+        container-type: inline-size;
+        width: 200px;
+    }
+    .generated::before {
+        content: url(../../../Assets/120.png);
+        color: red;
+    }
+    .replaced {
+        content: url(../../../Assets/120.png);
+        color: red;
+    }
+    @container (min-width: 100px) {
+        .generated::before, .replaced {
+            color: green;
+        }
+    }
+    span {
+        display: inline-block;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // The layout of a new container restyles the image boxes its first layout update built, before that
+        // update is over and the boxes are handed the providers they own.
+        const container = document.createElement("div");
+        container.className = "container";
+        container.innerHTML = `<span class="generated"></span><span class="replaced"></span>`;
+        document.body.appendChild(container);
+        const [generated, replaced] = container.children;
+        println(`container: ${container.offsetWidth}`);
+        println(`generated: ${getComputedStyle(generated, "::before").color}`);
+        println(`replaced: ${getComputedStyle(replaced).color}`);
+    });
+</script>
