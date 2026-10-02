@@ -24,6 +24,13 @@ use libcompositing_rust::ffi::{ffi_slice, tree_from_handle};
 use libgfx_rust::filter::Filter;
 use std::ffi::c_void;
 
+/// Mints the main thread token for this module's FFI entry points; only this module can make one.
+pub(crate) struct MainThreadFfiEntry {
+    _private: (),
+}
+
+const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
+
 /// SAFETY: `arena` must be a live handle from `layout_arena_create`, borrowed for this call on
 /// the document thread.
 pub(crate) unsafe fn arena_from_handle<'a>(arena: *mut c_void) -> &'a LayoutNodeArena {
@@ -432,7 +439,9 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_
         arena.prepare_paintable_row_cleared_reset(layout_node)
     };
     if let Some(reset) = reset {
-        reset.invoke_callback();
+        // SAFETY: Guaranteed by the entry point's contract.
+        let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+        reset.tell(&main_thread);
         let arena = unsafe { arena_from_handle_mut(arena) };
         arena.paintable_row_cleared(reset);
     }
@@ -567,8 +576,11 @@ pub unsafe extern "C" fn layout_arena_prepare_for_rendering(
     callbacks: FfiVisualContextHostCallbacks,
     visual_context_update_pending: bool,
 ) -> FfiRenderingPreparationOutcome {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     let arena = unsafe { arena_from_handle(arena) };
     prepare_for_rendering(
+        &main_thread,
         arena,
         &callbacks,
         crate::layout::viewport_propagation::root_background_source(arena),
@@ -577,6 +589,7 @@ pub unsafe extern "C" fn layout_arena_prepare_for_rendering(
 }
 
 fn prepare_for_rendering(
+    main_thread: &crate::stage::MainThread,
     arena: &LayoutNodeArena,
     callbacks: &FfiVisualContextHostCallbacks,
     root_background_source: crate::painting::host::RootBackgroundSource,
@@ -586,7 +599,7 @@ fn prepare_for_rendering(
         .paint_state()
         .borrow_mut()
         .update_root_background_source(arena, root_background_source);
-    crate::painting::scrollable_overflow::update_scrollable_overflow(arena);
+    crate::painting::scrollable_overflow::update_scrollable_overflow(main_thread, arena);
     // The root background covers the viewport united with the root's scrollable overflow, which
     // recording reads. Measure it here: measuring it lazily during recording could flip its
     // scrollability while the paint state is borrowed, and the flip would miss this frame.
@@ -603,7 +616,7 @@ fn prepare_for_rendering(
                 &rows,
                 &state.scroll_state,
                 tree,
-                &callbacks.tree_inputs(),
+                &callbacks.tree_inputs(main_thread),
             );
         }
         state.needs_to_refresh_scroll_state = true;
@@ -950,6 +963,7 @@ fn apply_walk_assignments(
 }
 
 fn fresh_visual_context_tree_build(
+    main_thread: &crate::stage::MainThread,
     arena: *mut c_void,
     viewport: NodeSlotId,
     callbacks: &FfiVisualContextHostCallbacks,
@@ -968,7 +982,8 @@ fn fresh_visual_context_tree_build(
             viewport,
             &inputs,
         );
-        fresh_tree.viewport_assignment.node_identity = callbacks.node_identity(arena.shell_if_live(viewport));
+        fresh_tree.viewport_assignment.node_identity =
+            callbacks.node_identity(main_thread, arena.shell_if_live(viewport));
         fresh_tree
     };
     {
@@ -986,6 +1001,7 @@ fn fresh_visual_context_tree_build(
         match update_visual_context_tree(
             &paintable_rows,
             callbacks,
+            main_thread,
             viewport,
             inputs,
             VisualContextUpdateScope::FreshTree,
@@ -1053,7 +1069,9 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
     if !arena_ref.paintable_row_is_populated(viewport) {
         return crate::painting::host::FfiVisualContextUpdateOutcome::default();
     }
-    let inputs = callbacks.tree_inputs();
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let inputs = callbacks.tree_inputs(&main_thread);
     let mut state = std::mem::take(&mut arena_ref.paint_state().borrow_mut().visual_context);
     state.release_quarantined_slots_while_no_handle_is_retained();
 
@@ -1079,7 +1097,15 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
         }
         let result = {
             let paintable_rows = arena_ref.paintable_rows();
-            update_visual_context_tree(&paintable_rows, &callbacks, viewport, inputs, scope, &mut state)
+            update_visual_context_tree(
+                &paintable_rows,
+                &callbacks,
+                &main_thread,
+                viewport,
+                inputs,
+                scope,
+                &mut state,
+            )
         };
         match result {
             IncrementalUpdateResult::Applied(mut outcome) => {
@@ -1123,7 +1149,7 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
     }
 
     state.last_full_build_reason = reason;
-    let outcome = fresh_visual_context_tree_build(arena, viewport, &callbacks, inputs, &mut state);
+    let outcome = fresh_visual_context_tree_build(&main_thread, arena, viewport, &callbacks, inputs, &mut state);
     state.last_tree_inputs = Some(inputs);
     let arena_ref = unsafe { arena_from_handle(arena) };
     arena_ref.paint_state().borrow_mut().visual_context = state;
@@ -1195,7 +1221,9 @@ pub unsafe extern "C" fn layout_arena_update_visual_viewport_transform(
     let Some(tree) = &mut paint_state.visual_context.tree else {
         return false;
     };
-    let inputs = callbacks.tree_inputs();
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    let inputs = callbacks.tree_inputs(&main_thread);
     std::sync::Arc::make_mut(tree).set_visual_viewport_transform(
         crate::painting::visual_context::node_values::visual_viewport_transform_data(&inputs),
     );
@@ -1253,6 +1281,8 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
     sink: *mut c_void,
     publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
 ) -> bool {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     let arena = unsafe { arena_from_handle(arena) };
     let snapshot = {
         let paintable_rows = arena.paintable_rows();
@@ -1265,11 +1295,12 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
         crate::painting::visual_context::refresh::refresh_scroll_state(
             &paintable_rows,
             &callbacks,
+            &main_thread,
             &mut state.scroll_state,
         );
         let mut snapshot = state
             .scroll_state
-            .snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
+            .snapshot(callbacks.tree_inputs(&main_thread).device_pixels_per_css_pixel);
         // https://drafts.csswg.org/css-position/#sticky-pos
         if let Some(tree) = state.tree.as_deref() {
             tree.resolve_sticky_offsets_in_place(&mut snapshot);
@@ -1611,11 +1642,13 @@ pub unsafe extern "C" fn layout_arena_publish_recording(
     arena: *mut c_void,
     publish: crate::painting::host::FfiRecordingPublishCallbacks,
 ) -> u64 {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     let arena = unsafe { arena_from_handle(arena) };
     let Some(pending) = arena.paint_state().borrow_mut().pending_recording.take() else {
         return 0;
     };
-    crate::painting::record::publish::publish_recording(arena, pending, &publish)
+    crate::painting::record::publish::publish_recording(arena, pending, &main_thread, &publish)
 }
 
 /// # Safety
@@ -3522,8 +3555,11 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_closest_line(
     scoped: bool,
     respect_clip: bool,
 ) -> crate::painting::host::FfiClosestLine {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     with_hit_test_list_spatial_indexes_and_visual_context_tree(arena, true, Default::default(), |list, tree, arena| {
         let closest = list.find_closest_line(
+            &main_thread,
             arena,
             tree,
             &callbacks,
@@ -3562,8 +3598,11 @@ pub unsafe extern "C" fn layout_arena_hit_test_adjacent_line(
     } else {
         crate::painting::hit_test::caret::CaretLineDirection::Previous
     };
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     with_hit_test_list_and_caret_lines(arena, Default::default(), |list, arena| {
         match list.adjacent_line(
+            &main_thread,
             arena,
             &callbacks,
             current_line_index,
@@ -3726,13 +3765,9 @@ mod tests {
         arena.paint_state().borrow_mut().visual_context.dirty_boxes.clear();
 
         let outcome = prepare_for_rendering(
+            &crate::stage::MainThread::for_test(),
             &arena,
-            &FfiVisualContextHostCallbacks {
-                context: std::ptr::null_mut(),
-                tree_inputs,
-                scroll_offset,
-                node_identity,
-            },
+            &FfiVisualContextHostCallbacks::for_test(tree_inputs, scroll_offset, node_identity),
             RootBackgroundSource {
                 root_layout_node: root,
                 ..Default::default()

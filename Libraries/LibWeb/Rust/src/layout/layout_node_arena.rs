@@ -35,6 +35,13 @@ use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
 use std::thread;
 
+/// Mints the main thread token for this module's FFI entry points; only this module can make one.
+pub(crate) struct MainThreadFfiEntry {
+    _private: (),
+}
+
+const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
+
 pub(crate) const SLOTS_PER_CHUNK: usize = 256;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -471,12 +478,12 @@ impl FreedSubtree {
         self.arena_pinned_style_records.len()
     }
 
-    pub(crate) fn destroy_shells_and_invoke_callbacks(self) {
+    pub(crate) fn destroy_shells_and_invoke_callbacks(self, main_thread: &crate::stage::MainThread) {
         for shell in self.shells {
-            crate::layout::tree_mutation::destroy_shell(shell);
+            crate::layout::tree_mutation::destroy_shell(main_thread, shell);
         }
         for reset in self.paintable_row_resets {
-            reset.invoke_callback();
+            reset.tell(main_thread);
         }
         if let Some(host) = self.style_record_host {
             for style_record in self.arena_pinned_style_records {
@@ -4440,9 +4447,11 @@ pub unsafe extern "C" fn layout_arena_allocate(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_free_subtree(arena: *mut c_void, root: NodeSlotId) {
     assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on
     // the document thread.
-    crate::layout::tree_mutation::free_subtree_and_destroy_shells(arena.cast::<LayoutNodeArena>(), root);
+    crate::layout::tree_mutation::free_subtree_and_destroy_shells(&main_thread, arena.cast::<LayoutNodeArena>(), root);
 }
 
 /// # Safety
@@ -4457,7 +4466,9 @@ pub unsafe extern "C" fn layout_arena_detach_and_free_subtree(arena: *mut c_void
     // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on
     // the document thread; the shared borrow ends before the subtree is freed.
     let was_attached = unsafe { &*arena }.detach_from_parent(node);
-    crate::layout::tree_mutation::free_subtree_and_destroy_shells(arena, node);
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    crate::layout::tree_mutation::free_subtree_and_destroy_shells(&main_thread, arena, node);
     was_attached
 }
 
@@ -5220,7 +5231,9 @@ mod tests {
         arena.set_node_generated_for(generated, 1, Some(style_node));
         assert!(rows.iter().all(|row| arena.node_style_node(*row) == Some(style_node)));
 
-        arena.free_subtree(rows[1]).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(rows[1])
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         arena.forget_style_node(style_node);
         assert_eq!(arena.node_style_node(rows[0]), None);
         assert_eq!(arena.node_style_node(rows[2]), None);
@@ -5230,7 +5243,9 @@ mod tests {
         arena.set_style_node_of_generated_subtree(generated, Some(reconnected));
         assert_eq!(arena.node_style_node(generated), Some(reconnected));
         for row in [rows[0], rows[2], generated] {
-            arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         }
         arena.forget_style_node(reconnected);
     }
@@ -5300,10 +5315,14 @@ mod tests {
         assert_eq!(arena.dom_node_style_node(pseudo_element), None);
         assert_eq!(arena.dom_node_style_node(principal), Some(element));
 
-        arena.free_subtree(principal).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(principal)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert_eq!(arena.commit_message_style_node(principal), None);
         for row in [viewport, anonymous, pseudo_element] {
-            arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         }
         arena.forget_style_node(element);
     }
@@ -5330,7 +5349,9 @@ mod tests {
             .prepare_paintable_row_cleared_reset(row)
             .expect("a populated row has a reset");
         arena.paintable_row_cleared(reset);
-        arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(row)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         arena.set_box_presence_host(None);
 
         let both = BOX_PRESENCE_HAS_LAYOUT_BOX | BOX_PRESENCE_HAS_COMMITTED_BOX;
@@ -5376,7 +5397,9 @@ mod tests {
         assert_eq!(arena.bound_row(changed), new_row);
 
         // Freeing the bound row binds the node to a row that still shares it.
-        arena.free_subtree(new_row).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(new_row)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert_eq!(arena.bound_row(changed), old_row);
         arena.unbind_row(old_row);
         assert!(arena.bound_row(changed).is_invalid());
@@ -5387,11 +5410,15 @@ mod tests {
         let viewport = arena.allocate(test_construction_facts_with_kind(NodeKind::Viewport));
         arena.bind_row(viewport);
         assert_eq!(arena.bound_viewport_row(), viewport);
-        arena.free_subtree(viewport).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(viewport)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(arena.bound_viewport_row().is_invalid());
 
         for row in [old_row, slice_row] {
-            arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         }
     }
 
@@ -5424,9 +5451,13 @@ mod tests {
 
         arena.set_node_generated_for(principal_box, 1, Some(generator));
         arena.bind_row(principal_box);
-        arena.free_subtree(principal_box).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(principal_box)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(arena.bound_pseudo_element_row(generator, 1).is_invalid());
-        arena.free_subtree(content).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(content)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -5453,7 +5484,9 @@ mod tests {
         arena.set_style_node_of_rows_sharing_dom_node_with(text_row, Some(StyleNodeID::text(5)));
         assert_eq!(arena.node_style_node(text_row), Some(StyleNodeID::text(5)));
         for row in [element_row, text_row] {
-            arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         }
     }
 
@@ -5467,14 +5500,16 @@ mod tests {
 
         let unbound_freed = arena.free_subtree(slot);
         assert_eq!(unbound_freed.shell_count(), 1);
-        unbound_freed.destroy_shells_and_invoke_callbacks();
+        unbound_freed.destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(!arena.slot_is_live(slot));
 
         let slot = arena.allocate_unbound();
         arena.bind_shell(slot, test_construction_facts());
         assert_eq!(arena.data(slot).kind.get(), NodeKind::Box);
         assert!(arena.data(slot).flags.get() & NodeFlag::HasStyle as u32 != 0);
-        arena.free_subtree(slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -5486,12 +5521,16 @@ mod tests {
         arena.set_pending_rebuilt_subtree_roots(vec![rebuilt], true);
         assert_eq!(arena.layout_root(), viewport);
 
-        arena.free_subtree(rebuilt).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(rebuilt)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert_eq!(arena.layout_root(), viewport);
         assert_eq!(arena.take_pending_rebuilt_subtree_roots(), (vec![rebuilt], true));
 
         arena.set_pending_rebuilt_subtree_roots(vec![viewport], false);
-        arena.free_subtree(viewport).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(viewport)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(arena.layout_root().is_invalid());
         assert_eq!(arena.take_pending_rebuilt_subtree_roots(), (Vec::new(), false));
     }
@@ -5522,10 +5561,10 @@ mod tests {
 
         let freed = arena.free_subtree(slot);
         assert_eq!(freed.arena_pinned_style_record_count(), 1);
-        freed.destroy_shells_and_invoke_callbacks();
+        freed.destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         let freed = arena.free_subtree(element);
         assert_eq!(freed.arena_pinned_style_record_count(), 0);
-        freed.destroy_shells_and_invoke_callbacks();
+        freed.destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -5549,7 +5588,9 @@ mod tests {
             nested_anonymous
         );
 
-        arena.free_subtree(root).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(root)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -5561,17 +5602,21 @@ mod tests {
         assert!(arena.node_is_dom_backed(element));
         assert_eq!(arena.live_slot_count(), 2);
 
-        arena.free_subtree(element).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(element)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(!arena.node_is_dom_backed(element));
         let reoccupant = arena.allocate_for_test();
         assert_eq!(reoccupant.slot.slot_index(), element.slot_index());
         assert!(!arena.node_is_dom_backed(element));
         assert!(!arena.node_is_dom_backed(reoccupant.slot));
 
-        arena.free_subtree(anonymous).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(anonymous)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         arena
             .free_subtree(reoccupant.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert_eq!(arena.live_slot_count(), 0);
     }
 
@@ -5683,11 +5728,13 @@ mod tests {
         assert_eq!(first_data_address, std::ptr::from_ref(arena.data(first.slot)) as usize);
         arena.data(first.slot).table_column_span.set(42);
         assert_eq!(arena.data(first.slot).table_column_span.get(), 42);
-        arena.free_subtree(first.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(first.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         for allocation in allocations {
             arena
                 .free_subtree(allocation.slot)
-                .destroy_shells_and_invoke_callbacks();
+                .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         }
     }
 
@@ -5699,20 +5746,24 @@ mod tests {
         assert_eq!(std::ptr::from_ref(arena.data(allocation.slot)) as usize % 64, 0);
         arena
             .free_subtree(allocation.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
     fn freed_slots_are_reused_with_a_new_generation() {
         let mut arena = LayoutNodeArena::new();
         let first = arena.allocate_for_test();
-        arena.free_subtree(first.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(first.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
 
         let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         assert_ne!(second.slot, first.slot);
         assert_ne!(second.slot.generation(), first.slot.generation());
-        arena.free_subtree(second.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(second.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -5728,7 +5779,9 @@ mod tests {
         assert_ne!(flags & NodeFlag::CompensatesForHorizontalScroll as u32, 0);
         assert_eq!(flags & NodeFlag::CompensatesForVerticalScroll as u32, 0);
 
-        arena.free_subtree(anchor.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(anchor.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(arena.default_scroll_shift_anchor(positioned.slot).is_invalid());
 
         let anchor_slot_reoccupant = arena.allocate_for_test();
@@ -5748,7 +5801,7 @@ mod tests {
 
         arena
             .free_subtree(positioned.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         let positioned_slot_reoccupant = arena.allocate_for_test();
         assert_eq!(
             positioned_slot_reoccupant.slot.slot_index(),
@@ -5757,16 +5810,16 @@ mod tests {
         arena.set_default_scroll_shift(positioned_slot_reoccupant.slot, anchor_slot_reoccupant.slot, true, true);
         arena
             .free_subtree(positioned_slot_reoccupant.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         let next_reoccupant = arena.allocate_for_test();
         assert!(arena.default_scroll_shift_anchor(next_reoccupant.slot).is_invalid());
 
         arena
             .free_subtree(next_reoccupant.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         arena
             .free_subtree(anchor_slot_reoccupant.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -5811,17 +5864,19 @@ mod tests {
         arena.set_default_scroll_shift(positioned.slot, anchor.slot, false, true);
         arena.for_each_default_scroll_shift_anchor(|positioned, anchor| anchored_pairs.push((positioned, anchor)));
         assert_eq!(anchored_pairs, vec![(positioned.slot, anchor.slot)]);
-        arena.free_subtree(anchor.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(anchor.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         anchored_pairs.clear();
         arena.for_each_default_scroll_shift_anchor(|positioned, anchor| anchored_pairs.push((positioned, anchor)));
         assert!(anchored_pairs.is_empty());
 
         arena
             .free_subtree(positioned.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         arena
             .free_subtree(other_anchor.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -5851,9 +5906,15 @@ mod tests {
         assert_eq!(arena.data(child.slot).flags.get() & update_flags, 0);
         assert_eq!(arena.data(detached.slot).flags.get() & update_flags, update_flags);
         arena.remove_child(root.slot, child.slot);
-        arena.free_subtree(root.slot).destroy_shells_and_invoke_callbacks();
-        arena.free_subtree(child.slot).destroy_shells_and_invoke_callbacks();
-        arena.free_subtree(detached.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(root.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        arena
+            .free_subtree(child.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        arena
+            .free_subtree(detached.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -5883,7 +5944,9 @@ mod tests {
         }
         assert!(arena.nodes_with_layout_update_flags.borrow().is_empty());
         arena.set_node_flag(boundaries[0].0.slot, NodeFlag::NeedsLayoutUpdate, true);
-        arena.free_subtree(viewport.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(viewport.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(arena.nodes_with_layout_update_flags.borrow().is_empty());
         assert!(arena.layout_update_flag_node_indices.borrow().is_empty());
     }
@@ -5917,20 +5980,28 @@ mod tests {
             );
         }
         assert_eq!(arena.nodes_with_layout_update_flags.borrow().len(), 64);
-        arena.free_subtree(viewport.slot).destroy_shells_and_invoke_callbacks();
-        arena.free_subtree(detached.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(viewport.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        arena
+            .free_subtree(detached.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
     fn stale_slot_ids_do_not_resolve_to_a_new_occupant() {
         let mut arena = LayoutNodeArena::new();
         let first = arena.allocate_for_test();
-        arena.free_subtree(first.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(first.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         let second = arena.allocate_for_test();
 
         let stale_read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| arena.data(first.slot)));
         assert!(stale_read.is_err());
-        arena.free_subtree(second.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(second.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     fn test_abspos_layout_inputs() -> AbsposLayoutInputs {
@@ -5983,7 +6054,7 @@ mod tests {
         assert_eq!(arena.saved_abspos_layout_inputs(arena.data(allocation.slot)), None);
         arena
             .free_subtree(allocation.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -6012,8 +6083,12 @@ mod tests {
         assert!(std::sync::Arc::ptr_eq(&moved.fragment, &retained_fragment));
         arena.set_committed_fragment_link(arena.data(new.slot), test_fragment_link(new.slot), None);
         assert_eq!(arena.saved_abspos_layout_inputs(arena.data(new.slot)), None);
-        arena.free_subtree(old.slot).destroy_shells_and_invoke_callbacks();
-        arena.free_subtree(new.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(old.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        arena
+            .free_subtree(new.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -6096,7 +6171,9 @@ mod tests {
             false
         }));
         assert_eq!(dependency_computations.get(), 2);
-        arena.free_subtree(first.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(first.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
 
         let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
@@ -6114,7 +6191,9 @@ mod tests {
             ),
             None
         );
-        arena.free_subtree(second.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(second.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -6215,7 +6294,7 @@ mod tests {
         );
         arena
             .free_subtree(allocation.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -6265,12 +6344,16 @@ mod tests {
             .intrinsic_cache_epoch
             .set(first_data.intrinsic_cache_epoch.get() + 1);
         assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
-        arena.free_subtree(first.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(first.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
 
         let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         let second_data = &*arena.data(second.slot);
         assert_eq!(arena.table_cell_measurement_cache_get(second_data, key), None);
-        arena.free_subtree(second.slot).destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(second.slot)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 }

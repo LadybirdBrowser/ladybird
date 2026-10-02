@@ -21,7 +21,15 @@ use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_le
 use crate::layout::tree_mutation::{UnplacedLayoutNode, free_subtree_and_destroy_shells};
 use crate::layout::tree_update_marks::layout_tree_update_reuse_reason;
 use crate::layout::{ComputedValuesView, FfiDisplay};
+use crate::stage::MainThread;
 use std::ffi::c_void;
+
+/// Mints the main thread token for this module's FFI entry points; only this module can make one.
+pub(crate) struct MainThreadFfiEntry {
+    _private: (),
+}
+
+const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
 
 type LayoutNode = NodeSlotId;
 
@@ -374,6 +382,8 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
     assert!(!callbacks.is_null());
     assert!(!arena.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    // SAFETY: Guaranteed by the entry point's contract.
     let callbacks = unsafe { &*callbacks };
     let arena = arena.cast::<LayoutNodeArena>();
     let host = StaleSubtreeHost {
@@ -400,7 +410,7 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
         // borrow ends before the subtree is freed.
         unsafe { (callbacks.prepare_subtree_for_detach)(shell) };
         if unsafe { &*arena }.detach_from_parent(layout_node_to_detach) {
-            free_subtree_and_destroy_shells(arena, layout_node_to_detach);
+            free_subtree_and_destroy_shells(&main_thread, arena, layout_node_to_detach);
         }
     }
 
@@ -1174,6 +1184,7 @@ pub(crate) fn principal_node_entry_decision(
 struct DomTreeBuilderHost<'a> {
     callbacks: &'a FfiDomTreeBuilderCallbacks,
     arena: *mut LayoutNodeArena,
+    main_thread: &'a MainThread,
 }
 
 impl DomTreeBuilderHost<'_> {
@@ -1232,6 +1243,7 @@ impl DomTreeBuilderHost<'_> {
         TreeBuilderHost {
             callbacks: &self.callbacks.layout,
             arena: self.arena,
+            main_thread: self.main_thread,
         }
     }
 
@@ -1279,6 +1291,7 @@ fn dom_child_layout_plan(host: &DomTreeBuilderHost<'_>, node: StyleNodeID) -> (b
 unsafe fn dom_tree_builder_host<'a>(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     arena: *mut c_void,
+    main_thread: &'a MainThread,
 ) -> DomTreeBuilderHost<'a> {
     assert!(!callbacks.is_null());
     assert!(!arena.is_null());
@@ -1286,6 +1299,7 @@ unsafe fn dom_tree_builder_host<'a>(
     DomTreeBuilderHost {
         callbacks: unsafe { &*callbacks },
         arena: arena.cast(),
+        main_thread,
     }
 }
 
@@ -2582,7 +2596,9 @@ pub unsafe extern "C" fn rust_build_layout_tree(
 ) -> FfiLayoutTreeBuildOutcome {
     assert!(!document.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
-    let host = unsafe { dom_tree_builder_host(callbacks, arena) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
+    // SAFETY: Guaranteed by the entry point's contract.
+    let host = unsafe { dom_tree_builder_host(callbacks, arena, &main_thread) };
     let document_identity =
         StyleNodeID::from_raw(document_style_node).expect("a document that lays out is named in the style mirror");
     host.layout().arena().set_document_style_node(document_identity);
@@ -2663,8 +2679,10 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         // SAFETY: The tree build runs outside any layout pass, the document outlives the build,
         // and no arena borrow is held here.
         unsafe {
-            let layout_host = host.layout().arena().layout_host();
-            (layout_host.deliver_commit_messages)(layout_host.context, state.reports.as_ptr(), state.reports.len());
+            host.layout()
+                .arena()
+                .layout_host()
+                .deliver_commit_messages(host.main_thread, &state.reports);
         }
     }
 
@@ -3243,6 +3261,7 @@ enum TraversalDecision {
 struct TreeBuilderHost<'a> {
     callbacks: &'a FfiTreeBuilderCallbacks,
     arena: *mut LayoutNodeArena,
+    main_thread: &'a MainThread,
 }
 
 fn node_has_flag(data: &NodeData, flag: NodeFlag) -> bool {
@@ -3524,7 +3543,7 @@ impl TreeBuilderHost<'_> {
     }
 
     fn free_subtree(&self, node: LayoutNode) {
-        free_subtree_and_destroy_shells(self.arena, node);
+        free_subtree_and_destroy_shells(self.main_thread, self.arena, node);
     }
 
     fn parent(&self, node: LayoutNode) -> LayoutNode {

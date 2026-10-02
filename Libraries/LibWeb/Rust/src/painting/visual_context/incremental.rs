@@ -379,6 +379,7 @@ fn take_next_deferred_anchor_positioned(
 pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     layout_arena: &Arena,
     callbacks: &FfiVisualContextHostCallbacks,
+    main_thread: &crate::stage::MainThread,
     viewport: NodeSlotId,
     tree_inputs: FfiVisualContextTreeInputs,
     scope: VisualContextUpdateScope,
@@ -405,6 +406,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     let environment = BoxBuildEnvironment {
         layout_arena,
         callbacks,
+        main_thread,
         pixel_ratio: tree_inputs.device_pixels_per_css_pixel,
     };
     let viewport_output = layout_arena

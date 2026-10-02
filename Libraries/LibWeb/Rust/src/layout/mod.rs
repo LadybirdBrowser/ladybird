@@ -62,6 +62,7 @@ use crate::layout::layout_node_arena::IntrinsicInlineSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKey;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKind;
 pub(crate) use crate::layout::layout_node_arena::LayoutNodeArena;
+pub(crate) use crate::layout::layout_node_arena::MainThreadFfiEntry as ArenaMainThreadFfiEntry;
 use crate::layout::layout_node_arena::{TableCellMeasurement, TableCellMeasurementKey};
 use crate::layout::node_data::AncestorFact;
 pub use crate::layout::node_data::FfiNodeConstructionFacts;
@@ -73,6 +74,7 @@ use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 pub use crate::layout::node_data::STYLE_GROUP_COUNT;
 pub(crate) use abspos_inputs::{AbsposAlignment, StaticPositionAlignment};
+pub(crate) use formatting_context::MainThreadFfiEntry as LayoutMainThreadFfiEntry;
 pub(crate) use formatting_context::{
     ChildLayoutOutcome, DerivedBaselines, FfiLayoutHostCallbacks, FormattingContextRun, LayoutMode, Node, SizingAxis,
     SizingProperty,
@@ -93,4 +95,6 @@ use std::cell::RefCell;
 use std::cell::RefMut;
 use std::ffi::c_void;
 pub(crate) use style_values::StyleValues;
+pub(crate) use tree_builder::MainThreadFfiEntry as TreeBuildMainThreadFfiEntry;
+pub(crate) use update_layout::MainThreadFfiEntry as UpdateMainThreadFfiEntry;
 pub(crate) use used_values::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, SizeConstraint, UsedValues};

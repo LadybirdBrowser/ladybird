@@ -20,6 +20,7 @@ pub use libcompositing_rust::fast_hash;
 pub mod css;
 pub mod layout;
 pub mod painting;
+pub(crate) mod stage;
 pub mod svg;
 
 pub use libweb_html_tokenizer as html_tokenizer;

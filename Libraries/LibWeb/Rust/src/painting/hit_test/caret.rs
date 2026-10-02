@@ -428,11 +428,17 @@ impl HitTestList {
             || inline_axis_end(line.rect, writing_mode) <= inline_axis_start(item.rect, writing_mode)
     }
 
-    fn line_in_scope(&self, arena: &LayoutNodeArena, callbacks: &FfiHitTestQueryCallbacks, line_index: usize) -> bool {
+    fn line_in_scope(
+        &self,
+        main_thread: &crate::stage::MainThread,
+        arena: &LayoutNodeArena,
+        callbacks: &FfiHitTestQueryCallbacks,
+        line_index: usize,
+    ) -> bool {
         let line = &self.caret_lines[line_index];
         for caret_item_index in line.first_caret_item_index..=line.last_caret_item_index {
             let shell = self.item_target_shell(arena, self.caret_item_indices[caret_item_index]);
-            if !shell.is_null() && callbacks.shell_in_scope(shell) {
+            if !shell.is_null() && callbacks.shell_in_scope(main_thread, shell) {
                 return true;
             }
         }
@@ -442,6 +448,7 @@ impl HitTestList {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn find_closest_line(
         &self,
+        main_thread: &crate::stage::MainThread,
         arena: &LayoutNodeArena,
         visual_context_tree: &VisualContextTree,
         callbacks: &FfiHitTestQueryCallbacks,
@@ -473,7 +480,7 @@ impl HitTestList {
         };
 
         for line_index in 0..self.caret_lines.len() {
-            if scoped && !self.line_in_scope(arena, callbacks, line_index) {
+            if scoped && !self.line_in_scope(main_thread, arena, callbacks, line_index) {
                 continue;
             }
             let line = self.caret_lines[line_index].clone();
@@ -596,6 +603,7 @@ impl HitTestList {
 
     pub(crate) fn adjacent_line(
         &self,
+        main_thread: &crate::stage::MainThread,
         arena: &LayoutNodeArena,
         callbacks: &FfiHitTestQueryCallbacks,
         current_line_index: usize,
@@ -625,7 +633,7 @@ impl HitTestList {
             let line = &self.caret_lines[line_index];
             // INTEROP: Keyboard navigation follows layout geometry across clips, effects, and transforms.
             //          Separate paint contexts inside one editing host must not isolate its editable lines.
-            if line_index == current_line_index || !self.line_in_scope(arena, callbacks, line_index) {
+            if line_index == current_line_index || !self.line_in_scope(main_thread, arena, callbacks, line_index) {
                 continue;
             }
             let candidate_block_coordinate = line_block_middle(line.rect, writing_mode);

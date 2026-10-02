@@ -19,7 +19,15 @@ use crate::painting::host::visual_context::FfiVisualContextHostCallbacks;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::paintable_geometry;
+use crate::stage::MainThread;
 use std::ffi::c_void;
+
+/// Mints the main thread token for this module's FFI entry points; only this module can make one.
+pub(crate) struct MainThreadFfiEntry {
+    _private: (),
+}
+
+const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -28,35 +36,43 @@ pub struct FfiNestedLayoutRoot {
     pub layout_root_shell: *mut c_void,
 }
 
+/// What a layout tree dump asks the document. The fields are private: the callbacks are reached
+/// only through the methods below, which take the main thread token.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiLayoutTreeDumpCallbacks {
-    pub context: *mut c_void,
-    pub describe_dom_node: unsafe extern "C" fn(
+    context: *mut c_void,
+    describe_dom_node: unsafe extern "C" fn(
         context: *mut c_void,
         layout_node: *mut c_void,
         tag_name_sink: *mut c_void,
         identifier_sink: *mut c_void,
     ),
-    pub navigable_container_content_document: unsafe extern "C" fn(
+    navigable_container_content_document: unsafe extern "C" fn(
         context: *mut c_void,
         layout_node: *mut c_void,
         url_sink: *mut c_void,
     ) -> FfiNestedLayoutRoot,
-    pub svg_as_image_layout_root: unsafe extern "C" fn(context: *mut c_void, layout_node: *mut c_void) -> *mut c_void,
-    pub dump_nested_layout_tree: unsafe extern "C" fn(
+    svg_as_image_layout_root: unsafe extern "C" fn(context: *mut c_void, layout_node: *mut c_void) -> *mut c_void,
+    dump_nested_layout_tree: unsafe extern "C" fn(
         context: *mut c_void,
         layout_root_shell: *mut c_void,
         indent: usize,
         interactive: bool,
         output_sink: *mut c_void,
     ),
-    pub append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
-    pub visual_context: FfiVisualContextHostCallbacks,
+    append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
+    visual_context: FfiVisualContextHostCallbacks,
 }
 
 impl FfiLayoutTreeDumpCallbacks {
-    fn describe_dom_node(&self, layout_node: *mut c_void, tag_name_sink: &mut Vec<u8>, identifier_sink: &mut Vec<u8>) {
+    fn describe_dom_node(
+        &self,
+        _: &MainThread,
+        layout_node: *mut c_void,
+        tag_name_sink: &mut Vec<u8>,
+        identifier_sink: &mut Vec<u8>,
+    ) {
         // SAFETY: The C++ host fills both sinks synchronously through the exported push function.
         unsafe {
             (self.describe_dom_node)(
@@ -68,7 +84,11 @@ impl FfiLayoutTreeDumpCallbacks {
         }
     }
 
-    fn navigable_container_content_document(&self, layout_node: *mut c_void) -> Option<(Vec<u8>, *mut c_void)> {
+    fn navigable_container_content_document(
+        &self,
+        _: &MainThread,
+        layout_node: *mut c_void,
+    ) -> Option<(Vec<u8>, *mut c_void)> {
         let mut url = Vec::new();
         // SAFETY: The C++ host fills the url sink synchronously through the exported push function.
         let nested =
@@ -76,13 +96,14 @@ impl FfiLayoutTreeDumpCallbacks {
         nested.has_document.then_some((url, nested.layout_root_shell))
     }
 
-    fn svg_as_image_layout_root(&self, layout_node: *mut c_void) -> *mut c_void {
+    fn svg_as_image_layout_root(&self, _: &MainThread, layout_node: *mut c_void) -> *mut c_void {
         // SAFETY: The C++ host answers synchronously from a live layout node.
         unsafe { (self.svg_as_image_layout_root)(self.context, layout_node) }
     }
 
     fn dump_nested_layout_tree(
         &self,
+        _: &MainThread,
         layout_root_shell: *mut c_void,
         indent: usize,
         interactive: bool,
@@ -102,7 +123,7 @@ impl FfiLayoutTreeDumpCallbacks {
         }
     }
 
-    fn append_text(&self, bytes: &[u8]) {
+    fn append_text(&self, _: &MainThread, bytes: &[u8]) {
         // SAFETY: The C++ sink copies the completed dump synchronously.
         unsafe { (self.append_text)(self.context, bytes.as_ptr(), bytes.len()) };
     }
@@ -122,18 +143,21 @@ pub unsafe extern "C" fn layout_arena_dump_layout_tree(
     interactive: bool,
     callbacks: FfiLayoutTreeDumpCallbacks,
 ) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     let context = LayoutTreeDumpContext {
         arena_handle: arena,
         interactive,
         palette: DumpPalette::new(interactive),
         callbacks: &callbacks,
+        main_thread: &main_thread,
     };
     let mut output = Vec::new();
     // SAFETY: Guaranteed by the caller.
     unsafe {
         dump_layout_node(&mut output, &context, root, initial_indent);
     }
-    callbacks.append_text(&output);
+    callbacks.append_text(&main_thread, &output);
 }
 
 struct LayoutTreeDumpContext<'a> {
@@ -141,6 +165,7 @@ struct LayoutTreeDumpContext<'a> {
     interactive: bool,
     palette: DumpPalette,
     callbacks: &'a FfiLayoutTreeDumpCallbacks,
+    main_thread: &'a MainThread,
 }
 
 struct DumpPalette {
@@ -385,7 +410,7 @@ fn push_layout_node_line(
     } else {
         context
             .callbacks
-            .describe_dom_node(arena.node_shell(slot), output, &mut identifier);
+            .describe_dom_node(context.main_thread, arena.node_shell(slot), output, &mut identifier);
     }
     output.extend_from_slice(if is_box { palette.off } else { "" }.as_bytes());
     output.extend_from_slice(identifier_color.as_bytes());
@@ -432,7 +457,11 @@ unsafe fn dump_layout_node(output: &mut Vec<u8>, context: &LayoutTreeDumpContext
         let layout_node = arena.node_is_dom_backed(slot).then(|| arena.node_shell(slot));
         let nested_navigable_document = layout_node
             .filter(|_| kind == NodeKind::NavigableContainerViewport)
-            .and_then(|layout_node| context.callbacks.navigable_container_content_document(layout_node));
+            .and_then(|layout_node| {
+                context
+                    .callbacks
+                    .navigable_container_content_document(context.main_thread, layout_node)
+            });
         let has_committed_box = arena.paintable_row_is_populated(slot);
         let dumps_block_fragments = has_committed_box
             && node_facts::kind_is_block_container(kind)
@@ -453,6 +482,7 @@ unsafe fn dump_layout_node(output: &mut Vec<u8>, context: &LayoutTreeDumpContext
         output.extend_from_slice(b")\n");
         if !nested_layout_root_shell.is_null() {
             context.callbacks.dump_nested_layout_tree(
+                context.main_thread,
                 nested_layout_root_shell,
                 indent + 1,
                 context.interactive,
@@ -475,11 +505,14 @@ unsafe fn dump_layout_node(output: &mut Vec<u8>, context: &LayoutTreeDumpContext
     output.push(b'\n');
 
     if let Some(layout_node) = layout_node {
-        let svg_as_image_layout_root = context.callbacks.svg_as_image_layout_root(layout_node);
+        let svg_as_image_layout_root = context
+            .callbacks
+            .svg_as_image_layout_root(context.main_thread, layout_node);
         if !svg_as_image_layout_root.is_null() {
             push_indent(output, indent + 1);
             output.extend_from_slice(b"(SVG-as-image isolated context)\n");
             context.callbacks.dump_nested_layout_tree(
+                context.main_thread,
                 svg_as_image_layout_root,
                 indent + 1,
                 context.interactive,
