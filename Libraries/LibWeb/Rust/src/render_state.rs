@@ -12,11 +12,16 @@
 //! that the states are reached with, so code that is not handed one cannot reach a document's render state.
 
 use crate::fast_hash::FastMap as HashMap;
-use crate::layout::ArenaHandle;
+use crate::layout::{ArenaHandle, HostTables};
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::marker::PhantomData;
+use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
+
+mod document_host;
+
+pub use document_host::DocumentHost;
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
 /// the render side.
@@ -41,14 +46,15 @@ pub(crate) struct RenderingSide {
 
 /// One document's render state.
 pub(crate) struct RenderState {
-    /// The layout arena, with the host tables and the layout scratch beside it.
+    /// The layout arena, which names the host tables of the document's host for the entries that still reach it
+    /// directly.
     arena: Box<ArenaHandle>,
 }
 
 impl RenderState {
-    fn new() -> Self {
+    fn new(host_tables: NonNull<HostTables>) -> Self {
         Self {
-            arena: Box::new(ArenaHandle::new()),
+            arena: Box::new(ArenaHandle::new(host_tables)),
         }
     }
 
@@ -56,11 +62,6 @@ impl RenderState {
     fn retire(self) {
         let arena = self.arena.arena();
         arena.assert_owner_thread();
-        assert_eq!(
-            self.arena.host_tables().shells.borrow().len(),
-            0,
-            "layout node arena destroyed with layout nodes"
-        );
         assert_eq!(
             arena.live_slot_count(),
             0,
@@ -71,8 +72,11 @@ impl RenderState {
 
 /// A message the host sends a document's render state.
 pub(crate) enum RenderMessage {
-    /// Makes the render state of a new document.
-    Create { document: DocumentId },
+    /// Makes the render state of a new document, whose arena names the host tables of its host.
+    Create {
+        document: DocumentId,
+        host_tables: NonNull<HostTables>,
+    },
     /// Drops the render state of a document the host has let go of.
     Destroy { document: DocumentId },
 }
@@ -94,8 +98,8 @@ pub(crate) fn handle(message: RenderMessage) {
 
 fn handle_message(_: &RenderingSide, message: RenderMessage) {
     match message {
-        RenderMessage::Create { document } => STATES.with_borrow_mut(|states| {
-            let previous = states.insert(document, RenderState::new());
+        RenderMessage::Create { document, host_tables } => STATES.with_borrow_mut(|states| {
+            let previous = states.insert(document, RenderState::new(host_tables));
             debug_assert!(previous.is_none(), "document {document:?} created twice");
         }),
         RenderMessage::Destroy { document } => {
@@ -114,34 +118,18 @@ pub(crate) fn send(message: RenderMessage) {
     handle(message);
 }
 
-/// What the host holds of a document it created: the document's name, and the arena of its render state that the
-/// host's entries still reach directly.
-#[repr(C)]
-pub struct FfiRenderDocument {
-    pub document: DocumentId,
-    pub arena: *mut c_void,
-}
-
-/// Creates the render state of a new document, and answers with its name and the arena the host's entries reach.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_create_document() -> FfiRenderDocument {
-    let document = DocumentId::mint();
-    send(RenderMessage::Create { document });
-    // The state was made in place, on this thread, so the host may reach its arena directly until its entries go
-    // through messages.
-    let arena = STATES.with_borrow_mut(|states| {
+/// The arena of `document`'s render state, for the host's entries that still reach it directly.
+///
+/// This is the one door from the host into a render state that does not go through a message; every use of it is an
+/// entry that has not been converted yet. The state is made in place, on the host's thread, so the arena stays at the
+/// address answered until the document is destroyed.
+pub(crate) fn arena_for_unconverted_entry(document: DocumentId) -> *mut c_void {
+    STATES.with_borrow_mut(|states| {
         let state = states
             .get_mut(&document)
-            .expect("the render state of a new document is made in place");
+            .expect("the render state of a live document is on this thread");
         std::ptr::from_mut::<ArenaHandle>(&mut state.arena).cast::<c_void>()
-    });
-    FfiRenderDocument { document, arena }
-}
-
-/// Drops the render state of `document`, once the host reaches its arena no more.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_destroy_document(document: DocumentId) {
-    send(RenderMessage::Destroy { document });
+    })
 }
 
 #[cfg(test)]
@@ -174,11 +162,13 @@ mod tests {
     }
 
     #[test]
-    fn a_created_document_has_a_render_state_until_it_is_destroyed() {
-        let created = render_state_create_document();
-        assert!(!created.arena.is_null());
+    fn a_document_host_holds_a_render_state_until_it_is_destroyed() {
+        let host = document_host::document_host_create();
         assert_eq!(state_count(), 1);
-        render_state_destroy_document(created.document);
+        // SAFETY: The host came from document_host_create and is destroyed once, below.
+        assert!(!unsafe { document_host::render_state_arena_for_unconverted_entry(host) }.is_null());
+        // SAFETY: As above.
+        unsafe { document_host::document_host_destroy(host) };
         assert_eq!(state_count(), 0);
     }
 
@@ -186,8 +176,12 @@ mod tests {
     #[test]
     #[should_panic(expected = "destroyed twice")]
     fn destroying_a_document_twice_is_a_senders_bug() {
+        let host_tables = HostTables::default();
         let document = DocumentId::mint();
-        send(RenderMessage::Create { document });
+        send(RenderMessage::Create {
+            document,
+            host_tables: NonNull::from(&host_tables),
+        });
         send(RenderMessage::Destroy { document });
         send(RenderMessage::Destroy { document });
     }

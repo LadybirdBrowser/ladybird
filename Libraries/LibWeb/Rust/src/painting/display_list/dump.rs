@@ -147,7 +147,7 @@ impl VisualContextNodeOwners {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `visual_context_tree` a live retained tree handle built from it; `command_runs` must address
 /// `command_run_count` runs; `display_list` and every pointer returned by `callbacks` must remain
 /// live for this call. The callback byte spans must contain display-list records produced by this

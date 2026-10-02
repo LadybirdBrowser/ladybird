@@ -56,7 +56,7 @@ impl LayoutScratch {
     ///
     /// # Safety
     ///
-    /// `handle` must come from `render_state_create_document` and stay live for `'a`.
+    /// `handle` must come from `render_state_arena_for_unconverted_entry` and stay live for `'a`.
     pub(crate) unsafe fn from_handle<'a>(handle: *mut std::ffi::c_void) -> &'a Self {
         // SAFETY: Guaranteed by the caller.
         unsafe { super::host_tables::ArenaHandle::layout_scratch_of(handle) }

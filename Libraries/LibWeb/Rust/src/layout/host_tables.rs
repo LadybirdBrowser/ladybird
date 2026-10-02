@@ -65,11 +65,13 @@ impl HostTables {
     ///
     /// # Safety
     ///
-    /// `handle` must come from `render_state_create_document` and stay live for `'a`.
+    /// `handle` must come from `render_state_arena_for_unconverted_entry` and its document host
+    /// stay live for `'a`.
     pub(crate) unsafe fn from_handle<'a>(handle: *mut c_void) -> &'a Self {
         assert!(!handle.is_null(), "layout node arena handle is null");
-        // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
-        unsafe { &(*handle.cast::<ArenaHandle>()).host_tables }
+        // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it,
+        // and the document host owns the tables the handle names.
+        unsafe { (*handle.cast::<ArenaHandle>()).host_tables.as_ref() }
     }
 
     /// Marks a tree build's walk as running until the answer is dropped.
@@ -176,22 +178,26 @@ impl Drop for TreeBuildWalk<'_> {
     }
 }
 
-/// What `render_state_create_document` hands C++: the arena, first, so that a handle is also a pointer to
-/// it, and beside it the host tables and the layout stage's scratch.
+/// The arena of a document's render state, first, so that a handle is also a pointer to it, the
+/// layout stage's scratch beside it, and the host tables of the document's host, which entries
+/// the host calls with the handle reach through the main thread token until they reach the render
+/// state through messages.
 #[repr(C)]
 pub(crate) struct ArenaHandle {
     arena: LayoutNodeArena,
-    host_tables: HostTables,
+    host_tables: NonNull<HostTables>,
     layout_scratch: super::run_records::LayoutScratch,
 }
 
 const _: () = assert!(std::mem::offset_of!(ArenaHandle, arena) == 0);
 
 impl ArenaHandle {
-    pub(crate) fn new() -> Self {
+    /// An arena whose entries answer to `host_tables`, which must outlive every entry called
+    /// with the handle.
+    pub(crate) fn new(host_tables: NonNull<HostTables>) -> Self {
         Self {
             arena: LayoutNodeArena::new(),
-            host_tables: HostTables::default(),
+            host_tables,
             layout_scratch: Default::default(),
         }
     }
@@ -200,7 +206,7 @@ impl ArenaHandle {
     ///
     /// # Safety
     ///
-    /// `handle` must come from `render_state_create_document` and stay live for `'a`.
+    /// `handle` must come from `render_state_arena_for_unconverted_entry` and stay live for `'a`.
     pub(crate) unsafe fn layout_scratch_of<'a>(handle: *mut c_void) -> &'a super::run_records::LayoutScratch {
         assert!(!handle.is_null(), "layout node arena handle is null");
         // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
@@ -209,10 +215,6 @@ impl ArenaHandle {
 
     pub(crate) fn arena(&self) -> &LayoutNodeArena {
         &self.arena
-    }
-
-    pub(crate) fn host_tables(&self) -> &HostTables {
-        &self.host_tables
     }
 }
 

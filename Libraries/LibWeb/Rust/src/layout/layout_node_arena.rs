@@ -5239,7 +5239,7 @@ pub unsafe extern "C" fn layout_arena_move_bound_pseudo_element_rows_to_style_no
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_element_scroll_offset(
     arena: *mut c_void,
@@ -5257,7 +5257,7 @@ pub unsafe extern "C" fn layout_arena_set_element_scroll_offset(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_pseudo_element_scroll_offset(
     arena: *mut c_void,
@@ -5280,7 +5280,7 @@ pub unsafe extern "C" fn layout_arena_set_pseudo_element_scroll_offset(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_viewport_scroll_offset(arena: *mut c_void, offset: FfiCssPixelPoint) {
     // SAFETY: Guaranteed by the caller.
@@ -5291,7 +5291,7 @@ pub unsafe extern "C" fn layout_arena_set_viewport_scroll_offset(arena: *mut c_v
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_row_scroll_offset(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelPoint {
     // SAFETY: Guaranteed by the caller.
@@ -5304,7 +5304,7 @@ pub unsafe extern "C" fn layout_arena_row_scroll_offset(arena: *mut c_void, slot
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_identity_in_focused_text_control(arena: *mut c_void, node: u32, value: bool) {
     let Some(node) = StyleNodeID::from_raw(node) else {
@@ -5319,7 +5319,7 @@ pub unsafe extern "C" fn layout_arena_set_identity_in_focused_text_control(arena
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, and `elements` must name `count`
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, and `elements` must name `count`
 /// element identities for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_anchor_name_elements(
@@ -6716,7 +6716,8 @@ mod tests {
 
     #[test]
     fn clearing_a_committed_box_evicts_its_fragment_link_and_abspos_inputs() {
-        let mut handle = crate::layout::ArenaHandle::new();
+        let host_tables = crate::layout::HostTables::default();
+        let mut handle = crate::layout::ArenaHandle::new(std::ptr::NonNull::from(&host_tables));
         let handle = std::ptr::from_mut(&mut handle).cast::<c_void>();
         // SAFETY: The handle lives until the end of the test, and the entry below borrows the
         // arena only for its call.

@@ -184,7 +184,7 @@ pub const SVG_GEOMETRY_KIND_POLYGON: u8 = 7;
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `points` must address `count` points for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_style_node_svg_attribute_facts(
@@ -215,7 +215,7 @@ pub unsafe extern "C" fn layout_arena_set_style_node_svg_attribute_facts(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_style_node_svg_style_references(
     arena: *mut c_void,
