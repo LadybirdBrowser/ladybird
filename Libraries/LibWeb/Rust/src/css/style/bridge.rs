@@ -1415,16 +1415,17 @@ impl StyleEngineState {
 
 /// Creates one document's style engine, which its render state owns.
 pub(crate) fn create_document_style_engine(device_class: FfiDeviceClass) -> Box<StyleEngine> {
+    // The host registers the style groups before it creates a document's render state; one a test creates has none.
+    let style_groups = crate::css::computed_values::StyleGroupMasks::registered();
     let device_class = device_class.decode();
     let mut engine = Box::new(StyleEngine::new(device_class));
     engine.begin_recording(device_class);
     engine.record_boundary_call(EventKind::SetComputedGroupDependencyMasks, |payload| {
-        let mapping = crate::css::computed_values::property_dependency_masks_snapshot();
-        payload.write_bool(mapping.is_some());
-        if let Some((first_property, masks, output_masks)) = mapping {
-            payload.write_u16(first_property);
-            payload.write_u32_slice(masks);
-            payload.write_u32_slice(output_masks);
+        payload.write_bool(style_groups.is_some());
+        if let Some(style_groups) = style_groups {
+            payload.write_u16(style_groups.first_property);
+            payload.write_u32_slice(style_groups.masks);
+            payload.write_u32_slice(style_groups.output_masks);
         }
     });
     engine
@@ -1509,6 +1510,15 @@ pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
 /// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.
 pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> StyleEngineHandle {
     abort_on_panic(|| StyleEngineHandle::create(Box::new(StyleEngine::new_for_replay(device_class.decode()))))
+}
+
+/// Hands a replay engine the style groups the recording registered after creating it.
+///
+/// # Safety
+/// `engine` must be live.
+pub unsafe fn style_engine_use_registered_style_groups(engine: StyleEngineHandle) {
+    let engine = unsafe { engine.get_mut() };
+    engine.retained.style_groups = crate::css::computed_values::StyleGroupMasks::registered_or_none();
 }
 
 /// Keeps the store behind an environment an element holds, and what a child inherits of it,
