@@ -322,6 +322,210 @@ struct IntrinsicSizeCacheSlot {
     sizes: Option<Box<IntrinsicSizeMaps>>,
 }
 
+/// What an intrinsic size cache entry was measured for: the row in a slot, and the row's
+/// intrinsic cache epoch, which every change that can move the row's intrinsic sizes bumps.
+#[derive(Clone, Copy)]
+pub(crate) struct IntrinsicSizeCacheStamp {
+    index: u32,
+    generation: u8,
+    epoch: u16,
+}
+
+/// The intrinsic sizes layout measured, kept from one pass to the next. Only layout reads or
+/// writes them, so they are the layout stage's scratch; the arena only notes the slots whose
+/// entries must go, which the stage drops before its next run reads anything.
+#[derive(Default)]
+pub(crate) struct IntrinsicSizeCaches {
+    slots: RefCell<Vec<IntrinsicSizeCacheSlot>>,
+}
+
+impl IntrinsicSizeCaches {
+    /// Drops the entries of `slots`, which were freed or whose rows' cache epoch wrapped.
+    pub(crate) fn drop_slots(&self, slots: Vec<u32>) {
+        let mut caches = self.slots.borrow_mut();
+        for index in slots {
+            if let Some(slot) = caches.get_mut(index as usize) {
+                *slot = IntrinsicSizeCacheSlot::default();
+            }
+        }
+    }
+
+    pub(crate) fn intrinsic_block_size_cache_get(
+        &self,
+        stamp: IntrinsicSizeCacheStamp,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+    ) -> Option<IntrinsicBlockSizeMeasurement> {
+        assert!(
+            matches!(
+                kind,
+                IntrinsicSizeCacheKind::MinContentBlock | IntrinsicSizeCacheKind::MaxContentBlock
+            ),
+            "block size cache kind must use the block axis"
+        );
+
+        let IntrinsicSizeCacheStamp {
+            index,
+            generation,
+            epoch,
+        } = stamp;
+        let caches = self.slots.borrow();
+        let slot = caches.get(index as usize)?;
+        if slot.generation != generation || slot.epoch != epoch {
+            return None;
+        }
+        let map = slot
+            .sizes
+            .as_ref()?
+            .block_sizes(kind)
+            .expect("block size cache kind must use the block axis");
+        intrinsic_cache_lookup(map, key)
+    }
+
+    fn with_maps_mut(&self, stamp: IntrinsicSizeCacheStamp, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
+        let IntrinsicSizeCacheStamp {
+            index,
+            generation,
+            epoch,
+        } = stamp;
+        let mut caches = self.slots.borrow_mut();
+        if caches.len() <= index as usize {
+            caches.resize_with(index as usize + 1, IntrinsicSizeCacheSlot::default);
+        }
+        let slot = &mut caches[index as usize];
+        if slot.generation != generation || slot.epoch != epoch {
+            *slot = IntrinsicSizeCacheSlot {
+                generation,
+                epoch,
+                sizes: Some(Box::default()),
+            };
+        }
+        callback(slot.sizes.get_or_insert_with(Box::default));
+    }
+
+    pub(crate) fn intrinsic_block_size_cache_put(
+        &self,
+        stamp: IntrinsicSizeCacheStamp,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+        value: IntrinsicBlockSizeMeasurement,
+    ) {
+        self.with_maps_mut(stamp, |maps| {
+            let map = maps
+                .block_sizes_mut(kind)
+                .expect("block size cache kind must use the block axis");
+            intrinsic_cache_store(map, key, value);
+        });
+    }
+
+    pub(crate) fn intrinsic_inline_size_measurement_cache_get(
+        &self,
+        stamp: IntrinsicSizeCacheStamp,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+    ) -> Option<IntrinsicInlineSizeMeasurement> {
+        assert!(
+            matches!(
+                kind,
+                IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline
+            ),
+            "inline measurement cache kind must use the inline axis"
+        );
+
+        let IntrinsicSizeCacheStamp {
+            index,
+            generation,
+            epoch,
+        } = stamp;
+        let caches = self.slots.borrow();
+        let slot = caches.get(index as usize)?;
+        if slot.generation != generation || slot.epoch != epoch {
+            return None;
+        }
+        let map = slot
+            .sizes
+            .as_ref()?
+            .inline_measurements(kind)
+            .expect("inline measurement cache kind must use the inline axis");
+        intrinsic_cache_lookup(map, key)
+    }
+
+    pub(crate) fn intrinsic_inline_size_depends_on_block_size(
+        &self,
+        stamp: IntrinsicSizeCacheStamp,
+        compute: impl FnOnce() -> bool,
+    ) -> bool {
+        let IntrinsicSizeCacheStamp {
+            index,
+            generation,
+            epoch,
+        } = stamp;
+        {
+            let caches = self.slots.borrow();
+            if let Some(slot) = caches.get(index as usize)
+                && slot.generation == generation
+                && slot.epoch == epoch
+                && let Some(value) = slot
+                    .sizes
+                    .as_ref()
+                    .and_then(|sizes| sizes.inline_size_depends_on_block_size)
+            {
+                return value;
+            }
+        }
+
+        let value = compute();
+        self.with_maps_mut(stamp, |maps| {
+            maps.inline_size_depends_on_block_size = Some(value);
+        });
+        value
+    }
+
+    pub(crate) fn intrinsic_inline_size_measurement_cache_put(
+        &self,
+        stamp: IntrinsicSizeCacheStamp,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+        value: IntrinsicInlineSizeMeasurement,
+    ) {
+        self.with_maps_mut(stamp, |maps| {
+            let map = maps
+                .inline_measurements_mut(kind)
+                .expect("inline measurement cache kind must use the inline axis");
+            intrinsic_cache_store(map, key, value);
+        });
+    }
+
+    pub(crate) fn table_cell_measurement_cache_get(
+        &self,
+        stamp: IntrinsicSizeCacheStamp,
+        key: TableCellMeasurementKey,
+    ) -> Option<TableCellMeasurement> {
+        let IntrinsicSizeCacheStamp {
+            index,
+            generation,
+            epoch,
+        } = stamp;
+        let caches = self.slots.borrow();
+        let slot = caches.get(index as usize)?;
+        if slot.generation != generation || slot.epoch != epoch {
+            return None;
+        }
+        slot.sizes.as_ref()?.table_cell_measurements.get(&key).copied()
+    }
+
+    pub(crate) fn table_cell_measurement_cache_put(
+        &self,
+        stamp: IntrinsicSizeCacheStamp,
+        key: TableCellMeasurementKey,
+        value: TableCellMeasurement,
+    ) {
+        self.with_maps_mut(stamp, |maps| {
+            maps.table_cell_measurements.insert(key, value);
+        });
+    }
+}
+
 #[derive(Clone, Copy, Default)]
 struct DefaultScrollShiftAnchorSlot {
     generation: u8,
@@ -708,7 +912,8 @@ pub(crate) struct LayoutNodeArena {
     free_list: Vec<u32>,
     next_index: u32,
     live_count: u32,
-    intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
+    /// The slots whose intrinsic size cache entries the layout stage drops before its next run.
+    intrinsic_size_cache_drops: RefCell<Vec<u32>>,
     table_cell_measurement_cache_misses: Cell<u64>,
     intrinsic_measurements: Cell<u64>,
     intrinsic_inline_measurements: Cell<u64>,
@@ -731,7 +936,6 @@ pub(crate) struct LayoutNodeArena {
     #[cfg(debug_assertions)]
     pub(super) read_scope: Cell<super::read_scope::ReadScope>,
     pub(super) innermost_run: Cell<(NodeSlotId, NodeSlotId)>,
-    inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     // Hit testing can measure overflow and invalidate painting state while querying this list.
@@ -835,7 +1039,7 @@ impl LayoutNodeArena {
             free_list: Vec::new(),
             next_index: 0,
             live_count: 0,
-            intrinsic_size_caches: RefCell::new(Vec::new()),
+            intrinsic_size_cache_drops: RefCell::new(Vec::new()),
             table_cell_measurement_cache_misses: Cell::new(0),
             intrinsic_measurements: Cell::new(0),
             intrinsic_inline_measurements: Cell::new(0),
@@ -854,7 +1058,6 @@ impl LayoutNodeArena {
             #[cfg(debug_assertions)]
             read_scope: Cell::new(super::read_scope::ReadScope::default()),
             innermost_run: Cell::new((NodeSlotId::INVALID, NodeSlotId::INVALID)),
-            inline_item_stashes: RefCell::new(HashMap::default()),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             hit_test_list: RefCell::new(None),
@@ -897,8 +1100,21 @@ impl LayoutNodeArena {
     /// after a full lap would match a pre-wrap entry.
     pub(crate) fn drop_intrinsic_size_cache(&self, data: &NodeData) {
         let (index, _) = self.slot_for_data(data);
-        if let Some(slot) = self.intrinsic_size_caches.borrow_mut().get_mut(index as usize) {
-            *slot = IntrinsicSizeCacheSlot::default();
+        self.intrinsic_size_cache_drops.borrow_mut().push(index);
+    }
+
+    /// The slots whose intrinsic size cache entries must go, for the layout stage to drop before
+    /// its next run reads any.
+    pub(crate) fn take_intrinsic_size_cache_drops(&self) -> Vec<u32> {
+        self.intrinsic_size_cache_drops.take()
+    }
+
+    /// What an intrinsic size cache entry measured for the row `id` now is valid for.
+    pub(crate) fn intrinsic_size_cache_stamp(&self, id: NodeSlotId) -> IntrinsicSizeCacheStamp {
+        IntrinsicSizeCacheStamp {
+            index: id.slot_index(),
+            generation: id.generation(),
+            epoch: self.data(id).intrinsic_cache_epoch.get(),
         }
     }
 
@@ -915,24 +1131,7 @@ impl LayoutNodeArena {
         &self.fc_run_cache_store
     }
 
-    /// The items borrow fonts for the current layout pass, so the stash is cleared when the pass ends.
-    pub(crate) fn store_inline_item_stash(
-        &self,
-        block_container: NodeSlotId,
-        stash: super::inline_level_iterator::StashedInlineItems,
-    ) {
-        self.inline_item_stashes.borrow_mut().insert(block_container, stash);
-    }
-
-    pub(crate) fn take_inline_item_stash(
-        &self,
-        block_container: NodeSlotId,
-    ) -> Option<super::inline_level_iterator::StashedInlineItems> {
-        self.inline_item_stashes.borrow_mut().remove(&block_container)
-    }
-
     pub(crate) fn end_layout_pass(&self) {
-        self.inline_item_stashes.borrow_mut().clear();
         self.sweep_stale_fc_run_cache_entries();
     }
 
@@ -1191,9 +1390,7 @@ impl LayoutNodeArena {
         self.style_record_pins[index as usize].set(ArenaStylePin::None);
         self.style_records_pinned_by_host[index as usize].set(0);
 
-        if let Some(slot) = self.intrinsic_size_caches.get_mut().get_mut(index as usize) {
-            *slot = IntrinsicSizeCacheSlot::default();
-        }
+        self.intrinsic_size_cache_drops.get_mut().push(index);
         if let Some(slot) = self.default_scroll_shift_anchors.get_mut().get_mut(index as usize) {
             *slot = DefaultScrollShiftAnchorSlot::default();
         }
@@ -3693,161 +3890,6 @@ impl LayoutNodeArena {
             "layout nodes belong to different trees"
         );
         self.node_pre_order_label(node) < self.node_pre_order_label(other)
-    }
-
-    pub(crate) fn intrinsic_block_size_cache_get(
-        &self,
-        data: &NodeData,
-        kind: IntrinsicSizeCacheKind,
-        key: IntrinsicSizeCacheKey,
-    ) -> Option<IntrinsicBlockSizeMeasurement> {
-        assert!(
-            matches!(
-                kind,
-                IntrinsicSizeCacheKind::MinContentBlock | IntrinsicSizeCacheKind::MaxContentBlock
-            ),
-            "block size cache kind must use the block axis"
-        );
-
-        let (index, metadata) = self.slot_for_data(data);
-        let caches = self.intrinsic_size_caches.borrow();
-        let slot = caches.get(index as usize)?;
-        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch.get() {
-            return None;
-        }
-        let map = slot
-            .sizes
-            .as_ref()?
-            .block_sizes(kind)
-            .expect("block size cache kind must use the block axis");
-        intrinsic_cache_lookup(map, key)
-    }
-
-    fn with_intrinsic_size_maps_mut(&self, data: &NodeData, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
-        let (index, metadata) = self.slot_for_data(data);
-        let mut caches = self.intrinsic_size_caches.borrow_mut();
-        if caches.len() <= index as usize {
-            caches.resize_with(index as usize + 1, IntrinsicSizeCacheSlot::default);
-        }
-        let slot = &mut caches[index as usize];
-        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch.get() {
-            *slot = IntrinsicSizeCacheSlot {
-                generation: metadata.generation,
-                epoch: data.intrinsic_cache_epoch.get(),
-                sizes: Some(Box::default()),
-            };
-        }
-        callback(slot.sizes.get_or_insert_with(Box::default));
-    }
-
-    pub(crate) fn intrinsic_block_size_cache_put(
-        &self,
-        data: &NodeData,
-        kind: IntrinsicSizeCacheKind,
-        key: IntrinsicSizeCacheKey,
-        value: IntrinsicBlockSizeMeasurement,
-    ) {
-        self.with_intrinsic_size_maps_mut(data, |maps| {
-            let map = maps
-                .block_sizes_mut(kind)
-                .expect("block size cache kind must use the block axis");
-            intrinsic_cache_store(map, key, value);
-        });
-    }
-
-    pub(crate) fn intrinsic_inline_size_measurement_cache_get(
-        &self,
-        data: &NodeData,
-        kind: IntrinsicSizeCacheKind,
-        key: IntrinsicSizeCacheKey,
-    ) -> Option<IntrinsicInlineSizeMeasurement> {
-        assert!(
-            matches!(
-                kind,
-                IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline
-            ),
-            "inline measurement cache kind must use the inline axis"
-        );
-
-        let (index, metadata) = self.slot_for_data(data);
-        let caches = self.intrinsic_size_caches.borrow();
-        let slot = caches.get(index as usize)?;
-        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch.get() {
-            return None;
-        }
-        let map = slot
-            .sizes
-            .as_ref()?
-            .inline_measurements(kind)
-            .expect("inline measurement cache kind must use the inline axis");
-        intrinsic_cache_lookup(map, key)
-    }
-
-    pub(crate) fn intrinsic_inline_size_depends_on_block_size(
-        &self,
-        data: &NodeData,
-        compute: impl FnOnce() -> bool,
-    ) -> bool {
-        let (index, metadata) = self.slot_for_data(data);
-        {
-            let caches = self.intrinsic_size_caches.borrow();
-            if let Some(slot) = caches.get(index as usize)
-                && slot.generation == metadata.generation
-                && slot.epoch == data.intrinsic_cache_epoch.get()
-                && let Some(value) = slot
-                    .sizes
-                    .as_ref()
-                    .and_then(|sizes| sizes.inline_size_depends_on_block_size)
-            {
-                return value;
-            }
-        }
-
-        let value = compute();
-        self.with_intrinsic_size_maps_mut(data, |maps| {
-            maps.inline_size_depends_on_block_size = Some(value);
-        });
-        value
-    }
-
-    pub(crate) fn intrinsic_inline_size_measurement_cache_put(
-        &self,
-        data: &NodeData,
-        kind: IntrinsicSizeCacheKind,
-        key: IntrinsicSizeCacheKey,
-        value: IntrinsicInlineSizeMeasurement,
-    ) {
-        self.with_intrinsic_size_maps_mut(data, |maps| {
-            let map = maps
-                .inline_measurements_mut(kind)
-                .expect("inline measurement cache kind must use the inline axis");
-            intrinsic_cache_store(map, key, value);
-        });
-    }
-
-    pub(crate) fn table_cell_measurement_cache_get(
-        &self,
-        data: &NodeData,
-        key: TableCellMeasurementKey,
-    ) -> Option<TableCellMeasurement> {
-        let (index, metadata) = self.slot_for_data(data);
-        let caches = self.intrinsic_size_caches.borrow();
-        let slot = caches.get(index as usize)?;
-        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch.get() {
-            return None;
-        }
-        slot.sizes.as_ref()?.table_cell_measurements.get(&key).copied()
-    }
-
-    pub(crate) fn table_cell_measurement_cache_put(
-        &self,
-        data: &NodeData,
-        key: TableCellMeasurementKey,
-        value: TableCellMeasurement,
-    ) {
-        self.with_intrinsic_size_maps_mut(data, |maps| {
-            maps.table_cell_measurements.insert(key, value);
-        });
     }
 
     pub(crate) fn note_table_cell_measurement_cache_miss(&self) {
@@ -6771,6 +6813,7 @@ mod tests {
     #[test]
     fn intrinsic_size_cache_validates_epoch_and_generation() {
         let mut arena = LayoutNodeArena::new();
+        let caches = super::IntrinsicSizeCaches::default();
         let first = arena.allocate_for_test();
         let key = IntrinsicSizeCacheKey {
             measured_at_inline_size: Some(CssPixels::from_raw(64)),
@@ -6802,51 +6845,72 @@ mod tests {
         let dependency_computations = Cell::new(0);
 
         let first_data = arena.data(first.slot);
-        arena.intrinsic_block_size_cache_put(first_data, IntrinsicSizeCacheKind::MinContentBlock, key, value);
-        arena.intrinsic_inline_size_measurement_cache_put(
-            first_data,
+        caches.intrinsic_block_size_cache_put(
+            arena.intrinsic_size_cache_stamp(first.slot),
+            IntrinsicSizeCacheKind::MinContentBlock,
+            key,
+            value,
+        );
+        caches.intrinsic_inline_size_measurement_cache_put(
+            arena.intrinsic_size_cache_stamp(first.slot),
             IntrinsicSizeCacheKind::MaxContentInline,
             key,
             inline_measurement,
         );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(first_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(first.slot),
+                IntrinsicSizeCacheKind::MinContentBlock,
+                key
+            ),
             Some(value)
         );
         assert_eq!(
-            arena.intrinsic_inline_size_measurement_cache_get(
-                first_data,
+            caches.intrinsic_inline_size_measurement_cache_get(
+                arena.intrinsic_size_cache_stamp(first.slot),
                 IntrinsicSizeCacheKind::MaxContentInline,
                 key
             ),
             Some(inline_measurement)
         );
-        assert!(arena.intrinsic_inline_size_depends_on_block_size(first_data, || {
-            dependency_computations.set(dependency_computations.get() + 1);
-            true
-        }));
-        assert!(arena.intrinsic_inline_size_depends_on_block_size(first_data, || false));
+        assert!(caches.intrinsic_inline_size_depends_on_block_size(
+            arena.intrinsic_size_cache_stamp(first.slot),
+            || {
+                dependency_computations.set(dependency_computations.get() + 1);
+                true
+            }
+        ));
+        assert!(
+            caches.intrinsic_inline_size_depends_on_block_size(arena.intrinsic_size_cache_stamp(first.slot), || false)
+        );
         assert_eq!(dependency_computations.get(), 1);
 
         first_data
             .intrinsic_cache_epoch
             .set(first_data.intrinsic_cache_epoch.get() + 1);
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(first_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(first.slot),
+                IntrinsicSizeCacheKind::MinContentBlock,
+                key
+            ),
             None
         );
         assert_eq!(
-            arena.intrinsic_inline_size_measurement_cache_get(
-                first_data,
+            caches.intrinsic_inline_size_measurement_cache_get(
+                arena.intrinsic_size_cache_stamp(first.slot),
                 IntrinsicSizeCacheKind::MaxContentInline,
                 key
             ),
             None
         );
-        assert!(!arena.intrinsic_inline_size_depends_on_block_size(first_data, || {
-            dependency_computations.set(dependency_computations.get() + 1);
-            false
-        }));
+        assert!(!caches.intrinsic_inline_size_depends_on_block_size(
+            arena.intrinsic_size_cache_stamp(first.slot),
+            || {
+                dependency_computations.set(dependency_computations.get() + 1);
+                false
+            }
+        ));
         assert_eq!(dependency_computations.get(), 2);
         arena
             .free_subtree(first.slot)
@@ -6855,14 +6919,17 @@ mod tests {
         let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         assert_ne!(second.slot, first.slot);
-        let second_data = &*arena.data(second.slot);
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(second_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(second.slot),
+                IntrinsicSizeCacheKind::MinContentBlock,
+                key
+            ),
             None
         );
         assert_eq!(
-            arena.intrinsic_inline_size_measurement_cache_get(
-                second_data,
+            caches.intrinsic_inline_size_measurement_cache_get(
+                arena.intrinsic_size_cache_stamp(second.slot),
                 IntrinsicSizeCacheKind::MaxContentInline,
                 key
             ),
@@ -6876,8 +6943,8 @@ mod tests {
     #[test]
     fn intrinsic_size_cache_answers_masked_probes_only_from_independent_measurements() {
         let mut arena = LayoutNodeArena::new();
+        let caches = super::IntrinsicSizeCaches::default();
         let allocation = arena.allocate_for_test();
-        let data = arena.data(allocation.slot);
         let key_with_basis = |basis: i32| IntrinsicSizeCacheKey {
             measured_at_inline_size: Some(CssPixels::from_raw(64)),
             percentage_basis_block_size: Some(CssPixels::from_raw(basis)),
@@ -6896,17 +6963,34 @@ mod tests {
             depends_on_percentage_block_size: false,
             depends_on_percentage_inline_basis: false,
         };
-        arena.intrinsic_block_size_cache_put(data, max_content, key_with_basis(100), independent);
+        caches.intrinsic_block_size_cache_put(
+            arena.intrinsic_size_cache_stamp(allocation.slot),
+            max_content,
+            key_with_basis(100),
+            independent,
+        );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(data, max_content, key_with_basis(100)),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
+                max_content,
+                key_with_basis(100)
+            ),
             Some(independent)
         );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(data, max_content, key_with_basis(200)),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
+                max_content,
+                key_with_basis(200)
+            ),
             Some(independent)
         );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(data, max_content, key_without_basis),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
+                max_content,
+                key_without_basis
+            ),
             Some(independent)
         );
 
@@ -6915,22 +6999,48 @@ mod tests {
             depends_on_percentage_block_size: true,
             depends_on_percentage_inline_basis: false,
         };
-        arena.intrinsic_block_size_cache_put(data, min_content, key_without_basis, dependent);
+        caches.intrinsic_block_size_cache_put(
+            arena.intrinsic_size_cache_stamp(allocation.slot),
+            min_content,
+            key_without_basis,
+            dependent,
+        );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(data, min_content, key_without_basis),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
+                min_content,
+                key_without_basis
+            ),
             Some(dependent)
         );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(data, min_content, key_with_basis(100)),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
+                min_content,
+                key_with_basis(100)
+            ),
             None
         );
-        arena.intrinsic_block_size_cache_put(data, min_content, key_with_basis(100), dependent);
+        caches.intrinsic_block_size_cache_put(
+            arena.intrinsic_size_cache_stamp(allocation.slot),
+            min_content,
+            key_with_basis(100),
+            dependent,
+        );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(data, min_content, key_with_basis(100)),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
+                min_content,
+                key_with_basis(100)
+            ),
             Some(dependent)
         );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(data, min_content, key_with_basis(200)),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
+                min_content,
+                key_with_basis(200)
+            ),
             None
         );
 
@@ -6944,19 +7054,23 @@ mod tests {
             depends_on_percentage_block_size: false,
             depends_on_percentage_inline_basis: true,
         };
-        arena.intrinsic_block_size_cache_put(
-            data,
+        caches.intrinsic_block_size_cache_put(
+            arena.intrinsic_size_cache_stamp(allocation.slot),
             max_content,
             key_at_another_inline_size_with_inline_basis(300),
             observes_inline_basis,
         );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(data, max_content, key_at_another_inline_size_with_inline_basis(300)),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
+                max_content,
+                key_at_another_inline_size_with_inline_basis(300)
+            ),
             Some(observes_inline_basis)
         );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(
-                data,
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
                 max_content,
                 IntrinsicSizeCacheKey {
                     percentage_basis_block_size: Some(CssPixels::from_raw(200)),
@@ -6966,7 +7080,11 @@ mod tests {
             Some(observes_inline_basis)
         );
         assert_eq!(
-            arena.intrinsic_block_size_cache_get(data, max_content, key_at_another_inline_size_with_inline_basis(400)),
+            caches.intrinsic_block_size_cache_get(
+                arena.intrinsic_size_cache_stamp(allocation.slot),
+                max_content,
+                key_at_another_inline_size_with_inline_basis(400)
+            ),
             None
         );
         arena
@@ -6977,6 +7095,7 @@ mod tests {
     #[test]
     fn table_cell_measurements_follow_the_intrinsic_cache_epoch() {
         let mut arena = LayoutNodeArena::new();
+        let caches = super::IntrinsicSizeCaches::default();
         let first = arena.allocate_for_test();
         let key = TableCellMeasurementKey {
             layout_mode: crate::layout::layout_node_arena::LayoutMode::Normal,
@@ -7003,9 +7122,15 @@ mod tests {
         };
 
         let first_data = arena.data(first.slot);
-        assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
-        arena.table_cell_measurement_cache_put(first_data, key, value);
-        assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), Some(value));
+        assert_eq!(
+            caches.table_cell_measurement_cache_get(arena.intrinsic_size_cache_stamp(first.slot), key),
+            None
+        );
+        caches.table_cell_measurement_cache_put(arena.intrinsic_size_cache_stamp(first.slot), key, value);
+        assert_eq!(
+            caches.table_cell_measurement_cache_get(arena.intrinsic_size_cache_stamp(first.slot), key),
+            Some(value)
+        );
         let percentage_resolved_key = TableCellMeasurementKey {
             content_block_size: CssPixels::from_raw(512),
             has_definite_block_size: true,
@@ -7013,22 +7138,30 @@ mod tests {
             ..key
         };
         assert_eq!(
-            arena.table_cell_measurement_cache_get(first_data, percentage_resolved_key),
+            caches.table_cell_measurement_cache_get(
+                arena.intrinsic_size_cache_stamp(first.slot),
+                percentage_resolved_key
+            ),
             None
         );
 
         first_data
             .intrinsic_cache_epoch
             .set(first_data.intrinsic_cache_epoch.get() + 1);
-        assert_eq!(arena.table_cell_measurement_cache_get(first_data, key), None);
+        assert_eq!(
+            caches.table_cell_measurement_cache_get(arena.intrinsic_size_cache_stamp(first.slot), key),
+            None
+        );
         arena
             .free_subtree(first.slot)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
 
         let second = arena.allocate_for_test();
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
-        let second_data = &*arena.data(second.slot);
-        assert_eq!(arena.table_cell_measurement_cache_get(second_data, key), None);
+        assert_eq!(
+            caches.table_cell_measurement_cache_get(arena.intrinsic_size_cache_stamp(second.slot), key),
+            None
+        );
         arena
             .free_subtree(second.slot)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
