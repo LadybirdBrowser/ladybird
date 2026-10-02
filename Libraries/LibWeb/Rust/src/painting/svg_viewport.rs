@@ -5,11 +5,11 @@
  */
 
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry;
-use crate::painting::paintable_rows::PaintableRowsRead;
 use libgfx_rust::FloatRect;
 
-pub(crate) fn nearest_svg_viewport_of(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<NodeSlotId> {
+pub(crate) fn nearest_svg_viewport_of(arena: &impl PaintRead, slot: NodeSlotId) -> Option<NodeSlotId> {
     let mut ancestor = arena.node_parent_if_live(slot);
     while let Some(node) = ancestor {
         if paintable_geometry::committed_svg_viewport_transform(arena, node).is_some() {
@@ -20,7 +20,7 @@ pub(crate) fn nearest_svg_viewport_of(arena: &impl PaintableRowsRead, slot: Node
     None
 }
 
-pub(crate) fn svg_viewport_user_rect(arena: &impl PaintableRowsRead, viewport: NodeSlotId) -> FloatRect {
+pub(crate) fn svg_viewport_user_rect(arena: &impl PaintRead, viewport: NodeSlotId) -> FloatRect {
     if let Some(view_box) = paintable_geometry::committed_svg_view_box(arena, viewport) {
         return FloatRect::new(
             view_box.min_x as f32,
@@ -40,6 +40,6 @@ pub(crate) fn svg_viewport_user_rect(arena: &impl PaintableRowsRead, viewport: N
     FloatRect::new(0.0, 0.0, size.0, size.1)
 }
 
-pub(crate) fn nearest_svg_viewport_user_rect(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<FloatRect> {
+pub(crate) fn nearest_svg_viewport_user_rect(arena: &impl PaintRead, slot: NodeSlotId) -> Option<FloatRect> {
     nearest_svg_viewport_of(arena, slot).map(|viewport| svg_viewport_user_rect(arena, viewport))
 }

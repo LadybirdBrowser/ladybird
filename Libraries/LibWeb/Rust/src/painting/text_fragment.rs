@@ -8,12 +8,12 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_data::FragmentRecord;
 use crate::painting::paintable_geometry;
-use crate::painting::paintable_rows::PaintableRowsRead;
 
 pub(crate) fn containing_block_paintable_of_node(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     node: NodeSlotId,
 ) -> Option<NodeSlotId> {
     if layout_arena.paintable_row_is_populated(node) {
@@ -25,13 +25,13 @@ pub(crate) fn containing_block_paintable_of_node(
 }
 
 pub(crate) fn containing_block_paintable(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
 ) -> Option<NodeSlotId> {
     containing_block_paintable_of_node(layout_arena, fragment.layout_node)
 }
 
-pub(crate) fn absolute_rect(layout_arena: &impl PaintableRowsRead, fragment: &FragmentRecord) -> CssPixelRect {
+pub(crate) fn absolute_rect(layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> CssPixelRect {
     let (x, y) = fragment.offset();
     let (width, height) = fragment.size();
     let mut rect = CssPixelRect {
@@ -47,7 +47,7 @@ pub(crate) fn absolute_rect(layout_arena: &impl PaintableRowsRead, fragment: &Fr
 }
 
 pub(crate) fn absolute_line_box_rect(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     owner: NodeSlotId,
     fragment: &FragmentRecord,
 ) -> CssPixelRect {
@@ -86,7 +86,7 @@ pub struct SelectionOffsets {
 }
 
 pub(crate) fn range_rect(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
     selection_state: u8,
     start_offset_in_code_units: usize,
@@ -107,7 +107,7 @@ pub(crate) fn range_rect(
 }
 
 pub(crate) fn compute_selection_offsets(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
     selection_state: u8,
     start_offset_in_code_units: usize,
@@ -160,7 +160,7 @@ pub(crate) fn compute_selection_offsets(
 }
 
 pub(crate) fn for_each_fragment_of_nodes(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     node_slots: &[NodeSlotId],
     mut callback: impl FnMut(NodeSlotId, u32, &FragmentRecord) -> bool,
 ) {
@@ -199,7 +199,7 @@ pub(crate) fn caret_match(fragment: &FragmentRecord, offset: usize, affinity_is_
 }
 
 pub(crate) fn selection_offsets_for_dom_range(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
     start_offset_in_code_units: usize,
     end_offset_in_code_units: usize,
@@ -250,7 +250,7 @@ fn for_each_cluster_in_glyph_run(
 }
 
 pub(crate) fn rect_for_selection_offsets(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
     offsets: SelectionOffsets,
     first_available_font: impl FnOnce() -> Option<libgfx_rust::font::FontHandle>,
@@ -341,7 +341,7 @@ pub(crate) fn rect_for_selection_offsets(
 }
 
 pub(crate) fn whole_range_rect(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
     first_available_font: impl FnOnce() -> Option<libgfx_rust::font::FontHandle>,
 ) -> CssPixelRect {
@@ -352,18 +352,18 @@ pub(crate) fn whole_range_rect(
     rect_for_selection_offsets(layout_arena, fragment, offsets, first_available_font)
 }
 
-pub(crate) fn is_block_level_box(layout_arena: &impl PaintableRowsRead, fragment: &FragmentRecord) -> bool {
+pub(crate) fn is_block_level_box(layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> bool {
     layout_arena
         .node_style_if_live(fragment.layout_node)
         .is_some_and(|style| style.display().is_block_outside())
 }
 
-pub(crate) fn style_source(_layout_arena: &impl PaintableRowsRead, fragment: &FragmentRecord) -> NodeSlotId {
+pub(crate) fn style_source(_layout_arena: &impl PaintRead, fragment: &FragmentRecord) -> NodeSlotId {
     fragment.style_source
 }
 
 pub(crate) fn first_available_font(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
 ) -> Option<libgfx_rust::font::FontHandle> {
     let source = style_source(layout_arena, fragment);
@@ -414,7 +414,7 @@ impl GraphemeEdgeTracker {
 }
 
 pub(crate) fn index_in_node_for_point(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     fragment: &FragmentRecord,
     position: crate::css::css_pixels::CssPixelPoint,
 ) -> usize {

@@ -14,11 +14,11 @@ use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::host::{FfiLayerImageList, RootBackgroundSource};
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry::{
     absolute_border_box_rect, absolute_padding_box_rect, committed_border_box_edges, committed_padding,
     committed_uses_collapsing_borders_model,
 };
-use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::{BackgroundBox, background_box_for};
 use crate::painting::record::paint::replaced::{SizeWithAspectRatio, run_default_sizing_algorithm};
@@ -114,7 +114,7 @@ pub(crate) fn operator_erases_destination_outside_the_drawn_geometry(operator: C
 }
 
 pub(crate) fn body_background_is_propagated_to_root(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     slot: NodeSlotId,
     root_background_source: RootBackgroundSource,
 ) -> bool {
@@ -123,7 +123,7 @@ pub(crate) fn body_background_is_propagated_to_root(
 }
 
 fn background_layers_style(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     root_background_source: RootBackgroundSource,
     node: NodeSlotId,
 ) -> Option<ComputedValuesView<'_>> {
@@ -165,7 +165,7 @@ fn any_background_layer_has_a_fixed_attachment_image(style: ComputedValuesView<'
 }
 
 pub(crate) fn background_depends_on_live_scroll_offset(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     root_background_source: crate::painting::host::RootBackgroundSource,
     node: NodeSlotId,
 ) -> bool {
@@ -176,7 +176,7 @@ pub(crate) fn background_depends_on_live_scroll_offset(
 }
 
 pub(crate) fn background_has_fixed_attachment(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     root_background_source: crate::painting::host::RootBackgroundSource,
     node: NodeSlotId,
 ) -> bool {
@@ -221,7 +221,7 @@ pub(crate) struct BackgroundPaintSource<'a> {
 }
 
 pub(crate) fn background_paint_source_from_style_and_geometry(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     slot: NodeSlotId,
     root_background_source: RootBackgroundSource,
 ) -> Option<BackgroundPaintSource<'_>> {
@@ -396,7 +396,7 @@ fn computed_background_layers(style: ComputedValuesView<'_>, facts_owner: NodeSl
 }
 
 pub(crate) fn background_color_can_be_compositor_animated(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     slot: NodeSlotId,
     root_background_source: RootBackgroundSource,
 ) -> bool {
@@ -803,7 +803,7 @@ pub(crate) fn resolve_mask_layers<'a, O: Observer>(
 }
 
 pub(crate) fn has_background_to_paint(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     paintable: NodeSlotId,
     root_background_source: RootBackgroundSource,
 ) -> bool {
@@ -826,7 +826,7 @@ pub(crate) fn has_background_to_paint(
 /// The root background covers the viewport and the root's scrollable overflow. Moving the
 /// viewport inside that area does not change the recorded background; growing it does.
 pub(crate) fn root_background_canvas_rect(
-    arena: &impl PaintableRowsRead,
+    arena: &impl crate::painting::paintable_rows::PaintableRowsRead,
     root: NodeSlotId,
     viewport_rect: CssPixelRect,
 ) -> CssPixelRect {

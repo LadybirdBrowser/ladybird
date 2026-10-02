@@ -14,14 +14,13 @@ use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::css_string::CssString;
 use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::StyleValueData;
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
-use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::paint_read::PaintRead;
 
 const SEPARATOR_COMMA: u8 = 1;
 
-fn has_flag(arena: &LayoutNodeArena, node: NodeSlotId, flag: NodeFlag) -> bool {
+fn has_flag(arena: &impl PaintRead, node: NodeSlotId, flag: NodeFlag) -> bool {
     arena.node_flags_if_live(node) & flag as u32 != 0
 }
 
@@ -165,7 +164,7 @@ fn view_transition_name_has_value(style: ComputedValuesView<'_>) -> bool {
         .is_some_and(|value| matches!(value, StyleValueData::CustomIdent { .. }))
 }
 
-fn containment_applies_to_display(arena: &LayoutNodeArena, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
+fn containment_applies_to_display(arena: &impl PaintRead, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
     let display = style.display();
     if display.is_internal_table() && !display.is_table_cell() {
         return false;
@@ -179,12 +178,12 @@ fn containment_applies_to_display(arena: &LayoutNodeArena, node: NodeSlotId, sty
     true
 }
 
-pub(crate) fn has_layout_containment(arena: &LayoutNodeArena, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
+pub(crate) fn has_layout_containment(arena: &impl PaintRead, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
     let contained = style.box_values().layout_containment || style.content_visibility() == content_visibility::AUTO;
     contained && containment_applies_to_display(arena, node, style)
 }
 
-pub(crate) fn is_scroll_container(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_scroll_container(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let Some(kind) = arena.node_kind_if_live(node) else {
         return false;
     };
@@ -199,7 +198,7 @@ pub(crate) fn has_style_containment(style: ComputedValuesView<'_>) -> bool {
         || style.content_visibility() == content_visibility::AUTO
 }
 
-pub(crate) fn has_paint_containment(arena: &LayoutNodeArena, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
+pub(crate) fn has_paint_containment(arena: &impl PaintRead, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
     let contained = style.box_values().paint_containment || style.content_visibility() == content_visibility::AUTO;
     contained && containment_applies_to_display(arena, node, style)
 }
@@ -235,13 +234,13 @@ pub(crate) fn kind_is_svg_element_box(kind: NodeKind) -> bool {
     kind_is_svg_box(kind) || matches!(kind, NodeKind::SVGSVGBox | NodeKind::SVGForeignObjectBox)
 }
 
-pub(crate) fn node_is_root_element(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn node_is_root_element(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let flags = arena.node_flags_if_live(node);
     flags & NodeFlag::Anonymous as u32 == 0 && flags & NodeFlag::IsHtmlHtmlElement as u32 != 0
 }
 
 fn style_establishes_fixed_positioning_containing_block(
-    arena: &LayoutNodeArena,
+    arena: &impl PaintRead,
     node: NodeSlotId,
     style: ComputedValuesView<'_>,
 ) -> bool {
@@ -316,7 +315,7 @@ pub(crate) fn inline_establishes_absolute_position_containing_block(style: Compu
         || will_change_has_any_property(style, &[b"position", b"filter", b"backdrop-filter"])
 }
 
-pub(crate) fn establishes_positioning_containing_blocks(arena: &LayoutNodeArena, node: NodeSlotId) -> (bool, bool) {
+pub(crate) fn establishes_positioning_containing_blocks(arena: &impl PaintRead, node: NodeSlotId) -> (bool, bool) {
     let Some(kind) = arena.node_kind_if_live(node) else {
         return (false, false);
     };
@@ -347,7 +346,7 @@ pub(crate) fn establishes_positioning_containing_blocks(arena: &LayoutNodeArena,
 }
 
 pub(crate) fn any_ancestor_establishes_a_fixed_position_containing_block(
-    arena: &LayoutNodeArena,
+    arena: &impl PaintRead,
     node: NodeSlotId,
 ) -> bool {
     // https://www.w3.org/TR/css-position-3/#fixed-positioning-containing-block
@@ -363,7 +362,7 @@ pub(crate) fn any_ancestor_establishes_a_fixed_position_containing_block(
     false
 }
 
-pub(crate) fn has_css_transform(arena: &LayoutNodeArena, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
+pub(crate) fn has_css_transform(arena: &impl PaintRead, node: NodeSlotId, style: ComputedValuesView<'_>) -> bool {
     let transform = style.transform();
     let has_transform = !transform.transformations.pointer.is_null()
         || !transform.rotate.pointer.is_null()
@@ -372,13 +371,11 @@ pub(crate) fn has_css_transform(arena: &LayoutNodeArena, node: NodeSlotId, style
     has_transform && is_transformable(arena, node)
 }
 
-pub(crate) fn is_atomic_inline(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    arena
-        .node_data_if_live(node)
-        .is_some_and(|data| node_facts::node_is_atomic_inline(data, arena.node_style_if_live(node)))
+pub(crate) fn is_atomic_inline(arena: &impl PaintRead, node: NodeSlotId) -> bool {
+    arena.node_is_atomic_inline(node)
 }
 
-pub(crate) fn is_transformable(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_transformable(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let Some(kind) = arena.node_kind_if_live(node) else {
         return false;
     };
@@ -424,7 +421,7 @@ pub(crate) fn is_transformable(arena: &LayoutNodeArena, node: NodeSlotId) -> boo
     false
 }
 
-fn used_transform_style_is_preserve_3d(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+fn used_transform_style_is_preserve_3d(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let Some(style) = arena.node_style_if_live(node) else {
         return false;
     };
@@ -455,14 +452,14 @@ fn used_transform_style_is_preserve_3d(arena: &LayoutNodeArena, node: NodeSlotId
     true
 }
 
-pub(crate) fn establishes_or_extends_a_3d_rendering_context(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn establishes_or_extends_a_3d_rendering_context(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     if !has_flag(arena, node, NodeFlag::HasPreserve3dTransformStyle) {
         return false;
     }
     used_transform_style_is_preserve_3d(arena, node) && is_transformable(arena, node)
 }
 
-fn participates_in_a_3d_rendering_context(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+fn participates_in_a_3d_rendering_context(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let mut ancestor = arena.node_parent_if_live(node);
     while let Some(current) = ancestor {
         if has_flag(arena, current, NodeFlag::Anonymous) {
@@ -519,7 +516,7 @@ pub(crate) fn outline_geometry(style: ComputedValuesView<'_>) -> Option<OutlineG
 }
 
 pub(crate) fn outline_data(
-    arena: &LayoutNodeArena,
+    arena: &impl PaintRead,
     node: NodeSlotId,
     window_is_focused: bool,
     auto_outline_color: u32,
@@ -545,13 +542,13 @@ pub(crate) fn outline_data(
     })
 }
 
-pub(crate) fn outline_offset(arena: &LayoutNodeArena, node: NodeSlotId) -> CssPixels {
+pub(crate) fn outline_offset(arena: &impl PaintRead, node: NodeSlotId) -> CssPixels {
     arena
         .node_style_if_live(node)
         .map_or(CssPixels::from_raw(0), |style| style.misc_reset().outline_offset)
 }
 
-pub(crate) fn is_text_decoration_propagation_boundary(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_text_decoration_propagation_boundary(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let Some(kind) = arena.node_kind_if_live(node) else {
         return false;
     };
@@ -575,13 +572,13 @@ pub(crate) fn is_text_decoration_propagation_boundary(arena: &LayoutNodeArena, n
     is_atomic_inline(arena, node)
 }
 
-pub(crate) fn z_index(arena: &LayoutNodeArena, node: NodeSlotId) -> Option<i32> {
+pub(crate) fn z_index(arena: &impl PaintRead, node: NodeSlotId) -> Option<i32> {
     let style = arena.node_style_if_live(node)?;
     let box_values = style.box_values();
     box_values.has_z_index.then_some(box_values.z_index)
 }
 
-pub(crate) fn effective_z_index(arena: &LayoutNodeArena, paintable: NodeSlotId) -> Option<i32> {
+pub(crate) fn effective_z_index(arena: &impl PaintRead, paintable: NodeSlotId) -> Option<i32> {
     if !is_positioned(arena, paintable) {
         return None;
     }
@@ -591,17 +588,15 @@ pub(crate) fn effective_z_index(arena: &LayoutNodeArena, paintable: NodeSlotId) 
 // Facts a paintable shares with its layout node, read live from the arena so
 // style changes that do not relayout (z-index, for one) are never stale here.
 
-pub(crate) fn is_positioned(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    arena
-        .node_data_if_live(node)
-        .is_some_and(|data| node_facts::node_is_positioned(data, arena.node_style_if_live(node)))
+pub(crate) fn is_positioned(arena: &impl PaintRead, node: NodeSlotId) -> bool {
+    arena.node_is_positioned(node)
 }
 
-pub(crate) fn position(arena: &LayoutNodeArena, node: NodeSlotId) -> u8 {
+pub(crate) fn position(arena: &impl PaintRead, node: NodeSlotId) -> u8 {
     node_facts::node_position(arena.node_style_if_live(node))
 }
 
-pub(crate) fn is_fixed_position(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_fixed_position(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     position(arena, node) == positioning::FIXED
 }
 
@@ -609,18 +604,16 @@ pub(crate) fn is_sticky_position(style: ComputedValuesView<'_>) -> bool {
     style.box_values().position == positioning::STICKY
 }
 
-pub(crate) fn is_floating(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    arena
-        .node_data_if_live(node)
-        .is_some_and(|data| node_facts::node_is_floating(data, arena.node_style_if_live(node)))
+pub(crate) fn is_floating(arena: &impl PaintRead, node: NodeSlotId) -> bool {
+    arena.node_is_floating(node)
 }
 
-pub(crate) fn is_invisible_for_line_clamp(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_invisible_for_line_clamp(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     arena.with_committed_fragment_link(node, |link| {
         link.is_some_and(|link| link.fragment.is_invisible_for_line_clamp)
     })
 }
-pub(crate) fn line_clamp_clip_rect(arena: &impl PaintableRowsRead, container: NodeSlotId) -> CssPixelRect {
+pub(crate) fn line_clamp_clip_rect(arena: &impl PaintRead, container: NodeSlotId) -> CssPixelRect {
     let style = arena
         .node_style_if_live(container)
         .expect("line clamp container must be live");
@@ -635,7 +628,7 @@ pub(crate) fn line_clamp_clip_rect(arena: &impl PaintableRowsRead, container: No
     }
 }
 
-pub(crate) fn line_clamp_float_clip_rect(arena: &impl PaintableRowsRead, node: NodeSlotId) -> Option<CssPixelRect> {
+pub(crate) fn line_clamp_float_clip_rect(arena: &impl PaintRead, node: NodeSlotId) -> Option<CssPixelRect> {
     if is_invisible_for_line_clamp(arena, node) {
         return Some(CssPixelRect::default());
     }
@@ -647,29 +640,29 @@ pub(crate) fn line_clamp_float_clip_rect(arena: &impl PaintableRowsRead, node: N
     Some(line_clamp_clip_rect(arena, container))
 }
 
-pub(crate) fn is_inline(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_inline(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     node_facts::node_is_inline_outside(arena.node_style_if_live(node))
 }
 
-pub(crate) fn display(arena: &LayoutNodeArena, node: NodeSlotId) -> crate::css::display::FfiDisplay {
+pub(crate) fn display(arena: &impl PaintRead, node: NodeSlotId) -> crate::css::display::FfiDisplay {
     node_facts::node_display(arena.node_style_if_live(node))
 }
 
-pub(crate) fn is_flex_or_grid_item(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_flex_or_grid_item(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     has_flag(arena, node, NodeFlag::IsFlexItem) || has_flag(arena, node, NodeFlag::IsGridItem)
 }
 
-pub(crate) fn is_anonymous(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_anonymous(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     has_flag(arena, node, NodeFlag::Anonymous)
 }
 
-pub(crate) fn is_replaced_box(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn is_replaced_box(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     arena
         .node_kind_if_live(node)
         .is_some_and(node_facts::kind_is_replaced_box)
 }
 
-pub(crate) fn establishes_stacking_context(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
+pub(crate) fn establishes_stacking_context(arena: &impl PaintRead, node: NodeSlotId) -> bool {
     let Some(kind) = arena.node_kind_if_live(node) else {
         return false;
     };

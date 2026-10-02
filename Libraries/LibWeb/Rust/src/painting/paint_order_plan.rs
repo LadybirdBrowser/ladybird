@@ -11,8 +11,7 @@
 //! are explicit references, so a consumer can record them, reuse them, or collect their order.
 
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::painting::paint_read::GeometryRead;
-use crate::painting::paintable_rows::PaintableRowsRef;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::record::PaintPhase;
 use crate::painting::{node_painting, style_queries};
 use smallvec::SmallVec;
@@ -149,7 +148,7 @@ impl PaintOrderInputs {
         self
     }
 
-    pub(crate) fn gather(arena: &PaintableRowsRef<'_>, row: NodeSlotId) -> Self {
+    pub(crate) fn gather(arena: &impl PaintRead, row: NodeSlotId) -> Self {
         let display = style_queries::display(arena, row);
         let kind = arena.node_kind_if_live(row);
         let z_index = style_queries::z_index(arena, row);
@@ -204,7 +203,7 @@ impl PaintScopePlan {
     /// and layout facts. Without them it gathers current inputs, so a canonical plan can
     /// detect a stale snapshot.
     pub(crate) fn build(
-        arena: &PaintableRowsRef<'_>,
+        arena: &impl PaintRead,
         scope: PaintScope,
         paint_overlay: bool,
         use_prepared_inputs: bool,
@@ -232,8 +231,8 @@ impl PaintScopePlan {
     }
 }
 
-struct PaintOrderBuilder<'a, 'arena> {
-    layout_arena: &'a PaintableRowsRef<'arena>,
+struct PaintOrderBuilder<'a, R: PaintRead> {
+    layout_arena: &'a R,
     paint_overlay: bool,
     use_prepared_inputs: bool,
     items: SmallVec<[PaintOrderItem; 16]>,
@@ -241,7 +240,7 @@ struct PaintOrderBuilder<'a, 'arena> {
     last_inputs: std::cell::Cell<Option<(NodeSlotId, PaintOrderInputs)>>,
 }
 
-impl PaintOrderBuilder<'_, '_> {
+impl<R: PaintRead> PaintOrderBuilder<'_, R> {
     fn inputs(&self, row: NodeSlotId) -> PaintOrderInputs {
         if let Some((previous, inputs)) = self.last_inputs.get()
             && previous == row
@@ -249,7 +248,7 @@ impl PaintOrderBuilder<'_, '_> {
             return inputs;
         }
         let prepared = if self.use_prepared_inputs {
-            self.layout_arena.row_paint_state(row).order_inputs()
+            self.layout_arena.prepared_paint_order_inputs(row)
         } else {
             None
         };

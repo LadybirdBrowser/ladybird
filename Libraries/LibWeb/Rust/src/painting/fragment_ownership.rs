@@ -7,6 +7,7 @@
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::node_painting;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_rows::PaintableRowsRead;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,7 +66,7 @@ impl FragmentOwnershipFilter {
     }
 }
 
-pub(crate) fn is_self_painting_inline(layout_arena: &impl PaintableRowsRead, paintable: NodeSlotId) -> bool {
+pub(crate) fn is_self_painting_inline(layout_arena: &impl PaintRead, paintable: NodeSlotId) -> bool {
     // Whether this box paints its own foreground (fragments and caret) instead of the
     // containing block: it forms a group that content must be recorded inside.
     let data = layout_arena.paintable_data(paintable);
@@ -74,7 +75,7 @@ pub(crate) fn is_self_painting_inline(layout_arena: &impl PaintableRowsRead, pai
 }
 
 pub(crate) fn nearest_fragmented_inline_ancestor(
-    layout_arena: &LayoutNodeArena,
+    layout_arena: &impl PaintRead,
     node: NodeSlotId,
 ) -> Option<NodeSlotId> {
     let mut ancestor = layout_arena.node_parent_if_live(node);
@@ -91,10 +92,7 @@ pub(crate) fn nearest_fragmented_inline_ancestor(
     None
 }
 
-pub(crate) fn nearest_self_painting_inline_box(
-    layout_arena: &impl PaintableRowsRead,
-    node: NodeSlotId,
-) -> Option<NodeSlotId> {
+pub(crate) fn nearest_self_painting_inline_box(layout_arena: &impl PaintRead, node: NodeSlotId) -> Option<NodeSlotId> {
     let mut ancestor = nearest_fragmented_inline_ancestor(layout_arena, node);
     while let Some(candidate) = ancestor {
         if layout_arena.paintable_row_is_populated(candidate) && is_self_painting_inline(layout_arena, candidate) {
@@ -142,7 +140,7 @@ pub(crate) fn assign_fragment_ownership_for_pending_line_roots(layout_arena: &La
     }
 }
 
-fn piece_paintable_of(layout_arena: &impl PaintableRowsRead, node: NodeSlotId) -> Option<NodeSlotId> {
+fn piece_paintable_of(layout_arena: &impl PaintRead, node: NodeSlotId) -> Option<NodeSlotId> {
     if node.is_invalid() || !layout_arena.slot_is_live(node) {
         return None;
     }
@@ -150,7 +148,7 @@ fn piece_paintable_of(layout_arena: &impl PaintableRowsRead, node: NodeSlotId) -
 }
 
 pub(crate) fn compute_fragment_ownership_for_block(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     block: NodeSlotId,
 ) -> Vec<(NodeSlotId, FragmentOwnershipFilter)> {
     let pieces = layout_arena.paintable_side_data(block).inline_box_pieces().to_vec();
@@ -252,10 +250,7 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
     }
 }
 
-pub(crate) fn effective_filter(
-    layout_arena: &impl PaintableRowsRead,
-    paintable: NodeSlotId,
-) -> FragmentOwnershipFilter {
+pub(crate) fn effective_filter(layout_arena: &impl PaintRead, paintable: NodeSlotId) -> FragmentOwnershipFilter {
     if let Some(filter) = &layout_arena.paintable_side_data(paintable).fragment_ownership {
         return filter.clone();
     }

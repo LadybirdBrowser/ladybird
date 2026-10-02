@@ -11,7 +11,7 @@ use crate::css::style_value::{BasicShapeData, RetainedStyleValueData, StyleValue
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::normalize_border_radii_data;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
-use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::{paintable_geometry, style_queries};
 use libgfx_rust::WindingRule;
 use libgfx_rust::path::{OwnedPath, PathBuilder};
@@ -413,7 +413,7 @@ fn polygon_to_path(points: &crate::css::style_value::RetainedShapePointList, ref
 }
 
 pub(crate) fn compute_basic_shape_clip_path_data(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     slot: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<(OwnedPath, libgfx_rust::IntRect, WindingRule)> {

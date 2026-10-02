@@ -8,8 +8,8 @@ pub mod dump;
 pub mod entries;
 pub mod verify;
 
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::style_queries::{self, effective_z_index};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,7 +24,7 @@ pub(crate) struct StackingContextFacts {
 }
 
 impl StackingContextFacts {
-    pub(crate) fn gather(arena: &LayoutNodeArena, slot: NodeSlotId, enclosing: NodeSlotId) -> Self {
+    pub(crate) fn gather(arena: &impl PaintRead, slot: NodeSlotId, enclosing: NodeSlotId) -> Self {
         let establishes_stacking_context = style_queries::establishes_stacking_context(arena, slot);
         let is_positioned = style_queries::is_positioned(arena, slot);
         let is_inline_or_replaced =

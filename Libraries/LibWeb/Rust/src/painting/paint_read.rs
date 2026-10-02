@@ -16,9 +16,16 @@ use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::LayoutNodeArena;
 use crate::layout::fragment_tree::FragmentLink;
-use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::layout::node_data::{CompositorAnimationFrameKind, NodeKind, NodeSlotId};
+use crate::layout::node_facts;
+use crate::layout::{RenderedTextBoundary, TextContent};
+use crate::painting::paint_order_plan::PaintOrderInputs;
 use crate::painting::paintable_data::{PaintableData, PaintableSideData};
+use crate::painting::stacking_context::entries::StackingContextEntries;
+use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
 use std::cell::Ref;
+use std::ops::Deref;
+use std::sync::Arc;
 
 pub(crate) trait GeometryRead: Sized {
     fn paintable_data(&self, id: NodeSlotId) -> &PaintableData;
@@ -56,7 +63,52 @@ pub(crate) trait PaintRead: GeometryRead {
     fn node_containing_block_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId>;
     fn node_generated_for(&self, id: NodeSlotId) -> u8;
     fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool;
+    fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool;
+    fn node_is_atomic_inline(&self, id: NodeSlotId) -> bool;
+    fn node_is_positioned(&self, id: NodeSlotId) -> bool;
+    fn node_is_floating(&self, id: NodeSlotId) -> bool;
+    fn node_has_compositor_animation_frame(&self, id: NodeSlotId, kind: CompositorAnimationFrameKind) -> bool;
     fn node_style_if_live(&self, id: NodeSlotId) -> Option<ComputedValuesView<'_>>;
+    /// The rendered text of a text row.
+    fn text_content(&self, id: NodeSlotId) -> Option<&TextContent>;
+    fn published_svg_filter(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgFilter>>;
+    fn published_svg_paint_server(
+        &self,
+        slot: NodeSlotId,
+        kind: SvgPaintResourceKind,
+    ) -> Option<Arc<PublishedSvgPaintServer>>;
+
+    /// The paint-order inputs paint preparation gathered for the row, if it gathered them.
+    fn prepared_paint_order_inputs(&self, row: NodeSlotId) -> Option<PaintOrderInputs>;
+    fn stacking_context_entries(&self, root: NodeSlotId) -> Option<impl Deref<Target = StackingContextEntries> + '_>;
+
+    fn dom_offset_for_rendered_text_offset(
+        &self,
+        id: NodeSlotId,
+        offset: usize,
+        boundary: RenderedTextBoundary,
+    ) -> usize {
+        if !self.node_kind_if_live(id).is_some_and(node_facts::kind_is_text) {
+            return offset;
+        }
+        self.text_content(id)
+            .expect("text must be published before mapping rendered offsets")
+            .dom_offset_for_rendered_text_offset(offset, boundary)
+    }
+
+    fn rendered_text_offset_for_dom_offset(
+        &self,
+        id: NodeSlotId,
+        offset: usize,
+        boundary: RenderedTextBoundary,
+    ) -> usize {
+        if !self.node_kind_if_live(id).is_some_and(node_facts::kind_is_text) {
+            return offset;
+        }
+        self.text_content(id)
+            .expect("text must be published before mapping DOM offsets")
+            .rendered_text_offset_for_dom_offset(offset, boundary)
+    }
 }
 
 impl AsRef<LayoutNodeArena> for LayoutNodeArena {
@@ -134,7 +186,51 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
         self.as_ref().node_is_generated_for_pseudo_element(id)
     }
 
+    fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
+        self.as_ref().node_is_out_of_flow_if_live(id)
+    }
+
+    fn node_is_atomic_inline(&self, id: NodeSlotId) -> bool {
+        self.as_ref().node_is_atomic_inline(id)
+    }
+
+    fn node_is_positioned(&self, id: NodeSlotId) -> bool {
+        self.as_ref().node_is_positioned(id)
+    }
+
+    fn node_is_floating(&self, id: NodeSlotId) -> bool {
+        self.as_ref().node_is_floating(id)
+    }
+
+    fn node_has_compositor_animation_frame(&self, id: NodeSlotId, kind: CompositorAnimationFrameKind) -> bool {
+        self.as_ref().node_has_compositor_animation_frame(id, kind)
+    }
+
     fn node_style_if_live(&self, id: NodeSlotId) -> Option<ComputedValuesView<'_>> {
         self.as_ref().node_style_if_live(id)
+    }
+
+    fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
+        self.as_ref().text_content(id)
+    }
+
+    fn published_svg_filter(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgFilter>> {
+        self.as_ref().svg_paint_resources().published_filter(slot, kind)
+    }
+
+    fn published_svg_paint_server(
+        &self,
+        slot: NodeSlotId,
+        kind: SvgPaintResourceKind,
+    ) -> Option<Arc<PublishedSvgPaintServer>> {
+        self.as_ref().svg_paint_resources().published_paint_server(slot, kind)
+    }
+
+    fn prepared_paint_order_inputs(&self, row: NodeSlotId) -> Option<PaintOrderInputs> {
+        self.as_ref().row_paint_state(row).order_inputs()
+    }
+
+    fn stacking_context_entries(&self, root: NodeSlotId) -> Option<impl Deref<Target = StackingContextEntries> + '_> {
+        self.as_ref().stacking_context_entries(root)
     }
 }
