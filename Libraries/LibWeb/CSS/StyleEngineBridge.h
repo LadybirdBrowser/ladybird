@@ -187,7 +187,7 @@ public:
     using RecordDemand = StyleEngineFFI::FfiRecordDemand;
     using PseudoElementRecordDemand = StyleEngineFFI::FfiPseudoElementRecordDemand;
     using DemandedPseudoElement = StyleEngineFFI::FfiDemandedPseudoElement;
-    // The pseudo-element a record demand reads for a pseudo-element, if the engine settles that kind.
+    // The pseudo-element a record demand reads for a pseudo-element, if it is a synthetic one.
     [[nodiscard]] static Optional<DemandedPseudoElement> demanded_pseudo_element(PseudoElement);
     // Answers a record demand of an element: the record the engine derived from the document as it is now, or zero
     // where the read is C++'s.

@@ -5376,9 +5376,23 @@ pub(super) mod pseudo_kind {
     pub(in crate::css::style) const BACKDROP: u8 = 1;
     pub(in crate::css::style) const BEFORE: u8 = 2;
     pub(in crate::css::style) const FIRST_LETTER: u8 = 3;
+    pub(in crate::css::style) const FIRST_LINE: u8 = 4;
     pub(in crate::css::style) const MARKER: u8 = 5;
     pub(in crate::css::style) const SELECTION: u8 = 6;
+    pub(in crate::css::style) const VIEW_TRANSITION: u8 = 7;
     pub(in crate::css::style) const SYNTHETIC_COUNT: usize = 8;
+    /// Every kind, in the order a settlement goes through them: first the ones a style update
+    /// settles, then the ones only a read asks for.
+    pub(in crate::css::style) const SETTLEMENT_ORDER: [u8; SYNTHETIC_COUNT] = [
+        BEFORE,
+        AFTER,
+        FIRST_LETTER,
+        SELECTION,
+        BACKDROP,
+        MARKER,
+        FIRST_LINE,
+        VIEW_TRANSITION,
+    ];
     /// The kinds an element in the host's shadow tree backs, as a mask.
     pub(in crate::css::style) const ELEMENT_REFERENCE_KINDS: u64 =
         ((1 << (super::bridge::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND + 1)) - 1)

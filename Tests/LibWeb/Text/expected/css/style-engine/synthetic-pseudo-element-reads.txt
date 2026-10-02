@@ -1,0 +1,10 @@
+target::selection: color rgb(70, 80, 90), background-color rgb(40, 50, 60), demands left to the host 0
+child::selection: color rgb(70, 80, 90), background-color rgb(40, 50, 60), demands left to the host 0
+target::first-line: color rgb(0, 0, 128), background-color rgba(0, 0, 0, 0), demands left to the host 0
+target::view-transition: color rgb(128, 0, 128), background-color rgba(0, 0, 0, 0), demands left to the host 0
+child::first-line: color rgb(0, 0, 0), background-color rgba(0, 0, 0, 0), demands left to the host 0
+target::marker: color rgb(0, 128, 0), background-color rgba(0, 0, 0, 0), demands left to the host 0
+target::selection: color rgb(255, 0, 255), background-color rgb(40, 50, 60), demands left to the host 0
+target::first-line: color rgb(255, 0, 255), background-color rgba(0, 0, 0, 0), demands left to the host 0
+target::view-transition: color rgb(255, 0, 255), background-color rgba(0, 0, 0, 0), demands left to the host 0
+target::marker: color rgb(255, 0, 255), background-color rgba(0, 0, 0, 0), demands left to the host 0
