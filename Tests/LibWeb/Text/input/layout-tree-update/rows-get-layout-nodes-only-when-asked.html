@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        for (let i = 0; i < 50; ++i) {
+            const item = document.createElement("div");
+            item.append(document.createElement("span"), `item ${i}`);
+            fixture.append(item);
+        }
+        // Each item's text gets a row of its own, and no layout node until something asks for one.
+        const rows = internals.layoutArenaLiveSlotCount();
+        const layoutNodes = internals.layoutArenaShellCount();
+        println(`more rows than layout nodes: ${rows > layoutNodes + 40}`);
+
+        // Asking for a box makes its layout node, and only its own.
+        fixture.lastElementChild.getBoundingClientRect();
+        println(`asking for one box makes at most one layout node: ${internals.layoutArenaShellCount() <= layoutNodes + 1}`);
+    });
+</script>

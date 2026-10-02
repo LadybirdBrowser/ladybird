@@ -28,6 +28,9 @@ pub(crate) struct HostTables {
     pub(super) layout_update_host: Cell<Option<FfiLayoutUpdateHostCallbacks>>,
     /// Makes the shell of an anonymous row the first time something asks for it.
     pub(super) shell_factory: Cell<Option<ShellFactory>>,
+    /// Whether the shell factory is making a layout node, which a reader asking for a row's box
+    /// can cause while it borrows the arena, so nothing may borrow the arena mutably meanwhile.
+    pub(super) making_shell: Cell<bool>,
     pub(super) shell_style_changed_host: Cell<Option<ShellStyleChangedHost>>,
     pub(crate) chrome_state_callback: Cell<Option<ChromeStateCallback>>,
     /// What the overflow pass tells the document once it has settled a box's scroll offset.

@@ -10,6 +10,7 @@ use super::node_facts::{kind_is_box, kind_is_text, node_style_view};
 use super::rendered_text::{FfiRenderedTextView, FfiTextSourceRange, RenderedTextBoundary, ensure_text_content};
 use crate::css::css_enums::{visibility, white_space_collapse};
 use crate::css::ffi_support::FfiUtf16View;
+use crate::css::style::tree::StyleNodeID;
 use std::ffi::c_void;
 use std::ops::Range;
 
@@ -106,9 +107,9 @@ impl MappedText {
         let start = self.dom_position(arena, range.start, Start)?;
         let end = self.dom_position(arena, range.end, End)?;
         Some(FfiDomTextRange {
-            start_layout_node: arena.dom_backed_shell_if_live(start.node),
+            start_text_node: text_node_identity(arena, start.node),
             start_offset: start.offset,
-            end_layout_node: arena.dom_backed_shell_if_live(end.node),
+            end_text_node: text_node_identity(arena, end.node),
             end_offset: end.offset,
         })
     }
@@ -282,19 +283,25 @@ impl SearchTextBuilder {
     }
 }
 
+/// The DOM text node a text row renders, by identity, or zero for generated text, which renders
+/// none.
+fn text_node_identity(arena: &LayoutNodeArena, node: NodeSlotId) -> u32 {
+    arena.node_style_node(node).map_or(0, StyleNodeID::raw)
+}
+
 enum SearchNode {
     Skip,
     Break,
-    Text(*mut c_void),
+    Text(StyleNodeID),
 }
 
 impl SearchNode {
     fn text(arena: &LayoutNodeArena, node: NodeSlotId) -> Self {
-        // Generated text renders no DOM text, so only a DOM-backed row can be searched.
-        if arena.node_is_dom_backed(node) {
-            SearchNode::Text(arena.dom_backed_shell_if_live(node))
-        } else {
-            SearchNode::Skip
+        // Generated text renders no DOM text, so only a row built for a DOM text node can be
+        // searched.
+        match arena.node_style_node(node) {
+            Some(text) => SearchNode::Text(text),
+            None => SearchNode::Skip,
         }
     }
 }
@@ -320,7 +327,8 @@ fn search_node(arena: &LayoutNodeArena, node: NodeSlotId) -> SearchNode {
 unsafe fn ensure_searchable_text(
     arena: *mut LayoutNodeArena,
     viewport: NodeSlotId,
-    is_searchable: unsafe extern "C" fn(*mut c_void) -> bool,
+    is_searchable: unsafe extern "C" fn(*mut c_void, u32) -> bool,
+    context: *mut c_void,
 ) {
     let nodes = {
         // SAFETY: The caller lends the live arena for traversal before callbacks.
@@ -338,9 +346,9 @@ unsafe fn ensure_searchable_text(
         match search_node(unsafe { &*arena }, node) {
             SearchNode::Skip => {}
             SearchNode::Break => builder.flush(),
-            SearchNode::Text(layout_node) => {
+            SearchNode::Text(text) => {
                 // SAFETY: This only reads DOM eligibility. No arena borrow crosses it.
-                if !unsafe { is_searchable(layout_node) } {
+                if !unsafe { is_searchable(context, text.raw()) } {
                     continue;
                 }
                 // SAFETY: The text is attached, and the DOM callback has returned.
@@ -357,13 +365,13 @@ unsafe fn ensure_searchable_text(
     unsafe { &mut *arena }.searchable_text = Some(builder.blocks);
 }
 
-/// A range in the DOM text the layout rows render. The host resolves each row's DOM text node
-/// from the identity the row carries.
+/// A range in the DOM text the layout rows render, between the DOM text nodes the identities
+/// name.
 #[repr(C)]
 pub struct FfiDomTextRange {
-    pub start_layout_node: *mut c_void,
+    pub start_text_node: u32,
     pub start_offset: usize,
-    pub end_layout_node: *mut c_void,
+    pub end_text_node: u32,
     pub end_offset: usize,
 }
 
@@ -406,7 +414,7 @@ pub unsafe extern "C" fn layout_arena_find_matching_text(
     viewport: NodeSlotId,
     query: FfiUtf16View,
     case_sensitive: bool,
-    is_searchable: unsafe extern "C" fn(*mut c_void) -> bool,
+    is_searchable: unsafe extern "C" fn(*mut c_void, u32) -> bool,
     context: *mut c_void,
     append: unsafe extern "C" fn(*mut c_void, FfiDomTextRange),
 ) {
@@ -416,7 +424,7 @@ pub unsafe extern "C" fn layout_arena_find_matching_text(
         return;
     }
     // SAFETY: Source and DOM callbacks finish before native cache publication.
-    unsafe { ensure_searchable_text(arena.cast(), viewport, is_searchable) };
+    unsafe { ensure_searchable_text(arena.cast(), viewport, is_searchable, context) };
     let matches = {
         // SAFETY: Cache preparation is complete; matching performs no callbacks.
         let arena = unsafe { LayoutNodeArena::from_handle(arena) };
@@ -436,7 +444,7 @@ pub unsafe extern "C" fn layout_arena_find_matching_text(
         matches
     };
     for range in matches {
-        // SAFETY: Native matching is complete; the host resolves each row's DOM node itself.
+        // SAFETY: Native matching is complete; the host resolves each identity's DOM node itself.
         unsafe { append(context, range) };
     }
 }

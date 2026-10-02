@@ -619,12 +619,23 @@ struct ScopedAnchorName {
     name: usize,
 }
 
+/// Why the arena holds a pin on the style record a row names.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ArenaStylePin {
+    None,
+    /// The arena derived the record for the row: an anonymous box's, or a style layout adjusted.
+    Derived,
+    /// The record the row's node published when the build stamped the row, held until the row
+    /// takes another.
+    Published,
+}
+
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
     style_records: Vec<Cell<u64>>,
-    style_records_pinned_by_arena: Vec<Cell<bool>>,
+    style_record_pins: Vec<Cell<ArenaStylePin>>,
     /// The style record the host pinned for its readers of a row that outlive the row's place in
     /// the tree (a detached box is read until its row is freed), or zero. A pin is counted, so this
     /// is a pin of its own beside the arena's, and it names the record it took rather than whichever
@@ -738,6 +749,10 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) boxes_needing_scrollable_overflow_recalculation: RefCell<Vec<NodeSlotId>>,
     pub(crate) needs_full_scrollable_overflow_recalculation: Cell<bool>,
     text_nodes_enrolled_for_content_sync: RefCell<HashSet<NodeSlotId>>,
+    /// The rows a running tree build owes the host the attachment of their style resources once
+    /// the build is over, in the order it stamped them, each with whether the row owns the image
+    /// its content is replaced with.
+    style_resources_owed_to_host: RefCell<Vec<(NodeSlotId, bool)>>,
     /// The scroll containers a running tree build gave a style, which may be where scroll
     /// snapping happens once the build is over.
     built_scroll_containers: RefCell<Vec<NodeSlotId>>,
@@ -777,7 +792,7 @@ impl LayoutNodeArena {
             chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
             style_records: Vec::new(),
-            style_records_pinned_by_arena: Vec::new(),
+            style_record_pins: Vec::new(),
             style_records_pinned_by_host: Vec::new(),
             style_nodes: Vec::new(),
             next_rows_with_same_style_node: Vec::new(),
@@ -848,6 +863,7 @@ impl LayoutNodeArena {
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
+            style_resources_owed_to_host: RefCell::default(),
             built_scroll_containers: RefCell::default(),
             may_have_auto_content_visibility: Cell::new(false),
             may_have_scroll_snap_areas: Cell::new(false),
@@ -1029,7 +1045,7 @@ impl LayoutNodeArena {
             }
             self.slot_metadata.push(SlotMetadata::default());
             self.style_records.push(Cell::new(0));
-            self.style_records_pinned_by_arena.push(Cell::new(false));
+            self.style_record_pins.push(Cell::new(ArenaStylePin::None));
             self.style_records_pinned_by_host.push(Cell::new(0));
             self.style_nodes.push(Cell::new(None));
             self.next_rows_with_same_style_node.push(Cell::new(NodeSlotId::INVALID));
@@ -1093,7 +1109,7 @@ impl LayoutNodeArena {
         let mut paintable_row_resets = Vec::new();
         let mut arena_pinned_style_records = Vec::new();
         for &(slot, _) in &rows {
-            if self.style_records_pinned_by_arena[slot.slot_index() as usize].get() {
+            if self.style_record_pins[slot.slot_index() as usize].get() != ArenaStylePin::None {
                 arena_pinned_style_records.push(self.style_records[slot.slot_index() as usize].get());
             }
             let host_pinned_style_record = self.style_records_pinned_by_host[slot.slot_index() as usize].get();
@@ -1160,7 +1176,7 @@ impl LayoutNodeArena {
         self.unbind_row(id);
         self.set_node_style_node(id, None);
         self.style_records[index as usize].set(0);
-        self.style_records_pinned_by_arena[index as usize].set(false);
+        self.style_record_pins[index as usize].set(ArenaStylePin::None);
         self.style_records_pinned_by_host[index as usize].set(0);
 
         if let Some(slot) = self.intrinsic_size_caches.get_mut().get_mut(index as usize) {
@@ -1764,7 +1780,7 @@ impl LayoutNodeArena {
         self.set_node_flag(id, NodeFlag::FollowsPrincipalStyle, false);
         self.invalidate_overflow_after_style_change(id);
         let previous = self.style_records[id.slot_index() as usize].replace(style_record);
-        if self.style_records_pinned_by_arena[id.slot_index() as usize].replace(false) {
+        if self.style_record_pins[id.slot_index() as usize].replace(ArenaStylePin::None) != ArenaStylePin::None {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
         }
         self.enroll_text_children_for_content_sync(id);
@@ -1809,12 +1825,13 @@ impl LayoutNodeArena {
         self.style_records[id.slot_index() as usize].get()
     }
 
-    pub(crate) fn node_style_record_is_pinned_by_arena(&self, id: NodeSlotId) -> bool {
+    /// Whether the row's record is one the arena derived for it rather than one its node published.
+    pub(crate) fn node_style_record_is_derived(&self, id: NodeSlotId) -> bool {
         assert!(
             self.slot_is_live(id),
             "layout node arena read the style pin of a dead slot"
         );
-        self.style_records_pinned_by_arena[id.slot_index() as usize].get()
+        self.style_record_pins[id.slot_index() as usize].get() == ArenaStylePin::Derived
     }
 
     /// Pins the style record of a row that is leaving the layout tree for the host's readers, which
@@ -2477,7 +2494,7 @@ impl LayoutNodeArena {
                 // list-item pseudo is generated for that pseudo but carries its own ::marker record.
                 let follows_principal = data.generated_for.get() != 0
                     && data.kind.get() != NodeKind::ListItemMarkerBox
-                    && (!self.node_style_record_is_pinned_by_arena(child)
+                    && (!self.node_style_record_is_derived(child)
                         || flags & NodeFlag::FollowsPrincipalStyle as u32 != 0)
                     && self.data(parent).flags.get() & NodeFlag::IsPseudoElementPrincipalBox as u32 != 0
                     && self.data(parent).generated_for.get() == data.generated_for.get();
@@ -2789,25 +2806,33 @@ impl LayoutNodeArena {
         self.set_node_style_node(slot, style_node);
         self.refresh_has_scroll_offset_flag(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
+        // A text row renders what the mirror publishes for its node, synced before layout.
+        if kind == NodeKind::TextNode {
+            self.enroll_text_node_for_content_sync(slot);
+        }
     }
 
     /// Gives a row stamped for `element` the style record the element published, as a layout node
     /// built from the element's record gave it.
     pub(crate) fn stamp_published_style(&self, slot: NodeSlotId, element: StyleNodeID) {
-        let (record, payloads) = self.with_style_store(|engine| {
+        let published = self.with_style_engine(|engine| {
             let record = engine
                 .element_published_style_record(element)
                 .expect("an element the build stamps a box for has published its style");
-            let payloads = engine
-                .style_record_payloads(record)
-                .expect("a published style record is live")
-                .as_ptr()
-                .cast();
-            (record, payloads)
+            DerivedStyleRecord::pin(engine, record)
         });
-        if self.set_node_style(slot, record, StylePayloadsRef::new(payloads)) {
+        self.stamp_published_style_record(slot, published);
+    }
+
+    /// Gives a row being built the record its node published, pinned by the arena until the row
+    /// takes another. The node hands the row its next record through the row's layout node, which
+    /// is made when first asked for and reads the row's style as it is made, so the record must
+    /// outlive a publication that replaces it before then.
+    fn stamp_published_style_record(&self, slot: NodeSlotId, published: DerivedStyleRecord) {
+        if self.set_node_style(slot, published.record, published.payloads) {
             self.refresh_style_flags(slot);
         }
+        self.style_record_pins[slot.slot_index() as usize].set(ArenaStylePin::Published);
         self.enroll_node_for_svg_paint_resources_sync(slot);
     }
 
@@ -2847,21 +2872,13 @@ impl LayoutNodeArena {
         data.kind.set(kind);
         data.flags.set(super::node_facts::construction_flags(kind, true, 0));
         self.set_node_generated_for(slot, generated_for, Some(generator));
-        let (record, payloads) = self.with_style_store(|engine| {
+        let published = self.with_style_engine(|engine| {
             let record = engine
                 .pseudo_published_style_record(generator, pseudo_kind_of(generated_for))
                 .expect("a pseudo-element the build stamps a box for has published its style");
-            let payloads = engine
-                .style_record_payloads(record)
-                .expect("a published style record is live")
-                .as_ptr()
-                .cast();
-            (record, payloads)
+            DerivedStyleRecord::pin(engine, record)
         });
-        if self.set_node_style(slot, record, StylePayloadsRef::new(payloads)) {
-            self.refresh_style_flags(slot);
-        }
-        self.enroll_node_for_svg_paint_resources_sync(slot);
+        self.stamp_published_style_record(slot, published);
     }
 
     /// Stamps a row the build allocated for a piece of generated text, which names no DOM node and
@@ -2881,6 +2898,7 @@ impl LayoutNodeArena {
             0,
         ));
         self.set_generated_text(slot, text);
+        self.enroll_text_node_for_content_sync(slot);
     }
 
     /// The pseudo-element of kind `generated_for` on `generator` gives up the box it holds, which
@@ -2921,7 +2939,7 @@ impl LayoutNodeArena {
         data.kind.set(kind);
         data.flags.set(super::node_facts::construction_flags(kind, true, 0));
         self.style_records[slot.slot_index() as usize].set(derived.record);
-        self.style_records_pinned_by_arena[slot.slot_index() as usize].set(true);
+        self.style_record_pins[slot.slot_index() as usize].set(ArenaStylePin::Derived);
         data.style.set(derived.payloads);
         self.note_row_style(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
@@ -2978,19 +2996,21 @@ impl LayoutNodeArena {
     }
 
     fn materialize_shell(&self, main_thread: &MainThread, id: NodeSlotId) -> *mut c_void {
-        let Some((context, factory)) = main_thread
-            .host_tables()
-            .and_then(|host_tables| host_tables.shell_factory.get())
-        else {
+        let Some(host_tables) = main_thread.host_tables() else {
+            return std::ptr::null_mut();
+        };
+        let Some((context, factory)) = host_tables.shell_factory.get() else {
             return std::ptr::null_mut();
         };
         let data = self.data(id);
         if data.kind.get() == NodeKind::Unset {
             return std::ptr::null_mut();
         }
+        host_tables.making_shell.set(true);
         // SAFETY: Registration and unregistration keep the factory context live; the factory binds a
         // shell to this live slot and writes nothing but the slot's shell cell.
         unsafe { factory(context, id, data.kind.get()) };
+        host_tables.making_shell.set(false);
         data.shell.get()
     }
 
@@ -3012,7 +3032,8 @@ impl LayoutNodeArena {
 
     pub(crate) fn replace_arena_pinned_style_record(&self, slot: NodeSlotId, derived: DerivedStyleRecord) {
         self.assert_owner_thread();
-        let previously_pinned = self.style_records_pinned_by_arena[slot.slot_index() as usize].replace(true);
+        let previously_pinned =
+            self.style_record_pins[slot.slot_index() as usize].replace(ArenaStylePin::Derived) != ArenaStylePin::None;
         assert!(derived.record != 0 && !derived.payloads.is_null());
         let previous_style_record = self.style_records[slot.slot_index() as usize].replace(derived.record);
         self.data(slot).style.set(derived.payloads);
@@ -4696,18 +4717,6 @@ impl LayoutNodeArena {
         self.node_shell(main_thread, id)
     }
 
-    /// The shell of a row built for a DOM node, if the row is live. C++ binds such a row's shell
-    /// when it builds the row, so reading it makes nothing and needs no main thread token; only
-    /// an anonymous row's shell is made when first asked for.
-    pub(crate) fn dom_backed_shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
-        if !self.slot_is_live(id) {
-            return std::ptr::null_mut();
-        }
-        let data = self.data(id);
-        debug_assert!(data.flags.get() & NodeFlag::Anonymous as u32 == 0);
-        data.shell.get()
-    }
-
     pub(crate) fn node_link_slot(&self, id: NodeSlotId, link: FfiNodeLink) -> NodeSlotId {
         let data = self.data(id);
         match link {
@@ -4742,6 +4751,26 @@ impl LayoutNodeArena {
         self.data(id).generated_for.get()
     }
 
+    /// The row's shell, which the host's shell factory makes for an anonymous row the first time
+    /// it is asked for. Making one calls into the document, so only a main thread token holder
+    /// may ask.
+    /// Owes the host the attachment of `id`'s style resources once the running build is over: the
+    /// images its style names, and the paint facts that follow.
+    pub(crate) fn owe_style_resources(&self, id: NodeSlotId, owns_content_replacement_image: bool) {
+        self.style_resources_owed_to_host
+            .borrow_mut()
+            .push((id, owns_content_replacement_image));
+    }
+
+    /// The rows the finished build owes the attachment of their style resources, in the order it
+    /// stamped them. A row the build freed again, such as whitespace table fixup removed, is owed
+    /// nothing.
+    pub(crate) fn take_style_resources_owed_to_host(&self) -> Vec<(NodeSlotId, bool)> {
+        let mut owed = self.style_resources_owed_to_host.take();
+        owed.retain(|&(row, _)| self.slot_is_live(row));
+        owed
+    }
+
     /// Notes that the running build gave the scroll container `id` a style, which decides whether
     /// scroll snapping happens in it once the build is over.
     pub(crate) fn note_built_scroll_container(&self, id: NodeSlotId) {
@@ -4772,9 +4801,6 @@ impl LayoutNodeArena {
             .collect()
     }
 
-    /// The row's shell, which the host's shell factory makes for an anonymous row the first time
-    /// it is asked for. Making one calls into the document, so only a main thread token holder
-    /// may ask.
     pub(crate) fn node_shell(&self, main_thread: &MainThread, id: NodeSlotId) -> *mut c_void {
         let shell = self.data(id).shell.get();
         if !shell.is_null() {
@@ -4820,6 +4846,13 @@ impl LayoutNodeArena {
 
     pub(crate) unsafe fn from_handle_mut<'a>(arena: *mut c_void) -> &'a mut Self {
         assert!(!arena.is_null(), "layout node arena handle is null");
+        // A layout node is made while its reader borrows the arena, so its construction must not
+        // reach the arena mutably.
+        // SAFETY: Guaranteed by the caller.
+        assert!(
+            !unsafe { super::HostTables::from_handle(arena) }.making_shell.get(),
+            "a layout node's construction reached the arena mutably"
+        );
         // SAFETY: The caller guarantees exclusive access to the arena for the
         // duration of the returned borrow.
         unsafe { &mut *arena.cast::<Self>() }
@@ -5074,58 +5107,6 @@ pub unsafe extern "C" fn layout_arena_note_rows_share_dom_node(
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
     // serializes all access on the document thread.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.note_rows_share_dom_node(bound_row, added_row);
-}
-
-/// The shell of the row the element or text node with `style_node` is bound to, or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_bound_shell(arena: *mut c_void, style_node: u32) -> *mut c_void {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
-        return std::ptr::null_mut();
-    };
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
-    let row = arena.bound_row(style_node);
-    if row.is_invalid() {
-        return std::ptr::null_mut();
-    }
-    arena.data(row).shell.get()
-}
-
-/// The shell of the row the pseudo-element of kind `generated_for` on the element with
-/// `style_node` is bound to, or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_bound_pseudo_element_shell(
-    arena: *mut c_void,
-    style_node: u32,
-    generated_for: u8,
-) -> *mut c_void {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
-        return std::ptr::null_mut();
-    };
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
-    let row = arena.bound_pseudo_element_row(style_node, generated_for);
-    if row.is_invalid() {
-        return std::ptr::null_mut();
-    }
-    arena.data(row).shell.get()
-}
-
-/// The shell of the viewport row the document is bound to, or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_bound_viewport_shell(arena: *mut c_void) -> *mut c_void {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
-    let row = arena.bound_viewport_row();
-    if row.is_invalid() {
-        return std::ptr::null_mut();
-    }
-    arena.data(row).shell.get()
 }
 
 #[unsafe(no_mangle)]
@@ -5463,7 +5444,7 @@ pub unsafe extern "C" fn layout_arena_node_style_record_pinned_by_host(arena: *m
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_has_derived_style(arena: *mut c_void, node: NodeSlotId) -> bool {
-    unsafe { LayoutNodeArena::from_handle(arena) }.node_style_record_is_pinned_by_arena(node)
+    unsafe { LayoutNodeArena::from_handle(arena) }.node_style_record_is_derived(node)
 }
 
 #[unsafe(no_mangle)]
@@ -6056,7 +6037,7 @@ mod tests {
         assert!(arena.data(slot).flags.get() & NodeFlag::Anonymous as u32 != 0);
         assert!(arena.data(slot).flags.get() & NodeFlag::HasStyle as u32 != 0);
         assert_eq!(arena.node_style_record(slot), 7);
-        assert!(arena.node_style_record_is_pinned_by_arena(slot));
+        assert!(arena.node_style_record_is_derived(slot));
 
         let element = arena.allocate(test_construction_facts_with_kind(NodeKind::InlineNode));
         arena.set_node_style(
@@ -6065,7 +6046,7 @@ mod tests {
             crate::layout::node_data::StylePayloadsRef::new(payloads.as_ptr().cast()),
         );
         assert_eq!(arena.node_style_record(element), 9);
-        assert!(!arena.node_style_record_is_pinned_by_arena(element));
+        assert!(!arena.node_style_record_is_derived(element));
 
         let freed = arena.free_subtree(slot);
         assert_eq!(freed.arena_pinned_style_record_count(), 1);
