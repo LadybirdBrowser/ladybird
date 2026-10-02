@@ -91,10 +91,12 @@ void WebContentView::present_current_paintable_as_layer_contents()
     auto painted_unit_height = static_cast<CGFloat>(painted_height) / surface_height;
 
     // The surface can be larger than what was painted into it (a live resize pads it), so only the painted part is
-    // shown, one surface pixel per device pixel, anchored at the visual top-left. Inside Qt's flipped view the y-axis
-    // of this layer points down, which turns both the gravity constant and the unit rectangle upside down.
+    // shown: unless frames are scaled to fit, one surface pixel per device pixel, anchored at the visual top-left.
+    // Inside Qt's flipped view the y-axis of this layer points down, which turns both the top-left gravity constant
+    // and the unit rectangle upside down.
     bool y_axis_points_down = [layer contentsAreFlipped];
-    layer.contentsGravity = y_axis_points_down ? kCAGravityBottomLeft : kCAGravityTopLeft;
+    auto top_left_gravity = y_axis_points_down ? kCAGravityBottomLeft : kCAGravityTopLeft;
+    layer.contentsGravity = m_scales_frames_to_fit ? kCAGravityResizeAspect : top_left_gravity;
     layer.contentsRect = y_axis_points_down
         ? CGRectMake(0, 0, painted_unit_width, painted_unit_height)
         : CGRectMake(0, 1 - painted_unit_height, painted_unit_width, painted_unit_height);

@@ -991,6 +991,13 @@ Optional<WebContentView::Paintable> WebContentView::current_paintable() const
     return Paintable { shared_image_buffer, bitmap_size };
 }
 
+Gfx::IntRect WebContentView::rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size)
+{
+    auto scale = min(static_cast<float>(target_size.width()) / frame_size.width(), static_cast<float>(target_size.height()) / frame_size.height());
+    auto fitted_size = frame_size.to_type<float>().scaled(scale).to_rounded<int>();
+    return Gfx::IntRect { {}, fitted_size }.centered_within({ {}, target_size });
+}
+
 void WebContentView::schedule_repaint()
 {
 #if defined(LADYBIRD_QT_USE_VULKAN_WINDOW)
@@ -1056,10 +1063,21 @@ void WebContentView::paintEvent(QPaintEvent*)
 
     if (bitmap) {
         QImage q_image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
-        painter.drawImage(QPoint(0, 0), q_image, QRect(0, 0, bitmap_size.width(), bitmap_size.height()));
+        QRect source_rect(0, 0, bitmap_size.width(), bitmap_size.height());
 
         auto background_color = page_background_color();
         auto fallback_color = QColor(background_color.red(), background_color.green(), background_color.blue());
+
+        if (m_scales_frames_to_fit && !bitmap_size.is_empty()) {
+            auto destination = rect_fitting_frame(bitmap_size, m_viewport_size);
+            painter.fillRect(QRect(0, 0, m_viewport_size.width(), m_viewport_size.height()), fallback_color);
+            painter.setRenderHint(QPainter::SmoothPixmapTransform);
+            painter.drawImage(QRect(destination.x(), destination.y(), destination.width(), destination.height()), q_image, source_rect);
+            return;
+        }
+
+        painter.drawImage(QPoint(0, 0), q_image, source_rect);
+
         if (bitmap_size.width() < m_viewport_size.width()) {
             painter.fillRect(bitmap_size.width(), 0, m_viewport_size.width() - bitmap_size.width(), bitmap->height(), fallback_color);
         }

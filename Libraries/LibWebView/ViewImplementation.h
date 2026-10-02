@@ -188,6 +188,7 @@ public:
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     Optional<u64> display_id() const { return m_display_id; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
+    void set_scales_frames_to_fit(bool scales_frames_to_fit) { m_scales_frames_to_fit = scales_frames_to_fit; }
     void enqueue_input_event(Web::InputEvent);
     void did_finish_handling_input_event(Badge<WebContentPage>, u64 event_id, Web::EventResult event_result);
     void did_forward_input_event(Badge<WebContentPage>, u64 event_id, WebContentPage& endpoint);
@@ -690,6 +691,7 @@ protected:
     double m_device_pixel_ratio { 1.0 };
     Optional<u64> m_display_id;
     double m_maximum_frames_per_second { 60.0 };
+    bool m_scales_frames_to_fit { false };
 
     RefPtr<Menu> m_page_context_menu;
     RefPtr<Menu> m_link_context_menu;

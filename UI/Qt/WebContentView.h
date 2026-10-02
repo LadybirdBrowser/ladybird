@@ -181,6 +181,7 @@ private:
     };
 
     Optional<Paintable> current_paintable() const;
+    static Gfx::IntRect rect_fitting_frame(Gfx::IntSize frame_size, Gfx::IntSize target_size);
 
     void update_viewport_size();
     void update_cursor(Gfx::Cursor cursor);

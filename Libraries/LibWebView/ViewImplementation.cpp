@@ -2210,7 +2210,12 @@ void ViewImplementation::apply_zoom_for_current_host()
 void ViewImplementation::handle_resize()
 {
     page().async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
-    Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
+
+    // The page forwards its new size to the compositor once it has laid it out. Until then, scaling frames to fit needs
+    // the compositor to keep presenting them whole at the size they were laid out for.
+    if (!m_scales_frames_to_fit)
+        Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
+
     if (m_debugger_paused) {
         m_debugger_overlay_pointer_state.cancel();
         if (m_debugger_overlay_hovered_action.has_value())

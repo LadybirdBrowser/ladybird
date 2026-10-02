@@ -85,6 +85,10 @@ public:
                 page_did_handle_press(result);
         };
 
+        // The page lays out a new window size only once its main thread is free, so until then its last frame is
+        // scaled to keep the video filling the window.
+        m_view->set_scales_frames_to_fit(true);
+
         auto* layout = new QVBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
         layout->addWidget(m_view);
