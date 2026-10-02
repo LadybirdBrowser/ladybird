@@ -444,7 +444,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 continue;
             auto reaction = published_reaction;
 
-            // The pseudo-element records a retry settled beside the element's record.
+            // The pseudo-element records a retry or a demand settled beside the element's record.
             Optional<DOM::Element::EnginePseudoElementRecords> settled_pseudo_element_records;
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::RetryAfterAncestor) {
                 if (auto retried = document.style_computer().style_engine().retry_engine_record_after_ancestor(reaction.style_node); retried.style_record != 0) {
@@ -452,6 +452,17 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 } else {
                     reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize;
                 }
+            }
+
+            // A host that rewrote the element's declarations while an earlier row was applied (a form control restyling
+            // its shadow tree as its own style moves) leaves the record the engine computed from the old ones: the row is
+            // answered from its demand, over the declarations as they are now.
+            if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed && document.style_computer().style_engine().declarations_changed_during_apply(StyleNodeID { reaction.style_node })) {
+                reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize;
+                reaction.new_style_record = 0;
+                reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::None;
+                reaction.reaction |= StyleEngine::RecomputeStyle;
+                settled_pseudo_element_records.clear();
             }
 
             // A reaction the engine derived for this element while applying an earlier one in
@@ -476,6 +487,28 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             // compute against a missing inheritance parent.
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize && reaction.reaction == 0 && !element->has_style())
                 reaction.reaction = StyleEngine::RecomputeStyle;
+
+            bool const needs_regular_style_recompute = reaction.reaction & (StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle | StyleEngine::RecomputeDescendantStyles | StyleEngine::AncestorBecameVisible);
+            bool const needs_custom_property_recompute = reaction.reaction & StyleEngine::InheritedCustomProperties;
+            bool const needs_inherited_style_recompute = reaction.reaction & StyleEngine::InheritedStyle;
+            // An element declaring custom properties of its own layers them over the environment it
+            // inherits, which its cascade decides.
+            bool const cascade_declares_custom_properties = document.style_computer().style_engine().node_declares_custom_properties(reaction.style_node);
+            bool const needs_full_custom_property_recompute = needs_custom_property_recompute && (element->style_uses_var_css_function() || element->style_uses_inherit_css_function() || cascade_declares_custom_properties);
+
+            bool answered_by_demand = false;
+            // A row the engine did not settle in its transaction, and that computes the element's style, is answered
+            // from its record demand, as a targeted update of the element is: the record installs as one the engine
+            // computed, moving the element from the record it holds.
+            if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize && (needs_regular_style_recompute || needs_inherited_style_recompute || needs_full_custom_property_recompute)) {
+                auto answer = document.style_computer().style_engine().answer_record_demand(StyleNodeID { reaction.style_node }, StyleEngine::RecordDemand::TargetedElement);
+                if (answer.record.style_record != 0) {
+                    reaction.old_style_record = element->style_record_identity().value();
+                    reaction.record_damage = 0;
+                    settled_pseudo_element_records = take_engine_record(reaction, answer.record);
+                    answered_by_demand = true;
+                }
+            }
 
             bool const has_published_style_reaction = reaction.reaction & StyleEngine::PublishedStyle;
             if (has_published_style_reaction) {
@@ -511,16 +544,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             auto const previous_visibility = previous_inherited_box_values
                 ? Optional<Visibility> { static_cast<Visibility>(previous_inherited_box_values->visibility) }
                 : Optional<Visibility> {};
-            bool const needs_regular_style_recompute = reaction.reaction & (StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle | StyleEngine::RecomputeDescendantStyles | StyleEngine::AncestorBecameVisible);
-            bool const needs_custom_property_recompute = reaction.reaction & StyleEngine::InheritedCustomProperties;
-            bool const needs_inherited_style_recompute = reaction.reaction & StyleEngine::InheritedStyle;
             bool did_change_custom_properties = false;
             RequiredInvalidationAfterStyleChange invalidation;
 
-            // An element declaring custom properties of its own layers them over the environment it
-            // inherits, which its cascade decides.
-            bool const cascade_declares_custom_properties = document.style_computer().style_engine().node_declares_custom_properties(reaction.style_node);
-            bool const needs_full_custom_property_recompute = needs_custom_property_recompute && (element->style_uses_var_css_function() || element->style_uses_inherit_css_function() || cascade_declares_custom_properties);
             // The engine answered its records with what the moves from the records they name damage.
             DOM::Element::EngineRecordDamages engine_record_damages;
             if (reaction.record_damage & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::EngineComputed))
@@ -546,7 +572,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 VERIFY(needs_regular_style_recompute || needs_inherited_style_recompute || needs_custom_property_recompute);
                 VERIFY(reaction.pseudo_kind == NumericLimits<u8>::max());
                 auto pseudo_element_records = settled_pseudo_element_records.value_or({});
-                for (auto next = reaction_index + 1; next < reactions.size() && reactions[next].style_node == published_reaction.style_node && reactions[next].pseudo_kind != NumericLimits<u8>::max(); ++next) {
+                // A demand settled the pseudo-elements beside the element's record; the rows the batch published beside
+                // the element's moved from a record the demand replaced.
+                for (auto next = reaction_index + 1; !answered_by_demand && next < reactions.size() && reactions[next].style_node == published_reaction.style_node && reactions[next].pseudo_kind != NumericLimits<u8>::max(); ++next) {
                     auto const& pseudo_reaction = reactions[next];
                     pseudo_element_records[pseudo_reaction.pseudo_kind] = StyleRecordID { pseudo_reaction.new_style_record };
                     if (pseudo_reaction.record_damage & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::EngineComputed)) {
@@ -556,11 +584,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                         };
                     }
                 }
-                if (!engine_computed_record_environment_is_installable(*element, StyleRecordID { reaction.new_style_record })
-                    || document.style_computer().style_engine().declarations_changed_during_apply(StyleNodeID { reaction.style_node })) {
+                if (!engine_computed_record_environment_is_installable(*element, StyleRecordID { reaction.new_style_record })) {
                     // The engine resolved the record's environment over the parent's own; when the
-                    // parent's inheritable environment differs, C++ computes the style. So it does
-                    // when a host rewrote the element's declarations after the engine computed it.
+                    // parent's inheritable environment differs, C++ computes the style.
                     document.style_computer().style_engine().consume_recorded_element_style_input_change(reaction.style_node);
                     invalidation = element->apply_style_engine_reaction(did_change_custom_properties);
                 } else {
