@@ -529,34 +529,24 @@ pub(super) struct SubstitutionAttributes<'a> {
 }
 
 impl<'a> SubstitutionAttributes<'a> {
-    /// `None` when the facts lack the text of an attribute `attr()` may read: the host publishes
-    /// every one, and an `attr()` that took its fallback for a missing one would be wrong.
-    pub(super) fn of(
-        facts: &'a index::ElementFactStore,
-        node: StyleNodeID,
-        html_namespace: StyleAtomID,
-    ) -> Option<Self> {
+    pub(super) fn of(facts: &'a index::ElementFactStore, node: StyleNodeID, html_namespace: StyleAtomID) -> Self {
+        use crate::css::custom_properties::FfiSubstitutionAttribute;
         let view = |text: &[u16]| FfiUtf16View {
             ascii: std::ptr::null(),
             utf16: text.as_ptr(),
             length: text.len(),
         };
-        let mut attributes = Vec::new();
-        for (name, value) in facts.substitution_attributes(node) {
-            let Some(value) = value else {
-                debug_assert!(false, "the host publishes the text of every attribute attr() reads");
-                return None;
-            };
-            attributes.push(crate::css::custom_properties::FfiSubstitutionAttribute {
-                name: view(name),
-                value: view(value),
-            });
-        }
-        Some(Self {
-            attributes,
+        Self {
+            attributes: facts
+                .substitution_attributes(node)
+                .map(|(name, value)| FfiSubstitutionAttribute {
+                    name: view(name),
+                    value: view(value),
+                })
+                .collect(),
             names_are_ascii_case_insensitive: !html_namespace.is_none() && facts.namespace_of(node) == html_namespace,
             facts: std::marker::PhantomData,
-        })
+        }
     }
 }
 
@@ -1503,16 +1493,8 @@ impl RetainedState {
             return Ok(inherited_environment);
         }
         // The attributes an `attr()` among the declarations reads.
-        let attributes = if reads_attributes {
-            let attributes = SubstitutionAttributes::of(&self.facts, node, self.html_element_namespace);
-            if attributes.is_none() {
-                counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
-                return Err(Unanswered::Refused);
-            }
-            attributes
-        } else {
-            None
-        };
+        let attributes =
+            reads_attributes.then(|| SubstitutionAttributes::of(&self.facts, node, self.html_element_namespace));
         // SAFETY: The parent store is live for as long as a record names its environment, and the
         // values are the program's interned values, live for the call.
         let cascaded_store = unsafe { CustomPropertyStore::cascaded_child(parent_store, values) };
@@ -1700,15 +1682,13 @@ impl RetainedState {
             .flatten();
         let reads_attributes = value_reads_attributes(written.data())
             || functions.as_ref().is_some_and(|functions| functions.reads_attributes);
-        let attributes = reads_attributes
-            .then(|| {
-                SubstitutionAttributes::of(
-                    &self.facts,
-                    self.substitution_attribute_element(node, pseudo_kind),
-                    self.html_element_namespace,
-                )
-            })
-            .flatten();
+        let attributes = reads_attributes.then(|| {
+            SubstitutionAttributes::of(
+                &self.facts,
+                self.substitution_attribute_element(node, pseudo_kind),
+                self.html_element_namespace,
+            )
+        });
         let style_query = (calls_functions || value_reads_conditions(written.data()))
             .then(|| self.style_query_inputs(computed::ComputedStyleTarget::new(node, pseudo_kind.unwrap_or(u8::MAX))))
             .flatten();

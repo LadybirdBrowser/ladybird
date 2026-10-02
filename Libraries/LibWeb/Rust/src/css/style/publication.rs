@@ -3385,14 +3385,11 @@ impl RetainedState {
                             || (calls_functions
                                 && functions.as_ref().is_some_and(|functions| functions.reads_attributes));
                         if reads_attributes && attributes.is_none() {
-                            attributes = Some(
-                                custom_property_cascade::SubstitutionAttributes::of(
-                                    &self.facts,
-                                    attribute_element,
-                                    self.html_element_namespace,
-                                )
-                                .or_refused()?,
-                            );
+                            attributes = Some(custom_property_cascade::SubstitutionAttributes::of(
+                                &self.facts,
+                                attribute_element,
+                                self.html_element_namespace,
+                            ));
                         }
                         let inputs = custom_property_cascade::SubstitutionInputs {
                             document: &self.document_style_computation_inputs,

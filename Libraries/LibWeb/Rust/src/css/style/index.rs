@@ -4536,8 +4536,10 @@ impl ElementFactStore {
     }
 
     /// What an `attr()` can read of an element: each of its attributes in no namespace, by its
-    /// local name, with the text of its value.
-    pub fn substitution_attributes(&self, node: StyleNodeID) -> impl Iterator<Item = (&[u16], Option<&[u16]>)> {
+    /// local name, with the text of its value. The host publishes the text of every attribute
+    /// name an `attr()` may read before a style update or read takes the rules that read it, so
+    /// an attribute without its text is one no `attr()` reads.
+    pub fn substitution_attributes(&self, node: StyleNodeID) -> impl Iterator<Item = (&[u16], &[u16])> {
         self.rows
             .row_of(node)
             .map_or(&[][..], |row| self.rows.attributes_of(row))
@@ -4545,7 +4547,7 @@ impl ElementFactStore {
             .filter_map(|&attribute| {
                 Some((
                     self.attribute_substitution_name(attribute.name)?,
-                    self.rows.text_of(attribute),
+                    self.rows.text_of(attribute)?,
                 ))
             })
     }
