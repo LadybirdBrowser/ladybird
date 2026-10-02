@@ -22,6 +22,8 @@ use crate::runtime::array_buffer_prototype::ArrayBufferPrototype;
 use crate::runtime::array_constructor::ArrayConstructor;
 use crate::runtime::array_iterator_prototype::ArrayIteratorPrototype;
 use crate::runtime::array_prototype::ArrayPrototype;
+use crate::runtime::async_disposable_stack_constructor::AsyncDisposableStackConstructor;
+use crate::runtime::async_disposable_stack_prototype::AsyncDisposableStackPrototype;
 use crate::runtime::async_from_sync_iterator_prototype::AsyncFromSyncIteratorPrototype;
 use crate::runtime::async_function_constructor::AsyncFunctionConstructor;
 use crate::runtime::async_function_prototype::AsyncFunctionPrototype;
@@ -38,6 +40,8 @@ use crate::runtime::completion::Must;
 use crate::runtime::console_object::ConsoleObject;
 use crate::runtime::data_view_constructor::DataViewConstructor;
 use crate::runtime::data_view_prototype::DataViewPrototype;
+use crate::runtime::disposable_stack_constructor::DisposableStackConstructor;
+use crate::runtime::disposable_stack_prototype::DisposableStackPrototype;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_constructor::{
     ErrorConstructor, EvalErrorConstructor, InternalErrorConstructor, RangeErrorConstructor, ReferenceErrorConstructor,
@@ -91,6 +95,8 @@ use crate::runtime::shared_array_buffer_prototype::SharedArrayBufferPrototype;
 use crate::runtime::string_constructor::StringConstructor;
 use crate::runtime::string_iterator_prototype::StringIteratorPrototype;
 use crate::runtime::string_prototype::StringPrototype;
+use crate::runtime::suppressed_error_constructor::SuppressedErrorConstructor;
+use crate::runtime::suppressed_error_prototype::SuppressedErrorPrototype;
 use crate::runtime::symbol_constructor::SymbolConstructor;
 use crate::runtime::symbol_prototype::SymbolPrototype;
 use crate::runtime::typed_array::{
@@ -215,7 +221,7 @@ define_intrinsics! {
     array_prototype: Cell<Option<Gc<Object>>>,
     array_buffer_constructor: Cell<Option<Gc<FunctionObject>>>,
     array_buffer_prototype: Cell<Option<Gc<Object>>>,
-    async_disposable_stack_constructor: Cell<Option<Gc<FunctionObject>>>,
+    async_disposable_stack_constructor: Cell<Option<Gc<AsyncDisposableStackConstructor>>>,
     async_disposable_stack_prototype: Cell<Option<Gc<Object>>>,
     async_function_constructor: Cell<Option<Gc<AsyncFunctionConstructor>>>,
     async_function_prototype: Cell<Option<Gc<Object>>>,
@@ -229,7 +235,7 @@ define_intrinsics! {
     data_view_prototype: Cell<Option<Gc<Object>>>,
     date_constructor: Cell<Option<Gc<FunctionObject>>>,
     date_prototype: Cell<Option<Gc<Object>>>,
-    disposable_stack_constructor: Cell<Option<Gc<FunctionObject>>>,
+    disposable_stack_constructor: Cell<Option<Gc<DisposableStackConstructor>>>,
     disposable_stack_prototype: Cell<Option<Gc<Object>>>,
     error_constructor: Cell<Option<Gc<ErrorConstructor>>>,
     error_prototype: Cell<Option<Gc<Object>>>,
@@ -257,7 +263,7 @@ define_intrinsics! {
     shared_array_buffer_prototype: Cell<Option<Gc<Object>>>,
     string_constructor: Cell<Option<Gc<StringConstructor>>>,
     string_prototype: Cell<Option<Gc<Object>>>,
-    suppressed_error_constructor: Cell<Option<Gc<FunctionObject>>>,
+    suppressed_error_constructor: Cell<Option<Gc<SuppressedErrorConstructor>>>,
     suppressed_error_prototype: Cell<Option<Gc<Object>>>,
     symbol_constructor: Cell<Option<Gc<SymbolConstructor>>>,
     symbol_prototype: Cell<Option<Gc<Object>>>,
@@ -503,14 +509,14 @@ builtin_type_accessors! {
     aggregate_error_prototype, aggregate_error_constructor: AggregateErrorConstructor, initialize_aggregate_error;
     array_prototype, array_constructor: ArrayConstructor, initialize_array;
     array_buffer_prototype, array_buffer_constructor: FunctionObject, initialize_array_buffer;
-    async_disposable_stack_prototype, async_disposable_stack_constructor: FunctionObject, initialize_async_disposable_stack;
+    async_disposable_stack_prototype, async_disposable_stack_constructor: AsyncDisposableStackConstructor, initialize_async_disposable_stack;
     async_function_prototype, async_function_constructor: AsyncFunctionConstructor, initialize_async_function;
     async_generator_function_prototype, async_generator_function_constructor: AsyncGeneratorFunctionConstructor, initialize_async_generator_function;
     bigint_prototype, bigint_constructor: BigIntConstructor, initialize_bigint;
     boolean_prototype, boolean_constructor: BooleanConstructor, initialize_boolean;
     data_view_prototype, data_view_constructor: FunctionObject, initialize_data_view;
     date_prototype, date_constructor: FunctionObject, initialize_date;
-    disposable_stack_prototype, disposable_stack_constructor: FunctionObject, initialize_disposable_stack;
+    disposable_stack_prototype, disposable_stack_constructor: DisposableStackConstructor, initialize_disposable_stack;
     error_prototype, error_constructor: ErrorConstructor, initialize_error;
     finalization_registry_prototype, finalization_registry_constructor: FinalizationRegistryConstructor, initialize_finalization_registry;
     function_prototype, function_constructor: FunctionConstructor, initialize_function;
@@ -524,7 +530,7 @@ builtin_type_accessors! {
     set_prototype, set_constructor: SetConstructor, initialize_set;
     shared_array_buffer_prototype, shared_array_buffer_constructor: FunctionObject, initialize_shared_array_buffer;
     string_prototype, string_constructor: StringConstructor, initialize_string;
-    suppressed_error_prototype, suppressed_error_constructor: FunctionObject, initialize_suppressed_error;
+    suppressed_error_prototype, suppressed_error_constructor: SuppressedErrorConstructor, initialize_suppressed_error;
     symbol_prototype, symbol_constructor: SymbolConstructor, initialize_symbol;
     weak_map_prototype, weak_map_constructor: WeakMapConstructor, initialize_weak_map;
     weak_ref_prototype, weak_ref_constructor: WeakRefConstructor, initialize_weak_ref;
@@ -599,10 +605,12 @@ macro_rules! initialize_builtin_types {
 initialize_builtin_types! {
     initialize_aggregate_error: aggregate_error_prototype: AggregateErrorPrototype, aggregate_error_constructor: AggregateErrorConstructor, AggregateError;
     initialize_array: array_prototype: ArrayPrototype, array_constructor: ArrayConstructor, Array;
+    initialize_async_disposable_stack: async_disposable_stack_prototype: AsyncDisposableStackPrototype, async_disposable_stack_constructor: AsyncDisposableStackConstructor, AsyncDisposableStack;
     initialize_async_function: async_function_prototype: AsyncFunctionPrototype, async_function_constructor: AsyncFunctionConstructor, AsyncFunction;
     initialize_async_generator_function: async_generator_function_prototype: AsyncGeneratorFunctionPrototype, async_generator_function_constructor: AsyncGeneratorFunctionConstructor, AsyncGeneratorFunction;
     initialize_bigint: bigint_prototype: BigIntPrototype, bigint_constructor: BigIntConstructor, BigInt;
     initialize_boolean: boolean_prototype: BooleanPrototype, boolean_constructor: BooleanConstructor, Boolean;
+    initialize_disposable_stack: disposable_stack_prototype: DisposableStackPrototype, disposable_stack_constructor: DisposableStackConstructor, DisposableStack;
     initialize_error: error_prototype: ErrorPrototype, error_constructor: ErrorConstructor, Error;
     initialize_finalization_registry: finalization_registry_prototype: FinalizationRegistryPrototype, finalization_registry_constructor: FinalizationRegistryConstructor, FinalizationRegistry;
     initialize_function: function_prototype: FunctionPrototype, function_constructor: FunctionConstructor, Function;
@@ -614,6 +622,7 @@ initialize_builtin_types! {
     initialize_regexp: regexp_prototype: RegExpPrototype, regexp_constructor: RegExpConstructor, RegExp;
     initialize_set: set_prototype: SetPrototype, set_constructor: SetConstructor, Set;
     initialize_string: string_prototype: StringPrototype, string_constructor: StringConstructor, String;
+    initialize_suppressed_error: suppressed_error_prototype: SuppressedErrorPrototype, suppressed_error_constructor: SuppressedErrorConstructor, SuppressedError;
     initialize_symbol: symbol_prototype: SymbolPrototype, symbol_constructor: SymbolConstructor, Symbol;
     initialize_weak_map: weak_map_prototype: WeakMapPrototype, weak_map_constructor: WeakMapConstructor, WeakMap;
     initialize_weak_ref: weak_ref_prototype: WeakRefPrototype, weak_ref_constructor: WeakRefConstructor, WeakRef;
@@ -719,10 +728,7 @@ macro_rules! unimplemented_builtin_types {
 }
 
 unimplemented_builtin_types! {
-    initialize_async_disposable_stack => "AsyncDisposableStack",
     initialize_date => "Date",
-    initialize_disposable_stack => "DisposableStack",
-    initialize_suppressed_error => "SuppressedError",
     initialize_intl_collator => "Intl.Collator",
     initialize_intl_date_time_format => "Intl.DateTimeFormat",
     initialize_intl_display_names => "Intl.DisplayNames",

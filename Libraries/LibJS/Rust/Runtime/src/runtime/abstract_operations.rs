@@ -27,7 +27,7 @@ use crate::runtime::accessor::Accessor;
 use crate::runtime::arguments_object::ArgumentsObject;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
-use crate::runtime::completion::{Must, Throw, ThrowCompletionOr};
+use crate::runtime::completion::{Completion, Must, Throw, ThrowCompletionOr, r#await};
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment::{Environment, InitializeBindingHint, ThisBindingStatus};
@@ -53,6 +53,7 @@ use crate::runtime::shared_function_instance_data::{
 };
 use crate::runtime::string_conversions::parse_number_f64;
 use crate::runtime::string_prototype::string_index_of;
+use crate::runtime::suppressed_error::SuppressedError;
 use crate::runtime::value::{number_to_utf16_string, same_value};
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 use crate::script::LexicalBinding;
@@ -2215,24 +2216,154 @@ pub fn get_dispose_method(
     value.get_method(vm, &PropertyKey::from(vm.well_known_symbols().dispose))
 }
 
-// 7.3.36 GetOptionsObject ( options ), https://tc39.es/ecma262/#sec-getoptionsobject
-pub fn get_options_object(vm: &Vm, options: Value) -> ThrowCompletionOr<Gc<Object>> {
-    let realm = vm.current_realm().expect("GetOptionsObject runs in a realm");
+// 2.1.7 Dispose ( V, hint, method ), https://tc39.es/proposal-explicit-resource-management/#sec-dispose
+pub fn dispose(
+    vm: &Vm,
+    value: Value,
+    hint: InitializeBindingHint,
+    method: Option<Gc<FunctionObject>>,
+) -> ThrowCompletionOr<Value> {
+    // 1. If method is undefined, let result be undefined.
+    // 2. Else, let result be ? Call(method, V).
+    let result = match method {
+        None => Value::UNDEFINED,
+        Some(method) => call_function_object(vm, method, value, &[])?,
+    };
 
-    // 1. If options is undefined, then
-    if options.is_undefined() {
-        // a. Return OrdinaryObjectCreate(null).
-        return Ok(Object::create(vm, realm, None));
+    // 3. If hint is async-dispose, then
+    if hint == InitializeBindingHint::AsyncDispose {
+        // a. Perform ? Await(result).
+        r#await(vm, result)?;
     }
 
-    // 2. If options is an Object, then
-    if options.is_object() {
-        // a. Return options.
-        return Ok(options.as_object());
+    // 4. Return undefined.
+    Ok(Value::UNDEFINED)
+}
+
+// 2.1.8 DisposeResources ( disposeCapability, completion ), https://tc39.es/proposal-explicit-resource-management/#sec-disposeresources
+pub fn dispose_resources(
+    vm: &Vm,
+    dispose_capability: &GcRefCell<DisposeCapability>,
+    mut completion: Completion,
+) -> Completion {
+    // 1. Let needsAwait be false.
+    let mut needs_await = false;
+
+    // 2. Let hasAwaited be false.
+    let mut has_awaited = false;
+
+    // 3. For each element resource of disposeCapability.[[DisposableResourceStack]], in reverse list order, do
+    // NB: Disposing runs JavaScript, so each resource is copied out of the stack before it is disposed of. Nothing adds
+    //     to or takes from the stack meanwhile: a DisposableStack is marked as disposed before its resources are
+    //     disposed of, which no JavaScript can undo.
+    let resource_count = dispose_capability
+        .borrow()
+        .disposable_resource_stack
+        .as_ref()
+        .map_or(0, Vec::len);
+    for index in (0..resource_count).rev() {
+        let resource = dispose_capability
+            .borrow()
+            .disposable_resource_stack
+            .as_ref()
+            .and_then(|stack| stack.get(index).copied())
+            .expect("the disposable resource stack does not change while it is disposed of");
+
+        // a. Let value be resource.[[ResourceValue]].
+        // NB: Like the C++ runtime, which turns the null pointer it keeps for an undefined value into a Value, this
+        //     calls the method with null as its this value when the value is undefined.
+        let value = resource.resource_value.map_or(Value::NULL, Value::from_object);
+
+        // b. Let hint be resource.[[Hint]].
+        let hint = resource.hint;
+
+        // c. Let method be resource.[[DisposeMethod]].
+        let method = resource.dispose_method;
+
+        // d. If hint is sync-dispose and needsAwait is true and hasAwaited is false, then
+        if hint == InitializeBindingHint::SyncDispose && needs_await && !has_awaited {
+            // i. Perform ! Await(undefined).
+            r#await(vm, Value::UNDEFINED).must();
+
+            // ii. Set needsAwait to false.
+            needs_await = false;
+        }
+
+        // e. If method is not undefined, then
+        if let Some(method) = method {
+            // i. Let result be Completion(Call(method, value)).
+            let result = call_function_object(vm, method, value, &[]);
+
+            // ii. If result is a normal completion and hint is async-dispose, then
+            if let Ok(result_value) = result
+                && hint == InitializeBindingHint::AsyncDispose
+            {
+                // 1. Set result to Completion(Await(result.[[Value]])).
+                // NB: Like the C++ runtime, this drops a throw completion of the Await rather than handling it in step
+                //     iii, so the rejection of a promise an async-dispose method returns is lost.
+                let _ = r#await(vm, result_value);
+
+                // 2. Set hasAwaited to true.
+                has_awaited = true;
+            }
+            // iii. If result is a throw completion, then
+            else if let Err(throw) = result {
+                // 1. If completion is a throw completion, then
+                if completion.is_error() {
+                    // a. Set result to result.[[Value]].
+                    let result_value = throw.value();
+
+                    // b. Let suppressed be completion.[[Value]].
+                    let suppressed = completion.value();
+
+                    // c. Let error be a newly created SuppressedError object.
+                    let error =
+                        SuppressedError::create(vm, vm.current_realm().expect("DisposeResources runs in a realm"));
+
+                    // d. Perform CreateNonEnumerableDataPropertyOrThrow(error, "error", result).
+                    error.create_non_enumerable_data_property_or_throw(vm, &vm.names.error, result_value);
+
+                    // e. Perform CreateNonEnumerableDataPropertyOrThrow(error, "suppressed", suppressed).
+                    error.create_non_enumerable_data_property_or_throw(vm, &vm.names.suppressed, suppressed);
+
+                    // f. Set completion to ThrowCompletion(error).
+                    completion = Throw::new(Value::from_object(error)).into();
+                }
+                // 2. Else,
+                else {
+                    // a. Set completion to result.
+                    completion = throw.into();
+                }
+            }
+        }
+        // f. Else,
+        else {
+            // i. Assert: hint is async-dispose.
+            assert!(hint == InitializeBindingHint::AsyncDispose);
+
+            // ii. Set needsAwait to true.
+            needs_await = true;
+
+            // iii. NOTE: This can only indicate a case where either null or undefined was the initialized value of an
+            //      await using declaration.
+        }
     }
 
-    // 3. Throw a TypeError exception.
-    vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&"Options"])
+    // 4. If needsAwait is true and hasAwaited is false, then
+    if needs_await && !has_awaited {
+        // a. Perform ! Await(undefined).
+        r#await(vm, Value::UNDEFINED).must();
+    }
+
+    // 5. NOTE: After disposeCapability has been disposed, it will never be used again. The contents of
+    //    disposeCapability.[[DisposableResourceStack]] can be discarded in implementations, such as by garbage
+    //    collection, at this point.
+
+    // 6. Set disposeCapability.[[DisposableResourceStack]] to a new empty List.
+    dispose_capability.borrow_mut().disposable_resource_stack = None;
+
+    // 7. Return completion.
+    completion
 }
 
 /// Mirrors JS::CanonicalIndexMode.
@@ -2316,4 +2447,24 @@ pub fn canonical_numeric_index_string(property_key: &PropertyKey, mode: Canonica
 
     // 4. Return undefined.
     CanonicalIndex::new(CanonicalIndexType::Undefined, 0)
+}
+
+// 7.3.36 GetOptionsObject ( options ), https://tc39.es/ecma262/#sec-getoptionsobject
+pub fn get_options_object(vm: &Vm, options: Value) -> ThrowCompletionOr<Gc<Object>> {
+    let realm = vm.current_realm().expect("GetOptionsObject runs in a realm");
+
+    // 1. If options is undefined, then
+    if options.is_undefined() {
+        // a. Return OrdinaryObjectCreate(null).
+        return Ok(Object::create(vm, realm, None));
+    }
+
+    // 2. If options is an Object, then
+    if options.is_object() {
+        // a. Return options.
+        return Ok(options.as_object());
+    }
+
+    // 3. Throw a TypeError exception.
+    vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&"Options"])
 }
