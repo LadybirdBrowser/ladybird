@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_enums::flex_direction;
@@ -50,7 +51,7 @@ fn with_highlight_context<O: Observer>(
     paintable: NodeSlotId,
     callback: impl FnOnce(&mut PaintRecorder<'_, O>, NodeSlotId),
 ) {
-    if paintable.is_invalid() || !recorder.layout_arena.paintable_row_is_populated(paintable) {
+    if paintable.is_invalid() || !recorder.source.paintable_row_is_populated(paintable) {
         return;
     }
     // Overlays follow the highlighted element's transforms and scroll offsets, but must not be clipped
@@ -64,18 +65,18 @@ fn paint_box_model_highlight<O: Observer>(
     paintable: NodeSlotId,
     highlight: &InspectorHighlight<'_>,
 ) {
-    let content_rect = paintable_geometry::absolute_rect(recorder.layout_arena, paintable);
-    let margin = paintable_geometry::committed_margin(recorder.layout_arena, paintable);
-    let border = paintable_geometry::committed_border(recorder.layout_arena, paintable);
-    let padding = paintable_geometry::committed_padding(recorder.layout_arena, paintable);
+    let content_rect = paintable_geometry::absolute_rect(recorder.source, paintable);
+    let margin = paintable_geometry::committed_margin(recorder.source, paintable);
+    let border = paintable_geometry::committed_border(recorder.source, paintable);
+    let padding = paintable_geometry::committed_padding(recorder.source, paintable);
     let margin_rect = content_rect.inflated(
         margin.top + border.top + padding.top,
         margin.right + border.right + padding.right,
         margin.bottom + border.bottom + padding.bottom,
         margin.left + border.left + padding.left,
     );
-    let border_rect = paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
-    let padding_rect = paintable_geometry::absolute_padding_box_rect(recorder.layout_arena, paintable);
+    let border_rect = paintable_geometry::absolute_border_box_rect(recorder.source, paintable);
+    let padding_rect = paintable_geometry::absolute_padding_box_rect(recorder.source, paintable);
 
     let converter = recorder.converter;
     let paint_inspector_rect = |recorder: &mut PaintRecorder<'_, O>, rect: CssPixelRect, color: Color| {
@@ -115,11 +116,11 @@ fn paint_flex_overlay<O: Observer>(
     input: &FfiFlexOverlayInput,
 ) {
     let Some(flex_layout_data) =
-        crate::painting::paintable_geometry::committed_flex_layout_data(recorder.layout_arena, paintable)
+        crate::painting::paintable_geometry::committed_flex_layout_data(recorder.source, paintable)
     else {
         return;
     };
-    let content_rect = paintable_geometry::absolute_rect(recorder.layout_arena, paintable);
+    let content_rect = paintable_geometry::absolute_rect(recorder.source, paintable);
     let origin = CssPixelPoint {
         x: content_rect.x,
         y: content_rect.y,
@@ -257,11 +258,11 @@ fn paint_grid_overlay<O: Observer>(
     fonts: &OverlayLabelFonts,
 ) {
     let Some(grid_layout_data) =
-        crate::painting::paintable_geometry::committed_grid_layout_data(recorder.layout_arena, paintable)
+        crate::painting::paintable_geometry::committed_grid_layout_data(recorder.source, paintable)
     else {
         return;
     };
-    let content_rect = paintable_geometry::absolute_rect(recorder.layout_arena, paintable);
+    let content_rect = paintable_geometry::absolute_rect(recorder.source, paintable);
     let origin = CssPixelPoint {
         x: content_rect.x,
         y: content_rect.y,

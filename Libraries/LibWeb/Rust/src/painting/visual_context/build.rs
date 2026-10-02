@@ -23,7 +23,7 @@ use libgfx_rust::{
 // ratio, mirroring how ordinary content records in CSS pixels scaled by it; the node folds the
 // viewport box's position in its own recorded space together with the viewBox transform.
 pub(crate) fn compute_svg_viewport_transform_data(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     slot: NodeSlotId,
     viewbox_transform: AffineTransform,
     pixel_ratio: f64,

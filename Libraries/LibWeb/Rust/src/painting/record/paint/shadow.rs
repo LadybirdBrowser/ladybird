@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::PaintRead;
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::CssPixelRect;
@@ -47,7 +48,7 @@ pub(crate) fn paint_box_shadow<O: Observer>(
     borderless_content_rect: CssPixelRect,
     border_radii: BorderRadii,
 ) {
-    let layout_arena = recorder.layout_arena;
+    let layout_arena = recorder.source;
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return;
     };

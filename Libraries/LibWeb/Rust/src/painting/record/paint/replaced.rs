@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::PaintRead;
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_enums::{image_rendering, object_fit};
@@ -26,14 +27,13 @@ fn replaced_content_clip_geometry<O: Observer>(
 ) -> (FloatRect, Option<CornerRadii>) {
     let content_rect = recorder
         .converter
-        .rounded_device_rect(absolute_rect(recorder.layout_arena, paintable))
+        .rounded_device_rect(absolute_rect(recorder.source, paintable))
         .to_float();
     let corner_radii = recorder
-        .layout_arena
+        .source
         .node_style_if_live(paintable)
         .map(|style| {
-            padding_edge_border_radii(style, recorder.layout_arena, paintable)
-                .corners_unconditionally(&recorder.converter)
+            padding_edge_border_radii(style, recorder.source, paintable).corners_unconditionally(&recorder.converter)
         })
         .filter(|corner_radii| corner_radii.has_any_radius());
     (content_rect, corner_radii)
@@ -175,7 +175,7 @@ pub(crate) fn get_replaced_box_painting_area<O: Observer>(
     if content_size.is_empty() {
         return IntRect::default();
     }
-    let paintable_rect = absolute_rect(recorder.layout_arena, paintable);
+    let paintable_rect = absolute_rect(recorder.source, paintable);
     if paintable_rect.is_empty() {
         return IntRect::default();
     }
@@ -228,7 +228,7 @@ pub(crate) fn get_replaced_box_painting_area<O: Observer>(
     // https://drafts.csswg.org/css-images/#the-object-position
     // The computed object-position stores offsets normalized to the left/top edges.
     let (offset_x, offset_y) = {
-        let style = recorder.layout_arena.node_style_if_live(paintable);
+        let style = recorder.source.node_style_if_live(paintable);
         let zero = crate::css::css_pixels::CssPixels::from_raw(0);
         match style {
             Some(style) => {
@@ -275,7 +275,7 @@ pub(crate) fn paint_replaced_image_content<O: Observer>(
 
 fn replaced_style<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeSlotId) -> (u8, u8) {
     recorder
-        .layout_arena
+        .source
         .node_style_if_live(paintable)
         .map_or((object_fit::FILL, image_rendering::AUTO), |style| {
             (style.misc_reset().object_fit, style.image_rendering())
@@ -284,12 +284,12 @@ fn replaced_style<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeS
 
 pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = recorder
-        .layout_arena
+        .source
         .replaced_paint_facts(paintable)
         .and_then(|facts| facts.image())
         .unwrap_or_default();
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
-    let image_rect = absolute_rect(recorder.layout_arena, paintable);
+    let image_rect = absolute_rect(recorder.source, paintable);
     let image_rect_device_pixels = recorder.converter.rounded_device_rect(image_rect);
     if facts.content != crate::painting::image_content::ImageContent::None {
         // https://drafts.csswg.org/css-images/#the-object-fit
@@ -316,7 +316,7 @@ pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'
         let selection_wash_color = recorder.element_selection_style(paintable).facts.wash_color;
         if selection_wash_color.alpha() > 0 {
             let backdrop = recorder
-                .layout_arena
+                .source
                 .node_style_if_live(paintable)
                 .map(|style| libgfx_rust::Color(style.background().background_color));
             let previous = recorder.recorder.set_contrast_backdrop(backdrop);
@@ -330,14 +330,14 @@ pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'
 
 pub(crate) fn paint_canvas_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = recorder
-        .layout_arena
+        .source
         .replaced_paint_facts(paintable)
         .and_then(|facts| facts.canvas())
         .unwrap_or_default();
     let (_, image_rendering) = replaced_style(recorder, paintable);
     let canvas_rect = recorder
         .converter
-        .rounded_device_rect(absolute_rect(recorder.layout_arena, paintable));
+        .rounded_device_rect(absolute_rect(recorder.source, paintable));
     if !facts.has_content {
         return;
     }
@@ -361,14 +361,14 @@ pub(crate) fn paint_canvas_foreground<O: Observer>(recorder: &mut PaintRecorder<
 
 pub(crate) fn paint_video_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = recorder
-        .layout_arena
+        .source
         .replaced_paint_facts(paintable)
         .and_then(|facts| facts.video())
         .unwrap_or_default();
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
     let video_rect = recorder
         .converter
-        .rounded_device_rect(absolute_rect(recorder.layout_arena, paintable));
+        .rounded_device_rect(absolute_rect(recorder.source, paintable));
     let (content_rect, corner_radii) = replaced_content_clip_geometry(recorder, paintable);
     let mut inline_clips = vec![PendingInlineClip::intersecting_float_rect(content_rect)];
     if let Some(corner_radii) = corner_radii {
@@ -428,14 +428,14 @@ pub(crate) fn paint_navigable_container_foreground<O: Observer>(
     paintable: NodeSlotId,
 ) {
     let facts = recorder
-        .layout_arena
+        .source
         .replaced_paint_facts(paintable)
         .and_then(|facts| facts.navigable_container())
         .unwrap_or_default();
     if !facts.has_composited_context {
         return;
     }
-    let absolute_rect = absolute_rect(recorder.layout_arena, paintable);
+    let absolute_rect = absolute_rect(recorder.source, paintable);
     let (content_rect, corner_radii) = replaced_content_clip_geometry(recorder, paintable);
     let mut inline_clips = vec![PendingInlineClip::intersecting_float_rect(content_rect)];
     if let Some(corner_radii) = corner_radii {

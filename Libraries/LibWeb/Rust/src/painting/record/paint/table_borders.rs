@@ -188,7 +188,7 @@ pub(crate) fn paint_table_borders<O: Observer>(recorder: &mut PaintRecorder<'_, 
     // Painting according to the collapsing border model:
     // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
     let Some(borders) =
-        crate::painting::paintable_geometry::committed_collapsed_table_borders(recorder.layout_arena, table_paintable)
+        crate::painting::paintable_geometry::committed_collapsed_table_borders(recorder.source, table_paintable)
     else {
         return;
     };
@@ -206,7 +206,7 @@ pub(crate) fn paint_table_borders<O: Observer>(recorder: &mut PaintRecorder<'_, 
 
     // The grid lines, in CSS pixels: each border is centered on its grid line and its rectangle is only snapped to
     // device pixels once its extent is known (see device_rect).
-    let origin = crate::painting::paintable_geometry::absolute_rect(recorder.layout_arena, table_paintable).location();
+    let origin = crate::painting::paintable_geometry::absolute_rect(recorder.source, table_paintable).location();
     let xs: Vec<CssPixels> = borders.column_offsets.iter().map(|offset| origin.x + *offset).collect();
     let ys: Vec<CssPixels> = borders.row_offsets.iter().map(|offset| origin.y + *offset).collect();
     let horizontal_edges: Vec<Edge> = borders.horizontal_edges.iter().map(|edge| Edge::from(*edge)).collect();

@@ -17,7 +17,7 @@ use crate::painting::display_list::recorder::{
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::{FfiSvgGradientKind, FfiSvgGradientSpreadMethod};
 use crate::painting::node_painting;
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::svg_paint_resources::{
@@ -61,7 +61,7 @@ fn svg_paint_facts<O: Observer>(
     paintable: NodeSlotId,
 ) -> (SvgPaintFacts, Vec<f32>) {
     use crate::css::css_enums::{fill_rule, stroke_linecap, stroke_linejoin, vector_effect};
-    let layout_arena = recorder.layout_arena;
+    let layout_arena = recorder.source;
     let viewport = layout_arena
         .node_kind_if_live(paintable)
         .is_some_and(node_painting::is_svg_path)
@@ -273,7 +273,7 @@ fn pattern_paint_style<O: Observer>(
     use libgfx_rust::matrix::{affine_to_matrix, multiply_affine};
     let description = &pattern.description;
     let pattern_box = description.pattern_box;
-    if !recorder.layout_arena.paintable_row_is_populated(pattern_box) {
+    if !recorder.source.paintable_row_is_populated(pattern_box) {
         return None;
     }
     let bounding_box = paint_context.path_bounding_box;
@@ -331,10 +331,10 @@ fn pattern_paint_style<O: Observer>(
             .has_value
             .then_some(description.pattern_transform_attribute.value)
     } else {
-        let pattern_box_style = recorder.layout_arena.node_style_if_live(pattern_box)?;
+        let pattern_box_style = recorder.source.node_style_if_live(pattern_box)?;
         let reference_box = crate::painting::visual_context::node_values::transform_reference_box(
             pattern_box_style,
-            recorder.layout_arena,
+            recorder.source,
             pattern_box,
         );
         Some(
@@ -377,7 +377,7 @@ fn paint_server_style<O: Observer>(
     } else {
         SvgPaintResourceKind::Fill
     };
-    let published = recorder.layout_arena.published_svg_paint_server(paintable, kind)?;
+    let published = recorder.source.published_svg_paint_server(paintable, kind)?;
     match &*published {
         PublishedSvgPaintServer::Gradient(gradient) => Some(gradient_paint_style(gradient, paint_context)),
         PublishedSvgPaintServer::Pattern(pattern) => pattern_paint_style(recorder, pattern, paint_context),
@@ -390,14 +390,14 @@ fn references_pattern<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: N
         .iter()
         .any(|kind| {
             recorder
-                .layout_arena
+                .source
                 .published_svg_paint_server(paintable, *kind)
                 .is_some_and(|published| matches!(&*published, PublishedSvgPaintServer::Pattern(_)))
         })
 }
 
 pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
-    let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.layout_arena, paintable)
+    let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.source, paintable)
     else {
         return;
     };
@@ -407,7 +407,7 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
     // published by the paint resource sync, which pushes damage on the shapes using it.
     let output_is_resolved_through_another_element = (facts.references_paint_server
         && references_pattern(recorder, paintable))
-        || recorder.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::SVGTextPathBox);
+        || recorder.source.node_kind_if_live(paintable) == Some(NodeKind::SVGTextPathBox);
     if output_is_resolved_through_another_element {
         recorder.mark_live_producer();
     }
@@ -572,7 +572,7 @@ pub(crate) fn paint_image_element<O: Observer>(
     }
 
     let image = recorder
-        .layout_arena
+        .source
         .replaced_paint_facts(paintable)
         .and_then(|facts| facts.image())
         .unwrap_or_default();
@@ -580,11 +580,8 @@ pub(crate) fn paint_image_element<O: Observer>(
         return;
     }
 
-    let image_rect = svg_image_unquantized_device_rect(
-        recorder.layout_arena,
-        paintable,
-        recorder.inputs.device_pixels_per_css_pixel,
-    );
+    let image_rect =
+        svg_image_unquantized_device_rect(recorder.source, paintable, recorder.inputs.device_pixels_per_css_pixel);
     let natural_size = match (image.natural.width, image.natural.height) {
         (Some(width), Some(height)) => (width.to_float(), height.to_float()),
         _ => (image_rect.width, image_rect.height),
@@ -611,7 +608,7 @@ pub(crate) fn paint_image_element<O: Observer>(
     // rectangle defined by the geometry properties.
     let (overflow_is_visible, image_rendering) =
         recorder
-            .layout_arena
+            .source
             .node_style_if_live(paintable)
             .map_or((false, 0), |style| {
                 use crate::css::css_enums::overflow;

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
 use super::{PaintPhase, PaintRecorder};
@@ -31,7 +32,7 @@ pub(crate) struct HitTestFacts {
 }
 
 pub(crate) fn hit_test_facts(
-    arena: &impl crate::painting::paintable_rows::PaintableRowsRead,
+    arena: &impl PaintRead,
     paintable: NodeSlotId,
     inputs: &crate::painting::record::RecordingInputs<'_>,
 ) -> HitTestFacts {
@@ -66,21 +67,21 @@ pub(crate) fn hit_test_facts(
 
 impl<'a, O: Observer> PaintRecorder<'a, O> {
     fn is_anonymous(&self, paintable: NodeSlotId) -> bool {
-        crate::painting::style_queries::is_anonymous(self.layout_arena, paintable)
+        crate::painting::style_queries::is_anonymous(self.source, paintable)
     }
 
     fn is_generated_for_pseudo_element(&self, paintable: NodeSlotId) -> bool {
-        self.layout_arena.node_is_generated_for_pseudo_element(paintable)
+        self.source.node_is_generated_for_pseudo_element(paintable)
     }
 
     fn is_atomic_inline(&self, paintable: NodeSlotId) -> bool {
-        crate::painting::style_queries::is_atomic_inline(self.layout_arena, paintable)
+        crate::painting::style_queries::is_atomic_inline(self.source, paintable)
     }
 
     pub(crate) fn record_foreign_object_descendant_hit_test_items(&mut self, paintable: NodeSlotId) {
-        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
+        let mut next_child = crate::painting::paint_order::first_paint_child(self.source, paintable);
         while let Some(child) = next_child {
-            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, child);
+            next_child = crate::painting::paint_order::next_paint_sibling(self.source, child);
             self.record_hit_test_items(child, PaintPhase::Background);
             self.record_foreign_object_descendant_hit_test_items(child);
             self.record_hit_test_items(child, PaintPhase::Foreground);
@@ -92,13 +93,13 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         if self.is_recording_svg_resource_content() {
             return;
         }
-        if node_painting::is_inline(self.layout_arena, paintable) {
+        if node_painting::is_inline(self.source, paintable) {
             self.record_inline_hit_test_items(paintable, phase);
-        } else if node_painting::has_lines(self.layout_arena, paintable) {
+        } else if node_painting::has_lines(self.source, paintable) {
             self.record_base_hit_test_items(paintable, phase);
             self.record_lines_hit_test_items(paintable, phase);
         } else if self
-            .layout_arena
+            .source
             .node_kind_if_live(paintable)
             .is_some_and(node_painting::is_svg_path)
         {
@@ -125,7 +126,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             if display.is_table_column() || display.is_table_column_group() {
                 return;
             }
-            let rect = paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable);
+            let rect = paintable_geometry::absolute_border_box_rect(self.source, paintable);
             let radii = self.border_radii(paintable);
             let context = self.data(paintable).accumulated_visual_context;
             self.append_box(paintable, paintable, rect, context, radii);
@@ -148,10 +149,8 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         if phase != PaintPhase::Foreground {
             return;
         }
-        let fragment_count = self.layout_arena.paintable_side_data(paintable).fragments().len();
-        if fragment_count == 0
-            && crate::painting::paint_order::first_paint_child(self.layout_arena, paintable).is_none()
-        {
+        let fragment_count = self.source.paintable_side_data(paintable).fragments().len();
+        if fragment_count == 0 && crate::painting::paint_order::first_paint_child(self.source, paintable).is_none() {
             if self.is_visible(paintable) && self.visible_for_hit_testing(paintable) {
                 self.record_empty_editable_hit_test_item(paintable);
             }
@@ -159,7 +158,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         }
         let context = self.data(paintable).accumulated_visual_context_for_descendants;
         // Fragments inside self-painting inline boxes are recorded during that box's paint.
-        let filter = fragment_ownership::effective_filter(self.layout_arena, paintable);
+        let filter = fragment_ownership::effective_filter(self.source, paintable);
         filter.for_each_owned_fragment_index(fragment_count, |index| {
             if self.fragment_is_block_level_box(paintable, index) {
                 return;
@@ -170,12 +169,12 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     }
 
     fn record_empty_line_caret_items(&mut self, paintable: NodeSlotId, context: ContextRef) {
-        let targets = crate::painting::visual_lines::empty_line_caret_targets(self.layout_arena, paintable);
+        let targets = crate::painting::visual_lines::empty_line_caret_targets(self.source, paintable);
         for target in targets {
             self.append_empty_line_for_fragment(paintable, 0, target.offset, target.line_index, target.rect, context);
         }
         let empty_lines_ended_by_forced_breaks: Vec<(usize, NodeSlotId, CssPixelRect)> = {
-            let side = self.layout_arena.paintable_side_data(paintable);
+            let side = self.source.paintable_side_data(paintable);
             if side.fragments().is_empty() {
                 return;
             }
@@ -188,7 +187,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
                 .map(|(line_index, line)| (line_index, line.forced_break_node, CssPixelRect::from(line.rect)))
                 .collect()
         };
-        let block_position = paintable_geometry::absolute_position(self.layout_arena, paintable);
+        let block_position = paintable_geometry::absolute_position(self.source, paintable);
         for (line_index, forced_break_node, line_rect) in empty_lines_ended_by_forced_breaks {
             let line_rect = line_rect.translated_by(block_position);
             self.append_empty_line_for_node(paintable, forced_break_node, line_index, line_rect, context);
@@ -214,13 +213,13 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             return;
         }
 
-        if fragment_ownership::is_self_painting_inline(self.layout_arena, paintable) {
+        if fragment_ownership::is_self_painting_inline(self.source, paintable) {
             let Some(root) = self.inline_root(paintable) else {
                 return;
             };
             let context = self.data(paintable).accumulated_visual_context_for_descendants;
-            let fragment_count = self.layout_arena.paintable_side_data(root).fragments().len();
-            let filter = fragment_ownership::effective_filter(self.layout_arena, paintable);
+            let fragment_count = self.source.paintable_side_data(root).fragments().len();
+            let filter = fragment_ownership::effective_filter(self.source, paintable);
             // Hit-test precedence follows paint order: this box's own text loses to the box itself
             // (re-recorded so its z-order matches this box's paint order), while nested content
             // (e.g. a link inside this box) wins over it.
@@ -230,8 +229,8 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
                 if self.fragment_is_block_level_box(root, index) {
                     return;
                 }
-                let fragment_node = self.layout_arena.paintable_side_data(root).fragments()[index].layout_node;
-                if fragment_ownership::nearest_fragmented_inline_ancestor(self.layout_arena, fragment_node)
+                let fragment_node = self.source.paintable_side_data(root).fragments()[index].layout_node;
+                if fragment_ownership::nearest_fragmented_inline_ancestor(self.source, fragment_node)
                     == Some(own_layout_node)
                 {
                     self.append_text_fragment(root, index as u32, context);
@@ -256,33 +255,33 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
 
     fn inline_root(&self, paintable: NodeSlotId) -> Option<NodeSlotId> {
         let block = self.data(paintable).containing_block;
-        if block.is_invalid() || !self.layout_arena.paintable_row_is_populated(block) {
+        if block.is_invalid() || !self.source.paintable_row_is_populated(block) {
             return None;
         }
-        node_painting::has_lines(self.layout_arena, block).then_some(block)
+        node_painting::has_lines(self.source, block).then_some(block)
     }
 
     fn piece_of(&self, root: NodeSlotId, piece_index: u32) -> InlineBoxPieceRecord {
-        self.layout_arena.paintable_side_data(root).inline_box_pieces()[piece_index as usize]
+        self.source.paintable_side_data(root).inline_box_pieces()[piece_index as usize]
     }
 
     fn inline_has_content(&self, paintable: NodeSlotId) -> bool {
         let has_content_pieces = self.inline_root(paintable).is_some_and(|root| {
-            self.layout_arena
+            self.source
                 .paintable_side_data(paintable)
                 .piece_indices
                 .iter()
                 .any(|piece_index| !self.piece_of(root, *piece_index).is_geometry_only_placeholder)
         });
-        has_content_pieces || crate::painting::paint_order::first_paint_child(self.layout_arena, paintable).is_some()
+        has_content_pieces || crate::painting::paint_order::first_paint_child(self.source, paintable).is_some()
     }
 
     fn append_piece_boxes(&mut self, paintable: NodeSlotId) {
         let Some(root) = self.inline_root(paintable) else {
             return;
         };
-        let root_position = paintable_geometry::absolute_position(self.layout_arena, root);
-        let layout_arena = self.layout_arena;
+        let root_position = paintable_geometry::absolute_position(self.source, root);
+        let layout_arena = self.source;
         let context = self.data(paintable).accumulated_visual_context;
         for piece_index in &layout_arena.paintable_side_data(paintable).piece_indices {
             let side = layout_arena.paintable_side_data(root);
@@ -300,7 +299,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         if phase != PaintPhase::Foreground {
             return;
         }
-        let Some(path) = paintable_geometry::committed_svg_path(self.layout_arena, paintable) else {
+        let Some(path) = paintable_geometry::committed_svg_path(self.source, paintable) else {
             return;
         };
         if !self.visibility_is_visible(paintable) || !self.visible_for_hit_testing(paintable) {
@@ -333,37 +332,35 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     fn record_empty_editable_hit_test_item(&mut self, paintable: NodeSlotId) {
         if self.is_anonymous(paintable)
             || !self
-                .layout_arena
+                .source
                 .node_has_dom_paint_fact(paintable, DomPaintFact::EditableOrEditingHost)
         {
             return;
         }
-        let rect = paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable);
+        let rect = paintable_geometry::absolute_border_box_rect(self.source, paintable);
         let context = self.data(paintable).accumulated_visual_context;
         self.append_empty_editable(paintable, rect, context);
     }
 
     fn fragment(&self, owner: NodeSlotId, index: usize) -> std::cell::Ref<'a, FragmentRecord> {
-        std::cell::Ref::map(self.layout_arena.paintable_side_data(owner), |side_data| {
+        std::cell::Ref::map(self.source.paintable_side_data(owner), |side_data| {
             &side_data.fragments()[index]
         })
     }
 
     fn fragment_is_block_level_box(&self, owner: NodeSlotId, index: usize) -> bool {
-        text_fragment::is_block_level_box(self.layout_arena, &self.fragment(owner, index))
+        text_fragment::is_block_level_box(self.source, &self.fragment(owner, index))
     }
 
     // A text node has no style of its own, so its parent both decides whether the fragment can be hit and is what an
     // event dispatched from it resolves against. Returns that node, or None when the fragment is not hit-testable.
     fn forced_break_node_is_caret_target(&self, break_node: NodeSlotId) -> bool {
-        if self.layout_arena.node_kind_if_live(break_node) != Some(NodeKind::BreakNode)
-            || self
-                .layout_arena
-                .node_has_dom_paint_fact(break_node, DomPaintFact::Inert)
+        if self.source.node_kind_if_live(break_node) != Some(NodeKind::BreakNode)
+            || self.source.node_has_dom_paint_fact(break_node, DomPaintFact::Inert)
         {
             return false;
         }
-        let Some(style) = self.layout_arena.node_style_if_live(break_node) else {
+        let Some(style) = self.source.node_style_if_live(break_node) else {
             return false;
         };
         if style.visibility() != css_enums::visibility::VISIBLE
@@ -371,36 +368,36 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         {
             return false;
         }
-        self.layout_arena
+        self.source
             .node_parent_if_live(break_node)
-            .and_then(|parent| self.layout_arena.node_style_if_live(parent))
+            .and_then(|parent| self.source.node_style_if_live(parent))
             .is_none_or(|parent_style| parent_style.effects().opacity != 0.0)
     }
 
     fn hit_node_for_text_fragment(&mut self, fragment: &FragmentRecord) -> Option<NodeSlotId> {
         let node = fragment.layout_node;
-        if fragment.is_block_ellipsis || !node_facts::kind_is_text(self.layout_arena.node_kind_if_live(node)?) {
+        if fragment.is_block_ellipsis || !node_facts::kind_is_text(self.source.node_kind_if_live(node)?) {
             return None;
         }
-        let parent = self.layout_arena.node_parent_if_live(node)?;
+        let parent = self.source.node_parent_if_live(node)?;
         let parent_visible = self
-            .layout_arena
+            .source
             .node_style_if_live(parent)
             .is_none_or(|style| style.visibility() == css_enums::visibility::VISIBLE);
         if !parent_visible {
             return None;
         }
-        let parent_style = self.layout_arena.node_style_if_live(parent)?;
+        let parent_style = self.source.node_style_if_live(parent)?;
         if parent_style.effects().opacity == 0.0
             || parent_style.inherited_ui().pointer_events == css_enums::pointer_events::NONE
         {
             return None;
         }
-        if self.layout_arena.node_has_dom_paint_fact(node, DomPaintFact::Inert) {
+        if self.source.node_has_dom_paint_fact(node, DomPaintFact::Inert) {
             return None;
         }
         // Resolving the hit needs a committed paintable row; without one there is nothing to resolve against.
-        if !self.layout_arena.paintable_row_is_populated(parent) {
+        if !self.source.paintable_row_is_populated(parent) {
             return None;
         }
         Some(parent)
@@ -411,35 +408,35 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     }
 
     fn block_container_of_fragment(&self, fragment: &FragmentRecord) -> NodeSlotId {
-        text_fragment::containing_block_paintable(self.layout_arena, fragment).unwrap_or(NodeSlotId::INVALID)
+        text_fragment::containing_block_paintable(self.source, fragment).unwrap_or(NodeSlotId::INVALID)
     }
 
     fn writing_mode_of(&self, paintable: NodeSlotId) -> u8 {
-        self.layout_arena
+        self.source
             .node_style_if_live(paintable)
             .map_or(css_enums::writing_mode::HORIZONTAL_TB, |style| style.writing_mode())
     }
 
     fn inline_axis_is_reverse_of(&self, paintable: NodeSlotId) -> bool {
-        self.layout_arena
+        self.source
             .node_style_if_live(paintable)
             .is_some_and(|style| style.inline_axis_is_reverse())
     }
 
     fn block_axis_is_reverse_of(&self, paintable: NodeSlotId) -> bool {
-        self.layout_arena
+        self.source
             .node_style_if_live(paintable)
             .is_some_and(|style| style.block_axis_is_reverse())
     }
 
     fn layout_containing_block_of(&self, paintable: NodeSlotId) -> NodeSlotId {
-        self.layout_arena
+        self.source
             .node_containing_block_if_live(paintable)
             .unwrap_or(NodeSlotId::INVALID)
     }
 
     fn node_has_dom_node(&self, node: NodeSlotId) -> bool {
-        self.layout_arena.node_is_dom_backed(node)
+        self.source.node_is_dom_backed(node)
     }
 
     fn append_box(
@@ -450,11 +447,9 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         context: ContextRef,
         border_radii: BorderRadii,
     ) {
-        let caret_line_index =
-            paintable_geometry::committed_containing_line_box_index(self.layout_arena, paintable_box);
+        let caret_line_index = paintable_geometry::committed_containing_line_box_index(self.source, paintable_box);
         let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
-            let negative_z =
-                crate::painting::style_queries::effective_z_index(self.layout_arena, target).unwrap_or(0) < 0;
+            let negative_z = crate::painting::style_queries::effective_z_index(self.source, target).unwrap_or(0) < 0;
             !negative_z && self.node_has_dom_node(target)
         };
         let block_container = self.block_container_of_paintable(paintable_box);
@@ -517,7 +512,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let Some(hit_node) = self.hit_node_for_text_fragment(&fragment) else {
             return;
         };
-        let layout_arena = self.layout_arena;
+        let layout_arena = self.source;
         let first_available_font = || text_fragment::first_available_font(layout_arena, &fragment);
         let block_container = self.block_container_of_fragment(&fragment);
         let item = HitTestItem {
@@ -560,7 +555,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             caret_line_index: Some(line_box_index),
             block_container,
             containing_block: self
-                .layout_arena
+                .source
                 .node_containing_block_if_live(fragment.layout_node)
                 .unwrap_or(NodeSlotId::INVALID),
             can_produce_caret_position: self.node_has_dom_node(fragment.layout_node),

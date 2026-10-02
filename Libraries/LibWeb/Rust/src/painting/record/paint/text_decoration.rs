@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_enums::{
@@ -46,14 +47,14 @@ fn text_decoration_lines(style: crate::css::computed_value_views::ComputedValues
 }
 
 fn first_available_font(
-    arena: &crate::layout::LayoutNodeArena,
+    arena: &impl PaintRead,
     node: crate::layout::node_data::NodeSlotId,
 ) -> Option<libgfx_rust::font::FontHandle> {
     Some(arena.node_style_if_live(node)?.first_available_font())
 }
 
 fn resolve_text_decoration_thickness(
-    arena: &crate::layout::LayoutNodeArena,
+    arena: &impl PaintRead,
     value_node: crate::layout::node_data::NodeSlotId,
     basis_node: crate::layout::node_data::NodeSlotId,
     glyph_height: CssPixels,
@@ -96,7 +97,7 @@ fn anchor_for_decorating_box<O: Observer>(
     if decorating_node == text_parent {
         return (fragment.baseline, true);
     }
-    let side = recorder.layout_arena.paintable_side_data(block);
+    let side = recorder.source.paintable_side_data(block);
     for piece in side.inline_box_pieces() {
         if piece.node == decorating_node && piece.line_index == fragment.line_index {
             return (
@@ -122,8 +123,8 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
     if span.start_code_unit == span.end_code_unit {
         return sets;
     }
-    let arena = recorder.layout_arena;
-    let side = recorder.layout_arena.paintable_side_data(block);
+    let arena = recorder.source;
+    let side = recorder.source.paintable_side_data(block);
     let fragment = &side.fragments()[span.fragment_index as usize];
     let text_parent = fragment.style_source;
 
@@ -278,7 +279,7 @@ fn compute_skip_ink_segments<O: Observer>(
     line_thickness: i32,
     font_size: f32,
 ) -> Vec<DecorationSegment> {
-    let side = recorder.layout_arena.paintable_side_data(block);
+    let side = recorder.source.paintable_side_data(block);
     let fragment = &side.fragments()[fragment_index as usize];
     let Some(run) = &fragment.glyph_run else {
         return vec![DecorationSegment {
@@ -289,7 +290,7 @@ fn compute_skip_ink_segments<O: Observer>(
     // The text blob is drawn at baseline_start on the canvas. Compute that same origin so we can convert between
     // device-pixel coordinates and blob-local coordinates.
     let scale = recorder.inputs.device_pixels_per_css_pixel;
-    let fragment_absolute_rect = crate::painting::text_fragment::absolute_rect(recorder.layout_arena, fragment);
+    let fragment_absolute_rect = crate::painting::text_fragment::absolute_rect(recorder.source, fragment);
     let blob_origin_x = fragment_absolute_rect.x.to_float() * scale as f32;
     let blob_origin_y = (fragment_absolute_rect.y.to_float() + fragment.baseline.to_float()) * scale as f32;
 

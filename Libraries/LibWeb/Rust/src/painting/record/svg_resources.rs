@@ -10,6 +10,7 @@ use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::recorder::{IsolatedGroupEffects, OpenRecorderGroup};
 use crate::painting::node_painting;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::order_tree::ProducerKind;
 use crate::painting::record::trace::{Action, Observer, Operation};
 use crate::painting::record::{PaintPhase, PaintRecorder};
@@ -104,7 +105,7 @@ fn transformed_int_rect_clip(transform: AffineTransform, rect: libgfx_rust::IntR
 
 impl<O: Observer> PaintRecorder<'_, O> {
     fn mask_layer_presence(&self, paintable: NodeSlotId, set: MaskLayerSet) -> Vec<MaskLayerPresenceEntry> {
-        mask_layer_presence(self.layout_arena, paintable, set == MaskLayerSet::CssAndSvg)
+        mask_layer_presence(self.source, paintable, set == MaskLayerSet::CssAndSvg)
     }
 
     fn mask_effect_of_layer(
@@ -113,7 +114,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         origin: MaskLayerOrigin,
     ) -> Option<(EffectNodeIndex, MaskData)> {
         let tree = self.paint_state.visual_context.tree.as_deref()?;
-        self.layout_arena
+        self.source
             .with_paintable_visual_context_node_handles(paintable, |handles| {
                 handles
                     .effects
@@ -134,7 +135,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return true;
         }
         let stacking_context_site_consumes_the_layer = set == MaskLayerSet::CssAndSvg
-            && crate::painting::style_queries::establishes_stacking_context(self.layout_arena, paintable);
+            && crate::painting::style_queries::establishes_stacking_context(self.source, paintable);
         for layer in &presence {
             if set == MaskLayerSet::SvgOnly && layer.origin == MaskLayerOrigin::CssMaskLayers {
                 continue;
@@ -175,11 +176,11 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn first_child_paintable_of_kind(&self, paintable: NodeSlotId, kind: NodeKind) -> Option<NodeSlotId> {
-        crate::painting::svg_masking::first_child_paintable_of_kind(self.layout_arena, paintable, kind)
+        crate::painting::svg_masking::first_child_paintable_of_kind(self.source, paintable, kind)
     }
 
     fn object_bounding_box_content_units_transform(&self, target: NodeSlotId) -> AffineTransform {
-        crate::painting::svg_masking::object_bounding_box_content_units_transform(self.layout_arena, target)
+        crate::painting::svg_masking::object_bounding_box_content_units_transform(self.source, target)
     }
 
     fn record_referenced_svg_mask_or_clip_content(
@@ -198,7 +199,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         };
         let content_units_object_bbox =
             crate::painting::paintable_geometry::committed_svg_resource_content_units_are_object_bounding_box(
-                self.layout_arena,
+                self.source,
                 resource_box,
             );
         let mut content_units_transform_in_recorded_space = if content_units_object_bbox {
@@ -220,7 +221,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn paint_css_mask_layers(&mut self, paintable: NodeSlotId, area: CssPixelRect) {
-        let layout_arena = self.layout_arena;
+        let layout_arena = self.source;
         let style = layout_arena
             .node_style_if_live(paintable)
             .expect("the mask recording target holds a live layout node");
@@ -290,7 +291,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return;
         }
         let (facts, svg_filter_bounds) =
-            BoxFacts::gather_for_resource_content(self.layout_arena, svg_box, self.inputs.device_pixels_per_css_pixel);
+            BoxFacts::gather_for_resource_content(self.source, svg_box, self.inputs.device_pixels_per_css_pixel);
         self.recorder.set_accumulated_visual_context(walk.enclosing_context);
 
         let effects_group = facts
@@ -328,9 +329,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 .push_ambient_inline_clips(&[transformed_rect_clip(to_enclosing_space, clip.rect, &clip)]);
         }
         let mut descendants_to_enclosing_space = to_enclosing_space;
-        if let Some(svg_viewport_transform) = svg_viewport_transform_of(self.layout_arena, svg_box) {
+        if let Some(svg_viewport_transform) = svg_viewport_transform_of(self.source, svg_box) {
             let viewport_transform_data = compute_svg_viewport_transform_data(
-                self.layout_arena,
+                self.source,
                 svg_box,
                 svg_viewport_transform,
                 self.inputs.device_pixels_per_css_pixel,
@@ -342,9 +343,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
         self.recorder
             .set_ambient_inline_transform(Some(descendants_to_enclosing_space));
-        let mut child = crate::painting::paint_order::first_paint_child(self.layout_arena, svg_box);
+        let mut child = crate::painting::paint_order::first_paint_child(self.source, svg_box);
         while let Some(current) = child {
-            child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, current);
+            child = crate::painting::paint_order::next_paint_sibling(self.source, current);
             self.paint_svg_box_inside_resource(current, descendants_to_enclosing_space, true);
         }
         self.recorder.truncate_ambient_inline_clips(clip_depth);
@@ -392,7 +393,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));
             self.recorder.fill_rect_transparent(device_rect);
         }
-        let kind = self.layout_arena.node_kind_if_live(svg_box);
+        let kind = self.source.node_kind_if_live(svg_box);
         if kind != Some(NodeKind::SVGSVGBox)
             && !kind.is_some_and(node_painting::is_svg)
             && kind.is_some_and(crate::layout::node_facts::kind_is_replaced_box)

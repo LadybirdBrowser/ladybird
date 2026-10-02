@@ -489,10 +489,10 @@ fn resolve_layers<'a, O: Observer>(
         rect: border_rect,
         radii: border_radii,
     };
-    let padding = committed_padding(recorder.layout_arena, paintable);
+    let padding = committed_padding(recorder.source, paintable);
     // The padding box and content box are inset from the border box by the border widths that the border box
     // includes: half of each collapsed border in the collapsing borders model.
-    let border = committed_border_box_edges(recorder.layout_arena, paintable);
+    let border = committed_border_box_edges(recorder.source, paintable);
     let color_box = background_box_for(background_color_clip, border_box, padding, border);
     let layer_may_be_painted =
         |layer: &ComputedLayer<'_>| matches!(layer_type, LayerType::Mask) || layer.image.is_some();
@@ -544,7 +544,7 @@ fn resolve_layers<'a, O: Observer>(
         // the background positioning area is the initial containing block.
         if layer.attachment == background_attachment::FIXED
             && background_has_fixed_attachment(
-                recorder.layout_arena,
+                recorder.source,
                 recorder.inputs.uncaptured.root_background_source,
                 paintable,
             )
@@ -720,7 +720,7 @@ pub(crate) fn committed_layer_image_paint_facts<O: Observer>(
     image: &LayerImageSource<'_>,
 ) -> crate::painting::layer_image_paint_facts::LayerImagePaintFacts {
     recorder
-        .layout_arena
+        .source
         .layer_image_paint_facts(image.facts_owner, image.list, image.computed_index)
         .unwrap_or_default()
 }
@@ -842,14 +842,14 @@ pub(crate) fn resolve_background_for_paint<'a, O: Observer>(
     paintable: NodeSlotId,
 ) -> Option<BackgroundPaintInputs<'a>> {
     if !has_background_to_paint(
-        recorder.layout_arena,
+        recorder.source,
         paintable,
         recorder.inputs.uncaptured.root_background_source,
     ) {
         return None;
     }
     let source = background_paint_source_from_style_and_geometry(
-        recorder.layout_arena,
+        recorder.source,
         paintable,
         recorder.inputs.uncaptured.root_background_source,
     )?;
@@ -877,8 +877,7 @@ pub(crate) fn resolve_background_for_paint<'a, O: Observer>(
         },
     };
     if source.is_root_element {
-        let canvas_rect =
-            root_background_canvas_rect(recorder.layout_arena, paintable, recorder.inputs.css_viewport_rect);
+        let canvas_rect = root_background_canvas_rect(recorder.source, paintable, recorder.inputs.css_viewport_rect);
         resolved.background_rect.unite(canvas_rect);
         resolved.color_box.rect.unite(canvas_rect);
     }
