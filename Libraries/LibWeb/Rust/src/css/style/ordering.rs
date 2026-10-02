@@ -261,16 +261,17 @@ impl RetainedState {
     /// Order matches the way the cascade applies them, dropping repeats from asking more than one
     /// tree scope when that could have happened.
     pub(super) fn order_matches_in_cascade(&self, all: &mut Vec<RuleMatch>, can_have_scope_duplicates: bool) {
-        // One match per rule and target, not per scope that asked. The user-agent and user origins
-        // decide in every scope, so a node asked in two of them - a host, which is asked its own
-        // scope's rules and its shadow tree's - meets those rules twice. Their priority is the same
-        // either way, because a sheet the asking scope does not hold is weighed where it is
-        // attached.
+        // One match per rule, target and context the rule is weighed in, not per scope that asked.
+        // The user-agent and user origins decide in every scope, so a node asked in two of them - a
+        // host, which is asked its own scope's rules and its shadow tree's - meets those rules
+        // twice, and both are weighed where their sheet is attached. A sheet several scopes adopt
+        // decides in each of them, at each one's own context.
         let identity = |entry: &RuleMatch| {
             (
                 entry.node,
                 entry.rule,
                 entry.pseudo_element.map_or(u32::MAX, |target| u32::from(target.kind.0)),
+                self.cascade_context_scope(entry.rule, entry.tree_scope),
             )
         };
         if can_have_scope_duplicates {

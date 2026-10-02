@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes fade { from { width: 10px; } to { width: 10px; } }
+</style>
+<div id="host"><div id="normal"></div><div id="important"></div></div>
+<script>
+    test(() => {
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = "<style>@keyframes fade { from { width: 20px; } to { width: 20px; } }</style><slot></slot>";
+        internals.updateStyle();
+        // One sheet both scopes adopt names the animation for each slotted element from either
+        // context, and the @keyframes of the context whose declaration wins run: the document's
+        // for a normal declaration, the shadow tree's for an important one.
+        const shared = new CSSStyleSheet();
+        shared.replaceSync(`
+            #normal, ::slotted(#normal) { animation: fade 100s linear paused; }
+            #important, ::slotted(#important) { animation: fade 100s linear paused !important; }
+        `);
+        const before = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        document.adoptedStyleSheets = [shared];
+        root.adoptedStyleSheets = [shared];
+        internals.updateStyle();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - before}`);
+        println(`normal: ${getComputedStyle(document.getElementById("normal")).width}`);
+        println(`important: ${getComputedStyle(document.getElementById("important")).width}`);
+    });
+</script>
