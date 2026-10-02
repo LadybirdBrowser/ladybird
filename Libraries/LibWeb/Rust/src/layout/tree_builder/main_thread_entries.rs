@@ -21,24 +21,16 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 ///
 /// # Safety
 ///
-/// The callback table, arena, and element must remain valid for the duration of the call.
+/// `arena` must be a live handle on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
-    callbacks: *const FfiTopLayerDetachCallbacks,
-    arena: *mut c_void,
-    element: u32,
-) {
-    assert!(!callbacks.is_null());
+pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(arena: *mut c_void, element: u32) {
     assert!(!arena.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: Guaranteed by the entry point's contract.
-    let callbacks = unsafe { &*callbacks };
     let arena = arena.cast::<LayoutNodeArena>();
     let host = StaleSubtreeHost {
         arena,
-        context: callbacks.context,
-        clear_stale_layout_node: callbacks.clear_stale_layout_node,
+        main_thread: &main_thread,
     };
     // A top layer member the style engine no longer tracks has left the DOM. Nothing of it is in the
     // mirror, and nothing of it is bound to a row, so there is nothing to detach or clear.
@@ -231,6 +223,12 @@ pub unsafe extern "C" fn rust_detach_remaining_layout_rows_for_removal(arena: *m
     let Some(node) = StyleNodeID::from_raw(style_node) else {
         return;
     };
+    // A pseudo-element's boxes are found through its generator's identity, so they go while the
+    // identity still finds them. A ::backdrop box sits outside the generator's box, so no rebuild
+    // of the parent would free it.
+    if node.element_index().is_some() {
+        clear_synthetic_pseudo_element_boxes(&main_thread, arena.cast(), node);
+    }
     // SAFETY: As above.
     let row = unsafe { LayoutNodeArena::from_handle(arena) }.bound_row(node);
     if row.is_invalid() {

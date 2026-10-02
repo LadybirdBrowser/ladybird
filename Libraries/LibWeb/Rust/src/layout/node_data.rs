@@ -14,6 +14,9 @@ pub const GENERATED_FOR_BACKDROP: u8 = 2;
 pub const GENERATED_FOR_BEFORE: u8 = 3;
 pub const GENERATED_FOR_FIRST_LETTER: u8 = 4;
 pub const GENERATED_FOR_MARKER: u8 = 6;
+/// The last pseudo-element an element holds a box for in its own right; the ones from
+/// `GENERATED_FOR_AFTER` up to it are an element's synthetic pseudo-elements.
+pub const GENERATED_FOR_LAST_SYNTHETIC: u8 = 8;
 
 // The full C++ StyleGroupIndex space; LayoutRustBridge.cpp static-asserts the
 // count so the style container array and the registered group indices line up.
