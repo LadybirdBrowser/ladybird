@@ -820,21 +820,7 @@ public:
     // pointer is borrowed from this immutable ComputedValues instance.
     void const* style_group_payload(StyleGroupIndex) const;
 
-    // The identity of the half a child inherits. Two styles whose inherited groups are pairwise the
-    // same payload answer the same question for a child, whatever their non-inherited halves say.
     static constexpr size_t inherited_style_group_count = 7;
-    Array<void const*, inherited_style_group_count> inherited_style_group_identities() const
-    {
-        return Array<void const*, inherited_style_group_count> {
-            m_inherited.table.payload_identity(),
-            m_inherited.list.payload_identity(),
-            m_inherited.ui.payload_identity(),
-            m_inherited.svg.payload_identity(),
-            m_inherited.text.payload_identity(),
-            m_inherited.box.payload_identity(),
-            m_inherited.font.payload_identity(),
-        };
-    }
 
     // Calls back with (name, shared_with_parent, is_default) for every style value group,
     // for introspecting how well group sharing is working (see internals.styleGroupSharingInfo()).

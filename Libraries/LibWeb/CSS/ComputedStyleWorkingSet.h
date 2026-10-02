@@ -86,17 +86,13 @@ public:
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     // The wrapper-carrying store funnel: dual-writes the Rust table and the wrapper cache.
-    // `style_sheet_source_slot` is the winning declaration's cascade source slot when its
-    // value carries style sheet context, and -1 otherwise.
-    void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value, i64 style_sheet_source_slot = -1);
+    void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value);
     // Invalidates C++ sidecars after the Rust driver stores a value directly in the table.
     void did_store_property_data_from_drive(PropertyID);
-    void set_style_sheet_for_source_slot(u32, RefPtr<StyleSheetState>);
     void set_display_before_box_type_transformation(Display);
 
     bool has_effective_color_scheme() const { return metadata().effective_color_scheme >= 0; }
     void set_effective_color_scheme(PreferredColorScheme color_scheme) { metadata().effective_color_scheme = to_underlying(color_scheme); }
-    void clear_effective_color_scheme() { metadata().effective_color_scheme = -1; }
 
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
     ComputedValuesFFI::AnimatedOverlay const* animated_overlay() const;
@@ -199,9 +195,6 @@ private:
     // once, preserving wrapper identity for values with side effects (image loads).
     struct WrapperMintCache final : public RefCounted<WrapperMintCache> {
         HashMap<PropertyID, NonnullRefPtr<StyleValue const>> wrappers;
-        // Style sheets are indexed by the source slots stored in the Rust longhand table.
-        // Held weakly, like the cascade's own declaration sources.
-        Vector<WeakPtr<StyleSheetState>> style_sheet_source_slots;
     };
 
     ComputedStyleWorkingSet();
@@ -276,7 +269,7 @@ private:
 // Mints a C++ StyleValue wrapper for a record or table slot's value data, stamping it with the
 // style sheet the winning declaration came from when the caller resolved one from the sheet
 // sidecar. Counts toward the process-wide longhand wrapper mint statistic.
-NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data, RefPtr<StyleSheetState> style_sheet);
+NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data);
 
 // https://drafts.csswg.org/css-inline-3/#valdef-line-height-normal
 [[nodiscard]] CSSPixels normal_line_height(Gfx::FontPixelMetrics const&);

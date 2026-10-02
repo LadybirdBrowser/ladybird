@@ -85,7 +85,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
 {
     auto working_set = create();
     working_set->m_mint_cache->wrappers = style.m_mint_cache->wrappers;
-    working_set->m_mint_cache->style_sheet_source_slots = style.m_mint_cache->style_sheet_source_slots;
     // The table copy carries the importance, inheritance and evaluation flags and the recorded
     // inheritance-dependent specified values along with the value slots.
     ComputedValuesFFI::rust_computed_longhand_table_copy_from(working_set->m_computed_longhand_table, style.m_computed_longhand_table);
@@ -251,7 +250,7 @@ StyleValue const& AnimatedProperties::property(PropertyID property_id) const
 
     if (auto wrapper = m_wrapper_cache.get(property_id); wrapper.has_value())
         return *wrapper.value();
-    auto wrapper = wrap_computed_longhand_slot(animated_entry->value, nullptr);
+    auto wrapper = wrap_computed_longhand_slot(animated_entry->value);
     m_wrapper_cache.set(property_id, wrapper);
     return *wrapper;
 }
@@ -354,11 +353,11 @@ static bool property_affects_computed_font_list(PropertyID id)
     return first_is_one_of(id, PropertyID::FontFamily, PropertyID::FontSize, PropertyID::FontStyle, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontVariationSettings);
 }
 
-void ComputedStyleWorkingSet::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value, i64 style_sheet_source_slot)
+void ComputedStyleWorkingSet::set_property_without_modifying_flags(PropertyID id, NonnullRefPtr<StyleValue const> value)
 {
     VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
 
-    ComputedValuesFFI::rust_computed_longhand_table_set(m_computed_longhand_table, to_underlying(id), value->rust_style_value_data(), style_sheet_source_slot);
+    ComputedValuesFFI::rust_computed_longhand_table_set(m_computed_longhand_table, to_underlying(id), value->rust_style_value_data(), -1);
     m_mint_cache->wrappers.set(id, move(value));
 
     if (property_affects_computed_font_list(id))
@@ -372,13 +371,6 @@ void ComputedStyleWorkingSet::did_store_property_data_from_drive(PropertyID id)
 
     if (property_affects_computed_font_list(id))
         clear_computed_font_list_cache();
-}
-
-void ComputedStyleWorkingSet::set_style_sheet_for_source_slot(u32 slot, RefPtr<StyleSheetState> style_sheet)
-{
-    if (slot >= m_mint_cache->style_sheet_source_slots.size())
-        m_mint_cache->style_sheet_source_slots.resize(slot + 1);
-    m_mint_cache->style_sheet_source_slots[slot] = style_sheet;
 }
 
 Display ComputedStyleWorkingSet::display_before_box_type_transformation() const
@@ -490,13 +482,10 @@ void ComputedStyleWorkingSet::clear_animated_properties(Badge<StyleComputer>)
     clear_computed_font_list_cache();
 }
 
-NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data, RefPtr<StyleSheetState> style_sheet)
+NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data)
 {
-    auto wrapper = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(value_data)));
     ++s_longhand_wrappers_minted;
-    if (style_sheet)
-        const_cast<StyleValue&>(*wrapper).set_style_sheet(style_sheet);
-    return wrapper;
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(value_data)));
 }
 
 StyleValue const& ComputedStyleWorkingSet::property(PropertyID property_id, WithAnimationsApplied return_animated_value) const
@@ -522,23 +511,13 @@ StyleValue const& ComputedStyleWorkingSet::property(PropertyID property_id, With
     VERIFY(effective.value);
     if (auto it = cache.find(property_id); it != cache.end() && it->value->rust_style_value_data() == effective.value)
         return *it->value;
-    // Mints the wrapper on demand, stamping a table-stored value with the sheet the winning
-    // declaration came from when the drive recorded one; image fetches read that context, and
-    // the mint happens before any group fallback consumes the value.
-    RefPtr<StyleSheetState> style_sheet;
-    if (effective.source == ComputedValuesFFI::EFFECTIVE_LONGHAND_SOURCE_TABLE) {
-        auto source_slot = ComputedValuesFFI::rust_computed_longhand_table_source_slot(m_computed_longhand_table, to_underlying(property_id));
-        if (source_slot >= 0 && static_cast<size_t>(source_slot) < m_mint_cache->style_sheet_source_slots.size())
-            style_sheet = m_mint_cache->style_sheet_source_slots[source_slot].ptr();
+    // Mints the wrapper on demand, before any group fallback consumes the value.
+    auto initial_value = property_initial_value(property_id);
+    if (initial_value->rust_style_value_data() == effective.value) {
+        cache.set(property_id, initial_value);
+        return *initial_value;
     }
-    if (!style_sheet) {
-        auto initial_value = property_initial_value(property_id);
-        if (initial_value->rust_style_value_data() == effective.value) {
-            cache.set(property_id, initial_value);
-            return *initial_value;
-        }
-    }
-    auto wrapper = wrap_computed_longhand_slot(effective.value, style_sheet);
+    auto wrapper = wrap_computed_longhand_slot(effective.value);
     cache.set(property_id, wrapper);
     return *wrapper;
 }

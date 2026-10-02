@@ -41,7 +41,6 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
-#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
@@ -2502,95 +2501,6 @@ RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_styl
         return {};
     // The engine holds the record only until the element's styles are next read or settled.
     return ComputedValues::Builder { *view }.build();
-}
-
-NonnullRefPtr<ComputedValues const> StyleComputer::build_computed_values(ComputedStyleWorkingSet& computed_properties, DOM::AbstractElement abstract_element, StyleScope const& style_scope, ComputedValues const* previous_base, u32 groups_to_apply) const
-{
-    VERIFY(computation_context_cache_is_empty());
-    ScopeGuard clear_computation_context_cache = [&] { clear_computation_context_caches(); };
-
-    auto const& computation_context = get_computation_context_for_property(PropertyID::Color, computed_properties, abstract_element);
-    ColorResolutionContext color_resolution_context {
-        .color_scheme = computation_context.color_scheme,
-        .current_color = InitialValues::color(),
-        .current_color_style_value_data = computed_properties.effective_property_data(PropertyID::Color),
-        .calculation_resolution_context = { .length_resolution_context = computation_context.length_resolution_context },
-    };
-    // NB: Sharing group payloads with the parent costs almost nothing for groups that already
-    //     share the leaked defaults (a pointer compare each) and lets children reference their
-    //     parent's payloads for everything they inherit unchanged, including values that can
-    //     never match the process-wide defaults, like scope-resolved counter styles.
-    auto adopt_group_payloads = [&](ComputedValues const& style) {
-        if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
-            if (auto parent_values = parent->computed_style())
-                style.adopt_identical_group_payloads(*parent_values);
-        }
-        // NB: Siblings computing the same style never see each other's payloads through the parent:
-        //     each one's non-default groups are fresh allocations that agree on every value. The last
-        //     style built is offered as a second donor, so a run of alike elements collapses onto one
-        //     set of payloads - and one style record - instead of minting per element.
-        if (m_last_built_computed_values && m_last_built_computed_values != &style)
-            style.adopt_identical_group_payloads(*m_last_built_computed_values);
-        m_last_built_computed_values = &style;
-    };
-
-    auto const inherit_parent = abstract_element.element_to_inherit_style_from();
-    auto inherit_parent_style = inherit_parent.has_value() ? inherit_parent->computed_style() : ComputedStyleRecordView {};
-    auto const* inherit_parent_values = inherit_parent_style ? &*inherit_parent_style : nullptr;
-
-    auto animated_properties = computed_properties.animated_properties_snapshot();
-    RefPtr<ComputedStyleWorkingSet> unanimated_properties;
-    auto* base_properties = &computed_properties;
-    if (animated_properties && !animated_properties->is_empty()) {
-        unanimated_properties = computed_properties.copy_without_animations();
-        base_properties = unanimated_properties.ptr();
-    }
-    bool can_rebuild_selected_groups = previous_base
-        && groups_to_apply != ComputedValues::all_style_groups;
-    auto base_values = can_rebuild_selected_groups
-        ? ComputedValues::create_over_base(*base_properties, document(), style_scope, color_resolution_context, *previous_base, groups_to_apply)
-        : ComputedValues::create(*base_properties, document(), style_scope, color_resolution_context, inherit_parent_values);
-    auto& counters = document().style_invalidation_counters();
-    if (can_rebuild_selected_groups)
-        counters.base_style_partial_builds++;
-    else
-        counters.base_style_full_builds++;
-    if (!animated_properties || animated_properties->is_empty()) {
-        adopt_group_payloads(*base_values);
-        return base_values;
-    }
-
-    auto animated_values = can_rebuild_selected_groups
-        ? ComputedValues::create_over_base(computed_properties, document(), style_scope, move(color_resolution_context), *base_values, groups_to_apply)
-        : ComputedValues::create(computed_properties, document(), style_scope, move(color_resolution_context), inherit_parent_values);
-    ComputedValues::Builder builder(*animated_values);
-    builder->set_base_values(move(base_values));
-    builder->set_animated_properties(animated_properties.ptr());
-    auto style = move(builder).build();
-    adopt_group_payloads(*style);
-    return style;
-}
-
-Optional<u32> StyleComputer::animated_overlay_style_groups(AnimatedProperties const& animated_properties, DOM::AbstractElement abstract_element) const
-{
-    u32 groups = 0;
-    for (auto const& entry : animated_properties.entries()) {
-        auto property_id = static_cast<PropertyID>(entry.property);
-        auto group = ComputedValues::style_group_of_property(property_id);
-        if (!group.has_value())
-            return {};
-        groups |= 1u << to_underlying(group.value());
-        if (property_id != PropertyID::Color)
-            continue;
-        auto style_node_id = abstract_element.element().style_node_id();
-        if (style_node_id == 0)
-            return {};
-        auto current_color_dependent_groups = m_style_engine.current_color_dependent_style_groups(style_node_id, pseudo_element_to_ffi(abstract_element.pseudo_element()));
-        if (!current_color_dependent_groups.has_value())
-            return {};
-        groups |= *current_color_dependent_groups;
-    }
-    return groups;
 }
 
 NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_properties(ComputedValues const& computed_values) const
