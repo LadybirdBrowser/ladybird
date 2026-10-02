@@ -607,6 +607,24 @@ impl Iterator for FlatTreeChildren<'_> {
     }
 }
 
+/// The spans a table cell or table column takes from its attributes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TableSpans {
+    pub column_span: u16,
+    pub row_span: u16,
+    pub raw_column_span: u32,
+}
+
+impl Default for TableSpans {
+    fn default() -> Self {
+        Self {
+            column_span: 1,
+            row_span: 1,
+            raw_column_span: 1,
+        }
+    }
+}
+
 /// The Rust-owned projection of the tree relations selectors navigate.
 ///
 /// Element columns are indexed by element index, with slot 0 unused so that a `StyleNodeID` indexes
@@ -660,6 +678,11 @@ pub struct StyleNodeTree {
     /// render side needs it for an element that has no box of its own. The document's identity
     /// carries the document's.
     unique_node_ids: Vec<i64>,
+    /// The spans a table cell's or table column's attributes give it: the effective column and row
+    /// span, and the column span attribute's unclamped value, which only the table formatting
+    /// context's column handling reads. Every other element spans one of each, which is what the
+    /// absence of an entry means.
+    table_spans: HashMap<StyleNodeID, TableSpans>,
 
     capacity_bytes: u64,
 
@@ -707,6 +730,7 @@ impl StyleNodeTree {
             text: TextRows::default(),
             dom_paint_facts: HashMap::default(),
             unique_node_ids: Vec::new(),
+            table_spans: HashMap::default(),
             capacity_bytes: 0,
             #[cfg(test)]
             depth_recompute_visits: 0,
@@ -847,6 +871,7 @@ impl StyleNodeTree {
             if let Some(unique_node_id) = self.unique_node_ids.get_mut(index as usize) {
                 *unique_node_id = 0;
             }
+            self.table_spans.remove(&node);
             if !self.relation_only.set(index as usize, false).0 {
                 self.connected_element_count -= 1;
             }
@@ -1022,6 +1047,25 @@ impl StyleNodeTree {
         node.element_index()
             .and_then(|index| self.unique_node_ids.get(index as usize).copied())
             .unwrap_or(0)
+    }
+
+    /// The spans a row built for the element takes from its attributes.
+    #[must_use]
+    pub fn table_spans(&self, node: StyleNodeID) -> TableSpans {
+        self.table_spans.get(&node).copied().unwrap_or_default()
+    }
+
+    /// Record the spans a row built for the element takes from its attributes. Spanning one of
+    /// each is the absence of an entry.
+    pub fn set_table_spans(&mut self, node: StyleNodeID, spans: TableSpans, memory: &mut MemoryController) {
+        let before = self.identity_capacity_bytes();
+        if spans == TableSpans::default() {
+            self.table_spans.remove(&node);
+        } else {
+            self.table_spans.insert(node, spans);
+        }
+        let current = self.identity_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
     }
 
     /// What a row built for the node is painted and hit-tested with. An identity with nothing
@@ -1863,6 +1907,7 @@ impl StyleNodeTree {
                 self.previous_sibling,
                 self.dom_paint_facts,
                 self.unique_node_ids,
+                self.table_spans,
             ];
             cached [];
             nested [
@@ -2400,6 +2445,24 @@ mod tests {
         assert_eq!(reused, first);
         assert!(fixture.tree.is_live(reused));
         assert_eq!(fixture.tree.live_nodes().collect::<Vec<_>>(), vec![element]);
+    }
+
+    #[test]
+    fn a_retired_identity_holds_no_table_spans_when_it_is_reused() {
+        let mut fixture = TreeFixture::new();
+        let element = fixture.element();
+        let spans = TableSpans {
+            column_span: 2,
+            row_span: 3,
+            raw_column_span: 2,
+        };
+        fixture.tree.set_table_spans(element, spans, &mut fixture.memory);
+        assert_eq!(fixture.tree.table_spans(element), spans);
+
+        fixture.tree.retire_element(element, &mut fixture.memory);
+        fixture.tree.release_retired_identities(&mut fixture.memory);
+        assert_eq!(fixture.tree.allocate_element(&mut fixture.memory), element);
+        assert_eq!(fixture.tree.table_spans(element), TableSpans::default());
     }
 
     #[test]

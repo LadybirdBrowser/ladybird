@@ -28,6 +28,8 @@
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLTableCellElement.h>
+#include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
@@ -347,6 +349,27 @@ void publish_element_scroll_offset(DOM::Element const& element)
     if (!document.layout_node_arena_if_created() && offset.is_zero())
         return;
     RustFFI::layout_arena_set_element_scroll_offset(document.layout_node_arena().handle(), element.style_node_id().value(), offset);
+}
+
+void publish_table_spans(DOM::Element const& element)
+{
+    if (element.style_node_id().value() == 0)
+        return;
+    u16 column_span = 1;
+    u16 row_span = 1;
+    u32 raw_column_span = 1;
+    if (auto const* cell = as_if<HTML::HTMLTableCellElement>(element)) {
+        column_span = static_cast<u16>(cell->col_span());
+        row_span = static_cast<u16>(cell->row_span());
+    } else if (auto const* column = as_if<HTML::HTMLTableColElement>(element)) {
+        column_span = static_cast<u16>(column->span());
+        // The raw span keeps the unclamped attribute value; its only consumer is the table formatting context's column
+        // handling, so other elements' span attributes stay out of the mirror.
+        raw_column_span = column->get_attribute_value(HTML::AttributeNames::span).to_number<u32>().value_or(1);
+    } else {
+        return;
+    }
+    const_cast<DOM::Document&>(element.document()).style_computer().style_engine().set_element_table_spans(element.style_node_id(), column_span, row_span, raw_column_span);
 }
 
 // The publication is keyed by the element's style node rather than by a row, because an element that draws nothing

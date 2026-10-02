@@ -43,6 +43,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/ImageProvider.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -310,6 +311,7 @@ void record_element_connected(DOM::Element& element)
     // The name the document knows the element by arrives with the identity. A box built for one of
     // the element's pseudo-elements answers by it even when the element itself has no box.
     style_engine->set_element_unique_node_id(element.style_node_id(), static_cast<u64>(element.unique_id().value()));
+    Layout::publish_table_spans(element);
     // A newly minted identity holds none of the facts the element's style noted before.
     if (element.style_recomputes_on_environment_move())
         element.publish_style_recomputes_on_environment_move();
@@ -434,6 +436,7 @@ void record_subtree_connecting(DOM::Node& root)
                 element->set_style_node_id(identity);
                 style_computer.register_style_node(identity, *element);
                 style_engine.set_element_unique_node_id(identity, static_cast<u64>(element->unique_id().value()));
+                Layout::publish_table_spans(*element);
                 if (element->style_recomputes_on_environment_move())
                     element->publish_style_recomputes_on_environment_move();
                 if (element->is_size_query_container() || element->style_depends_on_size_container_query())
