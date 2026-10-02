@@ -3575,7 +3575,8 @@ pub enum FfiPseudoElementRecordDemand {
 }
 
 /// A pseudo-element a record demand may read: a synthetic one, which the engine settles beside its
-/// element. Each is numbered as its kind.
+/// element, or, for a read-only read, one an element in the shadow tree backs or a named view
+/// transition one, which it computes from the element's rules for it. Each is numbered as its kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiDemandedPseudoElement {
@@ -3587,6 +3588,16 @@ pub enum FfiDemandedPseudoElement {
     Marker = 5,
     Selection = 6,
     ViewTransition = 7,
+    DetailsContent = 8,
+    FileSelectorButton = 9,
+    Placeholder = 10,
+    SliderFill = 11,
+    SliderThumb = 12,
+    SliderTrack = 13,
+    ViewTransitionGroup = 16,
+    ViewTransitionImagePair = 17,
+    ViewTransitionNew = 18,
+    ViewTransitionOld = 19,
 }
 
 /// The answer to a record demand: the record, or that the pseudo-element read generates no box

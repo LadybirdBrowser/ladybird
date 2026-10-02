@@ -436,7 +436,8 @@ impl StyleEngineState {
 
     /// Settle the one pseudo-element `kind` of `node` against the element's installed record, as a
     /// style update settles it: absent where it generates no box. A read-only read is answered with
-    /// what the kind computes to, whether or not it generates a box.
+    /// what the kind computes to, whether or not it generates a box, as is one of a kind an element
+    /// in the shadow tree backs or a named view transition one, from the element's rules for it.
     fn drive_demanded_pseudo_record(
         &mut self,
         node: StyleNodeID,
@@ -446,6 +447,11 @@ impl StyleEngineState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<RecordDemandAnswer> {
+        // A kind past the synthetic ones is only ever computed for a read-only read: no style
+        // update settles it beside its element.
+        if !read_only && u16::from(kind) > bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND {
+            return Err(Unanswered::Refused);
+        }
         self.publish_demanded_answer(node, answer, read_only, counters);
         let element = self
             .retained

@@ -19,6 +19,15 @@ pub(super) enum PseudoSettlement {
 }
 
 impl PseudoSettlement {
+    /// The kinds the settlement goes through, in order: a style update's every synthetic kind, a
+    /// read's the one it asks for.
+    fn kinds(&self) -> &[u8] {
+        match self {
+            Self::Generated => &pseudo_kind::SETTLEMENT_ORDER,
+            Self::Read(kind) | Self::Computed(kind) => std::slice::from_ref(kind),
+        }
+    }
+
     /// Whether the settlement settles `kind`: a style update every kind that generates a box with
     /// the element but the one the host defers, a read the one it asks for, deferred or not.
     fn selects(self, kind: u8, deferred: Option<tree::PseudoElementKind>) -> bool {
@@ -52,11 +61,12 @@ impl RetainedState {
     ) -> Drive<()> {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, MARKER};
 
-        let mut required = self.pseudo_style_mask_or_rematch(node, counters)
-            & pseudo_kind::SETTLEMENT_ORDER
-                .into_iter()
-                .filter(|&kind| settlement.selects(kind, self.deferred_pseudo_element))
-                .fold(0_u64, |kinds, kind| kinds | (1 << kind));
+        let mut required = self.pseudo_kinds_with_rules(node, settlement, counters)?
+            & settlement
+                .kinds()
+                .iter()
+                .filter(|&&kind| settlement.selects(kind, self.deferred_pseudo_element))
+                .fold(0_u64, |kinds, &kind| kinds | (1 << kind));
         if settlement == PseudoSettlement::Generated {
             if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
                 == 0
@@ -197,15 +207,12 @@ impl RetainedState {
         let program_version = self.program.version();
         // A row still stale after the refresh is one of a kind that generates no box, or one whose
         // rules the cascade could not order, which is checked where the kind is settled.
-        let mut states: [Option<CascadeStateID>; pseudo_kind::SYNTHETIC_COUNT] = [None; pseudo_kind::SYNTHETIC_COUNT];
-        for (pseudo, version, state, priority_current) in self.current_winner_groups().pseudo_states(node) {
-            if version != program_version || !priority_current {
-                continue;
-            }
-            if let Some(slot) = states.get_mut(usize::from(pseudo.kind.0)) {
-                *slot = Some(state);
-            }
-        }
+        let states: SmallVec<[(u16, CascadeStateID); pseudo_kind::SYNTHETIC_COUNT]> = self
+            .current_winner_groups()
+            .pseudo_states(node)
+            .filter(|&(_, version, _, priority_current)| version == program_version && priority_current)
+            .map(|(pseudo, _, state, _)| (pseudo.kind.0, state))
+            .collect();
         // What a pseudo-element inherits from its element: an element record that kept its
         // inherited groups left them alone.
         let inherited_inputs_unchanged = match old_element_record {
@@ -261,13 +268,9 @@ impl RetainedState {
         let element_environment = element_environment.unwrap_or(0);
         // The kinds the node's match answer has rules for: a winner row is published for each
         // the engine cascaded itself, and a kind with rules but no row is not decided.
-        let kinds_with_rules = self.pseudo_style_mask_or_rematch(node, counters);
+        let kinds_with_rules = self.pseudo_kinds_with_rules(node, settlement, counters)?;
         let mut pseudo_uses_substitution = scratch.pseudo_uses_substitution;
-        for (pseudo_index, kind) in pseudo_kind::SETTLEMENT_ORDER
-            .into_iter()
-            .enumerate()
-            .skip(scratch.next_pseudo)
-        {
+        for (pseudo_index, &kind) in settlement.kinds().iter().enumerate().skip(scratch.next_pseudo) {
             scratch.next_pseudo = pseudo_index + 1;
             if !settlement.selects(kind, self.deferred_pseudo_element) {
                 continue;
@@ -308,7 +311,11 @@ impl RetainedState {
             let highlight_parent_record = (kind == SELECTION)
                 .then(|| self.retained_highlight_inheritance_parent_style_record(node, kind))
                 .flatten();
-            let state = states[usize::from(kind)].filter(|_| has_rules);
+            let state = states
+                .iter()
+                .find(|&&(row_kind, _)| row_kind == u16::from(kind))
+                .map(|&(_, state)| state)
+                .filter(|_| has_rules);
             // Rules whose cascade order the row could not settle, as `:host::before` rules from
             // the host's shadow tree are, leave the kind to the host.
             if has_rules && state.is_none() {
@@ -730,6 +737,27 @@ impl RetainedState {
         }
     }
 
+    /// The kinds `settlement` may settle that the node's match answer has rules for: those its
+    /// pseudo-style mask names, or a read's kind past the synthetic ones the mask carries where the
+    /// answer has rules for it. Refused when the node has no answer to read.
+    fn pseudo_kinds_with_rules(
+        &mut self,
+        node: StyleNodeID,
+        settlement: PseudoSettlement,
+        counters: &mut Counters,
+    ) -> Drive<u64> {
+        match settlement {
+            PseudoSettlement::Computed(kind) if u16::from(kind) > bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND => {
+                let target = tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(kind)));
+                let matches = self
+                    .backing_element_rule_matches(node, target, true, counters)
+                    .or_refused()?;
+                Ok(u64::from(!matches.is_empty()) << kind)
+            }
+            _ => Ok(self.pseudo_style_mask_or_rematch(node, counters)),
+        }
+    }
+
     /// The kinds the node's match answer has rules for, matching the element again when that
     /// answer was evicted. A match that cannot complete for want of a fact generates no
     /// pseudo-element.
@@ -763,10 +791,10 @@ impl RetainedState {
         Some((kind, self.tree.shadow_host_of(node)?))
     }
 
-    /// The host's matches for the pseudo-element an element stands for: those the transaction
-    /// publishes for the host, the ones it holds, or a fresh match of the host. The backing
-    /// element's own published answer proves the inventory its style is computed from, the host's
-    /// pseudo-element rules included; `None` when it does not.
+    /// The host's matches for one of its pseudo-elements, such as the one an element stands for:
+    /// those the transaction publishes for the host, the ones it holds, or a fresh match of the
+    /// host. A backing element's own published answer proves the inventory its style is computed
+    /// from, the host's pseudo-element rules included; `None` when it does not.
     fn backing_element_rule_matches(
         &mut self,
         host: StyleNodeID,

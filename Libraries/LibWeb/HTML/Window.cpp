@@ -1702,7 +1702,9 @@ GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& elemen
         auto type = parse_pseudo_element_selector(CSS::Parser::ParsingParams(associated_document()), pseudo_element.value());
 
         // 2. If type is failure, or is a ::slotted() or ::part() pseudo-element, let obj be null.
-        if (!type.has_value() || first_is_one_of(type.value().type(), CSS::PseudoElement::Slotted, CSS::PseudoElement::Part)) {
+        // NB: A ::-webkit- pseudo-element parses so that selectors naming it stay valid, but it is no pseudo-element
+        //     we support, so it is a failure here.
+        if (!type.has_value() || first_is_one_of(type.value().type(), CSS::PseudoElement::Slotted, CSS::PseudoElement::Part, CSS::PseudoElement::UnknownWebKit)) {
             object = {};
         }
         // 3. Otherwise let obj be the given pseudo-element of elt.
