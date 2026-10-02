@@ -17,14 +17,14 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const refusals = () => internals.styleEngineCounters().engineComputedRecordGateIncompleteAnswer;
+        const recomputations = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
         // The target's winners are published while its container's answer moves, so its gated
         // rule waits for the container, and is decided again once the container settles.
         for (const step of [1, 2, 3]) {
-            const before = refusals();
+            const before = recomputations();
             container.classList.toggle("on");
             internals.updateStyle();
-            println(`step ${step}: ${getComputedStyle(target).color}, incomplete answers refused ${refusals() - before}`);
+            println(`step ${step}: ${getComputedStyle(target).color}, C++ recomputations ${recomputations() - before}`);
         }
     });
 </script>

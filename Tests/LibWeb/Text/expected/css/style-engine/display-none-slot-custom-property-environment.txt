@@ -1,6 +1,6 @@
 shown: from-slot
 hidden: from-slot
 recomputed while hidden: from-slot, rgb(4, 5, 6)
-engine records: 0
-C++ recomputations: 1
+engine records: 1
+C++ recomputations: 0
 shown again: from-slot
