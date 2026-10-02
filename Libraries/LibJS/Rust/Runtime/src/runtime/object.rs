@@ -17,7 +17,6 @@ use libjs_runtime_macros::Trace;
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
 use crate::bytecode::property_access::{Strict, put_by_property_key};
 use crate::gc::class::{Class, Extends, GcCell, define_cell};
-use crate::gc::class_id::ClassId;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
@@ -1672,7 +1671,7 @@ impl Object {
             // NOTE: This is a best-effort implementation; we don't have a good way of detecting whether certain virtual
             // Object methods have been overridden by a given object, but as ProxyObject is the only one doing that for
             // [[SetPrototypeOf]], this check does the trick.
-            if current.class().id == ClassId::ProxyObject {
+            if current.is_proxy_object() {
                 break;
             }
 

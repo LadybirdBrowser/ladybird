@@ -17,7 +17,6 @@ use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCache
 use crate::bytecode::property_access::{CachePropertyAbsence, GetByIdMode, get_by_id};
 use crate::gc::capi::js_heap_region_base;
 use crate::gc::class_id::ClassId;
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::function_object::FunctionObject;
@@ -38,6 +37,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::number_object::NumberObject;
 use crate::runtime::object::PropertyLookupPhase;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::proxy_object::ProxyObject;
 use crate::runtime::string_object::StringObject;
 use crate::runtime::symbol::Symbol;
 use crate::runtime::symbol_object::SymbolObject;
@@ -302,7 +302,7 @@ impl Value {
     }
 
     // 7.2.2 IsArray ( argument ), https://tc39.es/ecma262/#sec-isarray
-    pub fn is_array(self, _vm: &Vm) -> ThrowCompletionOr<bool> {
+    pub fn is_array(self, vm: &Vm) -> ThrowCompletionOr<bool> {
         // 1. If argument is not an Object, return false.
         if !self.is_object() {
             return Ok(false);
@@ -316,11 +316,15 @@ impl Value {
         }
 
         // 3. If argument is a Proxy exotic object, then
-        if object.class().id == ClassId::ProxyObject {
+        if let Some(proxy) = object.downcast::<ProxyObject>() {
             // a. Perform ? ValidateNonRevokedProxy(argument).
+            proxy.validate_non_revoked_proxy(vm)?;
+
             // b. Let proxyTarget be argument.[[ProxyTarget]].
+            let proxy_target = proxy.target();
+
             // c. Return ? IsArray(proxyTarget).
-            unimplemented_runtime_function("IsArray of a Proxy exotic object, which needs ProxyObject", 0);
+            return Value::from_object(proxy_target).is_array(vm);
         }
 
         // 4. Return false.

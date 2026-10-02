@@ -25,6 +25,7 @@ use crate::runtime::native_function::NativeFunction;
 use crate::runtime::number_object::NumberObject;
 use crate::runtime::promise::{Promise, PromiseState};
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::proxy_object::ProxyObject;
 use crate::runtime::set::Set;
 use crate::runtime::shared_function_instance_data::FunctionKind;
 use crate::runtime::string_object::StringObject;
@@ -404,6 +405,18 @@ fn print_promise(
     Ok(())
 }
 
+fn print_proxy_object(
+    print_context: &mut PrintContext<'_>,
+    proxy_object: Gc<ProxyObject>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Proxy")?;
+    js_out(print_context, "\n  target: ")?;
+    print_value(print_context, Value::from_object(proxy_object.target()), seen_objects)?;
+    js_out(print_context, "\n  handler: ")?;
+    print_value(print_context, Value::from_object(proxy_object.handler()), seen_objects)
+}
+
 fn print_generator(print_context: &mut PrintContext<'_>, generator: Gc<Object>) -> io::Result<()> {
     print_type(print_context, generator.class().class_name())
 }
@@ -496,7 +509,9 @@ fn print_value(
         if let Some(weak_ref) = object.downcast::<WeakRef>() {
             return print_weak_ref(print_context, weak_ref, seen_objects);
         }
-        // NB: Then DataView and ProxyObject, then Promise below.
+        if let Some(proxy_object) = object.downcast::<ProxyObject>() {
+            return print_proxy_object(print_context, proxy_object, seen_objects);
+        }
         if let Some(promise) = object.downcast::<Promise>() {
             return print_promise(print_context, promise, seen_objects);
         }

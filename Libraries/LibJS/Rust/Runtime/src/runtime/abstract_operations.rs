@@ -13,7 +13,6 @@ use ak::{ScopeGuard, Utf16FlyString, Utf16String};
 
 use crate::bytecode::executable::{Executable, StaticPropertyLookupCacheSite};
 use crate::gc::class::{Extends, GcCell};
-use crate::gc::class_id::ClassId;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::hash_table::Utf16FlyStringHashTable;
@@ -47,6 +46,7 @@ use crate::runtime::promise_capability::{new_promise_capability, try_or_reject};
 use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::proxy_object::ProxyObject;
 use crate::runtime::realm::Realm;
 use crate::runtime::shared_function_instance_data::{
     ClassFieldInitializerName, ConstructorKind, SharedFunctionInstanceData, ThisMode,
@@ -326,12 +326,18 @@ pub fn get_function_realm(vm: &Vm, function: Gc<FunctionObject>) -> ThrowComplet
     }
 
     // 3. If obj is a Proxy exotic object, then
-    if function.class().id == ClassId::ProxyObject {
+    if let Some(proxy) = function.upcast::<Object>().downcast::<ProxyObject>() {
         // a. a. Perform ? ValidateNonRevokedProxy(obj).
+        proxy.validate_non_revoked_proxy(vm)?;
+
         // b. Let proxyTarget be obj.[[ProxyTarget]].
+        let proxy_target = proxy.target();
+
         // c. Assert: proxyTarget is a function object.
+        assert!(proxy_target.is_function());
+
         // d. Return ? GetFunctionRealm(proxyTarget).
-        unimplemented_runtime_function("ProxyObject::target, for GetFunctionRealm", 0);
+        return get_function_realm(vm, Value::from_object(proxy_target).as_function());
     }
 
     // 4. Return the current Realm Record.

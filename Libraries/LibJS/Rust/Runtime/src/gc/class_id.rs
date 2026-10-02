@@ -32,7 +32,6 @@ define_class_ids! {
     Realm,
     Object,
     Array,
-    // Reserved for the Proxy exotic object, which OrdinarySetPrototypeOf already recognizes by its class.
     ProxyObject,
     Environment,
     DeclarativeEnvironment,
