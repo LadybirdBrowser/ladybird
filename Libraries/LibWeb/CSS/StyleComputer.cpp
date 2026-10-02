@@ -792,6 +792,11 @@ void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_elemen
 
 void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties) const
 {
+    // The style engine holds a description of each effect it samples, kept current here, right before the
+    // element is sampled.
+    auto const animation_slot = abstract_element.pseudo_element().map([](auto pseudo_element) { return static_cast<u8>(to_underlying(pseudo_element) + 1); }).value_or(0);
+    record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
+
     struct KeyframeDeclaration {
         size_t keyframe_index { 0 };
         PropertyNameAndID property;

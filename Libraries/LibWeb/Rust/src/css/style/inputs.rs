@@ -1537,6 +1537,7 @@ impl StyleEngineState {
                 host_var_reads: HashMap::default(),
                 css_defined_animations: Default::default(),
                 animation_keyframes: Default::default(),
+                animation_effect_descriptions: Default::default(),
                 random_base_values: Default::default(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
@@ -3047,6 +3048,7 @@ impl RetainedState {
             host_var_reads,
             css_defined_animations,
             animation_keyframes: _,
+            animation_effect_descriptions,
             random_base_values,
             transition_baselines,
             custom_property_registrations_changed: _,
@@ -3154,6 +3156,7 @@ impl RetainedState {
         children_explicitly_inherit_marks.remove(&node);
         host_var_reads.remove(&node);
         css_defined_animations.retire(node);
+        animation_effect_descriptions.retire(node);
         random_base_values.retire(node);
         pending_element_style_computation_selections.remove(&node);
         pending_pseudo_style_computation_selections.remove(&node);

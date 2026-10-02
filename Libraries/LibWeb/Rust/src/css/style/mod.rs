@@ -67,6 +67,7 @@ mod custom_property_cascade;
 mod custom_property_environments;
 #[cfg(test)]
 mod differential_tests;
+mod effect_descriptions;
 mod environment_move;
 pub mod exact_matcher;
 pub use crate::fast_hash;
@@ -932,6 +933,8 @@ pub struct RetainedState {
     /// The `@keyframes` each of the document's style scopes defines, as the host's rule caches
     /// resolved them, which an animation definition's keyframes are resolved from.
     animation_keyframes: animations::AnimationKeyframes,
+    /// The animation effects the host holds for each element, described for sampling.
+    animation_effect_descriptions: effect_descriptions::AnimationEffectDescriptions,
     /// The random base value each random caching key has been given, for the random functions the
     /// document's styles hold.
     random_base_values: random_bases::RandomBaseValues,
