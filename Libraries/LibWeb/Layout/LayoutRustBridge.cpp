@@ -337,6 +337,18 @@ void publish_is_in_focused_text_control(DOM::Node const& node)
     RustFFI::layout_arena_set_identity_in_focused_text_control(arena->handle(), identity.value(), value);
 }
 
+void publish_element_scroll_offset(DOM::Element const& element)
+{
+    if (element.style_node_id().value() == 0)
+        return;
+    auto& document = const_cast<DOM::Document&>(element.document());
+    auto offset = element.scroll_offset({});
+    // Nothing has scrolled anything before a layout tree exists, so there is no offset to forget.
+    if (!document.layout_node_arena_if_created() && offset.is_zero())
+        return;
+    RustFFI::layout_arena_set_element_scroll_offset(document.layout_node_arena().handle(), element.style_node_id().value(), offset);
+}
+
 // The publication is keyed by the element's style node rather than by a row, because an element that draws nothing
 // itself has no row at all, while a mask, a clip or a pattern has one row per referencing element.
 void publish_svg_attribute_facts(DOM::Element& element)

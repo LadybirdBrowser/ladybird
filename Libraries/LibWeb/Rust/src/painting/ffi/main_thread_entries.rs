@@ -19,8 +19,7 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The
-/// host callback receives live layout node shells.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_scrolling_box_for_scroll_step(
     arena: *mut c_void,
@@ -29,7 +28,6 @@ pub unsafe extern "C" fn layout_arena_scrolling_box_for_scroll_step(
     delta: FfiCssPixelPoint,
     viewport_wheel_overflow_x: u8,
     viewport_wheel_overflow_y: u8,
-    scroll_offset_of_layout_node: unsafe extern "C" fn(*mut c_void) -> FfiCssPixelPoint,
 ) -> *mut c_void {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
@@ -43,7 +41,6 @@ pub unsafe extern "C" fn layout_arena_scrolling_box_for_scroll_step(
             x: viewport_wheel_overflow_x,
             y: viewport_wheel_overflow_y,
         },
-        &scroll_offset_reader(&main_thread, arena, scroll_offset_of_layout_node),
     );
     arena.shell_if_live(&main_thread, scrolling_box)
 }
@@ -60,7 +57,6 @@ pub unsafe extern "C" fn layout_arena_for_each_wheel_scrollable_box_in_containin
     wheel_delta_y: f64,
     viewport_wheel_overflow_x: u8,
     viewport_wheel_overflow_y: u8,
-    scroll_offset_of_layout_node: unsafe extern "C" fn(*mut c_void) -> FfiCssPixelPoint,
     context: *mut c_void,
     push_scrollable_box: unsafe extern "C" fn(*mut c_void, *mut c_void, f64, f64),
 ) {
@@ -76,7 +72,6 @@ pub unsafe extern "C" fn layout_arena_for_each_wheel_scrollable_box_in_containin
             x: viewport_wheel_overflow_x,
             y: viewport_wheel_overflow_y,
         },
-        &scroll_offset_reader(&main_thread, arena, scroll_offset_of_layout_node),
         |node, accepted_delta_x, accepted_delta_y| {
             // SAFETY: The C++ callback appends the shell and deltas to a caller-owned collection.
             unsafe {
@@ -193,55 +188,6 @@ pub unsafe extern "C" fn layout_arena_for_each_snap_area(
         // SAFETY: The C++ callback copies the geometry into a caller-owned collection.
         unsafe { push_snap_area(context, &raw const area, arena.node_shell(&main_thread, slot)) };
     });
-}
-
-/// Re-reads the scroll containers' offsets when something invalidated them since the last
-/// refresh, resolves the sticky nodes' offsets on top of them, and hands the dense device-pixel
-/// snapshot to `publish`. Returns whether that happened, so the caller keeps its copy otherwise;
-/// `force` re-derives the snapshot even when nothing invalidated it, for verification.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
-/// `publish` is called synchronously with `sink` and a view of the snapshot that is valid only
-/// for the duration of that call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
-    arena: *mut c_void,
-    callbacks: FfiVisualContextHostCallbacks,
-    force: bool,
-    sink: *mut c_void,
-    publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
-) -> bool {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    let arena = unsafe { arena_from_handle(arena) };
-    let snapshot = {
-        let paintable_rows = arena.paintable_rows();
-        let mut paint_state = arena.paint_state().borrow_mut();
-        let state = &mut paint_state.visual_context;
-        if !force && !state.needs_to_refresh_scroll_state {
-            return false;
-        }
-        state.needs_to_refresh_scroll_state = false;
-        crate::painting::visual_context::refresh::refresh_scroll_state(
-            &paintable_rows,
-            &callbacks,
-            &main_thread,
-            &mut state.scroll_state,
-        );
-        let mut snapshot = state
-            .scroll_state
-            .snapshot(arena.visual_context_tree_inputs().device_pixels_per_css_pixel);
-        // https://drafts.csswg.org/css-position/#sticky-pos
-        if let Some(tree) = state.tree.as_deref() {
-            tree.resolve_sticky_offsets_in_place(&mut snapshot);
-        }
-        snapshot
-    };
-    // SAFETY: The C++ sink copies the offsets synchronously.
-    unsafe { publish(sink, snapshot.as_ptr(), snapshot.len()) };
-    true
 }
 
 /// # Safety

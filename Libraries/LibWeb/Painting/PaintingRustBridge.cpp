@@ -202,16 +202,6 @@ void publish_visual_context_tree_inputs(DOM::Document& document)
     Layout::RustFFI::layout_arena_publish_visual_context_tree_inputs(document.layout_node_arena().handle(), inputs);
 }
 
-Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks()
-{
-    return {
-        .context = nullptr,
-        .scroll_offset = [](void*, void* layout_node_shell) -> CSSPixelPoint {
-            return scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell));
-        },
-    };
-}
-
 }
 
 Optional<Gfx::Filter> filter_from_functions(ReadonlySpan<Compositing::RustFFI::FfiFilterFunction> functions)
@@ -338,7 +328,7 @@ bool rust_refresh_scroll_state(DOM::Document& document, Compositing::ScrollState
 {
     publish_visual_context_tree_inputs(document);
     return Layout::RustFFI::layout_arena_refresh_scroll_state(
-        layout_arena_handle(document), visual_context_host_callbacks(), force == ForceScrollStateRefresh::Yes,
+        layout_arena_handle(document), force == ForceScrollStateRefresh::Yes,
         &snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
             static_cast<Compositing::ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
         });

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
@@ -229,17 +229,6 @@ pub unsafe extern "C" fn layout_arena_paintable_maximum_scroll_offset(
     crate::painting::chrome_geometry::maximum_scroll_offset(&arena.paintable_rows(), slot).into()
 }
 
-fn scroll_offset_reader<'a>(
-    main_thread: &'a crate::stage::MainThread<'a>,
-    arena: &'a LayoutNodeArena,
-    scroll_offset_of_layout_node: unsafe extern "C" fn(*mut c_void) -> FfiCssPixelPoint,
-) -> impl Fn(NodeSlotId) -> CssPixelPoint {
-    move |node| {
-        // SAFETY: The C++ host reads the offset of a live layout node shell synchronously.
-        unsafe { scroll_offset_of_layout_node(arena.node_shell(main_thread, node)) }.into()
-    }
-}
-
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
@@ -418,6 +407,47 @@ pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewpo
 pub struct FfiPhysicalOverflowDirections {
     pub horizontal_axis_is_positive: bool,
     pub vertical_axis_is_positive: bool,
+}
+
+/// Re-reads the scroll containers' offsets when something invalidated them since the last
+/// refresh, resolves the sticky nodes' offsets on top of them, and hands the dense device-pixel
+/// snapshot to `publish`. Returns whether that happened, so the caller keeps its copy otherwise;
+/// `force` re-derives the snapshot even when nothing invalidated it, for verification.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `publish` is called synchronously with `sink` and a view of the snapshot that is valid only
+/// for the duration of that call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
+    arena: *mut c_void,
+    force: bool,
+    sink: *mut c_void,
+    publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    let snapshot = {
+        let paintable_rows = arena.paintable_rows();
+        let mut paint_state = arena.paint_state().borrow_mut();
+        let state = &mut paint_state.visual_context;
+        if !force && !state.needs_to_refresh_scroll_state {
+            return false;
+        }
+        state.needs_to_refresh_scroll_state = false;
+        crate::painting::visual_context::refresh::refresh_scroll_state(&paintable_rows, &mut state.scroll_state);
+        let mut snapshot = state
+            .scroll_state
+            .snapshot(arena.visual_context_tree_inputs().device_pixels_per_css_pixel);
+        // https://drafts.csswg.org/css-position/#sticky-pos
+        if let Some(tree) = state.tree.as_deref() {
+            tree.resolve_sticky_offsets_in_place(&mut snapshot);
+        }
+        snapshot
+    };
+    // SAFETY: The C++ sink copies the offsets synchronously.
+    unsafe { publish(sink, snapshot.as_ptr(), snapshot.len()) };
+    true
 }
 
 /// Publishes what the render side needs to know about the viewport it draws into: the device
@@ -939,8 +969,6 @@ pub unsafe extern "C" fn layout_arena_paintable_visual_context_copy_node_indices
         unsafe { std::ptr::copy_nonoverlapping(indices.as_ptr(), out, indices.len()) };
     });
 }
-
-use crate::painting::host::FfiVisualContextHostCallbacks;
 
 fn apply_walk_assignments(
     arena: &mut crate::layout::LayoutNodeArena,

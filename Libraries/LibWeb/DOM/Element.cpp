@@ -3640,6 +3640,16 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
         rare_data->random_base_values_without_style_node = {};
         style_engine.set_element_random_base_values(style_node_id, values.name_lengths, values.name_units, values.value_bits);
     }
+    // What the element and its pseudo-elements have scrolled to is held against its identity for the rows a build
+    // stamps for them, so it arrives with the identity, as the element connects or its identity changes.
+    if (style_node_id != 0) {
+        if (!scroll_offset({}).is_zero())
+            Layout::publish_element_scroll_offset(*this);
+        for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement const& pseudo_element) {
+            if (!pseudo_element.scroll_offset().is_zero())
+                pseudo_element.publish_scroll_offset();
+        });
+    }
     // A newly minted identity holds none of what the element held under its previous one.
     if (style_node_id != 0 && !!m_style_record_identity) {
         style_engine.set_held_style_record(style_node_id, m_style_record_identity);
@@ -6224,8 +6234,6 @@ void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type
         if (pseudo_element->scroll_offset() != offset)
             document().invalidate_scroll_state();
         pseudo_element->set_scroll_offset(offset);
-        if (auto* layout_node = pseudo_element->unsafe_layout_node())
-            layout_node->update_has_scroll_offset_flag();
         return;
     }
 
@@ -6235,8 +6243,7 @@ void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type
         ensure_element_rare_data().scroll_offset = offset;
     else if (auto* rare_data = element_rare_data())
         rare_data->scroll_offset = {};
-    if (auto* layout_node = unsafe_layout_node())
-        layout_node->update_has_scroll_offset_flag();
+    Layout::publish_element_scroll_offset(*this);
 }
 
 Optional<Element::Dir> Element::dir() const

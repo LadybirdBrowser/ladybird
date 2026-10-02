@@ -31,6 +31,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -264,8 +265,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
             auto* layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(builder.m_document->layout_node_arena().handle(), slot));
             VERIFY(layout_node);
-            // A pseudo-element's box holds the offset the pseudo-element has been scrolled to once it is bound to it.
-            layout_node->update_has_scroll_offset_flag();
             if (owns_content_replacement_image)
                 attach_content_replacement_image(as<Box>(*layout_node));
             as<NodeWithStyle>(*layout_node).attach_style_resources(); },
@@ -326,6 +325,10 @@ RustFFI::FfiLayoutTreeBuildOutcome LayoutTreeBuildBridge::build(DOM::Node& dom_n
         auto& style_computer = document.style_computer();
         document_style_record = style_computer.intern_anonymous_layout_style(*style_computer.create_document_style());
     }
+    // The viewport's row holds what the navigable has scrolled the viewport to, which the navigable publishes as it
+    // scrolls. A new document has not heard from it yet.
+    if (auto navigable = document.navigable())
+        RustFFI::layout_arena_set_viewport_scroll_offset(arena, navigable->viewport_scroll_offset());
     return RustFFI::rust_build_layout_tree(&callbacks, arena, &dom_node, document.style_node_id().value(), document_style_record.value());
 }
 

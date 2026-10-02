@@ -14,6 +14,7 @@ use super::tree_builder::FfiLayoutTreeBuildOutcome;
 use super::update_layout::FfiLayoutTreeBuildStats;
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
+use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
 use crate::css::style::tree::StyleNodeID;
@@ -25,8 +26,8 @@ use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
-    AncestorFact, DomPaintFact, FfiNodeLink, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind,
-    NodeSlotId, StylePayloadsRef,
+    AncestorFact, DomPaintFact, FfiNodeLink, FfiStylePayloads, GENERATED_FOR_AFTER, GENERATED_FOR_LAST_SYNTHETIC,
+    MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef,
 };
 use crate::stage::MainThread;
 use std::cell::Cell;
@@ -587,6 +588,26 @@ struct StyleNodeTables {
     /// a caret is painted inside. At most one control is focused, so this holds one control's
     /// shadow tree and is empty the rest of the time.
     identities_in_focused_text_control: RefCell<HashSet<StyleNodeID>>,
+    /// What each element has scrolled to, held against its identity because the element's box is
+    /// replaced whenever its subtree is rebuilt. The element still stores the offset it answers
+    /// `scrollTop` with, and publishes it here as it changes, arrives and changes identity. Zero is
+    /// the absence of an entry, which is nearly every element.
+    element_scroll_offsets: RefCell<HashMap<StyleNodeID, CssPixelPoint>>,
+    /// What each element's pseudo-elements have scrolled to, held against the element's identity,
+    /// since a pseudo-element has none of its own, and published the way the element's offset is.
+    pseudo_element_scroll_offsets: RefCell<HashMap<StyleNodeID, PseudoElementScrollOffsets>>,
+}
+
+/// What an element's synthetic pseudo-elements have scrolled to, by kind.
+type PseudoElementScrollOffsets = [CssPixelPoint; (GENERATED_FOR_LAST_SYNTHETIC - GENERATED_FOR_AFTER + 1) as usize];
+
+/// Where a synthetic pseudo-element of kind `generated_for` keeps its offset among its element's.
+fn pseudo_element_scroll_offset_index(generated_for: u8) -> usize {
+    assert!(
+        (GENERATED_FOR_AFTER..=GENERATED_FOR_LAST_SYNTHETIC).contains(&generated_for),
+        "only a synthetic pseudo-element scrolls"
+    );
+    usize::from(generated_for - GENERATED_FOR_AFTER)
 }
 
 /// An anchor name as a tree scope registers it.
@@ -625,6 +646,8 @@ pub(crate) struct LayoutNodeArena {
     bound_pseudo_element_rows: RefCell<HashMap<(StyleNodeID, u8), NodeSlotId>>,
     /// The viewport row the document is bound to. The document has no identity of its own.
     bound_viewport_row: Cell<NodeSlotId>,
+    /// What the navigable has scrolled the viewport to, which the viewport's row holds.
+    viewport_scroll_offset: Cell<CssPixelPoint>,
     /// The style node of the document the last layout tree build was for. The style mirror names
     /// the document element as its first DOM child.
     document_style_node: Cell<Option<StyleNodeID>>,
@@ -755,6 +778,7 @@ impl LayoutNodeArena {
             bound_rows_by_style_node: RefCell::new(RowsByStyleNode::default()),
             bound_pseudo_element_rows: RefCell::new(HashMap::default()),
             bound_viewport_row: Cell::new(NodeSlotId::INVALID),
+            viewport_scroll_offset: Cell::new(CssPixelPoint::default()),
             document_style_node: Cell::new(None),
             style_engine: Cell::new(std::ptr::null_mut()),
             box_presence_host: Cell::new(None),
@@ -1559,6 +1583,104 @@ impl LayoutNodeArena {
         self.with_style_store(|engine| engine.tree().shadow_host_of(element))
     }
 
+    /// What the row is scrolled to: the viewport's row holds the navigable's offset, a
+    /// pseudo-element's box the pseudo-element's, and a row built for an element the element's.
+    /// Every other row holds none, including the generated content inside a pseudo-element's box
+    /// and a pseudo-element's box that has been replaced by another.
+    pub(crate) fn row_scroll_offset(&self, slot: NodeSlotId) -> CssPixelPoint {
+        if !self.slot_is_live(slot) {
+            return CssPixelPoint::default();
+        }
+        let data = self.data(slot);
+        if data.kind.get() == NodeKind::Viewport {
+            return self.viewport_scroll_offset.get();
+        }
+        let Some(style_node) = self.node_style_node(slot) else {
+            return CssPixelPoint::default();
+        };
+        let generated_for = data.generated_for.get();
+        let offset = if generated_for != 0 {
+            if self.bound_pseudo_element_row(style_node, generated_for) != slot {
+                return CssPixelPoint::default();
+            }
+            self.style_node_tables
+                .pseudo_element_scroll_offsets
+                .borrow()
+                .get(&style_node)
+                .map(|offsets| offsets[pseudo_element_scroll_offset_index(generated_for)])
+        } else if super::node_facts::has_flag(data, NodeFlag::Anonymous) {
+            None
+        } else {
+            self.style_node_tables
+                .element_scroll_offsets
+                .borrow()
+                .get(&style_node)
+                .copied()
+        };
+        offset.unwrap_or_default()
+    }
+
+    /// Sets the row's `HasScrollOffset` flag from what it is scrolled to, as a row is stamped,
+    /// bound or unbound, and as the offset it holds changes. The viewport's row is measured eagerly
+    /// anyway, so it never carries the flag.
+    fn refresh_has_scroll_offset_flag(&self, slot: NodeSlotId) {
+        let has_scroll_offset = self.data(slot).kind.get() != NodeKind::Viewport
+            && self.row_scroll_offset(slot) != CssPixelPoint::default();
+        self.set_node_flag(slot, NodeFlag::HasScrollOffset, has_scroll_offset);
+    }
+
+    /// Records what the element has scrolled to, for every row built for it. A rebuild can leave
+    /// an old row and its replacement both built for the element until the commit that retires the
+    /// old one, and both answer for the element meanwhile.
+    pub(crate) fn set_element_scroll_offset(&self, element: StyleNodeID, offset: CssPixelPoint) {
+        self.assert_owner_thread();
+        {
+            let mut offsets = self.style_node_tables.element_scroll_offsets.borrow_mut();
+            if offset == CssPixelPoint::default() {
+                offsets.remove(&element);
+            } else {
+                offsets.insert(element, offset);
+            }
+        }
+        let bound_row = self.bound_row(element);
+        if !bound_row.is_invalid() {
+            for row in self.rows_sharing_dom_node_with(bound_row) {
+                self.refresh_has_scroll_offset_flag(row);
+            }
+        }
+    }
+
+    /// Records what the pseudo-element of kind `generated_for` on `generator` has scrolled to.
+    pub(crate) fn set_pseudo_element_scroll_offset(
+        &self,
+        generator: StyleNodeID,
+        generated_for: u8,
+        offset: CssPixelPoint,
+    ) {
+        self.assert_owner_thread();
+        {
+            let index = pseudo_element_scroll_offset_index(generated_for);
+            let mut offsets = self.style_node_tables.pseudo_element_scroll_offsets.borrow_mut();
+            if offset != CssPixelPoint::default() {
+                offsets.entry(generator).or_default()[index] = offset;
+            } else if let Some(element_offsets) = offsets.get_mut(&generator) {
+                element_offsets[index] = offset;
+                if element_offsets.iter().all(|&offset| offset == CssPixelPoint::default()) {
+                    offsets.remove(&generator);
+                }
+            }
+        }
+        let bound_row = self.bound_pseudo_element_row(generator, generated_for);
+        if !bound_row.is_invalid() {
+            self.refresh_has_scroll_offset_flag(bound_row);
+        }
+    }
+
+    /// Records what the navigable has scrolled the viewport to.
+    pub(crate) fn set_viewport_scroll_offset(&self, offset: CssPixelPoint) {
+        self.viewport_scroll_offset.set(offset);
+    }
+
     /// Record whether the node sits in the user agent shadow tree of the focused text control.
     pub(crate) fn set_identity_in_focused_text_control(&self, node: StyleNodeID, value: bool) {
         let mut identities = self.style_node_tables.identities_in_focused_text_control.borrow_mut();
@@ -1593,6 +1715,8 @@ impl LayoutNodeArena {
             svg_points,
             anchor_name_elements,
             identities_in_focused_text_control,
+            element_scroll_offsets,
+            pseudo_element_scroll_offsets,
         } = &self.style_node_tables;
         counters_sets.borrow_mut().forget(style_node);
         generated_content.borrow_mut().forget(style_node);
@@ -1606,6 +1730,8 @@ impl LayoutNodeArena {
         }
         svg_points.borrow_mut().remove(&style_node);
         identities_in_focused_text_control.borrow_mut().remove(&style_node);
+        element_scroll_offsets.borrow_mut().remove(&style_node);
+        pseudo_element_scroll_offsets.borrow_mut().remove(&style_node);
         // A retired shadow host takes its tree scope with it. The registry withdraws no names from a
         // scope it can no longer name.
         anchor_name_elements
@@ -2646,6 +2772,7 @@ impl LayoutNodeArena {
             self.unique_node_ids().publish(slot, unique_node_id);
         }
         self.set_node_style_node(slot, style_node);
+        self.refresh_has_scroll_offset_flag(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
 
@@ -2752,6 +2879,8 @@ impl LayoutNodeArena {
         self.pin_style_record_for_detachment(bound);
         self.set_node_flag(bound, NodeFlag::IsPseudoElementPrincipalBox, false);
         self.unbind_row(bound);
+        // The outgoing box no longer holds the offset the pseudo-element has scrolled to.
+        self.refresh_has_scroll_offset_flag(bound);
     }
 
     /// Makes `slot` the box of the pseudo-element of kind `generated_for` on `generator`, which
@@ -2761,6 +2890,8 @@ impl LayoutNodeArena {
         debug_assert!(self.bound_pseudo_element_row(generator, generated_for).is_invalid());
         self.set_node_flag(slot, NodeFlag::IsPseudoElementPrincipalBox, true);
         self.bind_row(slot);
+        // The box starts holding the offset the pseudo-element has scrolled to as it becomes its box.
+        self.refresh_has_scroll_offset_flag(slot);
     }
 
     pub(crate) fn stamp_anonymous_box(&self, slot: NodeSlotId, kind: NodeKind, derived: DerivedStyleRecord) {
@@ -5000,6 +5131,71 @@ pub unsafe extern "C" fn layout_arena_move_bound_pseudo_element_rows_to_style_no
     );
 }
 
+/// Publishes what the element has scrolled to, as the element stores it.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_element_scroll_offset(
+    arena: *mut c_void,
+    element: u32,
+    offset: FfiCssPixelPoint,
+) {
+    let Some(element) = StyleNodeID::from_raw(element) else {
+        return;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_element_scroll_offset(element, offset.into());
+}
+
+/// Records what the pseudo-element of kind `generated_for` on `generator` has scrolled to.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_pseudo_element_scroll_offset(
+    arena: *mut c_void,
+    generator: u32,
+    generated_for: u8,
+    offset: FfiCssPixelPoint,
+) {
+    let Some(generator) = StyleNodeID::from_raw(generator) else {
+        return;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_pseudo_element_scroll_offset(
+        generator,
+        generated_for,
+        offset.into(),
+    );
+}
+
+/// Publishes what the navigable has scrolled the viewport to.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_viewport_scroll_offset(arena: *mut c_void, offset: FfiCssPixelPoint) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_viewport_scroll_offset(offset.into());
+}
+
+/// What the row is scrolled to, as the document published it.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_row_scroll_offset(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelPoint {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }
+        .row_scroll_offset(slot)
+        .into()
+}
+
 /// Publishes whether the node sits in the user agent shadow tree of the focused text control.
 ///
 /// # Safety
@@ -5865,6 +6061,64 @@ mod tests {
         assert_eq!(recycled.slot_index(), pseudo_element.slot_index());
         assert_eq!(arena.unique_node_ids().id(recycled), 0);
         for row in [principal, recycled] {
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&main_thread);
+        }
+        arena.set_style_engine(std::ptr::null_mut());
+    }
+
+    #[test]
+    fn rows_hold_the_scroll_offsets_published_by_identity() {
+        use crate::css::css_pixels::CssPixelPoint;
+        use crate::css::style::StyleEngine;
+        use crate::css::style::memory::DeviceClass;
+        use crate::css::style::tree::StyleNodeID;
+
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut element = [0_u32];
+        engine.allocate_style_nodes(&mut element);
+        let element = StyleNodeID::from_raw(element[0]).unwrap();
+        let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine((&raw mut engine).cast());
+        let main_thread = crate::stage::MainThread::for_test();
+        let has_scroll_offset =
+            |arena: &LayoutNodeArena, row| arena.node_flags_if_live(row) & NodeFlag::HasScrollOffset as u32 != 0;
+        let offset = CssPixelPoint::new(CssPixels::from_integer(0), CssPixels::from_integer(10));
+
+        // A row stamped for an element that has scrolled holds the offset from the start.
+        arena.set_element_scroll_offset(element, offset);
+        let principal = arena.allocate_unbound();
+        arena.stamp_dom_row(principal, NodeKind::BlockContainer, Some(element));
+        arena.bind_row(principal);
+        assert_eq!(arena.row_scroll_offset(principal), offset);
+        assert!(has_scroll_offset(&arena, principal));
+        arena.set_element_scroll_offset(element, CssPixelPoint::default());
+        assert!(!has_scroll_offset(&arena, principal));
+
+        // Only the box a pseudo-element is bound to holds what the pseudo-element has scrolled to.
+        arena.set_pseudo_element_scroll_offset(element, 1, offset);
+        let first = arena.allocate_unbound();
+        arena.stamp_pseudo_element_box(first, element, 1);
+        assert_eq!(arena.row_scroll_offset(first), offset);
+        assert!(has_scroll_offset(&arena, first));
+        arena.clear_pseudo_element_box(element, 1);
+        let second = arena.allocate_unbound();
+        arena.stamp_pseudo_element_box(second, element, 1);
+        assert_eq!(arena.row_scroll_offset(first), CssPixelPoint::default());
+        assert!(!has_scroll_offset(&arena, first));
+        assert!(has_scroll_offset(&arena, second));
+
+        // A retired identity takes what it and its pseudo-elements scrolled to with it.
+        arena.forget_style_node(element);
+        assert!(
+            !arena
+                .style_node_tables
+                .pseudo_element_scroll_offsets
+                .borrow()
+                .contains_key(&element)
+        );
+        for row in [principal, first, second] {
             arena
                 .free_subtree(row)
                 .destroy_shells_and_invoke_callbacks(&main_thread);
