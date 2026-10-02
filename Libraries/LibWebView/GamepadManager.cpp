@@ -528,6 +528,8 @@ void GamepadManager::remove_device(Web::Gamepad::GamepadHandle handle)
             consumer.buffered_virtual_gamepad_events.append(Web::Gamepad::GamepadDisconnectedEvent { handle });
         else
             entry.key->async_gamepad_disconnected(handle);
+
+        fill_vacant_slots(*entry.key, consumer);
     }
 
     SDL_CloseGamepad(device.sdl_gamepad);

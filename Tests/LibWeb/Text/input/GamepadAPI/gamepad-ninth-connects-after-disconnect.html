@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        const virtualGamepads = [];
+        for (let index = 0; index < 9; ++index)
+            virtualGamepads.push(internals.connectVirtualGamepad());
+        await pumpGamepadEvents();
+
+        virtualGamepads[0].setButton(virtualGamepads[0].buttons[0], true);
+        await pumpGamepadEvents();
+        println(`Connected gamepads: ${navigator.getGamepads().filter(gamepad => gamepad).length}`);
+
+        virtualGamepads[0].disconnect();
+        await pumpGamepadEvents();
+        println(`Connected gamepads after disconnecting the first: ${navigator.getGamepads().filter(gamepad => gamepad).length}`);
+
+        virtualGamepads[8].setButton(virtualGamepads[8].buttons[0], true);
+        await pumpGamepadEvents();
+        const gamepadAtIndex0 = navigator.getGamepads()[0];
+        println(`Gamepad at index 0 exists: ${gamepadAtIndex0 !== null}`);
+        println(`Button 0 of the gamepad at index 0 is pressed: ${gamepadAtIndex0?.buttons[0].pressed}`);
+
+        for (const virtualGamepad of virtualGamepads.slice(1))
+            virtualGamepad.disconnect();
+        await pumpGamepadEvents();
+    });
+</script>
