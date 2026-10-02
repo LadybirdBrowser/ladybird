@@ -1212,7 +1212,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::HasDeferredGeometryTransaction => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let expected = event.payload.read_bool()?;
-                    let actual = unsafe { bridge::style_engine_has_deferred_geometry_transaction(engine) };
+                    let actual = bridge::operations::has_deferred_geometry_transaction(unsafe { engine.get() });
                     if actual != expected {
                         return Err(format!(
                             "deferred geometry transaction presence diverged: expected {expected}, got {actual}"
@@ -1223,7 +1223,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::PendingTransactionMayAffectLayoutGeometry => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let expected = event.payload.read_bool()?;
-                    let actual = unsafe { bridge::style_engine_pending_transaction_may_affect_layout_geometry(engine) };
+                    let actual =
+                        bridge::operations::pending_transaction_may_affect_layout_geometry(unsafe { engine.get() });
                     if actual != expected {
                         return Err(
                             format!("pending geometry effect diverged: expected {expected}, got {actual}").into(),
@@ -2366,7 +2367,7 @@ fn replay_atom_mappings(
                 let namespace = payload.read_u32()?;
                 let name = payload.read_u32()?;
                 let expected = payload.read_u32()?;
-                let actual = unsafe { bridge::style_engine_intern_qualified_atom(engine, namespace, name) };
+                let actual = bridge::operations::intern_qualified_atom(unsafe { engine.get_mut() }, namespace, name);
                 assert_identity("selector qualified atom", expected, actual)?;
             }
             tag => return Err(format!("unknown selector atom mapping tag {tag}").into()),

@@ -451,6 +451,8 @@ pub(crate) enum StyleQuery {
     NativeRuleId(u64),
     /// The engine's counter at `index`.
     Counter(usize),
+    /// A read the boundary generator writes.
+    Generated(super::bridge::GeneratedStyleQuery),
 }
 
 /// The answer to a [`StyleQuery`].
@@ -462,11 +464,13 @@ pub(crate) enum StyleAnswer {
     RandomBaseValues(Vec<(Box<[u16]>, f64)>),
     RecordDemand(FfiRecordDemandAnswer),
     Counter(Option<(&'static str, u64)>),
+    Generated(super::bridge::GeneratedStyleAnswer),
 }
 
 impl StyleQuery {
     pub(crate) fn answer(self, engine: &mut StyleEngine) -> StyleAnswer {
         match self {
+            Self::Generated(query) => StyleAnswer::Generated(query.answer(engine)),
             Self::ElementCustomPropertyData(node) => {
                 StyleAnswer::HostObject(engine.element_custom_property_data(node).addr())
             }
@@ -537,6 +541,22 @@ unsafe fn ask_engine(host: *const DocumentHost, query: StyleQuery) -> StyleAnswe
     let host = unsafe { &*host };
     let Answer::Style(answer) = ask(LockstepProof::for_reason(&ENGINE_DOOR), host, Query::Engine(query)) else {
         unreachable!("an engine question is answered by the engine");
+    };
+    answer
+}
+
+/// Asks the style engine of `host`'s document a read the boundary generator writes.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+pub(crate) unsafe fn ask_engine_generated(
+    host: *const DocumentHost,
+    query: super::bridge::GeneratedStyleQuery,
+) -> super::bridge::GeneratedStyleAnswer {
+    // SAFETY: Guaranteed by the caller.
+    let StyleAnswer::Generated(answer) = (unsafe { ask_engine(host, StyleQuery::Generated(query)) }) else {
+        unreachable!("a generated read is answered by its generated answer");
     };
     answer
 }

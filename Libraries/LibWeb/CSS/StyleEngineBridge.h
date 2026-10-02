@@ -400,6 +400,7 @@ private:
     Vector<StyleEngineFFI::FfiStateDelta> m_state_deltas;
     Vector<StyleEngineFFI::FfiElementDeclarationDelta> m_element_declaration_deltas;
     bool m_css_transitions_may_observe_style_changes { false };
+    mutable bool m_geometry_read_deferred_transaction { false };
 };
 
 }
