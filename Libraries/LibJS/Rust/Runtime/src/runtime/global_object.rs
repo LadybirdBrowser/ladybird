@@ -262,7 +262,9 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.Reflect, |vm, realm| {
         Value::from_object(realm.intrinsics().reflect_object(vm))
     });
-    // NB: Temporal comes with its builtins, after Reflect.
+    define_intrinsic_accessor(&names.Temporal, |vm, realm| {
+        Value::from_object(realm.intrinsics().temporal_object(vm))
+    });
 
     // B.2.1 Additional Properties of the Global Object, https://tc39.es/ecma262/#sec-additional-properties-of-the-global-object
     define_intrinsic_function(&names.escape, intrinsics.escape_function());

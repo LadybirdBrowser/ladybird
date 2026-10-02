@@ -10,6 +10,9 @@ use core::cell::Cell;
 use std::collections::{HashMap, HashSet};
 
 use ak::{ScopeGuard, Utf16FlyString, Utf16String};
+use num_bigint::Sign;
+use num_integer::Integer;
+use num_traits::{Signed, Zero};
 
 use crate::bytecode::executable::{Executable, StaticPropertyLookupCacheSite};
 use crate::gc::class::{Extends, GcCell};
@@ -26,6 +29,7 @@ use crate::layout::function_object::FunctionObject;
 use crate::layout::value::Value;
 use crate::runtime::accessor::Accessor;
 use crate::runtime::arguments_object::ArgumentsObject;
+use crate::runtime::big_int::SignedBigInteger;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
 use crate::runtime::completion::{Completion, Must, Throw, ThrowCompletionOr, r#await};
@@ -60,6 +64,9 @@ use crate::runtime::shared_function_instance_data::{
 use crate::runtime::string_conversions::parse_number_f64;
 use crate::runtime::string_prototype::string_index_of;
 use crate::runtime::suppressed_error::SuppressedError;
+use crate::runtime::temporal::abstract_operations::{
+    MessageArgument, throw_range_error_with_message_arguments, to_integer_with_truncation,
+};
 use crate::runtime::value::{number_to_utf16_string, same_value};
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 use crate::script::LexicalBinding;
@@ -2627,7 +2634,7 @@ pub enum OptionType {
 }
 
 /// OptionDefault, the default of GetOption: REQUIRED, undefined (the C++ Empty), or a value.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum OptionDefault<'a> {
     Required,
     Empty,
@@ -2707,4 +2714,176 @@ pub fn get_option(
 
     // 6. Return value.
     Ok(value)
+}
+
+// https://tc39.es/proposal-temporal/#table-temporal-rounding-modes
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RoundingMode {
+    Ceil,
+    Floor,
+    Expand,
+    Trunc,
+    HalfCeil,
+    HalfFloor,
+    HalfExpand,
+    HalfTrunc,
+    HalfEven,
+}
+
+const ROUNDING_MODE_STRING_IDENTIFIERS: [&str; 9] = [
+    "ceil",
+    "floor",
+    "expand",
+    "trunc",
+    "halfCeil",
+    "halfFloor",
+    "halfExpand",
+    "halfTrunc",
+    "halfEven",
+];
+
+const ROUNDING_MODES: [RoundingMode; 9] = [
+    RoundingMode::Ceil,
+    RoundingMode::Floor,
+    RoundingMode::Expand,
+    RoundingMode::Trunc,
+    RoundingMode::HalfCeil,
+    RoundingMode::HalfFloor,
+    RoundingMode::HalfExpand,
+    RoundingMode::HalfTrunc,
+    RoundingMode::HalfEven,
+];
+
+// 14.5.2.3 GetRoundingModeOption ( options, fallback ), https://tc39.es/proposal-temporal/#sec-temporal-getroundingmodeoption
+pub fn get_rounding_mode_option(vm: &Vm, options: &Object, fallback: RoundingMode) -> ThrowCompletionOr<RoundingMode> {
+    // 1. Let allowedStrings be the List of Strings from the "String Identifier" column of Table 26.
+    let allowed_strings = ROUNDING_MODE_STRING_IDENTIFIERS;
+
+    // 2. Let stringFallback be the value from the "String Identifier" column of the row with fallback in its "Rounding Mode" column.
+    let string_fallback = ROUNDING_MODE_STRING_IDENTIFIERS[fallback as usize];
+
+    // 3. Let stringValue be ? GetOption(options, "roundingMode", STRING, allowedStrings, stringFallback).
+    let string_value = get_option(
+        vm,
+        options,
+        &vm.names.roundingMode,
+        OptionType::String,
+        &allowed_strings,
+        OptionDefault::String(Utf16View::Ascii(string_fallback.as_bytes())),
+    )?;
+
+    // 4. Return the value from the "Rounding Mode" column of the row with stringValue in its "String Identifier" column.
+    let string = string_value.as_string();
+    let string = string.utf16_string_view();
+    let index = allowed_strings
+        .iter()
+        .position(|identifier| string == *identifier)
+        .expect("GetOption only returns allowed strings");
+    Ok(ROUNDING_MODES[index])
+}
+
+// 14.5.2.4 GetRoundingIncrementOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-getroundingincrementoption
+pub fn get_rounding_increment_option(vm: &Vm, options: &Object) -> ThrowCompletionOr<u64> {
+    // 1. Let value be ? Get(options, "roundingIncrement").
+    let value = options.get(vm, &vm.names.roundingIncrement)?;
+
+    // 2. If value is undefined, return 1𝔽.
+    if value.is_undefined() {
+        return Ok(1);
+    }
+
+    // 3. Let integerIncrement be ? ToIntegerWithTruncation(value).
+    let integer_increment = to_integer_with_truncation(
+        vm,
+        value,
+        ErrorType::OptionIsNotValidValue,
+        &[
+            MessageArgument::Value(value),
+            MessageArgument::Text(Utf16View::Ascii(b"roundingIncrement")),
+        ],
+    )?;
+
+    // 4. If integerIncrement < 1 or integerIncrement > 10**9, throw a RangeError exception.
+    if !(1.0..=1_000_000_000.0).contains(&integer_increment) {
+        return throw_range_error_with_message_arguments(
+            vm,
+            ErrorType::OptionIsNotValidValue,
+            &[
+                MessageArgument::Value(value),
+                MessageArgument::Text(Utf16View::Ascii(b"roundingIncrement")),
+            ],
+        );
+    }
+
+    // 5. Return integerIncrement.
+    Ok(integer_increment as u64)
+}
+
+// AD-HOC:
+// FIXME: We should add a generic floor() method to our BigInt classes. But for now, since we know we are only dividing
+//        by powers of 10, we can implement a very situationally specific method to compute the floor of a division.
+pub fn big_floor(numerator: &SignedBigInteger, denominator: &SignedBigInteger) -> SignedBigInteger {
+    let (quotient, remainder) = numerator.div_rem(denominator);
+
+    if remainder.is_zero() {
+        return quotient;
+    }
+    if quotient.sign() != Sign::Minus && remainder.is_positive() {
+        return quotient;
+    }
+
+    quotient - 1
+}
+
+// x modulo y, https://tc39.es/ecma262/#eqn-modulo
+/// The notation “x modulo y” (y must be finite and non-zero) computes a value k of the same sign as y (or zero) such
+/// that abs(k) < abs(y) and x - k = q × y for some integer q. This is the C++ modulo() of floating point operands.
+pub fn modulo(x: f64, y: f64) -> f64 {
+    assert!(y != 0.0 && y.is_finite());
+    let r = x % y;
+    if r < 0.0 { r + y } else { r }
+}
+
+/// modulo() of integral operands, which the C++ computes as ((x % y) + y) % y.
+pub fn integer_modulo(x: i64, y: i64) -> i64 {
+    assert!(y != 0);
+    ((x % y) + y) % y
+}
+
+/// modulo() of BigInt operands.
+pub fn big_modulo(x: &SignedBigInteger, y: &SignedBigInteger) -> SignedBigInteger {
+    assert!(!y.is_zero());
+    let result = x % y;
+    if result.sign() == Sign::Minus {
+        result + y
+    } else {
+        result
+    }
+}
+
+// remainder(x, y), https://tc39.es/proposal-temporal/#eqn-remainder
+/// The mathematical function remainder(x, y) produces the mathematical value whose sign is the sign of x and whose
+/// magnitude is abs(x) modulo y.
+pub fn remainder(x: f64, y: f64) -> f64 {
+    assert!(y != 0.0 && y.is_finite());
+    x % y
+}
+
+// 14.5.1.1 ToIntegerIfIntegral ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerifintegral
+pub fn to_integer_if_integral(
+    vm: &Vm,
+    argument: Value,
+    error_type: ErrorType,
+    arguments: &[MessageArgument<'_>],
+) -> ThrowCompletionOr<f64> {
+    // 1. Let number be ? ToNumber(argument).
+    let number = argument.to_number(vm)?;
+
+    // 2. If number is not an integral Number, throw a RangeError exception.
+    if !number.is_integral_number() {
+        return throw_range_error_with_message_arguments(vm, error_type, arguments);
+    }
+
+    // 3. Return ℝ(number).
+    Ok(number.as_f64())
 }

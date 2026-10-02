@@ -13,13 +13,12 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
-use crate::runtime::big_int::number_to_bigint;
-use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::big_int::{BigInt, number_to_bigint};
+use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::date::{
-    Date, MS_PER_MINUTE, TimeStyle, date_from_time, day, format_offset_time_zone_identifier, format_time_string,
-    get_named_time_zone_offset_milliseconds, hour_from_time, local_time, make_date, make_day, make_time, min_from_time,
-    month_from_time, ms_from_time, parse_time_zone_identifier, sec_from_time, system_time_zone_identifier, time_clip,
-    time_within_day, utc_time, week_day, year_from_time,
+    Date, MS_PER_MINUTE, date_from_time, day, get_named_time_zone_offset_milliseconds, hour_from_time, local_time,
+    make_date, make_day, make_time, min_from_time, month_from_time, ms_from_time, sec_from_time,
+    system_time_zone_identifier, time_clip, time_within_day, utc_time, week_day, year_from_time,
 };
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -30,6 +29,9 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::prototype_object::{typed_this_object, typed_this_value};
 use crate::runtime::realm::Realm;
+use crate::runtime::temporal::abstract_operations::{SecondsPrecision, TimeStyle, format_time_string};
+use crate::runtime::temporal::instant::{NANOSECONDS_PER_MILLISECOND, create_temporal_instant};
+use crate::runtime::temporal::time_zone::{format_offset_time_zone_identifier, parse_time_zone_identifier};
 use crate::runtime::value::PreferredType;
 use crate::runtime::value_conversions::to_integer_or_infinity;
 use crate::unicode::display_names::time_zone_display_name;
@@ -1197,13 +1199,13 @@ impl DatePrototype {
         let time = date_object.date_value();
 
         // 4. Let ns be ? NumberToBigInt(t) × ℤ(10**6).
-        number_to_bigint(vm, Value::from_f64(time))?;
+        let nanoseconds = number_to_bigint(vm, Value::from_f64(time))?;
+        let nanoseconds = BigInt::create(vm, nanoseconds.big_integer() * &*NANOSECONDS_PER_MILLISECOND);
 
         // 5. Return ! CreateTemporalInstant(ns).
-        unimplemented_runtime_function(
-            "Temporal::create_temporal_instant, for Date.prototype.toTemporalInstant, which needs Temporal.Instant",
-            0,
-        )
+        Ok(Value::from_object(
+            create_temporal_instant(vm, nanoseconds, None).must(),
+        ))
     }
 
     // B.2.4.1 Date.prototype.getYear ( ), https://tc39.es/ecma262/#sec-date.prototype.getyear
@@ -1273,7 +1275,9 @@ pub fn time_string(time: f64) -> Utf16String {
     let time_string = format_time_string(
         hour_from_time(time),
         min_from_time(time),
-        Some(sec_from_time(time)),
+        sec_from_time(time),
+        0,
+        SecondsPrecision::Digits(0),
         None,
     );
 

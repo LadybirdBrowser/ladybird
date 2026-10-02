@@ -13,6 +13,7 @@ use ak::Utf16String;
 
 use crate::utf16::Utf16View;
 
+pub mod calendar;
 pub mod display_names;
 pub mod intl;
 pub mod time_zone;
