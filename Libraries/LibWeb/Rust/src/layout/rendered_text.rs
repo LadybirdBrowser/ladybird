@@ -99,7 +99,7 @@ pub unsafe extern "C" fn layout_arena_enroll_text_after_language_change(arena: *
     changed
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub(crate) struct TextChunkCacheKey {
     pub(crate) should_wrap_lines: bool,
     pub(crate) should_respect_linebreaks: bool,
@@ -107,7 +107,20 @@ pub(crate) struct TextChunkCacheKey {
     pub(crate) white_space_collapse: u8,
     pub(crate) word_break: u8,
     pub(crate) font_variant_emoji: u8,
-    pub(crate) font_cascade_list: libgfx_rust::font::FontCascadeListHandle,
+    pub(crate) frozen_font_list: std::sync::Arc<libgfx_rust::font::FrozenFontList>,
+}
+
+impl PartialEq for TextChunkCacheKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.should_wrap_lines == other.should_wrap_lines
+            && self.should_respect_linebreaks == other.should_respect_linebreaks
+            && self.unidirectional_ltr == other.unidirectional_ltr
+            && self.white_space_collapse == other.white_space_collapse
+            && self.word_break == other.word_break
+            && self.font_variant_emoji == other.font_variant_emoji
+            // A frozen cascade is immutable, so naming the same one is the whole of equality.
+            && std::sync::Arc::ptr_eq(&self.frozen_font_list, &other.frozen_font_list)
+    }
 }
 
 pub(crate) struct CachedTextChunks {
@@ -421,8 +434,7 @@ mod tests {
             white_space_collapse: 0,
             word_break: 0,
             font_variant_emoji: 0,
-            // The standalone test binary stubs the C++ retain/release callbacks.
-            font_cascade_list: unsafe { libgfx_rust::font::FontCascadeListHandle::retain(std::ptr::dangling()) },
+            frozen_font_list: std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()),
         };
         let chunk = TextChunk {
             start: 0,

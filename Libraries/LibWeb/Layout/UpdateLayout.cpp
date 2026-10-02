@@ -5,6 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <LibGfx/FontCascadeList.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/DOM/Document.h>
@@ -81,10 +82,12 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 {
     // An image box that owns its image's provider is handed it once the layout update that built the box is over, and
     // the update lays it out without an image. If the image was already there, the box lays out again with it before
-    // the read goes on. Only an update that builds another such box can leave one behind again, so this settles.
+    // the read goes on. Likewise, a web face a layout reached is requested once the update is over, and the update
+    // runs again in case the face is already there. Only an update that builds another such box or reaches a face no
+    // update reached before can leave one behind again, so this settles.
     auto update_style_and_layout = [&] {
         update_style_and_layout_once(reason, animation_sampling_scope);
-        while (exchange(m_owed_image_provider_arrived_with_image, false))
+        while (exchange(m_owed_image_provider_arrived_with_image, false) || exchange(m_requested_wanted_font_faces, false))
             update_style_and_layout_once(reason, animation_sampling_scope);
     };
 
@@ -144,6 +147,13 @@ void Document::update_style_and_layout_once(UpdateLayoutReason reason, Throttled
         .reason_name = ffi_utf16_view(to_string(reason)),
     };
     Layout::RustFFI::layout_arena_update_layout(arena.handle(), &inputs);
+
+    // A pass that reached a web face still waiting on its load cannot start the fetch itself: the fetch, the
+    // font-display timer and the load-event delayer are all document state. It leaves the face's number behind
+    // instead, and the request happens here, once the pass has ended and in the same rendering update. A face that
+    // resolves as it is requested, as a local() one does, changes the fonts the pass picked.
+    if (Gfx::request_wanted_pending_faces())
+        m_requested_wanted_font_faces = true;
 
     // An <object> showing this document is sized from its <svg> document element, whose natural size only this
     // document's layout works out. Hand it over as it changes.

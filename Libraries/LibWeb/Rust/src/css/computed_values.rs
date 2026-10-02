@@ -249,6 +249,12 @@ impl ContentHash for libgfx_rust::font::FontCascadeListHandle {
     }
 }
 
+impl ContentHash for libgfx_rust::font::FrozenFontListRef {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        hasher.write_usize(self.as_raw() as usize);
+    }
+}
+
 impl ContentHash for RetainedUtf16FlyString {
     fn write_content_hash(&self, hasher: &mut FastHasher) {
         hasher.write_usize(self.raw());
@@ -858,6 +864,7 @@ impl_computed_payload_clone_and_eq!(FontValues {
     font_zero_advance,
     first_available_font,
     font_cascade_list,
+    frozen_font_list,
     font_weight,
     font_width,
     math_shift,
@@ -3505,6 +3512,7 @@ impl FontValues {
             font_zero_advance: 0.0,
             first_available_font: std::ptr::null(),
             font_cascade_list: libgfx_rust::font::FontCascadeListHandle::null(),
+            frozen_font_list: libgfx_rust::font::FrozenFontListRef::null(),
             font_weight: 400.0,
             font_width: 100.0,
             math_shift: 0,

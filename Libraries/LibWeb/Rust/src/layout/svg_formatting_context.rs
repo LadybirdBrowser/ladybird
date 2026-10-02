@@ -1062,23 +1062,21 @@ impl<'pass> SvgFormattingContext<'pass> {
         if text.is_empty() {
             return;
         }
-        let cascade_list = style.font_cascade_list();
-        // Neighbouring code points nearly always share a font, so the last one is the hint.
-        let font_for = |offset: usize, hint: Option<&libgfx_rust::font::FontHandle>| {
-            cascade_list.font_for_code_point(
+        let frozen_font_list = style.frozen_font_list();
+        let font_for = |offset: usize| {
+            frozen_font_list.font_for_code_point(
                 code_point_at(text, offset),
                 libgfx_rust::font::EmojiPresentation {
                     is_emoji: false,
                     forced: false,
                 },
-                hint,
             )
         };
-        let mut last_font = font_for(0, None);
+        let mut last_font = font_for(0);
         let mut run_start = 0;
         let mut offset = code_point_length_at(text, 0);
         while offset < text.len() {
-            let font = font_for(offset, Some(&last_font));
+            let font = font_for(offset);
             if font != last_font {
                 run(&last_font, &text[run_start..offset]);
                 last_font = font;
