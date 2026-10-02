@@ -208,9 +208,9 @@ impl StyleEngineState {
         if style_record != 0 {
             retried.explicitly_inherited_groups = scratch.element_explicitly_inherited_groups;
             let held_style_record = self.retained.held_style_records.get(&node).copied().unwrap_or(0);
-            retried.owes_an_animation_plan = self
-                .retained
-                .record_owes_an_animation_plan(held_style_record, style_record);
+            retried.owes_an_animation_plan =
+                self.retained
+                    .row_owes_an_animation_plan(node, held_style_record, style_record);
             retried.owes_a_transition_step = self.retained.row_owes_a_transition_step(node);
             for delta in &scratch.pseudo_deltas {
                 let kind = usize::from(delta.kind);

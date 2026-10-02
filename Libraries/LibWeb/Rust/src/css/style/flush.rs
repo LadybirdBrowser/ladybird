@@ -2355,7 +2355,7 @@ impl StyleEngineState {
                         owes_an_animation_plan: gap == FfiStyleDeltaGap::Computed
                             && self
                                 .retained
-                                .record_owes_an_animation_plan(old_style_record, new_style_record),
+                                .row_owes_an_animation_plan(node, old_style_record, new_style_record),
                         owes_a_transition_step: gap == FfiStyleDeltaGap::Computed
                             && self.retained.row_owes_a_transition_step(node),
                     };

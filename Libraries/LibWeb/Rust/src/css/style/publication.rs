@@ -377,7 +377,7 @@ impl RetainedState {
         if let Ok((old, new)) = delta
             && old != new
             && (self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
-                || self.record_owes_an_animation_plan(old.raw(), new.raw()))
+                || self.row_owes_an_animation_plan(node, old.raw(), new.raw()))
         {
             scratch.nodes_composed_by_the_host.insert(node);
         }
@@ -623,7 +623,6 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailWinner);
             return Err(Unanswered::Refused);
         };
-        // An element's animations compose into its style in the C++ computation.
         let facts = self.computed_group_sets.adjustment_facts(node);
         // Moved root inputs reach every row below the root. The root's font the root-input probe
         // drove is left pending for the root's own row, which resumes it in full the same way.
@@ -632,7 +631,9 @@ impl RetainedState {
         } else {
             scratch.root_font_inputs_changed
         };
-        if facts & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0 {
+        // An element's animations compose over the record its winners decide, and the host samples
+        // them over the record it installs. A record demand installs none of its own.
+        if facts & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0 && !scratch.host_applies_animation_plans {
             counters.bump(Counter::EngineComputedRecordBailWinnerElement);
             return Err(Unanswered::Refused);
         }
@@ -2000,18 +2001,15 @@ impl RetainedState {
     }
 
     /// Whether the host can be handed the animation plan of a record the engine derives for `node`
-    /// from `state`, decided from that record once it is installed: the host applies it, the
-    /// element holds no CSS animation, so the plan can only start what its definitions name, and
-    /// the winners say which scope the winning `animation-name` was declared in.
+    /// from `state`, decided from that record once it is installed: the host applies it, and the
+    /// winners say which scope the winning `animation-name` was declared in.
     fn may_plan_css_animations(
         &self,
         node: StyleNodeID,
         state: CascadeStateID,
         scratch: &EngineComputedRecordScratch,
     ) -> bool {
-        scratch.host_applies_animation_plans
-            && !self.css_defined_animations.node_runs_a_css_animation(node)
-            && self.animation_name_declaration_scope(node, state).is_ok()
+        scratch.host_applies_animation_plans && self.animation_name_declaration_scope(node, state).is_ok()
     }
 
     /// The tree scope the winning `animation-name` declaration of `state` was written in, where its
@@ -2063,6 +2061,13 @@ impl RetainedState {
             .computed_group_sets
             .cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX))?;
         self.animation_name_declaration_scope(node, state).ok()
+    }
+
+    /// Whether the host owes an element the engine settled the animation plan its record decides,
+    /// once it installs the record: the record moved the declarations, or the element runs CSS
+    /// animations, whose `@keyframes` may have moved without the declarations.
+    pub(super) fn row_owes_an_animation_plan(&self, node: StyleNodeID, old: u64, new: u64) -> bool {
+        self.record_owes_an_animation_plan(old, new) || self.css_defined_animations.node_runs_a_css_animation(node)
     }
 
     /// Whether installing the `new` record the engine derived for an element, in place of the

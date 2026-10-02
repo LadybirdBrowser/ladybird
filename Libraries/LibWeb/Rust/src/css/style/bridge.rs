@@ -154,9 +154,9 @@ pub struct FfiStyleDelta {
     /// as an `FfiStyleInvalidationField` word. Only a word with `EngineComputed` set holds an answer;
     /// the host asks for the damage of any other move.
     pub record_damage: u32,
-    /// Whether the new record of an element the engine settled moves the `animation-*` longhands
-    /// declaring its CSS animations, so that the host owes it the animation plan the record
-    /// decides once the batch is installed.
+    /// Whether the host owes an element the engine settled the animation plan its new record
+    /// decides, once it installs the record: the record moves the `animation-*` longhands
+    /// declaring the element's CSS animations, or the element runs some.
     pub owes_an_animation_plan: bool,
     /// Whether the host owes an element the engine settled the transition step, against the old
     /// record, once it installs the new one.
