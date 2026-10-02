@@ -24,7 +24,9 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/AttributeNames.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/ImageProvider.h>
@@ -312,6 +314,27 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
         .view_box_aspect_ratio_numerator = view_box_aspect_ratio.has_value() ? view_box_aspect_ratio->numerator() : 0,
         .view_box_aspect_ratio_denominator = view_box_aspect_ratio.has_value() ? view_box_aspect_ratio->denominator() : 0,
     };
+}
+
+// The answer moves only when the focused area does, or when a node arrives in the focused control's shadow tree, and a
+// node in no user agent shadow tree never holds it, so the published set holds one control's shadow tree at a time.
+void publish_is_in_focused_text_control(DOM::Node const& node)
+{
+    auto identity = Node::style_node_of(&node);
+    if (identity.value() == 0)
+        return;
+    auto shadow_root = node.containing_shadow_root();
+    auto value = shadow_root
+        && shadow_root->is_user_agent_internal()
+        && is<HTML::FormAssociatedTextControlElement>(shadow_root->host())
+        && shadow_root->host()->is_focused();
+    auto* arena = const_cast<DOM::Document&>(node.document()).layout_node_arena_if_created();
+    if (!arena) {
+        if (!value)
+            return;
+        arena = &const_cast<DOM::Document&>(node.document()).layout_node_arena();
+    }
+    RustFFI::layout_arena_set_identity_in_focused_text_control(arena->handle(), identity.value(), value);
 }
 
 // The publication is keyed by the element's style node rather than by a row, because an element that draws nothing

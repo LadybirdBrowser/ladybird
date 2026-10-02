@@ -429,9 +429,9 @@ pub unsafe extern "C" fn layout_arena_set_geometry_host(
     arena: *mut c_void,
     host: crate::painting::host::FfiGeometryHostCallbacks,
 ) {
-    unsafe { arena_from_handle(arena) }
-        .scrollable_overflow
-        .host
+    // SAFETY: Guaranteed by the caller.
+    unsafe { crate::layout::HostTables::from_handle(arena) }
+        .geometry_host
         .set(Some(host));
 }
 

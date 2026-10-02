@@ -583,6 +583,10 @@ struct StyleNodeTables {
     /// The elements carrying each anchor name, in tree order. The DOM's registry republishes a
     /// name's list whenever it changes.
     anchor_name_elements: RefCell<HashMap<ScopedAnchorName, Vec<StyleNodeID>>>,
+    /// The nodes sitting in the user agent shadow tree of the focused text control, which is what
+    /// a caret is painted inside. At most one control is focused, so this holds one control's
+    /// shadow tree and is empty the rest of the time.
+    identities_in_focused_text_control: RefCell<HashSet<StyleNodeID>>,
 }
 
 /// An anchor name as a tree scope registers it.
@@ -1555,6 +1559,29 @@ impl LayoutNodeArena {
         self.with_style_store(|engine| engine.tree().shadow_host_of(element))
     }
 
+    /// Record whether the node sits in the user agent shadow tree of the focused text control.
+    pub(crate) fn set_identity_in_focused_text_control(&self, node: StyleNodeID, value: bool) {
+        let mut identities = self.style_node_tables.identities_in_focused_text_control.borrow_mut();
+        if value {
+            identities.insert(node);
+        } else {
+            identities.remove(&node);
+        }
+    }
+
+    /// Whether the row's node sits in the user agent shadow tree of a text control that is focused
+    /// right now. Only a row in a user agent shadow tree can be, which its construction flags
+    /// answer, so the published set is asked about almost no row at all.
+    pub(crate) fn node_is_in_focused_text_control(&self, id: NodeSlotId) -> bool {
+        self.node_flags_if_live(id) & NodeFlag::IsInUserAgentShadowTree as u32 != 0
+            && self.dom_node_style_node(id).is_some_and(|style_node| {
+                self.style_node_tables
+                    .identities_in_focused_text_control
+                    .borrow()
+                    .contains(&style_node)
+            })
+    }
+
     /// Clears a retired identity from every row still carrying it, and from every table keyed by
     /// it, including rows of a removed subtree that outlive the element's disconnection.
     pub(crate) fn forget_style_node(&self, style_node: StyleNodeID) {
@@ -1565,6 +1592,7 @@ impl LayoutNodeArena {
             svg_attribute_facts,
             svg_points,
             anchor_name_elements,
+            identities_in_focused_text_control,
         } = &self.style_node_tables;
         counters_sets.borrow_mut().forget(style_node);
         generated_content.borrow_mut().forget(style_node);
@@ -1577,6 +1605,7 @@ impl LayoutNodeArena {
             );
         }
         svg_points.borrow_mut().remove(&style_node);
+        identities_in_focused_text_control.borrow_mut().remove(&style_node);
         // A retired shadow host takes its tree scope with it. The registry withdraws no names from a
         // scope it can no longer name.
         anchor_name_elements
@@ -4969,6 +4998,20 @@ pub unsafe extern "C" fn layout_arena_move_bound_pseudo_element_rows_to_style_no
         generated_for,
         new_generator,
     );
+}
+
+/// Publishes whether the node sits in the user agent shadow tree of the focused text control.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_identity_in_focused_text_control(arena: *mut c_void, node: u32, value: bool) {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_identity_in_focused_text_control(node, value);
 }
 
 /// Publishes the elements registered under one anchor name in one tree scope, in tree order. The

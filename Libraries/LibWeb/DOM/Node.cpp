@@ -86,6 +86,7 @@
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -2740,6 +2741,13 @@ void Node::inserted()
     // Inertness, editability and the wheel handler state are all inherited, so a node that arrives somewhere new
     // holds what its new place gives it. The identity it publishes them under was taken above.
     publish_dom_paint_facts();
+
+    // A node can also arrive in the shadow tree of a text control that is already focused, which is the one other
+    // inherited state a row is built with. Only the nodes of the focused control's own shadow tree hold it.
+    if (auto focused_area = document().focused_area(); is<HTML::FormAssociatedTextControlElement>(focused_area.ptr())) {
+        if (auto* shadow_root = as_if<ShadowRoot>(root()); shadow_root && shadow_root->host() == focused_area.ptr())
+            Layout::publish_is_in_focused_text_control(*this);
+    }
 }
 
 void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)

@@ -33,23 +33,15 @@ impl Default for RootBackgroundSource {
 }
 
 /// What geometry asks the document. The fields are private, so the callbacks are reached only
-/// through the methods below.
+/// through the methods below, which take the main thread token.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiGeometryHostCallbacks {
     context: *mut std::ffi::c_void,
     clamp_scroll_offset_if_nonzero: unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void),
-    layout_node_is_in_focused_text_control: unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void) -> bool,
 }
 
 impl FfiGeometryHostCallbacks {
-    /// The one question overflow measurement asks the document, which it may do lazily from any
-    /// geometry read, so it takes no main thread token.
-    pub(crate) fn layout_node_is_in_focused_text_control(&self, layout_node_shell: *mut std::ffi::c_void) -> bool {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.layout_node_is_in_focused_text_control)(self.context, layout_node_shell) }
-    }
-
     /// # Safety
     ///
     /// `layout_node_shell` must be live. The host re-enters geometry queries to clamp the offset,

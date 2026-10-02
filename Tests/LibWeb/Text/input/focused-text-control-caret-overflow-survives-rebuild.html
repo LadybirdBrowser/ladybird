@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+input {
+    font: 16px monospace;
+    width: 8px;
+    padding: 0;
+    border: 0;
+}
+</style>
+<input id="input">
+<script src="include.js"></script>
+<script>
+test(() => {
+    const input = document.querySelector("#input");
+    input.focus();
+    internals.sendText(input, "x");
+    const innerText = internals.getShadowRoot(input).querySelector("div > div");
+    const scrollToEnd = () => {
+        innerText.scrollLeft = 10000;
+        return innerText.scrollLeft;
+    };
+    const before = scrollToEnd();
+    println(`scrollable to: ${before}`);
+
+    // Rebuild the input's layout subtree, including its user agent shadow tree, while the input
+    // stays focused. The rows the rebuild stamps have to be in a focused text control again, or
+    // the end-of-line caret loses the pixel of overflow reserved for it.
+    input.style.display = "block";
+    innerText.scrollLeft = 0;
+    println(`scrollable to after a rebuild: ${scrollToEnd()}`);
+});
+</script>

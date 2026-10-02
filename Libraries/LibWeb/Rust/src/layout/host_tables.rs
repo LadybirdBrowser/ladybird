@@ -16,6 +16,7 @@ use super::node_data::NodeSlotId;
 use super::trace::DescribeNode;
 use super::update_layout::FfiLayoutUpdateHostCallbacks;
 use crate::css::style::fast_hash::FastMap as HashMap;
+use crate::painting::host::FfiGeometryHostCallbacks;
 use crate::painting::paintable_rows::ChromeStateCallback;
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -29,6 +30,8 @@ pub(crate) struct HostTables {
     pub(super) shell_factory: Cell<Option<ShellFactory>>,
     pub(super) shell_style_changed_host: Cell<Option<ShellStyleChangedHost>>,
     pub(crate) chrome_state_callback: Cell<Option<ChromeStateCallback>>,
+    /// What the overflow pass asks the document once it has measured a box holding a scroll offset.
+    pub(crate) geometry_host: Cell<Option<FfiGeometryHostCallbacks>>,
     /// How the host names a node a layout trace mentions, set when tracing begins.
     pub(super) layout_trace_describe_node: Cell<Option<DescribeNode>>,
     /// The image provider each row whose image comes from its style owns, made for the row and
