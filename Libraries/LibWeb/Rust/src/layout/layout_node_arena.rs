@@ -4287,6 +4287,20 @@ impl LayoutNodeArena {
             .and_then(|slot| slot.facts)
     }
 
+    pub(crate) fn invalidate_searchable_text(&mut self) {
+        self.searchable_text = None;
+    }
+
+    /// Gives the row the spans its element published again, after one of the element's span
+    /// attributes changed, and answers whether they moved.
+    pub(crate) fn restamp_table_spans(&self, id: NodeSlotId) -> bool {
+        let element = self
+            .node_style_node(id)
+            .expect("a row whose spans are restamped is built for an element");
+        let spans = self.with_style_store(|engine| engine.element_table_spans(element));
+        self.set_table_spans(id, spans)
+    }
+
     /// Gives the row the spans its table cell or table column element has, and answers whether
     /// they changed.
     pub(crate) fn set_table_spans(&self, id: NodeSlotId, spans: TableSpans) -> bool {
@@ -5149,14 +5163,6 @@ pub unsafe extern "C" fn layout_arena_unbind_row(arena: *mut c_void, id: NodeSlo
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_node_flag(arena: *mut c_void, id: NodeSlotId, flag: NodeFlag, value: bool) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_flag(id, flag, value);
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_node_needs_compositor_animation_frame(
     arena: *mut c_void,
     id: NodeSlotId,
@@ -5175,47 +5181,6 @@ pub unsafe extern "C" fn layout_arena_node_style_node(arena: *mut c_void, id: No
     unsafe { &*arena.cast::<LayoutNodeArena>() }
         .node_style_node(id)
         .map_or(0, StyleNodeID::raw)
-}
-
-/// Publishes what the element has scrolled to, as the element stores it.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_element_scroll_offset(
-    arena: *mut c_void,
-    element: u32,
-    offset: FfiCssPixelPoint,
-) {
-    let Some(element) = StyleNodeID::from_raw(element) else {
-        return;
-    };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_element_scroll_offset(element, offset.into());
-}
-
-/// Records what the pseudo-element of kind `generated_for` on `generator` has scrolled to.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_pseudo_element_scroll_offset(
-    arena: *mut c_void,
-    generator: u32,
-    generated_for: u8,
-    offset: FfiCssPixelPoint,
-) {
-    let Some(generator) = StyleNodeID::from_raw(generator) else {
-        return;
-    };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_pseudo_element_scroll_offset(
-        generator,
-        generated_for,
-        offset.into(),
-    );
 }
 
 /// Publishes what the navigable has scrolled the viewport to.
@@ -5240,49 +5205,6 @@ pub unsafe extern "C" fn layout_arena_row_scroll_offset(arena: *mut c_void, slot
     unsafe { LayoutNodeArena::from_handle(arena) }
         .row_scroll_offset(slot)
         .into()
-}
-
-/// Publishes whether the node sits in the user agent shadow tree of the focused text control.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_identity_in_focused_text_control(arena: *mut c_void, node: u32, value: bool) {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return;
-    };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_identity_in_focused_text_control(node, value);
-}
-
-/// Publishes the elements registered under one anchor name in one tree scope, in tree order. The
-/// scope is named by the identity of its shadow host, or by 0 for the document tree.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, and `elements` must name `count`
-/// element identities for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_anchor_name_elements(
-    arena: *mut c_void,
-    scope_host: u32,
-    anchor_name: usize,
-    elements: *const u32,
-    count: usize,
-) {
-    let elements: &[u32] = if count == 0 {
-        &[]
-    } else {
-        // SAFETY: The caller keeps the element array alive for this call.
-        unsafe { std::slice::from_raw_parts(elements, count) }
-    };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_anchor_name_elements(
-        StyleNodeID::from_raw(scope_host),
-        anchor_name,
-        elements.iter().copied().filter_map(StyleNodeID::from_raw),
-    );
 }
 
 #[unsafe(no_mangle)]
@@ -5613,24 +5535,6 @@ pub(crate) unsafe fn sync_enrolled_content_for_layout(arena: *mut c_void) {
 
     // SAFETY: As above; nothing below calls out of the arena.
     unsafe { &mut *arena.cast::<LayoutNodeArena>() }.sync_enrolled_replaced_content_facts();
-}
-
-/// Gives the row the spans its element published again, after one of the element's span
-/// attributes changed, and answers whether they moved.
-///
-/// # Safety
-///
-/// `arena` must be a live handle on the document thread, and `id` a live row built for an
-/// element.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_restamp_table_spans(arena: *mut c_void, id: NodeSlotId) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let element = arena
-        .node_style_node(id)
-        .expect("a row whose spans are restamped is built for an element");
-    let spans = arena.with_style_store(|engine| engine.element_table_spans(element));
-    arena.set_table_spans(id, spans)
 }
 
 #[cfg(test)]
@@ -6101,10 +6005,11 @@ mod tests {
         assert_eq!(arena.data(cell).table_row_span.get(), 3);
 
         engine.set_element_table_spans(element, TableSpans::default());
-        // SAFETY: The arena is live and `cell` a row built for `element`.
-        assert!(unsafe { super::layout_arena_restamp_table_spans((&raw mut arena).cast(), cell) });
+        arena.reset_layout_update_flags_in_subtree(cell);
+        crate::layout::layout_changes::LayoutChange::RestampTableSpans { node: cell }.apply(&mut arena);
         assert_eq!(arena.data(cell).table_column_span.get(), 1);
         assert_eq!(arena.data(cell).table_row_span.get(), 1);
+        assert!(arena.node_needs_layout_update(cell));
         arena
             .free_subtree(cell)
             .destroy_shells_and_invoke_callbacks(&main_thread);

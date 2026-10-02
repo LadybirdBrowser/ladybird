@@ -335,7 +335,7 @@ protected:
 
     void set_flag(RustFFI::NodeFlag flag, bool value)
     {
-        RustFFI::layout_arena_set_node_flag(m_arena->handle(), m_slot, flag, value);
+        RustFFI::render_state_set_node_flag(document_host(), m_slot, flag, value);
     }
 
 private:
@@ -644,7 +644,8 @@ public:
     void clear_image_observers();
     void apply_style(CSS::StyleRecordID);
     void attach_style_resources();
-    bool synchronize_table_span_data();
+    // Gives the row the spans its element published again; where they moved, the row lays out again.
+    void synchronize_table_span_data();
 
     Gfx::Font const& first_available_font() const;
     CSS::StyleScope const& style_scope() const;

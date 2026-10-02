@@ -178,61 +178,6 @@ pub const SVG_GEOMETRY_KIND_LINE: u8 = 5;
 pub const SVG_GEOMETRY_KIND_POLYLINE: u8 = 6;
 pub const SVG_GEOMETRY_KIND_POLYGON: u8 = 7;
 
-/// Publishes what the SVG element `style_node` names parses to. A <polyline> or <polygon> passes
-/// its `points` list beside the facts, since it is the one geometry attribute that is not a fixed
-/// number of values.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
-/// `points` must address `count` points for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_style_node_svg_attribute_facts(
-    arena: *mut c_void,
-    style_node: u32,
-    facts: FfiSvgAttributeFacts,
-    points: *const FfiFloatPoint,
-    count: usize,
-) {
-    // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let Some(style_node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
-        return;
-    };
-    let points = if count == 0 {
-        &[][..]
-    } else {
-        // SAFETY: The caller keeps the list alive for this synchronous call.
-        unsafe { std::slice::from_raw_parts(points, count) }
-    };
-    arena.set_style_node_svg_attribute_facts(style_node, facts, points);
-}
-
-/// Publishes only the resources a graphics element's style names, leaving what its attributes
-/// parse to alone. Style records are replaced far more often than an SVG attribute changes, and
-/// parsing every presentation attribute again to carry four names would make every style change pay
-/// for it.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_style_node_svg_style_references(
-    arena: *mut c_void,
-    style_node: u32,
-    mask: u32,
-    clip_path: u32,
-    fill: u32,
-    stroke: u32,
-) {
-    // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let Some(style_node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
-        return;
-    };
-    arena.set_style_node_svg_style_references(style_node, [mask, clip_path, fill, stroke]);
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct SvgMaskAreaFacts {
     pub units_are_object_bounding_box: bool,

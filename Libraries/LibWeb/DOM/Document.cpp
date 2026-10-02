@@ -1968,7 +1968,7 @@ void Document::end_style_stabilization_epoch()
 void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
 {
     // NB: Called during layout update.
-    Layout::RustFFI::layout_arena_invalidate_searchable_text(layout_node_arena().handle());
+    Layout::RustFFI::render_state_invalidate_searchable_text(layout_node_arena().host());
 
     set_needs_to_record_display_list();
 
