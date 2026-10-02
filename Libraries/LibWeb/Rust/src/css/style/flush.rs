@@ -2358,6 +2358,10 @@ impl StyleEngineState {
                                 .row_owes_an_animation_plan(node, old_style_record, new_style_record),
                         owes_a_transition_step: gap == FfiStyleDeltaGap::Computed
                             && self.retained.row_owes_a_transition_step(node),
+                        composed_by_the_host: gap == FfiStyleDeltaGap::Computed
+                            && self
+                                .retained
+                                .host_composes_row(node, old_style_record, new_style_record),
                     };
                     if style_deltas.len() == style_deltas.capacity() {
                         style_deltas.reserve(1);
@@ -2407,6 +2411,7 @@ impl StyleEngineState {
                                 record_damage,
                                 owes_an_animation_plan: false,
                                 owes_a_transition_step: false,
+                                composed_by_the_host: false,
                             });
                         }
                     }

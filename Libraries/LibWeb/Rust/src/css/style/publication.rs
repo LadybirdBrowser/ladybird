@@ -374,10 +374,10 @@ impl RetainedState {
             counters,
         );
         self.apply_substitution_effects(scratch);
+        // A record that does not move keeps the composition the children read already.
         if let Ok((old, new)) = delta
             && old != new
-            && (self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
-                || self.row_owes_an_animation_plan(node, old.raw(), new.raw()))
+            && self.host_composes_row(node, old.raw(), new.raw())
         {
             scratch.nodes_composed_by_the_host.insert(node);
         }
@@ -471,18 +471,10 @@ impl RetainedState {
         // The element's pseudo-elements are settled beside its record, as the C++ computation
         // refreshes them after the element's own; a pseudo-element the engine cannot settle
         // sends the whole element to C++.
-        let old_style_record = (delta.0 != computed::FinalStyleRecordID::NONE).then_some(delta.0);
         let generation = self.winner_groups.generation();
-        if let Err(unanswered) = self.engine_pseudo_records(
-            node,
-            old_style_record,
-            None,
-            delta.1,
-            generation,
-            full_drive_reason,
-            scratch,
-            counters,
-        ) {
+        if let Err(unanswered) =
+            self.engine_pseudo_records_beside(node, delta, None, generation, full_drive_reason, scratch, counters)
+        {
             match unanswered {
                 Unanswered::Suspended(_) => scratch.pending_element = Some(drive::PendingElement::new(node, delta)),
                 Unanswered::Refused | Unanswered::AwaitsParent => {
@@ -2063,6 +2055,46 @@ impl RetainedState {
         self.animation_name_declaration_scope(node, state).ok()
     }
 
+    /// Whether the host composes the record the engine settled for `node`, moving it from `old` to
+    /// `new`, before anything inherits from it: it applies the record's animation plan and samples
+    /// the element's animations over it, even over a record that does not move. The element's
+    /// pseudo-elements are settled over the composition afterwards, and its children wait for one
+    /// that moves.
+    pub(super) fn host_composes_row(&self, node: StyleNodeID, old: u64, new: u64) -> bool {
+        self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
+            || self.row_owes_an_animation_plan(node, old, new)
+    }
+
+    /// Settle the pseudo-elements of an element the engine moves along `delta` beside its record,
+    /// as `engine_pseudo_records` does, unless the host composes that record first: the host asks
+    /// for them once the composition they inherit stands.
+    #[allow(clippy::too_many_arguments)]
+    fn engine_pseudo_records_beside(
+        &mut self,
+        node: StyleNodeID,
+        delta: (computed::FinalStyleRecordID, computed::FinalStyleRecordID),
+        old_is_list_item: Option<bool>,
+        generation: u64,
+        full_drive_reason: Option<FullDriveReason>,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> Drive<()> {
+        if self.host_composes_row(node, delta.0.raw(), delta.1.raw()) {
+            return Ok(());
+        }
+        let old_style_record = (delta.0 != computed::FinalStyleRecordID::NONE).then_some(delta.0);
+        self.engine_pseudo_records(
+            node,
+            old_style_record,
+            old_is_list_item,
+            delta.1,
+            generation,
+            full_drive_reason,
+            scratch,
+            counters,
+        )
+    }
+
     /// Whether the host owes an element the engine settled the animation plan its record decides,
     /// once it installs the record: the record moved the declarations, or the element runs CSS
     /// animations, whose `@keyframes` may have moved without the declarations.
@@ -2482,13 +2514,6 @@ impl RetainedState {
             parent,
             facts,
         })
-    }
-
-    /// Whether the host composes a node's style over the record the engine holds: an element with
-    /// animations, whose effects C++ samples into its style.
-    pub(super) fn host_composes_style(&self, node: StyleNodeID) -> bool {
-        self.computed_group_sets.node_has_animation_overlay(node)
-            || self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
     }
 
     /// A later element alike in what a first record is computed from takes this record, the way a
@@ -5323,6 +5348,7 @@ pub(crate) struct RetriedEngineRecord {
     pub(crate) explicitly_inherited_groups: u32,
     pub(crate) owes_an_animation_plan: bool,
     pub(crate) owes_a_transition_step: bool,
+    pub(crate) composed_by_the_host: bool,
     pub(crate) pseudo_records_present: u8,
     pub(crate) pseudo_records: [u64; bridge::RETRY_PSEUDO_RECORD_SLOTS],
 }

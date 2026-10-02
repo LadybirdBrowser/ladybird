@@ -1,0 +1,35 @@
+<!doctype html>
+<style>
+    @keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }
+    @keyframes tint { from { color: rgb(1, 2, 3); } to { color: rgb(1, 2, 3); } }
+    #host::before {
+        content: "x";
+    }
+    #host.fade::before {
+        animation: fade 1000s linear paused;
+    }
+    #host.tint::before {
+        animation: tint 1000s linear paused;
+    }
+</style>
+<div id="host" class="fade"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        // The host's own animation keeps its record out of the engine, so its pseudo-elements are
+        // settled beside the record the host computes.
+        host.animate({ marginLeft: ["1px", "1px"] }, { duration: 1000000, fill: "both" }).pause();
+        const report = label => {
+            const style = getComputedStyle(host, "::before");
+            const names = host.getAnimations({ subtree: true }).map(animation => animation.animationName ?? "script").join(",");
+            println(`${label}: ${names} ${style.opacity} ${style.color}`);
+        };
+        report("fade");
+        host.className = "tint";
+        host.style.paddingLeft = "1px";
+        report("tint");
+        host.className = "";
+        host.style.paddingLeft = "2px";
+        report("none");
+    });
+</script>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes tint {
+        from { color: rgb(0, 0, 0); }
+        to { color: rgb(200, 0, 0); }
+    }
+    #target { animation: tint 1000s linear -500s both paused; height: 5px; }
+    #target::before { content: "x"; }
+    #target.taller { height: 7px; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        // The class change moves a value beside the running animation. The ::before inherits the
+        // color the animation samples over the element's record.
+        target.classList.add("taller");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        println(`height: ${getComputedStyle(target).height}`);
+        println(`::before color: ${getComputedStyle(target, "::before").color}`);
+    });
+</script>

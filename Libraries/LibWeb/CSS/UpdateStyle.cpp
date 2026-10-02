@@ -180,6 +180,7 @@ static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID s
         .record_damage = 0,
         .owes_an_animation_plan = false,
         .owes_a_transition_step = false,
+        .composed_by_the_host = false,
     };
 }
 
@@ -458,6 +459,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     reaction.explicitly_inherited_groups = retried.explicitly_inherited_groups;
                     reaction.owes_an_animation_plan = retried.owes_an_animation_plan;
                     reaction.owes_a_transition_step = retried.owes_a_transition_step;
+                    reaction.composed_by_the_host = retried.composed_by_the_host;
                     reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::Full;
                     reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Computed;
                     DOM::Element::EnginePseudoElementRecords pseudo_element_records {};
@@ -560,9 +562,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             auto apply_engine_computed_records = [&](DOM::Element::EnginePseudoElementRecords const& pseudo_element_records, bool acknowledge) {
                 auto& style_engine = document.style_computer().style_engine();
                 // A C++ computation applies a change of the element's display once the record holds the element's
-                // animations and its transition step has run; so does the installation of the record the engine
-                // settled, below.
-                auto const display_none_before = element->display_none_state();
+                // animations and its transition step has run, and refreshes its pseudo-elements after its own style;
+                // so does the installation of the record the engine settled, below, from the style the element held.
+                auto const old_computed_values = element->computed_style();
                 // https://drafts.csswg.org/css-transitions-1/#starting
                 // The transition step the row owes compares the record the element moved away from with the one it
                 // installs, so the old record has to outlive its replacement until the step has read it.
@@ -683,8 +685,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 // A C++ computation applies the animation plan it decides beside the record it computes and collects the
                 // element's animations, those the plan starts among them, into that record. The host composes them over
                 // the record the engine settled once it is installed; the engine asks for the element's children only
-                // after that.
-                bool const composed_by_the_host = reaction.owes_an_animation_plan || element->has_relevant_animations() || element->has_associated_animations();
+                // after that. Which rows the host composes is the engine's to say, since it settles the pseudo-elements
+                // of every other row beside the record, and every element with animations is among them.
+                bool const composed_by_the_host = reaction.composed_by_the_host;
+                ASSERT(composed_by_the_host || !(element->has_relevant_animations() || element->has_associated_animations()));
                 if (composed_by_the_host) {
                     DOM::AbstractElement abstract_element { *element };
                     if (reaction.owes_an_animation_plan)
@@ -704,8 +708,12 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 }
                 if (!!before_change.style_record())
                     invalidation |= document.style_computer().run_transition_step_for_installed_record({ *element }, before_change.style_record(), StyleComputer::TransitionStepFollowUp::Request);
-                if (display_none_before.has_value())
-                    element->apply_display_none_change(*display_none_before);
+                if (old_computed_values)
+                    element->apply_display_none_change(DOM::Element::DisplayNoneState::of(*old_computed_values));
+                // The pseudo-elements of a record the host composes inherit the composition, so the engine settles them
+                // only now.
+                if (reaction.composed_by_the_host)
+                    invalidation |= element->refresh_pseudo_element_styles_over_composition(old_computed_values ? &*old_computed_values : nullptr, did_change_custom_properties);
             };
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::None) {
                 VERIFY(!needs_regular_style_recompute);
