@@ -11,7 +11,6 @@
 
 namespace Web::Layout {
 
-RustFFI::FfiLayoutTreeBuildOutcome build_layout_tree(DOM::Node&);
 void detach_top_layer_element_layout_subtree(DOM::Element&);
 
 // What a layout tree build owes the rows it stamped for their images, which the document attaches once the layout

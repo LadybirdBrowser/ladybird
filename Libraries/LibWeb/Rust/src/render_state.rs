@@ -147,17 +147,11 @@ pub(crate) enum RenderMessage {
         job: crate::css::style::style_job::StyleJob,
         reply: ReplyTo<crate::css::style::style_job::StyleJobAnswer>,
     },
-    /// A layout tree build of the document the host waits for.
-    TreeBuild {
+    /// A layout round of the document the host waits for: its tree build and layout stages.
+    LayoutRound {
         document: DocumentId,
-        job: crate::layout::TreeBuildJob,
-        reply: ReplyTo<crate::layout::TreeBuildAnswer>,
-    },
-    /// A layout stage of the document the host waits for, which commits what it computes.
-    Layout {
-        document: DocumentId,
-        job: crate::layout::LayoutStageJob,
-        reply: ReplyTo<crate::layout::CommitNotifications>,
+        job: crate::layout::LayoutRoundJob,
+        reply: ReplyTo<crate::layout::LayoutRoundAnswer>,
     },
     /// A step of paint preparation the host waits for.
     Paint {
@@ -221,12 +215,7 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
             // SAFETY: As for a change. The host lends what the job's inputs name until it has the answer.
             unsafe { job.run(engine.get_mut()) }
         }),
-        RenderMessage::TreeBuild { document, job, reply } => reply.answer(|| {
-            let (arena, _) = state_parts(document).expect("a document the host builds a tree for has a render state");
-            // SAFETY: As for a change.
-            job.run(unsafe { &mut *arena })
-        }),
-        RenderMessage::Layout { document, job, reply } => reply.answer(|| {
+        RenderMessage::LayoutRound { document, job, reply } => reply.answer(|| {
             let (arena, _) = state_parts(document).expect("a document the host lays out has a render state");
             // SAFETY: As for a change. The host keeps what the job's inputs name until it has the answer.
             job.run(unsafe { &mut *arena })

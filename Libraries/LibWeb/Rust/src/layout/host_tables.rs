@@ -40,9 +40,6 @@ pub(crate) struct HostTables {
     /// Whether the shell factory is making a layout node, which a reader asking for a row's box
     /// can cause while it borrows the arena, so nothing may borrow the arena mutably meanwhile.
     pub(super) making_shell: Cell<bool>,
-    /// Whether a tree build's walk is running. The walk holds no main thread token, and C++ that
-    /// its callbacks run must not mint one by entering Rust again.
-    tree_build_walk_is_open: Cell<bool>,
     pub(super) shell_style_changed_host: Cell<Option<ShellStyleChangedHost>>,
     pub(crate) chrome_state_callback: Cell<Option<ChromeStateCallback>>,
     /// What the overflow pass tells the document once it has settled a box's scroll offset.
@@ -72,20 +69,6 @@ impl HostTables {
         assert!(!handle.is_null(), "layout node arena handle is null");
         // SAFETY: Guaranteed by the caller.
         unsafe { ArenaHandle::host(handle) }.host_tables()
-    }
-
-    /// Marks a tree build's walk as running until the answer is dropped.
-    pub(crate) fn open_tree_build_walk(&self) -> TreeBuildWalk<'_> {
-        assert!(
-            !self.tree_build_walk_is_open.replace(true),
-            "a tree build walk was opened twice"
-        );
-        TreeBuildWalk { host_tables: self }
-    }
-
-    /// Whether a tree build's walk is running, during which no FFI entry may mint a token.
-    pub(crate) fn tree_build_walk_is_open(&self) -> bool {
-        self.tree_build_walk_is_open.get()
     }
 
     /// The layout node of the row `facts` describes, made by the shell factory the first time
@@ -151,18 +134,6 @@ impl HostTables {
             .get(&slot)
             .copied()
             .unwrap_or(std::ptr::null_mut())
-    }
-}
-
-/// A running tree build walk, closed when dropped.
-#[must_use]
-pub(crate) struct TreeBuildWalk<'a> {
-    host_tables: &'a HostTables,
-}
-
-impl Drop for TreeBuildWalk<'_> {
-    fn drop(&mut self) {
-        self.host_tables.tree_build_walk_is_open.set(false);
     }
 }
 

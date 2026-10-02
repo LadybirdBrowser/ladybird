@@ -1559,8 +1559,6 @@ private:
 
     virtual void finalize() override final;
 
-    Layout::RustFFI::FfiLayoutTreeBuildOutcome build_layout_tree();
-
     // The row the document's layout tree is rooted at. The tree build records it in the arena, so
     // the document keeps no copy of its own.
     [[nodiscard]] Compositing::RustFFI::NodeSlotId layout_root_slot() const;

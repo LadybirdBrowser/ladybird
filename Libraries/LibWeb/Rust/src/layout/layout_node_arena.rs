@@ -2313,15 +2313,27 @@ impl LayoutNodeArena {
         self.active_layout_pass_depth.set(depth + 1);
     }
 
-    /// Ends a pass. Once the outermost one is over, the layout trace names the boxes it ran for,
-    /// which asks the document.
-    pub(crate) fn end_active_layout_pass(&self, main_thread: &MainThread) {
+    /// Leaves a pass, and answers whether it was the outermost one.
+    pub(crate) fn leave_active_layout_pass(&self) -> bool {
         let depth = self.active_layout_pass_depth.get();
         assert!(depth > 0, "layout pass depth underflow");
         self.active_layout_pass_depth.set(depth - 1);
-        if depth == 1 {
-            self.layout_trace.name_owners(main_thread, self);
+        depth == 1
+    }
+
+    /// Ends a pass. Once the outermost one is over, the layout trace names the boxes it ran for,
+    /// which asks the document.
+    #[cfg(test)]
+    pub(crate) fn end_active_layout_pass(&self, main_thread: &MainThread) {
+        if self.leave_active_layout_pass() {
+            self.name_layout_trace_owners(main_thread);
         }
+    }
+
+    /// Has a running layout trace name the boxes the passes it traced ran for, which asks the
+    /// document. Nothing happens without a trace.
+    pub(crate) fn name_layout_trace_owners(&self, main_thread: &MainThread) {
+        self.layout_trace.name_owners(main_thread, self);
     }
 
     pub(crate) fn set_layout_root(&self, viewport: NodeSlotId) {
