@@ -766,8 +766,10 @@ impl RetainedState {
                 }
                 None => (initial_metrics, false, 0.0),
             };
-        // C++ computes no first style under a display:none ancestor.
+        // C++ computes no first style for an element under a display:none ancestor. It does compute
+        // the pseudo-elements of an element it styled there, the element being their parent.
         if old_style_record.is_none()
+            && !target.is_pseudo()
             && parent_view
                 .as_ref()
                 .is_some_and(|parent_view| parent_view.dependency_flags & (1 << 2) != 0)

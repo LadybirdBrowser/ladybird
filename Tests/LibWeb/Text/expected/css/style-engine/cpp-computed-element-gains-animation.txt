@@ -1,3 +1,4 @@
+C++ recomputations: 1
 animation-name: grow
 animations: 1
 height: 10px

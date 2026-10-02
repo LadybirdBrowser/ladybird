@@ -4,15 +4,18 @@
     @keyframes grow { from { height: 10px; } to { height: 20px; } }
     #target.animated { animation: grow 100s linear paused; }
 </style>
-<div id="target" style="width: 10cqw"></div>
+<div id="target" style="--width: 10cqw; width: var(--width)"></div>
 <script>
     test(() => {
-        // A container unit in the element's own style keeps its record with C++, which binds no
-        // cascade state. A rule that gives it an animation-name still starts the animation.
+        // The element's record is one C++ computed, which binds no cascade state: a container unit
+        // substituted into the element's own style keeps its record with C++, which the count of C++
+        // recomputations shows. A rule that gives it an animation-name still starts the animation.
         const target = document.getElementById("target");
         internals.updateStyle();
+        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         target.classList.add("animated");
         internals.updateStyle();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
         println(`animation-name: ${getComputedStyle(target).animationName}`);
         println(`animations: ${target.getAnimations().length}`);
         println(`height: ${getComputedStyle(target).height}`);
