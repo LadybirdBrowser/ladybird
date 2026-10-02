@@ -162,7 +162,81 @@ impl DamageSet {
     }
 }
 
+/// The paint damage a recording reads: the rows damaged when its frame was published, with their
+/// damage, and whether damage covered everything. It is the frame's own copy of the live set.
+#[derive(Default)]
+pub(crate) struct FrameDamage {
+    // Sorted by slot, holding each populated row with non-empty damage once.
+    rows: Vec<(NodeSlotId, PaintDamage)>,
+    all: bool,
+    scroll_metadata_everywhere: bool,
+}
+
+impl FrameDamage {
+    pub(crate) fn of_row(&self, row: NodeSlotId) -> PaintDamage {
+        self.rows
+            .binary_search_by_key(&(row.slot_index(), row.generation()), |(listed, _)| {
+                (listed.slot_index(), listed.generation())
+            })
+            .map_or(PaintDamage::NONE, |index| self.rows[index].1)
+    }
+
+    pub(crate) fn rows(&self) -> impl Iterator<Item = NodeSlotId> + '_ {
+        self.rows.iter().map(|(row, _)| *row)
+    }
+
+    pub(crate) fn covers_everything(&self) -> bool {
+        self.all
+    }
+
+    pub(crate) fn scroll_metadata_everywhere(&self) -> bool {
+        self.scroll_metadata_everywhere
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        !self.all && !self.scroll_metadata_everywhere && self.rows.is_empty()
+    }
+
+    /// The damage a recording starts from, for the trace header.
+    pub(crate) fn summary(&self) -> crate::painting::record::trace::DamageSummary {
+        let mut summary = crate::painting::record::trace::DamageSummary {
+            all: self.all,
+            ..Default::default()
+        };
+        for (_, damage) in &self.rows {
+            summary.rows += 1;
+            summary.moved += usize::from(damage.contains(PaintDamage::MOVED));
+            summary.order += usize::from(damage.intersects(PaintDamage::ORDER | PaintDamage::CONTEXT_ORDER));
+            summary.eligibility += usize::from(damage.contains(PaintDamage::ELIGIBILITY));
+        }
+        summary
+    }
+}
+
 impl LayoutNodeArena {
+    /// Copies the damage pushed so far for a frame to publish.
+    pub(crate) fn paint_damage_for_frame(&self) -> FrameDamage {
+        let mut rows: Vec<(NodeSlotId, PaintDamage)> = self
+            .paintable_rows
+            .damage
+            .rows
+            .borrow()
+            .iter()
+            .filter(|row| self.paintable_row_is_populated(**row))
+            .filter_map(|&row| {
+                let damage = self.row_paint_state(row).damage();
+                (!damage.is_empty()).then_some((row, damage))
+            })
+            .collect();
+        rows.sort_unstable_by_key(|(row, _)| (row.slot_index(), row.generation()));
+        rows.dedup_by_key(|(row, _)| *row);
+        FrameDamage {
+            rows,
+            all: self.paint_damage_covers_everything(),
+            scroll_metadata_everywhere: self.scroll_metadata_damaged_everywhere(),
+        }
+    }
+
     pub(crate) fn row_paint_state(&self, row: NodeSlotId) -> Ref<'_, RowPaintState> {
         Ref::map(self.paintable_rows.row_paint_states.borrow(), |states| {
             &states[row.slot_index() as usize]
@@ -304,34 +378,6 @@ impl LayoutNodeArena {
         self.paintable_rows.damage.scroll_metadata_everywhere.get() != 0
     }
 
-    pub(crate) fn has_paint_damage(&self) -> bool {
-        self.paint_damage_covers_everything()
-            || self.scroll_metadata_damaged_everywhere()
-            || self
-                .paintable_rows
-                .damage
-                .rows
-                .borrow()
-                .iter()
-                .any(|row| self.paintable_row_is_populated(*row) && !self.row_paint_state(*row).damage().is_empty())
-    }
-
-    /// The damage a recording starts from, for the trace header.
-    pub(crate) fn paint_damage_summary(&self) -> crate::painting::record::trace::DamageSummary {
-        let mut summary = crate::painting::record::trace::DamageSummary {
-            all: self.paint_damage_covers_everything(),
-            ..Default::default()
-        };
-        for row in self.damaged_paint_rows() {
-            let damage = self.row_paint_state(row).damage();
-            summary.rows += 1;
-            summary.moved += usize::from(damage.contains(PaintDamage::MOVED));
-            summary.order += usize::from(damage.intersects(PaintDamage::ORDER | PaintDamage::CONTEXT_ORDER));
-            summary.eligibility += usize::from(damage.contains(PaintDamage::ELIGIBILITY));
-        }
-        summary
-    }
-
     pub(crate) fn damaged_paint_rows(&self) -> Vec<NodeSlotId> {
         let mut rows: Vec<NodeSlotId> = self
             .paintable_rows
@@ -414,6 +460,23 @@ mod tests {
         arena.note_publishing_paint_recording_started();
         arena.clear_paint_damage_consumed_by_published_recording();
         assert_eq!(arena.damaged_paint_rows(), Vec::new());
+    }
+
+    #[test]
+    fn a_frame_keeps_the_damage_pushed_before_it_was_published() {
+        let mut arena = LayoutNodeArena::new();
+        let first = populated_child(&mut arena, NodeSlotId::INVALID);
+        let second = populated_child(&mut arena, NodeSlotId::INVALID);
+        settle(&arena);
+        arena.push_paint_damage(first, PaintDamage::DRAW_FOREGROUND);
+        let frame = arena.paint_damage_for_frame();
+        arena.push_paint_damage(second, PaintDamage::DRAW_BACKGROUND);
+
+        assert_eq!(frame.of_row(first), PaintDamage::DRAW_FOREGROUND);
+        assert_eq!(frame.of_row(second), PaintDamage::NONE);
+        assert_eq!(frame.rows().collect::<Vec<_>>(), [first]);
+        assert!(!frame.is_empty() && !frame.covers_everything());
+        assert_eq!(arena.paint_damage_of_row(second), PaintDamage::DRAW_BACKGROUND);
     }
 
     #[test]

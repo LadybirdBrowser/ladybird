@@ -309,7 +309,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
     }
 
     fn damaged_rows(&mut self) -> Vec<NodeSlotId> {
-        let mut rows = self.source.damaged_paint_rows();
+        let mut rows: Vec<NodeSlotId> = self.source.damaged_paint_rows().collect();
         // A moved row moves its whole layout subtree, whose rows were not pushed themselves. A
         // moved row inside that subtree is listed already and expands its own subtree, so the
         // walk stops there, and a row expanded from another moved ancestor stops it as well.

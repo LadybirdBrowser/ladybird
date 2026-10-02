@@ -24,7 +24,7 @@ use crate::painting::layer_image_paint_facts::LayerImagePaintFacts;
 use crate::painting::paint_order_plan::PaintOrderInputs;
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::published_frame::PublishedRows;
-use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::damage::{FrameDamage, PaintDamage};
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
 use crate::painting::stacking_context::entries::StackingContextEntries;
@@ -100,7 +100,7 @@ pub(crate) trait PaintRead: GeometryRead {
         read: impl FnOnce(&BoxVisualContextNodeHandles) -> R,
     ) -> R;
     fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage;
-    fn damaged_paint_rows(&self) -> Vec<NodeSlotId>;
+    fn damaged_paint_rows(&self) -> impl Iterator<Item = NodeSlotId> + '_;
     /// The paint-order inputs paint preparation gathered for the row, if it gathered them.
     fn prepared_paint_order_inputs(&self, row: NodeSlotId) -> Option<PaintOrderInputs> {
         self.committed_side_data(row).prepared_order_inputs()
@@ -370,8 +370,8 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
         self.as_ref().paint_damage_of_row(row)
     }
 
-    fn damaged_paint_rows(&self) -> Vec<NodeSlotId> {
-        self.as_ref().damaged_paint_rows()
+    fn damaged_paint_rows(&self) -> impl Iterator<Item = NodeSlotId> + '_ {
+        self.as_ref().damaged_paint_rows().into_iter()
     }
 
     fn with_paintable_visual_context_node_handles<R>(
@@ -396,6 +396,7 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
 pub(crate) struct PaintSource<'a> {
     arena: &'a LayoutNodeArena,
     rows: &'a PublishedRows,
+    damage: &'a FrameDamage,
     absolute_rects: &'a RefCell<AbsoluteRectMemo>,
     geometry_epoch: u64,
 }
@@ -404,14 +405,21 @@ impl<'a> PaintSource<'a> {
     pub(crate) fn new(
         arena: &'a LayoutNodeArena,
         rows: &'a PublishedRows,
+        damage: &'a FrameDamage,
         absolute_rects: &'a RefCell<AbsoluteRectMemo>,
     ) -> Self {
         Self {
             arena,
             rows,
+            damage,
             absolute_rects,
             geometry_epoch: arena.absolute_rect_memo_epoch(),
         }
+    }
+
+    /// The paint damage the frame was published with.
+    pub(crate) fn damage(&self) -> &'a FrameDamage {
+        self.damage
     }
 }
 
@@ -523,6 +531,26 @@ impl PaintRead for PaintSource<'_> {
         self.node(id).is_some_and(|node| node.dom_paint_facts & fact as u8 != 0)
     }
 
+    fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
+        self.damage.of_row(row)
+    }
+
+    fn damaged_paint_rows(&self) -> impl Iterator<Item = NodeSlotId> + '_ {
+        self.damage.rows()
+    }
+
+    fn with_paintable_visual_context_node_handles<R>(
+        &self,
+        id: NodeSlotId,
+        read: impl FnOnce(&BoxVisualContextNodeHandles) -> R,
+    ) -> R {
+        read(self.rows.visual_context_node_handles(id))
+    }
+
+    fn stacking_context_entries(&self, root: NodeSlotId) -> Option<impl Deref<Target = StackingContextEntries> + '_> {
+        self.rows.stacking_context_entries(root)
+    }
+
     fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
         self.arena.text_content(id)
     }
@@ -554,25 +582,5 @@ impl PaintRead for PaintSource<'_> {
         computed_index: u32,
     ) -> Option<LayerImagePaintFacts> {
         self.arena.layer_image_paint_facts(id, list, computed_index)
-    }
-
-    fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
-        self.arena.paint_damage_of_row(row)
-    }
-
-    fn damaged_paint_rows(&self) -> Vec<NodeSlotId> {
-        self.arena.damaged_paint_rows()
-    }
-
-    fn with_paintable_visual_context_node_handles<R>(
-        &self,
-        id: NodeSlotId,
-        read: impl FnOnce(&BoxVisualContextNodeHandles) -> R,
-    ) -> R {
-        self.arena.with_paintable_visual_context_node_handles(id, read)
-    }
-
-    fn stacking_context_entries(&self, root: NodeSlotId) -> Option<impl Deref<Target = StackingContextEntries> + '_> {
-        self.arena.stacking_context_entries(root)
     }
 }

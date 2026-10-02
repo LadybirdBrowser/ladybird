@@ -17,31 +17,23 @@ use crate::layout::node_data::{NodeSlotId, PaintNode};
 use crate::layout::tree_shape::PUBLISHED_ROWS_PER_CHUNK;
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::paintable_rows::{CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK};
+use crate::painting::stacking_context::entries::StackingContextEntries;
+use crate::painting::visual_context::{BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES};
+use std::sync::Arc;
 
 /// One published generation of a document's layout tree shape and paintable rows, and of the
 /// columns read beside them.
 pub(crate) struct PublishedRows {
-    nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
-    rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
-    fragment_links: ColumnSnapshot<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>,
-    side_data: ColumnSnapshot<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
+    pub(super) nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
+    pub(super) rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
+    pub(super) fragment_links: ColumnSnapshot<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>,
+    pub(super) side_data: ColumnSnapshot<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
+    pub(super) stacking_context_entries: ColumnSnapshot<Option<Arc<StackingContextEntries>>, PAINTABLE_SLOTS_PER_CHUNK>,
+    pub(super) visual_context_node_handles:
+        ColumnSnapshot<Option<Arc<BoxVisualContextNodeHandles>>, PAINTABLE_SLOTS_PER_CHUNK>,
 }
 
 impl PublishedRows {
-    pub(crate) fn new(
-        nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
-        rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
-        fragment_links: ColumnSnapshot<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>,
-        side_data: ColumnSnapshot<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
-    ) -> Self {
-        Self {
-            nodes,
-            rows,
-            fragment_links,
-            side_data,
-        }
-    }
-
     /// The node in slot `id`, if the slot holds it: a node freed or replaced since reads as gone.
     pub(crate) fn node(&self, id: NodeSlotId) -> Option<&PaintNode> {
         if id.is_invalid() {
@@ -93,6 +85,23 @@ impl PublishedRows {
         self.side_data
             .get(id.slot_index() as usize)
             .expect("a populated row has published side data")
+    }
+
+    pub(crate) fn visual_context_node_handles(&self, id: NodeSlotId) -> &BoxVisualContextNodeHandles {
+        self.paintable_row_is_populated(id)
+            .then(|| self.visual_context_node_handles.get(id.slot_index() as usize))
+            .flatten()
+            .and_then(|handles| handles.as_deref())
+            .unwrap_or(&EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES)
+    }
+
+    pub(crate) fn stacking_context_entries(&self, root: NodeSlotId) -> Option<&StackingContextEntries> {
+        if !self.paintable_row_is_populated(root) {
+            return None;
+        }
+        self.stacking_context_entries
+            .get(root.slot_index() as usize)
+            .and_then(|table| table.as_deref())
     }
 }
 
@@ -181,8 +190,9 @@ mod tests {
         arena.write_shape(slots[4]).set_generated_for(1);
 
         let published = arena.publish_rows();
+        let damage = arena.paint_damage_for_frame();
         let absolute_rects = RefCell::new(AbsoluteRectMemo::default());
-        let source = PaintSource::new(&arena, &published, &absolute_rects);
+        let source = PaintSource::new(&arena, &published, &damage, &absolute_rects);
         for &node in &slots {
             assert_eq!(source.slot_is_live(node), arena.slot_is_live(node));
             assert_eq!(source.node_kind_if_live(node), arena.node_kind_if_live(node));
@@ -217,6 +227,8 @@ mod tests {
                 arena.with_committed_fragment_link(node, |link| link.map(|link| link.inset_top))
             );
             assert!(*source.committed_side_data(node) == *arena.committed_side_data(node));
+            assert_eq!(source.paint_damage_of_row(node), arena.paint_damage_of_row(node));
+            assert!(source.stacking_context_entries(node).is_none() == arena.stacking_context_entries(node).is_none());
         }
     }
 }

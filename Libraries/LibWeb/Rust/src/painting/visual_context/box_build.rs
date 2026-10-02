@@ -34,6 +34,7 @@ pub(crate) struct PaintableVisualContextAssignment {
     pub accumulated_visual_context_for_descendants: ContextRef,
     pub has_non_invertible_css_transform: bool,
     pub record: PaintableVisualContextRecord,
+    pub node_handles: BoxVisualContextNodeHandles,
 }
 
 impl PaintableVisualContextAssignment {
@@ -48,6 +49,7 @@ impl PaintableVisualContextAssignment {
             accumulated_visual_context_for_descendants: data.accumulated_visual_context_for_descendants,
             has_non_invertible_css_transform: data.has_flag(PaintableFlag::HasNonInvertibleCssTransform),
             record,
+            node_handles: BoxVisualContextNodeHandles::default(),
         }
     }
 
@@ -83,7 +85,7 @@ impl PaintableVisualContextAssignment {
                 self.has_non_invertible_css_transform,
             );
         }
-        layout_arena.set_paintable_visual_context_record(self.slot, self.record);
+        layout_arena.set_paintable_visual_context_record(self.slot, self.record, self.node_handles);
         if scroll_nodes_changed {
             layout_arena.push_paint_damage(self.slot, PaintDamage::ALL_PRODUCERS);
             layout_arena.push_paint_damage_to_paint_subtree(self.slot, PaintDamage::SCROLL_METADATA);
@@ -254,7 +256,6 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
         PaintableVisualContextRecord {
             inherited_input: inherited,
             output_for_descendants: inherited,
-            node_handles: BoxVisualContextNodeHandles::default(),
             has_mask_nodes: false,
             may_be_root_element,
             owns_geometry_dependent_nodes: false,
