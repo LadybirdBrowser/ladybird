@@ -40,6 +40,13 @@
         internals.updateStyle();
         app.offsetWidth;
         internals.resetStyleInvalidationCounters();
+        // The elements styled alike share a record, whether the C++ computation or the engine
+        // computes it.
+        const engineSharedRecords = () => {
+            const engine = internals.styleEngineCounters();
+            return (engine.engineComputedRecordSharedHits ?? 0) + (engine.engineComputedRecordCohortHits ?? 0);
+        };
+        const engineSharedBefore = engineSharedRecords();
 
         const portal = document.createElement("div");
         portal.className = "portal";
@@ -65,7 +72,8 @@
         internals.updateStyle();
         const counters = internals.getStyleInvalidationCounters();
         println(`no-op reactions suppressed: ${counters.styleEnginePublishedReactions < 700}`);
-        println(`none animation names remain shareable: ${counters.elementStyleSharedComputations >= 100}`);
+        const sharedRecords = counters.elementStyleSharedComputations + engineSharedRecords() - engineSharedBefore;
+        println(`none animation names remain shareable: ${sharedRecords >= 100}`);
         println(`inserted elements were styled: ${counters.elementComputedStyleChanges >= 271}`);
     });
 </script>

@@ -1371,6 +1371,19 @@ impl RetainedState {
                 font_environment_generation: inputs.font_environment_generation,
                 root_font_inputs: RootFontInputs::from_document(&inputs),
             });
+        // A winner that starts an animation or a transition keeps the record in C++, unless it
+        // declares CSS animations and the host can be handed the plan the record decides, which is
+        // asked of every node, a shared record's too. The font-phase longhands feed no group of
+        // their own: the full drive resolves the font from them and rebuilds every group, rejecting
+        // the values the font resolution does not pass on yet.
+        for property in self.winner_groups.semantic_delta_properties(None, state) {
+            if self.first_record_winner_needs_cpp(property)
+                && !(property_declares_css_animations(property) && self.may_plan_css_animations(node, state, scratch))
+            {
+                counters.bump(Counter::EngineComputedRecordBailProperty);
+                return Err(Unanswered::Refused);
+            }
+        }
         let delta_property_count = self.winner_groups.winner_count_in_state(state) as u64;
         if !self.node_declares_custom_properties(node)
             && let Some(delta) = self.assign_cached_cold_record(
@@ -1387,16 +1400,6 @@ impl RetainedState {
             )
         {
             return Ok(ElementAnswer::Delta(delta));
-        }
-        // A winner that starts an animation or reads the counter-style environment keeps the
-        // record in C++. The font-phase longhands feed no group of their own: the full drive
-        // resolves the font from them and rebuilds every group, rejecting the values the font
-        // resolution does not pass on yet.
-        for property in self.winner_groups.semantic_delta_properties(None, state) {
-            if self.first_record_winner_needs_cpp(property) {
-                counters.bump(Counter::EngineComputedRecordBailProperty);
-                return Err(Unanswered::Refused);
-            }
         }
         // A registered name declared here computes provisionally against the parent's font until
         // the drive settles the element's own.
@@ -1931,11 +1934,28 @@ impl RetainedState {
         self.animation_name_declaration_scope(node, state).ok()
     }
 
-    /// Whether moving an element from the `old` record the host holds to the `new` one the engine
-    /// derived moves the `animation-*` longhands declaring its CSS animations, so that installing
-    /// it owes the host the plan the new record decides. Every such longhand is in the animation
-    /// group; a group that moved with only transitions in it decides a plan that changes nothing.
-    pub(super) fn record_moves_animation_declarations(&self, old: u64, new: u64) -> bool {
+    /// Whether installing the `new` record the engine derived for an element, in place of the
+    /// `old` one the host holds, owes the host the animation plan the new record decides: a first
+    /// record that names an animation, or a record that moves the declarations.
+    pub(super) fn record_owes_an_animation_plan(&self, old: u64, new: u64) -> bool {
+        match old {
+            0 => self.first_record_declares_animations(new),
+            old => self.animation_declarations_moved(old, new),
+        }
+    }
+
+    /// Whether a first record's `animation-name` names any animation.
+    fn first_record_declares_animations(&self, record: u64) -> bool {
+        self.computed_group_sets
+            .style_record_view(record)
+            .and_then(|view| unsafe { view.longhand_table.as_ref() })
+            .is_some_and(crate::css::style_compute::table_declares_css_animations)
+    }
+
+    /// Whether moving an element from the `old` record to the `new` one moves the `animation-*`
+    /// longhands declaring its CSS animations. Every such longhand is in the animation group; a
+    /// group that moved with only transitions in it decides a plan that changes nothing.
+    fn animation_declarations_moved(&self, old: u64, new: u64) -> bool {
         use crate::css::table_group_builder::group_index::ANIMATION;
         let animation_group = |record| {
             self.computed_group_sets
@@ -1943,7 +1963,7 @@ impl RetainedState {
                 .and_then(|payloads| payloads.get(ANIMATION))
                 .map(|payload| payload.as_ptr())
         };
-        old != 0 && old != new && animation_group(old) != animation_group(new)
+        old != new && animation_group(old) != animation_group(new)
     }
 
     fn record_requires_cpp_animation(&self, record: computed::FinalStyleRecordID) -> bool {

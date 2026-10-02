@@ -5277,6 +5277,14 @@ pub unsafe extern "C" fn rust_settled_animation_plan(
     }
 }
 
+/// Whether a computed `animation-name` names any animation, so that a first record computed with it
+/// decides an animation plan.
+pub(crate) fn table_declares_css_animations(table: &ComputedLonghandTable) -> bool {
+    computed_value_list(table, property_id::ANIMATION_NAME)
+        .iter()
+        .any(|name| !matches!(name.data(), StyleValueData::Keyword { keyword } if *keyword == keyword::NONE))
+}
+
 // https://drafts.csswg.org/css-values-4/#linked-properties
 // https://drafts.csswg.org/css-animations-1/#animations
 fn build_computed_animation_list(
