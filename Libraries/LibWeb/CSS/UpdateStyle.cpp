@@ -412,9 +412,6 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
     // any animation is associated with it, relevant or not: a timeline can make one relevant later,
     // and the style engine keeps the same rows.
     HashTable<StyleNodeID> required_in_hidden_subtrees;
-    // The elements whose engine-settled records owe them the animation plans those records decide,
-    // in the order the batch applied them.
-    Vector<StyleNodeID> rows_owing_an_animation_plan;
     for (auto const& reaction : reactions) {
         auto element = document.style_computer().element_for_style_node(reaction.style_node);
         if (!element || (!element->is_svg_element() && !element->has_associated_animations()))
@@ -679,19 +676,23 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 }
                 if (acknowledge)
                     style_engine.acknowledge_engine_computed_record(StyleNodeID { reaction.style_node });
-                // A C++ computation collects the element's animations into the record it computes. The host composes
-                // them over the record the engine settled once it is installed; a record whose plan the host still
-                // owes it is composed with the plan, after the batch.
-                bool const composed_by_the_host = !reaction.owes_an_animation_plan && (element->has_relevant_animations() || element->has_associated_animations());
+                // A C++ computation applies the animation plan it decides beside the record it computes and collects the
+                // element's animations, those the plan starts among them, into that record. The host composes them over
+                // the record the engine settled once it is installed; the engine asks for the element's children only
+                // after that.
+                bool const composed_by_the_host = reaction.owes_an_animation_plan || element->has_relevant_animations() || element->has_associated_animations();
                 if (composed_by_the_host) {
                     DOM::AbstractElement abstract_element { *element };
+                    if (reaction.owes_an_animation_plan)
+                        document.style_computer().apply_settled_animation_plan(abstract_element);
                     // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
                     // Sampling the installed record can keep the epoch's before-change style, and the record the element
                     // holds by then is the after-change one. A row that owes the step keeps the record it moved away from
                     // first.
                     if (!!before_change.style_record() && document.is_in_style_stabilization_epoch())
                         document.style_computer().record_transition_stabilization_baseline(abstract_element, before_change.style_record());
-                    sample_animations_for_installed_record(abstract_element);
+                    if (element->has_relevant_animations() || element->has_associated_animations())
+                        sample_animations_for_installed_record(abstract_element);
                 }
                 if (!!verification_reference_style_record) {
                     verify_engine_record_against_reference(style_engine, StyleNodeID { reaction.style_node }, composed_by_the_host ? element->style_record_identity() : StyleRecordID { reaction.new_style_record }, verification_reference_style_record);
@@ -740,8 +741,6 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     invalidation = element->apply_style_engine_reaction(did_change_custom_properties);
                 } else {
                     apply_engine_computed_records(pseudo_element_records, true);
-                    if (reaction.owes_an_animation_plan)
-                        rows_owing_an_animation_plan.append(StyleNodeID { reaction.style_node });
                 }
             } else if (needs_regular_style_recompute || needs_inherited_style_recompute || needs_full_custom_property_recompute) {
                 if (needs_regular_style_recompute)
@@ -810,21 +809,6 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             style_engine.note_style_reaction_applied(reaction.style_node, reaction.reaction, invalidation.inherited_style_groups_changed(), facts);
         }
     }
-
-    // A C++ computation applies the animation plan it decides beside the record it computes, and
-    // samples what it starts into that record. The plan of a record the engine settled is decided
-    // from the record now that every row of the batch is installed, and what it starts is sampled
-    // here, so the values it composes reach the element's descendants as the next transaction of
-    // this style update.
-    for (auto style_node : rows_owing_an_animation_plan) {
-        auto element = document.style_computer().element_for_style_node(style_node);
-        if (!element || !element->has_style())
-            continue;
-        DOM::AbstractElement abstract_element { *element };
-        document.style_computer().apply_settled_animation_plan(abstract_element);
-    }
-    if (!rows_owing_an_animation_plan.is_empty())
-        document.sample_animation_effects_needing_style_update();
 
     return transaction_invalidation;
 }

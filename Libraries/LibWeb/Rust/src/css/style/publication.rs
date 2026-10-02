@@ -354,6 +354,16 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<RecordDelta> {
+        // A child of an element the host composes once it installs the element's record inherits
+        // that composition, which the host has made by the time it asks for the child again.
+        if self
+            .tree
+            .inheritance_parent(node)
+            .is_some_and(|parent| scratch.nodes_composed_by_the_host.contains(&parent))
+        {
+            counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            return Err(Unanswered::AwaitsParent);
+        }
         let delta = self.decide_engine_computed_record_delta(
             node,
             cascade_winners_are_complete,
@@ -364,6 +374,13 @@ impl RetainedState {
             counters,
         );
         self.apply_substitution_effects(scratch);
+        if let Ok((old, new)) = delta
+            && old != new
+            && (self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
+                || self.record_owes_an_animation_plan(old.raw(), new.raw()))
+        {
+            scratch.nodes_composed_by_the_host.insert(node);
+        }
         delta
     }
 
@@ -5132,6 +5149,9 @@ pub(super) struct EngineComputedRecordScratch {
     /// Whether the host applies the animation plan of a record this scratch derives once it has
     /// installed it: a style update's batch and its retries do, a record demand does not.
     pub(super) host_applies_animation_plans: bool,
+    /// The elements whose rows this flush settled that the host composes once it installs their
+    /// records: their animations, and those the records' plans start, sampled over them.
+    nodes_composed_by_the_host: HashSet<StyleNodeID>,
     /// The nodes whose substituted-record fact the step decided, in the order it decided them.
     /// The boundary that installs the record applies them.
     substitution_effects: Vec<(StyleNodeID, bool)>,
