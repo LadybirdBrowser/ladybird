@@ -34,6 +34,7 @@ set(SOURCES
     Compositor/CompositorConnection.cpp
     Compositor/CompositorHost.cpp
     Compositor/CompositorHostBase.cpp
+    Compositor/NavigablePresenter.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp

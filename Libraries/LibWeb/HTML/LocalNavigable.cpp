@@ -6672,10 +6672,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
 
         m_needs_repaint = true;
         m_needs_to_record_display_list = true;
-        m_compositor_display_list_paint_config.clear();
-        m_compositor_display_list = nullptr;
-        m_compositor_display_list_resources = {};
-        m_compositor_display_list_command_resources = {};
+        m_presenter.forget_compositor_display_list();
     }
 
     for (auto const& child_navigable : child_navigables())
@@ -6825,9 +6822,12 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_size };
     }
 
+    auto& presenter = m_presenter;
+    auto& resource_storage = presenter.display_list_resource_storage();
+    auto const& compositor_display_list_paint_config = presenter.compositor_display_list_paint_config();
     auto should_record_display_list = m_needs_to_record_display_list
-        || !m_compositor_display_list_paint_config.has_value()
-        || !(m_compositor_display_list_paint_config.value() == paint_config);
+        || !compositor_display_list_paint_config.has_value()
+        || !(compositor_display_list_paint_config.value() == paint_config);
 
     RefPtr<Compositing::DisplayList> display_list;
     Compositing::DisplayListResourceSet display_list_command_resources;
@@ -6837,17 +6837,17 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
     auto& document_paint_state = document->paint_state();
     bool compositor_display_list_is_unchanged = false;
     if (should_record_display_list) {
-        display_list = document->record_display_list(paint_config, m_display_list_resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
+        display_list = document->record_display_list(paint_config, resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
         if (!display_list)
             return {};
         VERIFY(document->has_committed_viewport_box());
-        compositor_display_list_is_unchanged = m_compositor_display_list == display_list;
+        compositor_display_list_is_unchanged = presenter.compositor_display_list() == display_list;
         if (!compositor_display_list_is_unchanged) {
             visual_context_tree = document_paint_state.visual_context_tree(*document);
-            display_list_command_resources = command_resources_of_display_list(m_display_list_resource_storage, document_paint_state, *display_list);
-            display_list_resources = compositor_display_list_resources(m_display_list_resource_storage, document_paint_state, display_list_command_resources, *visual_context_tree);
-            resource_transaction = m_display_list_resource_storage.create_transaction(
-                m_compositor_display_list_resources,
+            display_list_command_resources = command_resources_of_display_list(resource_storage, document_paint_state, *display_list);
+            display_list_resources = compositor_display_list_resources(resource_storage, document_paint_state, display_list_command_resources, *visual_context_tree);
+            resource_transaction = resource_storage.create_transaction(
+                presenter.compositor_display_list_resources(),
                 display_list_resources);
         }
     }
@@ -6860,7 +6860,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
 
     // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if
     // recording was skipped or returned the same display list, and send it with the corresponding scroll state.
-    auto& published_display_list = display_list ? *display_list : *m_compositor_display_list;
+    auto& published_display_list = display_list ? *display_list : *presenter.compositor_display_list();
     auto keyboard_scroll_state = is_top_level_traversable()
         ? page().take_keyboard_scroll_state_for_compositor(published_display_list.compatible_visual_context_tree_structural_epoch())
         : Compositing::KeyboardScrollState {};
@@ -6870,7 +6870,6 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
 
     Compositor::CompositorFrame frame;
     if (should_record_display_list && !compositor_display_list_is_unchanged) {
-        m_compositor_display_list_visual_context_tree_structural_epoch = display_list->compatible_visual_context_tree_structural_epoch();
         frame.display_list_update = Compositor::CompositorFrame::DisplayListUpdate {
             .display_list = *display_list,
             .visual_context_tree = visual_context_tree.release_value(),
@@ -6878,31 +6877,26 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
             .scroll_state_snapshot = move(scroll_state_snapshot),
         };
         document_paint_state.did_update_visual_context_tree_in_compositor();
-        m_display_list_resource_storage.retain_only(display_list_resources);
-        m_compositor_display_list = display_list;
-        m_compositor_display_list_command_resources = move(display_list_command_resources);
-        m_compositor_display_list_resources = move(display_list_resources);
+        presenter.did_hand_display_list_to_compositor(*display_list, paint_config, move(display_list_command_resources), move(display_list_resources));
         m_needs_to_record_display_list = false;
-        m_compositor_display_list_paint_config = paint_config;
     } else {
         if (compositor_display_list_is_unchanged) {
             m_needs_to_record_display_list = false;
-            m_compositor_display_list_paint_config = paint_config;
-            if (m_display_list_resource_storage.has_resources_added_since_last_retain())
-                m_display_list_resource_storage.retain_only(m_compositor_display_list_resources);
+            presenter.set_compositor_display_list_paint_config(paint_config);
+            if (resource_storage.has_resources_added_since_last_retain())
+                resource_storage.retain_only(presenter.compositor_display_list_resources());
         }
         if (visual_context_tree_needs_compositor_update) {
             auto updated_visual_context_tree = document_paint_state.visual_context_tree(*document);
-            VERIFY(updated_visual_context_tree.structural_epoch() == m_compositor_display_list_visual_context_tree_structural_epoch);
-            auto updated_display_list_resources = compositor_display_list_resources(m_display_list_resource_storage, document_paint_state, m_compositor_display_list_command_resources, updated_visual_context_tree);
-            auto updated_resource_transaction = m_display_list_resource_storage.create_transaction(m_compositor_display_list_resources, updated_display_list_resources);
+            VERIFY(updated_visual_context_tree.structural_epoch() == presenter.compositor_display_list_visual_context_tree_structural_epoch());
+            auto updated_display_list_resources = compositor_display_list_resources(resource_storage, document_paint_state, presenter.compositor_display_list_command_resources(), updated_visual_context_tree);
+            auto updated_resource_transaction = resource_storage.create_transaction(presenter.compositor_display_list_resources(), updated_display_list_resources);
             frame.visual_context_tree_update = Compositor::CompositorFrame::VisualContextTreeUpdate {
                 .visual_context_tree = move(updated_visual_context_tree),
                 .resource_transaction = move(updated_resource_transaction),
             };
             document_paint_state.did_update_visual_context_tree_in_compositor();
-            m_display_list_resource_storage.retain_only(updated_display_list_resources);
-            m_compositor_display_list_resources = move(updated_display_list_resources);
+            presenter.did_hand_visual_context_tree_to_compositor(move(updated_display_list_resources));
         }
         frame.scroll_state_update = Compositor::CompositorFrame::ScrollStateUpdate {
             .scroll_state_snapshot = move(scroll_state_snapshot),
