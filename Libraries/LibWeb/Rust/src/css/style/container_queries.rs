@@ -404,12 +404,13 @@ impl RetainedState {
                 Some(inputs) => inputs,
                 // Every element is a style container, so the nearest one is the container; one
                 // holding no record yet is one the host styles in this update, which decides it.
+                // One this batch settled is read as the host will leave it, as a query container is.
                 None if asks_only_style => {
-                    let style_record = self.held_style_records.get(&candidate).copied().or_else(|| {
-                        self.computed_group_sets
-                            .assigned_style_record(candidate)
-                            .map(|record| record.raw())
-                    })?;
+                    let style_record = self
+                        .computed_group_sets
+                        .assigned_style_record(candidate)
+                        .map(|record| record.raw())
+                        .or_else(|| self.held_style_records.get(&candidate).copied())?;
                     any_element_row = self.container_query_input_row(style_record, true);
                     any_element_row.as_ref()?
                 }
