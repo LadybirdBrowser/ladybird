@@ -79,12 +79,15 @@ impl DocumentHost {
         &self.host_tables
     }
 
-    /// Queues `change` for the document's render state, which applies it before anything that reads what it changes.
+    /// Writes `change` to the document's render state, before anything that reads what it changes.
+    ///
+    /// Until the host's entries stop reaching the render state directly, the host writes it where it is, as those
+    /// entries do: whenever the host runs, the render side waits for its next message.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
-        send(RenderMessage::Change {
-            document: self.document,
-            change,
-        });
+        let state = self.created_state();
+        // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the render
+        // side reaches them while the host runs.
+        unsafe { change.apply((*state.arena.as_ptr()).arena_mut(), state.engine) };
     }
 
     /// Whether some element may have random base values to keep, which only then is worth asking the render state.
