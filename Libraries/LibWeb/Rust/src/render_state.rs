@@ -20,6 +20,7 @@ use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 mod document_host;
+mod wait;
 
 pub use document_host::DocumentHost;
 
