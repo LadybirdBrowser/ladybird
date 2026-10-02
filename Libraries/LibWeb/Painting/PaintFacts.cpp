@@ -216,8 +216,11 @@ static void with_replaced_image_paint_facts(Layout::ImageProvider const& image_p
     queue(facts);
 }
 
-static void queue_video_paint_facts(HTML::HTMLVideoElement const& video_element)
+static void queue_video_paint_facts(HTML::HTMLVideoElement const& element)
 {
+    // An element that shows another element's frames paints whatever that element would.
+    auto const& video_element = element.visual_source() ? *element.visual_source() : element;
+
     Layout::RustFFI::FfiVideoPaintFacts facts {};
     switch (video_element.current_representation()) {
     case HTML::HTMLVideoElement::Representation::FirstVideoFrame:
@@ -243,8 +246,8 @@ static void queue_video_paint_facts(HTML::HTMLVideoElement const& video_element)
         facts.representation = Layout::RustFFI::FfiVideoRepresentation::TransparentBlack;
         break;
     }
-    queue_element_paint_facts(video_element, [&](auto* host, u32 element) {
-        Layout::RustFFI::render_state_set_video_paint_facts(host, element, facts);
+    queue_element_paint_facts(element, [&](auto* host, u32 style_node) {
+        Layout::RustFFI::render_state_set_video_paint_facts(host, style_node, facts);
     });
 }
 
@@ -293,6 +296,9 @@ void push_replaced_image_paint_facts(DOM::Element const& element, Layout::ImageP
 
 void push_video_paint_facts(HTML::HTMLVideoElement const& video_element)
 {
+    video_element.for_each_visual_clone([](HTML::HTMLVideoElement& clone) {
+        push_video_paint_facts(clone);
+    });
     if (!video_element.has_layout_box())
         return;
     queue_video_paint_facts(video_element);

@@ -66,6 +66,45 @@ void HTMLVideoElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_fetch_controller);
     visitor.visit(m_picture_in_picture_window);
     visitor.visit(m_pending_picture_in_picture_promises);
+    visitor.visit(m_visual_source);
+}
+
+void HTMLVideoElement::set_visual_source(GC::Ptr<HTMLVideoElement> source)
+{
+    if (m_visual_source == source)
+        return;
+
+    if (auto previous_source = exchange(m_visual_source, source)) {
+        previous_source->m_visual_clones.remove_all_matching([&](auto const& clone) { return !clone || clone.ptr().ptr() == this; });
+        previous_source->video_sink_ticking_inputs_changed();
+    }
+    if (source) {
+        source->m_visual_clones.append(*this);
+        source->video_sink_ticking_inputs_changed();
+    }
+    Painting::push_video_paint_facts(*this);
+}
+
+void HTMLVideoElement::for_each_visual_clone(Function<void(HTMLVideoElement&)> const& callback) const
+{
+    for (auto const& clone : m_visual_clones) {
+        if (clone)
+            callback(*clone);
+    }
+}
+
+void HTMLVideoElement::clear_visual_clones()
+{
+    auto clones = move(m_visual_clones);
+    for (auto const& clone : clones) {
+        if (clone)
+            clone->set_visual_source(nullptr);
+    }
+}
+
+bool HTMLVideoElement::is_shown_elsewhere() const
+{
+    return any_of(m_visual_clones, [](auto const& clone) { return clone.ptr() != nullptr; });
 }
 
 void HTMLVideoElement::adopted_from(DOM::Document& old_document)
