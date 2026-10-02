@@ -1863,8 +1863,7 @@ void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& trac
     m_active_video_sink = make<ActiveVideoSink>(handle, Compositing::allocate_video_sink_resource_id());
     m_video_sink_is_ticking = true;
     add_current_video_sink(handle);
-    if (document().hidden())
-        sync_video_sink_ticking();
+    video_sink_ticking_inputs_changed();
     if (auto* video_element = as_if<HTMLVideoElement>(this))
         Painting::push_video_paint_facts(*video_element);
 }
@@ -2711,6 +2710,14 @@ void HTMLMediaElement::sync_video_sink_ticking() const
         m_playback_manager->set_video_sink_ticking(*handle, should_tick);
     if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
         navigable->compositor_context().set_video_sink_ticking(*handle, should_tick);
+}
+
+// Visible documents re-evaluate sink ticking in each rendering update, once layout has settled. Hidden documents skip
+// that update, but decide without layout, so they re-evaluate right away.
+void HTMLMediaElement::video_sink_ticking_inputs_changed() const
+{
+    if (document().hidden())
+        sync_video_sink_ticking();
 }
 
 void HTMLMediaElement::note_frame_captured() const

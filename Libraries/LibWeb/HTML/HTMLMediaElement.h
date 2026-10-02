@@ -166,6 +166,7 @@ public:
 
     void add_current_video_sink();
     void sync_video_sink_ticking() const;
+    void video_sink_ticking_inputs_changed() const;
     void detach_video_sink_edge();
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, Utf16View label, Utf16View language);
