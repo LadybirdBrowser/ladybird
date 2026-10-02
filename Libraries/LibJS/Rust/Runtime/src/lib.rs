@@ -16,11 +16,13 @@ mod rust_demangle;
 #[path = "../../../../RustPanic.rs"]
 mod rust_panic;
 
+pub mod breakpoint;
 pub mod build_configuration;
 pub mod bytecode;
 pub mod console;
 pub mod console_log_level;
 pub mod contrib;
+pub mod debugger;
 pub mod frontend_host;
 pub mod futex;
 pub mod gc;

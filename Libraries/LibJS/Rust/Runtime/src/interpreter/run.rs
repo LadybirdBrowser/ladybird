@@ -5,6 +5,7 @@
  */
 
 use core::ffi::c_void;
+use core::ops::ControlFlow;
 use core::ptr::NonNull;
 use core::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
@@ -71,6 +72,10 @@ impl Vm {
         executable: Gc<Executable>,
         entry_point: u32,
     ) -> Result<Value, Value> {
+        if self.debugging_enabled() {
+            self.register_executable_with_debugger(executable);
+        }
+
         // SAFETY: The caller passes a live context and a live executable.
         let (context_ref, executable_ref) = unsafe { (context.as_ref(), executable.as_non_null().as_ref()) };
 
@@ -115,6 +120,10 @@ impl Vm {
             }
         }
 
+        if is_outermost_bytecode_execution && self.debugging_enabled() {
+            self.finish_bytecode_execution_with_debugger();
+        }
+
         if is_outermost_bytecode_execution && !self.is_executing_module() {
             self.run_queued_promise_jobs();
         }
@@ -132,6 +141,22 @@ impl Vm {
             return Err(exception);
         }
         Ok(return_value)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn register_executable_with_debugger(&self, executable: Gc<Executable>) {
+        if let Some(debugger) = self.debugger() {
+            debugger.register_executable(self, executable);
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn finish_bytecode_execution_with_debugger(&self) {
+        if let Some(debugger) = self.debugger() {
+            debugger.did_finish_bytecode_execution();
+        }
     }
 
     /// Runs `executable` like run_executable(), with `initial_accumulator_value` in the accumulator, which is how a
@@ -371,6 +396,43 @@ impl Vm {
     /// Unwinds to the innermost handler of an exception thrown at `program_counter` in the running frame, leaving
     /// frames the interpreter entered without returning to the runtime.
     pub fn handle_exception(&self, mut program_counter: u32, exception: Value) -> HandleExceptionResponse {
+        if let Some(debugger) = self.debugger() {
+            let mut exception_will_be_caught = false;
+            // The caller frame and return offset of the previous frame that runs an executable.
+            let mut previous_context: Option<(*mut ExecutionContext, u32)> = None;
+            self.for_each_execution_context_top_to_bottom(|context| {
+                let Some(executable) = context.executable.get() else {
+                    return ControlFlow::Continue(());
+                };
+
+                let mut context_program_counter = context.program_counter.get();
+                match previous_context {
+                    None => context_program_counter = program_counter,
+                    Some((caller_frame, caller_return_pc)) if core::ptr::eq(caller_frame, context) => {
+                        context_program_counter = caller_return_pc - 1;
+                    }
+                    Some(_) => {}
+                }
+                previous_context = Some((context.caller_frame.get(), context.caller_return_pc.get()));
+
+                let executable = Executable::from_head(executable);
+                let handler = executable.exception_handlers_for_offset(context_program_counter);
+                if handler.is_some_and(|handler| handler.catches_exception) {
+                    exception_will_be_caught = true;
+                    return ControlFlow::Break(());
+                }
+                ControlFlow::Continue(())
+            });
+
+            debugger.pause_on_exception_if_needed(
+                self,
+                self.current_executable(),
+                program_counter,
+                exception,
+                exception_will_be_caught,
+            );
+        }
+
         loop {
             let context_pointer = self
                 .running_execution_context()
@@ -383,6 +445,11 @@ impl Vm {
             if let Some(handler) = executable.exception_handlers_for_offset(program_counter) {
                 context.register(register::EXCEPTION).set(exception);
                 context.program_counter.set(handler.handler_offset);
+                if handler.catches_exception
+                    && let Some(debugger) = self.debugger()
+                {
+                    debugger.did_finish_exception_propagation(exception);
+                }
                 return HandleExceptionResponse::ContinueInThisExecutable;
             }
 
@@ -400,6 +467,11 @@ impl Vm {
             }
 
             context.register(register::EXCEPTION).set(exception);
+            if self.run_executable_depth().get() == 1
+                && let Some(debugger) = self.debugger()
+            {
+                debugger.did_finish_exception_propagation(exception);
+            }
             return HandleExceptionResponse::ExitFromExecutable;
         }
     }

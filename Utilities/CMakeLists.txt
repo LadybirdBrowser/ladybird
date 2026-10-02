@@ -21,6 +21,9 @@ ladybird_utility(test262-runner SOURCES test262-runner.cpp LIBS LibJS LibFileSys
 
 if (ENABLE_LIBJS_RUST_RUNTIME)
     ladybird_utility(js-rust SOURCES js-rust.cpp LIBS libjs_runtime_rust LibMain)
+    if (NOT ANDROID)
+        target_link_libraries(js-rust PRIVATE PkgConfig::LIBEDIT)
+    endif()
     ladybird_utility(test262-runner-rust SOURCES test262-runner-rust.cpp LIBS libjs_runtime_rust LibMain)
 endif()
 ladybird_utility(dump-html-tokens SOURCES dump-html-tokens.cpp LIBS LibMain LibWeb)
