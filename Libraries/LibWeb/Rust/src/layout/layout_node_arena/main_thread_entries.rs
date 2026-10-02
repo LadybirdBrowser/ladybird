@@ -231,3 +231,29 @@ fn host_tables<'host>(main_thread: &crate::stage::MainThread<'host>) -> &'host c
         .host_tables()
         .expect("an entry point's token carries its arena's host tables")
 }
+
+/// Prepares the row `slot` for leaving the layout tree. See [`prepare_row_for_detach`].
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread, and `slot` a live row.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_prepare_node_for_detach(arena: *mut c_void, slot: NodeSlotId) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    // SAFETY: As above.
+    prepare_row_for_detach(&main_thread, unsafe { LayoutNodeArena::from_handle(arena) }, slot);
+}
+
+/// Prepares every row of the subtree `root` heads for leaving the layout tree.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread, and `root` a live row.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_prepare_subtree_for_detach(arena: *mut c_void, root: NodeSlotId) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    // SAFETY: As above.
+    prepare_subtree_for_detach(&main_thread, unsafe { LayoutNodeArena::from_handle(arena) }, root);
+}

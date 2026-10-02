@@ -1632,6 +1632,18 @@ impl LayoutNodeArena {
         self.style_records_pinned_by_arena[id.slot_index() as usize].get()
     }
 
+    /// Pins the style record of a row that is leaving the layout tree for the host's readers, which
+    /// read it until the row is freed. A text row has no record of its own.
+    pub(crate) fn pin_style_record_for_detachment(&self, row: NodeSlotId) {
+        if !super::tree_builder::node_kind_is_node_with_style(self.data(row).kind.get()) {
+            return;
+        }
+        let style_record = self.style_records[row.slot_index() as usize].get();
+        if style_record != 0 {
+            self.pin_node_style_record_for_host(row, style_record);
+        }
+    }
+
     /// Pins `record` for the host's readers of `id`. A row holds at most one such pin; asking again
     /// while one is held keeps the one it has.
     pub(crate) fn pin_node_style_record_for_host(&self, id: NodeSlotId, record: u64) {
@@ -4870,6 +4882,43 @@ pub unsafe extern "C" fn layout_arena_set_node_style(
     }
     arena.publish_new_size_container_geometry(id);
     arena.enroll_node_for_svg_paint_resources_sync(id);
+}
+
+/// Prepares `row` for leaving the layout tree. A detached box is read until its row is freed, so
+/// the host pins its style record, and its paint cache is cleaned now rather than through the
+/// journal, which would resolve the node's identity after a replacement row was bound. The image
+/// observers the row holds are dropped, and the image provider it owns is told.
+pub(crate) fn prepare_row_for_detach(main_thread: &MainThread, arena: &LayoutNodeArena, row: NodeSlotId) {
+    let kind = arena.data(row).kind.get();
+    let is_node_with_style = super::tree_builder::node_kind_is_node_with_style(kind);
+    arena.pin_style_record_for_detachment(row);
+    arena.push_paint_damage(
+        row,
+        crate::painting::record::damage::PaintDamage::ALL_DRAW | crate::painting::record::damage::PaintDamage::ALL_HIT,
+    );
+    let Some(host_tables) = main_thread.host_tables() else {
+        return;
+    };
+    if is_node_with_style {
+        let observers = host_tables.replace_image_observers(row, std::ptr::null_mut());
+        crate::layout::tree_mutation::destroy_image_observers(main_thread, observers);
+    }
+    if kind == NodeKind::ImageBox {
+        crate::layout::tree_mutation::notify_owned_image_provider_of_detach(
+            main_thread,
+            host_tables.owned_image_provider(row),
+        );
+    }
+}
+
+/// Prepares every row of the subtree `root` heads for leaving the layout tree, in pre-order.
+pub(crate) fn prepare_subtree_for_detach(main_thread: &MainThread, arena: &LayoutNodeArena, root: NodeSlotId) {
+    arena.assert_owner_thread();
+    let mut rows = Vec::new();
+    arena.for_each_node_in_layout_subtree_in_pre_order(root, |row| rows.push(row));
+    for row in rows {
+        prepare_row_for_detach(main_thread, arena, row);
+    }
 }
 
 /// Pins the style record `record` for the host's readers of the row `slot`, until the host

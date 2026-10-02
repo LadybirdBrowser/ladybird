@@ -61,7 +61,6 @@ private:
 
     RustFFI::FfiDomTreeBuilderCallbacks make_ffi_dom_tree_builder_callbacks();
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
-    RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks();
 
     static Box& create_list_item_marker(Box& list_box, CSS::LayoutStyle marker_style);
     static RustFFI::FfiFirstLetterNodes create_first_letter_nodes(DOM::Element&, RustFFI::FfiFirstLetterTarget);
@@ -522,9 +521,6 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
 {
     RustFFI::FfiTopLayerDetachCallbacks callbacks {
         .context = &element.document(),
-        .prepare_subtree_for_detach = [](void* layout_node_pointer) {
-            VERIFY(layout_node_pointer);
-            static_cast<Layout::Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
         .clear_stale_layout_node = [](void* document_pointer, u32 style_node, u32 cleared_subtree_root) -> bool {
             VERIFY(document_pointer);
             auto& document = *static_cast<DOM::Document*>(document_pointer);
@@ -727,7 +723,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto* layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(builder.m_document->layout_node_arena().handle(), slot));
             VERIFY(layout_node);
             as<NodeWithStyle>(*layout_node).attach_style_resources(); },
-        .layout = make_ffi_tree_builder_callbacks(),
         .pseudo = make_ffi_pseudo_tree_builder_callbacks(),
     };
 }
@@ -765,17 +760,6 @@ RustFFI::FfiLayoutTreeBuildOutcome build_layout_tree(DOM::Node& dom_node)
 void detach_top_layer_element_layout_subtree(DOM::Element& element)
 {
     LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(element);
-}
-
-RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_callbacks()
-{
-    return {
-        .context = this,
-
-        .prepare_subtree_for_detach = [](void*, void* layout_node_pointer) {
-            VERIFY(layout_node_pointer);
-            static_cast<Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
-    };
 }
 
 // https://drafts.csswg.org/css-tables-3/#fixup-algorithm

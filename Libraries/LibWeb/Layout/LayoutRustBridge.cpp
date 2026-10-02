@@ -447,6 +447,11 @@ extern "C" WEB_API void ladybird_layout_owned_image_provider_destroy(void* image
     delete static_cast<Web::Layout::ImageProvider*>(image_provider);
 }
 
+extern "C" WEB_API void ladybird_layout_owned_image_provider_notify_detach(void* image_provider)
+{
+    static_cast<Web::Layout::ImageProvider*>(image_provider)->layout_node_was_detached();
+}
+
 extern "C" WEB_API void ladybird_layout_image_observers_destroy(void* image_observers)
 {
     delete static_cast<Web::Layout::NodeWithStyle::ImageObserverSlots*>(image_observers);

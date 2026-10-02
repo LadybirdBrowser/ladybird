@@ -58,3 +58,4 @@ extern "C" WEB_API Web::Layout::RustFFI::FfiCodePointCategoryFacts ladybird_layo
 extern "C" WEB_API void ladybird_layout_node_shell_destroy(void*);
 extern "C" WEB_API void ladybird_layout_owned_image_provider_destroy(void*);
 extern "C" WEB_API void ladybird_layout_image_observers_destroy(void*);
+extern "C" WEB_API void ladybird_layout_owned_image_provider_notify_detach(void*);

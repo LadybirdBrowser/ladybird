@@ -63,16 +63,6 @@ void Box::set_owned_image_provider(NonnullOwnPtr<ImageProvider> image_provider)
     RustFFI::layout_arena_set_owned_image_provider(arena_handle(), Node::slot_id(this), image_provider.leak_ptr());
 }
 
-// An element's image provider outlives its box and keeps nothing about it, so only a provider the
-// box owns needs to hear about the detach. Detaching thus never needs the element, whose StyleNodeID
-// may already be retired.
-void Box::notify_owned_image_provider_of_detach()
-{
-    VERIFY(kind() == RustFFI::NodeKind::ImageBox);
-    if (auto* owned = owned_image_provider())
-        owned->layout_node_was_detached();
-}
-
 bool Box::is_partial_relayout_boundary() const
 {
     return RustFFI::layout_arena_node_is_partial_relayout_boundary(arena_handle(), Node::slot_id(this));

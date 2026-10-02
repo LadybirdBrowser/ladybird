@@ -54,10 +54,13 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
         } else {
             topmost
         };
-        let shell = unsafe { &*arena }.node_shell(&main_thread, layout_node_to_detach);
-        // SAFETY: The C++ detach preparation walks the still-linked subtree; the shared arena
-        // borrow ends before the subtree is freed.
-        unsafe { (callbacks.prepare_subtree_for_detach)(shell) };
+        // SAFETY: The arena outlives this call, and the shared borrow ends before the subtree is
+        // freed.
+        super::super::layout_node_arena::prepare_subtree_for_detach(
+            &main_thread,
+            unsafe { &*arena },
+            layout_node_to_detach,
+        );
         if unsafe { &*arena }.detach_from_parent(layout_node_to_detach) {
             free_subtree_and_destroy_shells(&main_thread, arena, layout_node_to_detach);
         }
@@ -208,5 +211,46 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         rebuilt_subtree_root_count,
         layout_tree_update_escaped_rebuild_roots: state.layout_tree_update_escaped_rebuild_roots,
         needs_another_build_pass: !state.layout_tree_rebuild_requests.is_empty(),
+    }
+}
+
+/// Detaches what is left of the boxes of the node `style_node` names as the node leaves the
+/// document, while its identity still names them. Its box is read until the parent's rebuild
+/// frees it, so its style record is pinned and its committed box cleared now. Its box's top layer
+/// placement is a viewport child rather than part of the parent's box subtree, so the parent's
+/// rebuild never reaches it, and it is detached and freed here. The rows are found by identity,
+/// so this makes no shell.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_detach_remaining_layout_rows_for_removal(arena: *mut c_void, style_node: u32) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    let Some(node) = StyleNodeID::from_raw(style_node) else {
+        return;
+    };
+    // SAFETY: As above.
+    let row = unsafe { LayoutNodeArena::from_handle(arena) }.bound_row(node);
+    if row.is_invalid() {
+        return;
+    }
+    // SAFETY: As above.
+    unsafe { LayoutNodeArena::from_handle(arena) }.pin_style_record_for_detachment(row);
+    // SAFETY: As above; the clear borrows the arena for itself.
+    unsafe { crate::painting::ffi::paintable_cleared_from_node(&main_thread, arena, row) };
+    let arena = arena.cast::<LayoutNodeArena>();
+    let top_layer_placement = topmost_layout_node_of_top_layer_placement(arena, row);
+    if !top_layer_placement.is_invalid() {
+        // SAFETY: As above; the shared borrow ends before the subtree is freed.
+        super::super::layout_node_arena::prepare_subtree_for_detach(
+            &main_thread,
+            unsafe { &*arena },
+            top_layer_placement,
+        );
+        let was_attached = unsafe { &*arena }.detach_from_parent(top_layer_placement);
+        assert!(was_attached, "a top layer placement is a viewport child");
+        free_subtree_and_destroy_shells(&main_thread, arena, top_layer_placement);
     }
 }
