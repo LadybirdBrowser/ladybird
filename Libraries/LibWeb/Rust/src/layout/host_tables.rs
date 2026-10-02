@@ -190,17 +190,6 @@ impl ArenaHandle {
         }
     }
 
-    /// The layout scratch of the arena `handle` names.
-    ///
-    /// # Safety
-    ///
-    /// `handle` must come from `render_state_arena_for_unconverted_entry` and stay live for `'a`.
-    pub(crate) unsafe fn layout_scratch_of<'a>(handle: *mut c_void) -> &'a super::run_records::LayoutScratch {
-        assert!(!handle.is_null(), "layout node arena handle is null");
-        // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
-        unsafe { &(*handle.cast::<ArenaHandle>()).layout_scratch }
-    }
-
     /// The document host the arena `handle` names.
     ///
     /// # Safety

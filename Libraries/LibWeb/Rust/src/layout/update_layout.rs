@@ -47,7 +47,8 @@ pub(crate) fn run_style_job(
 }
 
 /// Runs `job`, a layout stage of the document whose arena `arena_handle` names, on the document's render state, and
-/// answers the fragments it computed. A unit test's arena has no render state, and its stage runs in place.
+/// answers what committing the fragments it computed owes the host. A unit test's arena has no render state, and its
+/// stage runs in place.
 ///
 /// # Safety
 ///
@@ -57,10 +58,10 @@ pub(crate) unsafe fn run_layout_stage_job(
     main_thread: &MainThread,
     arena_handle: *mut c_void,
     job: super::formatting_context::LayoutStageJob,
-) -> super::formatting_context::LayoutStageOutput {
+) -> super::commit::CommitNotifications {
     let Some(host) = main_thread.host() else {
         // SAFETY: Guaranteed by the caller.
-        return job.run(unsafe { &*arena_handle.cast::<crate::layout::ArenaHandle>() });
+        return job.run(unsafe { &mut *arena_handle.cast::<crate::layout::ArenaHandle>() });
     };
     let document = host.document();
     crate::render_state::wait_from_entry(
