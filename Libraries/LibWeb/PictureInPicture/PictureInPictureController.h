@@ -29,7 +29,7 @@ public:
     void set_has_picture_in_picture_support(bool has_support) { m_has_picture_in_picture_support = has_support; }
 
     void enqueue_request(HTML::HTMLVideoElement&, WebIDL::Promise&);
-    void enqueue_exit(DOM::Document&, WebIDL::Promise&);
+    void enqueue_exit(DOM::Document&, GC::Ptr<WebIDL::Promise>);
     void enqueue_close_window(PictureInPictureWindow&);
 
     void did_open_window(Gfx::IntSize window_size);
@@ -57,7 +57,7 @@ private:
 
     struct Exit {
         GC::Ref<DOM::Document> document;
-        GC::Ref<WebIDL::Promise> promise;
+        GC::Ptr<WebIDL::Promise> promise;
 
         void visit_edges(GC::Cell::Visitor& visitor)
         {

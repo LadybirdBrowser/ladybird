@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/VideoTrack.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/HTML/Window.h>
@@ -64,6 +65,7 @@ void HTMLVideoElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_video_track);
     visitor.visit(m_fetch_controller);
     visitor.visit(m_picture_in_picture_window);
+    visitor.visit(m_pending_picture_in_picture_promises);
 }
 
 void HTMLVideoElement::adopted_from(DOM::Document& old_document)
@@ -80,6 +82,10 @@ void HTMLVideoElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
 
     if (name == HTML::AttributeNames::poster) {
         determine_element_poster_frame(value).release_value_but_fixme_should_propagate_errors();
+    } else if (name == HTML::AttributeNames::disablepictureinpicture) {
+        // When the disablePictureInPicture attribute is added to a video element, the user agent MAY run these steps:
+        if (!old_value.has_value() && value.has_value())
+            run_disable_picture_in_picture_steps();
     }
 }
 
@@ -420,10 +426,43 @@ GC::Ref<WebIDL::Promise> HTMLVideoElement::request_picture_in_picture()
 
     // 10. Let p be a new promise created in this's relevant realm.
     auto promise = WebIDL::create_promise(realm);
+    m_pending_picture_in_picture_promises.append(promise);
 
     // 11. Return p, and enqueue the following steps to doc's picture-in-picture parallel queue:
     controller.enqueue_request(*this, promise);
     return promise;
+}
+
+bool HTMLVideoElement::has_pending_picture_in_picture_promise(WebIDL::Promise const& promise) const
+{
+    return any_of(m_pending_picture_in_picture_promises, [&](auto const& pending_promise) {
+        return pending_promise.ptr() == &promise;
+    });
+}
+
+bool HTMLVideoElement::take_pending_picture_in_picture_promise(WebIDL::Promise const& promise)
+{
+    return m_pending_picture_in_picture_promises.remove_first_matching([&](auto const& pending_promise) {
+        return pending_promise.ptr() == &promise;
+    });
+}
+
+// https://w3c.github.io/picture-in-picture/#disable-pip
+void HTMLVideoElement::run_disable_picture_in_picture_steps()
+{
+    // 1. Reject any pending promises returned by the requestPictureInPicture() method with InvalidStateError.
+    auto pending_promises = move(m_pending_picture_in_picture_promises);
+    for (auto const& promise : pending_promises) {
+        auto& realm = WebIDL::promise_realm(promise);
+        TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
+        WebIDL::reject_promise(promise, WebIDL::InvalidStateError::create("Picture-in-Picture was disabled for the video"_utf16));
+    }
+
+    // 2. If video is pictureInPictureElement, run the exit Picture-in-Picture algorithm.
+    // AD-HOC: The overhaul proposed in https://github.com/w3c/picture-in-picture/pull/260 runs the exit algorithm on
+    //         the picture-in-picture parallel queue, given the document and no promise.
+    if (is_picture_in_picture_element())
+        document().page().picture_in_picture_controller().enqueue_exit(document(), nullptr);
 }
 
 WebIDL::CallbackType* HTMLVideoElement::onenterpictureinpicture()

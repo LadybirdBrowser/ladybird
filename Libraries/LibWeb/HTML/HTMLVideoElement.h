@@ -61,6 +61,9 @@ public:
     GC::Ptr<PictureInPicture::PictureInPictureWindow> picture_in_picture_window() const { return m_picture_in_picture_window; }
     void set_picture_in_picture_window(GC::Ptr<PictureInPicture::PictureInPictureWindow> window) { m_picture_in_picture_window = window; }
 
+    bool has_pending_picture_in_picture_promise(WebIDL::Promise const&) const;
+    bool take_pending_picture_in_picture_promise(WebIDL::Promise const&);
+
     WebIDL::CallbackType* onenterpictureinpicture();
     void set_onenterpictureinpicture(WebIDL::CallbackType*);
     WebIDL::CallbackType* onleavepictureinpicture();
@@ -82,6 +85,7 @@ private:
     virtual CSS::ElementBoxKind box_kind() const override;
 
     WebIDL::ExceptionOr<void> determine_element_poster_frame(Optional<Utf16String> const& poster);
+    void run_disable_picture_in_picture_steps();
 
     GC::Ptr<HTML::VideoTrack> m_video_track;
     VideoFrame m_current_frame;
@@ -94,6 +98,7 @@ private:
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 
     GC::Ptr<PictureInPicture::PictureInPictureWindow> m_picture_in_picture_window;
+    Vector<GC::Ref<WebIDL::Promise>> m_pending_picture_in_picture_promises;
 };
 
 }
