@@ -11,6 +11,7 @@ use super::index::CandidateEntries;
 use super::index::ParentDispatchFacts;
 use super::index::SelectorPostingKey;
 use super::index::StateSet;
+use super::index::unwritten_declarations;
 use super::instrumentation::Counter;
 use super::program::DeclarationBlockID;
 use super::program::SelectorProgramID;
@@ -5036,7 +5037,7 @@ fn cascade_state_includes_exact_element_declarations() {
     engine.set_element_declared_properties(
         nodes[0],
         ElementDeclarationKind::PresentationalHint,
-        &[
+        unwritten_declarations(&[
             DeclaredProperty {
                 property: 1,
                 important: false,
@@ -5049,23 +5050,19 @@ fn cascade_state_includes_exact_element_declarations() {
                 operator: CascadeOperator::Declared,
                 value: SpecifiedValueID(103),
             },
-        ],
-        Vec::new(),
-        Vec::new(),
+        ]),
         Vec::new(),
         true,
     );
     engine.set_element_declared_properties(
         nodes[0],
         ElementDeclarationKind::InlineStyle,
-        &[DeclaredProperty {
+        unwritten_declarations(&[DeclaredProperty {
             property: 2,
             important: false,
             operator: CascadeOperator::Declared,
             value: SpecifiedValueID(102),
-        }],
-        Vec::new(),
-        Vec::new(),
+        }]),
         Vec::new(),
         true,
     );
@@ -5098,7 +5095,7 @@ fn element_declaration_edits_repair_only_their_property_inventory() {
     engine.set_element_declared_properties(
         nodes[0],
         ElementDeclarationKind::PresentationalHint,
-        &[
+        unwritten_declarations(&[
             DeclaredProperty {
                 property: 1,
                 important: false,
@@ -5111,9 +5108,7 @@ fn element_declaration_edits_repair_only_their_property_inventory() {
                 operator: CascadeOperator::Declared,
                 value: SpecifiedValueID(203),
             },
-        ],
-        Vec::new(),
-        Vec::new(),
+        ]),
         Vec::new(),
         true,
     );
@@ -5125,7 +5120,7 @@ fn element_declaration_edits_repair_only_their_property_inventory() {
     engine.set_element_declared_properties(
         nodes[0],
         ElementDeclarationKind::PresentationalHint,
-        &[
+        unwritten_declarations(&[
             DeclaredProperty {
                 property: 1,
                 important: false,
@@ -5138,9 +5133,7 @@ fn element_declaration_edits_repair_only_their_property_inventory() {
                 operator: CascadeOperator::Declared,
                 value: SpecifiedValueID(303),
             },
-        ],
-        Vec::new(),
-        Vec::new(),
+        ]),
         Vec::new(),
         true,
     );
@@ -5162,7 +5155,7 @@ fn element_declaration_repairs_materialize_only_rules_declaring_their_properties
     let unrelated = add_target_rule(&mut engine, StyleSheetObjectID(2), StyleAtomID(200));
     engine.set_rule_declared_properties_with_values(unrelated, &[(5, false, SpecifiedValueID(105))], true);
     for kind in ElementDeclarationKind::ALL {
-        engine.set_element_declared_properties(nodes[0], kind, &[], Vec::new(), Vec::new(), Vec::new(), true);
+        engine.set_element_declared_properties(nodes[0], kind, Vec::new(), Vec::new(), true);
     }
     commit_test_setup(&mut engine);
     let matches = vec![
@@ -5176,7 +5169,7 @@ fn element_declaration_repairs_materialize_only_rules_declaring_their_properties
     engine.set_element_declared_properties(
         nodes[0],
         ElementDeclarationKind::PresentationalHint,
-        &[
+        unwritten_declarations(&[
             DeclaredProperty {
                 property: 1,
                 important: false,
@@ -5189,9 +5182,7 @@ fn element_declaration_repairs_materialize_only_rules_declaring_their_properties
                 operator: CascadeOperator::Declared,
                 value: SpecifiedValueID(303),
             },
-        ],
-        Vec::new(),
-        Vec::new(),
+        ]),
         Vec::new(),
         true,
     );
@@ -5303,14 +5294,12 @@ fn cascade_state_omits_incomplete_element_declarations() {
     engine.set_element_declared_properties(
         nodes[0],
         ElementDeclarationKind::InlineStyle,
-        &[DeclaredProperty {
+        unwritten_declarations(&[DeclaredProperty {
             property: 1,
             important: false,
             operator: CascadeOperator::Declared,
             value: SpecifiedValueID(101),
-        }],
-        Vec::new(),
-        Vec::new(),
+        }]),
         Vec::new(),
         false,
     );
@@ -7123,7 +7112,7 @@ fn partial_match_answer_completion_shares_prefix_states_between_nodes() {
     engine.set_rule_declared_properties(rule, &[(1, false)], true);
     for &node in &nodes {
         for kind in ElementDeclarationKind::ALL {
-            engine.set_element_declared_properties(node, kind, &[], Vec::new(), Vec::new(), Vec::new(), true);
+            engine.set_element_declared_properties(node, kind, Vec::new(), Vec::new(), true);
         }
     }
     for (node, class) in [(nodes[1], guard), (nodes[2], target), (nodes[3], target)] {
@@ -7154,7 +7143,7 @@ fn a_cached_prefix_answer_is_returned_in_cascade_order() {
     engine.set_rule_declared_properties(general, &[(2, false)], true);
     for &node in &nodes {
         for kind in ElementDeclarationKind::ALL {
-            engine.set_element_declared_properties(node, kind, &[], Vec::new(), Vec::new(), Vec::new(), true);
+            engine.set_element_declared_properties(node, kind, Vec::new(), Vec::new(), true);
         }
     }
     for (node, class) in [(nodes[1], guard), (nodes[2], target), (nodes[3], target)] {
@@ -7188,7 +7177,7 @@ fn an_identity_only_published_prefix_answer_is_returned_in_cascade_order() {
     engine.set_rule_declared_properties(general, &[(2, false)], true);
     for &node in &nodes {
         for kind in ElementDeclarationKind::ALL {
-            engine.set_element_declared_properties(node, kind, &[], Vec::new(), Vec::new(), Vec::new(), true);
+            engine.set_element_declared_properties(node, kind, Vec::new(), Vec::new(), true);
         }
     }
     for (node, class) in [(nodes[1], guard), (nodes[2], target), (nodes[3], target)] {
@@ -7254,7 +7243,7 @@ fn shared_retained_answer_completion_reuses_compact_cascade_state() {
         }
         for &node in &nodes {
             for kind in ElementDeclarationKind::ALL {
-                engine.set_element_declared_properties(node, kind, &[], Vec::new(), Vec::new(), Vec::new(), true);
+                engine.set_element_declared_properties(node, kind, Vec::new(), Vec::new(), true);
             }
         }
         for node in [nodes[2], nodes[3]] {
@@ -7330,7 +7319,7 @@ fn closure_identity_stop_declines_stale_pseudo_rows() {
     engine.set_rule_declared_properties(pseudo_rule, &[(1, false)], true);
     for &node in &nodes {
         for kind in ElementDeclarationKind::ALL {
-            engine.set_element_declared_properties(node, kind, &[], Vec::new(), Vec::new(), Vec::new(), true);
+            engine.set_element_declared_properties(node, kind, Vec::new(), Vec::new(), true);
         }
     }
     for (node, class) in [(nodes[1], guard), (nodes[2], target)] {
@@ -7366,7 +7355,7 @@ fn closure_identity_stop_verification_is_observer_only() {
     engine.set_rule_declared_properties(rule, &[(1, false)], true);
     for &node in &nodes {
         for kind in ElementDeclarationKind::ALL {
-            engine.set_element_declared_properties(node, kind, &[], Vec::new(), Vec::new(), Vec::new(), true);
+            engine.set_element_declared_properties(node, kind, Vec::new(), Vec::new(), true);
         }
     }
     for (node, class) in [(nodes[1], guard), (nodes[2], target)] {
@@ -7625,14 +7614,12 @@ fn element_declarations_refuse_selector_only_prefix_answer_reuse() {
         engine.set_element_declared_properties(
             node,
             ElementDeclarationKind::InlineStyle,
-            &[DeclaredProperty {
+            unwritten_declarations(&[DeclaredProperty {
                 property: 2,
                 important: false,
                 operator: CascadeOperator::Declared,
                 value,
-            }],
-            Vec::new(),
-            Vec::new(),
+            }]),
             Vec::new(),
             true,
         );

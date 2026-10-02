@@ -60,7 +60,7 @@ impl StyleEngine {
     pub(crate) fn intern_element_declared_properties(
         &mut self,
         declarations: &[declaration_block::DeclaredProperty],
-    ) -> (Vec<DeclaredProperty>, Vec<RetainedStyleValueData>) {
+    ) -> Vec<(DeclaredProperty, RetainedStyleValueData)> {
         self.state
             .intern_element_declared_properties(declarations, &mut self.counters)
     }
@@ -380,25 +380,20 @@ impl StyleEngine {
     ///
     /// An element-attached declaration is a cascade component above layers: a style attribute beats
     /// every layered and unlayered rule in its context, whatever layer they are in.
-    #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn set_element_declared_properties(
         &mut self,
         node: StyleNodeID,
         kind: ElementDeclarationKind,
-        declared: &[DeclaredProperty],
-        written_values: Vec<RetainedStyleValueData>,
-        custom_declarations: Vec<CustomDeclaration>,
-        custom_written_values: Vec<RetainedStyleValueData>,
+        declarations: Vec<(DeclaredProperty, RetainedStyleValueData)>,
+        custom_declarations: Vec<(CustomDeclaration, RetainedStyleValueData)>,
         declarations_are_complete: bool,
     ) {
         self.state.set_element_declared_properties(
             node,
             kind,
-            declared,
-            written_values,
+            declarations,
             custom_declarations,
-            custom_written_values,
             declarations_are_complete,
             &mut self.counters,
         );

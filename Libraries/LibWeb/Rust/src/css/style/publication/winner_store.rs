@@ -173,7 +173,12 @@ impl WinnerView<'_> {
             WinnerValue::Substituted { value, .. } => return value.data(),
             WinnerValue::Written { node, source, index } => match source {
                 WinnerSource::Rule(rule) => &self.engine.program.written_values_of(*rule)[*index],
-                WinnerSource::Element(kind) => &self.engine.facts.element_written_declared_values(*node, *kind)[*index],
+                WinnerSource::Element(kind) => self
+                    .engine
+                    .facts
+                    .element_declarations(*node, *kind)
+                    .expect("a written winner's declarations are held")
+                    .written(*index),
                 WinnerSource::ExactCascade => unreachable!("a winner recipe requires original spelling"),
             },
         };
@@ -355,8 +360,8 @@ mod tests {
                     // NB: The identity does not supply the written value to the drive.
                     value: SpecifiedValueID(1),
                 })
+                .zip(written)
                 .collect(),
-            written.into(),
             true,
         );
         let owners = Arc::strong_count(&observer);

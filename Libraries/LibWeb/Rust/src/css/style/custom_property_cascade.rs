@@ -947,18 +947,15 @@ impl RetainedState {
         if result.is_break() {
             return None;
         }
-        let (declared, written) = match pseudo {
-            None => (
-                self.facts.element_custom_declarations(node),
-                self.facts.element_custom_written_values(node),
-            ),
-            Some(_) => (&[][..], &[][..]),
-        };
-        if written.len() != declared.len() {
-            return None;
-        }
+        let element_declarations = pseudo
+            .is_none()
+            .then(|| self.facts.element_custom_declarations_written(node))
+            .flatten();
         let mut priority_and_stratum_by_importance = [None; 2];
-        for (&declared, written) in declared.iter().zip(written) {
+        for (&declared, written) in element_declarations
+            .into_iter()
+            .flat_map(index::ElementCustomDeclarations::iter)
+        {
             let (priority, stratum) = *priority_and_stratum_by_importance[declared.important as usize]
                 .get_or_insert_with(|| {
                     (

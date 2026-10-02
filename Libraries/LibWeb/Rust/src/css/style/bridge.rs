@@ -1917,13 +1917,17 @@ pub unsafe fn replay_set_element_declared_properties(
 ) {
     let engine = unsafe { engine.get_mut() };
     let node = StyleNodeID::from_raw(node).expect("recorded style node identities are nonzero");
+    // A replay computes no record, so no value is read: each declaration stands for its written
+    // value with the guaranteed-invalid one.
+    let unwritten = || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
     engine.set_element_declared_properties(
         node,
         decode_element_declaration_kind(kind),
-        declared,
-        Vec::new(),
-        custom_declarations.to_vec(),
-        Vec::new(),
+        declared.iter().map(|&declared| (declared, unwritten())).collect(),
+        custom_declarations
+            .iter()
+            .map(|&declared| (declared, unwritten()))
+            .collect(),
         declarations_are_complete,
     );
 }
@@ -2191,32 +2195,32 @@ pub unsafe extern "C" fn style_engine_match_element(
     result
 }
 
-fn declaration_inventory_is_complete(declared: &[DeclaredProperty], written: &[RetainedStyleValueData]) -> bool {
+fn declaration_inventory_is_complete<'a>(
+    declarations: impl Iterator<Item = (&'a DeclaredProperty, &'a RetainedStyleValueData)> + Clone,
+) -> bool {
     use crate::css::property_metadata::{longhands_for_shorthand, property_id, property_is_shorthand};
-    fn covers(property: u16, declared: &[DeclaredProperty]) -> bool {
+    fn covers<'a>(property: u16, mut declared: impl Iterator<Item = &'a DeclaredProperty> + Clone) -> bool {
         if property_is_shorthand(property) {
             longhands_for_shorthand(property)
                 .iter()
-                .all(|longhand| covers(*longhand, declared))
+                .all(|longhand| covers(*longhand, declared.clone()))
         } else {
-            declared.iter().any(|declaration| declaration.property == property)
+            declared.any(|declaration| declaration.property == property)
         }
     }
-    assert_eq!(declared.len(), written.len());
-    declared.iter().zip(written).all(|(declaration, value)| {
+    declarations.clone().all(|(declaration, value)| {
         declaration.property != property_id::ALL
             && (!property_is_shorthand(declaration.property)
                 || !matches!(value.data(), StyleValueData::Unresolved { .. })
-                || covers(declaration.property, declared))
+                || covers(declaration.property, declarations.clone().map(|(declared, _)| declared)))
     })
 }
 
 fn collect_native_custom_declarations(
     engine: &mut StyleEngine,
     custom_properties: &[crate::css::declaration_block::CustomProperty],
-) -> (Vec<CustomDeclaration>, Vec<RetainedStyleValueData>) {
-    let mut custom_written_values = Vec::new();
-    let custom_declarations = custom_properties
+) -> Vec<(CustomDeclaration, RetainedStyleValueData)> {
+    custom_properties
         .iter()
         .map(|property| {
             let name = property.name.to_fly_string();
@@ -2226,20 +2230,18 @@ fn collect_native_custom_declarations(
             // Custom properties retain their authored values, without normal-property
             // canonicalization. Their token spelling is observable after substitution.
             let value = unsafe { engine.intern_specified_value(std::sync::Arc::as_ptr(&declaration.value)) };
-            custom_written_values.push(unsafe {
-                RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(
-                    property.declaration.value.clone(),
-                ))
-            });
-            CustomDeclaration {
+            let written = unsafe {
+                RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(declaration.value.clone()))
+            };
+            let declared = CustomDeclaration {
                 name: atom,
                 important: declaration.important,
                 operator: super::program_updates::declaration_operator(&declaration.value),
                 value,
-            }
+            };
+            (declared, written)
         })
-        .collect::<Vec<_>>();
-    (custom_declarations, custom_written_values)
+        .collect()
 }
 
 fn register_element_declared_properties(
@@ -2257,24 +2259,30 @@ fn register_element_declared_properties(
     let has_transitions = declarations
         .iter()
         .any(|declaration| property_defines_a_css_transition(declaration.property_id));
-    let (declared, written_values) = engine.intern_element_declared_properties(declarations);
-    declarations_are_complete &= declaration_inventory_is_complete(&declared, &written_values);
-    let (custom_declarations, custom_written_values) = collect_native_custom_declarations(engine, custom_properties);
+    let declarations = engine.intern_element_declared_properties(declarations);
+    declarations_are_complete &=
+        declaration_inventory_is_complete(declarations.iter().map(|(declared, written)| (declared, written)));
+    let custom_declarations = collect_native_custom_declarations(engine, custom_properties);
+    let declaration_kind = decode_element_declaration_kind(kind);
     engine.set_element_declared_properties(
         node,
-        decode_element_declaration_kind(kind),
-        &declared,
-        written_values,
-        custom_declarations.clone(),
-        custom_written_values,
+        declaration_kind,
+        declarations,
+        custom_declarations,
         declarations_are_complete,
     );
+    // The engine holds the declarations as they were published.
     engine.record_boundary_call(EventKind::SetElementDeclaredProperties, |payload| {
+        let (declared, _) = engine.facts.element_declared_properties(node, declaration_kind);
+        let custom_declared = match declaration_kind {
+            ElementDeclarationKind::InlineStyle => engine.facts.element_custom_declarations(node),
+            _ => &[],
+        };
         payload.write_u32(node.raw());
         payload.write_u8(kind as u8);
         payload.write_bool(declarations_are_complete);
-        write_declared_properties(&declared, payload);
-        write_custom_declarations(&custom_declarations, payload);
+        write_declared_properties(declared, payload);
+        write_custom_declarations(custom_declared, payload);
     });
     has_transitions
 }
@@ -3329,9 +3337,11 @@ pub(crate) fn publish_rule_declarations(
             RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(declaration.value.clone()))
         })
         .collect();
-    declarations_are_complete &= declaration_inventory_is_complete(&declared, &written_values);
+    declarations_are_complete &= declaration_inventory_is_complete(declared.iter().zip(&written_values));
     let (custom_declarations, custom_written_values) =
-        collect_native_custom_declarations(engine, &data.custom_properties);
+        collect_native_custom_declarations(engine, &data.custom_properties)
+            .into_iter()
+            .unzip::<_, _, Vec<_>, Vec<_>>();
     engine.set_rule_declared_properties_with_written_values(
         RuleID(rule - 1),
         &declared,
