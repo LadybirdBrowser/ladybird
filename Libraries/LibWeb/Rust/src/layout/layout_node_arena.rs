@@ -594,6 +594,9 @@ pub(crate) struct LayoutNodeArena {
     bound_pseudo_element_rows: RefCell<HashMap<(StyleNodeID, u8), NodeSlotId>>,
     /// The viewport row the document is bound to. The document has no identity of its own.
     bound_viewport_row: Cell<NodeSlotId>,
+    /// The style node of the document the last layout tree build was for. The style mirror names
+    /// the document element as its first DOM child.
+    document_style_node: Cell<Option<StyleNodeID>>,
     style_record_host: Cell<Option<FfiStyleRecordHostCallbacks>>,
     shell_factory: Cell<Option<ShellFactory>>,
     box_presence_host: Cell<Option<BoxPresenceHost>>,
@@ -721,6 +724,7 @@ impl LayoutNodeArena {
             bound_rows_by_style_node: RefCell::new(RowsByStyleNode::default()),
             bound_pseudo_element_rows: RefCell::new(HashMap::default()),
             bound_viewport_row: Cell::new(NodeSlotId::INVALID),
+            document_style_node: Cell::new(None),
             style_record_host: Cell::new(None),
             shell_factory: Cell::new(None),
             box_presence_host: Cell::new(None),
@@ -1310,6 +1314,15 @@ impl LayoutNodeArena {
 
     pub(crate) fn bound_viewport_row(&self) -> NodeSlotId {
         self.bound_viewport_row.get()
+    }
+
+    /// The style node of the document the last layout tree build was for.
+    pub(crate) fn document_style_node(&self) -> Option<StyleNodeID> {
+        self.document_style_node.get()
+    }
+
+    pub(crate) fn set_document_style_node(&self, document_style_node: StyleNodeID) {
+        self.document_style_node.set(Some(document_style_node));
     }
 
     /// The row the pseudo-element of kind `generated_for` on the element with `generator` is bound

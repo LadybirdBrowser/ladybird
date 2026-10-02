@@ -737,8 +737,8 @@ pub mod element_adjustment_fact {
     /// The element stands for an element-reference pseudo-element of its shadow host, whose
     /// style C++ computes and installs on it.
     pub const IS_SHADOW_HOST_PSEUDO_ELEMENT: u32 = 1 << 19;
-    /// An HTML `<body>`. The first one among an HTML `<html>` root's children propagates its
-    /// overflow to the viewport, which the damage of the element's record moves reads.
+    /// An HTML `<body>`. The first one among an HTML `<html>` root's children propagates its style
+    /// to the viewport, which layout and the damage of the element's record moves read.
     pub const IS_HTML_BODY_ELEMENT: u32 = 1 << 20;
     // The element types layout tree construction branches on. An element's type is fixed when it
     // is created, so the store holds these rather than the tree builder asking the DOM for them.

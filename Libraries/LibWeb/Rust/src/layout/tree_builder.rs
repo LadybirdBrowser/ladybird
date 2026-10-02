@@ -2585,6 +2585,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     let host = unsafe { dom_tree_builder_host(callbacks, arena) };
     let document_identity =
         StyleNodeID::from_raw(document_style_node).expect("a document that lays out is named in the style mirror");
+    host.layout().arena().set_document_style_node(document_identity);
     let mut state = TreeBuilderState::default();
     let mut context = TreeBuilderContext {
         document_needs_full_layout_tree_update: host.layout().arena().needs_full_layout_tree_update(),
