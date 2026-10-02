@@ -8,7 +8,6 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{GcCell, define_cell};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -27,7 +26,7 @@ use crate::runtime::iterator::{
 };
 use crate::runtime::map::Map;
 use crate::runtime::map_iterator::map_iteration_is_unobservable;
-use crate::runtime::native_function::{NativeFunction, RawNativeFunction, define_native_function_class, raw_native};
+use crate::runtime::native_function::{NativeFunction, define_native_function_class, raw_native};
 use crate::runtime::object::ShouldThrowExceptions;
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
@@ -124,19 +123,13 @@ impl ArrayConstructor {
             attributes,
             None,
         );
-        // NB: C++ defines %Array.fromAsync%, which is written in JavaScript and runs as a
-        //     NativeJavaScriptBackedFunction. This stand-in has its length, name and attributes, and stops the process
-        //     when it is called.
-        let from_async = RawNativeFunction::create(
+        object.define_native_javascript_backed_function(
             vm,
-            raw_native!(ArrayConstructor::from_async),
-            1,
             &names.fromAsync,
-            Some(realm),
-            None,
-            None,
+            realm.intrinsics().from_async_array_constructor_function(vm),
+            1,
+            attributes,
         );
-        object.define_direct_property(vm, &names.fromAsync, Value::from_object(from_async), attributes);
         object.define_native_function(
             vm,
             realm,
@@ -452,15 +445,6 @@ impl ArrayConstructor {
 
         // 14. Return A.
         Ok(Value::from_object(array))
-    }
-
-    // 23.1.2.2 Array.fromAsync ( asyncItems [ , mapper [ , thisArg ] ] ), https://tc39.es/proposal-array-from-async/#sec-array.fromAsync
-    fn from_async(_vm: &Vm) -> ThrowCompletionOr<Value> {
-        unimplemented_runtime_function(
-            "Array.fromAsync, which C++ writes in JavaScript as an async function, which needs \
-             NativeJavaScriptBackedFunction",
-            0,
-        )
     }
 
     // 23.1.2.2 Array.isArray ( arg ), https://tc39.es/ecma262/#sec-array.isarray

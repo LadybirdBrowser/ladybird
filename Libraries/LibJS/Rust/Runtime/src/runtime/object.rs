@@ -42,6 +42,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::indexed_properties::{GenericIndexedPropertyStorage, ValueAndAttributes};
 use crate::runtime::iterator::BuiltinIteratorNext;
 use crate::runtime::native_function::{NativeFunction, NativeFunctionMethods, RawNativeFunction};
+use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::private_environment::PrivateName;
 use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
@@ -2551,6 +2552,17 @@ impl Object {
     ) {
         let function = RawNativeFunction::create(vm, native_function, length, property_key, Some(realm), None, builtin);
         self.define_direct_property(vm, property_key, Value::from_object(function), attribute);
+    }
+
+    pub fn define_native_javascript_backed_function(
+        &self,
+        vm: &Vm,
+        property_key: &PropertyKey,
+        function: Gc<NativeJavaScriptBackedFunction>,
+        _length: i32,
+        attributes: PropertyAttributes,
+    ) {
+        self.define_direct_property(vm, property_key, Value::from_object(function), attributes);
     }
 
     /// define_native_function() with a native function whose behaviour captures state, see NativeFunction::create().

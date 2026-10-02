@@ -102,6 +102,7 @@ pub mod map_prototype;
 pub mod math_object;
 pub mod module_environment;
 pub mod native_function;
+pub mod native_javascript_backed_function;
 pub mod number_constructor;
 pub mod number_object;
 pub mod number_prototype;

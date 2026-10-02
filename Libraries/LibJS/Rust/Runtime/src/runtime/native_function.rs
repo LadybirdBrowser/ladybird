@@ -14,7 +14,6 @@ use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, GcCell, define_cell};
 use crate::gc::visitor::{Trace, Visitor};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
@@ -25,9 +24,11 @@ use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::layout_forward::FlyStringSlot;
 pub use crate::layout_forward::{RawNativeFunctionPointer, RawNativeFunctionResult};
+use crate::runtime::abstract_operations::new_function_environment_for_native_javascript_backed_function;
 use crate::runtime::class_field_definition::ClassElementName;
 use crate::runtime::completion::{Throw, ThrowCompletionOr};
 use crate::runtime::function_object::{FUNCTION_OBJECT_METHODS, FunctionObject};
+use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ObjectMethods, allocate_object};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
@@ -76,6 +77,14 @@ impl Deref for NativeFunction {
     fn deref(&self) -> &FunctionObject {
         &self.base
     }
+}
+
+/// as<NativeJavaScriptBackedFunction>(*this): only a NativeJavaScriptBackedFunction needs a function environment.
+fn as_native_javascript_backed_function(function: &NativeFunction) -> Gc<NativeJavaScriptBackedFunction> {
+    function
+        .as_native_function_gc()
+        .downcast::<NativeJavaScriptBackedFunction>()
+        .expect("only a NativeJavaScriptBackedFunction needs a function environment")
 }
 
 /// The native function an internal method of a native function was called on.
@@ -278,10 +287,27 @@ impl NativeFunction {
 
         if function.function_environment_needed() {
             // 7. Let localEnv be NewFunctionEnvironment(F, newTarget).
-            unimplemented_runtime_function(
-                "NativeJavaScriptBackedFunction::shared_data, for the function environment of a native function",
-                0,
+            let native_javascript_backed_function = as_native_javascript_backed_function(function);
+            let local_environment = new_function_environment_for_native_javascript_backed_function(
+                vm,
+                native_javascript_backed_function,
+                None,
             );
+            let shared_data = native_javascript_backed_function.shared_data();
+            let function_environment_bindings_count = shared_data.function_environment_bindings_count();
+            local_environment.set_environment_shape_cache(
+                shared_data.function_environment_shape_cache(),
+                function_environment_bindings_count,
+            );
+            local_environment.ensure_capacity(function_environment_bindings_count);
+
+            // 8. Set the LexicalEnvironment of calleeContext to localEnv.
+            callee_context.lexical_environment.set(Some(local_environment.upcast()));
+
+            // 9. Set the VariableEnvironment of calleeContext to localEnv.
+            callee_context
+                .variable_environment
+                .set(Some(local_environment.upcast()));
         } else {
             callee_context
                 .lexical_environment
@@ -343,10 +369,27 @@ impl NativeFunction {
 
         if function.function_environment_needed() {
             // 7. Let localEnv be NewFunctionEnvironment(F, newTarget).
-            unimplemented_runtime_function(
-                "NativeJavaScriptBackedFunction::shared_data, for the function environment of a native function",
-                0,
+            let native_javascript_backed_function = as_native_javascript_backed_function(function);
+            let local_environment = new_function_environment_for_native_javascript_backed_function(
+                vm,
+                native_javascript_backed_function,
+                None,
             );
+            let shared_data = native_javascript_backed_function.shared_data();
+            let function_environment_bindings_count = shared_data.function_environment_bindings_count();
+            local_environment.set_environment_shape_cache(
+                shared_data.function_environment_shape_cache(),
+                function_environment_bindings_count,
+            );
+            local_environment.ensure_capacity(function_environment_bindings_count);
+
+            // 8. Set the LexicalEnvironment of calleeContext to localEnv.
+            callee_context.lexical_environment.set(Some(local_environment.upcast()));
+
+            // 9. Set the VariableEnvironment of calleeContext to localEnv.
+            callee_context
+                .variable_environment
+                .set(Some(local_environment.upcast()));
         } else {
             callee_context
                 .lexical_environment

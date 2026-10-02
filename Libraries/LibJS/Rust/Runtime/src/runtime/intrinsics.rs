@@ -6,10 +6,11 @@
 
 use core::cell::Cell;
 
-use ak::Utf16FlyString;
+use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::root::MarkedVec;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -70,6 +71,7 @@ use crate::runtime::map_iterator_prototype::MapIteratorPrototype;
 use crate::runtime::map_prototype::MapPrototype;
 use crate::runtime::math_object::MathObject;
 use crate::runtime::native_function::{NativeFunction, RawNativeFunction, raw_native};
+use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::number_constructor::NumberConstructor;
 use crate::runtime::number_prototype::NumberPrototype;
 use crate::runtime::object::{Object, allocate_object};
@@ -79,7 +81,7 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::promise_constructor::PromiseConstructor;
 use crate::runtime::promise_prototype::PromisePrototype;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
-use crate::runtime::property_key::PropertyKey;
+use crate::runtime::property_key::{PropertyKey, StringMayBeNumber};
 use crate::runtime::proxy_constructor::ProxyConstructor;
 use crate::runtime::realm::Realm;
 use crate::runtime::reflect_object::ReflectObject;
@@ -92,6 +94,7 @@ use crate::runtime::set_prototype::SetPrototype;
 use crate::runtime::shape::Shape;
 use crate::runtime::shared_array_buffer_constructor::SharedArrayBufferConstructor;
 use crate::runtime::shared_array_buffer_prototype::SharedArrayBufferPrototype;
+use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::string_constructor::StringConstructor;
 use crate::runtime::string_iterator_prototype::StringIteratorPrototype;
 use crate::runtime::string_prototype::StringPrototype;
@@ -116,6 +119,8 @@ use crate::runtime::weak_ref_prototype::WeakRefPrototype;
 use crate::runtime::weak_set_constructor::WeakSetConstructor;
 use crate::runtime::weak_set_prototype::WeakSetPrototype;
 use crate::runtime::wrap_for_valid_iterator_prototype::WrapForValidIteratorPrototype;
+use crate::source_code::SourceCode;
+use crate::utf16::Utf16View;
 
 /// Declares the intrinsics' slots, which all start out empty.
 macro_rules! define_intrinsics {
@@ -374,14 +379,14 @@ define_intrinsics! {
     string_iterator_prototype: Cell<Option<Gc<Object>>>,
 
     // JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
-    async_iterator_close_abstract_operation_function: Cell<Option<Gc<FunctionObject>>>,
-    get_method_abstract_operation_function: Cell<Option<Gc<FunctionObject>>>,
-    get_iterator_direct_abstract_operation_function: Cell<Option<Gc<FunctionObject>>>,
-    get_iterator_from_method_abstract_operation_function: Cell<Option<Gc<FunctionObject>>>,
-    iterator_complete_abstract_operation_function: Cell<Option<Gc<FunctionObject>>>,
+    async_iterator_close_abstract_operation_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    get_method_abstract_operation_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    get_iterator_direct_abstract_operation_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    get_iterator_from_method_abstract_operation_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
+    iterator_complete_abstract_operation_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
 
     // JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_CONSTRUCTOR_FUNCTIONS
-    from_async_array_constructor_function: Cell<Option<Gc<FunctionObject>>>,
+    from_async_array_constructor_function: Cell<Option<Gc<NativeJavaScriptBackedFunction>>>,
 
     default_collator: Cell<Option<Gc<Object>>>,
 }
@@ -749,8 +754,7 @@ unimplemented_builtin_types! {
     initialize_temporal_zoned_date_time => "Temporal.ZonedDateTime",
 }
 
-/// The lazy accessors of the other namespace objects, the abstract operations written in JavaScript and the default
-/// collator, none of which the runtime has yet.
+/// The lazy accessors of the other namespace objects and the default collator, none of which the runtime has yet.
 macro_rules! unimplemented_lazy_intrinsics {
     ($($name:ident: $type:ty => $description:literal,)*) => {
         impl Intrinsics {
@@ -792,13 +796,81 @@ namespace_object_accessors! {
 unimplemented_lazy_intrinsics! {
     intl_object: Object => "%Intl%",
     temporal_object: Object => "%Temporal%",
-    async_iterator_close_abstract_operation_function: FunctionObject => "AsyncIteratorClose, written in JavaScript",
-    get_method_abstract_operation_function: FunctionObject => "GetMethod, written in JavaScript",
-    get_iterator_direct_abstract_operation_function: FunctionObject => "GetIteratorDirect, written in JavaScript",
-    get_iterator_from_method_abstract_operation_function: FunctionObject => "GetIteratorFromMethod, written in JavaScript",
-    iterator_complete_abstract_operation_function: FunctionObject => "IteratorComplete, written in JavaScript",
-    from_async_array_constructor_function: FunctionObject => "%Array.fromAsync%",
     default_collator: Object => "default Intl.Collator",
+}
+
+fn abstract_operations_source() -> Utf16String {
+    Utf16String::from_utf8(include_str!(
+        "../../../../Runtime/JavaScriptImplementations/AbstractOperations.js"
+    ))
+}
+
+fn array_constructor_source() -> Utf16String {
+    Utf16String::from_utf8(include_str!(
+        "../../../../Runtime/JavaScriptImplementations/ArrayConstructor.js"
+    ))
+}
+
+/// The shared data of each named function a builtin file declares at its top level, in source order, as C++
+/// RustIntegration::compile_builtin_file() creates it.
+pub(crate) fn parse_builtin_file(vm: &Vm, script_text: Utf16String) -> MarkedVec<'_, Gc<SharedFunctionInstanceData>> {
+    let code = SourceCode::create(Utf16String::from_utf8("BuiltinFile"), script_text);
+    let mut source = Vec::with_capacity(code.length_in_code_units());
+    Utf16View::of_string(code.code()).append_to(&mut source);
+
+    let mut parsed = libjs_rust::compile::parse_builtin_file(&source);
+    let shared_data_list = MarkedVec::new(vm);
+    for description in libjs_rust::compile::describe_builtin_file_functions(&mut parsed) {
+        shared_data_list.push(SharedFunctionInstanceData::create(vm, description, Some(&code)));
+    }
+    shared_data_list
+}
+
+/// The accessors of the functions a builtin file written in JavaScript declares, which parse the file and create the
+/// function the first time they are asked for, as the C++ Intrinsics::snake_name_abstract_operation_function() and
+/// Intrinsics::snake_name_array_constructor_function() do.
+macro_rules! native_javascript_backed_function_accessors {
+    ($($name:ident: $source:ident, $function_name:literal, $length:literal;)*) => {
+        impl Intrinsics {
+            $(
+                pub fn $name(&self, vm: &Vm) -> Gc<NativeJavaScriptBackedFunction> {
+                    if let Some(function) = self.$name.get() {
+                        return function;
+                    }
+                    let shared_data_list = parse_builtin_file(vm, $source());
+                    let function_name = Utf16FlyString::from_utf8($function_name);
+                    let shared_data = shared_data_list
+                        .to_vec()
+                        .into_iter()
+                        .find(|shared_data| shared_data.name() == function_name)
+                        .expect(concat!("the builtin file declares ", $function_name));
+                    let function = NativeJavaScriptBackedFunction::create(
+                        vm,
+                        self.realm,
+                        shared_data,
+                        &PropertyKey::from_fly_string(function_name, StringMayBeNumber::No),
+                        $length,
+                    );
+                    self.$name.set(Some(function));
+                    function
+                }
+            )*
+        }
+    };
+}
+
+// JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ABSTRACT_OPERATIONS
+native_javascript_backed_function_accessors! {
+    async_iterator_close_abstract_operation_function: abstract_operations_source, "AsyncIteratorClose", 3;
+    get_method_abstract_operation_function: abstract_operations_source, "GetMethod", 2;
+    get_iterator_direct_abstract_operation_function: abstract_operations_source, "GetIteratorDirect", 1;
+    get_iterator_from_method_abstract_operation_function: abstract_operations_source, "GetIteratorFromMethod", 2;
+    iterator_complete_abstract_operation_function: abstract_operations_source, "IteratorComplete", 1;
+}
+
+// JS_ENUMERATE_NATIVE_JAVASCRIPT_BACKED_ARRAY_CONSTRUCTOR_FUNCTIONS
+native_javascript_backed_function_accessors! {
+    from_async_array_constructor_function: array_constructor_source, "fromAsync", 1;
 }
 
 impl Intrinsics {

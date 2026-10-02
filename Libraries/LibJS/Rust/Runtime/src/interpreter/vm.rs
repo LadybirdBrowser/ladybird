@@ -49,6 +49,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::finalization_registry::FinalizationRegistry;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::job_callback::{JobCallback, call_job_callback, make_job_callback};
+use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::IntrinsicAccessor;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::promise::{Promise, RejectionOperation};
@@ -1089,8 +1090,13 @@ impl Vm {
 
     pub fn active_shared_function_data(&self) -> Option<Gc<SharedFunctionInstanceData>> {
         let function = self.active_function_object()?;
-        // NB: NativeJavaScriptBackedFunction has shared data as well, once the runtime has it.
-        as_ecmascript_function_object(function).map(|function| function.shared_data())
+        if let Some(ecmascript_function) = as_ecmascript_function_object(function) {
+            return Some(ecmascript_function.shared_data());
+        }
+        if let Some(native_javascript_backed_function) = function.downcast::<NativeJavaScriptBackedFunction>() {
+            return Some(native_javascript_backed_function.shared_data());
+        }
+        None
     }
 }
 

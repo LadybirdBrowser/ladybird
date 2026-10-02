@@ -23,7 +23,7 @@ use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{call_function_object, get_prototype_from_constructor};
 use crate::runtime::async_generator_request::AsyncGeneratorRequest;
 use crate::runtime::completion::{Completion, CompletionType, Must, ThrowCompletionOr};
-use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
+use crate::runtime::generator_object::GeneratingFunction;
 use crate::runtime::iterator::create_iterator_result_object;
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
@@ -79,22 +79,18 @@ impl AsyncGenerator {
     pub fn create(
         vm: &Vm,
         realm: Gc<Realm>,
-        generating_function: Gc<EcmascriptFunctionObject>,
+        generating_function: GeneratingFunction,
         execution_context: OwnedExecutionContext,
     ) -> Gc<AsyncGenerator> {
-        // NB: C++ also creates async generators for a NativeJavaScriptBackedFunction, which the runtime does not have yet.
-
         // 2. Let _generator_ be ? OrdinaryCreateFromConstructor(_functionObject_, *"%AsyncGeneratorPrototype%"*,
         //    « [[AsyncGeneratorState]], [[AsyncGeneratorContext]], [[AsyncGeneratorQueue]], [[GeneratorBrand]] »).
         let generating_function_prototype_object =
-            get_prototype_from_constructor(vm, generating_function.as_function_object_gc(), |intrinsics, _| {
+            get_prototype_from_constructor(vm, generating_function.as_function_object(), |intrinsics, _| {
                 intrinsics.async_generator_prototype()
             })
             .must();
 
-        let generating_executable = generating_function
-            .bytecode_executable()
-            .expect("an async generator function is compiled before it is called");
+        let generating_executable = generating_function.bytecode_executable(vm);
 
         let yield_continuation = execution_context.yield_continuation.get();
         realm.create_object(

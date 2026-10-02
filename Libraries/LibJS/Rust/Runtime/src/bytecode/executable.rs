@@ -17,7 +17,6 @@ use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::{CellHeader, Gc};
@@ -44,7 +43,7 @@ use crate::source_range::{Position, SourceRange};
 use crate::utf16::Utf16View;
 use libjs_runtime_macros::Trace;
 use libjs_rust::bytecode::basic_block::SourceMapEntry;
-use libjs_rust::bytecode::constant::WellKnownSymbolKind;
+use libjs_rust::bytecode::constant::{AbstractOperationKind, WellKnownSymbolKind};
 use libjs_rust::bytecode::executable::ExecutableData;
 use libjs_rust::bytecode::generator::{ConstantValue, ExceptionHandler};
 
@@ -1571,7 +1570,26 @@ fn constant_value(vm: &Vm, constant: &ConstantValue) -> Value {
         ConstantValue::WellKnownSymbol(WellKnownSymbolKind::SymbolAsyncIterator) => {
             Value::from_symbol(vm.well_known_symbols().async_iterator)
         }
-        ConstantValue::AbstractOperation(_) => unimplemented_runtime_function("abstract operation constants", 0),
+        ConstantValue::AbstractOperation(operation) => {
+            let intrinsics = vm
+                .current_realm()
+                .expect("an executable that calls abstract operations is created in a realm")
+                .intrinsics();
+            let function = match operation {
+                AbstractOperationKind::AsyncIteratorClose => {
+                    intrinsics.async_iterator_close_abstract_operation_function(vm)
+                }
+                AbstractOperationKind::GetMethod => intrinsics.get_method_abstract_operation_function(vm),
+                AbstractOperationKind::GetIteratorDirect => {
+                    intrinsics.get_iterator_direct_abstract_operation_function(vm)
+                }
+                AbstractOperationKind::GetIteratorFromMethod => {
+                    intrinsics.get_iterator_from_method_abstract_operation_function(vm)
+                }
+                AbstractOperationKind::IteratorComplete => intrinsics.iterator_complete_abstract_operation_function(vm),
+            };
+            Value::from_object(function)
+        }
     }
 }
 
