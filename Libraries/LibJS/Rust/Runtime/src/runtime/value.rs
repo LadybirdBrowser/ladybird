@@ -19,7 +19,7 @@ use crate::gc::capi::js_heap_region_base;
 use crate::gc::class_id::ClassId;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
-use crate::layout::cell::Gc;
+use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::function_object::FunctionObject;
 use crate::layout::object::Object;
 use crate::layout::primitive_string::PrimitiveString;
@@ -238,6 +238,12 @@ impl Value {
     pub fn as_accessor(self) -> Gc<Accessor> {
         assert!(self.is_accessor());
         // SAFETY: The tag says the value holds an accessor.
+        unsafe { self.cell() }
+    }
+
+    pub fn as_cell(self) -> Gc<CellHeader> {
+        assert!(self.is_cell());
+        // SAFETY: The tag says the value holds a cell, and every cell starts with its header.
         unsafe { self.cell() }
     }
 

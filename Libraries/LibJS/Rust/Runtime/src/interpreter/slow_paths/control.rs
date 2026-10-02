@@ -30,10 +30,14 @@ use crate::runtime::iterator::{
     IteratorRecord, IteratorRecordImpl, get_iterator_from_method_impl, get_iterator_impl, get_iterator_values,
     iterator_close, iterator_hint_from_bytecode, iterator_next, iterator_step_value,
 };
+use crate::runtime::map::Map;
+use crate::runtime::map_iterator::map_iteration_is_unobservable;
 use crate::runtime::object::{IndexedStorageKind, IntegrityLevel};
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::set::Set;
+use crate::runtime::set_iterator::set_iteration_is_unobservable;
 use crate::utf16::Utf16View;
 
 /// Throws a new error and hands it to the interpreter.
@@ -148,11 +152,19 @@ pub fn array_append(
         } else {
             None
         };
-        // NB: The C++ runtime also appends Set and Map objects in bulk here, which come with the builtins that
-        //     create them.
+        let rhs_set = if rhs.is_object() {
+            rhs.as_object().downcast::<Set>()
+        } else {
+            None
+        };
+        let rhs_map = if rhs.is_object() {
+            rhs.as_object().downcast::<Map>()
+        } else {
+            None
+        };
         let mut iterator_record = None;
 
-        if rhs_array.is_some()
+        if (rhs_array.is_some() || rhs_set.is_some() || rhs_map.is_some())
             && matches!(
                 lhs_array.indexed_storage_kind(),
                 IndexedStorageKind::None | IndexedStorageKind::Packed
@@ -197,6 +209,34 @@ pub fn array_append(
                     lhs_array.indexed_append_packed_elements_of(&rhs_array);
                     return SlowPathControl::continue_at(pc + op::ArrayAppend::LENGTH);
                 }
+            }
+
+            // OPTIMIZATION: Iterating a Set or Map with its original iteration functions cannot be observed, and no
+            //               user code runs while we append, so the collection storage can be read directly.
+            if let Some(rhs_set) = rhs_set
+                && set_iteration_is_unobservable(vm, current_realm(vm), iterator_method)
+                && rhs_set.set_size() <= (u32::MAX - lhs_size) as usize
+            {
+                let mut index = lhs_size;
+                rhs_set.for_each_value(|value| {
+                    lhs_array.indexed_put(index, value, DEFAULT_ATTRIBUTES);
+                    index += 1;
+                });
+                return SlowPathControl::continue_at(pc + op::ArrayAppend::LENGTH);
+            }
+            if let Some(rhs_map) = rhs_map
+                && map_iteration_is_unobservable(vm, current_realm(vm), iterator_method)
+                && rhs_map.map_size() <= (u32::MAX - lhs_size) as usize
+            {
+                // NB: Creating the entry arrays can trigger garbage collection, which does not modify maps.
+                let realm = current_realm(vm);
+                let mut index = lhs_size;
+                rhs_map.for_each_entry(|key, value| {
+                    let entry = Array::create_from(vm, realm, &[key, value]);
+                    lhs_array.indexed_put(index, Value::from_object(entry), DEFAULT_ATTRIBUTES);
+                    index += 1;
+                });
+                return SlowPathControl::continue_at(pc + op::ArrayAppend::LENGTH);
             }
 
             iterator_record = Some(asm_try!(

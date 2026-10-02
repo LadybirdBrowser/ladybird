@@ -901,6 +901,25 @@ pub fn get_this_environment(vm: &Vm) -> Gc<Environment> {
     unreachable!("the outermost environment has a this binding");
 }
 
+// 9.14 CanBeHeldWeakly ( v ), https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-canbeheldweakly-abstract-operation
+pub fn can_be_held_weakly(value: Value) -> bool {
+    // 1. If Type(v) is Object, return true.
+    if value.is_object() {
+        return true;
+    }
+
+    // 2. If Type(v) is Symbol, then
+    if value.is_symbol() {
+        // a. For each element e of the GlobalSymbolRegistry List (see 19.4.2.2), do
+        //     i. If SameValue(e.[[Symbol]], v) is true, return false.
+        // b. Return true.
+        return !value.as_symbol().is_global();
+    }
+
+    // 3. Return false.
+    false
+}
+
 // 13.3.7.2 GetSuperConstructor ( ), https://tc39.es/ecma262/#sec-getsuperconstructor
 pub fn get_super_constructor(vm: &Vm) -> Option<Gc<Object>> {
     // 1. Let envRec be GetThisEnvironment().

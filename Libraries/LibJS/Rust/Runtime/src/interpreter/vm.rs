@@ -27,7 +27,7 @@ use crate::gc::heap::{Heap, cell_is_dead};
 use crate::gc::heap_function::HeapFunction;
 use crate::gc::root::RootSet;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
+use crate::gc::weak_container::WeakContainer;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::Environment;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
@@ -45,6 +45,7 @@ use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment_coordinate::EnvironmentCoordinate;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::finalization_registry::FinalizationRegistry;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::job_callback::{JobCallback, call_job_callback, make_job_callback};
 use crate::runtime::object::IntrinsicAccessor;
@@ -74,6 +75,9 @@ pub enum CompilationType {
 /// HostEnsureCanAddPrivateElement, which hosts that are web browsers may override.
 pub type HostEnsureCanAddPrivateElement = fn(&Vm, &Object) -> ThrowCompletionOr<()>;
 
+/// HostEnqueueFinalizationRegistryCleanupJob ( finalizationRegistry ), which hosts may override.
+pub type HostEnqueueFinalizationRegistryCleanupJob = fn(&Vm, Gc<FinalizationRegistry>);
+
 /// HostGetCodeForEval, which hosts may override.
 pub type HostGetCodeForEval = fn(&Vm, &Object) -> Option<Gc<PrimitiveString>>;
 
@@ -96,10 +100,6 @@ pub type HostPromiseRejectionTracker = fn(&Vm, Gc<Promise>, RejectionOperation);
 /// HostCallJobCallback ( jobCallback, V, argumentsList ), which hosts may override.
 pub type HostCallJobCallback = fn(&Vm, Gc<JobCallback>, Value, &[Value]) -> ThrowCompletionOr<Value>;
 
-/// HostEnqueueFinalizationRegistryCleanupJob ( finalizationRegistry ), which hosts may override. The registry is a
-/// FinalizationRegistry.
-pub type HostEnqueueFinalizationRegistryCleanupJob = fn(&Vm, Gc<Object>);
-
 /// HostEnqueuePromiseJob ( job, realm ), which hosts may override.
 pub type HostEnqueuePromiseJob = fn(&Vm, Gc<HeapFunction>, Option<Gc<Realm>>);
 
@@ -117,10 +117,6 @@ fn default_host_promise_rejection_tracker(vm: &Vm, promise: Gc<Promise>, operati
     vm.promise_rejection_tracker(promise, operation);
 }
 
-fn default_host_enqueue_finalization_registry_cleanup_job(vm: &Vm, finalization_registry: Gc<Object>) {
-    vm.enqueue_finalization_registry_cleanup_job(finalization_registry);
-}
-
 fn default_host_enqueue_promise_job(vm: &Vm, job: Gc<HeapFunction>, realm: Option<Gc<Realm>>) {
     vm.enqueue_promise_job(job, realm);
 }
@@ -135,8 +131,7 @@ fn default_host_promise_job_queue_is_empty(vm: &Vm) -> bool {
 pub struct JobQueues {
     header: CellHeader,
     promise_jobs: GcRefCell<VecDeque<Gc<HeapFunction>>>,
-    /// The FinalizationRegistry objects whose cleanup is due.
-    finalization_registry_cleanup_jobs: GcRefCell<Vec<Gc<Object>>>,
+    finalization_registry_cleanup_jobs: GcRefCell<Vec<Gc<FinalizationRegistry>>>,
 }
 
 define_cell!(JobQueues, Other);
@@ -191,6 +186,11 @@ fn default_host_ensure_can_add_private_element(_: &Vm, _: &Object) -> ThrowCompl
     // This abstract operation is only invoked by ECMAScript hosts that are web browsers.
     // NOTE: Since LibJS has no way of knowing whether the current environment is a browser we always
     //       call HostEnsureCanAddPrivateElement when needed.
+}
+
+// 9.10.4.1 HostEnqueueFinalizationRegistryCleanupJob ( finalizationRegistry ), https://tc39.es/ecma262/#sec-host-cleanup-finalization-registry
+fn default_host_enqueue_finalization_registry_cleanup_job(vm: &Vm, finalization_registry: Gc<FinalizationRegistry>) {
+    vm.enqueue_finalization_registry_cleanup_job(finalization_registry);
 }
 
 pub const STRING_TO_ATOM_CACHE_SIZE: usize = 2;
@@ -295,6 +295,12 @@ pub struct Vm {
     /// How many run_executable() calls are running, VM::m_run_executable_depth: the outermost one runs the promise jobs
     /// its code queued.
     run_executable_depth: Cell<u32>,
+    /// The cells that hold others weakly, LibGC's list of weak containers. The list is weak: the sweep callback drops
+    /// the containers that die, and has the others forget the cells that died.
+    weak_containers: RefCell<Vec<WeakContainer>>,
+    /// The finalization registries whose targets died in the collection in progress, which are handed to
+    /// HostEnqueueFinalizationRegistryCleanupJob once it is over. C++ roots each of them in a post-GC task.
+    finalization_registries_with_dead_cells: RefCell<Vec<Gc<FinalizationRegistry>>>,
     /// The id the next PrivateEnvironment gives its names, the C++ static PrivateEnvironment::s_next_id. It starts
     /// at one such that 0 can be invalid / default initialized.
     next_private_environment_id: Cell<u64>,
@@ -370,6 +376,8 @@ impl Vm {
             on_promise_rejection_handled: Cell::new(None),
             job_queues: OnceCell::new(),
             run_executable_depth: Cell::new(0),
+            weak_containers: RefCell::new(Vec::new()),
+            finalization_registries_with_dead_cells: RefCell::new(Vec::new()),
             next_private_environment_id: Cell::new(1),
             intrinsic_accessors: RefCell::new(HashMap::new()),
             type_error_realm_override: Cell::new(None),
@@ -538,6 +546,55 @@ impl Vm {
         self.global_symbol_registry.trace(visitor);
         self.type_error_realm_override.trace(visitor);
         self.job_queues.trace(visitor);
+        self.finalization_registries_with_dead_cells.trace(visitor);
+    }
+
+    pub fn register_weak_container(&self, weak_container: WeakContainer) {
+        self.weak_containers.borrow_mut().push(weak_container);
+    }
+
+    /// Has the weak containers that survived this collection forget the cells that died in it, as LibGC does before
+    /// it runs its sweep callbacks.
+    fn remove_dead_cells_from_weak_containers(&self) {
+        self.weak_containers.borrow_mut().retain(|weak_container| {
+            if cell_is_dead(weak_container.owner()) {
+                return false;
+            }
+            weak_container.remove_dead_cells(self);
+            true
+        });
+    }
+
+    /// Hands `finalization_registry` to HostEnqueueFinalizationRegistryCleanupJob once the collection in progress is
+    /// over. Only a weak container's remove_dead_cells() calls this.
+    pub fn enqueue_finalization_registry_cleanup_job_after_collection(
+        &self,
+        finalization_registry: Gc<FinalizationRegistry>,
+    ) {
+        let mut finalization_registries = self.finalization_registries_with_dead_cells.borrow_mut();
+        if finalization_registries.is_empty() {
+            let context = core::ptr::from_ref::<Vm>(self).cast_mut().cast();
+            // SAFETY: The VM outlives its heap, which runs the task before it is destroyed.
+            unsafe {
+                self.heap()
+                    .enqueue_post_gc_task(enqueue_cleanup_jobs_of_finalization_registries_with_dead_cells, context);
+            };
+        }
+        finalization_registries.push(finalization_registry);
+    }
+
+    fn enqueue_cleanup_jobs_of_finalization_registries_with_dead_cells(&self) {
+        // NB: Each registry stays in the rooted list until it is handed to the host, which may allocate.
+        loop {
+            let finalization_registry = {
+                let mut finalization_registries = self.finalization_registries_with_dead_cells.borrow_mut();
+                if finalization_registries.is_empty() {
+                    break;
+                }
+                finalization_registries.remove(0)
+            };
+            (self.host_enqueue_finalization_registry_cleanup_job.get())(self, finalization_registry);
+        }
     }
 
     /// Forgets the intrinsic accessors of objects that died in this collection, as JS::Object::~Object does.
@@ -775,19 +832,24 @@ impl Vm {
     }
 
     pub fn run_queued_finalization_registry_cleanup_jobs(&self) {
-        // NB: C++ takes the registries off the end of the queue one at a time and runs their cleanup(). If one throws
-        //     while the registry still has empty cells, it queues the registry again.
-        // FIXME: Handle any uncatched exceptions here.
-        if !self.job_queues().finalization_registry_cleanup_jobs.borrow().is_empty() {
-            unimplemented_runtime_function(
-                "FinalizationRegistry::cleanup, for a queued finalization registry cleanup job",
-                0,
-            );
+        let job_queues = self.job_queues();
+        loop {
+            let Some(finalization_registry) = job_queues.finalization_registry_cleanup_jobs.borrow_mut().pop() else {
+                break;
+            };
+            // FIXME: Handle any uncatched exceptions here.
+            let result = finalization_registry.cleanup(self, None);
+            if result.is_err() && finalization_registry.has_empty_cells() {
+                job_queues
+                    .finalization_registry_cleanup_jobs
+                    .borrow_mut()
+                    .push(finalization_registry);
+            }
         }
     }
 
     // 9.10.4.1 HostEnqueueFinalizationRegistryCleanupJob ( finalizationRegistry ), https://tc39.es/ecma262/#sec-host-cleanup-finalization-registry
-    pub fn enqueue_finalization_registry_cleanup_job(&self, finalization_registry: Gc<Object>) {
+    pub fn enqueue_finalization_registry_cleanup_job(&self, finalization_registry: Gc<FinalizationRegistry>) {
         self.job_queues()
             .finalization_registry_cleanup_jobs
             .borrow_mut()
@@ -1094,9 +1156,16 @@ unsafe extern "C" fn gather_roots(context: *mut c_void, visitor: *mut GCVisitor)
 unsafe extern "C" fn sweep(context: *mut c_void) {
     // SAFETY: The sweep callback was registered with the VM as its context.
     let vm = unsafe { &*context.cast::<Vm>() };
+    vm.remove_dead_cells_from_weak_containers();
     vm.remove_dead_strings_from_weak_caches();
     vm.remove_dead_cells_from_property_lookup_caches();
     vm.remove_dead_objects_from_intrinsic_accessors();
+}
+
+unsafe extern "C" fn enqueue_cleanup_jobs_of_finalization_registries_with_dead_cells(context: *mut c_void) {
+    // SAFETY: The task was enqueued with the VM as its context.
+    let vm = unsafe { &*context.cast::<Vm>() };
+    vm.enqueue_cleanup_jobs_of_finalization_registries_with_dead_cells();
 }
 
 /// VM::TypeErrorRealmScope.
