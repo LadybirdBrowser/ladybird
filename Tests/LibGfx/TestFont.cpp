@@ -673,3 +673,72 @@ TEST_CASE(system_fallback_fonts_can_be_matched_on_several_threads)
     (void)Gfx::system_fallback_font(bold_key, 12);
     EXPECT_EQ(Gfx::system_fallback_font_cache_size(), 2u);
 }
+
+// A frozen cascade answers the same question as the live one, without entering the document.
+TEST_CASE(frozen_cascade_matches_the_live_lookup)
+{
+    auto local_font = load_text_font(24);
+    auto fallback_font = load_text_font(16);
+    auto cascade = Gfx::FontCascadeList::create();
+    cascade->add(local_font, { { 'a', 'a' } });
+    cascade->add(fallback_font);
+    cascade->set_last_resort_font(fallback_font);
+
+    cascade->freeze();
+    EXPECT(cascade->frozen_list());
+    for (u32 code_point : { 'a', 'b', 'z' })
+        EXPECT_EQ(&cascade->frozen_font_for_code_point(code_point), &cascade->font_for_code_point(code_point));
+}
+
+// https://drafts.csswg.org/css-fonts-4/#font-display-timeline
+// A face in its block period renders invisibly and one in its swap period renders with the
+// fallback, and the frozen cascade decides that from the period it recorded, not by resolving.
+TEST_CASE(frozen_cascade_renders_a_pending_face_without_resolving_it)
+{
+    auto font = load_text_font(16);
+    u32 resolves = 0;
+    auto build = [&](Gfx::PendingFontState state) {
+        auto cascade = Gfx::FontCascadeList::create();
+        cascade->add_pending_face(
+            { { 'a', 'a' } }, [&resolves, state] { ++resolves; return state; }, {}, [state] { return state; });
+        cascade->add(font);
+        cascade->set_last_resort_font(font);
+        cascade->freeze();
+        return cascade;
+    };
+
+    // Drop anything an earlier case left waiting, so the count below is only this case's.
+    (void)Gfx::request_wanted_pending_faces();
+
+    auto blocking = build(Gfx::PendingFontState::Invisible);
+    EXPECT(blocking->frozen_font_for_code_point('a').is_invisible());
+    EXPECT(!blocking->frozen_font_for_code_point('b').is_invisible());
+
+    auto swapping = build(Gfx::PendingFontState::Visible);
+    EXPECT_EQ(&swapping->frozen_font_for_code_point('a'), font.ptr());
+
+    // Not one of those lookups resolved a face: the periods came from the snapshot.
+    EXPECT_EQ(resolves, 0u);
+
+    // Both faces are waiting for the document to request their loads, which is what starts them.
+    EXPECT_EQ(Gfx::request_wanted_pending_faces(), 2u);
+    EXPECT_EQ(resolves, 2u);
+}
+
+// A face whose display period has already failed contributes nothing and does not block the
+// faces after it, so the frozen cascade does not carry it at all.
+TEST_CASE(frozen_cascade_leaves_out_a_failed_pending_face)
+{
+    auto local_font = load_text_font(24);
+    auto fallback_font = load_text_font(16);
+    auto cascade = Gfx::FontCascadeList::create();
+    cascade->add_pending_face(
+        { { 'a', 'a' } }, [] { return Gfx::PendingFontState::Failed; }, {}, [] { return Gfx::PendingFontState::Failed; });
+    cascade->add_pending_face(
+        { { 'a', 'a' } }, [] { return Gfx::PendingFontState::Visible; }, [local_font] { return local_font; }, [] { return Gfx::PendingFontState::Visible; });
+    cascade->add(fallback_font);
+    cascade->set_last_resort_font(fallback_font);
+    cascade->freeze();
+
+    EXPECT_EQ(&cascade->frozen_font_for_code_point('a'), local_font.ptr());
+}
