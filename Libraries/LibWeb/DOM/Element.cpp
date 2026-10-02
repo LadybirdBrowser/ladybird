@@ -1706,8 +1706,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             // away from. A record the host computed leaves the follow-up to its computation.
             CSS::StyleRecordPin const before_change { style_computer, old_style_record };
             set_computed_style(pseudo_element, style_record_delta.new_style_record);
-            if (engine_record.has_value())
+            if (engine_record.has_value()) {
                 install_engine_pseudo_element_custom_property_data(pseudo_element, style_computer.style_engine().style_record_custom_property_environment(*engine_record));
+                style_computer.compose_installed_engine_record({ *this, pseudo_element }, before_change.style_record());
+            }
             if (!!before_change.style_record()) {
                 auto follow_up = engine_record.has_value() ? CSS::StyleComputer::TransitionStepFollowUp::Request : CSS::StyleComputer::TransitionStepFollowUp::LeftToCaller;
                 invalidation |= style_computer.run_transition_step_for_installed_record({ *this, pseudo_element }, before_change.style_record(), follow_up);

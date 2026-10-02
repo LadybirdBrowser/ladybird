@@ -1130,10 +1130,35 @@ void StyleComputer::apply_settled_animation_plan(DOM::AbstractElement& abstract_
         GC::Ref<StyleComputer const> style_computer;
         DOM::AbstractElement& abstract_element;
     } context { *this, abstract_element };
-    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.rust_handle(), abstract_element.element().style_node_id().value(), abstract_element.style_record_identity().value(), &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
+    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.rust_handle(), abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()), abstract_element.style_record_identity().value(), &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
         auto& context = *static_cast<Context*>(context_pointer);
         context.style_computer->apply_animation_definitions(context.abstract_element, { definitions, count }, in_display_none_subtree);
     });
+}
+
+// A C++ computation applies the animation plan it decides beside the record it computes, and collects the animations of
+// the element or pseudo-element, those the plan starts among them, into that record. For a record the engine settled,
+// the host applies the plan once the record is installed and samples the animations over it, as an animation update
+// samples them over the record an element holds, and publishes what they compose.
+// https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
+// Sampling the installed record can keep the epoch's before-change style, and the record held by then is the
+// after-change one, so a record that owes the transition step keeps the record it moved away from first.
+void StyleComputer::compose_installed_engine_record(DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
+{
+    apply_settled_animation_plan(abstract_element);
+    if (!!before_change_style_record && document().is_in_style_stabilization_epoch())
+        record_transition_stabilization_baseline(abstract_element, before_change_style_record);
+    auto& element = abstract_element.element();
+    if (!element.has_relevant_animations() && !element.has_associated_animations())
+        return;
+    auto style_record = abstract_element.style_record_identity();
+    if (!style_record)
+        return;
+    Animations::AnimationUpdateContext::ElementData element_data { style_record, reconstruct_computed_properties_for_animation(style_record) };
+    element_data.base_is_current = true;
+    Animations::AnimationUpdateContext context;
+    context.elements.set(abstract_element, move(element_data));
+    context.publish();
 }
 
 static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::Element const& element, Utf16FlyString const& attribute_name, CSS::PropertyID property_id)

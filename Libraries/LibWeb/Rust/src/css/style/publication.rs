@@ -1409,7 +1409,7 @@ impl RetainedState {
             .flatten()
         {
             if pending.pseudo_kind != u8::MAX {
-                self.revert_engine_computed_pseudo_record(&pending, counters);
+                self.revert_engine_computed_pseudo_record(pending, counters);
                 continue;
             }
             self.revert_engine_computed_element_record(pending);
@@ -2037,13 +2037,18 @@ impl RetainedState {
         })
     }
 
-    /// The scope the winning `animation-name` of the cascade state an element's record is bound to
-    /// was declared in, as [`Self::animation_name_declaration_scope`] answers it, or `None` where it
-    /// refuses or the record is bound to no state.
-    pub(crate) fn element_animation_name_declaration_scope(&self, node: StyleNodeID) -> Option<DeclarationScope> {
+    /// The scope the winning `animation-name` of the cascade state the record an element, or its
+    /// pseudo-element `pseudo_kind`, is installed with was declared in, as
+    /// [`Self::animation_name_declaration_scope`] answers it, or `None` where it refuses or the
+    /// record is bound to no state.
+    pub(crate) fn animation_name_declaration_scope_of(
+        &self,
+        node: StyleNodeID,
+        pseudo_kind: u8,
+    ) -> Option<DeclarationScope> {
         let (_, state) = self
             .computed_group_sets
-            .cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX))?;
+            .installing_cascade_state(computed::ComputedStyleTarget::new(node, pseudo_kind))?;
         self.animation_name_declaration_scope(node, state).ok()
     }
 
@@ -2430,7 +2435,7 @@ impl RetainedState {
                     !donors.is_empty()
                 });
             } else {
-                self.revert_engine_computed_pseudo_record(&pending, counters);
+                self.revert_engine_computed_pseudo_record(pending, counters);
                 scratch.pseudo_cohorts.retain(|_, record| *record != derived);
                 self.engine_pseudo_record_cache.retain(|_, record| *record != derived);
             }
@@ -3299,18 +3304,13 @@ impl RetainedState {
                 counters.bump(Counter::EngineComputedRecordBailWinnerAnimated);
                 return Err(Unanswered::Refused);
             }
-            // A pseudo-element's cascade keeps the properties its kind supports, and one that
-            // starts an animation keeps its record in C++; a transition declaration is the step's
-            // to act on where the host installs the record. Its anchor name is a plain computed
-            // value: the host registers an element's alone.
-            if let Some(kind) = pseudo_kind {
-                if !crate::css::property_metadata::pseudo_element_supports_property(kind, winner.property) {
-                    continue;
-                }
-                if property_starts_animation(winner.property) && !property_declares_transitions(winner.property) {
-                    counters.bump(Counter::EngineComputedRecordBailProperty);
-                    return Err(Unanswered::Refused);
-                }
+            // A pseudo-element's cascade keeps the properties its kind supports. Its animations
+            // start, and its transition step runs, where the host installs its record. Its anchor
+            // name is a plain computed value: the host registers an element's alone.
+            if let Some(kind) = pseudo_kind
+                && !crate::css::property_metadata::pseudo_element_supports_property(kind, winner.property)
+            {
+                continue;
             }
             // A shorthand written with a substitution is declared beside the longhands it
             // pends; those carry it.
@@ -5992,6 +5992,60 @@ mod tests {
                 .computed_group_sets
                 .underlying_style_record(composition)
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn a_pseudo_element_composition_detaches_and_reattaches() {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut raw_node = [0];
+        engine.allocate_style_nodes(&mut raw_node);
+        let node = StyleNodeID::from_raw(raw_node[0]).unwrap();
+        let target = computed::ComputedStyleTarget::new(node, pseudo_kind::BEFORE);
+        let animated_overlay = crate::css::animated_overlay::AnimatedOverlay::default();
+        let metadata = |animated_overlay: HostShared<crate::css::animated_overlay::AnimatedOverlay>| {
+            computed::ComputedMetadataInput {
+                pseudo_element_styles: 0,
+                dependency_flags: 0,
+                counter_style_environment_identity: 0,
+                animation_overlay_identity: u64::from(!animated_overlay.is_null()),
+                animated_overlay,
+                animation_overlay_payloads: &[],
+                longhand_table: HostShared::null(),
+            }
+        };
+        let composition = engine
+            .publish_computed_groups(
+                target,
+                &[],
+                0,
+                0,
+                metadata(HostShared::new(std::ptr::from_ref(&animated_overlay))),
+            )
+            .style_record_identity;
+
+        // A record settled beneath the composition takes its place, while the composition stays
+        // live for the host that holds it.
+        let detached = engine.computed_group_sets.detach_composition_of(target).unwrap();
+        let settled = engine
+            .publish_computed_groups(target, &[], 0, 0, metadata(HostShared::null()))
+            .style_record_identity;
+        assert_eq!(settled, detached.base);
+        assert!(
+            engine
+                .computed_group_sets
+                .underlying_style_record(composition)
+                .is_some()
+        );
+
+        // The host never installed it: the composition is laid over the pseudo-element's record
+        // again.
+        engine.computed_group_sets.reattach_composition_of(target, detached);
+        assert_eq!(
+            engine
+                .computed_group_sets
+                .pseudo_style_record(node, pseudo_kind::BEFORE),
+            Some(composition)
         );
     }
 }

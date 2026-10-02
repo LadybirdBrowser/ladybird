@@ -202,9 +202,12 @@ public:
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> compute_properties(DOM::AbstractElement, CascadedProperties&, u64 matching_pseudo_element_styles, u32* explicitly_inherited_non_inherited_style_groups = nullptr, StyleRecordID previous_style_record = {}, u32 initial_computed_group_mask = ComputedValues::all_style_groups, bool use_retained_style_computation_selection = false, bool stop_after_longhand_drive = false, u32* selected_computed_group_mask = nullptr, bool* computation_reads_unkeyed_context = nullptr, bool* computation_reads_resource_context = nullptr) const;
 
     void apply_animation_definitions(DOM::AbstractElement&, ReadonlySpan<ComputedValuesFFI::FfiComputedAnimation> animation_definitions, bool in_display_none_subtree) const;
-    // Applies the animation plan the record an element holds decides, for a record the style engine settled, where
-    // applying it would change anything.
+    // Applies the animation plan the record an element or pseudo-element holds decides, for a record the style engine
+    // settled, where applying it would change anything.
     void apply_settled_animation_plan(DOM::AbstractElement&) const;
+    // Starts the CSS animations of an element or pseudo-element and composes its animations over the record the style
+    // engine settled for it, once the host has installed it.
+    void compose_installed_engine_record(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
 
     enum class DeclaredValueSource : u8 {
         PublishedEnvironment,
