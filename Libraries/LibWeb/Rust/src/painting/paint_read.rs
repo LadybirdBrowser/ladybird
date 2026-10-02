@@ -23,6 +23,7 @@ use crate::painting::host::FfiLayerImageList;
 use crate::painting::layer_image_paint_facts::LayerImagePaintFacts;
 use crate::painting::paint_order_plan::PaintOrderInputs;
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
+use crate::painting::published_frame::PublishedRows;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
@@ -355,20 +356,27 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
 }
 
 /// What the display list recording reads a document through: [`PaintRead`] and nothing else. It
-/// has no `Deref` to the arena, so a read the trait does not name does not compile. The absolute
-/// rects it computes go to the recorder's own memo, stamped with the geometry epoch the recording
-/// started at.
+/// has no `Deref` to the arena, so a read the trait does not name does not compile. It reads the
+/// rows, their fragment links and their side data from what the document published when the
+/// recording started. The absolute rects it computes go to the recorder's own memo, stamped with
+/// the geometry epoch the recording started at.
 #[derive(Clone, Copy)]
 pub(crate) struct PaintSource<'a> {
     arena: &'a LayoutNodeArena,
+    rows: &'a PublishedRows,
     absolute_rects: &'a RefCell<AbsoluteRectMemo>,
     geometry_epoch: u64,
 }
 
 impl<'a> PaintSource<'a> {
-    pub(crate) fn new(arena: &'a LayoutNodeArena, absolute_rects: &'a RefCell<AbsoluteRectMemo>) -> Self {
+    pub(crate) fn new(
+        arena: &'a LayoutNodeArena,
+        rows: &'a PublishedRows,
+        absolute_rects: &'a RefCell<AbsoluteRectMemo>,
+    ) -> Self {
         Self {
             arena,
+            rows,
             absolute_rects,
             geometry_epoch: arena.absolute_rect_memo_epoch(),
         }
@@ -377,19 +385,19 @@ impl<'a> PaintSource<'a> {
 
 impl GeometryRead for PaintSource<'_> {
     fn paintable_data(&self, id: NodeSlotId) -> &PaintableData {
-        self.arena.live_paintable_data(id)
+        self.rows.paintable_data(id)
     }
 
     fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool {
-        self.arena.paintable_row_is_populated(id)
+        self.rows.paintable_row_is_populated(id)
     }
 
     fn with_committed_fragment_link<R>(&self, id: NodeSlotId, read: impl FnOnce(Option<&FragmentLink>) -> R) -> R {
-        self.arena.with_committed_fragment_link(id, read)
+        self.rows.with_committed_fragment_link(id, read)
     }
 
     fn committed_side_data(&self, id: NodeSlotId) -> impl Deref<Target = CommittedSideData> + '_ {
-        self.arena.committed_side_data(id)
+        self.rows.committed_side_data(id)
     }
 
     fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {

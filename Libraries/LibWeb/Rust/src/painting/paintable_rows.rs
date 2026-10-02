@@ -11,6 +11,7 @@ use crate::layout::{fragment_tree, used_values};
 use crate::painting::node_painting;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::*;
+use crate::painting::published_frame::PublishedRows;
 use crate::painting::record::damage::{DamageSet, PaintDamage, RowPaintState};
 use crate::painting::visual_context::dirty::{
     RemovedBoxBlocks, VisualContextBoxDirtyKind, VisualContextGlobalRebuildReason,
@@ -255,7 +256,7 @@ impl PaintableRowReset {
 }
 
 #[derive(Clone, Default)]
-struct CommittedFragmentLinkSlot {
+pub(crate) struct CommittedFragmentLinkSlot {
     layout_slot_generation: u8,
     geometry_epoch: u32,
     geometry_is_current: bool,
@@ -525,6 +526,12 @@ where
     }
 }
 
+impl CommittedFragmentLinkSlot {
+    pub(crate) fn link(&self) -> Option<&fragment_tree::FragmentLink> {
+        self.link.as_deref()
+    }
+}
+
 impl PaintableRowStore {
     pub(crate) fn with_current_committed_fragment<R>(
         &self,
@@ -696,6 +703,18 @@ impl LayoutNodeArena {
         (
             std::mem::take(&mut *self.boxes_needing_scrollable_overflow_recalculation.borrow_mut()),
             self.needs_full_scrollable_overflow_recalculation.replace(false),
+        )
+    }
+
+    /// The paintable rows, their committed fragment links and their committed side data as they
+    /// are now. The live columns go on being written, copying only the chunks the publication
+    /// shares.
+    pub(crate) fn publish_rows(&mut self) -> PublishedRows {
+        let store = &mut self.paintable_rows;
+        PublishedRows::new(
+            store.rows.publish(),
+            store.committed_fragment_links.get_mut().publish(),
+            store.committed_side_data.get_mut().publish(),
         )
     }
 
