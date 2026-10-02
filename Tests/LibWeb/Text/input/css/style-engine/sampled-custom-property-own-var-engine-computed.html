@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --w { syntax: "<length>"; inherits: true; initial-value: 0px; }
+    @keyframes widen {
+        from { --w: 10px; --label: 1; }
+        to { --w: 50px; --label: 2; }
+    }
+    #target { width: var(--w); z-index: var(--label); height: 1px; }
+    .tinted { color: rgb(0, 128, 0); }
+</style>
+<div id="target"></div>
+<script>
+    // The element's own var() references read the custom properties its animation samples. A
+    // restyle of the animating element is driven by the style engine under the sampled values.
+    test(() => {
+        target.style.animation = "widen 1000s linear paused";
+        const seek = time => {
+            for (const animation of target.getAnimations())
+                animation.currentTime = time;
+        };
+        seek(500000);
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        target.classList.add("tinted");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+        const style = getComputedStyle(target);
+        println(`width ${style.width}, z-index ${style.zIndex}, color ${style.color}`);
+    });
+</script>
