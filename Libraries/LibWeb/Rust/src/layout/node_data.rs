@@ -244,7 +244,6 @@ pub enum DomPaintFact {
 #[repr(C)]
 pub struct FfiNodeConstructionFacts {
     pub kind: NodeKind,
-    pub shell: *mut c_void,
     pub is_anonymous: bool,
     pub is_html_input_element: bool,
     pub is_html_html_element: bool,
@@ -283,7 +282,6 @@ pub(crate) struct NodeData {
     pub dom_paint_facts: Cell<u8>,
     pub ancestor_facts: Cell<u8>,
     pub style: Cell<StylePayloadsRef>,
-    pub shell: Cell<*mut c_void>,
 }
 
 impl Default for NodeData {
@@ -306,7 +304,6 @@ impl Default for NodeData {
             ancestor_facts: Cell::new(0),
             fragment_cache_epoch: Cell::new(0),
             style: Cell::new(StylePayloadsRef::null()),
-            shell: Cell::new(std::ptr::null_mut()),
         }
     }
 }
@@ -323,7 +320,7 @@ mod tests {
 
     #[test]
     fn intrinsic_cache_epoch_uses_existing_node_data_padding() {
-        assert_eq!(std::mem::size_of::<NodeData>(), 56);
+        assert_eq!(std::mem::size_of::<NodeData>(), 48);
         assert_eq!(std::mem::offset_of!(NodeData, intrinsic_cache_epoch), 22);
         assert_eq!(std::mem::offset_of!(NodeData, flags), 24);
         assert_eq!(std::mem::offset_of!(NodeData, fragment_cache_epoch), 28);
@@ -334,7 +331,6 @@ mod tests {
         assert_eq!(std::mem::offset_of!(NodeData, dom_paint_facts), 38);
         assert_eq!(std::mem::offset_of!(NodeData, ancestor_facts), 39);
         assert_eq!(std::mem::offset_of!(NodeData, style), 40);
-        assert_eq!(std::mem::offset_of!(NodeData, shell), 48);
     }
 
     #[test]

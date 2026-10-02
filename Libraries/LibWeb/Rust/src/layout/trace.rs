@@ -163,17 +163,15 @@ fn owner_name(arena: &LayoutNodeArena, root: NodeSlotId, describe: DescribeNode)
         // SAFETY: describe receives this live vector and supplies bytes valid for this call.
         unsafe { &mut *sink.cast::<Vec<u8>>() }.extend_from_slice(unsafe { std::slice::from_raw_parts(bytes, length) });
     }
-    // A row nothing has made a shell for is named from the row, the way its shell would describe
-    // itself.
+    // An anonymous or text row is named from the row, the way its layout node describes itself,
+    // which saves making one.
     let data = arena.data(root);
-    if data.shell.get().is_null() {
-        let kind = data.kind.get();
-        if data.flags.get() & NodeFlag::Anonymous as u32 != 0 {
-            return format!("{kind:?}(anonymous)");
-        }
-        if kind == NodeKind::TextNode {
-            return format!("{kind:?}<#text>");
-        }
+    let kind = data.kind.get();
+    if data.flags.get() & NodeFlag::Anonymous as u32 != 0 {
+        return format!("{kind:?}(anonymous)");
+    }
+    if kind == NodeKind::TextNode {
+        return format!("{kind:?}<#text>");
     }
     let mut bytes = Vec::<u8>::new();
     // SAFETY: The pass is over, and the rows it ran for are live; describe copies the row's

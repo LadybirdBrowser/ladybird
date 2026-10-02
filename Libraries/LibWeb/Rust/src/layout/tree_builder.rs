@@ -5354,7 +5354,6 @@ mod tests {
 
         let facts = |style_node: Option<StyleNodeID>| FfiNodeConstructionFacts {
             kind: NodeKind::BlockContainer,
-            shell: std::ptr::null_mut(),
             is_anonymous: style_node.is_none(),
             is_html_input_element: false,
             is_html_html_element: false,

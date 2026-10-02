@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const layoutNodesBefore = internals.layoutArenaShellCount();
+
+        const fixture = document.createElement("div");
+        for (let i = 0; i < 20; ++i) {
+            const item = document.createElement("div");
+            item.textContent = `item ${i}`;
+            fixture.append(item);
+        }
+        document.body.append(fixture);
+        // Asking for every box makes its layout node.
+        for (const item of fixture.children)
+            item.getBoundingClientRect();
+        const layoutNodesWithSubtree = internals.layoutArenaShellCount();
+
+        fixture.remove();
+        const layoutNodesAfter = internals.layoutArenaShellCount();
+
+        println(`the subtree's boxes have layout nodes: ${layoutNodesWithSubtree >= layoutNodesBefore + 20}`);
+        println(`removing it destroys them: ${layoutNodesAfter === layoutNodesBefore}`);
+    });
+</script>

@@ -10,7 +10,6 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::paintable_rows::PaintableRowReset;
 use crate::stage::MainThread;
 use std::cell::RefCell;
-use std::ffi::c_void;
 
 mod host_calls;
 
@@ -39,11 +38,10 @@ enum OwedHostCall {
     /// What a freed subtree's rows held that the host owns the memory of.
     Freed(FreedSubtree),
     PaintableRowReset(PaintableRowReset),
-    /// A kept box's shell, whose row's style changed. It hears the style the row has once the walk
-    /// is over, and nothing if the row has gone by then.
+    /// A kept box, whose row's style changed. Its layout node, if something made one, hears the
+    /// style the row has once the walk is over, and nothing if the row has gone by then.
     ShellStyleChanged {
         row: NodeSlotId,
-        shell: *mut c_void,
         attach_resources: bool,
     },
 }
@@ -73,14 +71,8 @@ impl TreeBuildHostWork {
                 }
                 OwedHostCall::Freed(freed) => freed.destroy_shells_and_invoke_callbacks(main_thread),
                 OwedHostCall::PaintableRowReset(reset) => reset.tell(main_thread),
-                OwedHostCall::ShellStyleChanged {
-                    row,
-                    shell,
-                    attach_resources,
-                } => {
-                    if arena.slot_is_live(row) && arena.data(row).shell.get() == shell {
-                        arena.tell_shell_of_style_change(main_thread, row, shell, attach_resources);
-                    }
+                OwedHostCall::ShellStyleChanged { row, attach_resources } => {
+                    arena.tell_shell_of_style_change(main_thread, row, attach_resources);
                 }
             }
         }
@@ -119,21 +111,11 @@ impl HostCalls<'_> {
         }
     }
 
-    /// Tells the shell of a row whose style changed.
-    pub(crate) fn shell_style_changed(
-        self,
-        arena: &LayoutNodeArena,
-        row: NodeSlotId,
-        shell: *mut c_void,
-        attach_resources: bool,
-    ) {
+    /// Tells the layout node of a row whose style changed, if something made one.
+    pub(crate) fn shell_style_changed(self, arena: &LayoutNodeArena, row: NodeSlotId, attach_resources: bool) {
         match self {
-            HostCalls::Now(main_thread) => arena.tell_shell_of_style_change(main_thread, row, shell, attach_resources),
-            HostCalls::AfterTreeBuild(work) => work.owe(OwedHostCall::ShellStyleChanged {
-                row,
-                shell,
-                attach_resources,
-            }),
+            HostCalls::Now(main_thread) => arena.tell_shell_of_style_change(main_thread, row, attach_resources),
+            HostCalls::AfterTreeBuild(work) => work.owe(OwedHostCall::ShellStyleChanged { row, attach_resources }),
         }
     }
 }
@@ -377,7 +359,7 @@ mod tests {
 
         let freed = arena.free_subtree(root.slot);
 
-        assert_eq!(freed.shell_count(), 4);
+        assert_eq!(freed.row_count(), 4);
         for slot in [root.slot, a.slot, b.slot, c.slot] {
             assert!(!arena.slot_is_live(slot));
         }
