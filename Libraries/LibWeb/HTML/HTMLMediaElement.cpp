@@ -958,7 +958,16 @@ public:
 
         // 9. Run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one, then
         //    the load failed.
-        m_media_element->load_url_resource(*url_record, [self = GC::make_root(this)](auto const&) { self->failed_with_elements(); });
+        // NB: The callback holds the selector weakly — so a fetch that outlives the selection doesn't keep the element
+        // and its whole document alive. The element itself holds the selector until on_metadata_parsed(), and that's as
+        // long as the callback can run: Once readyState is past HAVE_NOTHING, every failure takes the media data
+        // processing steps instead (MEDIA_ERR_NETWORK or MEDIA_ERR_DECODE). Gecko/WebKit/Blink also leave their
+        // <source> cursor to the media element alone (Blink's current_source_node_ and next_child_node_to_consider_,
+        // WebKit's m_currentSourceNode and m_nextChildNodeToConsider, Gecko's mSourcePointer and mSourceLoadCandidate).
+        // And a failed candidate resumes the search from the element itself thru a one-shot task (Blink's load_timer_,
+        // Gecko's QueueLoadFromSourceTask(), WebKit's queueCancellableTaskKeepingObjectAlive()) — so none of them keeps
+        // a source cursor alive on its own.
+        m_media_element->load_url_resource(*url_record, GC::weak_callback(*this, [](auto& self, auto const&) { self.failed_with_elements(); }));
     }
 
     void process_next_candidate()
