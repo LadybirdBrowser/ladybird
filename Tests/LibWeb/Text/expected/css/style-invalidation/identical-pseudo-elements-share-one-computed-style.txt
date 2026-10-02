@@ -1,2 +1,2 @@
-PASS: identical markers share a style: false
+PASS: identical markers share a style: true
 PASS: every marker inherited its color: true

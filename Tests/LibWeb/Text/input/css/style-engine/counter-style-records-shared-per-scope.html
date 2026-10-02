@@ -34,8 +34,9 @@
         const second = append_items(second_root);
         internals.updateStyle();
         const record = element => internals.styleRecordIdentity(element);
-        // The consumers of one scope's counter style share a record, which answers for no consumer
-        // of the other scope's; an element naming no counter style shares its record across scopes.
+        // The consumers of one scope's counter style share a record, as do their markers, and
+        // neither answers for a consumer of the other scope's; an element naming no counter style
+        // shares its record across scopes.
         println(`consumer records shared: ${shared_hits() - before}`);
         println(`first scope's consumers share a record: ${first.every(item => record(item) === record(first[0]))}`);
         println(`second scope's consumers share a record: ${second.every(item => record(item) === record(second[0]))}`);
