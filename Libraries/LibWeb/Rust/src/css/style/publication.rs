@@ -3300,13 +3300,14 @@ impl RetainedState {
                 return Err(Unanswered::Refused);
             }
             // A pseudo-element's cascade keeps the properties its kind supports, and one that
-            // starts an animation keeps its record in C++. Its anchor name is a plain computed
+            // starts an animation keeps its record in C++; a transition declaration is the step's
+            // to act on where the host installs the record. Its anchor name is a plain computed
             // value: the host registers an element's alone.
             if let Some(kind) = pseudo_kind {
                 if !crate::css::property_metadata::pseudo_element_supports_property(kind, winner.property) {
                     continue;
                 }
-                if property_starts_animation(winner.property) {
+                if property_starts_animation(winner.property) && !property_declares_transitions(winner.property) {
                     counters.bump(Counter::EngineComputedRecordBailProperty);
                     return Err(Unanswered::Refused);
                 }
