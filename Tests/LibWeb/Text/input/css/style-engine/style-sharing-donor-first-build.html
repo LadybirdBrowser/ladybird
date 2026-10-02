@@ -1,9 +1,5 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
-<style>
-    /* A transition keeps the computation in C++, whose donor sharing this counts. */
-    font { transition-delay: 0s; }
-</style>
 <div id="container"></div>
 <script>
     function makeFont(color) {
@@ -13,20 +9,30 @@
         return font;
     }
 
+    // The first records the engine computes and those it takes from an earlier node alike.
+    function engineSharedRecords() {
+        const engine = internals.styleEngineCounters();
+        return (engine.engineComputedRecordSharedHits ?? 0) + (engine.engineComputedRecordCohortHits ?? 0);
+    }
+
     function measure(label, color) {
         container.replaceChildren(makeFont("red"));
         internals.updateStyle();
         const before = internals.getStyleInvalidationCounters();
+        const sharedBefore = engineSharedRecords();
 
         const font = makeFont(color);
         container.append(font);
         internals.updateStyle();
 
         const after = internals.getStyleInvalidationCounters();
-        println(`${label}: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations} longhand evaluations`);
+        println(`${label}: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations} C++ longhand evaluations`);
+        println(`${label}: takes the donor's record: ${engineSharedRecords() > sharedBefore}`);
         println(`${label}: color ${getComputedStyle(font).color}`);
     }
 
+    // The engine computes a font element's first record, and a sibling alike in everything the
+    // record is computed from takes the record its donor got.
     test(() => {
         measure("differing sibling", "blue");
         measure("identical sibling", "red");

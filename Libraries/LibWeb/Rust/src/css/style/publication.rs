@@ -1391,13 +1391,16 @@ impl RetainedState {
                 font_environment_generation: inputs.font_environment_generation,
                 root_font_inputs: RootFontInputs::from_document(&inputs),
             });
-        // A winner that starts an animation or a transition keeps the record in C++, unless it
-        // declares CSS animations and the host can be handed the plan the record decides, which is
-        // asked of every node, a shared record's too. The font-phase longhands feed no group of
-        // their own: the full drive resolves the font from them and rebuilds every group, rejecting
-        // the values the font resolution does not pass on yet.
+        // A winner that starts an animation keeps the record in C++, unless it declares CSS
+        // animations and the host can be handed the plan the record decides, which is asked of every
+        // node, a shared record's too. A first computation starts no transition, there being no
+        // before-change style to start one from, so a transition declaration is computed into the
+        // record like any other value. The font-phase longhands feed no group of their own: the full
+        // drive resolves the font from them and rebuilds every group, rejecting the values the font
+        // resolution does not pass on yet.
         for property in self.winner_groups.semantic_delta_properties(None, state) {
             if self.first_record_winner_needs_cpp(property)
+                && !property_declares_transitions(property)
                 && !(property_declares_css_animations(property) && self.may_plan_css_animations(node, state, scratch))
             {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
@@ -5436,6 +5439,20 @@ fn property_declares_css_animations(property: u16) -> bool {
             | prop::ANIMATION_PLAY_STATE
             | prop::ANIMATION_TIMELINE
             | prop::ANIMATION_TIMING_FUNCTION
+    )
+}
+
+/// Whether the property is one of the `transition-*` longhands that declare which changes of an
+/// element's values start transitions.
+fn property_declares_transitions(property: u16) -> bool {
+    use crate::css::property_metadata::property_id as prop;
+    matches!(
+        property,
+        prop::TRANSITION_BEHAVIOR
+            | prop::TRANSITION_DELAY
+            | prop::TRANSITION_DURATION
+            | prop::TRANSITION_PROPERTY
+            | prop::TRANSITION_TIMING_FUNCTION
     )
 }
 

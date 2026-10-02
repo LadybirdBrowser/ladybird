@@ -9,8 +9,10 @@
         println(`liveComputedValues > 0: ${stats.liveComputedValues > 0}`);
         println(`totalComputedValuesCreated >= liveComputedValues: ${stats.totalComputedValuesCreated >= stats.liveComputedValues}`);
 
+        // The element's first record is the engine's; a transition on a record it already has is
+        // one only C++ computes.
+        internals.updateStyle();
         let before = internals.computedValuesStats().totalComputedValuesCreated;
-        // A transition is one only C++ computes.
         document.getElementById("target").style.transitionDelay = "1s";
         internals.updateStyle();
         let after = internals.computedValuesStats().totalComputedValuesCreated;

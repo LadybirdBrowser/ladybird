@@ -56,12 +56,12 @@
             simple.style.color = "green";
             simple.style.margin = "1px 2px";
             simple.style.listStyleImage = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>")`;
-            // A transition keeps the computation in C++, whose entries into Rust this counts.
-            simple.style.transitionDelay = "0s";
             document.body.appendChild(simple);
         });
-        println(`longhand computation used one Rust entry: ${simpleCounters.longhandDriverEntries === 1}`);
-        println(`longhand computation used two context callbacks: ${simpleCounters.longhandDriverPhaseCallbacks === 2}`);
+        // The engine computes this element's first record: the C++ longhand drive is not entered,
+        // and no computation context is asked of the host.
+        println(`engine-computed record entered no longhand drive: ${simpleCounters.longhandDriverEntries === 0}`);
+        println(`engine-computed record asked for no context: ${simpleCounters.longhandDriverPhaseCallbacks === 0}`);
         println(`shorthand expansion entered Rust: ${simpleCounters.shorthandExpansionEntries > 0}`);
         const inheritanceParent = document.createElement("div");
         const inheritanceChild = document.createElement("span");
