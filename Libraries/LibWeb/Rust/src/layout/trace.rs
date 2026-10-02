@@ -92,7 +92,7 @@ impl LayoutTrace {
                     .and_then(|host_tables| host_tables.layout_trace_describe_node.get())
                     .expect("a layout trace names its boxes through the callback it began with")
             });
-            line.owner_name = Some(owner_name(arena, owner, describe));
+            line.owner_name = Some(owner_name(main_thread, arena, owner, describe));
         }
     }
 
@@ -153,7 +153,7 @@ impl LayoutTrace {
     }
 }
 
-fn owner_name(arena: &LayoutNodeArena, root: NodeSlotId, describe: DescribeNode) -> String {
+fn owner_name(main_thread: &MainThread, arena: &LayoutNodeArena, root: NodeSlotId, describe: DescribeNode) -> String {
     if arena.data(root).kind.get() == NodeKind::Viewport {
         return "@viewport".into();
     }
@@ -176,7 +176,7 @@ fn owner_name(arena: &LayoutNodeArena, root: NodeSlotId, describe: DescribeNode)
     let mut bytes = Vec::<u8>::new();
     // SAFETY: The pass is over, and the rows it ran for are live; describe copies the node's
     // description synchronously without changing layout.
-    unsafe { describe(arena.shell_if_live(root), (&raw mut bytes).cast(), append) };
+    unsafe { describe(arena.shell_if_live(main_thread, root), (&raw mut bytes).cast(), append) };
     String::from_utf8(bytes).expect("layout trace label must be UTF-8")
 }
 

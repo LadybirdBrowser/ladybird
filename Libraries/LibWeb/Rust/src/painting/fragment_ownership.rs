@@ -143,7 +143,7 @@ pub(crate) fn assign_fragment_ownership_for_pending_line_roots(layout_arena: &La
 }
 
 fn piece_paintable_of(layout_arena: &impl PaintableRowsRead, node: NodeSlotId) -> Option<NodeSlotId> {
-    if node.is_invalid() || layout_arena.shell_if_live(node).is_null() {
+    if node.is_invalid() || !layout_arena.slot_is_live(node) {
         return None;
     }
     (layout_arena.paintable_row_is_populated(node) && node_painting::is_inline(layout_arena, node)).then_some(node)

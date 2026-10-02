@@ -106,9 +106,9 @@ impl MappedText {
         let start = self.dom_position(arena, range.start, Start)?;
         let end = self.dom_position(arena, range.end, End)?;
         Some(FfiDomTextRange {
-            start_layout_node: arena.node_shell(start.node),
+            start_layout_node: arena.dom_backed_shell_if_live(start.node),
             start_offset: start.offset,
-            end_layout_node: arena.node_shell(end.node),
+            end_layout_node: arena.dom_backed_shell_if_live(end.node),
             end_offset: end.offset,
         })
     }
@@ -292,7 +292,7 @@ impl SearchNode {
     fn text(arena: &LayoutNodeArena, node: NodeSlotId) -> Self {
         // Generated text renders no DOM text, so only a DOM-backed row can be searched.
         if arena.node_is_dom_backed(node) {
-            SearchNode::Text(arena.node_shell(node))
+            SearchNode::Text(arena.dom_backed_shell_if_live(node))
         } else {
             SearchNode::Skip
         }

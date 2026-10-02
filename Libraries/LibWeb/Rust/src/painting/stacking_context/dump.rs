@@ -84,7 +84,7 @@ fn visit(
     } else {
         push_line(
             output,
-            &callbacks.debug_description(main_thread, arena.node_shell(root)),
+            &callbacks.debug_description(main_thread, arena.node_shell(main_thread, root)),
             paintable_geometry::absolute_rect_or_default(&arena.paintable_rows(), root),
             effective_z_index(arena, root),
             has_css_transform(arena, root),

@@ -556,7 +556,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
         assignment.own_scroll_node_index = scroll_node_index;
         assignment.node_identity = env
             .callbacks
-            .node_identity(env.main_thread, layout_arena.shell_if_live(slot));
+            .node_identity(env.main_thread, layout_arena.shell_if_live(env.main_thread, slot));
         nearest_scroll_nodes_for_descendants = NearestScrollNodeIndices {
             stopping_at_fixed_position_ancestors: scroll_node_index,
             continuing_through_fixed_position_ancestors: scroll_node_index,
@@ -571,7 +571,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     {
         assignment.node_identity = env
             .callbacks
-            .node_identity(env.main_thread, layout_arena.shell_if_live(slot));
+            .node_identity(env.main_thread, layout_arena.shell_if_live(env.main_thread, slot));
     }
 
     // Positioned descendants that escape into a viewport-establishing containing block lay

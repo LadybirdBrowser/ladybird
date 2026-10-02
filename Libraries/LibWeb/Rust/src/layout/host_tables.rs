@@ -11,7 +11,7 @@
 
 use super::LayoutNodeArena;
 use super::formatting_context::FfiLayoutHostCallbacks;
-use super::layout_node_arena::ShellStyleChangedHost;
+use super::layout_node_arena::{ShellFactory, ShellStyleChangedHost};
 use super::trace::DescribeNode;
 use super::update_layout::FfiLayoutUpdateHostCallbacks;
 use crate::painting::paintable_rows::ChromeStateCallback;
@@ -22,6 +22,8 @@ use std::ffi::c_void;
 pub(crate) struct HostTables {
     pub(super) layout_host: Cell<Option<FfiLayoutHostCallbacks>>,
     pub(super) layout_update_host: Cell<Option<FfiLayoutUpdateHostCallbacks>>,
+    /// Makes the shell of an anonymous row the first time something asks for it.
+    pub(super) shell_factory: Cell<Option<ShellFactory>>,
     pub(super) shell_style_changed_host: Cell<Option<ShellStyleChangedHost>>,
     pub(crate) chrome_state_callback: Cell<Option<ChromeStateCallback>>,
     /// How the host names a node a layout trace mentions, set when tracing begins.
