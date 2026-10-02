@@ -50,6 +50,7 @@ public:
     void commit_box_presence(DOM::Node&);
 
 private:
+    RustFFI::DocumentId m_document_id {};
     void* m_handle { nullptr };
     GC::RawPtr<DOM::Document> m_document;
 };

@@ -4951,32 +4951,6 @@ pub(crate) struct NodeAllocation {
     pub(crate) slot: NodeSlotId,
 }
 
-/// Makes a document's arena and the host tables beside it. The handle is also a pointer to the
-/// arena.
-#[unsafe(no_mangle)]
-pub extern "C" fn layout_arena_create() -> *mut c_void {
-    Box::into_raw(Box::new(super::ArenaHandle::new())).cast()
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The handle came from layout_arena_create and ownership is
-    // transferred back exactly once by the C++ RAII wrapper.
-    let handle = unsafe { Box::from_raw(arena.cast::<super::ArenaHandle>()) };
-    handle.arena().assert_owner_thread();
-    assert_eq!(
-        handle.host_tables().shells.borrow().len(),
-        0,
-        "layout node arena destroyed with layout nodes"
-    );
-    assert_eq!(
-        handle.arena().live_count,
-        0,
-        "layout node arena destroyed with live slots"
-    );
-}
-
 /// The characters the generated text row `id` renders, as a raw `AK::Utf16String` representation
 /// for which the caller takes one reference.
 ///
@@ -5265,7 +5239,7 @@ pub unsafe extern "C" fn layout_arena_move_bound_pseudo_element_rows_to_style_no
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_element_scroll_offset(
     arena: *mut c_void,
@@ -5283,7 +5257,7 @@ pub unsafe extern "C" fn layout_arena_set_element_scroll_offset(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_pseudo_element_scroll_offset(
     arena: *mut c_void,
@@ -5306,7 +5280,7 @@ pub unsafe extern "C" fn layout_arena_set_pseudo_element_scroll_offset(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_viewport_scroll_offset(arena: *mut c_void, offset: FfiCssPixelPoint) {
     // SAFETY: Guaranteed by the caller.
@@ -5317,7 +5291,7 @@ pub unsafe extern "C" fn layout_arena_set_viewport_scroll_offset(arena: *mut c_v
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_row_scroll_offset(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelPoint {
     // SAFETY: Guaranteed by the caller.
@@ -5330,7 +5304,7 @@ pub unsafe extern "C" fn layout_arena_row_scroll_offset(arena: *mut c_void, slot
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_identity_in_focused_text_control(arena: *mut c_void, node: u32, value: bool) {
     let Some(node) = StyleNodeID::from_raw(node) else {
@@ -5345,7 +5319,7 @@ pub unsafe extern "C" fn layout_arena_set_identity_in_focused_text_control(arena
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, and `elements` must name `count`
+/// `arena` must be a live handle from `render_state_create_document`, and `elements` must name `count`
 /// element identities for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_anchor_name_elements(

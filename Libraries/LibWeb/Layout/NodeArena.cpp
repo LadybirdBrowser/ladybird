@@ -16,15 +16,17 @@
 namespace Web::Layout {
 
 NodeArena::NodeArena()
-    : m_handle(RustFFI::layout_arena_create())
 {
+    auto render_document = RustFFI::render_state_create_document();
+    m_document_id = render_document.document;
+    m_handle = render_document.arena;
     VERIFY(m_handle);
     Painting::register_geometry_host(*this);
 }
 
 NodeArena::~NodeArena()
 {
-    RustFFI::layout_arena_destroy(m_handle);
+    RustFFI::render_state_destroy_document(m_document_id);
 }
 
 void NodeArena::free_subtree(Compositing::RustFFI::NodeSlotId root)
