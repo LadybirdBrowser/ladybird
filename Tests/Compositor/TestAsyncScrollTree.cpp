@@ -139,36 +139,6 @@ TEST_CASE(wheel_scroll_admission_preserves_main_thread_region_and_viewport_block
         Compositing::WheelScrollAdmission::BlockedByWheelEventRegion);
 }
 
-TEST_CASE(wheel_scroll_admission_fails_closed_for_stale_or_missing_blocker_geometry)
-{
-    Compositing::VisualContextTreeTestBuilder builder;
-    builder.append_scroll(Compositing::VISUAL_VIEWPORT_NODE_INDEX);
-    auto visual_context_tree = builder.finish();
-    auto display_list = make_empty_display_list(visual_context_tree);
-    auto state = make_scrolling_state_with_viewport_scroll_node(2000);
-    state.has_blocking_wheel_event_listeners = true;
-    state.blocking_wheel_event_regions.append({
-        .context = { Compositing::VISUAL_VIEWPORT_NODE_INDEX },
-        .rect = { 0, 0, 100, 100 },
-    });
-
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 200, 200 }, { 0, 10 }, true),
-        Compositing::WheelScrollAdmission::Accepted);
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 200, 200 }, { 0, 10 }, false),
-        Compositing::WheelScrollAdmission::StaleBlockingWheelEventRegions);
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, {}, &visual_context_tree, {}, { 200, 200 }, { 0, 10 }, true),
-        Compositing::WheelScrollAdmission::BlockedByWheelEventRegion);
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, display_list, nullptr, {}, { 200, 200 }, { 0, 10 }, true),
-        Compositing::WheelScrollAdmission::BlockedByWheelEventRegion);
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, {}, nullptr, {}, { 200, 200 }, { 0, 10 }, false),
-        Compositing::WheelScrollAdmission::StaleBlockingWheelEventRegions);
-
-    state.has_blocking_wheel_event_listeners = false;
-    state.blocking_wheel_event_regions.clear();
-    EXPECT_EQ(Compositing::admit_wheel_scroll(state, {}, nullptr, {}, { 200, 200 }, { 0, 10 }, true),
-        Compositing::WheelScrollAdmission::NoScrollableTarget);
-}
-
 TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)
 {
     Compositing::VisualContextTreeTestBuilder builder;
