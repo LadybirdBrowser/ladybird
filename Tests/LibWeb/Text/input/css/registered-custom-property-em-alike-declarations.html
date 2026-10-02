@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --len { syntax: "<length>"; inherits: true; initial-value: 0px; }
+    .parent { --len: 1em; }
+    .small { font-size: 10px; }
+    .large { font-size: 20px; }
+    .parent.on { --len: 2em; }
+    .child { width: var(--len); }
+</style>
+<div class="parent small" id="small"><div class="child"></div></div>
+<div class="parent large" id="large"><div class="child"></div></div>
+<script>
+    // Two parents declare the same registered <length> in em under different fonts and switch it
+    // in the same style update. Each computes it against its own font.
+    test(() => {
+        const values = () => ["small", "large"].map(id => {
+            const parent = document.getElementById(id);
+            return `${id} --len ${getComputedStyle(parent).getPropertyValue("--len")} child ${getComputedStyle(parent.firstElementChild).width}`;
+        }).join(", ");
+        println(`before: ${values()}`);
+        small.classList.add("on");
+        large.classList.add("on");
+        println(`after: ${values()}`);
+    });
+</script>

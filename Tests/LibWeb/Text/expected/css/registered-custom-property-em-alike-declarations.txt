@@ -1,0 +1,2 @@
+before: small --len 10px child 10px, large --len 20px child 20px
+after: small --len 20px child 20px, large --len 40px child 40px

@@ -5486,6 +5486,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         size_t registration_generation;
         Optional<PreferredColorScheme> color_scheme;
         bool root_font_metrics_prepared { false };
+        bool computed_registered_value { false };
 
         CustomPropertyResolutionState(NonnullRefPtr<CustomPropertyData const> data, RefPtr<CustomPropertyData const> parent_data, DOM::AbstractElement element, FlatPtr document_identity, size_t registration_generation)
             : data(move(data))
@@ -5584,12 +5585,15 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                     state.root_font_metrics_prepared = true;
                 }
                 for (auto member : ReadonlySpan<u32> { members, member_count }) {
+                    auto name = Utf16FlyString::from_raw(names[member]);
+                    if (!state.computed_registered_value && context.abstract_element.document().get_registered_custom_property(name).has_value())
+                        state.computed_registered_value = true;
                     auto substituted = StyleValue::adopt_rust_style_value_data(
                         static_cast<StyleValueFFI::StyleValueData const*>(resolved[member].data));
                     auto finalized = style_computer.finalize_custom_property_value(
                         &computed_style,
                         context.abstract_element,
-                        Utf16FlyString::from_raw(names[member]),
+                        name,
                         move(substituted));
                     resolved[member].data = StyleValueFFI::rust_style_value_retain(finalized->rust_style_value_data());
                 }
@@ -5834,7 +5838,9 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                     resolved = style_computer.intern_custom_property_data(
                         CustomPropertyData::create(move(resolved_own), resolution_state.parent_data ? resolution_state.parent_data : resolution_state.data->parent(), resolution.rust_store));
                 }
-                if (resolution_read_only_the_environment)
+                // A registered value computes against the element's own font and viewport, which an
+                // element alike in its declarations does not share.
+                if (resolution_read_only_the_environment && !resolution_state.computed_registered_value)
                     resolution_state.data->set_cached_resolution(resolution_state.document_identity, resolution_state.registration_generation, resolution_state.color_scheme.value(), resolved);
                 context.abstract_element.set_custom_property_data(move(resolved));
             }
