@@ -1002,6 +1002,15 @@ The animation graph depends on the selected keyframes program, timeline inputs, 
 
 `@starting-style` contributes a typed starting-style program used only when the transition model requires it. Its rule and CSSOM mutations update before-change-style and transition-start consumers; it never becomes an unconditional alternate cascade for every element. Define the exact before-change-style lifetime and observation rules alongside the transition implementation.
 
+Who does what today: the host keeps the animation objects, their timelines and the transition step; the engine decides and computes the rest.
+
+* **Plans.** Each tree scope publishes its `@keyframes` (`style_engine_set_tree_scope_animation_keyframes()`). The engine resolves an `animation-name` in the scope of the declaration that named it, decides whether `display: none` stops an animation, and plans the CSS animations of every record it settles, first records included, skipping a definition that has not changed since the host last applied it. The host applies the plan.
+* **Samples.** The host publishes a description of every effect it runs: keyframes, easings, composite operations and declarations (`style_engine_set_element_animation_effect_descriptions()`). `rust_sample_animation_effects()` resolves the keyframe declarations, substitutes them against the element, computes the keyframe values in length contexts it builds over the installed record, and composes the overlay, custom properties and compositor keyframe values included. The preparation stays on the overlay, keyed by the effects' versions and, where it substituted against the element, by its custom-property environments.
+* **Compositions.** An element's composition is laid over the record its winners decide. A row derives the record beneath it, and the composition stays detached and pinned (`DetachedComposition`, which must be released or reattached) until the host installs the new record and samples over it. Children wait for a composition that moves, and pseudo-elements settle against it after the sample.
+* **Transitions.** A row whose record declares transitions, or that moves their declarations, owes the host the transition step, which runs against the record held before once the new one is installed (`decide_transition_step()`).
+
+What stays with the C++ computation: a row owing a transition step whose element has element children or pseudo-element cascades, pseudo-elements running CSS animations of their own, and elements whose animations sample custom properties.
+
 ### 9.12 Style-layout fixed points
 
 The pure style graph contains only dependencies resolvable from inputs held stable by the read epoch. Geometry and layout-dependent features (container queries, anchor functions, tree-counting functions with layout inputs) belong to a separate style-layout fixed-point coordinator and cross an explicit typed boundary that exposes style-to-layout and layout-to-style version changes.
