@@ -47,6 +47,8 @@ pub(crate) struct TreeBuilderState {
     /// The elements a finished build asks the document to rebuild. `None` asks for the whole tree:
     /// the container the box escaped into stands for no element.
     layout_tree_rebuild_requests: Vec<Option<StyleNodeID>>,
+    /// Whether the build reached an element no style update settled, which it built no box for.
+    reached_unstyled_element: bool,
     /// What the build found out that the document has to be told, in the order it found it out.
     /// Delivered when the walk ends: nothing inside the build reads any of it back.
     reports: Vec<crate::layout::commit::FfiCommitMessage>,
@@ -71,6 +73,7 @@ impl Default for TreeBuilderState {
             layout_tree_update_escaped_rebuild_roots: false,
             new_subtree_root: NodeSlotId::INVALID,
             layout_tree_rebuild_requests: Vec::new(),
+            reached_unstyled_element: false,
             reports: Vec::new(),
             pinned_style_records: Vec::new(),
             document_style: None,
@@ -126,15 +129,6 @@ enum StaleSubtreeClearScope {
     Inclusive,
     InclusiveBoundedToRoot,
     DescendantsBoundedToRoot,
-}
-
-#[repr(C)]
-pub struct FfiDomTreeBuilderCallbacks {
-    pub builder: *mut c_void,
-    /// Computes the style of an element the walk reached through a bypass path without one. The
-    /// style update before the build settles every element it walks; a top layer, slot projection
-    /// or SVG reference path can reach one it did not.
-    pub restyle_bypass_path_element: unsafe extern "C" fn(*mut c_void, u32),
 }
 
 /// What the build knows about a node when it enters it: what its marks ask for, and what layout
@@ -1203,14 +1197,12 @@ pub(crate) fn principal_node_entry_decision(
     })
 }
 
-/// The tree build walk's view of the document: the callbacks the walk still asks, the arena it
-/// builds rows in, and the host work it owes for what it changes. It holds no main thread token,
-/// so it cannot call the host for that work itself.
+/// The tree build walk's view of the document: the arena it builds rows in, and the host work it
+/// owes for what it changes. It holds no main thread token, so it cannot call the host for that
+/// work itself.
 struct DomTreeBuilderHost<'a> {
-    callbacks: &'a FfiDomTreeBuilderCallbacks,
     arena: *mut LayoutNodeArena,
     work: &'a OwedHostWork,
-    walk: &'a TreeBuildWalk<'a>,
 }
 
 impl DomTreeBuilderHost<'_> {
@@ -1316,20 +1308,11 @@ fn dom_child_layout_plan(host: &DomTreeBuilderHost<'_>, node: StyleNodeID) -> (b
     )
 }
 
-unsafe fn dom_tree_builder_host<'a>(
-    callbacks: *const FfiDomTreeBuilderCallbacks,
-    arena: *mut c_void,
-    work: &'a OwedHostWork,
-    walk: &'a TreeBuildWalk<'a>,
-) -> DomTreeBuilderHost<'a> {
-    assert!(!callbacks.is_null());
+fn dom_tree_builder_host(arena: *mut c_void, work: &OwedHostWork) -> DomTreeBuilderHost<'_> {
     assert!(!arena.is_null());
-    // SAFETY: Each exported entry point requires the callback table to remain live for the duration of its call.
     DomTreeBuilderHost {
-        callbacks: unsafe { &*callbacks },
         arena: arena.cast(),
         work,
-        walk,
     }
 }
 
@@ -2259,19 +2242,22 @@ fn construct_principal_layout_node(
             host.arena()
                 .with_style_store(|engine| engine.element_published_style_record(element))
         };
-        let mut record = published_record();
-        if should_create_layout_node && record.is_none() {
+        let Some(record) = published_record() else {
+            assert!(
+                should_create_layout_node,
+                "an element whose box stays has published its style"
+            );
             // Nothing published a style for the element, so a bypass path reached it without the
-            // style update settling it. Only the host can compute one, and the style update it runs
-            // reaches layout through FFI.
-            host.walk.reentered_by(|| {
-                // SAFETY: The builder remains live, and the identity names a live element.
-                unsafe { (host.callbacks.restyle_bypass_path_element)(host.callbacks.builder, element.raw()) };
-            });
-            record = published_record();
-        }
+            // style update settling it. It gets no box in this build: the document styles it once
+            // the build is over, and builds its box in the next one.
+            update.state.reports.push(crate::layout::commit::FfiCommitMessage::new(
+                element.raw(),
+                crate::layout::commit::FfiCommitMessageKind::UnstyledElementReached,
+            ));
+            update.state.reached_unstyled_element = true;
+            return PrincipalBoxConstruction::none();
+        };
         // The record the box is built from is held for the whole build.
-        let record = record.expect("an element the walk prepares has published its style");
         update.state.pin_style_record_for_build(host.arena(), record);
         let display = host.published_display(update.style_node);
         let generation = principal_box_generation_decision(

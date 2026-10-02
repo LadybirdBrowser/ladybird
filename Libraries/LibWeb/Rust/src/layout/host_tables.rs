@@ -160,18 +160,6 @@ pub(crate) struct TreeBuildWalk<'a> {
     host_tables: &'a HostTables,
 }
 
-impl TreeBuildWalk<'_> {
-    /// Runs `callback` with the walk's guard lifted, for C++ that enters Rust again. Restyling an
-    /// element a bypass path reached is the one such call: the style update reaches layout through
-    /// FFI.
-    pub(crate) fn reentered_by<T>(&self, callback: impl FnOnce() -> T) -> T {
-        self.host_tables.tree_build_walk_is_open.set(false);
-        let answer = callback();
-        self.host_tables.tree_build_walk_is_open.set(true);
-        answer
-    }
-}
-
 impl Drop for TreeBuildWalk<'_> {
     fn drop(&mut self) {
         self.host_tables.tree_build_walk_is_open.set(false);

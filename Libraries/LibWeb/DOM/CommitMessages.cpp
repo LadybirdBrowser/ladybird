@@ -78,6 +78,9 @@ void CommitMessages::append(Layout::RustFFI::FfiCommitMessage const& message)
     case Layout::RustFFI::FfiCommitMessageKind::ListItemCounterValueRendered:
         m_messages.append({ .identity = identity, .kind = Kind::ListItemCounterValueRendered });
         return;
+    case Layout::RustFFI::FfiCommitMessageKind::UnstyledElementReached:
+        m_messages.append({ .identity = identity, .kind = Kind::UnstyledElementReached });
+        return;
     case Layout::RustFFI::FfiCommitMessageKind::SvgResourceReferenced:
         m_messages.append({
             .identity = identity,
@@ -143,6 +146,17 @@ void CommitMessages::apply(Message const& message)
             resource->register_resource_box_referencing_element({}, *referencing_element);
         return;
     }
+    case Kind::UnstyledElementReached:
+        // A bypass path (top-layer iteration, slot projection, SVG mask/clip-path or pattern reference) reached an
+        // element no style update settled. A targeted style update seeds the style computer's ancestor filter, so
+        // descendant-combinator selectors match during its lazy re-cascade, and the next tree build gives the element
+        // its box.
+        if (auto* element = as_if<Element>(message.identity.resolve(m_document).ptr()); element && element->is_connected()) {
+            if (!element->has_style())
+                m_document->update_style_for_element({ *element });
+            element->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::StyleChange);
+        }
+        return;
     case Kind::UnexpectedFragmentedInline:
         if (auto* box = bound_layout_node(message.identity)) {
             dbgln("FIXME: InlineFormattingContext::dimension_box_on_line got unexpected box in inline context:");

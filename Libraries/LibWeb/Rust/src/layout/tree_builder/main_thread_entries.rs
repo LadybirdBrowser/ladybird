@@ -21,10 +21,9 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 ///
 /// # Safety
 ///
-/// The callback table, arena, and document must remain valid for the duration of the call.
+/// The arena and document must remain valid for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_build_layout_tree(
-    callbacks: *const FfiDomTreeBuilderCallbacks,
     arena: *mut c_void,
     document: *mut c_void,
     document_style_node: u32,
@@ -39,8 +38,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         .host_tables()
         .expect("an FFI entry's token names its arena's host tables")
         .open_tree_build_walk();
-    // SAFETY: Guaranteed by the entry point's contract.
-    let host = unsafe { dom_tree_builder_host(callbacks, arena, &work, &walk) };
+    let host = dom_tree_builder_host(arena, &work);
     host.arena().queue_box_presence();
     let document_identity =
         StyleNodeID::from_raw(document_style_node).expect("a document that lays out is named in the style mirror");
@@ -183,7 +181,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         viewport,
         rebuilt_subtree_root_count,
         layout_tree_update_escaped_rebuild_roots: state.layout_tree_update_escaped_rebuild_roots,
-        needs_another_build_pass: !state.layout_tree_rebuild_requests.is_empty(),
+        needs_another_build_pass: !state.layout_tree_rebuild_requests.is_empty() || state.reached_unstyled_element,
     }
 }
 
