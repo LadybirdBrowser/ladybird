@@ -173,7 +173,7 @@ pub unsafe extern "C" fn painting_dump(
     let command_runs = unsafe { libcompositing_rust::ffi::ffi_slice(command_runs, command_run_count) };
     let owners = VisualContextNodeOwners::collect(arena, viewport);
     let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |kind, index| {
-        let shell = arena.shell_if_live(owners.owner(kind, index)?);
+        let shell = arena.shell_if_live(&main_thread, owners.owner(kind, index)?);
         (!shell.is_null()).then(|| callbacks.debug_description(&main_thread, shell))
     });
     output.push_str("\nDisplayList:\n");

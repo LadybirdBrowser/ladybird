@@ -30,7 +30,7 @@ pub(crate) fn refill_contained_boxes_index(
     for contained_boxes in non_child_boxes_by_containing_block.values_mut() {
         contained_boxes.clear();
     }
-    if !layout_arena.shell_if_live(root).is_null() {
+    if layout_arena.slot_is_live(root) {
         let mut stack = vec![root];
         while let Some(node) = stack.pop() {
             if node != root
@@ -274,7 +274,7 @@ fn fragment_node_is_in_focused_text_control(
     if !node_has_dom_node || flags & NodeFlag::IsInUserAgentShadowTree as u32 == 0 {
         return false;
     }
-    let shell = layout_arena.shell_if_live(node);
+    let shell = layout_arena.dom_backed_shell_if_live(node);
     if shell.is_null() {
         return false;
     }
@@ -901,7 +901,7 @@ pub(crate) fn update_scrollable_overflow(main_thread: &crate::stage::MainThread,
     for slot in roots {
         arena.ensure_scrollable_overflow(slot);
         if let Some(host) = arena.scrollable_overflow.host.get() {
-            let shell = arena.shell_if_live(slot);
+            let shell = arena.shell_if_live(main_thread, slot);
             if !shell.is_null() {
                 // SAFETY: The registered host receives a live shell. No mutable arena or
                 // cache borrow is held while it re-enters geometry queries to clamp the offset.

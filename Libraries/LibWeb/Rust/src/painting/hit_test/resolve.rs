@@ -10,6 +10,7 @@ use crate::layout::node_data::NodeFlag;
 use crate::painting::host::FfiCaretBoundaryKind;
 use crate::painting::host::FfiResolvedCaret;
 use crate::painting::paintable_data::SELECTION_STATE_START_AND_END;
+use crate::stage::MainThread;
 use std::ffi::c_void;
 
 pub(crate) fn empty_line_is_anchored_to_its_forced_break(arena: &LayoutNodeArena, item: &HitTestItem) -> bool {
@@ -30,36 +31,51 @@ pub(crate) fn row_dom_style_node(arena: &LayoutNodeArena, slot: NodeSlotId) -> u
 }
 
 impl HitTestList {
-    pub(crate) fn item_target_shell(&self, arena: &LayoutNodeArena, item_index: usize) -> *mut c_void {
+    pub(crate) fn item_target_shell(
+        &self,
+        main_thread: &MainThread,
+        arena: &LayoutNodeArena,
+        item_index: usize,
+    ) -> *mut c_void {
         let item = &self.items[item_index];
         let slot = match item.kind {
             HitTestItemKind::TextFragment => fragment_layout_node_slot(arena, item),
             HitTestItemKind::EmptyLine => Some(item.caret_node),
             _ => Some(item.paintable),
         };
-        slot.map_or(std::ptr::null_mut(), |slot| arena.shell_if_live(slot))
+        slot.map_or(std::ptr::null_mut(), |slot| arena.shell_if_live(main_thread, slot))
     }
 
-    pub(crate) fn item_dispatch_shell(&self, arena: &LayoutNodeArena, item_index: usize) -> (*mut c_void, bool) {
+    pub(crate) fn item_dispatch_shell(
+        &self,
+        main_thread: &MainThread,
+        arena: &LayoutNodeArena,
+        item_index: usize,
+    ) -> (*mut c_void, bool) {
         let item = &self.items[item_index];
         match item.kind {
             HitTestItemKind::TextFragment => (
-                fragment_layout_node_slot(arena, item).map_or(std::ptr::null_mut(), |slot| arena.shell_if_live(slot)),
+                fragment_layout_node_slot(arena, item)
+                    .map_or(std::ptr::null_mut(), |slot| arena.shell_if_live(main_thread, slot)),
                 true,
             ),
-            HitTestItemKind::EmptyLine => (arena.shell_if_live(item.caret_node), false),
-            _ => (event_dispatch_shell_for_paintable(arena, item.paintable), false),
+            HitTestItemKind::EmptyLine => (arena.shell_if_live(main_thread, item.caret_node), false),
+            _ => (
+                event_dispatch_shell_for_paintable(main_thread, arena, item.paintable),
+                false,
+            ),
         }
     }
 
     pub(crate) fn resolve_hit(
         &self,
+        main_thread: &MainThread,
         arena: &LayoutNodeArena,
         item_index: usize,
         local_point: CssPixelPoint,
     ) -> crate::painting::host::FfiResolvedHit {
         let item = &self.items[item_index];
-        let (dispatch_shell, allow_pseudo_fallback) = self.item_dispatch_shell(arena, item_index);
+        let (dispatch_shell, allow_pseudo_fallback) = self.item_dispatch_shell(main_thread, arena, item_index);
         let mut result = crate::painting::host::FfiResolvedHit {
             dispatch_shell,
             allow_pseudo_fallback,
@@ -67,7 +83,7 @@ impl HitTestList {
         };
         match item.kind {
             HitTestItemKind::TextFragment => {
-                result.fallback_dispatch_shell = event_dispatch_shell_for_paintable(arena, item.paintable);
+                result.fallback_dispatch_shell = event_dispatch_shell_for_paintable(main_thread, arena, item.paintable);
                 result.has_index_in_node = true;
                 result.index_in_node = fragment_index_in_node_for_point(arena, item, local_point);
                 result.is_text_fragment = true;
@@ -82,6 +98,7 @@ impl HitTestList {
 
     pub(crate) fn resolve_caret(
         &self,
+        main_thread: &MainThread,
         arena: &LayoutNodeArena,
         item_index: usize,
         local_point: CssPixelPoint,
@@ -112,7 +129,7 @@ impl HitTestList {
                         crate::painting::text_fragment::index_in_node_for_point(&paintable_rows, fragment, local_point)
                     }
                 };
-                let node_shell = arena.shell_if_live(fragment.layout_node);
+                let node_shell = arena.shell_if_live(main_thread, fragment.layout_node);
                 let affinity_is_upstream = offset >= fragment.dom_end_offset_in_node
                     && offset == fragment.dom_end_offset_with_trailing_whitespace;
                 let debug_rect = fragment_caret_range_rect(arena, fragment, offset);
@@ -129,7 +146,7 @@ impl HitTestList {
             .unwrap_or_default(),
             HitTestItemKind::EmptyLine => FfiResolvedCaret {
                 has_position: true,
-                node_shell: arena.shell_if_live(item.caret_node),
+                node_shell: arena.shell_if_live(main_thread, item.caret_node),
                 boundary: if empty_line_is_anchored_to_its_forced_break(arena, item) {
                     FfiCaretBoundaryKind::IndexOfNodeInParent
                 } else {
@@ -142,7 +159,7 @@ impl HitTestList {
             },
             HitTestItemKind::EmptyEditable => FfiResolvedCaret {
                 has_position: true,
-                node_shell: arena.shell_if_live(item.paintable),
+                node_shell: arena.shell_if_live(main_thread, item.paintable),
                 boundary: FfiCaretBoundaryKind::Offset,
                 has_debug_rect: true,
                 debug_rect: item.caret_rect.into(),
@@ -158,7 +175,7 @@ impl HitTestList {
                 };
                 FfiResolvedCaret {
                     has_position: true,
-                    node_shell: arena.shell_if_live(item.paintable),
+                    node_shell: arena.shell_if_live(main_thread, item.paintable),
                     boundary: if is_before {
                         FfiCaretBoundaryKind::BeforeNode
                     } else {
@@ -191,12 +208,16 @@ pub(crate) fn fragment_layout_node_slot(arena: &LayoutNodeArena, item: &HitTestI
     with_item_fragment(arena, item, |fragment| fragment.layout_node)
 }
 
-pub(crate) fn event_dispatch_shell_for_paintable(arena: &LayoutNodeArena, slot: NodeSlotId) -> *mut c_void {
+pub(crate) fn event_dispatch_shell_for_paintable(
+    main_thread: &MainThread,
+    arena: &LayoutNodeArena,
+    slot: NodeSlotId,
+) -> *mut c_void {
     let paintable_rows = arena.paintable_rows();
     let mut current = paintable_rows.paintable_row_is_populated(slot).then_some(slot);
     while let Some(paintable) = current {
         if arena.node_flags_if_live(paintable) & NodeFlag::Anonymous as u32 == 0 {
-            return arena.shell_if_live(paintable);
+            return arena.shell_if_live(main_thread, paintable);
         }
         current = crate::painting::paint_order::paint_parent(&paintable_rows, paintable);
     }

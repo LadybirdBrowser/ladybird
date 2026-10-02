@@ -406,7 +406,7 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
         } else {
             topmost
         };
-        let shell = unsafe { &*arena }.node_shell(layout_node_to_detach);
+        let shell = unsafe { &*arena }.node_shell(&main_thread, layout_node_to_detach);
         // SAFETY: The C++ detach preparation walks the still-linked subtree; the shared arena
         // borrow ends before the subtree is freed.
         unsafe { (callbacks.prepare_subtree_for_detach)(shell) };
@@ -3459,7 +3459,7 @@ impl TreeBuilderHost<'_> {
     }
 
     fn shell(&self, node: LayoutNode) -> *mut c_void {
-        let shell = self.arena().node_shell(node);
+        let shell = self.arena().node_shell(self.main_thread, node);
         assert!(!shell.is_null());
         shell
     }
@@ -3509,7 +3509,7 @@ impl TreeBuilderHost<'_> {
         self.arena().stamp_anonymous_box(slot, node_kind, derived);
         self.arena().refresh_insets_use_anchor_functions_flag(slot);
         if node_kind == NodeKind::InlineNode {
-            assert!(!self.arena().node_shell(slot).is_null());
+            assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
         }
         UnplacedLayoutNode::new(slot)
     }
