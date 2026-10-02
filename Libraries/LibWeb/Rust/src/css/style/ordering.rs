@@ -1689,8 +1689,14 @@ impl RetainedState {
         for slotted_into in self.scopes_slotted_into(node) {
             append(slotted_into);
         }
-        if let Some(shadow_root) = self.tree.shadow_root_of(node) {
-            append(self.tree.tree_scope(shadow_root));
+        // The element's own shadow tree is the one its shadow root roots: the root node itself is in
+        // the host's tree scope.
+        if let Some(own_shadow_tree) = self
+            .tree
+            .shadow_root_of(node)
+            .and_then(|shadow_root| self.scope_by_root.get(shadow_root))
+        {
+            append(own_shadow_tree);
         }
         contexts
             .iter()
