@@ -33,6 +33,7 @@ pub mod paintable_geometry;
 pub(crate) mod paintable_rows;
 pub(crate) mod published_frame;
 pub mod record;
+pub(crate) mod recording_slot;
 pub(crate) mod rect_to_viewport_transform;
 pub(crate) mod replaced_paint_facts;
 pub(crate) mod scroll_chain;
