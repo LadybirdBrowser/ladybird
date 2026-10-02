@@ -7,6 +7,7 @@
 //! What the host keeps of a document's render state.
 
 use super::{ArenaChange, DocumentId, RenderMessage, send};
+use crate::css::style::bridge::FfiDeviceClass;
 use crate::layout::HostTables;
 use crate::painting::recording_slot::RecordingSlot;
 use std::cell::{RefCell, RefMut};
@@ -63,15 +64,21 @@ impl DocumentHost {
     }
 }
 
-/// Creates the host of a new document and its render state.
+/// Creates the host of a new document and its render state, with a style engine for a device of class
+/// `device_class`.
 #[unsafe(no_mangle)]
-pub extern "C" fn document_host_create() -> *mut DocumentHost {
+pub extern "C" fn document_host_create(device_class: u8) -> *mut DocumentHost {
+    let device_class = match device_class {
+        0 => FfiDeviceClass::ForegroundDesktop,
+        _ => panic!("unknown device class {device_class}"),
+    };
     let document = DocumentId::mint();
     // The render state and the host's document hold the one pointer the box was let go of as.
     let host = NonNull::from(Box::leak(Box::new(DocumentHost::new(document))));
     send(RenderMessage::Create {
         document,
         host,
+        device_class,
     });
     host.as_ptr()
 }
@@ -109,4 +116,19 @@ pub unsafe extern "C" fn render_state_arena_for_unconverted_entry(host: *const D
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     super::arena_for_unconverted_entry(unsafe { (*host).document })
+}
+
+/// The style engine of the render state of `host`'s document, which the host's entries that have not been converted
+/// to messages still take.
+///
+/// # Safety
+///
+/// `host` must come from [`document_host_create`] and not be destroyed yet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_style_engine_for_unconverted_entry(
+    host: *const DocumentHost,
+) -> crate::css::style::StyleEngineHandle {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    super::style_engine_for_unconverted_entry(unsafe { (*host).document })
 }

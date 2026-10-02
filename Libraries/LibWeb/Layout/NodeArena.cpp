@@ -15,22 +15,19 @@
 
 namespace Web::Layout {
 
-NodeArena::NodeArena()
-    : m_host(RustFFI::document_host_create())
-    , m_handle(RustFFI::render_state_arena_for_unconverted_entry(m_host))
+NodeArena::NodeArena(RenderDocument& render_document)
+    : m_render_document(render_document)
+    , m_handle(RustFFI::render_state_arena_for_unconverted_entry(render_document.host()))
 {
     VERIFY(m_handle);
     Painting::register_geometry_host(*this);
 }
 
-NodeArena::~NodeArena()
-{
-    RustFFI::document_host_destroy(m_host);
-}
+NodeArena::~NodeArena() = default;
 
 void NodeArena::free_subtree(Compositing::RustFFI::NodeSlotId root)
 {
-    RustFFI::render_state_drop_subtree(m_host, root);
+    RustFFI::render_state_drop_subtree(host(), root);
 }
 
 Node* NodeArena::node_if_live(Compositing::RustFFI::NodeSlotId slot) const

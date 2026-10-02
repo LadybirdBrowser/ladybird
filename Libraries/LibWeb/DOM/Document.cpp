@@ -661,12 +661,11 @@ Layout::NodeArena& Document::layout_node_arena()
     // Created on first layout node so documents that never build a layout tree (e.g. temporary
     // fragment-parsing documents) skip the Rust arena round-trip entirely.
     if (!m_layout_node_arena) {
-        m_layout_node_arena = make_ref_counted<Layout::NodeArena>();
+        m_layout_node_arena = make_ref_counted<Layout::NodeArena>(style_computer().style_engine().render_document());
         m_layout_node_arena->set_document({}, this);
         Layout::register_layout_host(*m_layout_node_arena, *this);
         Layout::RustFFI::layout_arena_set_layout_update_host_callbacks(m_layout_node_arena->handle(), layout_update_host_callbacks());
         Layout::RustFFI::FfiStyleRecordHostCallbacks style_record_host_callbacks {
-            .style_engine = style_computer().style_engine().rust_handle(),
             .context = this,
             .shell_style_changed = [](void*, void* shell, u64 record, void const* payloads, bool attach_resources) {
                 as<Layout::NodeWithStyle>(*static_cast<Layout::Node*>(shell)).refresh_style_from_arena(CSS::StyleRecordID { record }, payloads, attach_resources);
