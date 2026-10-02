@@ -1140,6 +1140,113 @@ pub unsafe extern "C" fn layout_arena_sticky_spatial_node_index(arena: *mut c_vo
         .map_or(u32::MAX, |state| state.node_index.0)
 }
 
+/// What a recording stage records from: the arena, borrowed for the stage, the viewport it
+/// records, the inputs the document lent for the call, and the stage's own scratch, which nothing
+/// else borrows while it runs.
+struct RecordingStageInput<'a> {
+    arena: &'a LayoutNodeArena,
+    viewport: NodeSlotId,
+    inputs: crate::painting::record::RecordingInputs<'a>,
+    scratch: &'a mut crate::painting::record::scratch::RecordingScratch,
+}
+
+/// What a recording stage recorded, which the document thread publishes.
+struct RecordingStageOutput {
+    recording: crate::painting::record::RecordingResult,
+    recording_from_scratch: Option<crate::painting::record::RecordingResult>,
+}
+
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<RecordingStageOutput>();
+    assert_send::<crate::painting::record::scratch::RecordingScratch>();
+};
+
+/// The display list recording stage. It takes no main thread token, so nothing it calls can reach
+/// the host.
+fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOutput {
+    let RecordingStageInput {
+        arena,
+        viewport,
+        inputs,
+        scratch,
+    } = input;
+    let paint_state = arena.paint_state().borrow();
+    // The root background paints the union of the viewport and the root's overflow, so it
+    // is the one output a viewport move can change. Drop its caches before recording
+    // starts instead of treating the viewport position as a frame-wide input.
+    if let Some(source) = &paint_state.published_frame {
+        let root = inputs.uncaptured.root_background_source.root_layout_node;
+        let rows = arena.paintable_rows();
+        let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
+            &rows,
+            root,
+            inputs.css_viewport_rect,
+        );
+        if canvas_rect != source.root_background_canvas_rect {
+            arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
+        }
+    }
+    if inputs.publishes_recording {
+        arena.note_publishing_paint_recording_started();
+    }
+    // The retained tree describes the published tape and is written in place while a frame
+    // is assembled, so only a recording that publishes may copy from that frame or touch
+    // the tree; any other recording records from scratch into a tree of its own.
+    let mut retained_tree = paint_state.paint_order_tree.borrow_mut();
+    let mut throwaway_tree = crate::painting::record::order_tree::PaintOrderTree::default();
+    let (tree, source_frame, source_items) = if inputs.publishes_recording {
+        (
+            &mut *retained_tree,
+            paint_state.published_frame.clone(),
+            paint_state.published_hit_test_items.clone(),
+        )
+    } else {
+        (&mut throwaway_tree, None, None)
+    };
+    let copies_from_published_frame = source_frame.is_some();
+    arena.set_paint_recording_in_progress(true);
+    let recording = crate::painting::record::traversal::record_display_list(
+        arena,
+        &paint_state,
+        scratch,
+        tree,
+        viewport,
+        &inputs,
+        paint_state.hit_test_list_generation + 1,
+        source_frame,
+        source_items,
+        true,
+        paint_state.trace_recordings || crate::painting::record::verify::enabled_by_environment(),
+    );
+    // The oracle records the same frame from scratch into a throwaway tree whenever the
+    // published frame could have been copied from.
+    let recording_from_scratch =
+        (crate::painting::record::verify::enabled_by_environment() && copies_from_published_frame).then(|| {
+            let mut inputs_for_recording_from_scratch = inputs.clone();
+            inputs_for_recording_from_scratch.publishes_recording = false;
+            let mut tree_for_recording_from_scratch = crate::painting::record::order_tree::PaintOrderTree::default();
+            crate::painting::record::traversal::record_display_list(
+                arena,
+                &paint_state,
+                scratch,
+                &mut tree_for_recording_from_scratch,
+                viewport,
+                &inputs_for_recording_from_scratch,
+                paint_state.hit_test_list_generation + 1,
+                None,
+                None,
+                false,
+                false,
+            )
+        });
+    arena.set_paint_recording_in_progress(false);
+    RecordingStageOutput {
+        recording,
+        recording_from_scratch,
+    }
+}
+
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
@@ -1161,7 +1268,10 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         paint_state.pending_recording_trace = None;
         paint_state.pending_recording = None;
     }
-    let (recording, recording_from_scratch) = {
+    let RecordingStageOutput {
+        recording,
+        recording_from_scratch,
+    } = {
         let paint_state = arena.paint_state().borrow();
         if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
             return false;
@@ -1169,7 +1279,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         let visual_context = &paint_state.visual_context;
         // SAFETY: The host lends the input arrays and buffers for this call. Only owned
         // output and retained resources escape into the pending recording below.
-        let inputs = unsafe {
+        let recording_inputs = unsafe {
             inputs.borrow_recording_inputs(
                 visual_context
                     .last_tree_inputs
@@ -1179,78 +1289,13 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                     .expect("a recording follows paint preparation"),
             )
         };
-        // The root background paints the union of the viewport and the root's overflow, so it
-        // is the one output a viewport move can change. Drop its caches before recording
-        // starts instead of treating the viewport position as a frame-wide input.
-        if let Some(source) = &paint_state.published_frame {
-            let root = inputs.uncaptured.root_background_source.root_layout_node;
-            let rows = arena.paintable_rows();
-            let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
-                &rows,
-                root,
-                inputs.css_viewport_rect,
-            );
-            if canvas_rect != source.root_background_canvas_rect {
-                arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
-            }
-        }
-        if inputs.publishes_recording {
-            arena.note_publishing_paint_recording_started();
-        }
-        let mut scratch = arena.recording_scratch().borrow_mut();
-        // The retained tree describes the published tape and is written in place while a frame
-        // is assembled, so only a recording that publishes may copy from that frame or touch
-        // the tree; any other recording records from scratch into a tree of its own.
-        let mut retained_tree = paint_state.paint_order_tree.borrow_mut();
-        let mut throwaway_tree = crate::painting::record::order_tree::PaintOrderTree::default();
-        let (tree, source_frame, source_items) = if inputs.publishes_recording {
-            (
-                &mut *retained_tree,
-                paint_state.published_frame.clone(),
-                paint_state.published_hit_test_items.clone(),
-            )
-        } else {
-            (&mut throwaway_tree, None, None)
-        };
-        let copies_from_published_frame = source_frame.is_some();
-        arena.set_paint_recording_in_progress(true);
-        let recording = crate::painting::record::traversal::record_display_list(
+        drop(paint_state);
+        record_display_list_stage(RecordingStageInput {
             arena,
-            &paint_state,
-            &mut scratch,
-            tree,
             viewport,
-            &inputs,
-            paint_state.hit_test_list_generation + 1,
-            source_frame,
-            source_items,
-            true,
-            paint_state.trace_recordings || crate::painting::record::verify::enabled_by_environment(),
-        );
-        // The oracle records the same frame from scratch into a throwaway tree whenever the
-        // published frame could have been copied from.
-        let recording_from_scratch =
-            (crate::painting::record::verify::enabled_by_environment() && copies_from_published_frame).then(|| {
-                let mut inputs_for_recording_from_scratch = inputs.clone();
-                inputs_for_recording_from_scratch.publishes_recording = false;
-                let mut tree_for_recording_from_scratch =
-                    crate::painting::record::order_tree::PaintOrderTree::default();
-                crate::painting::record::traversal::record_display_list(
-                    arena,
-                    &paint_state,
-                    &mut scratch,
-                    &mut tree_for_recording_from_scratch,
-                    viewport,
-                    &inputs_for_recording_from_scratch,
-                    paint_state.hit_test_list_generation + 1,
-                    None,
-                    None,
-                    false,
-                    false,
-                )
-            });
-        arena.set_paint_recording_in_progress(false);
-        (recording, recording_from_scratch)
+            inputs: recording_inputs,
+            scratch: &mut arena.recording_scratch().borrow_mut(),
+        })
     };
     let mut paint_state = arena.paint_state().borrow_mut();
     if paint_state.trace_recordings && recording.output.capture_log_for_verification.is_some() {
