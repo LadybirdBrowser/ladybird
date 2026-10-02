@@ -435,9 +435,9 @@ impl RetainedState {
                 && pseudo_content_generates_nothing(&store.view(self), kind)
             {
                 // A read of a kind its rules style without a box still reads the custom properties
-                // they declare, which only the host's computation installs.
+                // they declare.
                 if matches!(settlement, PseudoSettlement::Read(_)) {
-                    return Err(Unanswered::Refused);
+                    scratch.boxless_read_environment = environment;
                 }
                 remove(self, scratch, counters);
                 continue;

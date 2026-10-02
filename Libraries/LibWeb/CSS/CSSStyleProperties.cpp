@@ -647,9 +647,10 @@ static bool install_engine_pseudo_element_style(DOM::AbstractElement target)
         return false;
     StyleRecordID record { answer.record.style_record };
     element.set_computed_style(pseudo_element, record);
-    // A pseudo-element that generates no box holds no environment either.
-    if (!!record)
-        element.install_engine_pseudo_element_custom_property_data(pseudo_element, record);
+    // A pseudo-element that generates no box holds the environment its rules declare, if any rule styles it.
+    auto environment = !!record ? style_engine.style_record_custom_property_environment(record) : answer.custom_property_environment;
+    if (!!record || environment != 0)
+        element.install_engine_pseudo_element_custom_property_data(pseudo_element, environment);
     else
         element.set_custom_property_data(pseudo_element, nullptr);
     style_engine.acknowledge_engine_computed_record(element.style_node_id());

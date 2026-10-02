@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { --inherited: element; }
+    #target::before { content: none; --own: pseudo; color: rgb(0, 128, 0); }
+    #target::after { --own: var(--inherited) after; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        // Neither pseudo-element generates a box, yet a read of either sees the custom properties
+        // its rules declare over the element's. The style engine answers both reads.
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        const start = internals.styleEngineCounters();
+        for (const pseudo of ["::before", "::after"]) {
+            const style = getComputedStyle(target, pseudo);
+            println(`${pseudo}: --own ${style.getPropertyValue("--own")}, --inherited ${style.getPropertyValue("--inherited")}, color ${style.color}`);
+        }
+        const end = internals.styleEngineCounters();
+        println(`demands left to the host: ${end.pseudoRecordDemandsLeftToHost - start.pseudoRecordDemandsLeftToHost}`);
+    });
+</script>

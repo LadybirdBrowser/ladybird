@@ -5179,6 +5179,8 @@ pub(super) struct EngineComputedRecordScratch {
     pub(super) pseudo_stores: HashMap<(u8, CascadeStateID, u64), std::sync::Arc<WinnerStore>>,
     /// The pseudo-element records settled beside the element derived last.
     pub(super) pseudo_deltas: Vec<PseudoRecordDelta>,
+    /// The custom-property environment of the pseudo-element a read settled without a box.
+    pub(super) boxless_read_environment: u64,
     /// The pseudo-element rules that flipped for the element being derived.
     pub(super) flipped_pseudo_rules: u64,
     /// Held while a retry runs after the host applied the rows before the one asked for.

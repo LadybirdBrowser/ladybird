@@ -2531,7 +2531,12 @@ fn a_pseudo_record_demand_answers_absence_without_rules() {
     };
     let answer = engine.answer_record_demand(nodes[1], demand);
     assert!(
-        matches!(answer, Ok(publication::RecordDemandAnswer::Absent)),
+        matches!(
+            answer,
+            Ok(publication::RecordDemandAnswer::Absent {
+                custom_property_environment: 0
+            })
+        ),
         "{answer:?}"
     );
 }

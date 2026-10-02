@@ -1,0 +1,3 @@
+::before: --own pseudo, --inherited element, color rgb(0, 128, 0)
+::after: --own element after, --inherited element, color rgb(0, 0, 0)
+demands left to the host: 0

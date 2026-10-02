@@ -3528,13 +3528,15 @@ pub struct FfiRecordDemand {
     pub pseudo_kind_plus_one: u8,
 }
 
-/// The answer to a record demand: the record, or that the pseudo-element read generates no box.
-/// A zero `style_record` that is not absent leaves the read to C++.
+/// The answer to a record demand: the record, or that the pseudo-element read generates no box
+/// with the custom-property environment its rules resolve to (zero where none styles it). A zero
+/// `style_record` that is not absent leaves the read to C++.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiRecordDemandAnswer {
     pub record: FfiEngineComputedRecord,
     pub is_absent: bool,
+    pub custom_property_environment: u64,
 }
 
 /// Answer a read of one element's style, or one of its pseudo-elements', the host makes before
@@ -3567,10 +3569,14 @@ pub(crate) fn answer_record_demand(
                 pseudo_records: record.pseudo_records,
             },
             is_absent: false,
+            custom_property_environment: 0,
         },
-        Ok(super::publication::RecordDemandAnswer::Absent) => FfiRecordDemandAnswer {
+        Ok(super::publication::RecordDemandAnswer::Absent {
+            custom_property_environment,
+        }) => FfiRecordDemandAnswer {
             record: FfiEngineComputedRecord::default(),
             is_absent: true,
+            custom_property_environment,
         },
         Err(_) => FfiRecordDemandAnswer::default(),
     };
