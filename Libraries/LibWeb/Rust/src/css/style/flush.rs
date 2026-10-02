@@ -126,6 +126,40 @@ impl RetainedState {
             .then_some(FullDriveReason::FontEnvironment)
     }
 
+    /// Whether a row needs no style because it is in a display:none subtree: the host holds no
+    /// style for the node, and the nearest ancestor it holds one for once it applied the rows
+    /// before this one, the record this flush settled for it or the one it holds, is in that
+    /// subtree, or the flush answered an ancestor in between as hidden. A read or the subtree's
+    /// reveal asks for the node's record.
+    fn row_is_hidden(
+        &self,
+        node: StyleNodeID,
+        row_of: impl Fn(StyleNodeID) -> Option<publication::DerivedChildInputs>,
+    ) -> bool {
+        if self.held_style_records.contains_key(&node) {
+            return false;
+        }
+        let mut ancestor = self.tree.inheritance_parent(node);
+        while let Some(current) = ancestor {
+            let row = row_of(current);
+            if row.is_some_and(|row| row.hidden) {
+                return true;
+            }
+            let record = if row.is_some_and(|row| row.settled) {
+                self.computed_group_sets
+                    .assigned_style_record(current)
+                    .map(computed::FinalStyleRecordID::raw)
+            } else {
+                self.held_style_records.get(&current).copied()
+            };
+            if let Some(record) = record {
+                return self.record_is_in_display_none_subtree(record);
+            }
+            ancestor = self.tree.inheritance_parent(current);
+        }
+        false
+    }
+
     /// Whether the node's record, or the record of one of its pseudo-elements, resolved a counter
     /// style: a `content` counter or a `list-style-type` naming one that can be overridden.
     fn node_reads_counter_styles(&self, node: StyleNodeID) -> bool {
@@ -2019,6 +2053,23 @@ impl StyleEngineState {
                         .insert(node, complete);
                 }
             }
+            // The rows that read style while hidden, an SVG element (which an SVG resource reference
+            // paints) and an element with animations, and every element they inherit from: none of
+            // them is answered as hidden.
+            let mut hidden_style_readers = HashSet::<StyleNodeID>::default();
+            for &node in &published_nodes {
+                use bridge::element_adjustment_fact as fact;
+                if self.computed_group_sets.adjustment_facts(node) & (fact::IS_SVG_ELEMENT | fact::HAS_ANIMATIONS) == 0
+                {
+                    continue;
+                }
+                let mut current = Some(node);
+                while let Some(element) = current
+                    && hidden_style_readers.insert(element)
+                {
+                    current = self.tree.inheritance_parent(element);
+                }
+            }
             let mut next_published_index = 0;
             let mut pending_parent_inputs = None;
             // The reactions rows of the batch derived for children that are rows of it too, which
@@ -2079,12 +2130,18 @@ impl StyleEngineState {
                         None
                     };
                     let resuming_font = engine_computed_record_scratch.font_drive.is_pending_for(node);
+                    let hidden = !resuming_font
+                        && !hidden_style_readers.contains(&node)
+                        && self.retained.row_is_hidden(node, |ancestor| {
+                            row_of(&engine_computed_record_scratch.derived_child_inputs, ancestor)
+                        });
                     // The immediate parent's own unresolved fact, which the direct inherited-group
                     // path reads without asking about the chain above it.
                     // A node whose winners hold gated rules is derived where their conditions are
                     // decided again and what they read of the containers is handed to the host.
                     let direct_inherited_delta = (reaction == transaction::STYLE_REACTION_INHERITED_STYLE
                         && !resuming_font
+                        && !hidden
                         && !self.retained.published_container_verdicts.contains_key(&node))
                     .then(|| self.retained.tree.inheritance_parent(node))
                     .flatten()
@@ -2125,7 +2182,7 @@ impl StyleEngineState {
                     //     Its completed originating record must not change that decision.
                     let engine_computed_gate_passes = if resuming_font {
                         true
-                    } else if direct_inherited_delta.is_some() {
+                    } else if hidden || direct_inherited_delta.is_some() {
                         false
                     } else if reaction == transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES
                         && !parent_inputs_moved.display
@@ -2248,7 +2305,8 @@ impl StyleEngineState {
                             index as usize,
                             publication::DerivedChildInputs {
                                 settled,
-                                declined: !settled,
+                                declined: !settled && !hidden,
+                                hidden,
                                 inheritance_unresolved: !settled
                                     && reaction == transaction::STYLE_REACTION_INHERITED_STYLE,
                                 // A child folds the chain when it asks; this node's own facts
@@ -2275,7 +2333,9 @@ impl StyleEngineState {
                                 old_style_record,
                                 0,
                                 FfiStyleDeltaDamage::None,
-                                if retry_after_ancestor {
+                                if hidden {
+                                    FfiStyleDeltaGap::Hidden
+                                } else if retry_after_ancestor {
                                     FfiStyleDeltaGap::RetryAfterAncestor
                                 } else {
                                     FfiStyleDeltaGap::Materialize

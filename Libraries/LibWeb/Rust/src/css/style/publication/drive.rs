@@ -413,16 +413,14 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
-        // A record holding no table has no slots to copy the unselected properties from; the caller
-        // drives it in full.
-        let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
+        // A record holding no table has no slots to copy the unselected properties from, and one
+        // under display:none may have kept values its moved ancestors no longer pass on: the caller
+        // drives either in full.
+        let Some(old_table) =
+            (unsafe { view.longhand_table.as_ref() }).filter(|_| view.dependency_flags & IN_DISPLAY_NONE_SUBTREE == 0)
+        else {
             return Ok(PartialDrive::DriverInputMoved);
         };
-        // A record under display:none may no longer be the style C++ holds.
-        if view.dependency_flags & (1 << 2) != 0 {
-            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-            return Err(Unanswered::Refused);
-        }
         let parent = self
             .record_inheritance_parent(node, installed_ancestors)
             .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
@@ -706,17 +704,7 @@ impl RetainedState {
                     return Err(Unanswered::Refused);
                 }
                 // A record holding no table is driven from a fresh one, like a first record.
-                let old_table = unsafe { view.longhand_table.as_ref() };
-                // A record kept under display:none is still what the element's own style is driven
-                // from, but the animations it names start only when C++ computes the element out of
-                // that subtree.
-                if old_table
-                    .is_some_and(|old_table| view.dependency_flags & (1 << 2) != 0 && table_names_animations(old_table))
-                {
-                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
-                    return Err(Unanswered::Refused);
-                }
-                old_table
+                unsafe { view.longhand_table.as_ref() }
             }
             None => None,
         };
@@ -766,17 +754,6 @@ impl RetainedState {
                 }
                 None => (initial_metrics, false, 0.0),
             };
-        // C++ computes no first style for an element under a display:none ancestor. It does compute
-        // the pseudo-elements of an element it styled there, the element being their parent.
-        if old_style_record.is_none()
-            && !target.is_pseudo()
-            && parent_view
-                .as_ref()
-                .is_some_and(|parent_view| parent_view.dependency_flags & (1 << 2) != 0)
-        {
-            counters.bump(Counter::EngineComputedRecordBailRecordParent);
-            return Err(Unanswered::Refused);
-        }
         // The parent's display, past any display:contents ancestor, is what the box-type
         // transformation reads.
         let mut parent_display = None;
@@ -809,7 +786,7 @@ impl RetainedState {
                     parent_table,
                     unsafe { parent_view.animated_overlay.as_ref() },
                     parent_font_metrics_depend_on_viewport_metrics,
-                    parent_view.dependency_flags & (1 << 2) != 0,
+                    parent_view.dependency_flags & IN_DISPLAY_NONE_SUBTREE != 0,
                 ))
             }
             None => None,
@@ -1205,19 +1182,6 @@ impl RetainedState {
             explicitly_inherited_groups: results.explicitly_inherited_non_inherited_style_groups,
         }))
     }
-}
-
-/// Whether a computed table's `animation-name` names any animation.
-fn table_names_animations(table: &ComputedLonghandTable) -> bool {
-    use crate::css::style_compute::keyword;
-    let is_none =
-        |value: &StyleValueData| matches!(value, StyleValueData::Keyword { keyword: name } if *name == keyword::NONE);
-    table
-        .get(crate::css::property_metadata::property_id::ANIMATION_NAME)
-        .is_some_and(|value| match value.data() {
-            StyleValueData::ValueList { values, .. } => values.as_slice().iter().any(|value| !is_none(value.data())),
-            value => !is_none(value),
-        })
 }
 
 /// A font's pixel metric as the drive resolves font-relative units against it: the C++ length

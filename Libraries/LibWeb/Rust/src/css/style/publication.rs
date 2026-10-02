@@ -16,6 +16,7 @@ use winner_store::{WinnerDeclaration, WinnerStore, WinnerValue, shorthand_longha
 use super::*;
 use crate::css::computed_longhand_table::{
     ComputedLonghandTable, DEPENDS_ON_VIEWPORT_METRICS, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS,
+    IN_DISPLAY_NONE_SUBTREE,
 };
 use crate::css::computed_values::StyleGroupMasks;
 use animations::DeclarationScope;
@@ -2085,25 +2086,45 @@ impl RetainedState {
     /// once it installs the record: the record moved the declarations, or the element runs CSS
     /// animations, whose `@keyframes` may have moved without the declarations.
     pub(super) fn row_owes_an_animation_plan(&self, node: StyleNodeID, old: u64, new: u64) -> bool {
+        // An element the host holds no record for, its style cleared under display:none and its
+        // animations with it, starts the animations its record names as a first record does.
+        let old = if self.held_style_records.contains_key(&node) {
+            old
+        } else {
+            0
+        };
         self.record_owes_an_animation_plan(old, new) || self.css_defined_animations.node_runs_a_css_animation(node)
     }
 
     /// Whether installing the `new` record the engine derived for an element, in place of the
     /// `old` one the host holds, owes the host the animation plan the new record decides: a first
-    /// record that names an animation, or a record that moves the declarations.
+    /// record that names an animation, a record that moves the declarations, or one that names an
+    /// animation and leaves a display:none subtree, which starts the animations it names.
     pub(super) fn record_owes_an_animation_plan(&self, old: u64, new: u64) -> bool {
         match old {
-            0 => self.first_record_declares_animations(new),
-            old => self.animation_declarations_moved(old, new),
+            0 => self.record_declares_animations(new),
+            old => {
+                self.animation_declarations_moved(old, new)
+                    || (self.record_is_in_display_none_subtree(old)
+                        && !self.record_is_in_display_none_subtree(new)
+                        && self.record_declares_animations(new))
+            }
         }
     }
 
-    /// Whether a first record's `animation-name` names any animation.
-    fn first_record_declares_animations(&self, record: u64) -> bool {
+    /// Whether a record's `animation-name` names any animation.
+    fn record_declares_animations(&self, record: u64) -> bool {
         self.computed_group_sets
             .style_record_view(record)
             .and_then(|view| unsafe { view.longhand_table.as_ref() })
             .is_some_and(crate::css::style_compute::table_declares_css_animations)
+    }
+
+    /// Whether a record's element is display:none or inherits from one that is.
+    pub(super) fn record_is_in_display_none_subtree(&self, record: u64) -> bool {
+        self.computed_group_sets
+            .style_record_view(record)
+            .is_some_and(|view| view.dependency_flags & IN_DISPLAY_NONE_SUBTREE != 0)
     }
 
     /// Whether moving an element from the `old` record to the `new` one moves the `animation-*`
@@ -5188,6 +5209,9 @@ pub(super) struct DerivedChildInputs {
     /// record, and the container inputs it publishes, are installed after the flush. A row the
     /// walk keeps only for its chain is no such row.
     pub(super) declined: bool,
+    /// Whether the node is a row of this flush answered as hidden, in a display:none subtree, as
+    /// is everything that inherits from it.
+    pub(super) hidden: bool,
     /// Whether the node took an inherited-style reaction and resolved no record of its own, so
     /// its immediate children cannot take the direct inherited-group path. Deliberately separate
     /// from the chain proof: that is the accumulated confinement argument, this is the immediate

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes grow {
+        from { width: 0px; }
+        to { width: 100px; }
+    }
+    .hidden { display: none; }
+    .animated { animation: grow 100s linear; }
+</style>
+<div id="never-shown" class="hidden"><div id="first" class="animated"></div></div>
+<div id="shown"><div id="second" class="animated"></div></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const describe = element => {
+            const animations = element.getAnimations();
+            return `${animations.length} animation(s)${animations.length ? `, ${animations[0].animationName}` : ""}`;
+        };
+        println(`first, under display:none from the start: ${describe(first)}`);
+        println(`second, shown: ${describe(second)}`);
+        shown.classList.add("hidden");
+        internals.updateStyle();
+        println(`second, hidden: ${describe(second)}`);
+
+        // Revealing either subtree starts the animations its records name.
+        const before = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        document.getElementById("never-shown").classList.remove("hidden");
+        shown.classList.remove("hidden");
+        internals.updateStyle();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - before}`);
+        println(`first, revealed: ${describe(first)}`);
+        println(`second, revealed: ${describe(second)}`);
+    });
+</script>

@@ -360,44 +360,20 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
     RequiredInvalidationAfterStyleChange transaction_invalidation;
     document.style_computer().style_engine().begin_noting_declaration_changes_during_apply();
     ScopeGuard end_noting_declaration_changes = [&] { document.style_computer().style_engine().end_noting_declaration_changes_during_apply(); };
-    // Unstyled descendants of display:none need no record until a targeted read or visibility
-    // change asks for one. SVG resources and existing animations can still consume style while
-    // hidden, so retain their inheritance prerequisites in this batch. An element has animations when
-    // any animation is associated with it, relevant or not: a timeline can make one relevant later,
-    // and the style engine keeps the same rows.
-    HashTable<StyleNodeID> required_in_hidden_subtrees;
-    for (auto const& reaction : reactions) {
-        auto element = document.style_computer().element_for_style_node(reaction.style_node);
-        if (!element || (!element->is_svg_element() && !element->has_associated_animations()))
-            continue;
-        for (Optional<DOM::AbstractElement> ancestor = DOM::AbstractElement { *element }; ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from()) {
-            if (required_in_hidden_subtrees.set(ancestor->element().style_node_id()) == HashSetResult::KeptExistingEntry)
-                break;
-        }
-    }
     {
         for (size_t reaction_index = 0; reaction_index < reactions.size(); ++reaction_index) {
             auto const& published_reaction = reactions[reaction_index];
             // A pseudo-element record installs with its element's, which leads it.
             if (published_reaction.pseudo_kind != NumericLimits<u8>::max())
                 continue;
+            // An element the engine answered as hidden needs no style until a read or its subtree's
+            // reveal asks for one.
+            if (published_reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Hidden)
+                continue;
             auto element = document.style_computer().element_for_style_node(published_reaction.style_node);
             if (!element)
                 continue;
             auto reaction = published_reaction;
-
-            if (!element->has_style() && !required_in_hidden_subtrees.contains(element->style_node_id())) {
-                bool hidden = false;
-                for (auto ancestor = DOM::AbstractElement { *element }.element_to_inherit_style_from(); ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from()) {
-                    auto identity = ancestor->style_record_identity();
-                    if (!!identity) {
-                        hidden = has_flag(document.style_computer().style_engine().style_record_dependency_flags(identity), StyleRecordDependencyFlag::InDisplayNoneSubtree);
-                        break;
-                    }
-                }
-                if (hidden)
-                    continue;
-            }
 
             // The pseudo-element records a retry settled beside the element's record.
             Optional<DOM::Element::EnginePseudoElementRecords> retried_pseudo_element_records;
@@ -835,8 +811,11 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
 
         // A reaction can name an element created by editing after its new inheritance parent was
         // inserted. Close the batch over unstyled inheritance prerequisites, which are bounded by
-        // the reaction paths rather than discovered by a document traversal.
+        // the reaction paths rather than discovered by a document traversal. An element the engine
+        // answered as hidden needs no style to inherit from.
         for (size_t index = 0; index < style_engine_reactions.size(); ++index) {
+            if (style_engine_reactions[index].gap == StyleEngineFFI::FfiStyleDeltaGap::Hidden)
+                continue;
             auto element = document.style_computer().element_for_style_node(style_engine_reactions[index].style_node);
             if (!element || !element->is_connected() || &element->document() != &document)
                 continue;
@@ -853,10 +832,12 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
         // A published descendant may have an inheritance ancestor in the batch while the nodes
         // between them have no selector reaction of their own. Keep zero-bit scheduling slots for
         // that gap so derived inheritance bits can reach the descendant before its published
-        // reaction is consumed.
+        // reaction is consumed, unless the descendant is hidden.
         auto reaction_count_before_inheritance_closure = style_engine_reactions.size();
         Vector<StyleNodeID, 16> inheritance_gap;
         for (size_t index = 0; index < reaction_count_before_inheritance_closure; ++index) {
+            if (style_engine_reactions[index].gap == StyleEngineFFI::FfiStyleDeltaGap::Hidden)
+                continue;
             auto element = document.style_computer().element_for_style_node(style_engine_reactions[index].style_node);
             if (!element)
                 continue;
