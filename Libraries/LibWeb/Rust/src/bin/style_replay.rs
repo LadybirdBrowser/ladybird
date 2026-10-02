@@ -37,6 +37,7 @@ use libweb_rust::css::style::bridge::FfiTreeDelta;
 use libweb_rust::css::style::bridge::RecordedExactCascadeWinner;
 use libweb_rust::css::style::cascade::CascadeOperator;
 use libweb_rust::css::style::cascade::SpecifiedValueID;
+use libweb_rust::css::style::engine_calls;
 use libweb_rust::css::style::fast_hash::FastMap;
 use libweb_rust::css::style::index::StyleAtomID;
 use libweb_rust::css::style::memory::MEMORY_CATEGORIES;
@@ -221,7 +222,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::MintStyleNodes => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let nodes = event.payload.read_u32_vec()?;
-                    unsafe { bridge::style_engine_mint_style_nodes(engine, nodes.as_ptr(), nodes.len()) };
+                    unsafe { engine_calls::replay_mint_style_nodes(engine, &nodes) };
                 }
                 EventKind::DiscardStyleTransactionOutputs => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
@@ -273,7 +274,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         element_style_inputs: element_style_inputs.as_ptr(),
                         element_style_input_count: element_style_inputs.len(),
                     };
-                    unsafe { bridge::style_engine_apply_transaction(engine, &transaction) };
+                    unsafe { engine_calls::replay_apply_transaction(engine, &transaction) };
                 }
                 EventKind::Flush => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
@@ -531,9 +532,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         names.push(event.payload.read_u32()?);
                         hosts.push(event.payload.read_u32()?);
                     }
-                    unsafe {
-                        bridge::style_engine_set_element_parts(engine, node, names.as_ptr(), hosts.as_ptr(), count)
-                    };
+                    unsafe { engine_calls::replay_set_element_parts(engine, node, &names, &hosts) };
                 }
                 EventKind::SetTextData => {
                     // A text node's characters are read by the layout tree build and by nothing in
@@ -548,13 +547,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let node = event.payload.read_u32()?;
                     let language = event.payload.read_u32()?;
                     let text = event.payload.read_u16_vec()?;
-                    let text_pointer = match text.is_empty() {
-                        true => std::ptr::null(),
-                        false => text.as_ptr(),
-                    };
-                    unsafe {
-                        bridge::style_engine_set_element_language(engine, node, language, text_pointer, text.len())
-                    };
+                    unsafe { engine_calls::replay_set_element_language(engine, node, language, &text) };
                 }
                 EventKind::MatchDocument => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;

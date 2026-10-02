@@ -182,7 +182,7 @@ impl<T> Drop for HostReference<T> {
 
 /// The document's `@font-face` table as published, and the memo of the cascades resolved from it:
 /// one reference to each host object.
-pub(super) struct PublishedFontFaces {
+pub(crate) struct PublishedFontFaces {
     snapshot: HostReference<FontFaceSnapshotObject>,
     memo: HostReference<FontCascadeMemoObject>,
 }
