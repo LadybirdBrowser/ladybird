@@ -3443,6 +3443,16 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
     return publication;
 }
 
+RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_style(DOM::Element const& element, PseudoElement pseudo_element)
+{
+    auto answer = m_style_engine.answer_record_demand(element.style_node_id(), { .read_only = true, .pseudo_kind = to_underlying(pseudo_element) });
+    auto view = computed_style_record_view(StyleRecordID { answer.record.style_record });
+    if (!view)
+        return {};
+    // The engine holds the record only until the element's styles are next read or settled.
+    return ComputedValues::Builder { *view }.build();
+}
+
 NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties, StyleEngineMatchResult* reusable_matches, Optional<StyleEngine::StyleRecordDelta&> style_record_delta) const
 {
     m_last_materialization_kept_pseudo_element_styles = false;

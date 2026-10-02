@@ -397,7 +397,12 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 //     pseudo-element still refers to it. Give the nested marker a copy of the existing style.
                 if (auto style = element.computed_style(CSS::PseudoElement::Marker))
                     return CSS::ComputedValues::Builder { *style }.build();
-                return element.document().style_computer().materialize_style_record({ element, CSS::PseudoElement::Marker });
+                // The style engine derives the ::marker style for this read alone; C++ computes it where the engine
+                // leaves the read to it.
+                auto& style_computer = element.document().style_computer();
+                if (auto style = style_computer.engine_transient_pseudo_element_style(element, CSS::PseudoElement::Marker))
+                    return style.release_nonnull();
+                return style_computer.materialize_style_record({ element, CSS::PseudoElement::Marker });
             }();
             auto& list_item_marker = create_list_item_marker(list_item_box, move(marker_style));
             list_item_marker.attach_style_resources();
