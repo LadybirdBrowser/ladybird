@@ -3517,22 +3517,6 @@ pub extern "C" fn layout_node_kind_is_svg_graphics_box(kind: NodeKind) -> bool {
     svg_formatting_context::kind_is_svg_graphics_box(kind)
 }
 
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_is_atomic_inline(arena: *mut c_void, id: NodeSlotId) -> bool {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let data = arena.data(id);
-    node_facts::node_is_atomic_inline(data, node_facts::node_style_view(data))
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_is_fragmented_inline(arena: *mut c_void, id: NodeSlotId) -> bool {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let data = arena.data(id);
-    node_facts::node_is_fragmented_inline(data, node_facts::node_style_view(data))
-}
-
 fn node_is_generated_for_pseudo_element(data: &NodeData) -> bool {
     data.generated_for.get() != 0
 }

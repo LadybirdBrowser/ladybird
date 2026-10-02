@@ -27,7 +27,7 @@ use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
-    AncestorFact, DomPaintFact, FfiNodeLink, FfiStylePayloads, GENERATED_FOR_AFTER, GENERATED_FOR_LAST_SYNTHETIC,
+    AncestorFact, DomPaintFact, FfiStylePayloads, GENERATED_FOR_AFTER, GENERATED_FOR_LAST_SYNTHETIC,
     MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef, pseudo_kind_of,
 };
 use crate::layout::tree_mutation::HostCalls;
@@ -651,6 +651,14 @@ struct TextNodeState {
     generated_text: Option<ak::Utf16String>,
 }
 
+/// How far a document's rows have been written. See [`LayoutNodeArena::rows_version`].
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub(crate) struct RowsVersion {
+    writes: u64,
+    /// Where the paint fact tables are, which moves when a write copies one a publication shares.
+    tables: [usize; 3],
+}
+
 #[derive(Default)]
 struct ReplacedContentFactsSlot {
     generation: u8,
@@ -932,6 +940,9 @@ enum ArenaStylePin {
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     tree_shape: TreeShape,
+    /// Advanced by every write to a node's shape, or to the style record or node kept beside it, which
+    /// publication takes into the published rows.
+    shape_writes: Cell<u64>,
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
     style_records: Vec<Cell<u64>>,
@@ -1089,6 +1100,7 @@ impl LayoutNodeArena {
         Self {
             chunks: Vec::new(),
             tree_shape: TreeShape::default(),
+            shape_writes: Cell::new(0),
             chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
             style_records: Vec::new(),
@@ -1542,7 +1554,7 @@ impl LayoutNodeArena {
             .chunks
             .get(index / SLOTS_PER_CHUNK)
             .expect("invalid layout node arena slot ID")
-            .write_shape(index % SLOTS_PER_CHUNK);
+            .write_shape(index % SLOTS_PER_CHUNK, &self.shape_writes);
         assert_eq!(
             shape.slot_generation.get(),
             id.generation(),
@@ -1556,7 +1568,8 @@ impl LayoutNodeArena {
     pub(crate) fn publish_paint_tree(
         &mut self,
     ) -> crate::cow_column::ColumnSnapshot<super::node_data::PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
-        self.tree_shape.publish(&self.chunks)
+        self.tree_shape
+            .publish(&self.chunks, &self.style_records, &self.style_nodes)
     }
 
     /// The shape of the node whose data `data` is, for writing.
@@ -1688,6 +1701,7 @@ impl LayoutNodeArena {
             }
         }
         self.style_nodes[index].set(style_node);
+        self.write_shape(id).mark();
         if let Some(style_node) = style_node {
             let head = first_rows.head_mut(style_node);
             self.next_rows_with_same_style_node[index].set(*head);
@@ -2096,6 +2110,7 @@ impl LayoutNodeArena {
         self.set_node_flag(id, NodeFlag::FollowsPrincipalStyle, false);
         self.invalidate_overflow_after_style_change(id);
         let previous = self.style_records[id.slot_index() as usize].replace(style_record);
+        self.write_shape(id).mark();
         if self.style_record_pins[id.slot_index() as usize].replace(ArenaStylePin::None) != ArenaStylePin::None {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
         }
@@ -3266,6 +3281,7 @@ impl LayoutNodeArena {
         self.style_records[slot.slot_index() as usize].set(derived.record);
         self.style_record_pins[slot.slot_index() as usize].set(ArenaStylePin::Derived);
         data.set_style(derived.payloads);
+        data.mark();
         self.note_row_style(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
@@ -3353,7 +3369,9 @@ impl LayoutNodeArena {
             self.style_record_pins[slot.slot_index() as usize].replace(ArenaStylePin::Derived) != ArenaStylePin::None;
         assert!(derived.record != 0 && !derived.payloads.is_null());
         let previous_style_record = self.style_records[slot.slot_index() as usize].replace(derived.record);
-        self.write_shape(slot).set_style(derived.payloads);
+        let shape = self.write_shape(slot);
+        shape.set_style(derived.payloads);
+        shape.mark();
         self.note_row_style(slot);
         self.refresh_style_flags(slot);
         self.invalidate_overflow_after_style_change(slot);
@@ -3436,6 +3454,20 @@ impl LayoutNodeArena {
             Arc::make_mut(&mut table).insert(row, facts.clone());
             drop(table);
             self.push_paint_damage_for_repaint(row, damage);
+        }
+    }
+
+    /// How far the rows the host reads have been written since the arena was made: rows published
+    /// at one version read as the arena does for as long as it stays that version. Every count it
+    /// sums only grows, and a table a publication shares is copied by the write that changes it.
+    pub(crate) fn rows_version(&self) -> RowsVersion {
+        RowsVersion {
+            writes: self.shape_writes.get() + self.text_slots.published.version() + self.paintable_rows_version(),
+            tables: [
+                Arc::as_ptr(&self.replaced_paint_facts.borrow()).addr(),
+                Arc::as_ptr(&self.layer_image_paint_facts.borrow()).addr(),
+                self.svg_paint_resources.address(),
+            ],
         }
     }
 
@@ -4523,7 +4555,7 @@ impl LayoutNodeArena {
         };
 
         child_data.set_parent(parent);
-        child_data.previous_sibling.set(previous);
+        child_data.set_previous_sibling(previous);
         child_data.set_next_sibling(before);
         if previous.is_invalid() {
             parent_data.set_first_child(child);
@@ -4531,9 +4563,9 @@ impl LayoutNodeArena {
             self.write_shape(previous).set_next_sibling(child);
         }
         if before.is_invalid() {
-            parent_data.last_child.set(child);
+            parent_data.set_last_child(child);
         } else {
-            self.data(before).previous_sibling.set(child);
+            self.write_shape(before).set_previous_sibling(child);
         }
 
         self.assign_pre_order_labels_to_inserted_subtree(parent, child);
@@ -4577,19 +4609,19 @@ impl LayoutNodeArena {
         if next.is_invalid() {
             let last_child = parent_data.last_child.get();
             assert_eq!(last_child, child, "layout node child list lost its last child");
-            parent_data.last_child.set(previous);
+            parent_data.set_last_child(previous);
         } else {
-            let next_data = self.data(next);
+            let next_data = self.write_shape(next);
             let next_previous_sibling = next_data.previous_sibling.get();
             assert_eq!(
                 next_previous_sibling, child,
                 "layout node sibling chain is inconsistent"
             );
-            next_data.previous_sibling.set(previous);
+            next_data.set_previous_sibling(previous);
         }
 
         child_data.set_parent(NodeSlotId::INVALID);
-        child_data.previous_sibling.set(NodeSlotId::INVALID);
+        child_data.set_previous_sibling(NodeSlotId::INVALID);
         child_data.set_next_sibling(NodeSlotId::INVALID);
     }
 
@@ -4780,25 +4812,6 @@ impl LayoutNodeArena {
         self.node_shell(main_thread, id)
     }
 
-    pub(crate) fn node_link_slot(&self, id: NodeSlotId, link: FfiNodeLink) -> NodeSlotId {
-        let data = self.data(id);
-        match link {
-            FfiNodeLink::Parent => data.parent.get(),
-            FfiNodeLink::FirstChild => data.first_child.get(),
-            FfiNodeLink::LastChild => data.last_child.get(),
-            FfiNodeLink::PreviousSibling => data.previous_sibling.get(),
-            FfiNodeLink::NextSibling => data.next_sibling.get(),
-        }
-    }
-
-    pub(crate) fn node_link_shell(&self, main_thread: &MainThread, id: NodeSlotId, link: FfiNodeLink) -> *mut c_void {
-        let linked = self.node_link_slot(id, link);
-        if linked.is_invalid() {
-            return std::ptr::null_mut();
-        }
-        self.node_shell(main_thread, linked)
-    }
-
     pub(crate) fn node_containing_block_shell_if_live(&self, main_thread: &MainThread, id: NodeSlotId) -> *mut c_void {
         self.node_containing_block_if_live(id)
             .map_or(std::ptr::null_mut(), |containing_block| {
@@ -4926,6 +4939,7 @@ impl LayoutNodeArena {
     }
 
     fn data_mut(&mut self, index: u32) -> &mut NodeData {
+        *self.shape_writes.get_mut() += 1;
         let index = index as usize;
         let chunk = self
             .chunks
@@ -5091,38 +5105,6 @@ pub unsafe extern "C" fn layout_arena_pre_order_relabel_count(arena: *mut c_void
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_link_slot(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    link: FfiNodeLink,
-) -> NodeSlotId {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.node_link_slot(id, link)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_flags(arena: *mut c_void, id: NodeSlotId) -> u32 {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.node_flags(id)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_has_compositor_animation_frame(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    kind: super::node_data::CompositorAnimationFrameKind,
-) -> bool {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.node_has_compositor_animation_frame(id, kind)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_generated_for(arena: *mut c_void, id: NodeSlotId) -> u8 {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.node_generated_for(id)
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_note_rows_share_dom_node(
     arena: *mut c_void,
     bound_row: NodeSlotId,
@@ -5158,15 +5140,6 @@ pub unsafe extern "C" fn layout_arena_set_node_needs_compositor_animation_frame(
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on the document thread.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_needs_compositor_animation_frame(id, kind, value);
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_style_node(arena: *mut c_void, id: NodeSlotId) -> u32 {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }
-        .node_style_node(id)
-        .map_or(0, StyleNodeID::raw)
 }
 
 /// What the row is scrolled to, as the document published it.
@@ -5335,25 +5308,6 @@ pub unsafe extern "C" fn layout_arena_node_style_record_pinned_by_host(arena: *m
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_has_derived_style(arena: *mut c_void, node: NodeSlotId) -> bool {
     unsafe { LayoutNodeArena::from_handle(arena) }.node_style_record_is_derived(node)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_style_record(arena: *mut c_void, id: NodeSlotId) -> u64 {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.node_style_record(id)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_style_payloads(arena: *mut c_void, id: NodeSlotId) -> *const c_void {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }
-        .data(id)
-        .style
-        .get()
-        .as_ptr()
-        .cast()
 }
 
 #[unsafe(no_mangle)]

@@ -177,6 +177,11 @@ impl SvgPaintResources {
         self.rows.borrow().clone()
     }
 
+    /// Where the table is, which moves when a write copies the one a publication shares.
+    pub(crate) fn address(&self) -> usize {
+        Arc::as_ptr(&self.rows.borrow()).addr()
+    }
+
     pub(crate) fn set_enrolled_kinds(&self, slot: NodeSlotId, kinds: u8) {
         if kinds == 0 {
             self.forget_slot(slot);

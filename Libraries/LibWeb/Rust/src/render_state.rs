@@ -62,6 +62,8 @@ pub(crate) struct RenderState {
 impl RenderState {
     fn new(host: NonNull<DocumentHost>, device_class: FfiDeviceClass) -> Self {
         let arena = Box::new(ArenaHandle::new(host));
+        // SAFETY: The host outlives its document's render state.
+        unsafe { host.as_ref() }.watch_rows_of(NonNull::from(arena.arena()));
         let engine = StyleEngineHandle::create(create_document_style_engine(device_class));
         arena.arena().set_style_engine(engine);
         Self { arena, engine }
@@ -135,10 +137,6 @@ pub(crate) enum RenderMessage {
     /// A write to a document's render state.
     Change { document: DocumentId, change: ArenaChange },
     /// Publishes the document's rows as they are now.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the host reads the published rows from the next commit on")
-    )]
     CommittedRows {
         document: DocumentId,
         reply: ReplyTo<crate::layout::row_reads::RowSnapshot>,
@@ -324,6 +322,27 @@ mod tests {
         assert!(host.rows().is_none());
         host.fresh_rows(ScriptForcedRead::for_test());
         assert!(host.rows().is_some());
+        // SAFETY: The host is destroyed once, and nothing reaches it after.
+        unsafe { document_host::document_host_destroy(pointer) };
+    }
+
+    #[test]
+    fn a_write_through_the_arena_makes_the_host_read_the_rows_again() {
+        let pointer = document_host::document_host_create(0);
+        // SAFETY: The host lives until it is destroyed below.
+        let host = unsafe { &*pointer };
+        host.fresh_rows(ScriptForcedRead::for_test());
+        assert!(host.rows().is_some());
+        // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
+        let arena =
+            unsafe { &mut *arena_for_unconverted_entry(host.document()).cast::<crate::layout::LayoutNodeArena>() };
+        let row = arena.allocate_for_test().slot;
+        assert!(host.rows().is_none());
+        assert!(host.fresh_rows(ScriptForcedRead::for_test()).node(row).is_some());
+        arena
+            .free_subtree(row)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        assert!(host.rows().is_none());
         // SAFETY: The host is destroyed once, and nothing reaches it after.
         unsafe { document_host::document_host_destroy(pointer) };
     }

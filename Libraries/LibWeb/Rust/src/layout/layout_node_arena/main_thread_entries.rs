@@ -54,18 +54,6 @@ pub unsafe extern "C" fn layout_arena_node_shell_if_live(arena: *mut c_void, id:
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_link_shell(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    link: FfiNodeLink,
-) -> *mut c_void {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.node_link_shell(&main_thread, id, link)
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_containing_block_shell_if_live(
     arena: *mut c_void,
     id: NodeSlotId,

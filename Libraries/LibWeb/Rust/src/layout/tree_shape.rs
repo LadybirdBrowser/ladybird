@@ -19,6 +19,7 @@
 use super::layout_node_arena::SLOTS_PER_CHUNK;
 use super::node_data::{NodeData, NodeKind, NodeSlotId, PaintNode, StylePayloadsRef};
 use crate::cow_column::{ColumnSnapshot, CowColumn};
+use crate::css::style::tree::StyleNodeID;
 use std::cell::Cell;
 use std::ops::Deref;
 
@@ -56,6 +57,8 @@ pub(crate) struct ShapeWriter<'a> {
     data: &'a NodeData,
     written_rows: &'a Cell<u64>,
     row_bit: u64,
+    /// The arena's count of shape writes, which tells a reader of published rows that they moved on.
+    shape_writes: &'a Cell<u64>,
 }
 
 impl Deref for ShapeWriter<'_> {
@@ -71,9 +74,15 @@ impl ShapeWriter<'_> {
     #[inline]
     fn write<T: Copy + PartialEq>(&self, field: &ShapeCell<T>, value: T) {
         if field.get() != value {
-            self.written_rows.set(self.written_rows.get() | self.row_bit);
+            self.mark();
             field.set(value);
         }
+    }
+
+    /// Marks the node for the next publication, for a write to what the arena keeps beside it.
+    pub(crate) fn mark(&self) {
+        self.written_rows.set(self.written_rows.get() | self.row_bit);
+        self.shape_writes.set(self.shape_writes.get() + 1);
     }
 
     pub(crate) fn set_parent(&self, parent: NodeSlotId) {
@@ -82,6 +91,14 @@ impl ShapeWriter<'_> {
 
     pub(crate) fn set_first_child(&self, child: NodeSlotId) {
         self.write(&self.data.first_child, child);
+    }
+
+    pub(crate) fn set_last_child(&self, child: NodeSlotId) {
+        self.write(&self.data.last_child, child);
+    }
+
+    pub(crate) fn set_previous_sibling(&self, sibling: NodeSlotId) {
+        self.write(&self.data.previous_sibling, sibling);
     }
 
     pub(crate) fn set_next_sibling(&self, sibling: NodeSlotId) {
@@ -157,11 +174,12 @@ impl Chunk {
     }
 
     #[inline]
-    pub(crate) fn write_shape(&self, offset: usize) -> ShapeWriter<'_> {
+    pub(crate) fn write_shape<'a>(&'a self, offset: usize, shape_writes: &'a Cell<u64>) -> ShapeWriter<'a> {
         ShapeWriter {
             data: &self.slots[offset],
             written_rows: &self.written_rows[offset / 64],
             row_bit: 1 << (offset % 64),
+            shape_writes,
         }
     }
 
@@ -195,7 +213,12 @@ impl TreeShape {
     /// Brings the rows of every node written since the last publication up to date and publishes
     /// the column. A row whose node did not change is not written, so a chunk an earlier
     /// publication shares is copied only for a change.
-    pub(crate) fn publish(&mut self, chunks: &[Box<Chunk>]) -> ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
+    pub(crate) fn publish(
+        &mut self,
+        chunks: &[Box<Chunk>],
+        style_records: &[Cell<u64>],
+        style_nodes: &[Cell<Option<StyleNodeID>>],
+    ) -> ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
         self.nodes.grow_to(chunks.len() * SLOTS_PER_CHUNK);
         for (chunk_index, chunk) in chunks.iter().enumerate() {
             for (word_index, word) in chunk.written_rows.iter().enumerate() {
@@ -203,12 +226,13 @@ impl TreeShape {
                 while written != 0 {
                     let offset = word_index * 64 + written.trailing_zeros() as usize;
                     written &= written - 1;
-                    self.nodes
-                        .set(
-                            chunk_index * SLOTS_PER_CHUNK + offset,
-                            PaintNode::of(&chunk.slots[offset]),
-                        )
-                        .expect("the column holds every chunk");
+                    let index = chunk_index * SLOTS_PER_CHUNK + offset;
+                    let row = PaintNode::of(
+                        &chunk.slots[offset],
+                        style_records.get(index).map_or(0, Cell::get),
+                        style_nodes.get(index).and_then(Cell::get),
+                    );
+                    self.nodes.set(index, row).expect("the column holds every chunk");
                 }
             }
         }
@@ -223,20 +247,23 @@ mod tests {
     #[test]
     fn a_write_that_changes_a_node_marks_it_and_one_that_does_not_leaves_it_unmarked() {
         let mut chunk = Chunk::new();
+        let shape_writes = Cell::new(0);
         assert!(chunk.is_marked(0), "a new chunk's nodes are all marked");
         chunk.clear_marks();
 
-        let shape = chunk.write_shape(3);
+        let shape = chunk.write_shape(3, &shape_writes);
         shape.set_kind(NodeKind::Unset);
         shape.set_parent(NodeSlotId::INVALID);
         shape.set_flags(0);
         assert!(!chunk.is_marked(3));
+        assert_eq!(shape_writes.get(), 0);
 
-        chunk.write_shape(3).set_kind(NodeKind::BlockContainer);
+        chunk.write_shape(3, &shape_writes).set_kind(NodeKind::BlockContainer);
         assert!(chunk.is_marked(3));
         assert!(!chunk.is_marked(2) && !chunk.is_marked(4));
+        assert_eq!(shape_writes.get(), 1);
 
-        chunk.write_shape(70).set_dom_paint_facts(1);
+        chunk.write_shape(70, &shape_writes).set_dom_paint_facts(1);
         assert!(chunk.is_marked(70));
         assert!(!chunk.is_marked(71));
 

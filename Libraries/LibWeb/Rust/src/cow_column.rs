@@ -69,6 +69,8 @@ pub(crate) struct CowColumn<T, const CHUNK: usize> {
     /// Whether each chunk is known to be unshared, with its group and the spine: the column made
     /// them writable after it last published, and nothing but publishing shares them.
     unshared: Vec<bool>,
+    /// Advanced as the column is written. See [`Self::version`].
+    version: u64,
 }
 
 // SAFETY: `chunks` points only into what `spine` holds, and the column hands out its rows only
@@ -88,6 +90,7 @@ impl<T, const CHUNK: usize> Default for CowColumn<T, CHUNK> {
             spine: Arc::new([]),
             chunks: Vec::new(),
             unshared: Vec::new(),
+            version: 0,
         }
     }
 }
@@ -121,6 +124,7 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
     fn owned_row(&mut self, index: usize) -> Option<&mut T> {
         let chunk_index = index / CHUNK;
         let unshared = self.unshared.get_mut(chunk_index)?;
+        self.version += 1;
         if !*unshared {
             let chunk = chunk_slot_mut(&mut self.spine, chunk_index).as_mut()?;
             Arc::make_mut(chunk);
@@ -145,6 +149,7 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
             .is_some();
         if owned {
             self.unshared[chunk_index] = true;
+            self.version += 1;
         }
         owned
     }
@@ -163,7 +168,15 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
             self.chunks.push(Arc::as_ptr(&chunk).cast_mut());
             *chunk_slot_mut(&mut self.spine, chunk_index) = Some(chunk);
             self.unshared.push(true);
+            self.version += 1;
         }
+    }
+
+    /// How far the column has been written. A snapshot reads as the column does for as long as the version stays what
+    /// it was when the snapshot was published, whoever published since: every write advances it, except one to a chunk
+    /// the column already made its own after it last published, whose first write did.
+    pub(crate) fn version(&self) -> u64 {
+        self.version
     }
 
     /// This generation of the column, sharing all of it with the column until the column writes.
