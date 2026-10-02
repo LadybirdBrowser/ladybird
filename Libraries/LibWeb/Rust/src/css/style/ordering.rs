@@ -949,16 +949,7 @@ impl RetainedState {
 
         let keep = &mut workspace.keep;
         keep.clear();
-        keep.resize(all.len(), false);
-        for (index, entry) in all.iter().enumerate() {
-            // A gated match is kept whatever its conditions say now: they are decided again when
-            // the containers move.
-            if self.program.sheet_origin(self.program.rule_sheet(entry.rule)) != CascadeOrigin::Author
-                || self.program.rule_is_gated_by_container_query(entry.rule)
-            {
-                keep[index] = true;
-            }
-        }
+        keep.extend(all.iter().map(|entry| self.compaction_keeps_verbatim(entry.rule)));
         for winner in top_1.unordered_winners() {
             if let CascadeCompactionCandidate::Rule(match_index, _) = winner.payload {
                 keep[match_index] = true;
@@ -1164,6 +1155,14 @@ impl RetainedState {
         })
     }
 
+    /// Whether compacting a cascade input keeps a rule's matches whatever the winners say: a
+    /// non-author match keeps the origin the consumer resolves, and a container-gated one is
+    /// decided again when its containers move, where a rule that loses now may win.
+    pub(super) fn compaction_keeps_verbatim(&self, rule: RuleID) -> bool {
+        self.program.sheet_origin(self.program.rule_sheet(rule)) != CascadeOrigin::Author
+            || self.program.rule_is_gated_by_container_query(rule)
+    }
+
     /// Reuse a complete, freshly updated element winner state instead of reducing declarations
     /// again. Cascade continuations retain the general compaction path.
     pub(super) fn compact_matches_from_updated_winners(
@@ -1207,10 +1206,7 @@ impl RetainedState {
             return false;
         };
         counters.add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
-        all.retain(|entry| {
-            self.program.sheet_origin(self.program.rule_sheet(entry.rule)) != CascadeOrigin::Author
-                || rules.binary_search(&entry.rule).is_ok()
-        });
+        all.retain(|entry| self.compaction_keeps_verbatim(entry.rule) || rules.binary_search(&entry.rule).is_ok());
         verify_style_answer_patch(self, counters, |verifier| {
             verifier.verify_cascade_answer(all, node, "compaction from updated winners");
         });
@@ -1266,12 +1262,12 @@ impl RetainedState {
                 return false;
             };
             // A target with no winning declarations still needs one match to preserve its
-            // presence. A non-author match already retained verbatim serves that purpose.
+            // presence. A match already retained verbatim serves that purpose.
             let marker = if rules.is_empty()
-                && !all.iter().any(|entry| {
-                    entry.pseudo_element == Some(pseudo)
-                        && self.program.sheet_origin(self.program.rule_sheet(entry.rule)) != CascadeOrigin::Author
-                }) {
+                && !all
+                    .iter()
+                    .any(|entry| entry.pseudo_element == Some(pseudo) && self.compaction_keeps_verbatim(entry.rule))
+            {
                 all.iter().position(|entry| entry.pseudo_element == Some(pseudo))
             } else {
                 None
@@ -1288,7 +1284,7 @@ impl RetainedState {
         counters.add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
         let mut index = 0;
         all.retain(|entry| {
-            let retained = self.program.sheet_origin(self.program.rule_sheet(entry.rule)) != CascadeOrigin::Author
+            let retained = self.compaction_keeps_verbatim(entry.rule)
                 || match entry.pseudo_element {
                     None => element_rules.binary_search(&entry.rule).is_ok(),
                     Some(pseudo) => {
