@@ -954,6 +954,13 @@ Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicT
 ContextState::ContextUpdateResult ContextState::handle_wheel_event(Web::MouseEvent const& event, Optional<MonotonicTime> now_for_testing)
 {
     VERIFY(event.type == Web::MouseEvent::Type::MouseWheel);
+    auto now = now_for_testing.value_or(MonotonicTime::now());
+    track_wheel_event_for_scroll_fling(event, now);
+    return scroll_for_wheel_event(event, now);
+}
+
+ContextState::ContextUpdateResult ContextState::scroll_for_wheel_event(Web::MouseEvent const& event, MonotonicTime now)
+{
     auto wheel_delta_x = event.wheel_delta_x;
     auto wheel_delta_y = event.wheel_delta_y;
     if (event.modifiers & Web::UIEvents::KeyModifier::Mod_Shift)
@@ -965,7 +972,112 @@ ContextState::ContextUpdateResult ContextState::handle_wheel_event(Web::MouseEve
     };
     auto delta_in_device_pixels = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) }
                                       .scaled(static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()));
-    return async_scroll_by(position, delta_in_device_pixels, event.wheel_delta_precision, event.scroll_gesture_phase, event.modifiers, now_for_testing);
+    return async_scroll_by(position, delta_in_device_pixels, event.wheel_delta_precision, event.scroll_gesture_phase, event.modifiers, now);
+}
+
+static bool is_touchpad_step(Web::MouseEvent const& event)
+{
+    return event.wheel_delta_precision == Web::WheelDeltaPrecision::Precise && event.scroll_gesture_phase == Web::ScrollGesturePhase::Ongoing;
+}
+
+void ContextState::track_wheel_event_for_scroll_fling(Web::MouseEvent const& event, MonotonicTime now)
+{
+    if (is_touchpad_step(event)) {
+        m_scroll_velocity_tracker.add_step({ static_cast<float>(event.wheel_delta_x), static_cast<float>(event.wheel_delta_y) }, now);
+        return;
+    }
+    m_scroll_velocity_tracker.reset();
+    // Other wheel input cancels the boost of the next fling.
+    if (event.scroll_gesture_phase != Web::ScrollGesturePhase::Ended)
+        m_scroll_fling_booster.reset();
+}
+
+bool ContextState::start_scroll_fling_if_flicked(Web::MouseEvent const& gesture_end_event, Optional<MonotonicTime> now_for_testing)
+{
+    VERIFY(gesture_end_event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended);
+    auto now = now_for_testing.value_or(MonotonicTime::now());
+    auto velocity = m_scroll_velocity_tracker.velocity_at_lift(now);
+    m_scroll_velocity_tracker.reset();
+    if (!velocity.has_value())
+        return false;
+
+    auto fling = Compositing::ScrollFling::start(m_scroll_fling_booster.boosted_velocity(*velocity, now), now);
+    if (!fling.has_value())
+        return false;
+    m_scroll_fling = ActiveScrollFling {
+        .fling = fling.release_value(),
+        .position = gesture_end_event.position,
+        .screen_position = gesture_end_event.screen_position,
+        .modifiers = gesture_end_event.modifiers,
+    };
+    return true;
+}
+
+Optional<ContextState::ScrollFlingStep> ContextState::interrupt_scroll_fling(Web::MouseEvent const& event, Optional<MonotonicTime> now_for_testing)
+{
+    if (!m_scroll_fling.has_value())
+        return {};
+    auto now = now_for_testing.value_or(MonotonicTime::now());
+
+    // A new touchpad step stops the fling. The next flick can add the velocity of this fling.
+    if (is_touchpad_step(event))
+        m_scroll_fling_booster.fling_was_interrupted(m_scroll_fling->fling.velocity_at(now), now);
+    return end_scroll_fling(now);
+}
+
+Web::MouseEvent ContextState::scroll_fling_event(Gfx::FloatPoint delta, Web::ScrollGesturePhase phase) const
+{
+    VERIFY(m_scroll_fling.has_value());
+    return {
+        .type = Web::MouseEvent::Type::MouseWheel,
+        .position = m_scroll_fling->position,
+        .screen_position = m_scroll_fling->screen_position,
+        .modifiers = m_scroll_fling->modifiers,
+        .wheel_delta_x = delta.x(),
+        .wheel_delta_y = delta.y(),
+        .wheel_delta_precision = Web::WheelDeltaPrecision::Precise,
+        .scroll_gesture_phase = phase,
+        .click_count = 0,
+        .browser_data = nullptr,
+        .async_scroll_performed_default_action = false,
+        // The IDs of UI input events start at 1. Thus, ID 0 does not match a UI event.
+        .id = 0,
+    };
+}
+
+Optional<ContextState::ScrollFlingStep> ContextState::take_scroll_fling_step(MonotonicTime frame_time)
+{
+    if (!m_scroll_fling.has_value())
+        return {};
+    if (m_scroll_fling->stopped)
+        return end_scroll_fling(frame_time);
+
+    auto delta = m_scroll_fling->fling.step(frame_time);
+    if (!delta.has_value())
+        return end_scroll_fling(frame_time);
+    if (delta->is_zero())
+        return {};
+
+    auto event = scroll_fling_event(*delta, Web::ScrollGesturePhase::Momentum);
+    auto result = scroll_for_wheel_event(event, frame_time);
+
+    // If the compositor accepts the step but does not scroll, the scroller is at its edge.
+    // Alternatively, a snap scroll uses the step. The next display tick ends the fling.
+    if (result.accepted && !result.frame_to_present.has_value())
+        m_scroll_fling->stopped = true;
+    return ScrollFlingStep { move(event), move(result) };
+}
+
+Optional<ContextState::ScrollFlingStep> ContextState::end_scroll_fling(MonotonicTime now)
+{
+    if (!m_scroll_fling.has_value())
+        return {};
+
+    // WebContent holds the gesture open while momentum events arrive. The end of the gesture releases it.
+    auto event = scroll_fling_event({}, Web::ScrollGesturePhase::Ended);
+    m_scroll_fling.clear();
+    auto result = scroll_for_wheel_event(event, now);
+    return ScrollFlingStep { move(event), move(result) };
 }
 
 ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Optional<MonotonicTime> now_for_testing)

@@ -503,6 +503,8 @@ bool CompositorState::handle_key_event(Web::CompositorContextId context_id, Web:
     auto* context = context_if_present(context_id);
     if (!context)
         return false;
+    if (event.type == Web::KeyEvent::Type::KeyDown && Web::is_keyboard_scroll_key(event.key, Web::UIEvents::Mod_None))
+        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(MonotonicTime::now()));
     return apply_context_update_result(context_id, *context, context->handle_key_event(event));
 }
 
@@ -525,7 +527,29 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         return;
     }
 
+    if (event.type == Web::MouseEvent::Type::MouseDown)
+        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(MonotonicTime::now()));
+
     auto is_wheel_event = event.type == Web::MouseEvent::Type::MouseWheel;
+    if (is_wheel_event) {
+        // The UI can send the end of a gesture more than once. An end that arrives during a fling belongs to the
+        // flicked gesture, so it does not stop the fling.
+        if (event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->has_active_scroll_fling()) {
+            m_client->did_consume_input_event(context_id, event.id);
+            return;
+        }
+
+        // A new gesture must not continue the gesture of the fling, so the fling ends first.
+        dispatch_scroll_fling_step(context_id, *context, context->interrupt_scroll_fling(event));
+
+        // If the gesture continues as a fling, the end of the fling is the end of the gesture.
+        if (m_synthesizes_scroll_momentum && event.scroll_gesture_phase == Web::ScrollGesturePhase::Ended && context->start_scroll_fling_if_flicked(event)) {
+            m_client->did_consume_input_event(context_id, event.id);
+            schedule_animation_frames_if_needed(*context);
+            return;
+        }
+    }
+
     ContextState::ContextUpdateResult result;
     if (is_wheel_event)
         result = context->handle_wheel_event(event);
@@ -546,6 +570,15 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         event.scrollbar_dragged_by_compositor = result.scrollbar_dragged_by_compositor;
     }
     context->dispatch_mouse_event_to_web_content(event);
+}
+
+void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId context_id, ContextState& context, Optional<ContextState::ScrollFlingStep> step)
+{
+    // Send each fling step on the same route as a wheel event from the UI.
+    if (!step.has_value())
+        return;
+    step->event.async_scroll_performed_default_action = apply_context_update_result(context_id, context, step->result);
+    context.dispatch_mouse_event_to_web_content(step->event);
 }
 
 void CompositorState::handle_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent const& event)
@@ -663,6 +696,8 @@ void CompositorState::set_context_visibility(Web::CompositorContextId context_id
     auto* context = context_if_present(context_id);
     if (!context)
         return;
+    if (visibility == Compositing::ContextVisibility::Hidden)
+        dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(MonotonicTime::now()));
     if (!context->set_visibility(visibility))
         return;
 
@@ -678,8 +713,7 @@ void CompositorState::resume_presentation_after_becoming_visible(Web::Compositor
         auto& context = *context_entry.value;
         if (root_context_of(context) != &root_context)
             continue;
-        if (context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame())
-            vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
+        schedule_animation_frames_if_needed(context);
         if (context.rendering_opportunity_requested())
             vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
     }
@@ -778,12 +812,17 @@ void CompositorState::schedule_pending_present_frame(Web::CompositorContextId co
         // may already be up to date (and therefore not schedule a new present),
         // so explicitly keep the effective display's scheduler ticking while
         // a nested animation is active.
-        if ((context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame()) && context_is_effectively_visible(context))
-            vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
+        schedule_animation_frames_if_needed(context);
         return;
     }
 
     schedule_pending_present_frame_on_vsync(context_id, context);
+}
+
+void CompositorState::schedule_animation_frames_if_needed(ContextState& context)
+{
+    if (context.needs_animation_frames() && context_is_effectively_visible(context))
+        vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
 }
 
 void CompositorState::schedule_pending_present_frame_on_vsync(Web::CompositorContextId, ContextState& context)
@@ -872,10 +911,12 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
             }
         }
 
-        auto has_active_animation_on_display = (context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame()) && display_id_for_context(context) == display_id;
+        auto has_active_animation_on_display = context.needs_animation_frames() && display_id_for_context(context) == display_id;
         if (!context.has_pending_present_frame_scheduled_on(display_id) && !has_active_animation_on_display)
             continue;
 
+        if (display_id_for_context(context) == display_id)
+            dispatch_scroll_fling_step(context_id, context, context.take_scroll_fling_step(frame_time));
         if (auto animation_frame = context.advance_smooth_scroll_animations(frame_time); animation_frame.has_value())
             context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*animation_frame));
         publish_pending_async_scroll_updates(context_id, context);
@@ -888,12 +929,12 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
         add_backing_store_for_pending_frame_if_needed(context_id, context);
         auto pending_present_frame = context.take_pending_present_frame_if_unblocked();
         if (!pending_present_frame.has_value()) {
-            has_active_animation_on_display = (context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame()) && display_id_for_context(context) == display_id;
+            has_active_animation_on_display = context.needs_animation_frames() && display_id_for_context(context) == display_id;
             if (context.has_pending_present_frame_scheduled_on(display_id) || has_active_animation_on_display)
                 vsync_scheduler_for_display(display_id).schedule(display_refresh_rate_for_context(context));
             continue;
         }
-        if (context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame())
+        if (context.needs_animation_frames())
             schedule_present_frame(context_id, context, ContextState::PendingFrame::repainting_changes(pending_present_frame->viewport_rect));
         present_frame(context_id, context, *pending_present_frame);
     }
@@ -1076,6 +1117,11 @@ BackingStoreManager::GpuSharing CompositorState::gpu_sharing_for_client() const
         return BackingStoreManager::GpuSharing::Disallowed;
 #endif
     return BackingStoreManager::GpuSharing::Allowed;
+}
+
+void CompositorState::set_synthesizes_scroll_momentum(bool synthesizes_scroll_momentum)
+{
+    m_synthesizes_scroll_momentum = synthesizes_scroll_momentum;
 }
 
 void CompositorState::set_client_gpu_presentation_capability(bool supported, u64 adapter_luid)

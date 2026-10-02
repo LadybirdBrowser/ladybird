@@ -26,6 +26,7 @@ endpoint CompositorControlServer
     handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event) =|
     presented_bitmap_ready_to_paint(Web::CompositorContextId context_id, i32 bitmap_id) =|
     set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) =|
+    set_synthesizes_scroll_momentum(bool synthesizes_scroll_momentum) =|
     set_context_visibility(Web::CompositorContextId context_id, Compositing::ContextVisibility visibility) =|
     crash() =|
 }

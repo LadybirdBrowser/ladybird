@@ -234,6 +234,11 @@ void ConnectionFromClient::set_client_gpu_presentation_capability(bool supported
     m_compositor_state->set_client_gpu_presentation_capability(supported, adapter_luid);
 }
 
+void ConnectionFromClient::set_synthesizes_scroll_momentum(bool synthesizes_scroll_momentum)
+{
+    m_compositor_state->set_synthesizes_scroll_momentum(synthesizes_scroll_momentum);
+}
+
 void ConnectionFromClient::crash()
 {
     warnln("Crashing Compositor process by request from Browser");

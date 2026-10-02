@@ -25,6 +25,7 @@
 #include <LibCompositing/Forward.h>
 #include <LibCompositing/Scrolling/AsyncScrollTree.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
+#include <LibCompositing/Scrolling/ScrollFling.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Scrolling/SmoothScrollAnimation.h>
 #include <LibCompositing/Scrolling/WheelGestureIdentity.h>
@@ -35,6 +36,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 
 namespace Gfx {
@@ -138,6 +140,20 @@ public:
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
+    bool needs_animation_frames() { return has_active_smooth_scroll_animations() || has_active_scroll_fling() || visual_animations_need_frame(); }
+
+    bool has_active_scroll_fling() const { return m_scroll_fling.has_value(); }
+    struct ScrollFlingStep {
+        Web::MouseEvent event;
+        ContextUpdateResult result;
+    };
+    Optional<ScrollFlingStep> take_scroll_fling_step(MonotonicTime frame_time);
+    Optional<ScrollFlingStep> end_scroll_fling(MonotonicTime now);
+    // Starts a fling if the gesture that the event ends was a flick. Use only on platforms that send no momentum
+    // scroll events.
+    bool start_scroll_fling_if_flicked(Web::MouseEvent const& gesture_end_event, Optional<MonotonicTime> now_for_testing = {});
+    // Ends the fling before a wheel event from a new gesture or other input.
+    Optional<ScrollFlingStep> interrupt_scroll_fling(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
     bool advance_visual_animations(MonotonicTime now);
     bool has_active_visual_animations() const { return m_has_active_visual_animations; }
     bool visual_animations_need_frame();
@@ -206,6 +222,15 @@ private:
         bool is_user_scroll { false };
     };
 
+    struct ActiveScrollFling {
+        Compositing::ScrollFling fling;
+        // The fling steps use the position and modifiers of the gesture end event.
+        Web::DevicePixelPoint position;
+        Web::DevicePixelPoint screen_position;
+        Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
+        bool stopped { false };
+    };
+
     struct VisualViewportScrollDelta {
         Compositing::AsyncScrollOffset scroll_offset;
         Gfx::FloatPoint consumed_delta;
@@ -253,6 +278,9 @@ private:
     Compositing::AsyncScrollOperationID start_snap_scroll(Compositing::AsyncScrollNodeID, ScrollSnapController::SnapScrollStart&&, bool settles_gesture, MonotonicTime now);
     void retire_smooth_scroll_animation(Web::AsyncScrollNodeStableID);
     void cancel_smooth_scroll_taken_over_by_user_input(Compositing::AsyncScrollNodeID);
+    void track_wheel_event_for_scroll_fling(Web::MouseEvent const&, MonotonicTime now);
+    ContextUpdateResult scroll_for_wheel_event(Web::MouseEvent const&, MonotonicTime now);
+    Web::MouseEvent scroll_fling_event(Gfx::FloatPoint delta, Web::ScrollGesturePhase) const;
     void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_scrollbar);
     bool user_scroll_gesture_in_progress() const;
     void schedule_end_of_scroll_step_gestures(MonotonicTime now);
@@ -325,6 +353,9 @@ private:
     RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
     Optional<WheelScrollLatch> m_wheel_scroll_latch;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
+    Compositing::ScrollVelocityTracker m_scroll_velocity_tracker;
+    Compositing::ScrollFlingBooster m_scroll_fling_booster;
+    Optional<ActiveScrollFling> m_scroll_fling;
     Compositing::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;
     bool m_has_async_scrolling_state { false };

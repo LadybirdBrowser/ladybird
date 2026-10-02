@@ -147,6 +147,8 @@ private:
 #endif
     }
 
+    virtual bool platform_reports_scroll_momentum() const override;
+
     virtual void update_tabs_display() const override;
 
     virtual void rebuild_bookmarks_menu() const override;

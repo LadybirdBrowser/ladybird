@@ -455,6 +455,14 @@ Optional<String> Application::ui_font_family() const
     return ak_string_from_qstring(QGuiApplication::font().family());
 }
 
+bool Application::platform_reports_scroll_momentum() const
+{
+    // Only Qt on macOS sends momentum scroll events.
+    if (!m_application)
+        return true;
+    return QGuiApplication::platformName() == QStringLiteral("cocoa");
+}
+
 #if !defined(AK_OS_MACOS)
 // On macOS, WebContent resolves system-ui with CoreText, so the system font family is not sent there.
 Optional<String> Application::system_font_family() const

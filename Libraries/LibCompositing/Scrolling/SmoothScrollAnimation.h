@@ -13,6 +13,11 @@
 
 namespace Compositing {
 
+// During a momentum scroll, each frame moves this fraction of the distance of the frame before it.
+inline constexpr double momentum_distance_share_per_frame = 0.92;
+inline constexpr double momentum_frame_duration_in_seconds = 0.016;
+inline constexpr double maximum_momentum_duration_in_seconds = 5.0;
+
 class COMPOSITING_API SmoothScrollAnimation {
 public:
     struct Sample {

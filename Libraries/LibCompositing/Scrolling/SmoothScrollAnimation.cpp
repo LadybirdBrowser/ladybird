@@ -13,12 +13,6 @@ namespace Compositing {
 static constexpr double scroll_speed_in_pixels_per_second = 1000.0;
 static constexpr double maximum_scroll_duration_in_seconds = 0.2;
 
-// The share of a frame's distance that the frame after it covers while momentum decays, and the length of the frames
-// that share is measured in.
-static constexpr double momentum_distance_share_per_frame = 0.92;
-static constexpr double momentum_frame_duration_in_seconds = 0.016;
-static constexpr double maximum_momentum_duration_in_seconds = 5.0;
-
 // https://drafts.csswg.org/css-easing/#cubic-bezier-algo
 // The ease-in-out curve WebKit uses for programmatic smooth scrolling, cubic-bezier(0.42, 0, 0.58, 1).
 static double ease_in_out(double progress)
