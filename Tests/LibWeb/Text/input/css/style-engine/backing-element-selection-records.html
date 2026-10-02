@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    input { width: 200px; }
+    input.wide { width: 300px; }
+    input::selection { background-color: rgb(255, 0, 0); }
+</style>
+<input id="control" value="Selected text">
+<script>
+    test(() => {
+        // The elements an input's shadow tree holds for its text stand for its pseudo-elements, and
+        // their own ::selection is settled as any element's is.
+        const control = document.getElementById("control");
+        control.focus();
+        control.select();
+        internals.updateStyle();
+        const start = internals.styleEngineCounters();
+        control.className = "wide";
+        internals.updateStyle();
+        const end = internals.styleEngineCounters();
+        println(`selection: ${getComputedStyle(control, "::selection").backgroundColor}`);
+        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
+    });
+</script>

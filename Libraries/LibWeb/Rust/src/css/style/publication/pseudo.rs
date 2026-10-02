@@ -1148,13 +1148,8 @@ impl RetainedState {
         );
         let record = record.or_refused()?;
         if !scratch.font_drive.is_pending_for(node) {
-            // A record the engine derived for the element itself carries its pseudo-elements, and
-            // an element standing for its host's pseudo-element is that pseudo-element.
-            if self.engine_computed_records_pending.contains_key(&node)
-                || self.computed_group_sets.adjustment_facts(node)
-                    & bridge::element_adjustment_fact::IS_SHADOW_HOST_PSEUDO_ELEMENT
-                    != 0
-            {
+            // A record the engine derived for the element itself carries its pseudo-elements.
+            if self.engine_computed_records_pending.contains_key(&node) {
                 return Err(Unanswered::Refused);
             }
             // Every declaration the pseudo-elements' rules make has to be a winner the engine
