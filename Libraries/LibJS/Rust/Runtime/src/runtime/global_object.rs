@@ -11,10 +11,11 @@ use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, define_cell};
-use crate::interpreter::vm::Vm;
+use crate::interpreter::vm::{EvalMode, Vm};
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::runtime::abstract_operations::{CallerMode, perform_eval};
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -82,11 +83,11 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     };
 
     // 19.2 Function Properties of the Global Object, https://tc39.es/ecma262/#sec-function-properties-of-the-global-object
-    // NB: eval comes with eval, before isFinite.
     let define_intrinsic_function = |name: &PropertyKey, function: Gc<FunctionObject>| {
         global.define_direct_property(vm, name, Value::from_object(function), attr);
     };
     let intrinsics = realm.intrinsics();
+    define_intrinsic_function(&names.eval, intrinsics.eval_function());
     define_intrinsic_function(&names.isFinite, intrinsics.is_finite_function());
     define_intrinsic_function(&names.isNaN, intrinsics.is_nan_function());
     define_intrinsic_function(&names.parseFloat, intrinsics.parse_float_function());
@@ -188,7 +189,12 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
         Value::from_object(realm.intrinsics().internal_error_constructor(vm)),
         attr,
     );
-    // NB: console comes with the console object.
+    global.define_direct_property(
+        vm,
+        &names.console,
+        Value::from_object(realm.intrinsics().console_object(vm)),
+        attr,
+    );
 
     // 3. Return unused.
 }
@@ -800,4 +806,14 @@ fn decode(vm: &Vm, string: Utf16View<'_>, reserved_set: &str) -> ThrowCompletion
         k += 1;
     }
     Ok(Utf16String::from_utf16(&decoded_builder))
+}
+
+impl GlobalObject {
+    // 19.2.1 eval ( x ), https://tc39.es/ecma262/#sec-eval-x
+    pub fn eval(vm: &Vm) -> ThrowCompletionOr<Value> {
+        let x = vm.argument(0);
+
+        // 1. Return ? PerformEval(x, false, false).
+        perform_eval(vm, x, CallerMode::NonStrict, EvalMode::Indirect)
+    }
 }

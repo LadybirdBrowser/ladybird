@@ -91,6 +91,8 @@ impl Class {
     pub fn class_name(&self) -> &'static str {
         match self.id {
             ClassId::EcmascriptFunctionObject => "ECMAScriptFunctionObject",
+            ClassId::Test262GlobalObject => "GlobalObject",
+            ClassId::Dollar262Object => "$262Object",
             _ => self.name,
         }
     }

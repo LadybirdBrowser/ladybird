@@ -18,6 +18,9 @@ mod rust_panic;
 
 pub mod build_configuration;
 pub mod bytecode;
+pub mod console;
+pub mod console_log_level;
+pub mod contrib;
 pub mod frontend_host;
 pub mod gc;
 pub mod hash_table;
@@ -31,6 +34,7 @@ pub mod script;
 pub mod simdjson;
 pub mod source_code;
 pub mod source_range;
+pub mod standard_output;
 pub mod unicode;
 pub mod utf16;
 pub mod utilities;

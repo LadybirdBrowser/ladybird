@@ -38,6 +38,8 @@ pub mod class_construction;
 pub mod class_field_definition;
 pub mod common_property_names;
 pub mod completion;
+pub mod console_object;
+pub mod console_object_prototype;
 pub mod declarative_environment;
 pub mod descriptor_array;
 pub mod ecmascript_function_object;

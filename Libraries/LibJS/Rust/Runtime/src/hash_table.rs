@@ -4,19 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! AK::HashTable<Utf16FlyString>, for the places where the C++ runtime walks one where the spec walks a List: the
-//! order it visits the strings in is the order of its buckets, which is observable, so this keeps the same buckets.
+//! AK::HashTable, for the places where the C++ runtime walks one where the spec walks a List: the order it visits its
+//! values in is the order of its buckets, which is observable, so this keeps the same buckets.
 
 use ak::Utf16FlyString;
 
 use crate::utf16::Utf16View;
 
-/// AK::string_hash over the code units of a string, which is what Utf16FlyString::hash() computes for ASCII and
-/// UTF-16 storage alike.
-pub fn utf16_fly_string_hash(string: &Utf16FlyString) -> u32 {
+/// AK::string_hash over a sequence of characters.
+fn string_hash(characters: impl Iterator<Item = u32>) -> u32 {
     let mut hash: u32 = 0;
-    for code_unit in Utf16View::of_fly_string(string).code_units() {
-        hash = hash.wrapping_add(u32::from(code_unit));
+    for character in characters {
+        hash = hash.wrapping_add(character);
         hash = hash.wrapping_add(hash << 10);
         hash ^= hash >> 6;
     }
@@ -26,21 +25,55 @@ pub fn utf16_fly_string_hash(string: &Utf16FlyString) -> u32 {
     hash
 }
 
-struct Bucket {
-    value: Utf16FlyString,
+/// AK::string_hash over the code units of a string, which is what Utf16FlyString::hash() computes for ASCII and
+/// UTF-16 storage alike.
+pub fn utf16_fly_string_hash(string: &Utf16FlyString) -> u32 {
+    string_hash(Utf16View::of_fly_string(string).code_units().map(u32::from))
+}
+
+/// AK::Traits<T>::hash() of the values a HashTable holds.
+pub trait HashTableTraits: Eq {
+    fn hash(&self) -> u32;
+}
+
+impl HashTableTraits for Utf16FlyString {
+    fn hash(&self) -> u32 {
+        utf16_fly_string_hash(self)
+    }
+}
+
+/// The bytes of a ByteString, which AK hashes with string_hash.
+impl HashTableTraits for Vec<u8> {
+    fn hash(&self) -> u32 {
+        string_hash(self.iter().map(|&byte| u32::from(byte)))
+    }
+}
+
+struct Bucket<T> {
+    value: T,
     hash: u32,
     probe_length: usize,
 }
 
 /// Open addressing with linear probing and Robin Hood displacement in a power-of-two table that doubles once it is
 /// 70% full, like AK::HashTable.
-#[derive(Default)]
-pub struct Utf16FlyStringHashTable {
-    buckets: Vec<Option<Bucket>>,
+pub struct HashTable<T> {
+    buckets: Vec<Option<Bucket<T>>>,
     size: usize,
 }
 
-impl Utf16FlyStringHashTable {
+impl<T> Default for HashTable<T> {
+    fn default() -> Self {
+        Self {
+            buckets: Vec::new(),
+            size: 0,
+        }
+    }
+}
+
+pub type Utf16FlyStringHashTable = HashTable<Utf16FlyString>;
+
+impl<T: HashTableTraits> HashTable<T> {
     const GROW_CAPACITY_AT_LEAST: usize = 8;
     const GROW_AT_LOAD_FACTOR_PERCENT: usize = 70;
 
@@ -64,19 +97,19 @@ impl Utf16FlyStringHashTable {
         (self.size + 1) * 100 >= self.capacity() * Self::GROW_AT_LOAD_FACTOR_PERCENT
     }
 
-    /// HashTable::set, which replaces an equal string that is already in the table.
-    pub fn set(&mut self, value: Utf16FlyString) {
+    /// HashTable::set, which replaces an equal value that is already in the table.
+    pub fn set(&mut self, value: T) {
         if self.should_grow() {
             self.rehash((self.capacity() * 2).max(Self::GROW_CAPACITY_AT_LEAST));
         }
         self.write_value(value);
     }
 
-    pub fn contains(&self, value: &Utf16FlyString) -> bool {
+    pub fn contains(&self, value: &T) -> bool {
         if self.is_empty() {
             return false;
         }
-        let hash = utf16_fly_string_hash(value);
+        let hash = value.hash();
         let mut bucket_index = hash as usize & self.mask();
         loop {
             let Some(bucket) = &self.buckets[bucket_index] else {
@@ -89,8 +122,8 @@ impl Utf16FlyStringHashTable {
         }
     }
 
-    /// The strings in the order iterating the C++ table visits them: by bucket.
-    pub fn iter(&self) -> impl Iterator<Item = &Utf16FlyString> {
+    /// The values in the order iterating the C++ table visits them: by bucket.
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.buckets.iter().flatten().map(|bucket| &bucket.value)
     }
 
@@ -103,8 +136,8 @@ impl Utf16FlyStringHashTable {
         }
     }
 
-    fn write_value(&mut self, value: Utf16FlyString) {
-        let hash = utf16_fly_string_hash(&value);
+    fn write_value(&mut self, value: T) {
+        let hash = value.hash();
         let mask = self.mask();
         let mut bucket_index = hash as usize & mask;
         let mut probe_length = 0;
