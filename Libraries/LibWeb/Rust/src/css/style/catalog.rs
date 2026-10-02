@@ -554,6 +554,34 @@ pub(super) struct PrefixCaches {
     pub(super) answers: PrefixAnswerCache,
 }
 
+/// The prefix caches the engine shares with the matching traversals and patches that borrow them.
+/// The borrows nest, so each is checked when it is taken, as a `RefCell`'s is: a conflicting borrow
+/// panics rather than waits. The check is atomic, so the engine can move to the thread its stages
+/// run on.
+#[derive(Default)]
+pub(super) struct SharedPrefixCaches(std::sync::RwLock<PrefixCaches>);
+
+impl SharedPrefixCaches {
+    #[track_caller]
+    pub(super) fn borrow(&self) -> std::sync::RwLockReadGuard<'_, PrefixCaches> {
+        match self.0.try_read() {
+            Ok(caches) => caches,
+            // A panic while the caches were borrowed leaves them as a `RefCell` would.
+            Err(std::sync::TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            Err(std::sync::TryLockError::WouldBlock) => panic!("the prefix caches are already mutably borrowed"),
+        }
+    }
+
+    #[track_caller]
+    pub(super) fn borrow_mut(&self) -> std::sync::RwLockWriteGuard<'_, PrefixCaches> {
+        match self.0.try_write() {
+            Ok(caches) => caches,
+            Err(std::sync::TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            Err(std::sync::TryLockError::WouldBlock) => panic!("the prefix caches are already borrowed"),
+        }
+    }
+}
+
 impl Default for PrefixAnswerCache {
     fn default() -> Self {
         Self {
@@ -1385,7 +1413,7 @@ pub(super) struct RetainedAnswerPatch {
     /// One shared match workspace for every node this patch visits, carrying the relation and
     /// sibling-prefix caches across them exactly as a matching traversal does.
     pub(super) match_workspace: MatchScratch,
-    pub(super) prefix_caches: Rc<RefCell<PrefixCaches>>,
+    pub(super) prefix_caches: std::sync::Arc<SharedPrefixCaches>,
     pub(super) dispatch_workspace: DispatchCandidateWorkspace,
     pub(super) always_emit: bool,
     pub(super) has_non_selector_inputs: bool,
@@ -1703,7 +1731,7 @@ pub(super) struct BatchMatchingTraversal {
     pub(super) reuse_retained_match_answers: bool,
     pub(super) retained_answer_dispatch: Option<Arc<RuleDispatch>>,
     pub(super) ancestor_requirements: AncestorRequirementsCache,
-    pub(super) prefix_caches: Rc<RefCell<PrefixCaches>>,
+    pub(super) prefix_caches: std::sync::Arc<SharedPrefixCaches>,
     pub(super) match_workspace: MatchScratch,
     pub(super) match_workspace_bytes: u64,
     pub(super) dispatch_workspace: DispatchCandidateWorkspace,

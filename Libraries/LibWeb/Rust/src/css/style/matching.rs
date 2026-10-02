@@ -437,7 +437,7 @@ impl RetainedState {
             reuse_retained_match_answers: false,
             retained_answer_dispatch: None,
             ancestor_requirements,
-            prefix_caches: Rc::clone(&self.prefix_caches),
+            prefix_caches: std::sync::Arc::clone(&self.prefix_caches),
             match_workspace: MatchScratch::default(),
             match_workspace_bytes: 0,
             dispatch_workspace: DispatchCandidateWorkspace::default(),
@@ -528,7 +528,7 @@ impl RetainedState {
             reuse_retained_match_answers,
             retained_answer_dispatch,
             ancestor_requirements,
-            prefix_caches: Rc::clone(&self.prefix_caches),
+            prefix_caches: std::sync::Arc::clone(&self.prefix_caches),
             match_workspace,
             match_workspace_bytes,
             dispatch_workspace: DispatchCandidateWorkspace::default(),
@@ -628,7 +628,7 @@ impl RetainedState {
             reuse_retained_match_answers,
             retained_answer_dispatch,
             ancestor_requirements: AncestorRequirementsCache::default(),
-            prefix_caches: Rc::clone(&self.prefix_caches),
+            prefix_caches: std::sync::Arc::clone(&self.prefix_caches),
             match_workspace,
             match_workspace_bytes,
             dispatch_workspace: DispatchCandidateWorkspace::default(),
@@ -656,7 +656,7 @@ impl RetainedState {
                         None,
                         None,
                     );
-                    let prefix_caches = Rc::clone(&self.prefix_caches);
+                    let prefix_caches = std::sync::Arc::clone(&self.prefix_caches);
                     let mut caches = prefix_caches.borrow_mut();
                     caches.states.make_scratch(&mut self.memory);
                     let states = caches.states.prepare_program(scope_program);
@@ -1245,7 +1245,7 @@ impl RetainedState {
         dispatch_workspace: &mut DispatchCandidateWorkspace,
         matches: &mut RuleMatches,
         requirements: Option<&AncestorRequirements>,
-        shared_prefix_caches: Option<&Rc<RefCell<PrefixCaches>>>,
+        shared_prefix_caches: Option<&std::sync::Arc<SharedPrefixCaches>>,
         prefix_contexts: &mut PrefixTransitionContexts,
         match_workspace: Option<&mut MatchScratch>,
         mut retry: BatchMatchRetry<'_>,
@@ -2604,7 +2604,7 @@ impl RetainedState {
             scope_program,
             dispatch,
             match_workspace: MatchScratch::default(),
-            prefix_caches: Rc::clone(&self.prefix_caches),
+            prefix_caches: std::sync::Arc::clone(&self.prefix_caches),
             dispatch_workspace,
             always_emit: selection.always_emit,
             has_non_selector_inputs: selection.has_non_selector_inputs,
@@ -3187,7 +3187,7 @@ impl RetainedState {
         let affected_keys: &[(RuleID, SelectorProgramID)] = narrowed_keys.unwrap_or(&patch.rule_keys);
         counters.bump(Counter::SelectorTruthRepairUpqueries);
         let mut matches = RuleMatches::new();
-        let prefix_caches = Rc::clone(&patch.prefix_caches);
+        let prefix_caches = std::sync::Arc::clone(&patch.prefix_caches);
         let mut caches = prefix_caches.borrow_mut();
         let mut states = caches
             .states
@@ -4849,7 +4849,7 @@ impl RetainedState {
             .is_some_and(|batch| batch.row_of(node).is_some());
         if prepared_batch_contains_node {
             let traversal = traversal.as_deref_mut().unwrap();
-            let prefix_caches = Rc::clone(&traversal.prefix_caches);
+            let prefix_caches = std::sync::Arc::clone(&traversal.prefix_caches);
             let facts = traversal.batch.as_ref().unwrap();
             let mut matches = RuleMatches::new();
             if compact_for_cascade && verify_selector_truth_derivation_is_enabled() {
@@ -5403,8 +5403,8 @@ impl RetainedState {
         let prefix_caches_return_to_completion_batch = traversal.is_some();
         let prefix_caches = traversal
             .as_deref()
-            .map(|traversal| Rc::clone(&traversal.prefix_caches))
-            .unwrap_or_else(|| Rc::new(RefCell::new(PrefixCaches::default())));
+            .map(|traversal| std::sync::Arc::clone(&traversal.prefix_caches))
+            .unwrap_or_default();
         let mut completion_scratch_bytes = 0;
         let mut retained_match_answer_is_exact = compact_for_cascade;
         let mut facts = StyleNodeFacts::new();
