@@ -76,6 +76,7 @@ mod engine_handle;
 mod flush;
 mod fnv;
 mod font_resolution;
+pub mod identities;
 pub mod impact;
 pub mod index;
 mod input_routing;

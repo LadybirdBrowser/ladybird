@@ -207,17 +207,29 @@ impl StyleEngine {
             .record_rule_declarations_changed(rule, block_version, &mut self.counters);
     }
 
-    /// Mint `out.len()` element identities in one call. Identity allocation is batched because a
-    /// call per element is exactly the boundary shape this design rules out.
+    /// Make the identities the host minted live, ahead of anything the host records about their
+    /// nodes.
     #[inline]
-    pub fn allocate_style_nodes(&mut self, out: &mut [u32]) {
-        self.state.allocate_style_nodes(out, &mut self.counters);
+    pub fn mint_style_nodes(&mut self, nodes: &[u32]) {
+        self.state.mint_style_nodes(nodes, &mut self.counters);
     }
 
-    /// Mint `out.len()` text identities in one call.
-    #[inline]
+    /// Mint `out.len()` element identities from the tree's own space, for a test.
+    #[cfg(test)]
+    pub fn allocate_style_nodes(&mut self, out: &mut [u32]) {
+        for slot in out.iter_mut() {
+            *slot = self.state.retained.tree.mint_test_identity(false).raw();
+        }
+        self.mint_style_nodes(out);
+    }
+
+    /// Mint `out.len()` text identities from the tree's own space, for a test.
+    #[cfg(test)]
     pub fn allocate_text_style_nodes(&mut self, out: &mut [u32]) {
-        self.state.allocate_text_style_nodes(out);
+        for slot in out.iter_mut() {
+            *slot = self.state.retained.tree.mint_test_identity(true).raw();
+        }
+        self.mint_style_nodes(out);
     }
 
     /// Stage a structural change. The normalized transaction installs the final relation rows at
@@ -591,8 +603,9 @@ impl StyleEngine {
     }
 
     #[inline]
-    pub(super) fn discard_style_transaction_outputs(&mut self) {
-        self.state.discard_style_transaction_outputs(&mut self.counters);
+    /// Ends the transaction the engine published last, and answers the identities its end released.
+    pub(super) fn discard_style_transaction_outputs(&mut self) -> Vec<u32> {
+        self.state.discard_style_transaction_outputs(&mut self.counters)
     }
 
     /// Route a possible relational witness through the anchors whose truth it can flip.

@@ -29,7 +29,7 @@ TEST_CASE(unowned_atoms_are_released_in_one_transaction_batch)
 {
     auto initial_fly_string_count = Utf16FlyString::number_of_utf16_fly_strings();
     Web::CSS::StyleEngine engine(Web::CSS::StyleEngine::DeviceClass::ForegroundDesktop);
-    auto root = engine.allocate_style_node();
+    auto root = engine.mint_style_node();
     for (size_t index = 0; index < 256; ++index) {
         auto name = MUST(String::formatted("style-engine-atom-churn-{}", index));
         engine.intern_atom(Utf16FlyString::from_utf8_without_validation(name));
@@ -76,7 +76,7 @@ static u64 counter_value(Web::CSS::StyleEngine const& engine, StringView expecte
 TEST_CASE(reclaimed_language_atoms_republish_their_text)
 {
     Web::CSS::StyleEngine engine(Web::CSS::StyleEngine::DeviceClass::ForegroundDesktop);
-    auto root = engine.allocate_style_node();
+    auto root = engine.mint_style_node();
     auto language = Utf16FlyString::from_utf8_without_validation("reclaimed-language"sv);
     engine.intern_language_atom(language.view());
     for (size_t index = 0; index < 255; ++index) {
@@ -95,7 +95,7 @@ TEST_CASE(reclaimed_language_atoms_republish_their_text)
 TEST_CASE(reclaimed_custom_property_atoms_republish_their_names)
 {
     Web::CSS::StyleEngine engine(Web::CSS::StyleEngine::DeviceClass::ForegroundDesktop);
-    auto root = engine.allocate_style_node();
+    auto root = engine.mint_style_node();
     auto old_name = Utf16FlyString::from_utf8_without_validation("--reclaimed-custom-property"sv);
     auto old_atom = engine.intern_atom(old_name);
     engine.note_custom_property_name(old_atom, old_name);
@@ -118,7 +118,7 @@ TEST_CASE(reclaimed_custom_property_atoms_republish_their_names)
 TEST_CASE(inline_custom_declaration_names_survive_without_computed_environments)
 {
     Web::CSS::StyleEngine engine(Web::CSS::StyleEngine::DeviceClass::ForegroundDesktop);
-    auto root = engine.allocate_style_node();
+    auto root = engine.mint_style_node();
     auto name = Utf16FlyString::from_utf8_without_validation("--retained-inline-property"sv);
     auto atom = engine.intern_atom(name);
     {

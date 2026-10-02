@@ -1318,14 +1318,15 @@ impl StyleEngineState {
         self.settle_program();
     }
 
-    pub(super) fn discard_style_transaction_outputs(&mut self, counters: &mut Counters) {
+    /// Answers the identities the end of the transaction released, for the host to mint again.
+    pub(super) fn discard_style_transaction_outputs(&mut self, counters: &mut Counters) -> Vec<u32> {
         self.clear_ffi_style_transaction_output();
         self.discard_engine_computed_records(counters);
         self.retain_prefix_states();
         self.discard_prepared_batch_matching_traversal();
         self.discard_published_match_answers(counters);
         // Published matching scratch is the last owner that may name a retired identity.
-        self.retained.tree.release_retired_identities(&mut self.retained.memory);
+        self.retained.tree.release_retired_identities(&mut self.retained.memory)
     }
 }
 
@@ -1464,7 +1465,7 @@ impl StyleEngineState {
             .diagnostic_plan_capture
             .take()
             .expect("the diagnostic plan capture is active during the transaction");
-        self.discard_style_transaction_outputs(counters);
+        let _ = self.discard_style_transaction_outputs(counters);
         if !capture.nodes.is_empty() {
             emit(&capture.nodes);
         }

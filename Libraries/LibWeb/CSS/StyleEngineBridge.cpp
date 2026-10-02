@@ -33,6 +33,7 @@ static_assert(!IsMoveAssignable<StyleEngine>);
 
 StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer)
     : m_impl(const_cast<void*>(StyleEngineFFI::style_engine_create(device_class)))
+    , m_style_node_ids(StyleEngineFFI::style_node_id_allocator_create())
     , m_style_computer(style_computer)
 {
     if (m_style_computer) {
@@ -44,6 +45,7 @@ StyleEngine::~StyleEngine()
 {
     if (m_impl)
         StyleEngineFFI::style_engine_destroy(m_impl);
+    StyleEngineFFI::style_node_id_allocator_destroy(m_style_node_ids);
     for (auto const& atom : m_atoms)
         Utf16FlyString::unref_raw(atom.key);
 }
@@ -53,25 +55,29 @@ void StyleEngine::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_style_computer);
 }
 
-StyleNodeID StyleEngine::allocate_style_node()
+StyleNodeID StyleEngine::mint_style_node()
 {
     StyleNodeID node;
-    allocate_style_nodes({ &node, 1 });
+    mint_style_nodes({ &node, 1 });
     return node;
 }
 
-void StyleEngine::allocate_style_nodes(Span<StyleNodeID> nodes)
+void StyleEngine::mint_style_nodes(Span<StyleNodeID> nodes)
 {
     if (nodes.is_empty())
         return;
-    StyleEngineFFI::style_engine_allocate_style_nodes(m_impl, reinterpret_cast<u32*>(nodes.data()), nodes.size());
+    auto* raw_nodes = reinterpret_cast<u32*>(nodes.data());
+    StyleEngineFFI::style_node_id_allocator_mint(m_style_node_ids, false, raw_nodes, nodes.size());
+    StyleEngineFFI::style_engine_mint_style_nodes(m_impl, raw_nodes, nodes.size());
 }
 
-void StyleEngine::allocate_text_style_nodes(Span<StyleNodeID> nodes)
+void StyleEngine::mint_text_style_nodes(Span<StyleNodeID> nodes)
 {
     if (nodes.is_empty())
         return;
-    StyleEngineFFI::style_engine_allocate_text_style_nodes(m_impl, reinterpret_cast<u32*>(nodes.data()), nodes.size());
+    auto* raw_nodes = reinterpret_cast<u32*>(nodes.data());
+    StyleEngineFFI::style_node_id_allocator_mint(m_style_node_ids, true, raw_nodes, nodes.size());
+    StyleEngineFFI::style_engine_mint_style_nodes(m_impl, raw_nodes, nodes.size());
 }
 
 HashTable<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
@@ -661,7 +667,9 @@ bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<v
 
 void StyleEngine::discard_style_transaction_outputs()
 {
-    StyleEngineFFI::style_engine_discard_style_transaction_outputs(m_impl);
+    // The end of the transaction releases the identities no reader can name any more, which are minted again first.
+    auto released = StyleEngineFFI::style_engine_discard_style_transaction_outputs(m_impl);
+    StyleEngineFFI::style_node_id_allocator_release(m_style_node_ids, released.nodes, released.count);
 }
 
 namespace {

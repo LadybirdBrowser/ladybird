@@ -649,7 +649,9 @@ pub struct StyleNodeTree {
     /// Identities retired in the current epoch. They cannot be reused until the epoch that could
     /// still observe them has retired.
     pending_reuse: Vec<u32>,
-    free_element_indexes: Vec<u32>,
+    /// The identities a test mints from, standing in for the host's.
+    #[cfg(test)]
+    test_identities: super::identities::StyleNodeIdAllocator,
 
     /// Allocated only once a shadow tree exists.
     shadow: Option<Box<ShadowRelations>>,
@@ -724,7 +726,8 @@ impl StyleNodeTree {
             relation_only: BitColumn::default(),
             connected_element_count: 0,
             pending_reuse: Vec::new(),
-            free_element_indexes: Vec::new(),
+            #[cfg(test)]
+            test_identities: Default::default(),
             shadow: None,
             ids: None,
             first_child: Vec::new(),
@@ -803,40 +806,46 @@ impl StyleNodeTree {
 
     // -- Identity lifecycle ------------------------------------------------------------------
 
-    /// Allocate an element identity. Reuses a slot only once the epoch that could still observe its
-    /// previous occupant has retired.
-    pub fn allocate_element(&mut self, memory: &mut MemoryController) -> StyleNodeID {
-        let (index, capacity_before_growth) = match self.free_element_indexes.pop() {
-            Some(index) => {
-                self.parent[index as usize] = None;
-                self.first_element_child[index as usize] = None;
-                self.next_element_sibling[index as usize] = None;
-                self.previous_element_sibling[index as usize] = None;
-                self.depth[index as usize] = 0;
-                self.first_child[index as usize] = None;
-                self.next_sibling[index as usize] = None;
-                self.previous_sibling[index as usize] = None;
-                if let Some(column) = self.tree_scope.as_mut() {
-                    column[index as usize] = TreeScopeID::DOCUMENT;
-                }
-                (index, None)
+    /// Make the element identity `node`, which the host minted, live. The host mints past every
+    /// identity it minted before, or one this tree released, which no reader can still name.
+    pub fn mint_element(&mut self, node: StyleNodeID, memory: &mut MemoryController) {
+        let index = node.element_index().expect("mint_element requires an element identity");
+        let capacity_before_growth = if (index as usize) < self.parent.len() {
+            assert!(
+                !self.live.contains(index as usize),
+                "minting an element identity that is live"
+            );
+            self.parent[index as usize] = None;
+            self.first_element_child[index as usize] = None;
+            self.next_element_sibling[index as usize] = None;
+            self.previous_element_sibling[index as usize] = None;
+            self.depth[index as usize] = 0;
+            self.first_child[index as usize] = None;
+            self.next_sibling[index as usize] = None;
+            self.previous_sibling[index as usize] = None;
+            if let Some(column) = self.tree_scope.as_mut() {
+                column[index as usize] = TreeScopeID::DOCUMENT;
             }
-            None => {
-                let capacity_before_growth = self.identity_capacity_bytes();
-                let index = u32::try_from(self.parent.len()).expect("element index space exhausted");
-                self.parent.push(None);
-                self.first_element_child.push(None);
-                self.next_element_sibling.push(None);
-                self.previous_element_sibling.push(None);
-                self.depth.push(0);
-                self.first_child.push(None);
-                self.next_sibling.push(None);
-                self.previous_sibling.push(None);
-                if let Some(column) = self.tree_scope.as_mut() {
-                    column.push(TreeScopeID::DOCUMENT);
-                }
-                (index, Some(capacity_before_growth))
+            None
+        } else {
+            assert_eq!(
+                index as usize,
+                self.parent.len(),
+                "the host mints new element identities in order"
+            );
+            let capacity_before_growth = self.identity_capacity_bytes();
+            self.parent.push(None);
+            self.first_element_child.push(None);
+            self.next_element_sibling.push(None);
+            self.previous_element_sibling.push(None);
+            self.depth.push(0);
+            self.first_child.push(None);
+            self.next_sibling.push(None);
+            self.previous_sibling.push(None);
+            if let Some(column) = self.tree_scope.as_mut() {
+                column.push(TreeScopeID::DOCUMENT);
             }
+            Some(capacity_before_growth)
         };
         self.live.set(index as usize, true);
         if let Some(capacity_before_growth) = capacity_before_growth {
@@ -844,7 +853,24 @@ impl StyleNodeTree {
             self.record_capacity_change(memory, capacity_before_growth, current);
         }
         self.connected_element_count += 1;
-        StyleNodeID::element(index)
+    }
+
+    /// Mint an identity from the tree's own space, which stands in for the host's in a test.
+    #[cfg(test)]
+    pub fn mint_test_identity(&mut self, text: bool) -> StyleNodeID {
+        if text {
+            self.test_identities.mint_text()
+        } else {
+            self.test_identities.mint_element()
+        }
+    }
+
+    /// Mint an element identity from the tree's own space, for a test.
+    #[cfg(test)]
+    pub fn allocate_element(&mut self, memory: &mut MemoryController) -> StyleNodeID {
+        let node = self.mint_test_identity(false);
+        self.mint_element(node, memory);
+        node
     }
 
     /// Retire an element identity. The slot stays reserved until [`Self::release_retired_identities`]
@@ -894,13 +920,27 @@ impl StyleNodeTree {
         self.record_capacity_change(memory, before, current);
     }
 
-    /// Called once the read epoch that could still name the retired identities has retired.
-    pub fn release_retired_identities(&mut self, memory: &mut MemoryController) {
+    /// Called once the read epoch that could still name the retired identities has retired. Answers
+    /// the identities it releases, elements then text nodes, each in the order they retired, for the
+    /// host to mint again.
+    pub fn release_retired_identities(&mut self, memory: &mut MemoryController) -> Vec<u32> {
         let before = self.reuse_capacity_bytes() + self.text.capacity_bytes();
-        self.free_element_indexes.append(&mut self.pending_reuse);
-        self.text.free_indexes.append(&mut self.text.pending_reuse);
+        let released: Vec<u32> = self
+            .pending_reuse
+            .drain(..)
+            .map(|index| StyleNodeID::element(index).raw())
+            .chain(
+                self.text
+                    .pending_reuse
+                    .drain(..)
+                    .map(|index| StyleNodeID::text(index).raw()),
+            )
+            .collect();
         let current = self.reuse_capacity_bytes() + self.text.capacity_bytes();
         self.record_capacity_change(memory, before, current);
+        #[cfg(test)]
+        self.test_identities.release(&released);
+        released
     }
 
     #[must_use]
@@ -909,22 +949,38 @@ impl StyleNodeTree {
         self.pending_reuse.len()
     }
 
-    /// Allocate a text identity. Like an element's, it is reused only once the epoch that could
-    /// still observe its previous occupant has retired.
-    pub fn allocate_text(&mut self, memory: &mut MemoryController) -> StyleNodeID {
+    /// Make the text identity `node`, which the host minted, live. Like an element's, it is new or
+    /// one this tree released.
+    pub fn mint_text(&mut self, node: StyleNodeID, memory: &mut MemoryController) {
+        let index = node.text_index().expect("mint_text requires a text identity");
         let before = self.text.capacity_bytes();
-        let index = self.text.free_indexes.pop().unwrap_or_else(|| {
-            let index = u32::try_from(self.text.parent.len()).expect("text index space exhausted");
+        if (index as usize) < self.text.parent.len() {
+            assert!(
+                !self.text.live.contains(index as usize),
+                "minting a text identity that is live"
+            );
+        } else {
+            assert_eq!(
+                index as usize,
+                self.text.parent.len(),
+                "the host mints new text identities in order"
+            );
             self.text.parent.push(None);
             self.text.next_sibling.push(None);
             self.text.previous_sibling.push(None);
             self.text.data.push(ak::Utf16String::default());
-            index
-        });
+        }
         self.text.live.set(index as usize, true);
         let current = self.text.capacity_bytes();
         self.record_capacity_change(memory, before, current);
-        StyleNodeID::text(index)
+    }
+
+    /// Mint a text identity from the tree's own space, for a test.
+    #[cfg(test)]
+    pub fn allocate_text(&mut self, memory: &mut MemoryController) -> StyleNodeID {
+        let node = self.mint_test_identity(true);
+        self.mint_text(node, memory);
+        node
     }
 
     /// Retire text identities as their nodes disconnect. Nothing selects or styles a text node, so
@@ -944,7 +1000,6 @@ impl StyleNodeTree {
             is_password_input,
             data,
             pending_reuse,
-            free_indexes: _,
         } = &mut self.text;
         for node in nodes {
             let index = node.text_index().expect("retire_texts requires a text identity");
@@ -1942,7 +1997,7 @@ impl StyleNodeTree {
     }
 
     fn reuse_capacity_bytes(&self) -> u64 {
-        ((self.pending_reuse.capacity() + self.free_element_indexes.capacity()) * size_of::<u32>()) as u64
+        (self.pending_reuse.capacity() * size_of::<u32>()) as u64
     }
 
     fn shadow_capacity_bytes(&self) -> u64 {
@@ -2023,7 +2078,6 @@ struct TextRows {
     /// arrives and wherever its data is replaced.
     data: Vec<ak::Utf16String>,
     pending_reuse: Vec<u32>,
-    free_indexes: Vec<u32>,
 }
 
 impl TextRows {
@@ -2035,7 +2089,6 @@ impl TextRows {
                 self.previous_sibling,
                 self.data,
                 self.pending_reuse,
-                self.free_indexes,
             ];
             cached [];
             nested [

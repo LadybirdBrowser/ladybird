@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #container { width: 400px; font: 10px/10px monospace; }
+    #container span { display: block; height: 10px; }
+    #container span:nth-child(odd) { color: rgb(0, 128, 0); }
+    #container span:last-child { color: rgb(0, 0, 255); }
+</style>
+<div id="container"></div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    function nextFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    // A subtree minting many identities at once.
+    function buildSubtree(prefix, count) {
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < count; ++i) {
+            const span = document.createElement("span");
+            span.appendChild(document.createTextNode(`${prefix}${i}`));
+            fragment.appendChild(span);
+        }
+        return fragment;
+    }
+
+    function summarize(label) {
+        const spans = container.children;
+        const first = spans[0];
+        const last = spans[spans.length - 1];
+        println(`${label}: ${spans.length} spans, height ${container.offsetHeight}, text ${container.textContent.length}`);
+        println(`  first "${first.textContent}" ${getComputedStyle(first).color}, last "${last.textContent}" ${getComputedStyle(last).color}`);
+        // The layout tree build reads what a text node holds from the style engine.
+        const range = document.createRange();
+        range.selectNodeContents(last);
+        println(`  last text is laid out: ${range.getBoundingClientRect().width > 0}`);
+        const sixth = spans[5];
+        const rect = sixth.getBoundingClientRect();
+        println(`  hit test finds the sixth span: ${document.elementFromPoint(rect.left + 5, rect.top + 5) === sixth}`);
+    }
+
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await nextFrame();
+
+        container.appendChild(buildSubtree("a", 1500));
+        await nextTask();
+        // One insertion at a time, text and elements alike.
+        for (let i = 0; i < 700; ++i) {
+            const span = document.createElement("span");
+            container.appendChild(span);
+            span.appendChild(document.createTextNode(`b${i}`));
+            container.appendChild(document.createTextNode(""));
+        }
+        await nextFrame();
+        summarize("after the storm");
+
+        // Retire most of what was minted, then mint again, from identities the engine has released.
+        while (container.childNodes.length > 10)
+            container.lastChild.remove();
+        await nextTask();
+        container.appendChild(buildSubtree("c", 600));
+        for (let i = 0; i < 300; ++i) {
+            const span = document.createElement("span");
+            span.textContent = `d${i}`;
+            container.appendChild(span);
+        }
+        await nextFrame();
+        await nextFrame();
+        summarize("after reuse");
+        done();
+    });
+</script>

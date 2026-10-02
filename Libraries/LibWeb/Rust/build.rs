@@ -3038,6 +3038,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         style_engine_config,
         &[
             manifest_dir.join("src/css/style/bridge.rs"),
+            manifest_dir.join("src/css/style/identities.rs"),
             out_dir.join("ffi_state_fact_generated.rs"),
             out_dir.join("style_engine_boundary_generated.rs"),
         ],

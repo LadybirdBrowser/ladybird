@@ -87,10 +87,11 @@ public:
     // value per name.
     void element_random_base_values(StyleNodeID, Vector<u32>& name_lengths, Vector<u16>& name_units, Vector<u64>& value_bits) const;
 
-    // Identity 0 is never returned; it means "no node".
-    StyleNodeID allocate_style_node();
-    void allocate_style_nodes(Span<StyleNodeID> nodes);
-    void allocate_text_style_nodes(Span<StyleNodeID> nodes);
+    // The document's style node identities are minted here, without asking the engine, and the engine is told of each
+    // mint ahead of anything recorded about its node. Identity 0 is never minted; it means "no node".
+    StyleNodeID mint_style_node();
+    void mint_style_nodes(Span<StyleNodeID> nodes);
+    void mint_text_style_nodes(Span<StyleNodeID> nodes);
     void defer_element_initial_features(StyleNodeID style_node)
     {
         m_nodes_with_pending_initial_features.set(style_node);
@@ -368,6 +369,7 @@ private:
     Optional<StyleSheetResourceContexts> m_style_sheet_resource_contexts;
 
     void* m_impl { nullptr };
+    StyleEngineFFI::StyleNodeIdAllocator* m_style_node_ids { nullptr };
     u64 m_published_font_environment_generation { 0 };
     GC::Ptr<StyleComputer> m_style_computer;
 

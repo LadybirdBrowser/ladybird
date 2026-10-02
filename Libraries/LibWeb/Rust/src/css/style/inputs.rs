@@ -2732,22 +2732,23 @@ impl StyleEngineState {
         self.settle_program();
     }
 
-    /// Mint `out.len()` text identities in one call.
-    pub fn allocate_text_style_nodes(&mut self, out: &mut [u32]) {
-        for slot in out.iter_mut() {
-            *slot = self.retained.tree.allocate_text(&mut self.retained.memory).raw();
+    /// Make the identities the host minted live, ahead of anything the host records about their
+    /// nodes. Mints are batched because a call per node is exactly the boundary shape this design
+    /// rules out.
+    pub fn mint_style_nodes(&mut self, nodes: &[u32], counters: &mut Counters) {
+        let mut minted_an_element = false;
+        for node in nodes.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)) {
+            if node.text_index().is_some() {
+                self.retained.tree.mint_text(node, &mut self.retained.memory);
+            } else {
+                self.retained.tree.mint_element(node, &mut self.retained.memory);
+                counters.bump(Counter::StyleNodesAllocated);
+                minted_an_element = true;
+            }
         }
-    }
-
-    /// Mint `out.len()` element identities in one call. Identity allocation is batched because a
-    /// call per element is exactly the boundary shape this design rules out.
-    pub fn allocate_style_nodes(&mut self, out: &mut [u32], counters: &mut Counters) {
-        for slot in out.iter_mut() {
-            let node = self.retained.tree.allocate_element(&mut self.retained.memory);
-            counters.bump(Counter::StyleNodesAllocated);
-            *slot = node.raw();
+        if minted_an_element {
+            self.publish_budget_inputs();
         }
-        self.publish_budget_inputs();
     }
 
     pub fn record_input(&mut self, key: InputKey, old: InputValue, new: InputValue, counters: &mut Counters) {
