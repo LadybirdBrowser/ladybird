@@ -229,6 +229,11 @@ impl ArenaHandle {
         &self.arena
     }
 
+    /// The layout stage's own scratch.
+    pub(crate) fn layout_scratch(&self) -> &super::run_records::LayoutScratch {
+        &self.layout_scratch
+    }
+
     pub(crate) fn arena_mut(&mut self) -> &mut LayoutNodeArena {
         &mut self.arena
     }

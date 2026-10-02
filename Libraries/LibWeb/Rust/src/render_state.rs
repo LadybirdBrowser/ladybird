@@ -28,7 +28,7 @@ mod wait;
 
 pub use document_host::DocumentHost;
 pub(crate) use questions::{Answer, ArenaAnswer, ArenaQuery, LentSlice, Query, ask};
-pub(crate) use wait::{LockstepProof, RenderWait, ReplyTo, ScriptForcedRead, wait_for_render_state};
+pub(crate) use wait::{LockstepProof, RenderWait, ReplyTo, ScriptForcedRead, wait_for_render_state, wait_from_entry};
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
 /// the render side.
@@ -147,6 +147,12 @@ pub(crate) enum RenderMessage {
         job: crate::css::style::style_job::StyleJob,
         reply: ReplyTo<crate::css::style::style_job::StyleJobAnswer>,
     },
+    /// A layout stage of the document the host waits for.
+    Layout {
+        document: DocumentId,
+        job: crate::layout::LayoutStageJob,
+        reply: ReplyTo<crate::layout::LayoutStageOutput>,
+    },
     /// A question about a document's render state the host waits for the answer to.
     Ask {
         document: DocumentId,
@@ -202,6 +208,11 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
             let (_, engine) = state_parts(document).expect("a document the host styles has a render state");
             // SAFETY: As for a change. The host lends what the job's inputs name until it has the answer.
             unsafe { job.run(engine.get_mut()) }
+        }),
+        RenderMessage::Layout { document, job, reply } => reply.answer(|| {
+            let (arena, _) = state_parts(document).expect("a document the host lays out has a render state");
+            // SAFETY: As for a change. The host keeps what the job's inputs name until it has the answer.
+            job.run(unsafe { &*arena })
         }),
         RenderMessage::Ask { document, query, reply } => reply.answer(|| {
             let (arena, engine) = state_parts(document).expect("a document the host asks about has a render state");

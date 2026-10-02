@@ -2365,20 +2365,18 @@ pub(crate) unsafe fn run_root_layout(
     );
     // SAFETY: As above.
     unsafe { super::layout_node_arena::sync_enrolled_content_for_layout(arena_handle) };
-    // SAFETY: The host keeps the document's layout inputs alive and unchanged while the stage
-    // computes fragments, and the scratch beside the arena is the layout stage's own.
-    let input = unsafe {
-        layout_stage_input(
-            main_thread,
-            arena_handle,
-            &host,
-            root,
-            viewport_inline_size_raw,
-            viewport_block_size_raw,
-            document_in_quirks_mode,
-        )
+    let job = LayoutStageJob {
+        kind: LayoutStageKind::Root {
+            should_collect_devtools_layout_data,
+        },
+        root,
+        container_length_bases: host.container_length_bases_query(main_thread),
+        viewport_inline_size_raw,
+        viewport_block_size_raw,
+        document_in_quirks_mode,
     };
-    let output = compute_root_layout(input, should_collect_devtools_layout_data);
+    // SAFETY: The host keeps the document's layout inputs alive and unchanged while the job runs.
+    let output = unsafe { super::update_layout::run_layout_stage_job(main_thread, arena_handle, job) };
     // SAFETY: Computation has finished and its input borrows are no longer used.
     let arena = unsafe { commit_entry_pass(main_thread, arena_handle, &host, root, &output) };
     arena.did_commit_full_layout(root);
@@ -2406,30 +2404,41 @@ const _: () = {
     assert_send::<LayoutStageOutput>();
 };
 
-/// # Safety
-///
-/// `arena_handle` must be a live handle, used on the document thread, whose layout inputs stay
-/// unchanged while the stage borrows them.
-#[allow(clippy::too_many_arguments)]
-unsafe fn layout_stage_input<'a>(
-    main_thread: &crate::stage::MainThread,
-    arena_handle: *mut c_void,
-    host: &FfiLayoutHostCallbacks,
+/// One layout stage, which the host sends its document's render state: computes the fragments of
+/// the whole document from its viewport, or of one partial relayout boundary in the containing
+/// block the planner found it still has.
+pub(crate) struct LayoutStageJob {
+    kind: LayoutStageKind,
     root: NodeSlotId,
+    container_length_bases: layout_pass::ContainerLengthBasesQuery,
     viewport_inline_size_raw: i32,
     viewport_block_size_raw: i32,
     document_in_quirks_mode: bool,
-) -> LayoutStageInput<'a> {
-    LayoutStageInput {
-        // SAFETY: Guaranteed by the caller.
-        arena: unsafe { LayoutNodeArena::from_handle(arena_handle) },
-        // SAFETY: As above; the scratch beside the arena is the layout stage's own.
-        scratch: unsafe { super::run_records::LayoutScratch::from_handle(arena_handle) },
-        container_length_bases: host.container_length_bases_query(main_thread),
-        root,
-        viewport_inline_size_raw,
-        viewport_block_size_raw,
-        document_in_quirks_mode,
+}
+
+enum LayoutStageKind {
+    Root { should_collect_devtools_layout_data: bool },
+    Boundary { containing_block: NodeSlotId },
+}
+
+impl LayoutStageJob {
+    /// Runs the stage over the arena and layout scratch of `state`.
+    pub(crate) fn run(self, state: &super::ArenaHandle) -> LayoutStageOutput {
+        let input = LayoutStageInput {
+            arena: state.arena(),
+            scratch: state.layout_scratch(),
+            container_length_bases: self.container_length_bases,
+            root: self.root,
+            viewport_inline_size_raw: self.viewport_inline_size_raw,
+            viewport_block_size_raw: self.viewport_block_size_raw,
+            document_in_quirks_mode: self.document_in_quirks_mode,
+        };
+        match self.kind {
+            LayoutStageKind::Root {
+                should_collect_devtools_layout_data,
+            } => compute_root_layout(input, should_collect_devtools_layout_data),
+            LayoutStageKind::Boundary { containing_block } => compute_subtree_layout_fragments(input, containing_block),
+        }
     }
 }
 
@@ -2607,20 +2616,18 @@ pub(crate) unsafe fn compute_subtree_layout(
     assert!(!arena_handle.is_null(), "layout node arena handle is null");
     let root = boundary.root();
     let host = FfiLayoutHostCallbacks::of(main_thread);
-    // SAFETY: The host keeps the document's layout inputs alive and unchanged while the stage
-    // computes fragments, and the scratch beside the arena is the layout stage's own.
-    let input = unsafe {
-        layout_stage_input(
-            main_thread,
-            arena_handle,
-            &host,
-            root,
-            viewport_inline_size_raw,
-            viewport_block_size_raw,
-            document_in_quirks_mode,
-        )
+    let job = LayoutStageJob {
+        kind: LayoutStageKind::Boundary {
+            containing_block: boundary.containing_block(),
+        },
+        root,
+        container_length_bases: host.container_length_bases_query(main_thread),
+        viewport_inline_size_raw,
+        viewport_block_size_raw,
+        document_in_quirks_mode,
     };
-    let output = compute_subtree_layout_fragments(input, boundary.containing_block());
+    // SAFETY: The host keeps the document's layout inputs alive and unchanged while the job runs.
+    let output = unsafe { super::update_layout::run_layout_stage_job(main_thread, arena_handle, job) };
     // SAFETY: Computation has finished and its input borrows are no longer used.
     let arena = unsafe { commit_entry_pass(main_thread, arena_handle, &host, root, &output) };
     // Commit reset the subtree's rows, and its new size may affect ancestor scrollable overflow.
