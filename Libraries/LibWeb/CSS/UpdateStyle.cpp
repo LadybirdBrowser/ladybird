@@ -1385,7 +1385,7 @@ void Document::update_selection_style_observability()
     auto record_subtree = [&](Node& root, Range const* range) {
         // NB: Ancestors supply inherited highlight styles, and text controls paint through
         //     their internal shadow trees. Neither requires visiting unrelated subtrees.
-        for (auto* ancestor = root.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host())
+        for (auto* ancestor = root.flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent())
             record_element(*ancestor);
         root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
             if (range && &node.root() == &range->start_container()->root() && !range->intersects_node(node))
