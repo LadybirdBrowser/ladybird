@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video tabindex="0" src="../../../Assets/test-webm.webm"></video>
+<script>
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+
+        internals.sendKey(video, "Space");
+        println(`paused after Space without controls: ${video.paused}`);
+
+        video.controls = true;
+        internals.sendKey(video, "Space");
+        println(`paused after Space with controls: ${video.paused}`);
+
+        video.pause();
+        await document.exitPictureInPicture();
+        done();
+    });
+</script>

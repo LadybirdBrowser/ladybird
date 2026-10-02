@@ -164,6 +164,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
@@ -9977,6 +9978,11 @@ void Document::set_picture_in_picture_element(GC::Ptr<Element> element)
         CSS::record_element_state_changed(*old_element, CSS::PseudoClass::PictureInPicture, false);
     if (element)
         CSS::record_element_state_changed(*element, CSS::PseudoClass::PictureInPicture, true);
+
+    if (auto* media_element = as_if<HTML::HTMLMediaElement>(old_element.ptr()))
+        media_element->update_controls();
+    if (auto* media_element = as_if<HTML::HTMLMediaElement>(element.ptr()))
+        media_element->update_controls();
 }
 
 // https://w3c.github.io/picture-in-picture/#dom-documentorshadowroot-pictureinpictureelement

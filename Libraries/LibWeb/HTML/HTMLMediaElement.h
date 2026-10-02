@@ -182,8 +182,8 @@ public:
         return *m_playback_manager;
     }
 
-    void create_controls();
-    void destroy_controls();
+    bool should_expose_user_interface() const;
+    void update_controls();
     void media_element_for_controls_changed();
 
     CORSSettingAttribute crossorigin() const { return m_crossorigin; }

@@ -275,10 +275,7 @@ void HTMLMediaElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
     } else if (!namespace_.has_value() && name == HTML::AttributeNames::crossorigin) {
         m_crossorigin = cors_setting_attribute_from_keyword(value.map([](auto const& value) { return value.utf16_view(); }));
     } else if (name == HTML::AttributeNames::controls) {
-        if (value.has_value() || is_scripting_disabled())
-            create_controls();
-        else
-            destroy_controls();
+        update_controls();
     } else if (name == HTML::AttributeNames::loop) {
         // AD-HOC: Other browsers reflect the loop attribute in the ended attribute immediately, rather than once the
         //         event loop reaches step 1.
@@ -3469,9 +3466,25 @@ void HTMLMediaElement::reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL:
         WebIDL::reject_promise(promise, error);
 }
 
-void HTMLMediaElement::create_controls()
+// https://html.spec.whatwg.org/multipage/media.html#attr-media-controls
+bool HTMLMediaElement::should_expose_user_interface() const
 {
-    if (!m_controls.has_value())
+    // If the attribute is present, or if scripting is disabled for the media element, then the user agent should
+    // expose a user interface to the user.
+    return has_attribute(AttributeNames::controls) || is_scripting_disabled();
+}
+
+void HTMLMediaElement::update_controls()
+{
+    // The controls also show the Picture-in-Picture placeholder, so they exist while either is shown.
+    if (!should_expose_user_interface() && !is_picture_in_picture_element()) {
+        m_controls.clear();
+        return;
+    }
+
+    if (m_controls.has_value())
+        m_controls->update_visibility();
+    else
         m_controls.emplace(*this, media_element_for_controls());
 }
 
@@ -3480,12 +3493,7 @@ void HTMLMediaElement::media_element_for_controls_changed()
     if (!m_controls.has_value())
         return;
     m_controls.clear();
-    create_controls();
-}
-
-void HTMLMediaElement::destroy_controls()
-{
-    m_controls.clear();
+    update_controls();
 }
 
 }

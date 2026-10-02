@@ -221,8 +221,15 @@ static void queue_video_paint_facts(HTML::HTMLVideoElement const& element)
     // An element that shows another element's frames paints whatever that element would.
     auto const& video_element = element.visual_source() ? *element.visual_source() : element;
 
+    // https://w3c.github.io/picture-in-picture/#pip
+    // It is RECOMMENDED that video frames are not rendered in the page and in the Picture-in-Picture window at the
+    // same time but if they are, they MUST be kept in sync.
+    auto representation = element.is_picture_in_picture_element()
+        ? HTML::HTMLVideoElement::Representation::TransparentBlack
+        : video_element.current_representation();
+
     Layout::RustFFI::FfiVideoPaintFacts facts {};
-    switch (video_element.current_representation()) {
+    switch (representation) {
     case HTML::HTMLVideoElement::Representation::FirstVideoFrame:
     case HTML::HTMLVideoElement::Representation::VideoFrame: {
         facts.representation = Layout::RustFFI::FfiVideoRepresentation::VideoFrame;

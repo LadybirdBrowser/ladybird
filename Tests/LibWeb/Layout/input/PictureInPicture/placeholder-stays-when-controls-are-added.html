@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    const video = document.querySelector("video");
+
+    (async () => {
+        // Once loading is done, no later media event can redraw the new controls' timeline with its buffered range.
+        if (video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA)
+            await new Promise(resolve => video.addEventListener("canplaythrough", resolve, { once: true }));
+
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+        video.controls = true;
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>
+</html>

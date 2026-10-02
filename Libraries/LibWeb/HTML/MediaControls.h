@@ -26,6 +26,8 @@ public:
 
     void visit_edges(GC::Cell::Visitor&);
 
+    void update_visibility();
+
 private:
     void create_shadow_tree();
 

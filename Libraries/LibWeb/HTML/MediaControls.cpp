@@ -53,6 +53,15 @@ void MediaControls::visit_edges(GC::Cell::Visitor& visitor)
     (void)visitor;
 }
 
+void MediaControls::update_visibility()
+{
+    auto& host = *m_host;
+
+    MUST(m_dom->container->class_list()->toggle("controls-hidden"_utf16, !host.should_expose_user_interface()));
+    MUST(m_dom->container->class_list()->toggle("picture-in-picture"_utf16, host.is_picture_in_picture_element()));
+    update_placeholder_visibility();
+}
+
 void MediaControls::create_shadow_tree()
 {
     auto& host = *m_host;
@@ -86,7 +95,7 @@ void MediaControls::create_shadow_tree()
     update_timestamp();
     update_volume_and_mute_indicator();
     update_fullscreen_icon();
-    update_placeholder_visibility();
+    update_visibility();
 
     show_controls();
 }
@@ -445,6 +454,9 @@ void MediaControls::set_up_event_listeners()
     // Keyboard handling
     add_event_listener(realm, host, UIEvents::EventNames::keydown, [this](UIEvents::KeyboardEvent const& event) {
         VERIFY(m_media_element);
+
+        if (!m_host->should_expose_user_interface())
+            return false;
 
         constexpr double arrow_time_step = 5.0;
         constexpr double arrow_volume_step = 0.1;
@@ -809,6 +821,9 @@ bool MediaControls::should_show_placeholder() const
 {
     VERIFY(m_media_element);
     VERIFY(m_dom->placeholder_circle);
+
+    if (m_host->is_picture_in_picture_element())
+        return false;
 
     auto const& video_element = as<HTMLVideoElement>(*m_media_element);
     return video_element.current_representation() != HTMLVideoElement::Representation::VideoFrame;
