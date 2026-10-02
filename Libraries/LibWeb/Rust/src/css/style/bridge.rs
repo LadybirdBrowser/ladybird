@@ -1390,9 +1390,8 @@ impl StyleEngineState {
     }
 }
 
-/// Creates one document's style engine.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> StyleEngineHandle {
+/// Creates one document's style engine, which its render state owns.
+pub(crate) fn create_document_style_engine(device_class: FfiDeviceClass) -> Box<StyleEngine> {
     let device_class = device_class.decode();
     let mut engine = Box::new(StyleEngine::new(device_class));
     engine.begin_recording(device_class);
@@ -1405,7 +1404,7 @@ pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> StyleEngi
             payload.write_u32_slice(output_masks);
         }
     });
-    StyleEngineHandle::create(engine)
+    engine
 }
 
 /// Publishes the document's `@font-face` table and the memo of the cascades resolved from it, which
@@ -1782,10 +1781,11 @@ pub extern "C" fn style_engine_verification_gate_bits() -> u8 {
     super::verification_gate_bits()
 }
 
+/// Destroys a replay engine.
+///
 /// # Safety
-/// `engine` must be a pointer returned by `style_engine_create` and not yet destroyed.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_destroy(engine: crate::css::style::StyleEngineHandle) {
+/// `engine` must be a handle returned by `style_engine_create_for_replay` and not yet destroyed.
+pub unsafe fn style_engine_destroy(engine: crate::css::style::StyleEngineHandle) {
     let mut engine = unsafe { engine.destroy() };
     engine.end_recording();
 }

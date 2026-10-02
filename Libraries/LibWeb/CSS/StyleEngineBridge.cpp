@@ -32,7 +32,8 @@ static_assert(!IsMoveAssignable<StyleEngine>);
 #include <LibWeb/StyleEngineBridgeGenerated.inc>
 
 StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer)
-    : m_impl(const_cast<void*>(StyleEngineFFI::style_engine_create(device_class)))
+    : m_render_document(Layout::RenderDocument::create(to_underlying(device_class)))
+    , m_impl(const_cast<void*>(Layout::RustFFI::render_state_style_engine_for_unconverted_entry(m_render_document->host())))
     , m_style_node_ids(StyleEngineFFI::style_node_id_allocator_create())
     , m_style_computer(style_computer)
 {
@@ -43,8 +44,6 @@ StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer
 
 StyleEngine::~StyleEngine()
 {
-    if (m_impl)
-        StyleEngineFFI::style_engine_destroy(m_impl);
     StyleEngineFFI::style_node_id_allocator_destroy(m_style_node_ids);
     for (auto const& atom : m_atoms)
         Utf16FlyString::unref_raw(atom.key);

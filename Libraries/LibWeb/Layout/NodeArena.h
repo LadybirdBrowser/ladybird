@@ -17,26 +17,27 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
+#include <LibWeb/Layout/RenderDocument.h>
 
 namespace Web::Layout {
 
 class Node;
 class TextNode;
 
-// A document's host for its render state: the DocumentHost that names the state and holds the host tables layout
-// answers to, kept alive by the layout shells and paint objects that reach the state's arena.
+// A document's layout node arena, in the render state the document's style engine created, kept alive by the layout
+// shells and paint objects that reach the arena.
 class WEB_API NodeArena : public RefCounted<NodeArena> {
     AK_MAKE_NONCOPYABLE(NodeArena);
     AK_MAKE_NONMOVABLE(NodeArena);
 
 public:
-    NodeArena();
+    explicit NodeArena(RenderDocument&);
     ~NodeArena();
 
     void free_subtree(Compositing::RustFFI::NodeSlotId);
     Node* node_if_live(Compositing::RustFFI::NodeSlotId) const;
     void* handle() const { return m_handle; }
-    RustFFI::DocumentHost* host() const { return m_host; }
+    RustFFI::DocumentHost* host() const { return m_render_document->host(); }
     u64 table_cell_measurement_cache_miss_count() const;
     u64 intrinsic_measurement_count() const;
     u64 intrinsic_inline_measurement_count() const;
@@ -53,7 +54,7 @@ public:
     void commit_box_presence(DOM::Node&);
 
 private:
-    RustFFI::DocumentHost* m_host { nullptr };
+    NonnullRefPtr<RenderDocument> m_render_document;
     // The arena of the document's render state, which the entries that have not been converted to render messages
     // still take.
     void* m_handle { nullptr };

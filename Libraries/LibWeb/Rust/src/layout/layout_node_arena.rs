@@ -690,7 +690,6 @@ pub const BOX_PRESENCE_HAS_COMMITTED_BOX: u8 = 1 << 1;
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStyleRecordHostCallbacks {
-    pub style_engine: crate::css::style::StyleEngineHandle,
     pub context: *mut c_void,
     pub shell_style_changed: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool),
 }
@@ -5423,8 +5422,6 @@ pub unsafe extern "C" fn layout_arena_set_style_record_host_callbacks(
 ) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_style_engine(callbacks.style_engine);
-    // SAFETY: As above.
     unsafe { super::HostTables::from_handle(arena) }
         .shell_style_changed_host
         .set(Some((callbacks.context, callbacks.shell_style_changed)));
@@ -5433,8 +5430,6 @@ pub unsafe extern "C" fn layout_arena_set_style_record_host_callbacks(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_clear_style_record_host_callbacks(arena: *mut c_void) {
     assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_style_engine(crate::css::style::StyleEngineHandle::null());
     // SAFETY: As above.
     unsafe { super::HostTables::from_handle(arena) }
         .shell_style_changed_host

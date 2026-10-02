@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/StyleEngineRustFFI.h>
 
 namespace Web::CSS::StyleValueFFI {
@@ -353,6 +354,9 @@ public:
     // Enumerates the engine's counters. Returns false once index is past the last counter.
     bool counter(size_t index, StringView& out_name, u64& out_value) const;
 
+    // The render state that owns the engine, which the document's layout node arena shares.
+    [[nodiscard]] Layout::RenderDocument& render_document() { return *m_render_document; }
+
     [[nodiscard]] void* rust_handle() { return m_impl; }
     [[nodiscard]] void const* rust_handle() const { return m_impl; }
 
@@ -368,6 +372,8 @@ private:
 
     Optional<StyleSheetResourceContexts> m_style_sheet_resource_contexts;
 
+    NonnullRefPtr<Layout::RenderDocument> m_render_document;
+    // The engine in the render state, which the bridge's entries still reach directly.
     void* m_impl { nullptr };
     StyleEngineFFI::StyleNodeIdAllocator* m_style_node_ids { nullptr };
     u64 m_published_font_environment_generation { 0 };
