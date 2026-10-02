@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompositing/PictureInPictureControls.h>
 #include <UI/Qt/PictureInPictureWindow.h>
 #include <UI/Qt/WebContentView.h>
 #include <UI/Qt/WindowScreenObserver.h>
@@ -80,6 +81,8 @@ public:
         };
         report_page_close_of(*m_view);
         m_view->installEventFilter(this);
+        // The window's controls, and its page's, show on hover, which works while Ladybird is in the background too.
+        m_view->set_follows_mouse_while_inactive(true);
         m_view->on_finish_handling_mouse_event = [this](Web::MouseEvent const& event, Web::EventResult result) {
             if (event.type == Web::MouseEvent::Type::MouseDown)
                 page_did_handle_press(result);
@@ -88,6 +91,19 @@ public:
         // The page lays out a new window size only once its main thread is free, so until then its last frame is
         // scaled to keep the video filling the window.
         m_view->set_scales_frames_to_fit(true);
+
+        m_view->enable_picture_in_picture_controls();
+        m_view->on_picture_in_picture_control_activated = [this, owner_view_id = owner_view.view_id()](auto control) {
+            switch (control) {
+            case Compositing::PictureInPictureControl::BackToTab:
+                go_back_to_tab(owner_view_id);
+                break;
+            case Compositing::PictureInPictureControl::Close:
+                if (on_close)
+                    on_close(VideoKeepsPlaying::No);
+                break;
+            }
+        };
 
         auto* layout = new QVBoxLayout(this);
         layout->setContentsMargins(0, 0, 0, 0);
@@ -110,7 +126,8 @@ public:
 
 private:
     // A drag moves the window, unless the page claims the press that starts it, as the media controls do to scrub. Every
-    // press reaches the page, and a drag waits until the page has handled its press rather than guess while it is busy.
+    // press off the window's controls reaches the page, and a drag waits until the page has handled its press rather than
+    // guess while it is busy.
     virtual bool eventFilter(QObject* object, QEvent* event) override
     {
         if (object != m_view)
@@ -166,6 +183,22 @@ private:
         }
     }
 
+    // The window belongs to the tab it was opened from, which comes forward along with its own window, even from being
+    // minimized, to play the video there.
+    void go_back_to_tab(u64 owner_view_id)
+    {
+        if (auto owner = WebView::ViewImplementation::find_view_by_id(owner_view_id); owner.has_value()) {
+            auto* browser_window = static_cast<WebContentView&>(*owner).window();
+            browser_window->setWindowState(browser_window->windowState() & ~Qt::WindowMinimized);
+            browser_window->raise();
+            browser_window->activateWindow();
+            if (owner->on_activate_tab)
+                owner->on_activate_tab();
+        }
+        if (on_close)
+            on_close(VideoKeepsPlaying::Yes);
+    }
+
     void page_did_handle_press(Web::EventResult result)
     {
         if (!m_press.has_value() || m_press->claim != PressClaim::Unknown)
@@ -201,7 +234,7 @@ private:
         // video has exited.
         event->accept();
         if (on_close)
-            on_close();
+            on_close(VideoKeepsPlaying::No);
     }
 
     WebContentView* m_view { nullptr };

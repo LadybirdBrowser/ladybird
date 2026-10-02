@@ -45,14 +45,14 @@ void CompositorClient::did_allocate_backing_stores(Web::CompositorContextId cont
         async_presented_bitmap_ready_to_paint(context_id, bitmap_ids[0]);
 }
 
-void CompositorClient::did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
+void CompositorClient::did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio)
 {
     auto web_content_client = WebContentClient::client_for_compositor_context_id(context_id);
     if (web_content_client.has_value()) {
         auto page_id = web_content_client->page_id_for_compositor_context_id(context_id);
         VERIFY(page_id.has_value());
         if (auto* page = web_content_client->page(*page_id)) {
-            page->did_present_bitmap(content_rect, damage_rect, bitmap_id);
+            page->did_present_bitmap(content_rect, damage_rect, bitmap_id, device_pixel_ratio);
             return;
         }
     }

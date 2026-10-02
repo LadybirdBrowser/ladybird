@@ -46,9 +46,9 @@ void ConnectionFromClient::did_retire_backing_stores(Web::CompositorContextId co
     async_did_retire_backing_stores(context_id, move(bitmap_ids));
 }
 
-void ConnectionFromClient::did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
+void ConnectionFromClient::did_present_frame(Web::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio)
 {
-    async_did_present_frame(context_id, content_rect, damage_rect, bitmap_id);
+    async_did_present_frame(context_id, content_rect, damage_rect, bitmap_id, device_pixel_ratio);
 }
 
 void ConnectionFromClient::did_consume_input_event(Web::CompositorContextId context_id, u64 event_id)

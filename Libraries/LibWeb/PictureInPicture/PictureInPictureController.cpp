@@ -146,7 +146,8 @@ void PictureInPictureController::process_pending_operations()
     }
 }
 
-// The window's page is a player whose video shows the frames of the video in Picture-in-Picture.
+// The window's page is a player whose video shows the frames of the video in Picture-in-Picture, and plays it
+// through its controls.
 static void create_player(DOM::Document& document, HTML::HTMLVideoElement& source)
 {
     PictureInPicturePlayerDOM player { document, *document.body() };
@@ -361,10 +362,14 @@ void PictureInPictureController::window_did_resize(Gfx::IntSize window_size)
     }));
 }
 
-void PictureInPictureController::window_did_close()
+void PictureInPictureController::window_did_close(bool pause_video)
 {
-    if (m_open_window)
-        enqueue(UserInterfaceClosedWindow { *m_open_window });
+    if (!m_open_window)
+        return;
+    // The user closed the window to stop watching its video, rather than to go back to its tab and watch it there.
+    if (pause_video)
+        m_open_window->video().pause();
+    enqueue(UserInterfaceClosedWindow { *m_open_window });
 }
 
 // https://w3c.github.io/picture-in-picture/#unloading-steps

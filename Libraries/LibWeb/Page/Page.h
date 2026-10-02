@@ -398,6 +398,7 @@ public:
     void toggle_media_loop_state();
     void toggle_media_fullscreen_state();
     void toggle_media_controls_state();
+    void set_picture_in_picture_window_controls_in_use(bool);
 
     HTML::MuteState page_mute_state() const { return m_mute_state; }
     void set_page_mute_state(HTML::MuteState);
@@ -715,6 +716,7 @@ public:
     virtual void page_did_request_fullscreen_window() { }
     virtual void page_did_request_exit_fullscreen() { }
     virtual void page_did_exit_picture_in_picture() { }
+    virtual void page_did_change_picture_in_picture_player_controls_visibility(bool) { }
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) { }
     virtual void page_did_finish_loading(HTML::CrossProcessId, Optional<Utf16String> const&) { }
     virtual Optional<u64> page_did_start_download(HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id, URL::URL const&, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)

@@ -26,6 +26,8 @@ public:
 
     void visit_edges(GC::Cell::Visitor&);
 
+    void set_picture_in_picture_window_controls_in_use(bool);
+
 private:
     void create_shadow_tree();
 
@@ -80,6 +82,8 @@ private:
 
     void show_controls();
     void hide_controls();
+    bool is_picture_in_picture_player() const;
+    void control_bar_visibility_did_change();
 
     // The controls live in the shadow tree of their host, and play the media of their media element. The two are one
     // element unless the host shows another element's media.
@@ -106,6 +110,8 @@ private:
     RefPtr<Core::Timer> m_scrub_seek_preemption_timer;
     bool m_scrubbing_volume { false };
     bool m_hovering_controls { false };
+    bool m_picture_in_picture_window_controls_in_use { false };
+    bool m_control_bar_is_shown { false };
 
     RefPtr<Core::Timer> m_hover_timer;
 

@@ -3655,10 +3655,16 @@ void ConnectionFromClient::picture_in_picture_window_did_resize(Web::PageId page
         page->page().picture_in_picture_controller().window_did_resize(window_size);
 }
 
-void ConnectionFromClient::picture_in_picture_window_did_close(Web::PageId page_id)
+void ConnectionFromClient::picture_in_picture_window_did_close(Web::PageId page_id, bool pause_video)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->page().picture_in_picture_controller().window_did_close();
+        page->page().picture_in_picture_controller().window_did_close(pause_video);
+}
+
+void ConnectionFromClient::set_picture_in_picture_window_controls_in_use(Web::PageId page_id, bool in_use)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().set_picture_in_picture_window_controls_in_use(in_use);
 }
 
 }

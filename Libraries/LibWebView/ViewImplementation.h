@@ -133,7 +133,7 @@ public:
 
     String const& handle() const { return m_window_handle; }
 
-    void server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect);
+    void server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect, double device_pixel_ratio);
 
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
@@ -196,6 +196,7 @@ public:
     Optional<u64> display_id() const { return m_display_id; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
     void set_scales_frames_to_fit(bool scales_frames_to_fit) { m_scales_frames_to_fit = scales_frames_to_fit; }
+    void enable_picture_in_picture_controls();
     void enqueue_input_event(Web::InputEvent);
     // The page reporting on an event must be the one handling it.
     void did_finish_handling_input_event(Badge<WebContentPage>, WebContentPage const& reporting_page, u64 event_id, Web::EventResult event_result);
@@ -218,6 +219,15 @@ public:
     void did_request_cursor_change(Badge<WebContentPage>, Gfx::Cursor);
     void did_enter_tooltip_area(Badge<WebContentPage>, ByteString title);
     void did_leave_tooltip_area(Badge<WebContentPage>);
+    void did_change_picture_in_picture_player_controls_visibility(Badge<WebContentPage>, bool shown);
+    bool picture_in_picture_controls_are_shown_for_testing() const { return picture_in_picture_controls_are_shown(); }
+    bool picture_in_picture_player_controls_are_shown_for_testing() const { return m_picture_in_picture_player_controls_shown; }
+    Gfx::Cursor const& page_cursor_for_testing() const { return m_page_cursor; }
+    Optional<ByteString> const& page_tooltip_for_testing() const { return m_page_tooltip; }
+    Optional<double> displayed_frame_device_pixel_ratio_for_testing() const
+    {
+        return displayed_frame().map([](auto const& frame) { return frame.device_pixel_ratio; });
+    }
 
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
@@ -523,6 +533,7 @@ public:
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
     Function<void(Web::MouseEvent const&, Web::EventResult)> on_finish_handling_mouse_event;
+    Function<void(Compositing::PictureInPictureControl)> on_picture_in_picture_control_activated;
     Function<void(Web::DragEvent const&)> on_finish_handling_drag_event;
     Function<void(String const&)> on_test_finish;
     Function<void(double milliseconds)> on_set_test_timeout;
@@ -634,9 +645,23 @@ protected:
     void handle_resize();
     void fail_pending_debugger_requests();
     void set_debugger_paused(bool);
+    bool handle_picture_in_picture_controls_mouse_event(Web::MouseEvent const&);
+    void set_picture_in_picture_controls_shown(bool);
+    bool picture_in_picture_controls_are_shown() const { return m_picture_in_picture_controls_shown || m_picture_in_picture_player_controls_shown; }
+    struct DisplayedFrame {
+        Gfx::IntSize size;
+        double device_pixel_ratio { 1.0 };
+    };
+    Optional<DisplayedFrame> displayed_frame() const;
+    struct UIOverlayPosition {
+        Gfx::IntPoint position;
+        Gfx::IntSize viewport_size;
+        double device_pixel_ratio { 1.0 };
+    };
+    UIOverlayPosition ui_overlay_position(Web::DevicePixelPoint) const;
     template<typename Action, typename ButtonsForViewport>
     Optional<Action> handle_ui_overlay_mouse_event(Compositing::OverlayPointerState<Action>&, Web::MouseEvent const&, ButtonsForViewport const&);
-    bool is_ui_overlay_hovered() const { return m_debugger_overlay_pointer_state.hovered_action().has_value(); }
+    bool is_ui_overlay_hovered() const { return m_debugger_overlay_pointer_state.hovered_action().has_value() || m_picture_in_picture_controls_pointer_state.hovered_action().has_value(); }
     void apply_cursor();
     void apply_tooltip();
     void update_ui_overlays();
@@ -700,6 +725,7 @@ protected:
     struct SharedBitmap {
         i32 id { -1 };
         Web::DevicePixelSize last_painted_size;
+        double last_painted_device_pixel_ratio { 1.0 };
         OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
     };
 
@@ -829,6 +855,11 @@ protected:
     bool m_debugger_is_attached { false };
     bool m_debugger_paused { false };
     Compositing::OverlayPointerState<Compositing::PausedDebuggerOverlayAction> m_debugger_overlay_pointer_state;
+    bool m_has_picture_in_picture_controls { false };
+    bool m_picture_in_picture_controls_shown { false };
+    bool m_picture_in_picture_player_controls_shown { false };
+    Compositing::OverlayPointerState<Compositing::PictureInPictureControl> m_picture_in_picture_controls_pointer_state;
+    RefPtr<Core::Timer> m_picture_in_picture_controls_hide_timer;
     Gfx::Cursor m_page_cursor { Gfx::StandardCursor::Arrow };
     Optional<ByteString> m_page_tooltip;
 
@@ -845,6 +876,7 @@ protected:
 
     OwnPtr<Gfx::SharedImageBuffer> m_backup_shared_image_buffer;
     Web::DevicePixelSize m_backup_bitmap_size;
+    double m_backup_bitmap_device_pixel_ratio { 1.0 };
     Gfx::Color m_page_background_color { 255, 255, 255 };
     Gfx::Color m_system_canvas_background_color { 255, 255, 255 };
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
