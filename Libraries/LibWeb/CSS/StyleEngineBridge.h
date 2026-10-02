@@ -195,8 +195,7 @@ public:
     // Answers a record demand of one of an element's pseudo-elements: its record, that it generates no box, or zero
     // where the read is C++'s.
     [[nodiscard]] StyleEngineFFI::FfiRecordDemandAnswer answer_pseudo_element_record_demand(StyleNodeID, PseudoElementRecordDemand, DemandedPseudoElement);
-    // Settles the synthetic pseudo-elements of an element whose record C++ has just installed, or leaves them for C++
-    // to compute.
+    // Settles the synthetic pseudo-elements of an element whose record the host just installed, or refuses them all.
     [[nodiscard]] StyleEngineFFI::FfiSettledPseudoRecords settle_pseudo_records_after_host_record(StyleNodeID, bool old_is_list_item);
     // Whether an environment identity is one the engine minted for an environment it resolved.
     [[nodiscard]] static bool is_engine_custom_property_environment(u64 identity) { return (identity & (1ull << 62)) != 0; }

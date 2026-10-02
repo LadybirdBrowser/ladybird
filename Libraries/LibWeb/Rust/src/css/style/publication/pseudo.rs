@@ -1177,10 +1177,10 @@ impl RetainedState {
         self.match_answers.synthetic_pseudo_mask(identity)
     }
 
-    /// One attempt at the synthetic pseudo-elements of an element whose record C++ computed: the
-    /// engine settles them against that record exactly as it settles them beside one of its own.
-    /// A resumed attempt has already brought the winners up to date. A refusal is a value the
-    /// engine cannot compute, or a container condition it cannot decide, which C++ computes.
+    /// One attempt at the synthetic pseudo-elements of an element whose record the host installed:
+    /// the engine settles them against that record exactly as it settles them beside one of its
+    /// own. A resumed attempt has already brought the winners up to date. A refusal is a value the
+    /// engine cannot compute, or a container condition it cannot decide.
     fn settle_pseudo_records_after_host_record_step(
         &mut self,
         node: StyleNodeID,
@@ -1337,12 +1337,10 @@ fn pseudo_content_generates_nothing(store: &impl crate::css::cascaded_properties
 }
 
 impl StyleEngineState {
-    /// Settle the synthetic pseudo-elements of an element whose record C++ has just computed and
-    /// installed, so C++ installs the engine's records for them instead of computing each one:
-    /// their inputs are the element's record and the published winner states, all current once
-    /// the element's own computation has published its record. `old_is_list_item` is whether the
-    /// element generated a marker before. Where the engine cannot compute one of them, C++
-    /// computes them all.
+    /// Settle the synthetic pseudo-elements of an element whose record the host has just installed
+    /// or composed, so the host installs the engine's records for them: their inputs are the
+    /// element's record and the published winner states. `old_is_list_item` is whether the element
+    /// generated a marker before. Where the engine cannot compute one of them, it refuses them all.
     pub(crate) fn settle_pseudo_records_after_host_record(
         &mut self,
         node: StyleNodeID,
@@ -1378,10 +1376,10 @@ impl StyleEngineState {
         };
         // The step put back what it settled before it refused.
         let mut settled = bridge::FfiSettledPseudoRecords {
-            computed_by_host: attempt.is_err(),
+            refused: attempt.is_err(),
             ..Default::default()
         };
-        if settled.computed_by_host {
+        if settled.refused {
             return settled;
         }
         settled.uses_substitution = scratch.pseudo_uses_substitution;
