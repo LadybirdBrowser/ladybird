@@ -1254,13 +1254,12 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     // Recording reads overflow, and reading overflow never measures it.
     arena.measure_scrollable_overflow();
     {
-        let mut paint_state = arena.paint_state().borrow_mut();
+        let mut recording = arena.recording();
         debug_assert!(
-            paint_state.pending_recording.is_none(),
+            !recording.has_pending_recording(),
             "a recording must be published before the next one starts"
         );
-        paint_state.pending_recording_trace = None;
-        paint_state.pending_recording = None;
+        recording.discard_pending_recording();
     }
     if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
         return false;
@@ -1269,8 +1268,8 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     // one output a viewport move can change. Drop its caches before the frame is published instead
     // of treating the viewport position as a frame-wide input.
     let published_root_background_canvas_rect = arena
-        .recorder_state()
-        .borrow()
+        .recording()
+        .recorder()
         .published_recording
         .as_ref()
         .map(|recording| recording.root_background_canvas_rect);
@@ -1316,27 +1315,33 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             )
         };
         drop(paint_state);
-        record_display_list_stage(RecordingStageInput {
+        let mut recorder = arena.recording().take_recorder();
+        let output = record_display_list_stage(RecordingStageInput {
             arena,
             frame: &frame,
             viewport,
             inputs: recording_inputs,
-            recorder_state: &mut arena.recorder_state().borrow_mut(),
-        })
+            recorder_state: &mut recorder,
+        });
+        arena.recording().give_back_recorder(recorder);
+        output
     };
-    let mut paint_state = arena.paint_state().borrow_mut();
-    if paint_state.trace_recordings && recording.output.capture_log_for_verification.is_some() {
-        paint_state.pending_recording_trace = Some(crate::painting::paint_state::PendingRecordingTrace {
+    let trace_recordings = arena.paint_state().borrow().trace_recordings;
+    let trace = (trace_recordings && recording.output.capture_log_for_verification.is_some()).then_some(
+        crate::painting::paint_state::PendingRecordingTrace {
             viewport,
             should_paint_overlay: inputs.should_paint_overlay,
-        });
-    }
-    paint_state.pending_recording = Some(crate::painting::paint_state::PendingRecording {
-        recording,
-        recording_from_scratch,
-        publishes_recording: inputs.publishes_recording,
-        svg_paint_resources: frame.svg_paint_resources().clone(),
-    });
+        },
+    );
+    arena.recording().leave_pending(
+        crate::painting::paint_state::PendingRecording {
+            recording,
+            recording_from_scratch,
+            publishes_recording: inputs.publishes_recording,
+            svg_paint_resources: frame.svg_paint_resources().clone(),
+        },
+        trace,
+    );
     true
 }
 

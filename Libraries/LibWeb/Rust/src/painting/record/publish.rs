@@ -64,7 +64,7 @@ pub(crate) fn publish_recording(
     publish: &FfiRecordingPublishCallbacks,
 ) {
     let publishes_recording = pending.publishes_recording;
-    let output = publish_to_host(pending, &arena.recorder_state().borrow(), main_thread, publish);
+    let output = publish_to_host(pending, arena.recording().recorder(), main_thread, publish);
     take_in_published_output(arena, output, publishes_recording);
 }
 
@@ -139,7 +139,8 @@ pub(crate) fn take_in_published_output(
     publishes_recording: bool,
 ) -> u64 {
     let mut paint_state = arena.paint_state().borrow_mut();
-    let mut recorder_state = arena.recorder_state().borrow_mut();
+    let mut recording = arena.recording();
+    let recorder_state = recording.recorder();
     let list = std::mem::take(&mut output.hit_test_list);
     let mut hit_test_list = arena.hit_test_list.borrow_mut();
     let previous_list_is_the_source = hit_test_list
@@ -199,7 +200,7 @@ mod tests {
                 take_in_published_output(&arena, output, read_write),
                 hit_test_generation
             );
-            let source = arena.recorder_state().borrow().published_recording.clone().unwrap();
+            let source = arena.recording().recorder().published_recording.clone().unwrap();
             match hit_test_generation {
                 1 => {
                     original_source = Some(source);

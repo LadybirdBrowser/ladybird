@@ -184,7 +184,7 @@ pub unsafe extern "C" fn layout_arena_publish_recording(
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { arena_from_handle(arena) };
-    let pending = arena.paint_state().borrow_mut().pending_recording.take();
+    let pending = arena.recording().take_pending_recording();
     if let Some(pending) = pending {
         crate::painting::record::publish::publish_recording(arena, pending, &main_thread, &publish);
     }
@@ -205,15 +205,11 @@ pub unsafe extern "C" fn layout_arena_take_recording_trace(
     append_text: unsafe extern "C" fn(*mut c_void, *const u8, usize),
 ) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
-    let (pending, recording) = {
-        let mut paint_state = arena.paint_state().borrow_mut();
-        let Some(pending) = paint_state.pending_recording_trace.take() else {
-            return false;
-        };
-        let Some(recording) = paint_state.last_recording.clone() else {
-            return false;
-        };
-        (pending, recording)
+    let Some(pending) = arena.recording().take_pending_recording_trace() else {
+        return false;
+    };
+    let Some(recording) = arena.paint_state().borrow().last_recording.clone() else {
+        return false;
     };
     let Some(log) = recording.capture_log_for_verification.as_ref() else {
         return false;
