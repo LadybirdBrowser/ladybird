@@ -344,8 +344,8 @@ void scroll_text_offset_into_view(DOM::Text const& text, size_t offset, TextAffi
     auto const* layout_node = text.unsafe_layout_node();
     if (!layout_node)
         return;
-    auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
-        layout_node->arena_handle(), Layout::Node::slot_id(layout_node), offset,
+    auto result = Layout::RustFFI::layout_script_text_caret_rect_for_position(
+        layout_node->document_host(), Layout::Node::slot_id(layout_node), offset,
         affinity == TextAffinity::Downstream);
     if (!result.found)
         return;

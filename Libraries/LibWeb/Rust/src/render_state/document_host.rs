@@ -10,6 +10,8 @@ use super::{Answer, ArenaChange, DocumentId, Query, RenderMessage, RenderWait, a
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::layout::row_reads::RowSnapshot;
 use crate::layout::{HostTables, LayoutNodeArena};
+use crate::painting::paint_read::PaintSource;
+use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::recording_slot::RecordingSlot;
 use std::cell::{Cell, RefCell, RefMut};
 use std::ffi::c_void;
@@ -30,6 +32,9 @@ pub struct DocumentHost {
     rows: RefCell<Option<Rc<RowSnapshot>>>,
     /// Whether the host queued a change that alters the published rows since they were published.
     rows_may_be_stale: Cell<bool>,
+    /// The absolute rects the host's reads of the rows computed, kept for as long as the geometry they were computed
+    /// from stays.
+    absolute_rects: RefCell<AbsoluteRectMemo>,
     /// The arena of the document's render state, whose rows version tells the host whether the rows it has still read
     /// as the arena's after a write the host made through an entry that reaches the arena directly.
     arena: Cell<Option<NonNull<LayoutNodeArena>>>,
@@ -43,6 +48,7 @@ impl DocumentHost {
             recording: RefCell::default(),
             rows: RefCell::default(),
             rows_may_be_stale: Cell::new(false),
+            absolute_rects: RefCell::default(),
             arena: Cell::new(None),
         }
     }
@@ -109,6 +115,18 @@ impl DocumentHost {
     /// Like [`Self::fresh_rows`], with every row's scrollable overflow measured, as a read of overflow needs.
     pub(crate) fn fresh_measured_rows(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
         self.rows_as_of_writes(wait, true)
+    }
+
+    /// Answers `read` from the rows as of every write the host made, through the paint side's reads, spending `wait`
+    /// where the rows have to be published again, with every row's overflow measured where `measure_overflow`.
+    pub(crate) fn read_rows<R>(
+        &self,
+        wait: impl RenderWait,
+        measure_overflow: bool,
+        read: impl FnOnce(&PaintSource<'_>) -> R,
+    ) -> R {
+        let rows = self.rows_as_of_writes(wait, measure_overflow);
+        read(&PaintSource::over_rows(&rows.paintable, &self.absolute_rects))
     }
 
     fn rows_as_of_writes(&self, wait: impl RenderWait, measure_overflow: bool) -> Rc<RowSnapshot> {

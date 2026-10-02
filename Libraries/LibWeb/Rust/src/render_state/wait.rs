@@ -82,6 +82,7 @@ macro_rules! script_entry {
 
 // The host entries script APIs call, which may each spend one forced read.
 script_entry!(super::devtools::DevtoolsEntry);
+script_entry!(crate::layout::script_entries::ScriptEntry);
 
 macro_rules! lockstep_reason {
     ($marker:path) => {
