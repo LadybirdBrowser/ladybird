@@ -100,7 +100,7 @@ private:
     struct QueryContext;
     static Optional<TopmostItem> topmost_item_from(Layout::RustFFI::FfiTopmostItem const&);
     [[nodiscard]] Item item(size_t index) const;
-    [[nodiscard]] Layout::RustFFI::FfiCaretLineExport caret_line(size_t line_index) const { return Layout::RustFFI::layout_arena_hit_test_caret_line(m_arena->handle(), line_index); }
+    [[nodiscard]] Layout::RustFFI::FfiCaretLineExport caret_line(size_t line_index) const { return Layout::RustFFI::layout_hit_test_caret_line(m_arena->host(), line_index); }
 
     [[nodiscard]] Optional<TopmostItem> find_topmost_item(CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel, ChromeMetrics const&) const;
     void find_topmost_items_for_caret(CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel, ChromeMetrics const&, Optional<TopmostItem>& caret_item, Optional<TopmostItem>& hit_item) const;

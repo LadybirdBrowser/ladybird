@@ -16,7 +16,10 @@ use super::layout_node_arena::PublishedBoundRows;
 use super::node_data::{CompositorAnimationFrameKind, FfiNodeLink, NodeKind, NodeSlotId, PaintNode, StylePayloadsRef};
 use super::node_facts;
 use crate::css::style::tree::StyleNodeID;
+use crate::painting::image_map_areas::ImageMaps;
 use crate::painting::published_frame::PublishedRows;
+use crate::painting::visual_context::VisualContextTree;
+use std::sync::Arc;
 
 /// The rows of a document's layout as its render state published them. It is immutable and owns all of it, through the
 /// copy-on-write generations the arena's columns publish, so the host reads it while the arena goes on changing.
@@ -25,6 +28,10 @@ pub(crate) struct RowSnapshot {
     pub(crate) paintable: PublishedRows,
     /// The row each node is bound to.
     bound: PublishedBoundRows,
+    /// The `<area>` elements of the image map of every image that has one.
+    image_maps: Arc<ImageMaps>,
+    /// The visual context tree hit testing maps points through.
+    pub(crate) visual_context_tree: Option<Arc<VisualContextTree>>,
     /// How far the arena's rows had been written when they were published.
     version: RowsVersion,
     /// Whether every row's scrollable overflow was measured when the rows were published.
@@ -121,6 +128,12 @@ impl RowSnapshot {
         self.live(self.bound.viewport_row())
     }
 
+    /// The first area of the map of the image whose paintable row is `slot`, in tree order, whose shape covers the
+    /// point, named by its style-tree identity. Zero when the image has no map, or no shape covers the point.
+    pub(crate) fn image_map_area_for_point(&self, slot: NodeSlotId, x: f32, y: f32) -> u32 {
+        crate::painting::image_map_areas::area_for_point(&self.image_maps, slot, x, y)
+    }
+
     fn live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
         self.node(id).is_some().then_some(id)
     }
@@ -146,6 +159,8 @@ impl LayoutNodeArena {
         RowSnapshot {
             paintable,
             bound,
+            image_maps: self.image_map_areas().snapshot(),
+            visual_context_tree: self.paint_state().borrow().visual_context.tree.clone(),
             version: self.rows_version(),
             overflow_is_measured: self.scrollable_overflow_is_measured(),
         }

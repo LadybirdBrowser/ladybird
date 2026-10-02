@@ -201,10 +201,10 @@ const _: () = {
 };
 
 impl LayoutNodeArena {
-    /// What the next recording reads of the document, as it is now.
-    pub(crate) fn freeze_frame(&mut self) -> PublishedFrame {
+    /// What the next recording reads of the document, as it is now. The host says how many items
+    /// the recording's hit-test list may hold.
+    pub(crate) fn freeze_frame(&mut self, hit_test_item_capacity_hint: usize) -> PublishedFrame {
         let rows = self.publish_rows();
-        let hit_test_item_capacity_hint = self.hit_test_list.borrow().as_ref().map_or(0, |list| list.items.len());
         PublishedFrame {
             rows,
             damage: self.paint_damage_for_frame(),
@@ -312,7 +312,7 @@ mod tests {
         arena.set_node_flag(slots[3], NodeFlag::Anonymous, true);
         arena.write_shape(slots[4]).set_generated_for(1);
 
-        let frame = arena.freeze_frame();
+        let frame = arena.freeze_frame(0);
         let absolute_rects = RefCell::new(AbsoluteRectMemo::default());
         let source = PaintSource::new(&frame, &absolute_rects);
         for &node in &slots {

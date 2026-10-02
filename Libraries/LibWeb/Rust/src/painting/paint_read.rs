@@ -14,6 +14,7 @@
 
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_pixels::CssPixelRect;
+use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::fragment_tree::FragmentLink;
 use crate::layout::node_data::{CompositorAnimationFrameKind, DomPaintFact, NodeFlag, NodeKind, NodeSlotId, PaintNode};
@@ -78,6 +79,8 @@ pub(crate) trait PaintRead: GeometryRead {
     fn node_is_floating(&self, id: NodeSlotId) -> bool;
     fn node_has_compositor_animation_frame(&self, id: NodeSlotId, kind: CompositorAnimationFrameKind) -> bool;
     fn node_style_if_live(&self, id: NodeSlotId) -> Option<ComputedValuesView<'_>>;
+    /// The node whose style the row carries.
+    fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID>;
     /// The rendered text of a text row.
     fn rendered_text(&self, id: NodeSlotId) -> Option<&RenderedText>;
     /// Reads a text row's grapheme boundaries, for a text row with rendered text.
@@ -332,6 +335,10 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
         self.as_ref().node_style_if_live(id)
     }
 
+    fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
+        self.as_ref().node_style_node(id)
+    }
+
     fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool {
         self.as_ref().node_has_dom_paint_fact(id, fact)
     }
@@ -541,6 +548,10 @@ impl PaintRead for PaintSource<'_> {
 
     fn node_style_if_live(&self, id: NodeSlotId) -> Option<ComputedValuesView<'_>> {
         self.node(id)?.style()
+    }
+
+    fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
+        self.node(id)?.style_node
     }
 
     fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool {
