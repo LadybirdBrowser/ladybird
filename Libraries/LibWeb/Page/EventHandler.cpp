@@ -1087,9 +1087,9 @@ EventResult EventHandler::dispatch_wheel_event(Layout::Node& hit_layout_node, CS
     if (!document || !document->is_fully_active())
         return EventResult::Dropped;
 
-    auto* event_dispatch_layout_node = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_paintable_event_dispatch_node_shell(
-        hit_layout_node.arena_handle(), Painting::committed_row_slot(hit_layout_node)));
-    GC::Ptr<DOM::Node> node = event_dispatch_layout_node ? event_dispatch_layout_node->dom_node() : nullptr;
+    GC::Ptr<DOM::Node> node = Painting::node_identity_of(Layout::RustFFI::layout_arena_paintable_event_dispatch_target(
+                                                             hit_layout_node.arena_handle(), Painting::committed_row_slot(hit_layout_node)))
+                                  .resolve(*document);
     if (!node)
         return EventResult::Dropped;
 

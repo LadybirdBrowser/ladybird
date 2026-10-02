@@ -98,6 +98,21 @@ impl Default for FfiStylePayloads {
 
 pub use super::node_slot_id::{MAX_NODE_SLOT_COUNT, NodeSlotId};
 
+/// A DOM node, named the way the host names one without pointing at it: the document, by itself,
+/// or any other node by its StyleNodeID. No node at all is a StyleNodeID of 0.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiNodeIdentity {
+    pub style_node: u32,
+    pub is_document: bool,
+}
+
+impl FfiNodeIdentity {
+    pub(crate) fn is_none(self) -> bool {
+        self.style_node == 0 && !self.is_document
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 pub enum NodeKind {

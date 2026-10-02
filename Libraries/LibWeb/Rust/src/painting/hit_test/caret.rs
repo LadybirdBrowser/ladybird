@@ -437,8 +437,8 @@ impl HitTestList {
     ) -> bool {
         let line = &self.caret_lines[line_index];
         for caret_item_index in line.first_caret_item_index..=line.last_caret_item_index {
-            let shell = self.item_target_shell(main_thread, arena, self.caret_item_indices[caret_item_index]);
-            if !shell.is_null() && callbacks.shell_in_scope(main_thread, shell) {
+            let node = self.item_target(arena, self.caret_item_indices[caret_item_index]);
+            if !node.is_none() && callbacks.node_in_scope(main_thread, node) {
                 return true;
             }
         }

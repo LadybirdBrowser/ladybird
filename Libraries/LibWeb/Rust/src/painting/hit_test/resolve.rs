@@ -6,12 +6,9 @@
 
 use super::*;
 use crate::layout::LayoutNodeArena;
-use crate::layout::node_data::NodeFlag;
-use crate::painting::host::FfiCaretBoundaryKind;
-use crate::painting::host::FfiResolvedCaret;
+use crate::layout::node_data::{NodeFlag, NodeKind};
+use crate::painting::host::{FfiCaretBoundaryKind, FfiNodeIdentity, FfiResolvedCaret};
 use crate::painting::paintable_data::SELECTION_STATE_START_AND_END;
-use crate::stage::MainThread;
-use std::ffi::c_void;
 
 pub(crate) fn empty_line_is_anchored_to_its_forced_break(arena: &LayoutNodeArena, item: &HitTestItem) -> bool {
     arena.node_kind_if_live(item.caret_node) == Some(crate::layout::node_data::NodeKind::BreakNode)
@@ -31,59 +28,43 @@ pub(crate) fn row_dom_style_node(arena: &LayoutNodeArena, slot: NodeSlotId) -> u
 }
 
 impl HitTestList {
-    pub(crate) fn item_target_shell(
-        &self,
-        main_thread: &MainThread,
-        arena: &LayoutNodeArena,
-        item_index: usize,
-    ) -> *mut c_void {
+    /// The DOM node the item stands for.
+    pub(crate) fn item_target(&self, arena: &LayoutNodeArena, item_index: usize) -> FfiNodeIdentity {
         let item = &self.items[item_index];
         let slot = match item.kind {
             HitTestItemKind::TextFragment => fragment_layout_node_slot(arena, item),
             HitTestItemKind::EmptyLine => Some(item.caret_node),
             _ => Some(item.paintable),
         };
-        slot.map_or(std::ptr::null_mut(), |slot| arena.shell_if_live(main_thread, slot))
+        slot.map_or_else(FfiNodeIdentity::default, |slot| row_node_identity(arena, slot, false))
     }
 
-    pub(crate) fn item_dispatch_shell(
-        &self,
-        main_thread: &MainThread,
-        arena: &LayoutNodeArena,
-        item_index: usize,
-    ) -> (*mut c_void, bool) {
+    /// The DOM node the item dispatches events to. A text fragment generated for a pseudo-element
+    /// dispatches to the pseudo-element's generator.
+    pub(crate) fn item_dispatch_target(&self, arena: &LayoutNodeArena, item_index: usize) -> FfiNodeIdentity {
         let item = &self.items[item_index];
         match item.kind {
-            HitTestItemKind::TextFragment => (
-                fragment_layout_node_slot(arena, item)
-                    .map_or(std::ptr::null_mut(), |slot| arena.shell_if_live(main_thread, slot)),
-                true,
-            ),
-            HitTestItemKind::EmptyLine => (arena.shell_if_live(main_thread, item.caret_node), false),
-            _ => (
-                event_dispatch_shell_for_paintable(main_thread, arena, item.paintable),
-                false,
-            ),
+            HitTestItemKind::TextFragment => fragment_layout_node_slot(arena, item)
+                .map_or_else(FfiNodeIdentity::default, |slot| row_node_identity(arena, slot, true)),
+            HitTestItemKind::EmptyLine => row_node_identity(arena, item.caret_node, false),
+            _ => event_dispatch_target_of_paintable(arena, item.paintable),
         }
     }
 
     pub(crate) fn resolve_hit(
         &self,
-        main_thread: &MainThread,
         arena: &LayoutNodeArena,
         item_index: usize,
         local_point: CssPixelPoint,
     ) -> crate::painting::host::FfiResolvedHit {
         let item = &self.items[item_index];
-        let (dispatch_shell, allow_pseudo_fallback) = self.item_dispatch_shell(main_thread, arena, item_index);
         let mut result = crate::painting::host::FfiResolvedHit {
-            dispatch_shell,
-            allow_pseudo_fallback,
+            dispatch: self.item_dispatch_target(arena, item_index),
             ..Default::default()
         };
         match item.kind {
             HitTestItemKind::TextFragment => {
-                result.fallback_dispatch_shell = event_dispatch_shell_for_paintable(main_thread, arena, item.paintable);
+                result.fallback_dispatch = event_dispatch_target_of_paintable(arena, item.paintable);
                 result.has_index_in_node = true;
                 result.index_in_node = fragment_index_in_node_for_point(arena, item, local_point);
                 result.is_text_fragment = true;
@@ -98,7 +79,6 @@ impl HitTestList {
 
     pub(crate) fn resolve_caret(
         &self,
-        main_thread: &MainThread,
         arena: &LayoutNodeArena,
         item_index: usize,
         local_point: CssPixelPoint,
@@ -129,13 +109,13 @@ impl HitTestList {
                         crate::painting::text_fragment::index_in_node_for_point(&paintable_rows, fragment, local_point)
                     }
                 };
-                let node_shell = arena.shell_if_live(main_thread, fragment.layout_node);
+                let node = row_node_identity(arena, fragment.layout_node, false);
                 let affinity_is_upstream = offset >= fragment.dom_end_offset_in_node
                     && offset == fragment.dom_end_offset_with_trailing_whitespace;
                 let debug_rect = fragment_caret_range_rect(arena, fragment, offset);
                 FfiResolvedCaret {
                     has_position: true,
-                    node_shell,
+                    node,
                     boundary: FfiCaretBoundaryKind::Offset,
                     offset,
                     affinity_is_upstream,
@@ -146,7 +126,7 @@ impl HitTestList {
             .unwrap_or_default(),
             HitTestItemKind::EmptyLine => FfiResolvedCaret {
                 has_position: true,
-                node_shell: arena.shell_if_live(main_thread, item.caret_node),
+                node: row_node_identity(arena, item.caret_node, false),
                 boundary: if empty_line_is_anchored_to_its_forced_break(arena, item) {
                     FfiCaretBoundaryKind::IndexOfNodeInParent
                 } else {
@@ -159,7 +139,7 @@ impl HitTestList {
             },
             HitTestItemKind::EmptyEditable => FfiResolvedCaret {
                 has_position: true,
-                node_shell: arena.shell_if_live(main_thread, item.paintable),
+                node: row_node_identity(arena, item.paintable, false),
                 boundary: FfiCaretBoundaryKind::Offset,
                 has_debug_rect: true,
                 debug_rect: item.caret_rect.into(),
@@ -175,7 +155,7 @@ impl HitTestList {
                 };
                 FfiResolvedCaret {
                     has_position: true,
-                    node_shell: arena.shell_if_live(main_thread, item.paintable),
+                    node: row_node_identity(arena, item.paintable, false),
                     boundary: if is_before {
                         FfiCaretBoundaryKind::BeforeNode
                     } else {
@@ -208,20 +188,45 @@ pub(crate) fn fragment_layout_node_slot(arena: &LayoutNodeArena, item: &HitTestI
     with_item_fragment(arena, item, |fragment| fragment.layout_node)
 }
 
-pub(crate) fn event_dispatch_shell_for_paintable(
-    main_thread: &MainThread,
-    arena: &LayoutNodeArena,
-    slot: NodeSlotId,
-) -> *mut c_void {
+/// The DOM node a hit on the paintable dispatches events to: the paintable's own node, or that of
+/// the nearest paint ancestor that stands for one.
+pub(crate) fn event_dispatch_target_of_paintable(arena: &LayoutNodeArena, slot: NodeSlotId) -> FfiNodeIdentity {
     let paintable_rows = arena.paintable_rows();
     let mut current = paintable_rows.paintable_row_is_populated(slot).then_some(slot);
     while let Some(paintable) = current {
         if arena.node_flags_if_live(paintable) & NodeFlag::Anonymous as u32 == 0 {
-            return arena.shell_if_live(main_thread, paintable);
+            return row_node_identity(arena, paintable, false);
         }
         current = crate::painting::paint_order::paint_parent(&paintable_rows, paintable);
     }
-    std::ptr::null_mut()
+    FfiNodeIdentity::default()
+}
+
+/// The DOM node a row stands for: the document for the viewport, and the row's identity for any
+/// other row built for a node. An anonymous row stands for none, unless `allow_pseudo_fallback`
+/// lets a row generated for a pseudo-element stand for its generator.
+pub(crate) fn row_node_identity(
+    arena: &LayoutNodeArena,
+    slot: NodeSlotId,
+    allow_pseudo_fallback: bool,
+) -> FfiNodeIdentity {
+    let Some(data) = arena.node_data_if_live(slot) else {
+        return FfiNodeIdentity::default();
+    };
+    if data.kind.get() == NodeKind::Viewport {
+        return FfiNodeIdentity {
+            style_node: 0,
+            is_document: true,
+        };
+    }
+    let is_anonymous = data.flags.get() & NodeFlag::Anonymous as u32 != 0;
+    if is_anonymous && !(allow_pseudo_fallback && data.generated_for.get() != 0) {
+        return FfiNodeIdentity::default();
+    }
+    FfiNodeIdentity {
+        style_node: arena.node_style_node(slot).map_or(0, |style_node| style_node.raw()),
+        is_document: false,
+    }
 }
 
 pub(crate) fn fragment_index_in_node_for_point(

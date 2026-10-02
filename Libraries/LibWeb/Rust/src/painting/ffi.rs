@@ -1754,7 +1754,7 @@ pub unsafe extern "C" fn layout_arena_paintable_computed_svg_path(
 pub struct FfiCaretRectResult {
     pub found: bool,
     pub rect: FfiCssPixelRect,
-    pub style_source: *mut c_void,
+    pub style_source: NodeSlotId,
     pub owner_paintable: NodeSlotId,
     pub nearest_self_painting_inline: NodeSlotId,
 }
@@ -1789,7 +1789,7 @@ pub unsafe extern "C" fn layout_arena_text_caret_rect_in_dom_range(
 pub struct FfiEmptyLineCaretRect {
     pub has_value: bool,
     pub rect: FfiCssPixelRect,
-    pub style_source: *mut c_void,
+    pub style_source: NodeSlotId,
 }
 
 #[repr(C)]
@@ -2786,6 +2786,118 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_line(
 pub unsafe extern "C" fn layout_arena_hit_test_list_generation(arena: *mut c_void) -> u64 {
     let arena = unsafe { arena_from_handle(arena) };
     arena.hit_test_list.borrow().as_ref().map_or(0, |list| list.generation)
+}
+
+/// The DOM node a hit on the paintable dispatches events to.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_target(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+) -> crate::painting::host::FfiNodeIdentity {
+    crate::painting::hit_test::resolve::event_dispatch_target_of_paintable(unsafe { arena_from_handle(arena) }, slot)
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `index` in range.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_hit_test_item_facts(
+    arena: *mut c_void,
+    index: usize,
+) -> crate::painting::host::FfiHitTestItemExport {
+    with_hit_test_list_items_only(arena, None, |list, arena| {
+        let item = &list.items[index];
+        assert!(
+            arena.paintable_row_is_populated(item.paintable),
+            "exporting a hit-test item for a non-live paintable"
+        );
+        assert!(
+            arena.paintable_row_is_populated(item.hit_node),
+            "exporting a hit-test item that names a non-live paintable"
+        );
+        Some(crate::painting::host::FfiHitTestItemExport {
+            can_produce_caret_position: item.can_produce_caret_position,
+            paintable: item.paintable,
+            hit_node: item.hit_node,
+            chrome_widget_kind: item.chrome_widget_kind,
+            caret_rect: item.caret_rect.into(),
+            context: item.context,
+        })
+    })
+    .expect("no hit-test list")
+}
+
+/// The DOM node the hit-test item stands for.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `item_index` must be in range for the current hit-test list.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_hit_test_item_target(
+    arena: *mut c_void,
+    item_index: usize,
+) -> crate::painting::host::FfiNodeIdentity {
+    with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
+        list.item_target(arena, item_index)
+    })
+}
+
+/// The DOM node the hit-test item dispatches events to.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `item_index` must be in range for the current hit-test list.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_hit_test_item_dispatch_target(
+    arena: *mut c_void,
+    item_index: usize,
+) -> crate::painting::host::FfiNodeIdentity {
+    with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
+        list.item_dispatch_target(arena, item_index)
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `item_index` must be in range for the current hit-test list.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_hit_test_resolve_hit(
+    arena: *mut c_void,
+    item_index: usize,
+    local_point: FfiCssPixelPoint,
+) -> crate::painting::host::FfiResolvedHit {
+    with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
+        list.resolve_hit(arena, item_index, local_point.into())
+    })
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `item_index` must be in range for the current hit-test list.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_hit_test_resolve_caret(
+    arena: *mut c_void,
+    item_index: usize,
+    local_point: FfiCssPixelPoint,
+    position_type: u8,
+) -> crate::painting::host::FfiResolvedCaret {
+    with_hit_test_list_items_only(arena, Default::default(), |list, arena| {
+        list.resolve_caret(
+            arena,
+            item_index,
+            local_point.into(),
+            crate::painting::hit_test::caret::CaretPositionType::from_u8(position_type),
+        )
+    })
 }
 
 fn with_hit_test_list_items_only<R>(

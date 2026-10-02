@@ -982,8 +982,8 @@ WebIDL::UnsignedLongLong Internals::full_layout_count()
 void Internals::begin_layout_trace()
 {
     Layout::RustFFI::layout_arena_begin_layout_trace(window().associated_document().layout_node_arena().handle(),
-        [](void* node_shell, void* sink, void (*append)(void*, u8 const*, size_t)) {
-            auto description = static_cast<Layout::Node const*>(node_shell)->debug_description();
+        [](void* arena, Compositing::RustFFI::NodeSlotId slot, void* sink, void (*append)(void*, u8 const*, size_t)) {
+            auto description = static_cast<Layout::Node const*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena, slot))->debug_description();
             append(sink, description.bytes().data(), description.bytes().size());
         });
 }

@@ -13,7 +13,9 @@ use std::ffi::c_void;
 use std::fmt::Write;
 
 type AppendText = unsafe extern "C" fn(*mut c_void, *const u8, usize);
-pub(crate) type DescribeNode = unsafe extern "C" fn(*mut c_void, *mut c_void, AppendText);
+/// Describes the row in the slot of the arena whose handle it is handed, as the row's layout node
+/// describes itself.
+pub(crate) type DescribeNode = unsafe extern "C" fn(*mut c_void, NodeSlotId, *mut c_void, AppendText);
 
 struct Trace {
     lines: Vec<Line>,
@@ -92,7 +94,7 @@ impl LayoutTrace {
                     .and_then(|host_tables| host_tables.layout_trace_describe_node.get())
                     .expect("a layout trace names its boxes through the callback it began with")
             });
-            line.owner_name = Some(owner_name(main_thread, arena, owner, describe));
+            line.owner_name = Some(owner_name(arena, owner, describe));
         }
     }
 
@@ -153,7 +155,7 @@ impl LayoutTrace {
     }
 }
 
-fn owner_name(main_thread: &MainThread, arena: &LayoutNodeArena, root: NodeSlotId, describe: DescribeNode) -> String {
+fn owner_name(arena: &LayoutNodeArena, root: NodeSlotId, describe: DescribeNode) -> String {
     if arena.data(root).kind.get() == NodeKind::Viewport {
         return "@viewport".into();
     }
@@ -174,15 +176,22 @@ fn owner_name(main_thread: &MainThread, arena: &LayoutNodeArena, root: NodeSlotI
         }
     }
     let mut bytes = Vec::<u8>::new();
-    // SAFETY: The pass is over, and the rows it ran for are live; describe copies the node's
-    // description synchronously without changing layout.
-    unsafe { describe(arena.shell_if_live(main_thread, root), (&raw mut bytes).cast(), append) };
+    // SAFETY: The pass is over, and the rows it ran for are live; describe copies the row's
+    // description synchronously without changing layout. The arena is the start of its handle.
+    unsafe {
+        describe(
+            std::ptr::from_ref(arena).cast_mut().cast(),
+            root,
+            (&raw mut bytes).cast(),
+            append,
+        );
+    };
     String::from_utf8(bytes).expect("layout trace label must be UTF-8")
 }
 
 /// # Safety
 /// The arena must be live. The callback must remain valid until tracing stops and
-/// must synchronously describe its live node shell without mutating layout.
+/// must synchronously describe the live row it is handed without mutating layout.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_begin_layout_trace(arena: *mut c_void, describe_node: DescribeNode) {
     unsafe { super::HostTables::from_handle(arena) }
@@ -248,7 +257,7 @@ mod tests {
 
     #[test]
     fn owners_are_named_through_the_registered_callback_once_the_pass_is_over() {
-        unsafe extern "C" fn describe(_: *mut c_void, sink: *mut c_void, append: AppendText) {
+        unsafe extern "C" fn describe(_: *mut c_void, _: NodeSlotId, sink: *mut c_void, append: AppendText) {
             let name = b"Box<div>#owner";
             // SAFETY: The trace hands a live sink and its append function.
             unsafe { append(sink, name.as_ptr(), name.len()) };

@@ -20,8 +20,8 @@ use std::fmt::Write;
 #[repr(C)]
 pub struct FfiStackingContextDumpCallbacks {
     context: *mut c_void,
-    debug_description:
-        unsafe extern "C" fn(context: *mut c_void, layout_node_shell: *mut c_void, description_sink: *mut c_void),
+    /// Describes the row in the slot, as its layout node describes itself.
+    debug_description: unsafe extern "C" fn(context: *mut c_void, slot: NodeSlotId, description_sink: *mut c_void),
     append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
 }
 
@@ -33,11 +33,11 @@ pub(crate) struct MainThreadFfiEntry {
 const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
 
 impl FfiStackingContextDumpCallbacks {
-    fn debug_description(&self, _: &MainThread, layout_node_shell: *mut c_void) -> String {
+    fn debug_description(&self, _: &MainThread, slot: NodeSlotId) -> String {
         let mut description = Vec::new();
         // SAFETY: The C++ host fills the description sink synchronously through the exported push
         // function.
-        unsafe { (self.debug_description)(self.context, layout_node_shell, (&raw mut description).cast()) };
+        unsafe { (self.debug_description)(self.context, slot, (&raw mut description).cast()) };
         String::from_utf8_lossy(&description).into_owned()
     }
 
@@ -84,7 +84,7 @@ fn visit(
     } else {
         push_line(
             output,
-            &callbacks.debug_description(main_thread, arena.node_shell(main_thread, root)),
+            &callbacks.debug_description(main_thread, root),
             paintable_geometry::absolute_rect_or_default(&arena.paintable_rows(), root),
             effective_z_index(arena, root),
             has_css_transform(arena, root),

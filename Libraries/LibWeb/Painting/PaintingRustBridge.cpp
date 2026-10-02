@@ -270,8 +270,11 @@ Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions
 void register_geometry_host(Layout::NodeArena& arena)
 {
     Layout::RustFFI::FfiGeometryHostCallbacks callbacks {
-        .context = nullptr,
-        .set_scroll_offset = [](void*, void* layout_node_shell, CSSPixelPoint offset) { set_scroll_offset(*static_cast<Layout::Node*>(layout_node_shell), offset); },
+        .context = &arena,
+        .set_scroll_offset = [](void* context, Compositing::RustFFI::NodeSlotId slot, CSSPixelPoint offset) {
+            auto* layout_node = static_cast<Layout::NodeArena*>(context)->node_if_live(slot);
+            VERIFY(layout_node);
+            set_scroll_offset(*layout_node, offset); },
     };
     Layout::RustFFI::layout_arena_set_geometry_host(arena.handle(), callbacks);
 }
@@ -335,19 +338,27 @@ void rust_invalidate_scroll_state(DOM::Document& document)
     Layout::RustFFI::layout_arena_invalidate_scroll_state(layout_arena_handle(document));
 }
 
+// Describes the row in the slot as its layout node describes itself, for a dump or a trace.
+static void push_debug_description(DOM::Document const& document, Compositing::RustFFI::NodeSlotId slot, void* description_sink)
+{
+    auto const* layout_node = const_cast<DOM::Document&>(document).layout_node_arena().node_if_live(slot);
+    VERIFY(layout_node);
+    auto description = layout_node->debug_description();
+    auto bytes = description.bytes();
+    Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size());
+}
+
 Utf16String serialize_painting_dump(DOM::Document const& document, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayList const& display_list, Compositing::DisplayListResourceStorage const& resource_storage)
 {
     struct DumpContext {
+        GC::Ref<DOM::Document const> document;
         Compositing::DisplayListResourceStorage const& resource_storage;
         Utf16String dump;
-    } context { resource_storage, {} };
+    } context { document, resource_storage, {} };
 
     Layout::RustFFI::FfiPaintingDumpCallbacks callbacks {
         .context = &context,
-        .debug_description = [](void*, void* layout_node_shell, void* description_sink) {
-            auto description = static_cast<Layout::Node const*>(layout_node_shell)->debug_description();
-            auto bytes = description.bytes();
-            Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size()); },
+        .debug_description = [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, void* description_sink) { push_debug_description(*static_cast<DumpContext*>(context_pointer)->document, slot, description_sink); },
         .command_bytes = [](void*, void const* display_list_pointer, size_t* byte_count) -> u8 const* {
             auto bytes = static_cast<Compositing::DisplayList const*>(display_list_pointer)->command_bytes();
             *byte_count = bytes.size();
@@ -376,13 +387,14 @@ static void append_bytes_to_string_builder(void* context, u8 const* bytes, size_
 
 void dump_stacking_context_tree(StringBuilder& builder, DOM::Document const& document)
 {
+    struct DumpContext {
+        GC::Ref<DOM::Document const> document;
+        StringBuilder& builder;
+    } context { document, builder };
     Layout::RustFFI::FfiStackingContextDumpCallbacks callbacks {
-        .context = &builder,
-        .debug_description = [](void*, void* layout_node_shell, void* description_sink) {
-            auto description = static_cast<Layout::Node const*>(layout_node_shell)->debug_description();
-            auto bytes = description.bytes();
-            Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size()); },
-        .append_text = append_bytes_to_string_builder,
+        .context = &context,
+        .debug_description = [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, void* description_sink) { push_debug_description(*static_cast<DumpContext*>(context_pointer)->document, slot, description_sink); },
+        .append_text = [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<DumpContext*>(context_pointer)->builder.append(StringView { bytes, byte_count }); },
     };
     Layout::RustFFI::layout_arena_dump_stacking_context_tree(
         layout_arena_handle(document), viewport_row_slot(document), callbacks);
@@ -397,9 +409,10 @@ static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bo
 {
     Layout::RustFFI::FfiLayoutTreeDumpCallbacks callbacks {
         .context = output_context,
-        .describe_dom_node = [](void*, void* layout_node_pointer, void* tag_name_sink, void* identifier_sink) {
+        .document = &const_cast<DOM::Document&>(root.document()),
+        .describe_dom_node = [](void* document, Layout::RustFFI::FfiNodeIdentity node, void* tag_name_sink, void* identifier_sink) {
             // A row whose node has been removed no longer names one, and the dump says so.
-            auto const* dom_node = static_cast<Layout::Node const*>(layout_node_pointer)->dom_node();
+            auto dom_node = node_identity_of(node).resolve(*static_cast<DOM::Document*>(document));
             if (!dom_node) {
                 push_bytes_to_dump_sink(tag_name_sink, "(detached)"sv.bytes());
                 return;
@@ -420,23 +433,23 @@ static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bo
                 identifier_builder.append(class_name);
             }
             push_bytes_to_dump_sink(identifier_sink, identifier_builder.string_view().bytes()); },
-        .navigable_container_content_document = [](void*, void* layout_node_pointer, void* url_sink) -> Layout::RustFFI::FfiNestedLayoutRoot {
-            auto const* container = as_if<HTML::NavigableContainer>(static_cast<Layout::Node const*>(layout_node_pointer)->dom_node());
+        .navigable_container_content_document = [](void* document, Layout::RustFFI::FfiNodeIdentity node, void* url_sink) -> Layout::RustFFI::FfiNestedLayoutRoot {
+            auto const* container = as_if<HTML::NavigableContainer>(node_identity_of(node).resolve(*static_cast<DOM::Document*>(document)).ptr());
             auto const* content_document = container ? container->content_document_without_origin_check() : nullptr;
             if (!content_document)
-                return { .has_document = false, .layout_root_shell = nullptr };
+                return { .has_document = false, .layout_root = nullptr };
             auto serialized_url = content_document->url().serialize();
             push_bytes_to_dump_sink(url_sink, serialized_url.bytes());
-            return { .has_document = true, .layout_root_shell = const_cast<Layout::Viewport*>(content_document->layout_node()) }; },
-        .svg_as_image_layout_root = [](void*, void* layout_node_pointer) -> void* {
-            auto const* image_element = as_if<HTML::HTMLImageElement>(static_cast<Layout::Node const*>(layout_node_pointer)->dom_node());
+            return { .has_document = true, .layout_root = const_cast<Layout::Viewport*>(content_document->layout_node()) }; },
+        .svg_as_image_layout_root = [](void* document, Layout::RustFFI::FfiNodeIdentity node) -> void* {
+            auto const* image_element = as_if<HTML::HTMLImageElement>(node_identity_of(node).resolve(*static_cast<DOM::Document*>(document)).ptr());
             if (!image_element)
                 return nullptr;
             auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(image_element->current_request().image_data().ptr());
             if (!svg_image_data)
                 return nullptr;
             return const_cast<Layout::Viewport*>(svg_image_data->svg_document().unsafe_layout_node()); },
-        .dump_nested_layout_tree = [](void*, void* layout_root_shell, size_t indent, bool interactive, void* output_sink) { dump_layout_tree(*static_cast<Layout::Node const*>(layout_root_shell), indent, interactive, output_sink, Layout::RustFFI::layout_arena_paint_push_bytes); },
+        .dump_nested_layout_tree = [](void*, void* layout_root, size_t indent, bool interactive, void* output_sink) { dump_layout_tree(*static_cast<Layout::Node const*>(layout_root), indent, interactive, output_sink, Layout::RustFFI::layout_arena_paint_push_bytes); },
         .append_text = append_text,
     };
     Layout::RustFFI::layout_arena_dump_layout_tree(root.arena_handle(), Layout::Node::slot_id(&root), initial_indent, interactive, callbacks);
@@ -498,16 +511,16 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
 
 static void take_recording_trace_if_pending(DOM::Document& document)
 {
-    StringBuilder trace;
+    struct TraceContext {
+        GC::Ref<DOM::Document const> document;
+        StringBuilder trace;
+    } context { document, {} };
     bool has_pending_trace = Layout::RustFFI::layout_arena_take_recording_trace(
-        layout_arena_handle(document), &trace,
-        [](void*, void* layout_node_shell, void* description_sink) {
-            auto description = static_cast<Layout::Node const*>(layout_node_shell)->debug_description();
-            auto bytes = description.bytes();
-            Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size()); },
-        append_bytes_to_string_builder);
+        layout_arena_handle(document), &context,
+        [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, void* description_sink) { push_debug_description(*static_cast<TraceContext*>(context_pointer)->document, slot, description_sink); },
+        [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<TraceContext*>(context_pointer)->trace.append(StringView { bytes, byte_count }); });
     if (has_pending_trace)
-        document.paint_state().append_recording_trace(MUST(trace.to_string()));
+        document.paint_state().append_recording_trace(MUST(context.trace.to_string()));
 }
 
 // The platform default font at an overlay label's CSS size and at that size in device pixels, kept alive for the

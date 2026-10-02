@@ -418,9 +418,9 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
     } preceding_context { const_cast<DOM::Node&>(*child), {} };
     Layout::RustFFI::layout_arena_for_each_subtree_fragment_rect(
         block.arena_handle(), committed_row_slot(block), &preceding_context,
-        [](void* context_pointer, void* fragment_layout_node_shell, CSSPixelRect rect) {
+        [](void* context_pointer, Compositing::RustFFI::NodeSlotId fragment_slot, CSSPixelRect rect) {
             auto& context = *static_cast<PrecedingContentContext*>(context_pointer);
-            auto const* fragment_layout_node = static_cast<Layout::Node const*>(fragment_layout_node_shell);
+            auto const* fragment_layout_node = context.child->document().layout_node_arena().node_if_live(fragment_slot);
             auto* fragment_dom_node = fragment_layout_node ? const_cast<DOM::Node*>(fragment_layout_node->dom_node()) : nullptr;
             if (!fragment_dom_node || !(context.child->compare_document_position(fragment_dom_node) & DOM::Node::DOCUMENT_POSITION_PRECEDING))
                 return;
@@ -489,7 +489,7 @@ Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document& docum
             arena, Layout::Node::slot_id(text_layout_node), cursor_position->offset(),
             cursor_position->affinity() == TextAffinity::Downstream);
         if (result.found) {
-            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(result.style_source);
+            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(text_layout_node->node_arena().node_if_live(result.style_source));
             if (style_source && layout_node_is_visible(*style_source))
                 fill(Layout::RustFFI::FfiCaretPaintKind::InBlock, result.owner_paintable, result.nearest_self_painting_inline, result.rect, style_source->caret_color());
             return caret;
@@ -502,7 +502,7 @@ Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document& docum
                 arena, committed_row_slot(*block), Layout::Node::slot_id(text_layout_node), cursor_position->offset());
             if (!empty_line.has_value)
                 continue;
-            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(empty_line.style_source);
+            auto const* style_source = static_cast<Layout::NodeWithStyle const*>(text_layout_node->node_arena().node_if_live(empty_line.style_source));
             if (!style_source)
                 return caret;
             auto empty_line_rect = empty_line.rect;
@@ -715,6 +715,13 @@ Optional<String> flex_layout_json(Layout::Node const& node, UniqueNodeID contain
         },
         &node.document(), devtools_node_id_for_style_node);
     return result;
+}
+
+DOM::NodeIdentity node_identity_of(Layout::RustFFI::FfiNodeIdentity identity)
+{
+    if (identity.is_document)
+        return DOM::NodeIdentity::of_document();
+    return DOM::NodeIdentity::of_style_node(CSS::StyleNodeID { identity.style_node });
 }
 
 void push_selection_pseudo_style(DOM::Element const& element)

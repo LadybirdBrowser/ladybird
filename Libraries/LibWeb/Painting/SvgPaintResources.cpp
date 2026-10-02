@@ -41,12 +41,12 @@ bool sync_svg_paint_resources(DOM::Document& document)
 {
     return Layout::RustFFI::layout_arena_sync_svg_paint_resources(
         document.layout_node_arena().handle(),
-        [](void* layout_node_shell, void const* url_value, void* sink) -> bool {
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
+        [](void* arena, Compositing::RustFFI::NodeSlotId slot, void const* url_value, void* sink) -> bool {
+            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena, slot));
             return push_svg_filter_reference(url_value, layout_node, sink);
         },
-        [](void* layout_node_shell, bool is_stroke, void* sink) {
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
+        [](void* arena, Compositing::RustFFI::NodeSlotId slot, bool is_stroke, void* sink) {
+            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena, slot));
             push_svg_paint_server_description(layout_node, is_stroke, sink);
         });
 }

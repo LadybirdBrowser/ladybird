@@ -67,12 +67,6 @@ HitTestDisplayList::Item HitTestDisplayList::item(size_t index) const
     return { index, Layout::RustFFI::layout_arena_hit_test_item_facts(m_arena->handle(), index) };
 }
 
-static DOM::Node const* dom_node_for_shell(void* shell)
-{
-    auto const* layout_node = static_cast<Layout::Node const*>(shell);
-    return layout_node ? layout_node->dom_node() : nullptr;
-}
-
 Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(Compositing::ContextRef context, CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel) const
 {
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
@@ -107,10 +101,10 @@ struct HitTestDisplayList::QueryContext {
             .chrome_metrics = {},
             .viewport_wheel_overflow_x = 0,
             .viewport_wheel_overflow_y = 0,
-            .shell_in_scope = [](void* context_pointer, void* shell) -> bool {
+            .node_in_scope = [](void* context_pointer, Layout::RustFFI::FfiNodeIdentity node) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
                 VERIFY(context.scope);
-                auto const* dom_node = dom_node_for_shell(shell);
+                auto dom_node = node_identity_of(node).resolve(const_cast<DOM::Document&>(context.scope->document()));
                 return dom_node && context.scope->is_inclusive_ancestor_of(*dom_node);
             },
         };
@@ -238,32 +232,20 @@ RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item item) const
 
 DOM::Node const* HitTestDisplayList::item_dom_node(size_t item_index) const
 {
-    return dom_node_for_shell(Layout::RustFFI::layout_arena_hit_test_item_target_shell(m_arena->handle(), item_index));
+    auto* document = m_arena->document();
+    if (!document)
+        return nullptr;
+    return item_identity(item_index).resolve(*document).ptr();
 }
 
 DOM::NodeIdentity HitTestDisplayList::item_identity(size_t item_index) const
 {
-    auto const* layout_node = static_cast<Layout::Node const*>(Layout::RustFFI::layout_arena_hit_test_item_target_shell(m_arena->handle(), item_index));
-    return layout_node ? layout_node->dom_node_identity() : DOM::NodeIdentity {};
-}
-
-static DOM::NodeIdentity identity_for_dispatch_shell(void* shell, bool allow_pseudo_fallback)
-{
-    auto const* layout_node = static_cast<Layout::Node const*>(shell);
-    if (!layout_node)
-        return {};
-    if (auto identity = layout_node->dom_node_identity(); !identity.is_none())
-        return identity;
-    if (allow_pseudo_fallback && layout_node->is_generated_for_pseudo_element())
-        return layout_node->pseudo_element_generator_identity();
-    return {};
+    return node_identity_of(Layout::RustFFI::layout_arena_hit_test_item_target(m_arena->handle(), item_index));
 }
 
 DOM::NodeIdentity HitTestDisplayList::event_dispatch_identity_for_item(size_t item_index) const
 {
-    bool allow_pseudo_fallback = false;
-    auto* shell = Layout::RustFFI::layout_arena_hit_test_item_dispatch_shell(m_arena->handle(), item_index, &allow_pseudo_fallback);
-    return identity_for_dispatch_shell(shell, allow_pseudo_fallback);
+    return node_identity_of(Layout::RustFFI::layout_arena_hit_test_item_dispatch_target(m_arena->handle(), item_index));
 }
 
 DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(size_t item_index) const
@@ -327,9 +309,9 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item item, CSSPixelPo
     if (identity.is_none() && paintable_layout_node)
         identity = image_map_area_for_point(*paintable_layout_node, local_point);
     if (identity.is_none())
-        identity = identity_for_dispatch_shell(resolved.dispatch_shell, resolved.allow_pseudo_fallback);
+        identity = node_identity_of(resolved.dispatch);
     if (identity.is_none())
-        identity = identity_for_dispatch_shell(resolved.fallback_dispatch_shell, false);
+        identity = node_identity_of(resolved.fallback_dispatch);
 
     // NB: Empty-line items are not reachable through regular hit testing; the descriptor still resolves them for
     // callers that already hold such an item.
@@ -348,9 +330,12 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item item, CSSPixelPo
 Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item item, CSSPixelPoint local_point, CaretPositionType type) const
 {
     auto resolved = Layout::RustFFI::layout_arena_hit_test_resolve_caret(m_arena->handle(), item.index(), local_point, to_underlying(type));
-    if (!resolved.has_position || !resolved.node_shell)
+    if (!resolved.has_position)
         return {};
-    auto* dom_node = static_cast<Layout::Node*>(resolved.node_shell)->dom_node();
+    auto* document = m_arena->document();
+    if (!document)
+        return {};
+    auto dom_node = node_identity_of(resolved.node).resolve(*document);
     if (!dom_node)
         return {};
 

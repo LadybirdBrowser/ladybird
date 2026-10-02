@@ -27,20 +27,6 @@ static_assert(to_underlying(CSS::ScrollSnapStrictness::None) == to_underlying(Co
 static_assert(to_underlying(CSS::ScrollSnapStrictness::Proximity) == to_underlying(Compositing::SnapStrictness::Proximity));
 static_assert(to_underlying(CSS::ScrollSnapStrictness::Mandatory) == to_underlying(Compositing::SnapStrictness::Mandatory));
 
-// NB: The element the recorder identifies a snap area by is resolved when the visual context tree is built, which a
-//     re-snap right after layout runs ahead of, so it is resolved from the area's layout node here.
-static UniqueNodeID element_id_of_snap_area(Layout::Node const& snap_area)
-{
-    if (snap_area.is_generated_for_pseudo_element()) {
-        if (auto generator = snap_area.pseudo_element_generator())
-            return generator->unique_id();
-        return {};
-    }
-    if (auto const* element = as_if<DOM::Element>(snap_area.dom_node()))
-        return element->unique_id();
-    return {};
-}
-
 // The element a snap area's box belongs to, which is the generating element of a pseudo-element's box.
 static DOM::Element const* element_of_snap_area(Compositing::SnapAreaIdentity const& area)
 {
@@ -82,9 +68,9 @@ Vector<Compositing::SnapAreaGeometry> collect_snap_areas(Layout::Node const& sna
         return areas;
 
     Layout::RustFFI::layout_arena_for_each_snap_area(
-        snap_container.arena_handle(), committed_row_slot(snap_container), &areas, [](void* context, Layout::RustFFI::FfiSnapAreaGeometry const* area, void* layout_node_shell) {
+        snap_container.arena_handle(), committed_row_slot(snap_container), &areas, [](void* context, Layout::RustFFI::FfiSnapAreaGeometry const* area) {
             static_cast<Vector<Compositing::SnapAreaGeometry>*>(context)->append({
-                .identity = { element_id_of_snap_area(*static_cast<Layout::Node const*>(layout_node_shell)), area->pseudo_element_type },
+                .identity = { UniqueNodeID { area->node_id }, area->pseudo_element_type },
                 .rect = area->rect,
                 .align_x = static_cast<Compositing::SnapAlign>(area->align_x),
                 .align_y = static_cast<Compositing::SnapAlign>(area->align_y),
