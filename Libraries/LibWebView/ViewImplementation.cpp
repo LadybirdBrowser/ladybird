@@ -1060,6 +1060,14 @@ static void send_global_privacy_control(WebContentPage const& page)
     page.async_set_enable_global_privacy_control(Application::settings().global_privacy_control() == GlobalPrivacyControl::Yes);
 }
 
+// Only a page hosting the tab's traversable takes this request: It applies to the page's local traversable, which a page
+// embedding an out-of-process iframe doesn't have.
+static void send_force_dark(WebContentPage const& page)
+{
+    // FIXME: This is not a "debug request". Add a proper endpoint for this toggle.
+    page.async_debug_request("set-force-dark"sv, Application::settings().content_settings().enable_force_dark ? "on"sv : "off"sv);
+}
+
 void ViewImplementation::send_preferences_to_page(WebContentPage& page)
 {
     page.async_set_preferred_color_scheme(m_preferred_color_scheme);
@@ -2583,6 +2591,7 @@ void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
     Application::the().apply_view_options({}, *this, page);
+    send_force_dark(page);
     send_preferences_to_page(page);
 }
 
@@ -3393,8 +3402,9 @@ void ViewImplementation::content_settings_changed()
 {
     apply_zoom_for_current_host();
 
-    // FIXME: This is not a "debug request". Add a proper endpoint for this toggle.
-    debug_request("set-force-dark"sv, Application::settings().content_settings().enable_force_dark ? "on"sv : "off"sv);
+    // The page displaying the tab, and any page chosen to host its next document, host the tab's traversable.
+    send_force_dark(page());
+    traversable().for_each_pending_host(send_force_dark);
 }
 
 void ViewImplementation::browsing_behavior_changed()
