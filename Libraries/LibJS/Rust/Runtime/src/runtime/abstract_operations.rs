@@ -2215,6 +2215,26 @@ pub fn get_dispose_method(
     value.get_method(vm, &PropertyKey::from(vm.well_known_symbols().dispose))
 }
 
+// 7.3.36 GetOptionsObject ( options ), https://tc39.es/ecma262/#sec-getoptionsobject
+pub fn get_options_object(vm: &Vm, options: Value) -> ThrowCompletionOr<Gc<Object>> {
+    let realm = vm.current_realm().expect("GetOptionsObject runs in a realm");
+
+    // 1. If options is undefined, then
+    if options.is_undefined() {
+        // a. Return OrdinaryObjectCreate(null).
+        return Ok(Object::create(vm, realm, None));
+    }
+
+    // 2. If options is an Object, then
+    if options.is_object() {
+        // a. Return options.
+        return Ok(options.as_object());
+    }
+
+    // 3. Throw a TypeError exception.
+    vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&"Options"])
+}
+
 /// Mirrors JS::CanonicalIndexMode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CanonicalIndexMode {

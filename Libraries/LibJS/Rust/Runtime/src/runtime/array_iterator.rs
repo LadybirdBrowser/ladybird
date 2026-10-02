@@ -9,20 +9,26 @@ use core::cell::Cell;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::length_of_array_like;
 use crate::runtime::array::Array;
+use crate::runtime::array_buffer::Order;
 use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::error::ErrorKind;
+use crate::runtime::error_types::ErrorType;
 use crate::runtime::iterator::BuiltinIteratorNext;
 use crate::runtime::object::{
     MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, PropertyKind, define_object_class,
 };
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::typed_array::{
+    is_typed_array_out_of_bounds, make_typed_array_with_buffer_witness_record, typed_array_length,
+    typed_array_of_object,
+};
 
 /// An Array Iterator instance, the iterator CreateArrayIterator creates.
 #[repr(C)]
@@ -110,14 +116,18 @@ impl ArrayIterator {
 
         // 8. If array has a [[TypedArrayName]] internal slot, then
         let length = if array.is_typed_array() {
+            let typed_array = typed_array_of_object(&array);
+
             // a. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(array, SEQ-CST).
+            let typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, Order::SeqCst);
+
             // b. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
+            if is_typed_array_out_of_bounds(&typed_array_record) {
+                return vm.throw_completion(ErrorKind::TypeError, ErrorType::BufferOutOfBounds, &[&"TypedArray"]);
+            }
+
             // c. Let len be TypedArrayLength(taRecord).
-            unimplemented_runtime_function(
-                "TypedArrayLength of a typed array record, for %ArrayIteratorPrototype%.next, which comes with typed \
-                 arrays",
-                0,
-            )
+            u64::from(typed_array_length(&typed_array_record))
         }
         // 9. Else,
         else {

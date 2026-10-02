@@ -1144,7 +1144,7 @@ fn is_negative_zero(number: f64) -> bool {
 
 /// static_cast<f16>(double): the binary16 value nearest a finite, nonzero double, ties to the even significand, as a
 /// double.
-fn round_to_binary16(number: f64) -> f64 {
+pub(crate) fn round_to_binary16(number: f64) -> f64 {
     const LARGEST_FINITE_BINARY16: f64 = 65504.0;
     const SMALLEST_NORMAL_BINARY16_EXPONENT: i32 = -14;
     const BINARY16_SIGNIFICAND_BITS: i32 = 10;

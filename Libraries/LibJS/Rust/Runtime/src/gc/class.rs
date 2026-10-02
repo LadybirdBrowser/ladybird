@@ -120,7 +120,32 @@ pub unsafe extern "C" fn finalize<T: Finalize>(cell: *mut c_void) {
     unsafe { &*cell.cast::<T>() }.finalize();
 }
 
+/// Cells that own memory outside the heap, which LibGC counts towards the bytes that make it collect, as C++ cells
+/// override Cell::external_memory_size().
+pub trait ExternalMemorySize {
+    fn external_memory_size(&self) -> usize;
+}
+
+/// The external_memory_size entry of a class whose cells implement ExternalMemorySize.
+///
+/// # Safety
+///
+/// Only LibGC calls it, with a cell of that class.
+pub unsafe extern "C" fn external_memory_size<T: ExternalMemorySize>(cell: *const c_void) -> usize {
+    // SAFETY: LibGC passes a cell of this class, which stays intact for the call.
+    unsafe { &*cell.cast::<T>() }.external_memory_size()
+}
+
 impl Class {
+    /// Has LibGC ask the cells of this class how much memory they own outside the heap.
+    pub const fn with_external_memory_size(
+        mut self,
+        external_memory_size: Option<unsafe extern "C" fn(cell: *const c_void) -> usize>,
+    ) -> Self {
+        self.type_info.external_memory_size = external_memory_size;
+        self
+    }
+
     pub fn is_subclass_of(&self, ancestor: &Class) -> bool {
         let mut class = Some(self);
         while let Some(current) = class {
@@ -228,11 +253,12 @@ impl CellHeader {
 }
 
 /// Defines the class of a cell type, named after the type and its ClassId. `extends` names the cell types it
-/// extends, nearest first. `methods` gives an object class its internal methods, and `finalize` opts into running its
-/// Finalize implementation. A class that names neither inherits them from the class it extends, as C++ subclasses
-/// inherit virtual methods, so the Finalize implementation of a subclass has to finalize its base as well.
+/// extends, nearest first. `methods` gives an object class its internal methods, `finalize` opts into running its
+/// Finalize implementation, and `external_memory_size` into reporting its ExternalMemorySize. A class that names none
+/// of them inherits them from the class it extends, as C++ subclasses inherit virtual methods, so the Finalize
+/// implementation of a subclass has to finalize its base as well.
 macro_rules! define_cell {
-    ($type:ident, $kind:ident $(, extends: [$parent:ident $(, $ancestor:ident)*])? $(, methods: $methods:path)? $(, finalize: $finalize:ident)?) => {
+    ($type:ident, $kind:ident $(, extends: [$parent:ident $(, $ancestor:ident)*])? $(, methods: $methods:path)? $(, finalize: $finalize:ident)? $(, external_memory_size: $external_memory_size:ident)?) => {
         const _: () = {
             static CLASS: $crate::gc::class::Class = $crate::gc::class::Class::new::<$type>(
                 stringify!($type),
@@ -241,7 +267,8 @@ macro_rules! define_cell {
                 define_cell!(@parent $($parent)?),
                 define_cell!(@methods [$($parent)?] [$($methods)?]),
                 define_cell!(@finalize $type [$($parent)?] [$($finalize)?]),
-            );
+            )
+            .with_external_memory_size(define_cell!(@external_memory_size $type [$($parent)?] [$($external_memory_size)?]));
 
             // SAFETY: Checked by the asserts in Class::new and the cell's #[repr(C)] layout.
             unsafe impl $crate::gc::class::GcCell for $type {
@@ -263,6 +290,13 @@ macro_rules! define_cell {
     (@finalize $type:ident [] []) => { None };
     (@finalize $type:ident [$parent:ident] []) => { <$parent as $crate::gc::class::GcCell>::CLASS.type_info.finalize };
     (@finalize $type:ident [$($parent:ident)?] [finalize]) => { Some($crate::gc::class::finalize::<$type>) };
+    (@external_memory_size $type:ident [] []) => { None };
+    (@external_memory_size $type:ident [$parent:ident] []) => {
+        <$parent as $crate::gc::class::GcCell>::CLASS.type_info.external_memory_size
+    };
+    (@external_memory_size $type:ident [$($parent:ident)?] [external_memory_size]) => {
+        Some($crate::gc::class::external_memory_size::<$type>)
+    };
 }
 
 pub(crate) use define_cell;

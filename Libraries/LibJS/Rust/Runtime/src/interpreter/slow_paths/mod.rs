@@ -555,12 +555,12 @@ impl RuntimeFunctions for Runtime {
     }
 
     fn try_get_by_value_typed_array(
-        _vm: &Vm,
-        pc: u32,
+        vm: &Vm,
+        _pc: u32,
         _instruction: &op::GetByValue,
         values: &mut op::GetByValueValues,
     ) -> bool {
-        property_access::try_get_by_value_typed_array(pc, values)
+        property_access::try_get_by_value_typed_array(vm, values)
     }
 
     fn try_inline_get_by_id_accessor(
@@ -586,12 +586,12 @@ impl RuntimeFunctions for Runtime {
     }
 
     fn try_put_by_value_typed_array(
-        _vm: &Vm,
-        pc: u32,
+        vm: &Vm,
+        _pc: u32,
         _instruction: &op::PutByValue,
         values: &mut op::PutByValueValues,
     ) -> bool {
-        property_access::try_put_by_value_typed_array(pc, values)
+        property_access::try_put_by_value_typed_array(vm, values)
     }
 
     // Bindings and environments: bindings.rs.

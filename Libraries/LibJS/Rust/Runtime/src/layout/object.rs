@@ -9,7 +9,7 @@ use core::cell::Cell;
 use super::cell::{CellHeader, Gc};
 use super::shape::Shape;
 use super::value::Value;
-use crate::layout_forward::PrivateElements;
+use crate::layout_forward::{PrivateElements, TypedArrayBaseStorage};
 
 /// Mirrors JS::Object::Flag.
 pub mod object_flag {
@@ -60,24 +60,27 @@ pub struct Object {
 
 /// Mirrors the Variant<Auto, Detached, u32> the interpreter reads: the length first, then the alternative's index.
 #[repr(C)]
-pub struct ByteLength {
+pub struct ByteLengthSlot {
     pub length: Cell<u32>,
     pub alternative_index: Cell<u8>,
 }
 
 pub const BYTE_LENGTH_U32_INDEX: u8 = 2;
 
-/// Mirrors JS::TypedArrayBase::Kind for the kinds the interpreter accesses directly.
+/// Mirrors JS::TypedArrayBase::Kind, in the order of JS_ENUMERATE_TYPED_ARRAYS.
 pub mod typed_array_kind {
     pub const UINT8: u8 = 0;
     pub const UINT8_CLAMPED: u8 = 1;
     pub const UINT16: u8 = 2;
     pub const UINT32: u8 = 3;
-    pub const INT8: u8 = 4;
-    pub const INT16: u8 = 5;
-    pub const INT32: u8 = 6;
-    pub const FLOAT32: u8 = 7;
-    pub const FLOAT64: u8 = 8;
+    pub const BIG_UINT64: u8 = 4;
+    pub const INT8: u8 = 5;
+    pub const INT16: u8 = 6;
+    pub const INT32: u8 = 7;
+    pub const BIG_INT64: u8 = 8;
+    pub const FLOAT16: u8 = 9;
+    pub const FLOAT32: u8 = 10;
+    pub const FLOAT64: u8 = 11;
 }
 
 pub const TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID: usize = usize::MAX;
@@ -87,7 +90,8 @@ pub struct TypedArrayBase {
     pub base: Object,
     pub kind: Cell<u8>,
     pub element_size: Cell<u8>,
-    pub array_length: ByteLength,
+    pub array_length: ByteLengthSlot,
     pub byte_offset: Cell<u32>,
     pub cached_data_offset: Cell<usize>,
+    pub storage: TypedArrayBaseStorage,
 }

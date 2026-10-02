@@ -22,6 +22,7 @@ pub mod console;
 pub mod console_log_level;
 pub mod contrib;
 pub mod frontend_host;
+pub mod futex;
 pub mod gc;
 pub mod hash_table;
 pub mod interpreter;
