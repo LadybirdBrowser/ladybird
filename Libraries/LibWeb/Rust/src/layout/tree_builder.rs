@@ -127,8 +127,6 @@ enum StaleSubtreeClearScope {
 #[repr(C)]
 pub struct FfiDomTreeBuilderCallbacks {
     pub builder: *mut c_void,
-    pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
-    pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut FfiIdentifiedDomNode, usize),
     /// Computes the style of an element the walk reached through a bypass path without one. The
     /// style update before the build settles every element it walks; a top layer, slot projection
     /// or SVG reference path can reach one it did not.
@@ -144,15 +142,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     /// attaches the box's style resources. The image is the `<image>` at the given index of the
     /// pseudo-element's `content`, or the given marker's `list-style-image`.
     pub attach_generated_image: unsafe extern "C" fn(*mut c_void, NodeSlotId, u32, FfiPseudoElement, FfiGeneratedImage),
-}
-
-/// A DOM node the tree builder reasons about by identity as well as by pointer: the identity names
-/// the node's rows in the arena, so Rust finds them without asking C++ for the answer.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiIdentifiedDomNode {
-    pub node: *mut c_void,
-    pub style_node: u32,
 }
 
 /// What the build knows about a node when it enters it: what its marks ask for, and what layout
@@ -1969,34 +1958,9 @@ unsafe fn update_principal_node_descendants(
                 // they generate boxes as if they were siblings of the root element.
                 let prior_layout_top_layer = context.layout_top_layer;
                 context.layout_top_layer = true;
-                // SAFETY: The DOM document remains live and owns a stable top-layer list during this pass.
-                let count = unsafe { (host.callbacks.top_layer_element_count)(host.callbacks.builder) };
-                let mut top_layer_elements = vec![
-                    FfiIdentifiedDomNode {
-                        node: std::ptr::null_mut(),
-                        style_node: 0,
-                    };
-                    count
-                ];
-                // SAFETY: The output slice has room for the stable top-layer list reported above.
-                unsafe {
-                    (host.callbacks.copy_top_layer_elements)(
-                        host.callbacks.builder,
-                        top_layer_elements.as_mut_ptr(),
-                        count,
-                    );
-                }
-                for FfiIdentifiedDomNode {
-                    node: element,
-                    style_node,
-                } in top_layer_elements
-                {
-                    assert!(!element.is_null());
-                    // An element that was never styled has no identity, and the style store holds it
-                    // nowhere in the top layer.
-                    let Some(member) = StyleNodeID::from_raw(style_node) else {
-                        continue;
-                    };
+                // The walk below reads the store again, so the list is read a member at a time rather
+                // than borrowed across it.
+                for member in (0..).map_while(|index| host.arena().top_layer_element(index)) {
                     if !host.rendered_in_top_layer(Some(member)) {
                         continue;
                     }

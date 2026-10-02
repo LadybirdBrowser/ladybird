@@ -1,0 +1,54 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    [popover], dialog {
+        position: fixed;
+        inset: 0;
+        margin: 0;
+        padding: 0;
+        border: none;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="first" popover="manual">first</div>
+<div id="second" popover="manual">second</div>
+<dialog id="third">third</dialog>
+<script>
+    test(() => {
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const third = document.getElementById("third");
+        const check = name => {
+            const topmost = document.elementFromPoint(50, 50).closest("[popover], dialog")?.id ?? "nothing";
+            const rebuild = internals.compareLayoutTreeWithFullRebuild().matches ? "matches" : "differs from";
+            println(`${name}: ${topmost} on top, tree ${rebuild} a full rebuild`);
+        };
+
+        check("nothing open");
+        first.showPopover();
+        second.showPopover();
+        check("first then second opened together");
+        first.hidePopover();
+        first.showPopover();
+        check("first closed and reopened before a rebuild");
+        third.showModal();
+        check("dialog opened last");
+        second.hidePopover();
+        second.showPopover();
+        check("second reopened above the dialog");
+        third.close();
+        check("dialog closed");
+        first.remove();
+        document.body.append(first);
+        check("first removed and reinserted");
+        first.showPopover();
+        check("first reopened after reinsertion");
+        second.hidePopover();
+        third.showModal();
+        third.close();
+        check("second closed while the dialog came and went");
+        first.hidePopover();
+        check("everything closed");
+    });
+</script>

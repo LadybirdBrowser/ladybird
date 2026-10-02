@@ -9196,6 +9196,7 @@ void Document::add_an_element_to_the_top_layer(GC::Ref<Element> element)
     // FIXME: 4. At the UA !important cascade origin, add a rule targeting el containing an overlay: auto declaration.
     element->set_rendered_in_top_layer(true);
     m_elements_with_pending_top_layer_membership_change.append(element);
+    CSS::record_top_layer_changed(*this);
 }
 
 // https://drafts.csswg.org/css-position-4/#request-an-element-to-be-removed-from-the-top-layer
@@ -9229,6 +9230,7 @@ void Document::remove_an_element_from_the_top_layer_immediately(GC::Ref<Element>
     element->set_rendered_in_top_layer(false);
 
     m_elements_with_pending_top_layer_membership_change.append(element);
+    CSS::record_top_layer_changed(*this);
 }
 
 // https://drafts.csswg.org/css-position-4/#process-top-layer-removals
@@ -9248,6 +9250,8 @@ void Document::process_top_layer_removals()
         m_top_layer_elements.remove(element);
         m_top_layer_pending_removals.remove(element);
     }
+    if (!elements_to_remove.is_empty())
+        CSS::record_top_layer_changed(*this);
 }
 
 // The top layer is treated as a single rebuild zone: any membership change detaches the box

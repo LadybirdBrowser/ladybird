@@ -1,0 +1,10 @@
+nothing open: nothing on top, tree matches a full rebuild
+first then second opened together: second on top, tree matches a full rebuild
+first closed and reopened before a rebuild: first on top, tree matches a full rebuild
+dialog opened last: third on top, tree matches a full rebuild
+second reopened above the dialog: second on top, tree matches a full rebuild
+dialog closed: second on top, tree matches a full rebuild
+first removed and reinserted: second on top, tree matches a full rebuild
+first reopened after reinsertion: first on top, tree matches a full rebuild
+second closed while the dialog came and went: first on top, tree matches a full rebuild
+everything closed: nothing on top, tree matches a full rebuild

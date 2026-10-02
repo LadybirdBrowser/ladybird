@@ -1077,6 +1077,22 @@ void record_slot_assignment_changed(HTML::HTMLSlotElement& slot)
     slot.document().style_computer().style_engine().set_slot_assigned_nodes(slot.style_node_id(), identities.span());
 }
 
+// Only a connected element in a fully active document enters the top layer, so every member has an identity when it
+// does. One that has since disconnected, waiting in the pending removals, has given its identity up.
+void record_top_layer_changed(DOM::Document& document)
+{
+    if (!document.style_engine_tracks_tree())
+        return;
+    auto const& members = document.top_layer_elements();
+    Vector<StyleNodeID, 8> identities;
+    identities.ensure_capacity(members.size());
+    for (auto const& member : members) {
+        if (member->style_node_id() != no_style_node)
+            identities.unchecked_append(member->style_node_id());
+    }
+    document.style_computer().style_engine().set_top_layer_elements(identities.span());
+}
+
 // Assignment runs inside the insertion that connects a node, which happens before the subtree it arrived in is named,
 // and the list published then names only the members that already had an identity. Both ends of the relation therefore
 // republish on arrival: a slottable the list it has just become a member of, and a slot the list it arrived owning.

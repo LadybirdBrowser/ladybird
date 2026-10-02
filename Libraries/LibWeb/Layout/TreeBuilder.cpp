@@ -194,15 +194,6 @@ static void attach_content_replacement_image(Box& image_box)
     attach_owned_image_provider(image_box, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
 }
 
-// A DOM node paired with the identity its layout rows carry, so Rust can find them itself.
-static RustFFI::FfiIdentifiedDomNode identified_dom_node(DOM::Node const* node)
-{
-    return {
-        .node = const_cast<DOM::Node*>(node),
-        .style_node = Node::style_node_of(node).value(),
-    };
-}
-
 static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_element)
 {
     switch (pseudo_element) {
@@ -248,17 +239,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
 {
     return {
         .builder = this,
-        .top_layer_element_count = [](void* builder_pointer) {
-            VERIFY(builder_pointer);
-            return static_cast<LayoutTreeBuildBridge*>(builder_pointer)->m_document->top_layer_elements().size(); },
-        .copy_top_layer_elements = [](void* builder_pointer, RustFFI::FfiIdentifiedDomNode* output, size_t count) {
-            VERIFY(builder_pointer);
-            VERIFY(output || count == 0);
-            auto const& elements = static_cast<LayoutTreeBuildBridge*>(builder_pointer)->m_document->top_layer_elements();
-            VERIFY(count == elements.size());
-            size_t index = 0;
-            for (auto const& element : elements)
-                output[index++] = identified_dom_node(element.ptr()); },
         .restyle_bypass_path_element = [](void* builder_pointer, u32 style_node) { update_style_if_needed_for_layout_tree_bypass_path(as<DOM::Element>(node_for_style_node(builder_pointer, style_node))); },
         .attach_style_resources = [](void* builder_pointer, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image) {
             VERIFY(builder_pointer);
