@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .red { color: rgb(255, 0, 0); }
+    .flat { appearance: none; }
+</style>
+<select id="select"><option>one</option></select>
+<input id="number" type="number" value="1">
+<input id="textfield" type="number" value="2" style="appearance: textfield">
+<script>
+    // A select and a number input lay out their shadow trees from their appearance. Restyling the
+    // controls leaves the declarations of those shadow elements alone unless appearance flips, so
+    // the style engine's records for them are the ones that apply.
+    function recomputations(update) {
+        const before = internals.getStyleInvalidationCounters();
+        update();
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        return after.elementStyleRecomputations - before.elementStyleRecomputations;
+    }
+    function width(element) {
+        return Math.round(element.getBoundingClientRect().width);
+    }
+    test(() => {
+        internals.updateStyle();
+        println(`C++ recomputations on arrival: ${recomputations(() => {
+            for (const control of [select, number]) {
+                const clone = control.cloneNode(true);
+                clone.removeAttribute("id");
+                document.body.append(clone);
+            }
+        })}`);
+        const selectWidth = width(select);
+        const numberWidth = width(number);
+        println(`C++ recomputations after recoloring: ${recomputations(() => {
+            select.classList.add("red");
+            number.classList.add("red");
+            textfield.classList.add("red");
+        })}`);
+        println(`select width kept: ${width(select) === selectWidth}`);
+        println(`number width kept: ${width(number) === numberWidth}`);
+        select.classList.add("flat");
+        internals.updateStyle();
+        println(`select narrower without its chevron: ${width(select) < selectWidth}`);
+        select.classList.remove("flat");
+        internals.updateStyle();
+        println(`select width back with its chevron: ${width(select) === selectWidth}`);
+    });
+</script>

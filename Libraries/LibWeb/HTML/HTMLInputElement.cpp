@@ -1268,8 +1268,12 @@ void HTMLInputElement::create_text_input_shadow_tree()
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     if (type_state() == TypeAttributeState::Number) {
+        // NB: The buttons start out with the style they have when shown, so that the style application that follows
+        //     only rewrites their declarations when appearance hides them.
+
         // Up button
         m_up_button_element = MUST(DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML));
+        set_own_inline_style(*m_up_button_element, stepper_button_style_when_visible());
 
         auto up_button_svg = MUST(DOM::create_element(document(), SVG::TagNames::svg, Namespace::SVG));
         up_button_svg->set_attribute_value(HTML::AttributeNames::style, "width: 1em; height: 1em;"_utf16);
@@ -1309,6 +1313,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
         // Down button
         m_down_button_element = MUST(DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML));
+        set_own_inline_style(*m_down_button_element, stepper_button_style_when_visible());
 
         auto down_button_svg = MUST(DOM::create_element(document(), SVG::TagNames::svg, Namespace::SVG));
         down_button_svg->set_attribute_value(HTML::AttributeNames::style, "width: 1em; height: 1em;"_utf16);

@@ -158,6 +158,7 @@ private:
     Vector<GC::Ref<HTMLOptionElement>> m_select_item_option_elements;
     GC::Ptr<DOM::Element> m_inner_text_element;
     GC::Ptr<DOM::Element> m_chevron_icon_element;
+    bool m_chevron_icon_hidden { false };
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#user-validity
     bool m_user_validity { false };
