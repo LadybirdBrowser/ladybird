@@ -931,6 +931,18 @@ pub struct FfiLayoutHostCallbacks {
     deliver_commit_messages: unsafe extern "C" fn(*mut c_void, *const commit::FfiCommitMessage, usize),
     /// What a container-relative length on the element with the given identity resolves against.
     container_length_bases: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
+    /// The scroll containers a finished layout tree build gave a style, each with whether it is a
+    /// scroll snap container.
+    take_built_scroll_containers: unsafe extern "C" fn(*mut c_void, *const FfiBuiltScrollContainer, usize),
+}
+
+/// A scroll container a layout tree build gave a style, with whether it was a scroll snap
+/// container as the build finished.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiBuiltScrollContainer {
+    pub slot: NodeSlotId,
+    pub is_scroll_snap_container: bool,
 }
 
 impl FfiLayoutHostCallbacks {
@@ -955,6 +967,21 @@ impl FfiLayoutHostCallbacks {
         }
         // SAFETY: The document registered the host with the arena and outlives this call.
         unsafe { (self.deliver_commit_messages)(self.context, messages.as_ptr(), messages.len()) };
+    }
+
+    /// # Safety
+    ///
+    /// The document may re-enter the arena, so no arena borrow may be held across this call.
+    pub(crate) unsafe fn take_built_scroll_containers(
+        &self,
+        _: &crate::stage::MainThread,
+        built: &[FfiBuiltScrollContainer],
+    ) {
+        if built.is_empty() {
+            return;
+        }
+        // SAFETY: The document registered the host with the arena and outlives this call.
+        unsafe { (self.take_built_scroll_containers)(self.context, built.as_ptr(), built.len()) };
     }
 
     /// The one question a layout pass may ask the document while it runs.

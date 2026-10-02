@@ -175,6 +175,15 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         }
     }
 
+    // The scroll containers the build gave a style come last, before any style the document
+    // applies after the build.
+    let built_scroll_containers = host.layout().arena().take_built_scroll_containers();
+    // SAFETY: As above.
+    unsafe {
+        FfiLayoutHostCallbacks::of(host.main_thread)
+            .take_built_scroll_containers(host.main_thread, &built_scroll_containers);
+    }
+
     if rebuilt_subtrees_were_updated_individually {
         let layout_host = host.layout();
         let attached_roots = layout_host
