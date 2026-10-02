@@ -12,7 +12,7 @@
 use super::LayoutNodeArena;
 use super::formatting_context::FfiLayoutHostCallbacks;
 use super::layout_node_arena::{ShellFactory, ShellStyleChangedHost};
-use super::node_data::NodeSlotId;
+use super::node_data::{NodeKind, NodeSlotId};
 use super::trace::DescribeNode;
 use super::update_layout::FfiLayoutUpdateHostCallbacks;
 use crate::css::style::fast_hash::FastMap as HashMap;
@@ -21,6 +21,14 @@ use crate::painting::paintable_rows::ChromeStateCallback;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::ffi::c_void;
+use std::ptr::NonNull;
+
+/// What the shell factory needs to know of a row to make its layout node.
+#[derive(Clone, Copy)]
+pub(crate) struct ShellFacts {
+    pub(crate) id: NodeSlotId,
+    pub(crate) kind: NodeKind,
+}
 
 #[derive(Default)]
 pub(crate) struct HostTables {
@@ -46,6 +54,10 @@ pub(crate) struct HostTables {
     /// The image observers and cursor values each row's style asks for, for a style that holds an
     /// image, destroyed when the row is freed if the row did not drop them before.
     pub(super) image_observer_sets: RefCell<HashMap<NodeSlotId, *mut c_void>>,
+    /// The layout node C++ made for each row something asked for one, which rows themselves do
+    /// not name. A row is keyed with its generation, so a slot restamped before the layout node of
+    /// the row it replaced is destroyed holds both apart.
+    pub(crate) shells: RefCell<HashMap<NodeSlotId, NonNull<c_void>>>,
 }
 
 impl HostTables {
@@ -72,6 +84,33 @@ impl HostTables {
     /// Whether a tree build's walk is running, during which no FFI entry may mint a token.
     pub(crate) fn tree_build_walk_is_open(&self) -> bool {
         self.tree_build_walk_is_open.get()
+    }
+
+    /// The layout node of the row `facts` describes, made by the shell factory the first time
+    /// something asks for it.
+    pub(crate) fn shell_of(&self, facts: ShellFacts) -> *mut c_void {
+        if let Some(shell) = self.shells.borrow().get(&facts.id) {
+            return shell.as_ptr();
+        }
+        let Some((context, factory)) = self.shell_factory.get() else {
+            return std::ptr::null_mut();
+        };
+        self.making_shell.set(true);
+        // SAFETY: Registration and unregistration keep the factory context live. The factory's
+        // layout node attaches itself to the table, which no borrow is held of across the call.
+        unsafe { factory(context, facts.id, facts.kind) };
+        self.making_shell.set(false);
+        self.shells
+            .borrow()
+            .get(&facts.id)
+            .map_or(std::ptr::null_mut(), |shell| shell.as_ptr())
+    }
+
+    /// Records the layout node C++ made for the row `id`.
+    pub(crate) fn attach_shell(&self, id: NodeSlotId, shell: *mut c_void) {
+        let shell = NonNull::new(shell).expect("a row was given a null layout node");
+        let previous = self.shells.borrow_mut().insert(id, shell);
+        assert!(previous.is_none(), "a row was given a second layout node");
     }
 
     /// Gives `slot` the image provider it owns. A row is given one once, while it is built.
@@ -158,6 +197,10 @@ impl ArenaHandle {
     pub(crate) fn arena(&self) -> &LayoutNodeArena {
         &self.arena
     }
+
+    pub(crate) fn host_tables(&self) -> &HostTables {
+        &self.host_tables
+    }
 }
 
 #[cfg(test)]
@@ -212,6 +255,67 @@ mod tests {
             .free_subtree(kept)
             .destroy_shells_and_invoke_callbacks(&main_thread);
         assert!(host_tables.image_observer_sets.borrow().is_empty());
+    }
+
+    #[test]
+    fn a_restamped_slot_does_not_answer_with_the_layout_node_of_the_row_it_replaced() {
+        use crate::layout::tree_mutation::{HostCalls, TreeBuildHostWork};
+
+        let host_tables = HostTables::default();
+        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let mut arena = LayoutNodeArena::new();
+        arena.queue_box_presence_for_tree_build();
+        let work = TreeBuildHostWork::default();
+        let freed = arena.allocate_for_test().slot;
+        host_tables.attach_shell(freed, object(8));
+
+        // A walk frees the row and stamps another in its slot before its host work is applied.
+        HostCalls::AfterTreeBuild(&work).free_subtree(&raw mut arena, freed);
+        let reused = arena.allocate_for_test().slot;
+        assert_eq!(reused.slot_index(), freed.slot_index());
+        assert!(host_tables.shells.borrow().get(&reused).is_none());
+        assert_eq!(
+            host_tables.shells.borrow().get(&freed).map(|shell| shell.as_ptr()),
+            Some(object(8))
+        );
+        // The walk can ask for the new row's layout node before the old one is destroyed.
+        host_tables.attach_shell(reused, object(16));
+
+        work.apply(&main_thread, &arena);
+        assert_eq!(
+            host_tables.shells.borrow().get(&reused).map(|shell| shell.as_ptr()),
+            Some(object(16))
+        );
+        assert_eq!(host_tables.shells.borrow().len(), 1);
+        arena
+            .free_subtree(reused)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+    }
+
+    #[test]
+    fn freeing_rows_destroys_exactly_their_layout_nodes() {
+        let host_tables = HostTables::default();
+        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let mut arena = LayoutNodeArena::new();
+        let root = arena.allocate_for_test().slot;
+        let child = arena.allocate_for_test().slot;
+        let kept = arena.allocate_for_test().slot;
+        arena.attach_child(root, UnplacedLayoutNode::new(child), NodeSlotId::INVALID);
+        host_tables.attach_shell(child, object(8));
+        host_tables.attach_shell(kept, object(16));
+
+        arena
+            .free_subtree(root)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+        assert!(host_tables.shells.borrow().get(&child).is_none());
+        assert_eq!(
+            host_tables.shells.borrow().get(&kept).map(|shell| shell.as_ptr()),
+            Some(object(16))
+        );
+        arena
+            .free_subtree(kept)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+        assert_eq!(host_tables.shells.borrow().len(), 0);
     }
 
     #[test]

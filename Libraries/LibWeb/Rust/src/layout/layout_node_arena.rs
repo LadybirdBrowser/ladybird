@@ -460,8 +460,8 @@ pub(crate) enum OwedImageResources {
 
 #[must_use]
 pub(crate) struct FreedSubtree {
-    /// Each freed row, as it was named before it was freed, with its shell.
-    rows: Vec<(NodeSlotId, *mut c_void)>,
+    /// Each freed row, as it was named before it was freed.
+    rows: Vec<NodeSlotId>,
     paintable_row_resets: Vec<crate::painting::paintable_rows::PaintableRowReset>,
     arena_pinned_style_records: Vec<u64>,
     style_engine: *mut c_void,
@@ -491,7 +491,7 @@ impl BoundNode {
 
 impl FreedSubtree {
     #[cfg(test)]
-    pub(crate) fn shell_count(&self) -> usize {
+    pub(crate) fn row_count(&self) -> usize {
         self.rows.len()
     }
 
@@ -502,11 +502,14 @@ impl FreedSubtree {
 
     /// Destroys the freed rows' shells, then what the host holds for the rows by slot.
     pub(crate) fn destroy_shells_and_invoke_callbacks(self, main_thread: &crate::stage::MainThread) {
-        for &(_, shell) in &self.rows {
-            crate::layout::tree_mutation::destroy_shell(main_thread, shell);
-        }
         if let Some(host_tables) = main_thread.host_tables() {
-            for &(slot, _) in &self.rows {
+            for &slot in &self.rows {
+                let shell = host_tables.shells.borrow_mut().remove(&slot);
+                if let Some(shell) = shell {
+                    crate::layout::tree_mutation::destroy_shell(main_thread, shell.as_ptr());
+                }
+            }
+            for &slot in &self.rows {
                 let provider = host_tables.owned_image_providers.borrow_mut().remove(&slot);
                 if let Some(provider) = provider {
                     crate::layout::tree_mutation::destroy_owned_image_provider(main_thread, provider);
@@ -985,12 +988,7 @@ impl LayoutNodeArena {
             "layout node arena bound a shell to a dead slot"
         );
         let data = self.data(slot);
-        assert!(
-            data.shell.get().is_null(),
-            "layout node arena bound a second shell to a slot"
-        );
         data.kind.set(construction_facts.kind);
-        data.shell.set(construction_facts.shell);
         data.flags.set(super::node_facts::construction_flags(
             construction_facts.kind,
             construction_facts.is_anonymous,
@@ -1137,11 +1135,11 @@ impl LayoutNodeArena {
             self.needs_full_scrollable_overflow_recalculation.set(false);
         }
         let mut rows = Vec::new();
-        self.for_each_node_in_layout_subtree_in_pre_order(root, |slot| rows.push((slot, self.data(slot).shell.get())));
+        self.for_each_node_in_layout_subtree_in_pre_order(root, |slot| rows.push(slot));
 
         let mut paintable_row_resets = Vec::new();
         let mut arena_pinned_style_records = Vec::new();
-        for &(slot, _) in &rows {
+        for &slot in &rows {
             if self.style_record_pins[slot.slot_index() as usize].get() != ArenaStylePin::None {
                 arena_pinned_style_records.push(self.style_records[slot.slot_index() as usize].get());
             }
@@ -2573,23 +2571,30 @@ impl LayoutNodeArena {
     }
 
     fn notify_shell_of_style_change(&self, host_calls: HostCalls<'_>, slot: NodeSlotId, attach_resources: bool) {
-        let shell = self.data(slot).shell.get();
-        if !shell.is_null() {
-            host_calls.shell_style_changed(self, slot, shell, attach_resources);
-        }
+        host_calls.shell_style_changed(self, slot, attach_resources);
     }
 
+    /// Tells the layout node of the row in `slot` of its new style, if something made one.
     pub(crate) fn tell_shell_of_style_change(
         &self,
         main_thread: &MainThread,
         slot: NodeSlotId,
-        shell: *mut c_void,
         attach_resources: bool,
     ) {
-        let Some((context, shell_style_changed)) = main_thread
-            .host_tables()
-            .and_then(|host_tables| host_tables.shell_style_changed_host.get())
-        else {
+        let Some(host_tables) = main_thread.host_tables() else {
+            return;
+        };
+        let Some((context, shell_style_changed)) = host_tables.shell_style_changed_host.get() else {
+            return;
+        };
+        // A row owed its style resources gets its shell now: the shell is what loads them, and a
+        // shell made later by the factory would not attach them.
+        let shell = if attach_resources {
+            std::ptr::NonNull::new(self.node_shell(main_thread, slot))
+        } else {
+            host_tables.shells.borrow().get(&slot).copied()
+        };
+        let Some(shell) = shell else {
             return;
         };
         // SAFETY: The engine and shell remain live. Native style-store mutation has finished
@@ -2597,7 +2602,7 @@ impl LayoutNodeArena {
         unsafe {
             shell_style_changed(
                 context,
-                shell,
+                shell.as_ptr(),
                 self.node_style_record(slot),
                 self.data(slot).style.get().as_ptr().cast(),
                 attach_resources,
@@ -3074,41 +3079,6 @@ impl LayoutNodeArena {
         }
     }
 
-    fn materialize_shell(&self, main_thread: &MainThread, id: NodeSlotId) -> *mut c_void {
-        let Some(host_tables) = main_thread.host_tables() else {
-            return std::ptr::null_mut();
-        };
-        let Some((context, factory)) = host_tables.shell_factory.get() else {
-            return std::ptr::null_mut();
-        };
-        let data = self.data(id);
-        if data.kind.get() == NodeKind::Unset {
-            return std::ptr::null_mut();
-        }
-        host_tables.making_shell.set(true);
-        // SAFETY: Registration and unregistration keep the factory context live; the factory binds a
-        // shell to this live slot and writes nothing but the slot's shell cell.
-        unsafe { factory(context, id, data.kind.get()) };
-        host_tables.making_shell.set(false);
-        data.shell.get()
-    }
-
-    pub(crate) fn shell_count(&self) -> u32 {
-        let mut count = 0;
-        for (index, metadata) in self.slot_metadata.iter().enumerate() {
-            if metadata.occupied
-                && !self
-                    .data(NodeSlotId::new(index as u32, metadata.generation))
-                    .shell
-                    .get()
-                    .is_null()
-            {
-                count += 1;
-            }
-        }
-        count
-    }
-
     pub(crate) fn replace_arena_pinned_style_record(&self, slot: NodeSlotId, derived: DerivedStyleRecord) {
         self.assert_owner_thread();
         let previously_pinned =
@@ -3125,17 +3095,6 @@ impl LayoutNodeArena {
         if previously_pinned {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(previous_style_record));
         }
-    }
-
-    pub(crate) fn attach_shell(&self, slot: NodeSlotId, shell: *mut c_void) {
-        self.assert_owner_thread();
-        assert!(!shell.is_null());
-        let data = self.data(slot);
-        assert!(
-            data.shell.get().is_null(),
-            "layout node arena attached a second shell to a slot"
-        );
-        data.shell.set(shell);
     }
 
     pub(crate) fn replaced_paint_facts(
@@ -4894,12 +4853,16 @@ impl LayoutNodeArena {
             .collect()
     }
 
+    /// The layout node of the row `id`, made the first time something asks for it. Only the main
+    /// thread can ask: making one runs the host's shell factory.
     pub(crate) fn node_shell(&self, main_thread: &MainThread, id: NodeSlotId) -> *mut c_void {
-        let shell = self.data(id).shell.get();
-        if !shell.is_null() {
-            return shell;
+        let kind = self.data(id).kind.get();
+        if kind == NodeKind::Unset {
+            return std::ptr::null_mut();
         }
-        self.materialize_shell(main_thread, id)
+        main_thread.host_tables().map_or(std::ptr::null_mut(), |host_tables| {
+            host_tables.shell_of(super::host_tables::ShellFacts { id, kind })
+        })
     }
 
     pub(crate) fn dom_offset_for_rendered_text_offset(
@@ -4993,6 +4956,11 @@ pub unsafe extern "C" fn layout_arena_destroy(arena: *mut c_void) {
     // transferred back exactly once by the C++ RAII wrapper.
     let handle = unsafe { Box::from_raw(arena.cast::<super::ArenaHandle>()) };
     handle.arena().assert_owner_thread();
+    assert_eq!(
+        handle.host_tables().shells.borrow().len(),
+        0,
+        "layout node arena destroyed with layout nodes"
+    );
     assert_eq!(
         handle.arena().live_count,
         0,
@@ -5580,7 +5548,7 @@ pub unsafe extern "C" fn layout_arena_node_style_payloads(arena: *mut c_void, id
 pub unsafe extern "C" fn layout_arena_shell_count(arena: *mut c_void) -> u32 {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_count()
+    unsafe { super::HostTables::from_handle(arena) }.shells.borrow().len() as u32
 }
 
 #[unsafe(no_mangle)]
@@ -5630,7 +5598,9 @@ pub unsafe extern "C" fn layout_arena_clear_shell_factory(arena: *mut c_void) {
 pub unsafe extern "C" fn layout_arena_attach_shell(arena: *mut c_void, id: NodeSlotId, shell: *mut c_void) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.attach_shell(id, shell);
+    assert!(unsafe { LayoutNodeArena::from_handle(arena) }.slot_is_live(id));
+    // SAFETY: As above.
+    unsafe { super::HostTables::from_handle(arena) }.attach_shell(id, shell);
 }
 
 #[unsafe(no_mangle)]
@@ -5785,7 +5755,6 @@ mod tests {
     fn test_construction_facts_with_kind(kind: NodeKind) -> FfiNodeConstructionFacts {
         FfiNodeConstructionFacts {
             kind,
-            shell: std::ptr::null_mut(),
             is_anonymous: false,
             is_html_input_element: false,
             is_html_html_element: false,
@@ -6091,7 +6060,6 @@ mod tests {
         assert_eq!(arena.data(slot).kind.get(), NodeKind::Unset);
 
         let unbound_freed = arena.free_subtree(slot);
-        assert_eq!(unbound_freed.shell_count(), 1);
         unbound_freed.destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(!arena.slot_is_live(slot));
 
