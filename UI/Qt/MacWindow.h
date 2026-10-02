@@ -25,6 +25,8 @@ namespace Ladybird {
 // The CGDirectDisplayID of the screen the widget's window is on, or of the main screen while it has no window yet.
 Optional<u64> appkit_display_id_for_window(QWidget&);
 void hide_appkit_window_title(QWidget&);
+void make_appkit_window_resizable(QWidget&);
+void keep_appkit_window_visible_while_inactive(QWidget&);
 void offset_appkit_window_controls(QWidget&, int x_offset, int y_offset);
 void install_appkit_event_capture();
 void make_appkit_window_first_responder(QWidget&);

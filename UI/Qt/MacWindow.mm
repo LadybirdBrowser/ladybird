@@ -338,6 +338,22 @@ void hide_appkit_window_title(QWidget& widget)
     window.titleVisibility = NSWindowTitleHidden;
 }
 
+void make_appkit_window_resizable(QWidget& widget)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view || !view.window)
+        return;
+    view.window.styleMask |= NSWindowStyleMaskResizable;
+}
+
+void keep_appkit_window_visible_while_inactive(QWidget& widget)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view || !view.window)
+        return;
+    view.window.hidesOnDeactivate = NO;
+}
+
 void offset_appkit_window_controls(QWidget& widget, int x_offset, int y_offset)
 {
     auto* view = reinterpret_cast<NSView*>(widget.winId());

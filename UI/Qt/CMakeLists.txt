@@ -43,6 +43,7 @@ target_sources(ladybird PRIVATE
     NativeWindowContainer.cpp
     ProcessManagerWindow.cpp
     PerformanceMonitorWidget.cpp
+    PictureInPictureWindow.cpp
     Popover.cpp
     SelectDropdown.cpp
     Settings.cpp

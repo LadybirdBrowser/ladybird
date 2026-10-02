@@ -84,6 +84,7 @@ struct WebContentViewInitialState {
     WebView::IsPrivate is_private { WebView::IsPrivate::No };
     double maximum_frames_per_second { 60.0 };
     Optional<u64> display_id;
+    WebView::ViewImplementation const* owner_view { nullptr };
 };
 
 class WebContentView final
@@ -135,6 +136,7 @@ public:
     void prepare_for_window_move();
     void finish_window_move();
     void close_select_dropdown_after_crash();
+    void cancel_mouse_press();
     void review_hidden_crash_report(ByteString const& report_name);
 
     enum class PaletteMode {

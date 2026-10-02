@@ -164,6 +164,8 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
                 this);
     });
 
+    if (initial_state.owner_view)
+        set_owner_view(*initial_state.owner_view);
     initialize_tab(Web::HTML::VisibilityState::Hidden, traversable);
 
     m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
@@ -797,6 +799,12 @@ void WebContentView::handle_pointer_leave()
 
     static QMouseEvent mouse_event { QEvent::Type::Leave, {}, {}, Qt::MouseButton::NoButton, Qt::MouseButton::NoButton, Qt::KeyboardModifier::NoModifier };
     enqueue_native_event(Web::MouseEvent::Type::MouseLeave, mouse_event);
+}
+
+void WebContentView::cancel_mouse_press()
+{
+    static QMouseEvent mouse_event { QEvent::Type::MouseButtonRelease, {}, {}, Qt::MouseButton::NoButton, Qt::MouseButton::NoButton, Qt::KeyboardModifier::NoModifier };
+    enqueue_native_event(Web::MouseEvent::Type::MouseCancel, mouse_event);
 }
 
 void WebContentView::mouseMoveEvent(QMouseEvent* event)

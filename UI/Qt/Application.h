@@ -114,6 +114,9 @@ private:
     virtual Optional<String> system_font_family() const override;
 #endif
 
+    virtual bool supports_picture_in_picture() const override { return true; }
+    virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable&, Gfx::IntSize video_size) override;
+
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
     virtual Vector<WebView::ViewImplementation&> active_window_web_views() const override;
     virtual bool activate_tab_with_url(URL::URL const&) const override;
