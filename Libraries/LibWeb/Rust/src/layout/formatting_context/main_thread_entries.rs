@@ -45,30 +45,3 @@ pub unsafe extern "C" fn layout_arena_run_root_layout(
         );
     }
 }
-
-/// # Safety
-///
-/// `arena` must be a live handle with a registered layout host, used on the document thread, and
-/// `root` must be a live partial relayout boundary.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_compute_subtree_layout(
-    arena: *mut c_void,
-    root: NodeSlotId,
-    viewport_inline_size_raw: i32,
-    viewport_block_size_raw: i32,
-    document_in_quirks_mode: bool,
-) {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: Guaranteed by the entry point's contract.
-    unsafe {
-        compute_subtree_layout(
-            &main_thread,
-            arena,
-            root,
-            viewport_inline_size_raw,
-            viewport_block_size_raw,
-            document_in_quirks_mode,
-        );
-    }
-}

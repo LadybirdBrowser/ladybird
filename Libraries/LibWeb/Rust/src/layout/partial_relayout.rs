@@ -21,6 +21,25 @@ pub struct FfiLayoutTreeUpdateClassification {
     pub escalation_target_style_node: u32,
 }
 
+/// A partial relayout boundary the planner found its committed layout stands for, with the containing block that layout
+/// was laid out in, which the tree as built still gives the box. Only the planner makes one, so the relayout of a
+/// boundary starts from the tree, never from a containing block its commit stored that the tree has dropped since.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PlannedBoundary {
+    root: NodeSlotId,
+    containing_block: NodeSlotId,
+}
+
+impl PlannedBoundary {
+    pub(crate) fn root(self) -> NodeSlotId {
+        self.root
+    }
+
+    pub(crate) fn containing_block(self) -> NodeSlotId {
+        self.containing_block
+    }
+}
+
 impl LayoutNodeArena {
     /// Classifies how a layout tree update on this node reaches layout: a detached node
     /// escapes partial relayout; a structural self-rebuild on a partial relayout boundary
@@ -202,7 +221,7 @@ impl LayoutNodeArena {
         &self,
         root: NodeSlotId,
         registered_root_slots: &[NodeSlotId],
-    ) -> Option<Vec<NodeSlotId>> {
+    ) -> Option<Vec<PlannedBoundary>> {
         let (rebuilt_subtree_root_slots, layout_tree_update_escaped_rebuild_roots) =
             self.take_pending_rebuilt_subtree_roots();
         self.plan_partial_relayout(
@@ -240,7 +259,7 @@ impl LayoutNodeArena {
         registered_root_slots: &[NodeSlotId],
         rebuilt_subtree_root_slots: &[NodeSlotId],
         layout_tree_update_escaped_rebuild_roots: bool,
-    ) -> Option<Vec<NodeSlotId>> {
+    ) -> Option<Vec<PlannedBoundary>> {
         let pending_updates_escaped =
             self.pending_updates_escape_partial_relayout.replace(false) || layout_tree_update_escaped_rebuild_roots;
         if pending_updates_escaped {
@@ -298,9 +317,9 @@ impl LayoutNodeArena {
         &self,
         registered_root_slots: &[NodeSlotId],
         rebuilt_subtree_root_slots: &[NodeSlotId],
-    ) -> Option<Vec<NodeSlotId>> {
+    ) -> Option<Vec<PlannedBoundary>> {
         let mut collected_boundaries: crate::css::style::fast_hash::FastSet<NodeSlotId> = Default::default();
-        let mut partial_relayout_roots: Vec<NodeSlotId> = Vec::new();
+        let mut partial_relayout_roots: Vec<PlannedBoundary> = Vec::new();
         let mut collect_boundary = |boundary: NodeSlotId, boundary_box_was_replaced: bool| -> bool {
             if !collected_boundaries.insert(boundary) {
                 return true;
@@ -320,7 +339,13 @@ impl LayoutNodeArena {
                 return false;
             }
 
-            partial_relayout_roots.push(boundary);
+            let Some(containing_block) = self.containing_block_the_commit_stands_in(boundary) else {
+                return false;
+            };
+            partial_relayout_roots.push(PlannedBoundary {
+                root: boundary,
+                containing_block,
+            });
             true
         };
 
@@ -353,8 +378,8 @@ impl LayoutNodeArena {
         }
 
         // A root nested inside another root is relaid out as part of the ancestor's subtree.
-        partial_relayout_roots.retain(|&root| {
-            let mut ancestor = self.data(root).parent.get();
+        partial_relayout_roots.retain(|boundary| {
+            let mut ancestor = self.data(boundary.root).parent.get();
             while !ancestor.is_invalid() {
                 if collected_boundaries.contains(&ancestor) {
                     return false;
@@ -367,11 +392,24 @@ impl LayoutNodeArena {
         if partial_relayout_roots.is_empty()
             || partial_relayout_roots
                 .iter()
-                .any(|&root| self.subtree_may_affect_anchor_positioning(root, true))
+                .any(|boundary| self.subtree_may_affect_anchor_positioning(boundary.root, true))
         {
             return None;
         }
         Some(partial_relayout_roots)
+    }
+
+    /// The containing block the committed layout of the boundary `node` was laid out in, where the tree as built still
+    /// gives the box that containing block. A box the build freed, replaced, or put another containing block in place
+    /// of leaves the commit nothing to relay out from: the slot the commit names may hold a box of a later tree.
+    fn containing_block_the_commit_stands_in(&self, node: NodeSlotId) -> Option<NodeSlotId> {
+        let data = self.data(node);
+        let committed = if node_facts::node_style_view(data).is_some_and(|style| style.is_absolutely_positioned()) {
+            self.saved_abspos_layout_inputs(data)?.containing_block
+        } else {
+            self.with_committed_fragment_link_during_layout(node, |link| link.map(|link| link.containing_block))?
+        };
+        (!committed.is_invalid() && committed == self.containing_block_by_walking_ancestors(node)).then_some(committed)
     }
 
     pub(crate) fn node_can_replay_saved_abspos_layout_inputs_after_style_change(&self, node: NodeSlotId) -> bool {
@@ -958,6 +996,41 @@ mod tests {
         let stale_slot = freed.slot;
         free_node(&mut arena, &freed);
         assert_eq!(arena.collect_partial_relayout_roots(&[stale_slot], &[]), None);
+    }
+
+    // An in-flow SVG root relays out alone from the containing block its commit placed it in. Where the commit names a
+    // box the tree freed, whose slot the box the root sits in now took over, it names a box of an earlier tree: the
+    // relayout would lay the root out in it, and every walk that reached the root would find it.
+    #[test]
+    fn a_boundary_relays_out_only_from_a_committed_containing_block_the_tree_still_gives_it() {
+        let mut arena = LayoutNodeArena::new();
+        let freed = allocate_box_with_a_dummy_shell(&mut arena);
+        let earlier_tree_box = freed.slot;
+        free_node(&mut arena, &freed);
+        let parent = allocate_box_with_a_dummy_shell(&mut arena);
+        arena.write_shape(parent.slot).set_kind(NodeKind::BlockContainer);
+        assert_eq!(parent.slot.slot_index(), earlier_tree_box.slot_index());
+        assert_ne!(parent.slot, earlier_tree_box);
+        let svg_root = allocate_box_with_a_dummy_shell(&mut arena);
+        arena.write_shape(svg_root.slot).set_kind(NodeKind::SVGSVGBox);
+        arena.insert_child(parent.slot, svg_root.slot, NodeSlotId::INVALID);
+        arena.populate_paintable_row(svg_root.slot);
+        let plan_with_committed_containing_block = |arena: &LayoutNodeArena, containing_block| {
+            let mut link = crate::layout::fragment_tree::FragmentLink::for_test(svg_root.slot);
+            link.containing_block = containing_block;
+            arena.set_committed_fragment_link(arena.data(svg_root.slot), link, None);
+            arena.collect_partial_relayout_roots(&[svg_root.slot], &[])
+        };
+
+        assert_eq!(
+            plan_with_committed_containing_block(&arena, parent.slot),
+            Some(vec![super::PlannedBoundary {
+                root: svg_root.slot,
+                containing_block: parent.slot,
+            }])
+        );
+        assert_eq!(plan_with_committed_containing_block(&arena, earlier_tree_box), None);
+        free_node(&mut arena, &parent);
     }
 
     #[test]
