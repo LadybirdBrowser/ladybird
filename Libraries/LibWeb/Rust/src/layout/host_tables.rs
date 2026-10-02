@@ -30,7 +30,7 @@ pub(crate) struct HostTables {
     pub(super) shell_factory: Cell<Option<ShellFactory>>,
     pub(super) shell_style_changed_host: Cell<Option<ShellStyleChangedHost>>,
     pub(crate) chrome_state_callback: Cell<Option<ChromeStateCallback>>,
-    /// What the overflow pass asks the document once it has measured a box holding a scroll offset.
+    /// What the overflow pass tells the document once it has settled a box's scroll offset.
     pub(crate) geometry_host: Cell<Option<FfiGeometryHostCallbacks>>,
     /// How the host names a node a layout trace mentions, set when tracing begins.
     pub(super) layout_trace_describe_node: Cell<Option<DescribeNode>>,

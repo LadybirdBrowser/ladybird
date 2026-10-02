@@ -32,26 +32,33 @@ impl Default for RootBackgroundSource {
     }
 }
 
-/// What geometry asks the document. The fields are private, so the callbacks are reached only
+/// What geometry tells the document. The fields are private, so the callbacks are reached only
 /// through the methods below, which take the main thread token.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiGeometryHostCallbacks {
     context: *mut std::ffi::c_void,
-    clamp_scroll_offset_if_nonzero: unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void),
+    set_scroll_offset: unsafe extern "C" fn(
+        *mut std::ffi::c_void,
+        *mut std::ffi::c_void,
+        crate::layout::used_values::FfiCssPixelPoint,
+    ),
 }
 
 impl FfiGeometryHostCallbacks {
+    /// Stores a scroll offset the overflow pass settled on, after the pass.
+    ///
     /// # Safety
     ///
-    /// `layout_node_shell` must be live. The host re-enters geometry queries to clamp the offset,
-    /// so no mutable arena or cache borrow may be held across this call.
-    pub(crate) unsafe fn clamp_scroll_offset_if_nonzero(
+    /// `layout_node_shell` must be live. The host re-enters geometry queries and writes the store
+    /// the offset lives in, so no mutable arena or cache borrow may be held across this call.
+    pub(crate) unsafe fn set_scroll_offset(
         &self,
         _: &crate::stage::MainThread,
         layout_node_shell: *mut std::ffi::c_void,
+        offset: crate::layout::used_values::FfiCssPixelPoint,
     ) {
         // SAFETY: Guaranteed by the caller.
-        unsafe { (self.clamp_scroll_offset_if_nonzero)(self.context, layout_node_shell) };
+        unsafe { (self.set_scroll_offset)(self.context, layout_node_shell, offset) };
     }
 }

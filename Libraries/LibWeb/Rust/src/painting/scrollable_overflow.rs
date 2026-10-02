@@ -5,7 +5,7 @@
  */
 
 use crate::css::css_enums::{flex_direction, flex_wrap, overflow, positioning, writing_mode};
-use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
@@ -870,18 +870,41 @@ pub(crate) fn update_scrollable_overflow(main_thread: &crate::stage::MainThread,
             }
         }
     }
+    // The new overflow can leave a stored scroll offset outside the range the box now allows. The
+    // pass has the measurement, so it decides the offset itself, and tells the document what to
+    // store once every root is measured rather than handing each box back to be clamped.
+    let mut clamped = Vec::new();
     for slot in roots {
         arena.ensure_scrollable_overflow(slot);
-        if let Some(host) = main_thread
-            .host_tables()
-            .and_then(|host_tables| host_tables.geometry_host.get())
-        {
-            let shell = arena.shell_if_live(main_thread, slot);
-            if !shell.is_null() {
-                // SAFETY: The registered host receives a live shell. No mutable arena or
-                // cache borrow is held while it re-enters geometry queries to clamp the offset.
-                unsafe { host.clamp_scroll_offset_if_nonzero(main_thread, shell) };
-            }
+        let offset = arena.row_scroll_offset(slot);
+        if offset == CssPixelPoint::default() {
+            continue;
+        }
+        let Some((minimum, maximum)) =
+            crate::painting::chrome_geometry::scroll_offset_bounds(&arena.paintable_rows(), slot)
+        else {
+            continue;
+        };
+        let offset_in_range = CssPixelPoint::new(
+            offset.x.clamp(minimum.x, maximum.x),
+            offset.y.clamp(minimum.y, maximum.y),
+        );
+        if offset_in_range != offset {
+            clamped.push((slot, offset_in_range));
+        }
+    }
+    let Some(host) = main_thread
+        .host_tables()
+        .and_then(|host_tables| host_tables.geometry_host.get())
+    else {
+        return;
+    };
+    for (slot, offset) in clamped {
+        let shell = arena.shell_if_live(main_thread, slot);
+        if !shell.is_null() {
+            // SAFETY: The registered host receives a live shell. No mutable arena or cache borrow
+            // is held while it re-enters geometry queries to store the offset.
+            unsafe { host.set_scroll_offset(main_thread, shell, offset.into()) };
         }
     }
 }
