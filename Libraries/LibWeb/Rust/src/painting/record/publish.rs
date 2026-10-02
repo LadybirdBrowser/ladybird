@@ -77,7 +77,9 @@ pub(crate) fn publish_recording(
     for frame in image_frames.values() {
         publish.add_image_frame(main_thread, frame);
     }
-    for frame in arena.svg_paint_resources().published_filter_image_frames() {
+    for frame in
+        crate::painting::svg_paint_resources::published_filter_image_frames_in(&arena.svg_paint_resources().publish())
+    {
         publish.add_image_frame(main_thread, &frame);
     }
     for (resource_id, sink_handle) in video_sinks {

@@ -17,17 +17,32 @@ use crate::layout::SLOTS_PER_CHUNK;
 use crate::layout::fragment_tree::FragmentLink;
 use crate::layout::node_data::{NodeSlotId, PaintNode};
 use crate::layout::tree_shape::PUBLISHED_ROWS_PER_CHUNK;
+use crate::painting::layer_image_paint_facts::LayerImagePaintFactsTable;
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::paintable_rows::{CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK};
+use crate::painting::replaced_paint_facts::ReplacedPaintFactsTable;
 use crate::painting::stacking_context::entries::StackingContextEntries;
+use crate::painting::svg_paint_resources::SvgPaintResourceRows;
 use crate::painting::visual_context::{BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES};
 use std::sync::Arc;
+
+/// The document's text rows and its replaced, layer image and SVG paint resource tables, as they
+/// were when published.
+pub(crate) struct PublishedPaintFacts {
+    pub(crate) text: ColumnSnapshot<PublishedTextSlot, SLOTS_PER_CHUNK>,
+    pub(crate) replaced: Arc<ReplacedPaintFactsTable>,
+    pub(crate) layer_images: Arc<LayerImagePaintFactsTable>,
+    pub(crate) svg_paint_resources: Arc<SvgPaintResourceRows>,
+}
 
 /// One published generation of a document's layout tree shape and paintable rows, and of the
 /// columns read beside them.
 pub(crate) struct PublishedRows {
+    /// The epoch of the geometry the rows were published with, which the absolute rects a
+    /// recording computes from them are stamped with.
+    pub(super) geometry_epoch: u64,
     pub(super) nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
-    pub(super) text: ColumnSnapshot<PublishedTextSlot, SLOTS_PER_CHUNK>,
+    pub(super) paint_facts: PublishedPaintFacts,
     pub(super) rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(super) fragment_links: ColumnSnapshot<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(super) side_data: ColumnSnapshot<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
@@ -40,7 +55,8 @@ impl PublishedRows {
     /// What a live text row published.
     pub(crate) fn text(&self, id: NodeSlotId) -> Option<&PublishedTextSlot> {
         self.node(id)?;
-        self.text
+        self.paint_facts
+            .text
             .get(id.slot_index() as usize)
             .filter(|text| text.generation == id.generation())
     }
@@ -203,7 +219,7 @@ mod tests {
         let published = arena.publish_rows();
         let damage = arena.paint_damage_for_frame();
         let absolute_rects = RefCell::new(AbsoluteRectMemo::default());
-        let source = PaintSource::new(&arena, &published, &damage, &absolute_rects);
+        let source = PaintSource::new(&published, &damage, &absolute_rects);
         for &node in &slots {
             assert_eq!(source.slot_is_live(node), arena.slot_is_live(node));
             assert_eq!(source.node_kind_if_live(node), arena.node_kind_if_live(node));

@@ -71,6 +71,11 @@ impl ImagePaintFacts {
     }
 }
 
+/// Each replaced row's paint facts. A publication shares the table, so a write copies it only while
+/// a publication still holds it.
+pub(crate) type ReplacedPaintFactsTable =
+    crate::css::style::fast_hash::FastMap<crate::layout::node_data::NodeSlotId, ReplacedPaintFacts>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ReplacedPaintFacts {
     FormControl(FfiFormControlPaintFacts),

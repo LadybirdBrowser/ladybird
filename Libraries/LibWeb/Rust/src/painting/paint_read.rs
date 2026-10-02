@@ -21,7 +21,7 @@ use crate::layout::node_facts;
 use crate::layout::text_chunker::GraphemeSegmenter;
 use crate::layout::{RenderedText, RenderedTextBoundary, TextFragments};
 use crate::painting::host::FfiLayerImageList;
-use crate::painting::layer_image_paint_facts::LayerImagePaintFacts;
+use crate::painting::layer_image_paint_facts::{LayerImagePaintFacts, layer_image_paint_facts_in};
 use crate::painting::paint_order_plan::PaintOrderInputs;
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::published_frame::PublishedRows;
@@ -29,7 +29,9 @@ use crate::painting::record::damage::{FrameDamage, PaintDamage};
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
 use crate::painting::stacking_context::entries::StackingContextEntries;
-use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
+use crate::painting::svg_paint_resources::{
+    PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind, published_filter_in, published_paint_server_in,
+};
 use crate::painting::visual_context::BoxVisualContextNodeHandles;
 use std::cell::RefCell;
 use std::ops::Deref;
@@ -403,26 +405,21 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
 /// the geometry epoch the recording started at.
 #[derive(Clone, Copy)]
 pub(crate) struct PaintSource<'a> {
-    arena: &'a LayoutNodeArena,
     rows: &'a PublishedRows,
     damage: &'a FrameDamage,
     absolute_rects: &'a RefCell<AbsoluteRectMemo>,
-    geometry_epoch: u64,
 }
 
 impl<'a> PaintSource<'a> {
     pub(crate) fn new(
-        arena: &'a LayoutNodeArena,
         rows: &'a PublishedRows,
         damage: &'a FrameDamage,
         absolute_rects: &'a RefCell<AbsoluteRectMemo>,
     ) -> Self {
         Self {
-            arena,
             rows,
             damage,
             absolute_rects,
-            geometry_epoch: arena.absolute_rect_memo_epoch(),
         }
     }
 
@@ -478,11 +475,11 @@ impl GeometryRead for PaintSource<'_> {
     }
 
     fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
-        self.absolute_rects.borrow().get(id, self.geometry_epoch)
+        self.absolute_rects.borrow().get(id, self.rows.geometry_epoch)
     }
 
     fn memoize_absolute_rect(&self, id: NodeSlotId, rect: CssPixelRect) {
-        self.absolute_rects.borrow_mut().set(id, self.geometry_epoch, rect);
+        self.absolute_rects.borrow_mut().set(id, self.rows.geometry_epoch, rect);
     }
 }
 
@@ -589,7 +586,7 @@ impl PaintRead for PaintSource<'_> {
     }
 
     fn published_svg_filter(&self, slot: NodeSlotId, kind: SvgPaintResourceKind) -> Option<Arc<PublishedSvgFilter>> {
-        self.arena.svg_paint_resources().published_filter(slot, kind)
+        published_filter_in(&self.rows.paint_facts.svg_paint_resources, slot, kind)
     }
 
     fn published_svg_paint_server(
@@ -597,11 +594,11 @@ impl PaintRead for PaintSource<'_> {
         slot: NodeSlotId,
         kind: SvgPaintResourceKind,
     ) -> Option<Arc<PublishedSvgPaintServer>> {
-        self.arena.svg_paint_resources().published_paint_server(slot, kind)
+        published_paint_server_in(&self.rows.paint_facts.svg_paint_resources, slot, kind)
     }
 
     fn replaced_paint_facts(&self, id: NodeSlotId) -> Option<ReplacedPaintFacts> {
-        self.arena.replaced_paint_facts(id)
+        self.rows.paint_facts.replaced.get(&id).cloned()
     }
 
     fn layer_image_paint_facts(
@@ -610,6 +607,6 @@ impl PaintRead for PaintSource<'_> {
         list: FfiLayerImageList,
         computed_index: u32,
     ) -> Option<LayerImagePaintFacts> {
-        self.arena.layer_image_paint_facts(id, list, computed_index)
+        layer_image_paint_facts_in(&self.rows.paint_facts.layer_images, id, list, computed_index)
     }
 }

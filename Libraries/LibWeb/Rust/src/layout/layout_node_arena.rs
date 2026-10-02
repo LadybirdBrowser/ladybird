@@ -14,7 +14,7 @@ use super::tree_builder::FfiLayoutTreeBuildOutcome;
 use super::tree_shape::{Chunk, PUBLISHED_ROWS_PER_CHUNK, ShapeWriter, TreeShape};
 use super::update_layout::FfiLayoutTreeBuildStats;
 use super::used_values::SizeConstraint;
-use crate::cow_column::{ColumnSnapshot, CowColumn};
+use crate::cow_column::CowColumn;
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
@@ -38,6 +38,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 use std::thread;
 
 mod main_thread_entries;
@@ -1006,9 +1007,8 @@ pub(crate) struct LayoutNodeArena {
     pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: RefCell<HashMap<NodeSlotId, u32>>,
-    replaced_paint_facts: RefCell<HashMap<NodeSlotId, crate::painting::replaced_paint_facts::ReplacedPaintFacts>>,
-    layer_image_paint_facts:
-        RefCell<HashMap<NodeSlotId, Vec<crate::painting::layer_image_paint_facts::LayerImagePaintFactsEntry>>>,
+    replaced_paint_facts: RefCell<Arc<crate::painting::replaced_paint_facts::ReplacedPaintFactsTable>>,
+    layer_image_paint_facts: RefCell<Arc<crate::painting::layer_image_paint_facts::LayerImagePaintFactsTable>>,
     svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources,
     /// The rows built for one DOM node, chained into a ring through the rows themselves; a row that
     /// is the only one built for its node links to nothing. The chain lives on the rows rather than
@@ -1133,8 +1133,8 @@ impl LayoutNodeArena {
             searchable_text: None,
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: RefCell::default(),
-            replaced_paint_facts: RefCell::new(HashMap::default()),
-            layer_image_paint_facts: RefCell::new(HashMap::default()),
+            replaced_paint_facts: RefCell::default(),
+            layer_image_paint_facts: RefCell::default(),
             svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
             next_rows_built_for_same_node: Vec::new(),
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
@@ -1489,8 +1489,12 @@ impl LayoutNodeArena {
         self.fc_run_cache_store.remove_entry(index);
         self.remove_layout_update_flag_node(id);
         self.raw_table_column_spans.get_mut().remove(&id);
-        self.replaced_paint_facts.get_mut().remove(&id);
-        self.layer_image_paint_facts.get_mut().remove(&id);
+        if self.replaced_paint_facts.get_mut().contains_key(&id) {
+            Arc::make_mut(self.replaced_paint_facts.get_mut()).remove(&id);
+        }
+        if self.layer_image_paint_facts.get_mut().contains_key(&id) {
+            Arc::make_mut(self.layer_image_paint_facts.get_mut()).remove(&id);
+        }
         self.svg_paint_resources.forget_slot(id);
         self.paint_state.get_mut().selection_pseudo_styles.remove(&id);
         let data = self.data_mut(index);
@@ -3377,12 +3381,12 @@ impl LayoutNodeArena {
         list: crate::painting::host::FfiLayerImageList,
         computed_index: u32,
     ) -> Option<crate::painting::layer_image_paint_facts::LayerImagePaintFacts> {
-        let table = self.layer_image_paint_facts.borrow();
-        let entries = table.get(&id)?;
-        entries
-            .iter()
-            .find(|entry| entry.list == list && entry.computed_index == computed_index)
-            .map(|entry| entry.facts.clone())
+        crate::painting::layer_image_paint_facts::layer_image_paint_facts_in(
+            &self.layer_image_paint_facts.borrow(),
+            id,
+            list,
+            computed_index,
+        )
     }
 
     pub(crate) fn set_layer_image_paint_facts(
@@ -3396,11 +3400,14 @@ impl LayoutNodeArena {
         }
         let mut table = self.layer_image_paint_facts.borrow_mut();
         let changed = if entries.is_empty() {
-            table.remove(&id).is_some_and(|previous| !previous.is_empty())
+            table.contains_key(&id)
+                && Arc::make_mut(&mut table)
+                    .remove(&id)
+                    .is_some_and(|previous| !previous.is_empty())
         } else if table.get(&id) == Some(&entries) {
             false
         } else {
-            table.insert(id, entries);
+            Arc::make_mut(&mut table).insert(id, entries);
             true
         };
         drop(table);
@@ -3429,12 +3436,23 @@ impl LayoutNodeArena {
             if table.get(&row) == Some(&facts) {
                 continue;
             }
-            table.insert(row, facts.clone());
+            Arc::make_mut(&mut table).insert(row, facts.clone());
             drop(table);
             any_changed = true;
             self.push_paint_damage_for_repaint(row, crate::painting::record::damage::PaintDamage::DRAW_FOREGROUND);
         }
         any_changed
+    }
+
+    /// The text rows and the replaced, layer image and SVG paint resource tables as they are now,
+    /// for a recording to read. Each is shared until the arena next writes it.
+    pub(crate) fn publish_paint_facts(&mut self) -> crate::painting::published_frame::PublishedPaintFacts {
+        crate::painting::published_frame::PublishedPaintFacts {
+            text: self.text_slots.published.publish(),
+            replaced: self.replaced_paint_facts.borrow().clone(),
+            layer_images: self.layer_image_paint_facts.borrow().clone(),
+            svg_paint_resources: self.svg_paint_resources.publish(),
+        }
     }
 
     pub(crate) fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool {
@@ -4143,11 +4161,6 @@ impl LayoutNodeArena {
         self.assert_owner_thread();
         self.data(id);
         self.text_slots.state_mut(id)
-    }
-
-    /// The text rows as they are now, for a recording to read.
-    pub(crate) fn publish_text(&mut self) -> ColumnSnapshot<PublishedTextSlot, SLOTS_PER_CHUNK> {
-        self.text_slots.published.publish()
     }
 
     fn text_node_state(&self, id: NodeSlotId) -> Option<&TextNodeState> {
