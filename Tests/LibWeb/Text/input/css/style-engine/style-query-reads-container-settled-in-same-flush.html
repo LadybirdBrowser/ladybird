@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container { --theme: light; }
+    #container.dark { --theme: dark; }
+    #target { color: rgb(255, 0, 0); }
+    #target.wide { width: 10px; }
+    @container style(--theme: dark) {
+        #target { color: rgb(0, 128, 0); }
+    }
+</style>
+<div id="container"><div id="target"></div></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        // The container's record and the target's winners move in one flush: the target's query
+        // reads the record the flush settled for the container, not the one it held before.
+        for (const step of [1, 2, 3]) {
+            container.classList.toggle("dark");
+            target.classList.toggle("wide");
+            internals.updateStyle();
+            println(`step ${step}: ${getComputedStyle(target).color}`);
+        }
+    });
+</script>
