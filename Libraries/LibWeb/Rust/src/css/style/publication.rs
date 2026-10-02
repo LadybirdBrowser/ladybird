@@ -710,10 +710,7 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         };
         let composes_animations = underlying_style_record != old_style_record;
-        // The custom properties an element's animations sample are what its own `var()` references
-        // read, which a record derived from the environment beneath them would miss.
-        let samples_custom_properties = self.element_samples_custom_properties(node);
-        if (composes_animations && !scratch.host_applies_animation_plans) || samples_custom_properties {
+        if composes_animations && !scratch.host_applies_animation_plans {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }

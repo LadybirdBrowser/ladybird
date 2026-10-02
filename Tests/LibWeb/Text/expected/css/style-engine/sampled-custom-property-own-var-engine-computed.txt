@@ -1,0 +1,2 @@
+C++ recomputations: 0
+width 30px, z-index 2, color rgb(0, 128, 0)
