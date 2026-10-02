@@ -970,6 +970,11 @@ impl RetainedState {
         self.tree.set_assigned_nodes(slot, nodes, &mut self.memory);
     }
 
+    /// Replace the document's top layer, in the order its members were added.
+    pub fn set_top_layer_elements(&mut self, members: &[StyleNodeID]) {
+        self.tree.set_top_layer(members, &mut self.memory);
+    }
+
     /// Retire text identities as their nodes disconnect.
     pub fn retire_text_style_nodes(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>) {
         self.tree.retire_texts(nodes, &mut self.memory);

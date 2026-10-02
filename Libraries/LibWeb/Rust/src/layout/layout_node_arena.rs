@@ -2388,6 +2388,12 @@ impl LayoutNodeArena {
         self.with_style_store(|engine| engine.tree().assigned_nodes_of(style_node)[index])
     }
 
+    /// The document's top layer member at `index`, in the order the members were added, or nothing
+    /// past the last one.
+    pub(crate) fn top_layer_element(&self, index: usize) -> Option<StyleNodeID> {
+        self.with_style_store(|engine| engine.tree().top_layer().get(index).copied())
+    }
+
     /// Whether a style engine hosts this arena's records; a layout test's arena has none.
     pub(crate) fn has_style_engine(&self) -> bool {
         !self.style_engine.get().is_null()

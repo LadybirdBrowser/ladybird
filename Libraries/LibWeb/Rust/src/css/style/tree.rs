@@ -683,6 +683,9 @@ pub struct StyleNodeTree {
     /// context's column handling reads. Every other element spans one of each, which is what the
     /// absence of an entry means.
     table_spans: HashMap<StyleNodeID, TableSpans>,
+    /// The document's top layer, in the order its members were added. The order is the order their
+    /// boxes are built in and belongs to the document, so no per-element fact can carry it.
+    top_layer: Vec<StyleNodeID>,
 
     capacity_bytes: u64,
 
@@ -731,6 +734,7 @@ impl StyleNodeTree {
             dom_paint_facts: HashMap::default(),
             unique_node_ids: Vec::new(),
             table_spans: HashMap::default(),
+            top_layer: Vec::new(),
             capacity_bytes: 0,
             #[cfg(test)]
             depth_recompute_visits: 0,
@@ -872,6 +876,7 @@ impl StyleNodeTree {
                 *unique_node_id = 0;
             }
             self.table_spans.remove(&node);
+            self.top_layer.retain(|&member| member != node);
             if !self.relation_only.set(index as usize, false).0 {
                 self.connected_element_count -= 1;
             }
@@ -1084,6 +1089,20 @@ impl StyleNodeTree {
         } else {
             self.dom_paint_facts.insert(node, facts);
         }
+        let current = self.identity_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
+    }
+
+    /// The document's top layer, in the order its members were added.
+    #[must_use]
+    pub fn top_layer(&self) -> &[StyleNodeID] {
+        &self.top_layer
+    }
+
+    /// Replace the document's top layer.
+    pub fn set_top_layer(&mut self, members: &[StyleNodeID], memory: &mut MemoryController) {
+        let before = self.identity_capacity_bytes();
+        members.clone_into(&mut self.top_layer);
         let current = self.identity_capacity_bytes();
         self.record_capacity_change(memory, before, current);
     }
@@ -1908,6 +1927,7 @@ impl StyleNodeTree {
                 self.dom_paint_facts,
                 self.unique_node_ids,
                 self.table_spans,
+                self.top_layer,
             ];
             cached [];
             nested [
@@ -2463,6 +2483,26 @@ mod tests {
         fixture.tree.release_retired_identities(&mut fixture.memory);
         assert_eq!(fixture.tree.allocate_element(&mut fixture.memory), element);
         assert_eq!(fixture.tree.table_spans(element), TableSpans::default());
+    }
+
+    #[test]
+    fn a_retired_identity_leaves_the_top_layer_in_order() {
+        let mut fixture = TreeFixture::new();
+        let first = fixture.element();
+        let second = fixture.element();
+        let third = fixture.element();
+        fixture.tree.set_top_layer(&[third, first, second], &mut fixture.memory);
+        assert_eq!(fixture.tree.top_layer(), [third, first, second]);
+
+        fixture.tree.retire_element(first, &mut fixture.memory);
+        assert_eq!(fixture.tree.top_layer(), [third, second]);
+        fixture.tree.release_retired_identities(&mut fixture.memory);
+        assert_eq!(fixture.tree.allocate_element(&mut fixture.memory), first);
+        assert_eq!(fixture.tree.top_layer(), [third, second]);
+        assert_eq!(
+            fixture.memory.bytes_in_category(MemoryCategory::RelationColumns),
+            fixture.tree.capacity_bytes()
+        );
     }
 
     #[test]

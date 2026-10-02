@@ -82,6 +82,10 @@ WEB_API void record_element_assigned_slot_changed(DOM::Element&, DOM::Element* o
 // arrival republishes the list it is now a member of.
 WEB_API void record_slot_assignment_changed(HTML::HTMLSlotElement&);
 
+// The document's top layer, published whole whenever its list changes: the order is the order the
+// members' boxes are built in, and no per-element fact can carry it.
+WEB_API void record_top_layer_changed(DOM::Document&);
+
 // Called once every element of a shadow tree has recorded its own removal, so nothing still names
 // the root as a parent. A shadow root's identity follows its host's lifetime: keeping it across a
 // move to another document would name an identity that document's engine never minted.
