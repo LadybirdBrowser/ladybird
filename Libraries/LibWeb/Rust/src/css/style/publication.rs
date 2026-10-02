@@ -13,6 +13,7 @@ mod winner_store;
 
 use winner_store::{WinnerDeclaration, WinnerStore, WinnerValue, shorthand_longhand_data};
 
+use super::container_queries::VerdictTargets;
 use super::*;
 use crate::css::computed_longhand_table::{
     ComputedLonghandTable, DEPENDS_ON_VIEWPORT_METRICS, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS,
@@ -472,7 +473,7 @@ impl RetainedState {
             if scratch.winner_republication().is_none_or(|republication| {
                 self.republish_pseudo_winners_from_retained_answer(node, republication, counters)
                     .is_none()
-            }) || !self.container_verdicts_stand(node)
+            }) || !self.container_verdicts_stand(node, VerdictTargets::ElementAndPseudoElements)
             {
                 counters.bump(Counter::EngineComputedRecordBailIncompleteWinners);
                 self.abandon_engine_computed_record(node, scratch, counters);
@@ -610,7 +611,8 @@ impl RetainedState {
                 cascade_winners_are_complete = complete;
             }
             // A container the host styles in this update decides the verdicts once it is installed.
-            if !self.container_verdicts_stand(node) {
+            // Those of the pseudo-elements are decided over the element's record, once it is settled.
+            if !self.container_verdicts_stand(node, VerdictTargets::Element) {
                 counters.bump(Counter::EngineComputedRecordBailRecordParent);
                 return Err(Unanswered::AwaitsParent);
             }

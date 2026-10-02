@@ -1233,7 +1233,7 @@ impl RetainedState {
             !republished || self.pseudo_winners_are_complete(node),
             "winners published on their own hold the node's gated rules"
         );
-        republished && self.container_verdicts_stand(node)
+        republished && self.container_verdicts_stand(node, VerdictTargets::ElementAndPseudoElements)
     }
 
     /// Put back every pseudo-element record settled for `node` that the host has not taken. The

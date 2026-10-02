@@ -126,6 +126,14 @@ fn conditions_ask_container_style(
     })
 }
 
+/// Which of a node's container verdicts a check covers. The verdicts of its pseudo-elements ask
+/// about the element's own record first, so they are decided once that record is settled.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum VerdictTargets {
+    Element,
+    ElementAndPseudoElements,
+}
+
 impl RetainedState {
     /// What lengths resolve against as a record computes them, as the host takes them from an
     /// element's computed style: the record's font metrics and writing mode, the root's font
@@ -760,12 +768,15 @@ impl RetainedState {
     /// over its containers as its settled ancestors left them. What the evaluations read of the
     /// containers is kept for the host, which records it with the node's record. An undecided one
     /// never stands: the winners hold the rule nowhere, which may not be where it holds.
-    pub(super) fn container_verdicts_stand(&mut self, node: StyleNodeID) -> bool {
+    pub(super) fn container_verdicts_stand(&mut self, node: StyleNodeID, targets: VerdictTargets) -> bool {
         let Some(published) = self.published_container_verdicts.get(&node) else {
             return true;
         };
         let mut verdicts = Vec::with_capacity(published.len());
         for published in published {
+            if published.pseudo && targets == VerdictTargets::Element {
+                continue;
+            }
             match self.rule_container_verdict(published.rule, node, published.pseudo) {
                 Some(verdict) if published.held == Some(verdict.matches) => verdicts.push(verdict),
                 _ => return false,
