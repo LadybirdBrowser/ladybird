@@ -677,22 +677,28 @@ Layout::NodeArena& Document::layout_node_arena()
         Layout::RustFFI::layout_arena_set_shell_factory(m_layout_node_arena->handle(), this, [](void* context, Compositing::RustFFI::NodeSlotId slot, Layout::RustFFI::NodeKind kind) {
             auto& document = *static_cast<Document*>(context);
             switch (kind) {
-            case Layout::RustFFI::NodeKind::BlockContainer:
-            case Layout::RustFFI::NodeKind::TableWrapper:
-            case Layout::RustFFI::NodeKind::Box:
-                Layout::allocate_layout_node<Layout::Box>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
-                return;
             case Layout::RustFFI::NodeKind::InlineNode:
-                Layout::allocate_layout_node<Layout::NodeWithStyle>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind).attach_style_resources();
+            case Layout::RustFFI::NodeKind::BreakNode: {
+                auto& node = Layout::allocate_layout_node<Layout::NodeWithStyle>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
+                // The build attaches the style resources of the boxes it builds for elements.
+                if (node.is_anonymous())
+                    node.attach_style_resources();
                 return;
+            }
             case Layout::RustFFI::NodeKind::TextNode:
                 Layout::allocate_layout_node<Layout::TextNode>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
                 return;
             case Layout::RustFFI::NodeKind::Viewport:
                 Layout::allocate_layout_node<Layout::Viewport>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
                 return;
-            default:
+            case Layout::RustFFI::NodeKind::Unset:
+            case Layout::RustFFI::NodeKind::GeneratedTextNode:
+            case Layout::RustFFI::NodeKind::Node:
+            case Layout::RustFFI::NodeKind::NodeWithStyle:
                 VERIFY_NOT_REACHED();
+            default:
+                Layout::allocate_layout_node<Layout::Box>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
+                return;
             }
         });
         Layout::RustFFI::layout_arena_set_chrome_state_callback(

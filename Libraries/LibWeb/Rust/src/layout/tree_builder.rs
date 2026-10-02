@@ -9,7 +9,7 @@ use super::*;
 use crate::abort_on_panic;
 use crate::css::css_enums::{content_visibility, float, positioning, white_space_collapse};
 use crate::css::style::StyleEngine;
-use crate::css::style::bridge::element_adjustment_fact;
+use crate::css::style::bridge::{ElementBoxKind, element_adjustment_fact};
 use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::layout_node_arena::{LayoutNodeArena, StaleWalkFacts};
@@ -135,12 +135,10 @@ pub struct FfiDomTreeBuilderCallbacks {
     /// style update before the build settles every element it walks; a top layer, slot projection
     /// or SVG reference path can reach one it did not.
     pub restyle_bypass_path_element: unsafe extern "C" fn(*mut c_void, u32),
-    /// Makes the principal box of the element the identity names. The element asks for a box of
-    /// the `ElementBoxKind` given as its raw byte, which is what the style mirror publishes for it.
-    pub create_principal_element_layout: unsafe extern "C" fn(*mut c_void, u32, FfiElementLayoutKind, u8) -> NodeSlotId,
-    /// Attaches the image observers a box's style asks for. Principal and pseudo-element boxes
-    /// both go through this; nothing about it depends on which the box is.
-    pub attach_style_resources: unsafe extern "C" fn(*mut c_void, NodeSlotId),
+    /// Attaches the image resources a box's style asks for. Principal and pseudo-element boxes both
+    /// go through this; nothing about it depends on which the box is. The flag says the box
+    /// replaces its element's contents with a single image, whose provider it owns.
+    pub attach_style_resources: unsafe extern "C" fn(*mut c_void, NodeSlotId, bool),
     pub pseudo: FfiPseudoTreeBuilderCallbacks,
 }
 
@@ -188,6 +186,90 @@ fn apply_replaced_display_adjustment(
     arena.update_layout_style(main_thread, node, |style| {
         style.set_display(FfiDisplay::outside_and_inside(outside, display_inside::FLOW, false));
     });
+}
+
+/// The kind of box a computed display asks for, or none for a display that generates no box.
+fn node_kind_for_display(display: FfiDisplay) -> Option<NodeKind> {
+    if display.is_none() || display.is_contents() {
+        return None;
+    }
+    if display.is_table_inside()
+        || display.is_table_row_group()
+        || display.is_table_header_group()
+        || display.is_table_footer_group()
+        || display.is_table_row()
+    {
+        return Some(NodeKind::Box);
+    }
+    if display.is_list_item() {
+        return Some(NodeKind::ListItemBox);
+    }
+    if display.is_table_cell() {
+        return Some(NodeKind::BlockContainer);
+    }
+    if display.is_table_column() || display.is_table_column_group() || display.is_table_caption() {
+        // FIXME: This is just an incorrect placeholder until we improve table layout support.
+        return Some(NodeKind::BlockContainer);
+    }
+    if display.is_math_inside() {
+        // https://w3c.github.io/mathml-core/#new-display-math-value
+        // MathML elements with a computed display value equal to block math or inline math control box generation
+        // and layout according to their tag name, as described in the relevant sections.
+        // FIXME: Figure out what kind of node we should make for them. For now, we'll stick with a generic Box.
+        return Some(NodeKind::BlockContainer);
+    }
+    if display.is_inline_outside() {
+        if display.is_flow_root_inside() {
+            return Some(NodeKind::BlockContainer);
+        }
+        if display.is_flex_inside() || display.is_grid_inside() {
+            return Some(NodeKind::Box);
+        }
+        return Some(NodeKind::InlineNode);
+    }
+    if display.is_flex_inside() || display.is_grid_inside() {
+        return Some(NodeKind::Box);
+    }
+    // FIXME: We don't actually support `display: block ruby`, this treats it as a block.
+    if display.is_flow_inside() || display.is_flow_root_inside() || display.is_ruby_inside() {
+        return Some(NodeKind::BlockContainer);
+    }
+    Some(NodeKind::InlineNode)
+}
+
+/// The kind of principal box an element asks for. The element's own type and state decided its
+/// box kind at style time; its computed display decides the box for the kinds that leave the
+/// choice to it, and `appearance: none` suppresses an input's native widget.
+/// https://drafts.csswg.org/css-ui/#appearance-switching
+fn node_kind_for_element_box_kind(box_kind: ElementBoxKind, display: FfiDisplay, appearance: u8) -> Option<NodeKind> {
+    if appearance == crate::css::css_enums::appearance::NONE && box_kind.is_suppressed_by_appearance_none() {
+        return node_kind_for_display(display);
+    }
+    Some(match box_kind {
+        ElementBoxKind::NoBox => return None,
+        ElementBoxKind::FromDisplay => return node_kind_for_display(display),
+        ElementBoxKind::Break => NodeKind::BreakNode,
+        ElementBoxKind::FieldSet => NodeKind::FieldSetBox,
+        ElementBoxKind::Legend => NodeKind::LegendBox,
+        ElementBoxKind::Audio => NodeKind::AudioBox,
+        ElementBoxKind::Video => NodeKind::VideoBox,
+        ElementBoxKind::Canvas => NodeKind::CanvasBox,
+        ElementBoxKind::NavigableContainerViewport => NodeKind::NavigableContainerViewport,
+        ElementBoxKind::TextArea => NodeKind::TextAreaBox,
+        ElementBoxKind::Image => NodeKind::ImageBox,
+        ElementBoxKind::SvgGraphics => NodeKind::SVGGraphicsBox,
+        ElementBoxKind::SvgSvg => NodeKind::SVGSVGBox,
+        ElementBoxKind::SvgText => NodeKind::SVGTextBox,
+        ElementBoxKind::SvgTextPath => NodeKind::SVGTextPathBox,
+        ElementBoxKind::SvgForeignObject => NodeKind::SVGForeignObjectBox,
+        ElementBoxKind::SvgImage => NodeKind::SVGImageBox,
+        ElementBoxKind::SvgGeometry => NodeKind::SVGGeometryBox,
+        ElementBoxKind::InputButton => NodeKind::BlockContainer,
+        ElementBoxKind::InputCheckBox => NodeKind::CheckBox,
+        ElementBoxKind::InputRadioButton => NodeKind::RadioButton,
+        ElementBoxKind::InputRange => NodeKind::RangeInputBox,
+        ElementBoxKind::InputText => NodeKind::TextInputBox,
+    })
 }
 
 pub(crate) fn element_layout_kind(
@@ -2086,6 +2168,8 @@ struct PrincipalBoxConstruction {
     layout_node: LayoutNode,
     created_box: Option<UnplacedLayoutNode>,
     handled_display_contents: bool,
+    /// The box replaces its element's contents with a single image, whose provider it owns.
+    owns_content_replacement_image: bool,
 }
 
 impl PrincipalBoxConstruction {
@@ -2094,6 +2178,7 @@ impl PrincipalBoxConstruction {
             layout_node: NodeSlotId::INVALID,
             created_box: None,
             handled_display_contents: false,
+            owns_content_replacement_image: false,
         }
     }
 }
@@ -2124,6 +2209,7 @@ fn construct_principal_layout_node(
 ) -> PrincipalBoxConstruction {
     let host = update.host;
     let mut created_box = None;
+    let mut owns_content_replacement_image = false;
     // The box this visit leaves the node with: the one it entered with when the node keeps it,
     // otherwise the one the host just built. Nothing between the entry and here rebinds the node.
     let mut layout_node = NodeSlotId::INVALID;
@@ -2223,18 +2309,25 @@ fn construct_principal_layout_node(
                 context.layout_svg_pattern,
             );
             let box_kind = host.layout().arena().element_box_kind(update.style_node);
-            // SAFETY: The builder remains live, and the identity names a live element.
-            let created = unsafe {
-                (host.callbacks.create_principal_element_layout)(
-                    host.callbacks.builder,
-                    update.identity.raw(),
-                    layout_kind,
-                    box_kind as u8,
-                )
+            let kind = match layout_kind {
+                FfiElementLayoutKind::ContentReplacement => Some(NodeKind::ImageBox),
+                FfiElementLayoutKind::SvgMask => Some(NodeKind::SVGMaskBox),
+                FfiElementLayoutKind::SvgClipPath => Some(NodeKind::SVGClipBox),
+                FfiElementLayoutKind::SvgPattern => Some(NodeKind::SVGPatternBox),
+                FfiElementLayoutKind::Normal => {
+                    let facts = host
+                        .layout()
+                        .arena()
+                        .published_box_facts(update.style_node)
+                        .expect("an element the walk builds a box for has published its style");
+                    node_kind_for_element_box_kind(box_kind, facts.display, facts.appearance)
+                }
             };
-            layout_node = created;
-            if !created.is_invalid() {
+            if let Some(kind) = kind {
+                let created = host.layout().create_element_box(update.identity, kind);
+                layout_node = created;
                 created_box = Some(host.layout().created(created));
+                owns_content_replacement_image = layout_kind == FfiElementLayoutKind::ContentReplacement;
             }
             if matches!(
                 layout_kind,
@@ -2294,6 +2387,7 @@ fn construct_principal_layout_node(
         layout_node,
         created_box,
         handled_display_contents: false,
+        owns_content_replacement_image,
     }
 }
 
@@ -2345,7 +2439,13 @@ fn update_principal_node_after_entry(
         if update.kind.is_element() || update.kind.is_document() {
             // SAFETY: The builder remains live, and the box is a live NodeWithStyle for elements and
             // documents.
-            unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, layout_node) };
+            unsafe {
+                (host.callbacks.attach_style_resources)(
+                    host.callbacks.builder,
+                    layout_node,
+                    construction.owns_content_replacement_image,
+                );
+            };
         }
 
         let starts_new_subtree = entry_decision.should_create_layout_node && update.state.new_subtree_root.is_invalid();
@@ -2933,7 +3033,7 @@ fn create_pseudo_element(
     }
 
     // SAFETY: The builder remains live, and the box the host just built is a live NodeWithStyle.
-    unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, layout_node) };
+    unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, layout_node, false) };
     if decision == FfiPseudoElementDecision::ContentReplacement {
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
@@ -3391,6 +3491,40 @@ impl TreeBuilderHost<'_> {
 
     fn created(&self, slot: NodeSlotId) -> UnplacedLayoutNode {
         UnplacedLayoutNode::new(slot)
+    }
+
+    /// The row an element's principal box of `kind` is built in, stamped with the style the
+    /// element published, and the layout node made for it. A fieldset and a media element adjust
+    /// their box as it is built.
+    fn create_element_box(&self, element: StyleNodeID, kind: NodeKind) -> NodeSlotId {
+        let slot = self.stamp_dom_box(kind, Some(element));
+        self.arena().stamp_published_style(slot, element);
+        match kind {
+            // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+            // If the computed outer display type is inline, the fieldset is expected to behave as inline-block.
+            // Otherwise, it is expected to behave as flow-root. This does not change the computed value.
+            NodeKind::FieldSetBox => {
+                let display = self.style(slot).map(|style| style.display());
+                if let Some(display) = display.filter(FfiDisplay::is_flow_inside) {
+                    self.arena().update_layout_style(self.main_thread, slot, |style| {
+                        style.set_display(FfiDisplay::outside_and_inside(
+                            display.outside,
+                            crate::css::css_enums::display_inside::FLOW_ROOT,
+                            false,
+                        ));
+                    });
+                }
+            }
+            // A media element renders the children of its shadow root, such as its controls.
+            NodeKind::AudioBox | NodeKind::VideoBox => {
+                let has_shadow_root = self.arena().shadow_root_of(element).is_some();
+                self.arena()
+                    .set_node_flag(slot, NodeFlag::ReplacedBoxCanHaveChildren, has_shadow_root);
+            }
+            _ => {}
+        }
+        assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
+        slot
     }
 
     /// Stamps a row for a DOM node, or for the document with no identity, and makes it the node's

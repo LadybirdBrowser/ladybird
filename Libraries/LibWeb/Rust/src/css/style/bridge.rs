@@ -826,6 +826,17 @@ pub enum ElementBoxKind {
 }
 
 impl ElementBoxKind {
+    /// Whether `appearance: none` suppresses the kind's native widget, leaving the box to the
+    /// element's computed display.
+    /// https://drafts.csswg.org/css-ui/#appearance-switching
+    #[must_use]
+    pub(crate) fn is_suppressed_by_appearance_none(self) -> bool {
+        matches!(
+            self,
+            Self::InputButton | Self::InputCheckBox | Self::InputRadioButton | Self::InputRange | Self::InputText
+        )
+    }
+
     /// The kind C++ sends as `raw`. The two enums list the same kinds in the same order, which
     /// `ElementBoxKind.h` asserts for the last one.
     #[must_use]

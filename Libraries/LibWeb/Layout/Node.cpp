@@ -312,6 +312,8 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
         RustFFI::layout_arena_adopt_derived_node_style(arena_handle(), slot_id(this), m_style_record_identity.value());
 }
 
+// The build stamped the row with its style, which this layout node reads off the row. A row built for a DOM node
+// tells the document what its style asks for, as a layout node built from the node's style did.
 NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : Node(document, bind, slot, kind)
 {
@@ -319,6 +321,10 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
     VERIFY(m_style_record_identity);
     m_style_payloads = RustFFI::layout_arena_node_style_payloads(arena_handle(), slot);
     VERIFY(m_style_payloads);
+    if (dom_node()) {
+        did_update_style_record();
+        synchronize_table_span_data();
+    }
 }
 
 void NodeWithStyle::initialize_from_style_record()
