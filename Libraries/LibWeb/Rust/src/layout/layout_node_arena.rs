@@ -2611,6 +2611,26 @@ impl LayoutNodeArena {
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
 
+    /// Gives a row stamped for `element` the style record the element published, as a layout node
+    /// built from the element's record gave it.
+    pub(crate) fn stamp_published_style(&self, slot: NodeSlotId, element: StyleNodeID) {
+        let (record, payloads) = self.with_style_store(|engine| {
+            let record = engine
+                .element_published_style_record(element)
+                .expect("an element the build stamps a box for has published its style");
+            let payloads = engine
+                .style_record_payloads(record)
+                .expect("a published style record is live")
+                .as_ptr()
+                .cast();
+            (record, payloads)
+        });
+        if self.set_node_style(slot, record, StylePayloadsRef::new(payloads)) {
+            self.refresh_style_flags(slot);
+        }
+        self.enroll_node_for_svg_paint_resources_sync(slot);
+    }
+
     /// The paint facts a row is built with, which the layout node made for a stamped row hands
     /// over. A row being built is not committed, so this is the plain write `bind_shell` makes
     /// rather than the change a live row's facts go through.

@@ -97,6 +97,7 @@ pub struct PublishedBoxFacts {
     pub content_visibility: u8,
     pub position: u8,
     pub float_: u8,
+    pub appearance: u8,
 }
 
 /// What a published record says about the content a box is generated from.
@@ -711,6 +712,7 @@ impl RetainedState {
             content_visibility: view.content_visibility(),
             position: view.position(),
             float_: view.float_(),
+            appearance: view.appearance(),
         })
     }
 

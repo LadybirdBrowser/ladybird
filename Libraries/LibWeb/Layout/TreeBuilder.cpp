@@ -17,7 +17,6 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/CountersSet.h>
-#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -173,14 +172,21 @@ private:
     mutable OwnPtr<ImageClient> m_image_client;
 };
 
-static Box& create_content_image_box(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::LayoutStyle style, CSS::AbstractImageStyleValue& image)
+// Gives an image box the provider of the image it shows, which the box owns.
+static void attach_owned_image_provider(Box& image_box, CSS::AbstractImageStyleValue& image)
 {
+    auto& document = image_box.document();
     image.load_any_resources(document);
     auto image_provider = GeneratedContentImageProvider::create(document, image);
     auto& image_provider_ref = *image_provider;
-    auto& image_box = allocate_layout_node<Box>(document, element, style, RustFFI::NodeKind::ImageBox);
     image_box.set_owned_image_provider(move(image_provider));
     image_provider_ref.set_layout_node(image_box);
+}
+
+static Box& create_content_image_box(DOM::Document& document, CSS::LayoutStyle style, CSS::AbstractImageStyleValue& image)
+{
+    auto& image_box = allocate_layout_node<Box>(document, nullptr, style, RustFFI::NodeKind::ImageBox);
+    attach_owned_image_provider(image_box, image);
     return image_box;
 }
 
@@ -192,6 +198,17 @@ static RefPtr<CSS::AbstractImageStyleValue const> content_replacement_image(CSS:
     if (items.size() != 1 || !items.first()->is_abstract_image())
         return nullptr;
     return &items.first()->as_abstract_image();
+}
+
+// The image box the build stamped for an element whose content is a single image owns the provider of that image.
+static void attach_content_replacement_image(Box& image_box)
+{
+    auto const& element = as<DOM::Element>(*image_box.dom_node());
+    auto const* content_values = element.style_group<CSS::ComputedValues::ContentValues>();
+    VERIFY(content_values);
+    auto replacement_image = content_replacement_image(content_values->computed_content_value());
+    VERIFY(replacement_image);
+    attach_owned_image_provider(image_box, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
 }
 
 struct FirstLetterTextSlices {
@@ -363,7 +380,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             case RustFFI::FfiPseudoElementDecision::ContentReplacement: {
                 auto const replacement_image = content_replacement_image(CSS::style_group_from_payloads<CSS::ComputedValues::ContentValues>(pseudo_payloads)->computed_content_value());
                 VERIFY(replacement_image);
-                layout_node = &create_content_image_box(document, nullptr, style, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
+                layout_node = &create_content_image_box(document, style, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
                 break;
             }
             case RustFFI::FfiPseudoElementDecision::Contents:
@@ -425,7 +442,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                     auto content = CSS::style_group_from_payloads<CSS::ComputedValues::ContentValues>(payloads)->computed_content_value();
                     return content->as_content().content().values()[item.content_index]->as_abstract_image();
                 }();
-                auto& image_box = create_content_image_box(element.document(), nullptr, style_box.copy_computed_values(), const_cast<CSS::AbstractImageStyleValue&>(*image));
+                auto& image_box = create_content_image_box(element.document(), style_box.copy_computed_values(), const_cast<CSS::AbstractImageStyleValue&>(*image));
                 // https://drafts.csswg.org/css-content-3/#content-property
                 // For <image>, this is an inline anonymous replaced element.
                 image_box.set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
@@ -460,98 +477,6 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
     RustFFI::rust_detach_top_layer_element_layout_subtree(element.document().layout_node_arena().handle(), element.style_node_id().value());
 }
 
-// The principal box an element asks for. The element's own type and state decide the kind; its computed display
-// decides the box for the kinds that leave the choice to it, and its computed appearance can suppress an input's
-// native widget.
-static Node* create_principal_element_box(DOM::Element& element, CSS::LayoutStyle style, CSS::ElementBoxKind box_kind)
-{
-    auto& document = element.document();
-    auto box_of_kind = [&](RustFFI::NodeKind kind) -> Box& {
-        return allocate_layout_node<Box>(document, element, style, kind);
-    };
-    auto box_from_display = [&] {
-        auto computed_style = element.computed_style();
-        VERIFY(computed_style);
-        return DOM::Element::create_layout_node_for_display_type(document, computed_style->display(), style, &element);
-    };
-    switch (box_kind) {
-    case CSS::ElementBoxKind::NoBox:
-        return nullptr;
-    case CSS::ElementBoxKind::FromDisplay:
-        return box_from_display();
-    case CSS::ElementBoxKind::Break:
-        return &allocate_layout_node<NodeWithStyle>(document, element, style, RustFFI::NodeKind::BreakNode);
-    case CSS::ElementBoxKind::FieldSet: {
-        auto& fieldset_box = box_of_kind(RustFFI::NodeKind::FieldSetBox);
-        // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
-        // If the computed outer display type is inline, the fieldset is expected to behave as inline-block. Otherwise,
-        // it is expected to behave as flow-root. This does not change the computed value.
-        if (fieldset_box.display().is_flow_inside())
-            fieldset_box.set_display(CSS::Display { fieldset_box.display().outside(), CSS::DisplayInside::FlowRoot });
-        return &fieldset_box;
-    }
-    case CSS::ElementBoxKind::Legend:
-        return &box_of_kind(RustFFI::NodeKind::LegendBox);
-    case CSS::ElementBoxKind::Audio:
-    case CSS::ElementBoxKind::Video: {
-        auto& media_box = box_of_kind(box_kind == CSS::ElementBoxKind::Audio ? RustFFI::NodeKind::AudioBox : RustFFI::NodeKind::VideoBox);
-        media_box.set_replaced_box_can_have_children(element.shadow_root() != nullptr);
-        return &media_box;
-    }
-    case CSS::ElementBoxKind::Canvas:
-        return &box_of_kind(RustFFI::NodeKind::CanvasBox);
-    case CSS::ElementBoxKind::NavigableContainerViewport:
-        return &box_of_kind(RustFFI::NodeKind::NavigableContainerViewport);
-    case CSS::ElementBoxKind::TextArea:
-        return &box_of_kind(RustFFI::NodeKind::TextAreaBox);
-    case CSS::ElementBoxKind::Image:
-        return &box_of_kind(RustFFI::NodeKind::ImageBox);
-    case CSS::ElementBoxKind::SvgGraphics:
-        return &box_of_kind(RustFFI::NodeKind::SVGGraphicsBox);
-    case CSS::ElementBoxKind::SvgSvg:
-        return &box_of_kind(RustFFI::NodeKind::SVGSVGBox);
-    case CSS::ElementBoxKind::SvgText:
-        return &box_of_kind(RustFFI::NodeKind::SVGTextBox);
-    case CSS::ElementBoxKind::SvgTextPath:
-        return &box_of_kind(RustFFI::NodeKind::SVGTextPathBox);
-    case CSS::ElementBoxKind::SvgForeignObject:
-        return &box_of_kind(RustFFI::NodeKind::SVGForeignObjectBox);
-    case CSS::ElementBoxKind::SvgImage:
-        return &box_of_kind(RustFFI::NodeKind::SVGImageBox);
-    case CSS::ElementBoxKind::SvgGeometry:
-        return &box_of_kind(RustFFI::NodeKind::SVGGeometryBox);
-    case CSS::ElementBoxKind::InputButton:
-    case CSS::ElementBoxKind::InputCheckBox:
-    case CSS::ElementBoxKind::InputRadioButton:
-    case CSS::ElementBoxKind::InputRange:
-    case CSS::ElementBoxKind::InputText:
-        break;
-    }
-
-    // https://drafts.csswg.org/css-ui/#appearance-switching
-    // This specification introduces the appearance property to provide some control over this behavior. In
-    // particular, using appearance: none allows authors to suppress the native appearance of widgets, giving them a
-    // primitive appearance where CSS can be used to restyle them.
-    auto computed_style = element.computed_style();
-    VERIFY(computed_style);
-    if (computed_style->appearance() == CSS::Appearance::None)
-        return box_from_display();
-    switch (box_kind) {
-    case CSS::ElementBoxKind::InputButton:
-        return &box_of_kind(RustFFI::NodeKind::BlockContainer);
-    case CSS::ElementBoxKind::InputCheckBox:
-        return &box_of_kind(RustFFI::NodeKind::CheckBox);
-    case CSS::ElementBoxKind::InputRadioButton:
-        return &box_of_kind(RustFFI::NodeKind::RadioButton);
-    case CSS::ElementBoxKind::InputRange:
-        return &box_of_kind(RustFFI::NodeKind::RangeInputBox);
-    case CSS::ElementBoxKind::InputText:
-        return &box_of_kind(RustFFI::NodeKind::TextInputBox);
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_builder_callbacks()
 {
     return {
@@ -569,41 +494,13 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             for (auto const& element : elements)
                 output[index++] = identified_dom_node(element.ptr()); },
         .restyle_bypass_path_element = [](void* builder_pointer, u32 style_node) { update_style_if_needed_for_layout_tree_bypass_path(as<DOM::Element>(node_for_style_node(builder_pointer, style_node))); },
-        .create_principal_element_layout = [](void* builder_pointer, u32 style_node, RustFFI::FfiElementLayoutKind kind, u8 box_kind) -> Compositing::RustFFI::NodeSlotId {
-            auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, style_node));
-            auto style_record_identity = element.style_record_identity();
-            VERIFY(style_record_identity);
-            CSS::LayoutStyle style { style_record_identity };
-            Layout::Node* layout_node = nullptr;
-            switch (kind) {
-            case RustFFI::FfiElementLayoutKind::ContentReplacement: {
-                auto const* content_values = element.style_group<CSS::ComputedValues::ContentValues>();
-                VERIFY(content_values);
-                auto computed_content = content_values->computed_content_value();
-                auto replacement_image = content_replacement_image(computed_content);
-                VERIFY(replacement_image);
-                layout_node = &create_content_image_box(element.document(), element, style, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
-                break;
-            }
-            case RustFFI::FfiElementLayoutKind::SvgMask:
-                layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGMaskBox);
-                break;
-            case RustFFI::FfiElementLayoutKind::SvgClipPath:
-                layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGClipBox);
-                break;
-            case RustFFI::FfiElementLayoutKind::SvgPattern:
-                layout_node = &allocate_layout_node<Layout::Box>(element.document(), element, style, RustFFI::NodeKind::SVGPatternBox);
-                break;
-            case RustFFI::FfiElementLayoutKind::Normal:
-                layout_node = create_principal_element_box(element, style, static_cast<CSS::ElementBoxKind>(box_kind));
-                break;
-            }
-            return Node::slot_id(layout_node); },
-        .attach_style_resources = [](void* builder_pointer, Compositing::RustFFI::NodeSlotId slot) {
+        .attach_style_resources = [](void* builder_pointer, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image) {
             VERIFY(builder_pointer);
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
             auto* layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(builder.m_document->layout_node_arena().handle(), slot));
             VERIFY(layout_node);
+            if (owns_content_replacement_image)
+                attach_content_replacement_image(as<Box>(*layout_node));
             as<NodeWithStyle>(*layout_node).attach_style_resources(); },
         .pseudo = make_ffi_pseudo_tree_builder_callbacks(),
     };
