@@ -16,6 +16,7 @@ use crate::interpreter::runtime_functions::{
 };
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::execution_context::ExecutionContext;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
@@ -23,6 +24,7 @@ use crate::runtime::async_from_sync_iterator_prototype::create_async_from_sync_i
 use crate::runtime::completion::{Completion, Must, completion_type_from_bytecode};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::iterator::{
     IteratorRecord, IteratorRecordImpl, get_iterator_from_method_impl, get_iterator_impl, get_iterator_values,
     iterator_close, iterator_hint_from_bytecode, iterator_next, iterator_step_value,
@@ -449,19 +451,35 @@ pub fn create_async_from_sync_iterator_slow_path(
 }
 
 pub fn get_completion_fields(_vm: &Vm, pc: u32, values: &mut op::GetCompletionFieldsValues) -> SlowPathControl {
-    let _completion_source = values.completion.as_object();
+    let completion_source = values.completion.as_object();
+    if let Some(generator) = completion_source.downcast::<GeneratorObject>() {
+        values.value_dst = generator.pending_completion_value();
+        values.type_dst = Value::from_i32(generator.pending_completion_type() as i32);
+        return SlowPathControl::continue_at(pc + op::GetCompletionFields::LENGTH);
+    }
+
     unimplemented_runtime_function(
-        "GetCompletionFields, which reads the pending completion of a GeneratorObject or AsyncGenerator, which come \
-         with generators",
+        "GetCompletionFields of an AsyncGenerator, which reads its pending completion, which comes with async \
+         generators",
         pc,
     )
 }
 
-pub fn set_completion_type(_vm: &Vm, pc: u32, values: &mut op::SetCompletionTypeValues) -> SlowPathControl {
-    let _completion_source = values.completion.as_object();
+pub fn set_completion_type(
+    _vm: &Vm,
+    pc: u32,
+    instruction: &op::SetCompletionType,
+    values: &mut op::SetCompletionTypeValues,
+) -> SlowPathControl {
+    let completion_source = values.completion.as_object();
+    if let Some(generator) = completion_source.downcast::<GeneratorObject>() {
+        generator.set_pending_completion_type(completion_type_from_bytecode(instruction.completion_type));
+        return SlowPathControl::continue_at(pc + op::SetCompletionType::LENGTH);
+    }
+
     unimplemented_runtime_function(
-        "SetCompletionType, which sets the pending completion of a GeneratorObject or AsyncGenerator, which come \
-         with generators",
+        "SetCompletionType of an AsyncGenerator, which sets its pending completion, which comes with async \
+         generators",
         pc,
     )
 }
@@ -503,4 +521,45 @@ pub fn throw_if_nullish(vm: &Vm, pc: u32, values: &op::ThrowIfNullishValues) -> 
 
 pub fn throw_const_assignment(vm: &Vm, pc: u32) -> SlowPathControl {
     throw_error(vm, pc, ErrorKind::TypeError, ErrorType::InvalidAssignToConst, &[])
+}
+
+pub fn r#yield(vm: &Vm, instruction: &op::Yield, values: &op::YieldValues) -> SlowPathControl {
+    let yielded_value = if values.value.is_empty() {
+        Value::UNDEFINED
+    } else {
+        values.value
+    };
+    let context = running_execution_context(vm);
+    match instruction.continuation_label.get() {
+        Some(continuation_label) => context.yield_continuation.set(continuation_label.0),
+        None => context.yield_continuation.set(ExecutionContext::NO_YIELD_CONTINUATION),
+    }
+    context.yield_is_await.set(false);
+    context.yield_value_is_iterator_result.set(false);
+    vm.do_return(yielded_value);
+    SlowPathControl::EXIT
+}
+
+pub fn yield_iterator_result(
+    vm: &Vm,
+    instruction: &op::YieldIteratorResult,
+    values: &op::YieldIteratorResultValues,
+) -> SlowPathControl {
+    let yielded_value = if values.value.is_empty() {
+        Value::UNDEFINED
+    } else {
+        values.value
+    };
+    let context = running_execution_context(vm);
+    context.yield_continuation.set(instruction.continuation_label.0);
+    context.yield_is_await.set(false);
+    context.yield_value_is_iterator_result.set(true);
+    vm.do_return(yielded_value);
+    SlowPathControl::EXIT
+}
+
+fn running_execution_context(vm: &Vm) -> &ExecutionContext {
+    let context = vm.running_execution_context().expect("a generator's frame is running");
+    // SAFETY: The running context is live while the slow path runs in it.
+    unsafe { context.as_ref() }
 }

@@ -120,6 +120,22 @@ impl Vm {
         Ok(context_ref.register(register::RETURN_VALUE).get())
     }
 
+    /// Runs `executable` like run_executable(), with `initial_accumulator_value` in the accumulator, which is how a
+    /// resumed generator receives itself.
+    pub fn run_executable_with_initial_accumulator_value(
+        &self,
+        context: NonNull<ExecutionContext>,
+        executable: Gc<Executable>,
+        entry_point: u32,
+        initial_accumulator_value: Value,
+    ) -> Result<Value, Value> {
+        // SAFETY: The caller passes a live context.
+        unsafe { context.as_ref() }
+            .register(register::ACCUMULATOR)
+            .set(initial_accumulator_value);
+        self.run_executable(context, executable, entry_point)
+    }
+
     // 16.1.6 ScriptEvaluation ( scriptRecord ), https://tc39.es/ecma262/#sec-runtime-semantics-scriptevaluation
     pub fn run_script(
         &self,

@@ -55,6 +55,7 @@ pub mod function_object;
 pub mod function_prototype;
 pub mod generator_function_constructor;
 pub mod generator_function_prototype;
+pub mod generator_object;
 pub mod generator_prototype;
 pub mod global_environment;
 pub mod global_object;

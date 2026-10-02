@@ -83,6 +83,40 @@ impl ExecutionContext {
     pub fn argument(&self, index: usize) -> Value {
         self.arguments().get(index).map_or(Value::UNDEFINED, Cell::get)
     }
+
+    /// ExecutionContext::copy(), for the generator that keeps the context of the call that created it.
+    pub fn copy(&self) -> OwnedExecutionContext {
+        let slot_count = self.registers_and_constants_and_locals_and_arguments_count.get();
+        let argument_count = self.argument_count.get();
+        // NB: We pass the entire non-argument count as registers_and_locals_count with 0 constants.
+        let copy = OwnedExecutionContext::create(slot_count - argument_count, 0, argument_count);
+        copy.function.set(self.function.get());
+        copy.realm.set(self.realm.get());
+        copy.script_or_module.set(self.script_or_module.get());
+        copy.lexical_environment.set(self.lexical_environment.get());
+        copy.variable_environment.set(self.variable_environment.get());
+        copy.private_environment.set(self.private_environment.get());
+        copy.program_counter.set(self.program_counter.get());
+        copy.frame_id.set(self.frame_id.get());
+        copy.yield_continuation.set(self.yield_continuation.get());
+        copy.yield_is_await.set(self.yield_is_await.get());
+        copy.yield_value_is_iterator_result
+            .set(self.yield_value_is_iterator_result.get());
+        copy.caller_is_construct.set(self.caller_is_construct.get());
+        copy.frame_initialized.set(self.frame_initialized.get());
+        copy.this_value.set(self.this_value.get());
+        copy.executable.set(self.executable.get());
+        copy.passed_argument_count.set(self.passed_argument_count.get());
+        let frame_initialized = self.frame_initialized.get();
+        let non_argument_count = (slot_count - argument_count) as usize;
+        for (index, (copied_slot, slot)) in copy.slots().iter().zip(self.slots()).enumerate() {
+            if !frame_initialized && index >= RESERVED_REGISTER_COUNT as usize && index < non_argument_count {
+                continue;
+            }
+            copied_slot.set(slot.get());
+        }
+        copy
+    }
 }
 
 // SAFETY: Visits every cell a frame can reach. Until the frame is initialized only its reserved registers and its
@@ -160,6 +194,13 @@ impl OwnedExecutionContext {
 
     pub fn as_non_null(&self) -> NonNull<ExecutionContext> {
         self.context
+    }
+}
+
+// SAFETY: Visits every cell the context reaches.
+unsafe impl Trace for OwnedExecutionContext {
+    fn trace(&self, visitor: &mut Visitor) {
+        (**self).trace(visitor);
     }
 }
 

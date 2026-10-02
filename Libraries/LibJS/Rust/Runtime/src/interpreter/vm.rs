@@ -532,6 +532,15 @@ impl Vm {
         &self.keyed_property_lookup_cache
     }
 
+    /// Stores the value the running frame returns and clears its exception, for the slow paths that leave the
+    /// interpreter on a suspension.
+    pub fn do_return(&self, value: Value) {
+        let value = if value.is_empty() { Value::UNDEFINED } else { value };
+        let context = self.running_execution_context_ref();
+        context.register(libjs_abi::register::RETURN_VALUE).set(value);
+        context.register(libjs_abi::register::EXCEPTION).set(Value::EMPTY);
+    }
+
     /// The executable of the running execution context.
     pub fn current_executable(&self) -> Gc<Executable> {
         let context = self

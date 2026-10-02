@@ -136,4 +136,5 @@ define_class_ids! {
     RawJSONObject,
     StringIterator,
     GlobalSymbolRegistry,
+    GeneratorObject,
 }

@@ -10,7 +10,12 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
+use crate::layout::value::Value;
+use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
+use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
+use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 
 /// %Iterator.prototype%.
@@ -40,8 +45,26 @@ impl IteratorPrototype {
         )
     }
 
-    fn initialize(_object: &Object, _vm: &Vm, _realm: Gc<Realm>) {
-        // NB: The Iterator.prototype methods, @@iterator, and the accessors of Iterator.prototype.constructor and
-        //     Iterator.prototype [ @@toStringTag ] come with the Iterator builtins.
+    fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
+        let attr = PropertyAttributes::new(Attribute::WRITABLE | Attribute::CONFIGURABLE);
+        object.define_native_function(
+            vm,
+            realm,
+            &PropertyKey::from(vm.well_known_symbols().iterator),
+            raw_native!(IteratorPrototype::symbol_iterator),
+            0,
+            attr,
+            None,
+        );
+        // NB: The other Iterator.prototype methods, which follow @@iterator in this order: drop, every, filter, find,
+        //     flatMap, forEach, map, reduce, some, take and toArray, and then the accessors of
+        //     Iterator.prototype.constructor and Iterator.prototype [ @@toStringTag ], come with the Iterator builtins.
+    }
+
+    // 27.1.4.15 Iterator.prototype [ %Symbol.iterator% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.iterator%
+    #[allow(clippy::unnecessary_wraps, reason = "native functions can throw")]
+    fn symbol_iterator(vm: &Vm) -> ThrowCompletionOr<Value> {
+        // 1. Return the this value.
+        Ok(vm.this_value())
     }
 }
