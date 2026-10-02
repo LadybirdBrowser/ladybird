@@ -663,6 +663,7 @@ impl RetainedState {
                 cascade_state,
                 longhand_evaluations,
                 owes_a_transition_step: false,
+                detached_composition: None,
             });
         scratch.pseudo_deltas.push(PseudoRecordDelta {
             kind: pseudo_kind,
