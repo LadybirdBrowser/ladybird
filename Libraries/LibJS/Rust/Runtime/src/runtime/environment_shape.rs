@@ -22,7 +22,7 @@ pub use crate::layout::environment::EnvironmentShape;
 /// The names of an environment shape's bindings, whose flags the interpreter reads from the shape itself.
 pub struct EnvironmentShapeStorage {
     binding_names: Vec<Utf16FlyString>,
-    binding_indices: HashMap<Utf16FlyString, usize>,
+    binding_indices: HashMap<Utf16FlyString, usize, foldhash::fast::RandomState>,
 }
 
 define_cell!(EnvironmentShape, Other, finalize: finalize);
@@ -46,7 +46,7 @@ impl EnvironmentShape {
     fn new(
         binding_names: Vec<Utf16FlyString>,
         binding_flags: InterpreterBuffer<u8>,
-        binding_indices: HashMap<Utf16FlyString, usize>,
+        binding_indices: HashMap<Utf16FlyString, usize, foldhash::fast::RandomState>,
     ) -> Self {
         Self {
             header: CellHeader::for_class(Self::CLASS),
@@ -66,7 +66,7 @@ impl EnvironmentShape {
         let binding_flags = InterpreterBuffer::new();
         binding_flags.ensure_capacity(flags.len());
 
-        let mut binding_indices = HashMap::with_capacity(names.len());
+        let mut binding_indices = HashMap::with_capacity_and_hasher(names.len(), Default::default());
 
         for (index, (name, flags)) in names.iter().zip(flags).enumerate() {
             binding_names.push(name.clone());

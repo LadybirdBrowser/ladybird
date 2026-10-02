@@ -322,23 +322,28 @@ pub fn get_by_id(
 
     let shape = base_obj.shape();
 
-    for cache_entry in cache.entries_for_shape(shape).as_slice() {
-        if cache_entry.entry_type == PropertyLookupCacheEntryType::GetMissingProperty {
+    // NB: The entries are read in place, and a getter only runs once the loop is done with them, since it may update
+    //     the cache.
+    let mut cached_value = None;
+    for cache_entry in cache.entry_slots_for_shape(shape) {
+        let entry_type = cache_entry.entry_type.get();
+        if entry_type == PropertyLookupCacheEntryType::GetMissingProperty {
             if cache_property_absence == CachePropertyAbsence::No {
                 continue;
             }
             if !base_obj.is_cacheable_for_property_absence() {
                 continue;
             }
-            if Some(shape) != cache_entry.shape {
+            if Some(shape) != cache_entry.shape.get() {
                 continue;
             }
-            if shape.is_dictionary() && shape.dictionary_generation() != cache_entry.shape_dictionary_generation {
+            if shape.is_dictionary() && shape.dictionary_generation() != cache_entry.shape_dictionary_generation.get() {
                 continue;
             }
             if shape.prototype().is_some()
                 && !cache_entry
                     .prototype_chain_validity
+                    .get()
                     .is_some_and(|validity| validity.is_valid())
             {
                 continue;
@@ -346,33 +351,38 @@ pub fn get_by_id(
             return Ok(Value::UNDEFINED);
         }
 
-        if cache_entry.entry_type != PropertyLookupCacheEntryType::GetOwnProperty
-            && cache_entry.entry_type != PropertyLookupCacheEntryType::GetPropertyInPrototypeChain
+        if entry_type != PropertyLookupCacheEntryType::GetOwnProperty
+            && entry_type != PropertyLookupCacheEntryType::GetPropertyInPrototypeChain
         {
             continue;
         }
 
-        if let Some(cached_prototype) = cache_entry.prototype {
+        if let Some(cached_prototype) = cache_entry.prototype.get() {
             // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
-            let can_use_cache = Some(shape) == cache_entry.shape
-                && (!shape.is_dictionary() || shape.dictionary_generation() == cache_entry.shape_dictionary_generation)
+            let can_use_cache = Some(shape) == cache_entry.shape.get()
+                && (!shape.is_dictionary()
+                    || shape.dictionary_generation() == cache_entry.shape_dictionary_generation.get())
                 && cache_entry
                     .prototype_chain_validity
+                    .get()
                     .is_some_and(|validity| validity.is_valid());
             if can_use_cache {
-                let value = cached_prototype.get_direct(cache_entry.property_offset);
-                return get_cached_property_value(vm, value, this_value);
+                cached_value = Some(cached_prototype.get_direct(cache_entry.property_offset.get()));
+                break;
             }
-        } else if Some(shape) == cache_entry.shape {
+        } else if Some(shape) == cache_entry.shape.get() {
             // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
-            let can_use_cache =
-                !shape.is_dictionary() || shape.dictionary_generation() == cache_entry.shape_dictionary_generation;
+            let can_use_cache = !shape.is_dictionary()
+                || shape.dictionary_generation() == cache_entry.shape_dictionary_generation.get();
 
             if can_use_cache {
-                let value = base_obj.get_direct(cache_entry.property_offset);
-                return get_cached_property_value(vm, value, this_value);
+                cached_value = Some(base_obj.get_direct(cache_entry.property_offset.get()));
+                break;
             }
         }
+    }
+    if let Some(value) = cached_value {
+        return get_cached_property_value(vm, value, this_value);
     }
     let prototype_chain_validity = shape
         .prototype()

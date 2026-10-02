@@ -5,7 +5,7 @@
  */
 
 use core::cell::Cell;
-use core::ops::Deref;
+use core::ops::{ControlFlow, Deref};
 use core::ptr::NonNull;
 use std::rc::Rc;
 
@@ -901,25 +901,21 @@ impl EcmascriptFunctionObject {
         let this_function = self.as_function_object_gc();
         let mut caller: Option<Gc<EcmascriptFunctionObject>> = None;
         let mut found_this_function = false;
-        let mut done = false;
 
         vm.for_each_execution_context_top_to_bottom(|context| {
-            if done {
-                return;
-            }
             if !found_this_function {
                 if context.function.get() == Some(this_function) {
                     found_this_function = true;
                 }
-                return;
+                return ControlFlow::Continue(());
             }
 
             let Some(function) = context.function.get() else {
-                return;
+                return ControlFlow::Continue(());
             };
 
             caller = as_ecmascript_function_object(function);
-            done = true;
+            ControlFlow::Break(())
         });
 
         // https://tc39.es/ecma262/#sec-forbidden-extensions
@@ -939,11 +935,12 @@ impl EcmascriptFunctionObject {
         let mut active_context: Option<NonNull<ExecutionContext>> = None;
 
         vm.for_each_execution_context_top_to_bottom(|context| {
-            if active_context.is_some() || context.function.get() != Some(this_function) {
-                return;
+            if context.function.get() != Some(this_function) {
+                return ControlFlow::Continue(());
             }
 
             active_context = Some(NonNull::from(context));
+            ControlFlow::Break(())
         });
 
         let Some(active_context) = active_context else {

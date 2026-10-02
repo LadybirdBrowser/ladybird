@@ -26,6 +26,7 @@ use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::{FUNCTION_OBJECT_METHODS, FunctionObject};
+use crate::runtime::function_prototype::STACK_ARGUMENT_CAPACITY;
 use crate::runtime::object::{
     CacheableGetPropertyMetadata, CacheableSetPropertyMetadata, MayInterfereWithIndexedPropertyAccess, ObjectMethods,
     PropertyLookupPhase, StackFrameInfo,
@@ -1140,6 +1141,19 @@ impl ProxyObject {
         arguments
     }
 
+    fn with_arguments<R>(vm: &Vm, callee_context: &ExecutionContext, callback: impl FnOnce(&[Value]) -> R) -> R {
+        let passed_argument_count =
+            (callee_context.passed_argument_count.get() as usize).min(callee_context.arguments().len());
+        if passed_argument_count <= STACK_ARGUMENT_CAPACITY {
+            let mut arguments = [Value::UNDEFINED; STACK_ARGUMENT_CAPACITY];
+            for (argument, passed_argument) in arguments.iter_mut().zip(callee_context.arguments()) {
+                *argument = passed_argument.get();
+            }
+            return callback(&arguments[..passed_argument_count]);
+        }
+        Self::arguments_of(vm, callee_context).with_values(callback)
+    }
+
     // 10.5.12 [[Call]] ( thisArgument, argumentsList ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-call-thisargument-argumentslist
     fn internal_call(
         object: &Object,
@@ -1167,16 +1181,17 @@ impl ProxyObject {
         // 5. Let trap be ? GetMethod(handler, "apply").
         let trap = Value::from_object(handler).get_method(vm, &vm.names.apply)?;
 
-        let arguments = Self::arguments_of(vm, callee_context);
-
         // 6. If trap is undefined, then
         let Some(trap) = trap else {
             // a. Return ? Call(target, thisArgument, argumentsList).
-            return call(vm, Value::from_object(target), this_argument, &arguments.to_vec());
+            return Self::with_arguments(vm, callee_context, |arguments| {
+                call(vm, Value::from_object(target), this_argument, arguments)
+            });
         };
 
         // 7. Let argArray be CreateArrayFromList(argumentsList).
-        let arguments_array = Array::create_from_list(vm, realm, &arguments);
+        let arguments_array =
+            Self::with_arguments(vm, callee_context, |arguments| Array::create_from(vm, realm, arguments));
 
         // 8. Return ? Call(trap, handler, « target, thisArgument, argArray »).
         call(
@@ -1239,8 +1254,8 @@ impl ProxyObject {
         };
 
         // 8. Let argArray be CreateArrayFromList(argumentsList).
-        let arguments = Self::arguments_of(vm, callee_context);
-        let arguments_array = Array::create_from_list(vm, realm, &arguments);
+        let arguments_array =
+            Self::with_arguments(vm, callee_context, |arguments| Array::create_from(vm, realm, arguments));
 
         // 9. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
         let new_object = call(

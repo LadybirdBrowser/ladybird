@@ -32,7 +32,7 @@ struct IndirectBinding {
 }
 
 #[derive(Default)]
-struct IndirectBindings(HashMap<Utf16FlyString, IndirectBinding>);
+struct IndirectBindings(HashMap<Utf16FlyString, IndirectBinding, foldhash::fast::RandomState>);
 
 // SAFETY: Visits the module of every indirect binding.
 unsafe impl Trace for IndirectBindings {

@@ -672,7 +672,9 @@ impl Iterator for CodeUnits<'_> {
 impl ExactSizeIterator for CodeUnits<'_> {}
 
 fn ascii_as_str(units: &[u8]) -> &str {
-    core::str::from_utf8(units).expect("ASCII storage holds ASCII")
+    assert!(units.is_ascii(), "ASCII storage holds ASCII");
+    // SAFETY: ASCII is UTF-8, and checking for it is cheaper than validating UTF-8 in general.
+    unsafe { core::str::from_utf8_unchecked(units) }
 }
 
 /// Mirrors AK::Utf16String::has_short_ascii_storage.

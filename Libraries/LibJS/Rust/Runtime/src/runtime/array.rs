@@ -149,11 +149,7 @@ impl Array {
     /// CreateArrayFromList for a list that is kept alive while the array is allocated.
     pub fn create_from_list(vm: &Vm, realm: Gc<Realm>, elements: &MarkedVec<'_, Value>) -> Gc<Array> {
         let array = Self::create(vm, realm, 0, None).must();
-        let size = u32::try_from(elements.len()).expect("an array-like size fits in u32");
-        array.set_indexed_property_elements_to_undefined(size);
-        for index in 0..size {
-            array.set_packed_indexed_element(index, elements.get(index as usize).expect("the index is in bounds"));
-        }
+        elements.with_values(|elements| array.set_indexed_property_elements(elements));
         array
     }
 

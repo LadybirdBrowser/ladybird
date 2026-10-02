@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
@@ -221,6 +223,36 @@ fn increment_last_index(
 
 /// get_or_compile_regex(): the compiled regex of a RegExp object, which is compiled the first time it is asked for.
 /// Returns None for a pattern the regex engine cannot compile.
+// FIXME: Add an eviction policy to bound the size of this cache.
+struct RegexCacheKey {
+    pattern: Utf16String,
+    flags: RegExpFlags,
+}
+
+impl PartialEq for RegexCacheKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.flags == other.flags && self.pattern == other.pattern
+    }
+}
+
+impl Eq for RegexCacheKey {}
+
+impl Hash for RegexCacheKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for code_unit in Utf16View::of_string(&self.pattern).code_units() {
+            state.write_u16(code_unit);
+        }
+        state.write_u8(self.flags.bits());
+    }
+}
+
+thread_local! {
+    /// The compiled regexes of every pattern and flags, which C++ keeps in a static map. Compiled regexes hold no
+    /// cells, and each thread runs its own VM, so each thread keeps its own.
+    static REGEX_CACHE: RefCell<HashMap<RegexCacheKey, Rc<EcmaScriptRegex>, foldhash::fast::RandomState>> =
+        RefCell::new(HashMap::default());
+}
+
 fn get_or_compile_regex(regexp_object: &RegExpObject) -> Option<Rc<EcmaScriptRegex>> {
     // Fast path: check the inline cache on the RegExpObject.
     if let Some(cached) = regexp_object.cached_regex() {
@@ -230,18 +262,30 @@ fn get_or_compile_regex(regexp_object: &RegExpObject) -> Option<Rc<EcmaScriptReg
     let pattern = regexp_object.pattern();
     let flag_bits = regexp_object.flag_bits();
 
+    let cache_key = RegexCacheKey {
+        pattern,
+        flags: flag_bits,
+    };
+
+    if let Some(cached) = REGEX_CACHE.with_borrow(|cache| cache.get(&cache_key).cloned()) {
+        regexp_object.set_cached_regex(Some(Rc::clone(&cached)));
+        return Some(cached);
+    }
+    let pattern = &cache_key.pattern;
+
     let unicode = flag_bits.has(RegExpFlags::UNICODE);
     let unicode_sets = flag_bits.has(RegExpFlags::UNICODE_SETS);
 
     // Normalize non-ASCII code units to ASCII escapes before compiling the pattern.
     let mut pattern_code_units = Vec::new();
-    Utf16View::of_string(&pattern).append_to(&mut pattern_code_units);
+    Utf16View::of_string(pattern).append_to(&mut pattern_code_units);
     let normalized_pattern = parse_regex_pattern(&pattern_code_units, unicode, unicode_sets).ok()?;
 
     let compiled =
         EcmaScriptRegex::compile(Utf16View::Utf16(&normalized_pattern), compile_flags_for(flag_bits)).ok()?;
 
     let compiled = Rc::new(compiled);
+    REGEX_CACHE.with_borrow_mut(|cache| cache.insert(cache_key, Rc::clone(&compiled)));
     regexp_object.set_cached_regex(Some(Rc::clone(&compiled)));
     Some(compiled)
 }

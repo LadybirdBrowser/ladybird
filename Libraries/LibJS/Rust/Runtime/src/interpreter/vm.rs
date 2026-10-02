@@ -6,6 +6,7 @@
 
 use core::cell::{Cell, OnceCell, RefCell};
 use core::ffi::c_void;
+use core::ops::ControlFlow;
 use core::ptr::NonNull;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -88,6 +89,13 @@ pub enum CompilationType {
     Function,
     Timer,
 }
+
+/// The intrinsic accessors of each object that still has any, by the object's address.
+pub type IntrinsicAccessorMap = HashMap<
+    usize,
+    HashMap<Utf16FlyString, IntrinsicAccessor, foldhash::fast::RandomState>,
+    foldhash::fast::RandomState,
+>;
 
 /// HostEnsureCanAddPrivateElement, which hosts that are web browsers may override.
 pub type HostEnsureCanAddPrivateElement = fn(&Vm, &Object) -> ThrowCompletionOr<()>;
@@ -450,7 +458,7 @@ pub struct Vm {
     /// The properties defined with Object::define_intrinsic_accessor that have not been read yet, by the address of
     /// their object, the C++ static intrinsic_accessor_map(). The objects are weak: the sweep callback forgets the
     /// ones that die.
-    intrinsic_accessors: RefCell<HashMap<usize, HashMap<Utf16FlyString, IntrinsicAccessor>>>,
+    intrinsic_accessors: RefCell<IntrinsicAccessorMap>,
     /// The realm TypeErrors are created in while a TypeErrorRealmScope is active, at the execution context stack
     /// depth it was created at.
     type_error_realm_override: Cell<Option<Gc<Realm>>>,
@@ -533,7 +541,7 @@ impl Vm {
             module_execution_depth: Cell::new(0),
             module_async_evaluation_count: Cell::new(0),
             next_private_environment_id: Cell::new(1),
-            intrinsic_accessors: RefCell::new(HashMap::new()),
+            intrinsic_accessors: RefCell::new(HashMap::default()),
             type_error_realm_override: Cell::new(None),
             type_error_realm_override_depth: Cell::new(0),
         });
@@ -647,7 +655,11 @@ impl Vm {
 
     /// Calls `callback` on every live execution context, from the running one down, following both the frames the
     /// interpreter links through caller_frame and the contexts pushed onto the execution context stack.
-    pub fn for_each_execution_context_top_to_bottom(&self, mut callback: impl FnMut(&ExecutionContext)) {
+    /// Calls `callback` with each execution context from the running one down, until it breaks.
+    pub fn for_each_execution_context_top_to_bottom(
+        &self,
+        mut callback: impl FnMut(&ExecutionContext) -> ControlFlow<()>,
+    ) {
         let stack = self.execution_context_stack.borrow();
         let previous_running = self.previous_running_execution_contexts.borrow();
         let mut stack_index = stack.len();
@@ -655,14 +667,18 @@ impl Vm {
         if context.is_null() {
             for context in stack.iter().rev() {
                 // SAFETY: Contexts on the stack are live.
-                callback(unsafe { context.as_ref() });
+                if callback(unsafe { context.as_ref() }).is_break() {
+                    return;
+                }
             }
             return;
         }
         while !context.is_null() {
             // SAFETY: Every context reachable from the running one is live.
             let context_ref = unsafe { &*context };
-            callback(context_ref);
+            if callback(context_ref).is_break() {
+                return;
+            }
             if stack_index > 0 && core::ptr::eq(context, stack[stack_index - 1].as_ptr()) {
                 context = previous_running[stack_index - 1];
                 stack_index -= 1;
@@ -679,11 +695,10 @@ impl Vm {
         self.for_each_execution_context_top_to_bottom(|execution_context| {
             if !found_running_execution_context {
                 found_running_execution_context = true;
-                return;
+                return ControlFlow::Continue(());
             }
-            if previous_execution_context.is_none() {
-                previous_execution_context = Some(NonNull::from(execution_context));
-            }
+            previous_execution_context = Some(NonNull::from(execution_context));
+            ControlFlow::Break(())
         });
         previous_execution_context
     }
@@ -693,7 +708,10 @@ impl Vm {
     }
 
     fn gather_roots(&self, visitor: &mut Visitor) {
-        self.for_each_execution_context_top_to_bottom(|context| context.trace(visitor));
+        self.for_each_execution_context_top_to_bottom(|context| {
+            context.trace(visitor);
+            ControlFlow::Continue(())
+        });
         self.roots.trace(visitor);
         self.empty_string.trace(visitor);
         self.single_ascii_character_strings.trace(visitor);
@@ -766,7 +784,7 @@ impl Vm {
         });
     }
 
-    pub fn intrinsic_accessors(&self) -> &RefCell<HashMap<usize, HashMap<Utf16FlyString, IntrinsicAccessor>>> {
+    pub fn intrinsic_accessors(&self) -> &RefCell<IntrinsicAccessorMap> {
         &self.intrinsic_accessors
     }
 
@@ -807,6 +825,7 @@ impl Vm {
                 execution_context: NonNull::from(context),
                 source_range,
             });
+            ControlFlow::Continue(())
         });
         stack_trace
     }
@@ -1214,9 +1233,11 @@ impl Vm {
         // 2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
         let mut script_or_module = ScriptOrModule::Empty;
         self.for_each_execution_context_top_to_bottom(|execution_context| {
+            script_or_module = execution_context.script_or_module.get();
             if matches!(script_or_module, ScriptOrModule::Empty) {
-                script_or_module = execution_context.script_or_module.get();
+                return ControlFlow::Continue(());
             }
+            ControlFlow::Break(())
         });
 
         // 3. If no such execution context exists, return null. Otherwise, return ec's ScriptOrModule.

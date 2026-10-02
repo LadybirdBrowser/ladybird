@@ -131,7 +131,7 @@ pub struct DeclarativeEnvironmentRareDataStorage {
     #[gc(untraced)]
     deleted_bindings: GcRefCell<Bitmap>,
     #[gc(untraced)]
-    bindings_assoc: GcRefCell<HashMap<Utf16FlyString, usize>>,
+    bindings_assoc: GcRefCell<HashMap<Utf16FlyString, usize, foldhash::fast::RandomState>>,
     dispose_capability: GcRefCell<DisposeCapability>,
     environment_shape_cache: Cell<Option<EnvironmentShapeCache>>,
     expected_binding_count: Cell<usize>,
@@ -470,7 +470,7 @@ impl DeclarativeEnvironment {
         if let Some(rare_data) = self.rare_data() {
             rare_data.storage.binding_names.replace(Vec::new());
             rare_data.binding_flags.clear();
-            rare_data.storage.bindings_assoc.replace(HashMap::new());
+            rare_data.storage.bindings_assoc.replace(HashMap::default());
             rare_data.storage.environment_shape_cache.set(None);
             rare_data.storage.expected_binding_count.set(0);
             self.drop_rare_data_if_empty();
