@@ -297,10 +297,6 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
     if (browser_options.headless_mode.has_value())
         arguments.append("--headless"sv);
 
-    if (web_content_options.cache_path.has_value()) {
-        arguments.append("--cache-path"sv);
-        arguments.append(web_content_options.cache_path.value());
-    }
     if (web_content_options.is_test_mode == WebView::IsTestMode::Yes)
         arguments.append("--test-mode"sv);
     if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
@@ -437,11 +433,6 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::HTML::Age
     auto const& web_content_options = WebView::Application::web_content_options();
 
     Vector<ByteString> arguments;
-
-    if (web_content_options.cache_path.has_value()) {
-        arguments.append("--cache-path"sv);
-        arguments.append(web_content_options.cache_path.value());
-    }
 
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
         arguments.append("--disable-sandbox"sv);
