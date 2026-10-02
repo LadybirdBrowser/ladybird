@@ -864,6 +864,30 @@ TEST_CASE(sandboxed_process_uses_iosurfaces_only_when_granted)
     EXPECT_EQ(run_sandboxed({ .paths = paths, .system_services = Sandbox::SystemService::IOSurface }, [] { return can_create_iosurface(); }), Outcome::Allowed);
 }
 
+TEST_CASE(sandboxed_process_without_allowed_executables_cannot_use_spawn_syscall)
+{
+    // NB: Invalid arguments cannot spawn a process. Returning at all means the syscall was allowed, even if a
+    //     higher-level sandbox check would refuse to execute a program.
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    EXPECT_EQ(run_sandboxed([] {
+        (void)syscall(SYS_posix_spawn, nullptr, nullptr, nullptr, nullptr, nullptr);
+        return true;
+    }),
+        Outcome::Denied);
+#    pragma clang diagnostic pop
+}
+
+TEST_CASE(sandboxed_process_without_allowed_executables_cannot_use_wait_syscall)
+{
+    // NB: This child has no children to reap. Returning at all means the syscall was allowed.
+    EXPECT_EQ(run_sandboxed([] {
+        (void)wait4(-1, nullptr, WNOHANG, nullptr);
+        return true;
+    }),
+        Outcome::Denied);
+}
+
 TEST_CASE(sandboxed_process_spawns_only_allowed_executables_and_cannot_fork)
 {
     Fixture fixture;

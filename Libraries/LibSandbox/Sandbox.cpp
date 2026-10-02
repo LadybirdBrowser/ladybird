@@ -249,6 +249,7 @@ static ErrorOr<void> append_allowed_executables(StringBuilder& builder, Readonly
     if (executable_paths.is_empty())
         return {};
 
+    builder.append("(allow syscall-unix (syscall-number SYS_posix_spawn SYS_wait4))\n"sv);
     builder.append("(allow process-fork)\n(allow process-exec"sv);
     for (auto const& path : executable_paths) {
         builder.append(" (literal "sv);
@@ -539,7 +540,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_persona
         SYS_pipe
         SYS_poll
-        SYS_posix_spawn
         SYS_proc_info
         SYS_readlink
         SYS_removexattr
@@ -559,7 +559,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_umask
         SYS_unlink
         SYS_unlinkat
-        SYS_wait4
         SYS_work_interval_ctl
         SYS_workq_kernreturn
         SYS_workq_open))
