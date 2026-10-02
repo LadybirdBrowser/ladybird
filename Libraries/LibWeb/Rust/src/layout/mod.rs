@@ -85,6 +85,7 @@ pub(crate) use formatting_context::{
     ChildLayoutOutcome, DerivedBaselines, FfiLayoutHostCallbacks, FormattingContextRun, LayoutMode, Node, SizingAxis,
     SizingProperty,
 };
+pub(crate) use formatting_context::{LayoutStageJob, LayoutStageOutput};
 pub(crate) use fragment_tree::FragmentLink;
 pub(crate) use geometry::{
     AvailableSize, AvailableSpace, ContainingBlockConstraints, LayoutInput, ParticipationInParentFormattingContext,

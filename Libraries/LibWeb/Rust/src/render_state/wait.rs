@@ -138,6 +138,19 @@ pub(crate) fn wait_for_render_state<R>(
     answered.try_recv().unwrap_or_else(|_| render_state_died())
 }
 
+/// Sends the render state of the document `main_thread` was minted for the message `message` makes of where it
+/// answers, and waits for the answer, spending `_wait`. An entry that runs a step of the host sends its jobs this way:
+/// it holds the host only through its token, so it borrows nothing of what a wait could change.
+pub(crate) fn wait_from_entry<R>(
+    _wait: impl RenderWait,
+    _main_thread: &crate::stage::MainThread,
+    message: impl FnOnce(ReplyTo<R>) -> RenderMessage,
+) -> R {
+    let (reply, answered) = ReplyTo::channel();
+    send(message(reply));
+    answered.try_recv().unwrap_or_else(|_| render_state_died())
+}
+
 /// Ends the process, on a host whose wait for a render state found no answer: the message panicked, and may have left
 /// the document's render state half changed, so nothing can go on over it.
 #[cold]

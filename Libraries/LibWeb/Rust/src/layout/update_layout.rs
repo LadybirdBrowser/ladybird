@@ -46,6 +46,30 @@ pub(crate) fn run_style_job(
     )
 }
 
+/// Runs `job`, a layout stage of the document whose arena `arena_handle` names, on the document's render state, and
+/// answers the fragments it computed. A unit test's arena has no render state, and its stage runs in place.
+///
+/// # Safety
+///
+/// `arena_handle` must be a live handle on the document thread, and what the job's inputs name must stay live and
+/// unchanged until it is over.
+pub(crate) unsafe fn run_layout_stage_job(
+    main_thread: &MainThread,
+    arena_handle: *mut c_void,
+    job: super::formatting_context::LayoutStageJob,
+) -> super::formatting_context::LayoutStageOutput {
+    let Some(host) = main_thread.host() else {
+        // SAFETY: Guaranteed by the caller.
+        return job.run(unsafe { &*arena_handle.cast::<crate::layout::ArenaHandle>() });
+    };
+    let document = host.document();
+    crate::render_state::wait_from_entry(
+        crate::render_state::LockstepProof::for_reason(&LAYOUT_UPDATE),
+        main_thread,
+        |reply| crate::render_state::RenderMessage::Layout { document, job, reply },
+    )
+}
+
 /// The document-side steps of a layout update. Each callback receives the registered
 /// `context`, the owning document, first and answers synchronously; any of them may run the
 /// layout update of another document, so the loop holds no arena borrow across a call. The
