@@ -1250,6 +1250,9 @@ impl RetainedState {
         match_workspace: Option<&mut MatchScratch>,
         mut retry: BatchMatchRetry<'_>,
     ) -> Result<(), Incomplete> {
+        fn prefix_states_bytes(states: &PrefixStates) -> u64 {
+            states.capacity_bytes() + states.relation_capacity_bytes()
+        }
         let (scope_program, _) = self.prepared_scope_program(scope);
         let dispatch = &self.scope_programs[scope_program].as_ref().unwrap().dispatch;
         if let Some(completed) = retry.completed.as_deref_mut() {
@@ -1259,16 +1262,17 @@ impl RetainedState {
         let mut local_prefix_context = None;
         let mut shared_prefix_caches = shared_prefix_caches.map(|caches| caches.borrow_mut());
         let mut shared_prefix_states = None;
+        let mut shared_prefix_states_bytes = 0;
         let prefix_states = if self.tree.tree_scope(node) != scope || dispatch.prefixes().is_empty() {
             None
         } else if let Some(caches) = shared_prefix_caches.as_deref_mut() {
-            shared_prefix_states = Some(
-                caches
-                    .states
-                    .lookup_mut(scope_program)
-                    .sparse()
-                    .expect("prefix rows are prepared before matching"),
-            );
+            let states = caches
+                .states
+                .lookup_mut(scope_program)
+                .sparse()
+                .expect("prefix rows are prepared before matching");
+            shared_prefix_states_bytes = prefix_states_bytes(states);
+            shared_prefix_states = Some(states);
             shared_prefix_states.as_deref_mut().map(|states| {
                 prefix_contexts.rebind(scope_program, &mut *states, facts);
                 (states, prefix_contexts.get_mut(scope_program))
@@ -1301,8 +1305,10 @@ impl RetainedState {
                 cascade_only: retry.cascade_only,
             },
         );
-        let _ = shared_prefix_states;
-        if let Some(caches) = shared_prefix_caches.as_deref_mut() {
+        let shared_prefix_states_resized = shared_prefix_states
+            .as_deref()
+            .is_some_and(|states| prefix_states_bytes(states) != shared_prefix_states_bytes);
+        if shared_prefix_states_resized && let Some(caches) = shared_prefix_caches.as_deref_mut() {
             caches.states.settle_memory(&mut self.memory);
         }
         prefix_contexts.settle_memory(&mut self.memory);
