@@ -1,0 +1,3 @@
+never shown: --own backdrop, color rgb(0, 128, 0), demands left to the host 0
+modal: --own backdrop, color rgb(0, 128, 0), demands left to the host 0
+closed: --own backdrop, color rgb(0, 128, 0), demands left to the host 0

@@ -433,16 +433,6 @@ impl StyleEngineState {
         counters: &mut Counters,
     ) -> Drive<RecordDemandAnswer> {
         self.publish_demanded_answer(node, answer, read_only, counters);
-        // A style update removes the backdrop of an element outside the top layer, which a
-        // record installed for a read would outlive.
-        if kind == pseudo_kind::BACKDROP
-            && !read_only
-            && self.retained.computed_group_sets.adjustment_facts(node)
-                & bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER
-                == 0
-        {
-            return Err(Unanswered::Refused);
-        }
         let element = self
             .retained
             .computed_group_sets
