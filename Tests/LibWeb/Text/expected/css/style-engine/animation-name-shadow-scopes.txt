@@ -1,4 +1,4 @@
 document element: C++ recomputations 0, width 100px, animations 1
 shadow tree element: C++ recomputations 0, width 7px, animations 1
-:host rule: C++ recomputations 1, width 9px, animations 1
+:host rule: C++ recomputations 0, width 9px, animations 1
 adopted sheet element: C++ recomputations 0, width 13px, animations 1

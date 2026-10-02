@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        // The host's own shadow tree weighs its :host rules in the context their priority names,
+        // for the host and its pseudo-elements alike.
+        const host = document.getElementById("host");
+        host.attachShadow({ mode: "open" }).innerHTML = `
+            <style>
+                :host { color: rgb(0, 0, 255); }
+                :host::before { content: "before"; }
+                :host(.on)::before { color: rgb(0, 128, 0); }
+            </style>`;
+        internals.updateStyle();
+        const start = internals.styleEngineCounters();
+        host.className = "on";
+        internals.updateStyle();
+        const end = internals.styleEngineCounters();
+        println(`host: ${getComputedStyle(host).color}`);
+        println(`before: ${getComputedStyle(host, "::before").content} ${getComputedStyle(host, "::before").color}`);
+        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
+        println(`incomplete winner bails: ${end.engineComputedRecordBailIncompleteWinners - start.engineComputedRecordBailIncompleteWinners}`);
+    });
+</script>
