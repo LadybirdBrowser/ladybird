@@ -85,6 +85,9 @@ WEB_API Layout::RustFFI::FfiFocusedTextControlSelection resolve_focused_text_con
 WEB_API Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(DOM::Document const&, Vector<u8>& path_bytes);
 WEB_API void push_selection_pseudo_style(DOM::Element const&);
 
+// The node a layout row stands for, as the arena names it.
+WEB_API DOM::NodeIdentity node_identity_of(Layout::RustFFI::FfiNodeIdentity);
+
 // The identity a mark on this box goes into the document's invalidation journal under: its node's, if the box is the one
 // the layout node arena binds to that node. Any other box (anonymous, generated for a pseudo-element, or one of several
 // built for one node) has nothing an entry could name, so a mark on it is applied at once.

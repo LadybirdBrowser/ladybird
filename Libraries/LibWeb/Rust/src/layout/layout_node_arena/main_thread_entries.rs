@@ -56,12 +56,10 @@ pub unsafe extern "C" fn layout_arena_detach_and_free_subtree(arena: *mut c_void
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_pre_order_label_violation_count(arena: *mut c_void, root: NodeSlotId) -> u64 {
     assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
     // serializes all access on the document thread.
     let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
-    if arena.shell_if_live(&main_thread, root).is_null() {
+    if !arena.slot_is_live(root) {
         return 0;
     }
     let mut violation_count = 0u64;
@@ -150,11 +148,9 @@ pub unsafe extern "C" fn layout_arena_reinherit_anonymous_descendants(arena: *mu
 pub unsafe extern "C" fn layout_arena_for_each_pending_rebuilt_subtree_root(
     arena: *mut c_void,
     context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    visit: unsafe extern "C" fn(*mut c_void, crate::painting::host::FfiNodeIdentity),
 ) {
     assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // SAFETY: As above; the roots are copied out so no borrow spans the callback.
     let roots = unsafe { &*arena.cast::<LayoutNodeArena>() }
         .pending_rebuilt_subtree_roots
@@ -166,8 +162,13 @@ pub unsafe extern "C" fn layout_arena_for_each_pending_rebuilt_subtree_root(
         if !arena.node_is_dom_backed(root) {
             continue;
         }
-        // SAFETY: The callback receives a layout node the arena keeps alive.
-        unsafe { visit(context, arena.node_shell(&main_thread, root)) };
+        // SAFETY: The callback copies the node it is handed synchronously.
+        unsafe {
+            visit(
+                context,
+                crate::painting::hit_test::resolve::row_node_identity(arena, root, false),
+            );
+        };
     }
 }
 

@@ -21,13 +21,13 @@ pub struct FfiHitTestQueryCallbacks {
     pub viewport_wheel_overflow_x: u8,
     pub viewport_wheel_overflow_y: u8,
     /// Private: reached only through the method below, which takes the main thread token.
-    shell_in_scope: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+    node_in_scope: unsafe extern "C" fn(*mut c_void, FfiNodeIdentity) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
-    pub(crate) fn shell_in_scope(&self, _: &crate::stage::MainThread, shell: *mut c_void) -> bool {
+    pub(crate) fn node_in_scope(&self, _: &crate::stage::MainThread, node: FfiNodeIdentity) -> bool {
         // SAFETY: The C++ host answers synchronously.
-        unsafe { (self.shell_in_scope)(self.context, shell) }
+        unsafe { (self.node_in_scope)(self.context, node) }
     }
     pub(crate) fn scroll_offsets(&self) -> &[libgfx_rust::FloatPoint] {
         if self.scroll_offsets.is_null() {
@@ -151,12 +151,15 @@ pub struct FfiCaretLineForPosition {
     pub line_index: usize,
 }
 
+pub use crate::layout::node_data::FfiNodeIdentity;
+
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiResolvedHit {
-    pub dispatch_shell: *mut c_void,
-    pub allow_pseudo_fallback: bool,
-    pub fallback_dispatch_shell: *mut c_void,
+    /// The node the hit dispatches its events to, and the node it falls back to when there is
+    /// none.
+    pub dispatch: FfiNodeIdentity,
+    pub fallback_dispatch: FfiNodeIdentity,
     pub has_index_in_node: bool,
     pub index_in_node: usize,
     pub is_text_fragment: bool,
@@ -176,7 +179,7 @@ pub enum FfiCaretBoundaryKind {
 #[repr(C)]
 pub struct FfiResolvedCaret {
     pub has_position: bool,
-    pub node_shell: *mut c_void,
+    pub node: FfiNodeIdentity,
     pub boundary: FfiCaretBoundaryKind,
     pub offset: usize,
     pub affinity_is_upstream: bool,
@@ -191,7 +194,6 @@ pub struct FfiHitTestItemExport {
     pub paintable: NodeSlotId,
     pub hit_node: NodeSlotId,
     pub chrome_widget_kind: u8,
-    pub caret_node_shell: *mut c_void,
     pub caret_rect: used_values::FfiCssPixelRect,
     pub context: ContextRef,
 }

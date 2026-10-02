@@ -40,7 +40,7 @@ pub struct FfiGeometryHostCallbacks {
     context: *mut std::ffi::c_void,
     set_scroll_offset: unsafe extern "C" fn(
         *mut std::ffi::c_void,
-        *mut std::ffi::c_void,
+        crate::layout::node_data::NodeSlotId,
         crate::layout::used_values::FfiCssPixelPoint,
     ),
 }
@@ -50,15 +50,15 @@ impl FfiGeometryHostCallbacks {
     ///
     /// # Safety
     ///
-    /// `layout_node_shell` must be live. The host re-enters geometry queries and writes the store
-    /// the offset lives in, so no mutable arena or cache borrow may be held across this call.
+    /// `slot` must name a live row. The host re-enters geometry queries and writes the store the
+    /// offset lives in, so no mutable arena or cache borrow may be held across this call.
     pub(crate) unsafe fn set_scroll_offset(
         &self,
         _: &crate::stage::MainThread,
-        layout_node_shell: *mut std::ffi::c_void,
+        slot: crate::layout::node_data::NodeSlotId,
         offset: crate::layout::used_values::FfiCssPixelPoint,
     ) {
         // SAFETY: Guaranteed by the caller.
-        unsafe { (self.set_scroll_offset)(self.context, layout_node_shell, offset) };
+        unsafe { (self.set_scroll_offset)(self.context, slot, offset) };
     }
 }

@@ -41,8 +41,8 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 #[repr(C)]
 pub struct FfiPaintingDumpCallbacks {
     context: *mut c_void,
-    debug_description:
-        unsafe extern "C" fn(context: *mut c_void, layout_node_shell: *mut c_void, description_sink: *mut c_void),
+    /// Describes the row in the slot, as its layout node describes itself.
+    debug_description: unsafe extern "C" fn(context: *mut c_void, slot: NodeSlotId, description_sink: *mut c_void),
     command_bytes:
         unsafe extern "C" fn(context: *mut c_void, display_list: *const c_void, byte_count: *mut usize) -> *const u8,
     command_runs: unsafe extern "C" fn(
@@ -55,11 +55,11 @@ pub struct FfiPaintingDumpCallbacks {
 }
 
 impl FfiPaintingDumpCallbacks {
-    fn debug_description(&self, _: &MainThread, layout_node_shell: *mut c_void) -> String {
+    fn debug_description(&self, _: &MainThread, slot: NodeSlotId) -> String {
         let mut description = Vec::new();
         // SAFETY: The C++ host fills the description sink synchronously through the exported push
         // function.
-        unsafe { (self.debug_description)(self.context, layout_node_shell, (&raw mut description).cast()) };
+        unsafe { (self.debug_description)(self.context, slot, (&raw mut description).cast()) };
         String::from_utf8_lossy(&description).into_owned()
     }
 
@@ -173,8 +173,8 @@ pub unsafe extern "C" fn painting_dump(
     let command_runs = unsafe { libcompositing_rust::ffi::ffi_slice(command_runs, command_run_count) };
     let owners = VisualContextNodeOwners::collect(arena, viewport);
     let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |kind, index| {
-        let shell = arena.shell_if_live(&main_thread, owners.owner(kind, index)?);
-        (!shell.is_null()).then(|| callbacks.debug_description(&main_thread, shell))
+        let owner = owners.owner(kind, index).filter(|&owner| arena.slot_is_live(owner))?;
+        Some(callbacks.debug_description(&main_thread, owner))
     });
     output.push_str("\nDisplayList:\n");
     dump_commands(&main_thread, &mut output, &callbacks, display_list, 0);
