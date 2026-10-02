@@ -2465,48 +2465,55 @@ impl<'pass> GridFormattingContext<'pass> {
             .set(live.has_definite_block_size.get());
         let arena = self.callbacks.arena();
         let containing_block = self.callbacks.in_flow_containing_block(subgrid.box_);
-        RunRecords::with_root(arena, subgrid.box_, containing_block, &scratch_root, |records| {
-            let scratch_run = FormattingContextRun {
-                purpose: formatting_context::LayoutPurpose::Measurement,
-                records,
-                box_: subgrid.box_,
-                layout_mode: LayoutMode::IntrinsicSizing,
-                callbacks: self.callbacks,
-                should_collect_devtools_layout_data: false,
-                treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-                fragments: None,
-                previous_line_data: None,
-            };
-            let mut context = GridFormattingContext::new(&scratch_run, Some(self));
-            context.reset_for_run(input);
-            let grid_style = context.grid_style(context.grid_container);
-            context.cache_subgrid_axes(grid_style);
-            let (columns, rows) = context.initialize_lines(grid_style);
-            context.place_items();
-            context.initialize_tracks(grid_style, &columns, &rows);
-            if !axis.is_column() {
-                context.resolve_item_metrics(Axis::Column);
-                context.run_track_sizing(Axis::Column);
-                context.resolve_item_metrics(Axis::Column);
-                context.resolve_item_sizes(Axis::Column);
-            }
-            context.resolve_item_metrics(axis);
+        RunRecords::with_root(
+            self.callbacks.scratch(),
+            arena,
+            subgrid.box_,
+            containing_block,
+            &scratch_root,
+            |records| {
+                let scratch_run = FormattingContextRun {
+                    purpose: formatting_context::LayoutPurpose::Measurement,
+                    records,
+                    box_: subgrid.box_,
+                    layout_mode: LayoutMode::IntrinsicSizing,
+                    callbacks: self.callbacks,
+                    should_collect_devtools_layout_data: false,
+                    treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+                    fragments: None,
+                    previous_line_data: None,
+                };
+                let mut context = GridFormattingContext::new(&scratch_run, Some(self));
+                context.reset_for_run(input);
+                let grid_style = context.grid_style(context.grid_container);
+                context.cache_subgrid_axes(grid_style);
+                let (columns, rows) = context.initialize_lines(grid_style);
+                context.place_items();
+                context.initialize_tracks(grid_style, &columns, &rows);
+                if !axis.is_column() {
+                    context.resolve_item_metrics(Axis::Column);
+                    context.run_track_sizing(Axis::Column);
+                    context.resolve_item_metrics(Axis::Column);
+                    context.resolve_item_sizes(Axis::Column);
+                }
+                context.resolve_item_metrics(axis);
 
-            let mut items = std::mem::take(&mut context.items);
-            for item in &mut items {
-                context.apply_subgrid_edge_extra_margins(item, axis);
-            }
-            context.items = items;
+                let mut items = std::mem::take(&mut context.items);
+                for item in &mut items {
+                    context.apply_subgrid_edge_extra_margins(item, axis);
+                }
+                context.items = items;
 
-            let mut contributions = context.item_contributions_to_track_sizing(axis);
-            let interleaved_index_offset_in_parent =
-                Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
-            for contribution in &mut contributions {
-                contribution.spanned_tracks.start += interleaved_index_offset_in_parent;
-                contribution.spanned_tracks.end += interleaved_index_offset_in_parent;
-            }
-            contributions
-        })
+                let mut contributions = context.item_contributions_to_track_sizing(axis);
+                let interleaved_index_offset_in_parent =
+                    Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
+                for contribution in &mut contributions {
+                    contribution.spanned_tracks.start += interleaved_index_offset_in_parent;
+                    contribution.spanned_tracks.end += interleaved_index_offset_in_parent;
+                }
+                contributions
+            },
+        )
     }
 
     fn item_contributions_to_track_sizing(&self, axis: Axis) -> Vec<ItemContribution> {

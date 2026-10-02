@@ -41,6 +41,7 @@ impl ContainerLengthBasesQuery {
 #[derive(Clone, Copy)]
 pub(crate) struct LayoutPass<'arena> {
     arena: &'arena LayoutNodeArena,
+    scratch: &'arena super::run_records::LayoutScratch,
     pub(crate) container_length_bases: ContainerLengthBasesQuery,
     pub(crate) initial_containing_block_inline_size: CssPixels,
     pub(crate) initial_containing_block_block_size: CssPixels,
@@ -50,6 +51,7 @@ pub(crate) struct LayoutPass<'arena> {
 impl<'arena> LayoutPass<'arena> {
     pub(crate) fn new(
         arena: &'arena LayoutNodeArena,
+        scratch: &'arena super::run_records::LayoutScratch,
         container_length_bases: ContainerLengthBasesQuery,
         initial_containing_block_inline_size: CssPixels,
         initial_containing_block_block_size: CssPixels,
@@ -57,6 +59,7 @@ impl<'arena> LayoutPass<'arena> {
     ) -> Self {
         Self {
             arena,
+            scratch,
             container_length_bases,
             initial_containing_block_inline_size,
             initial_containing_block_block_size,
@@ -66,6 +69,11 @@ impl<'arena> LayoutPass<'arena> {
 
     pub(crate) fn arena(&self) -> &'arena LayoutNodeArena {
         self.arena
+    }
+
+    /// The layout stage's own scratch, which the pass's runs keep their records in.
+    pub(crate) fn scratch(&self) -> &'arena super::run_records::LayoutScratch {
+        self.scratch
     }
 
     pub(crate) fn node_data(&self, node: Node) -> &'arena NodeData {
